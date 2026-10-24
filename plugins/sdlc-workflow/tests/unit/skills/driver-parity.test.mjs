@@ -1,11 +1,8 @@
-// WF-SYSTEM-REVIEW-2026-10-21 E1 — the wave driver (campaign-wave.js) and the yolo driver
-// (yolo.js) share their pure helpers through one source, skills/wf/workflows/_shared.js.
-// A Workflow script cannot import, so scripts/build-drivers.mjs (run by npm run build)
-// writes that file into the BEGIN SHARED block of each driver. This test requires each
-// block to be current, and each shared helper to be defined once, inside the block.
-//
-// The helpers that the wave driver changes on purpose (stopCheckClause, stopKindOf, runStage,
-// driveVerify, reviewUnit and the others) stay in each driver.
+// WF-SYSTEM-REVIEW-2026-10-21 E1 — the yolo driver keeps its pure helpers in one source,
+// skills/wf/workflows/_shared.js. A Workflow script cannot import, so scripts/build-drivers.mjs
+// (run by npm run build) writes that file into the BEGIN SHARED block of yolo.js. This test
+// requires the block to be current, and each shared helper to be defined once, inside it.
+// The wave driver (campaign-wave.js) is gone (WF-PIECES-PLAN), so yolo.js is the only target.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -23,11 +20,15 @@ test('E1: the shared block of each driver is current (run npm run build after an
 });
 
 test('E1: _shared.js holds the helpers both drivers share, and only function declarations', () => {
-  for (const n of ['steeringClause', 'verifyClean', 'evaluateGate', 'planWaves', 'walkOrder', 'readCheckRows', 'implementGroups', 'implementStepsClause', 'touchesCharter', 'refuteGroups']) {
+  for (const n of ['steeringClause', 'verifyClean', 'evaluateGate', 'planWaves', 'walkOrder', 'readCheckRows', 'implementStepsClause', 'touchesCharter', 'refuteGroups']) {
     assert.ok(names.includes(n), `_shared.js has no function ${n}`);
   }
   // A const would be read before it is set when the block sits below the top-level code.
   assert.doesNotMatch(sharedBody(shared), /^(?:const|let|var) /m);
+  // WF-PIECES-PLAN D33: one implement agent per slice; the step groups of C3 are gone.
+  assert.ok(!names.includes('implementGroups'));
+  assert.doesNotMatch(shared, /STEP GROUP/);
+  assert.deepEqual([...SHARED_DRIVERS], ['yolo.js']);
 });
 
 // WF-DESIGN-PLAN B1: POLICY is not shared, so the design clause of the review policy comes from

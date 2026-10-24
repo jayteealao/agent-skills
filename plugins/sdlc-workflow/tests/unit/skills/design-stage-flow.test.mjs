@@ -40,8 +40,8 @@ test('A2: the brief round shows the carried sketches and skips what the record a
 test('A3: the stage writes the next step as "Type" and names the campaign order', () => {
   const stage = read(`${DESIGN}/stage.md`);
   match(stage, /Type `\/wf slice <slug>`/);
-  match(stage, /Run `campaign\.mjs unit <key> prepared`\./);
-  match(stage, /Type `\/wf campaign <board>`\./);
+  match(stage, /When `00-index\.md` has `origin-piece`, the workflow is a campaign piece, and the campaign walk slices it\. The next step is "Type `\/wf campaign <source-slug>`\."/);
+  doesNotMatch(stage, /campaign\.mjs unit/);
   match(stage, /never write that you run it/);
 });
 

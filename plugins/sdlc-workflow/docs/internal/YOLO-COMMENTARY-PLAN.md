@@ -1,7 +1,7 @@
 # YOLO-COMMENTARY-PLAN — a built-in watch and running commentary for yolo and campaign
 
 Status **W0–W3 and W5 shipped v9.178.0; W4 run on the campaign trial 2026-10-03 — see section 7** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
-Used by: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 20. This plan is Stage B2 of the campaign plan (section 5): it ships first, and it helps single-slug yolo runs without the campaign.
+Used by: [WF-CAMPAIGN-PLAN.md](archived/WF-CAMPAIGN-PLAN.md), section 20. This plan is Stage B2 of the campaign plan (section 5): it ships first, and it helps single-slug yolo runs without the campaign.
 
 ## 1. Why
 
@@ -84,7 +84,7 @@ Add `reference/yolo/_commentary.md`. The main session follows it when an event a
 
 Add a stop request. The person says "stop after the current verify", or "stop after this stage", in chat.
 
-- **G1.** The main session writes `{action: "stop", after: "<stage>|current"}` to `.ai/workflows/<slug>/.control.json`. The campaign's usage pause uses the same file ([WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 17.4). A plain yolo run can use it for a usage pause too: on a usage-limit error, the main session writes `{action: "pause", reason, until}`.
+- **G1.** The main session writes `{action: "stop", after: "<stage>|current"}` to `.ai/workflows/<slug>/.control.json`. The campaign's usage pause uses the same file ([WF-CAMPAIGN-PLAN.md](archived/WF-CAMPAIGN-PLAN.md), section 17.4). A plain yolo run can use it for a usage pause too: on a usage-limit error, the main session writes `{action: "pause", reason, until}`.
 - **G2.** The Workflow script has no file access (`yolo.js:18-23`), so the driver cannot read the file itself. Every agent prompt tells the agent to read the control file first, fresh, by path, as it reads `steer.md`. When the condition is met, the agent does no work and returns `status: "stopped"`. The driver then ends cleanly with `stoppedAt: 'stop-request'`. The main session deletes the file.
 - **G3.** The commentary reports the stop and the resume command. A steering change written at the same time reaches the next run through `steer.md` as today.
 

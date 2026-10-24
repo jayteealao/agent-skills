@@ -1,5 +1,5 @@
 ---
-description: Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice.
+description: Break a shaped work item into independently verifiable vertical slices, one capability each. Writes a master index and one file per slice.
 argument-hint: <slug> [focus hint]
 ---
 
@@ -41,7 +41,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 # Role
 
 You are a **workflow orchestrator**, not a problem solver.
-- Do not start planning implementation details, writing code, or designing architecture. Your job is to **decompose the shaped spec into thin vertical slices**, not to build anything.
+- Do not start planning implementation details, writing code, or designing architecture. Your job is to **decompose the shaped spec into vertical slices, one capability each**, not to build anything.
 - Write the per-slice files before the master `03-slice.md`, and update `00-index.md` last.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 
@@ -63,7 +63,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 4. **Use the design artifacts when present.**
    - `02b-design.md`: extract the content inventory, the state list (empty / error / loading / first-run), and the visual direction. State transitions (empty vs populated) and visual surface boundaries (main view vs settings drawer) inform slice boundaries: either each distinct state or surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` justifies the grouping with one sentence per state or surface.
    - `02c-craft.md`: extract `## Mock fidelity inventory` and the per-surface notes. Distinct visual surfaces (card vs detail vs drawer) and signature interactions are reflected as slice boundaries under the same rule: own slice, or one justifying sentence per surface in `## Slice Strategy`. Do not re-decompose around token choices, motion specs, or implementation details; those belong to plan and implement. If `02c-craft.md` introduces surfaces or states absent from the shape or `02b-design.md`, record an open question on the master index rather than silently expanding scope.
-   - **State-completeness knowledge (when design is needed per [design/_lane.md](design/_lane.md)).** `slice` structures around the design: a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. Use the `mode:design` procedure rows to recognize substantive states: `onboard.md` gives empty and first-run states, `polish.md` gives the 7-state checklist, `_design-context.md` gives the design modes. This is structuring, not redesigning; never re-do design work here. Map every slice to its surfaces by the names in `02c-craft.md` `surfaces:`. Write those names in the `## Scope` of each slice file. Plan, implement, and verify find the boards of a slice by these names (`design/_boards.md`). When design is not needed, skip the design-knowledge load. When design is needed and not settled, STOP per the lane's human rule and route to `/wf design <slug>`.
+   - **State-completeness knowledge (when design is needed per [design/_lane.md](design/_lane.md)).** `slice` structures around the design: a state or visual surface that carries its own acceptance criteria usually earns its own slice. Use the `mode:design` procedure rows to recognize substantive states: `onboard.md` gives empty and first-run states, `polish.md` gives the 7-state checklist, `_design-context.md` gives the design modes. This is structuring, not redesigning; never re-do design work here. Map every slice to its surfaces by the names in `02c-craft.md` `surfaces:`. Write those names in the `## Scope` of each slice file. Plan, implement, and verify find the boards of a slice by these names (`design/_boards.md`). When design is not needed, skip the design-knowledge load. When design is needed and not settled, STOP per the lane's human rule and route to `/wf design <slug>`.
    - If neither file exists, skip this step.
 5. **Carry forward** `selected-slice` and `open-questions` from the index.
 
@@ -85,15 +85,16 @@ Do this in order:
 
    **Rules:** every question is about how to decompose this specific feature and references concrete parts of the shaped spec; questions are impartial and present genuinely different decomposition strategies; skip questions the shape or intake artifacts already answered; construct each question per [_question-craft.md](_question-craft.md), describing options by what the PO experiences (more PRs and faster feedback vs fewer review passes), not by mechanism.
 
-   **What to ask about:** delivery order (riskiest part first or most visible part first; a demo date, milestone, or dependency that drives which slice ships earliest); slice granularity (as thin as possible vs chunked into larger coherent units; the team's review capacity); rollout coupling (which slices can ship independently; feature flags, migrations, or API contracts that force things into one slice); scope cuts (parts of the spec the user would defer; must-have-now vs nice-to-have-later criteria). Append every answer to `po-answers.md` with timestamp and `stage: slice`.
+   **What to ask about:** delivery order (riskiest part first or most visible part first; a demo date, milestone, or dependency that drives which slice ships earliest); slice granularity (which mechanisms verify together and so form one capability; the team's review capacity); rollout coupling (which slices can ship independently; feature flags, migrations, or API contracts that force things into one slice); scope cuts (parts of the spec the user would defer; must-have-now vs nice-to-have-later criteria). Append every answer to `po-answers.md` with timestamp and `stage: slice`.
 
 2. Run freshness research only where external constraints affect slicing or order.
-3. Break the work into small vertical slices that can be implemented and verified independently.
+3. Break the work into vertical slices that can be implemented and verified independently. **A slice is one capability**: a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". Its small outcomes become the steps of its plan. A slice has fewer than 40 plan steps; cut a larger capability into two slices. Do not size a slice by lines of code.
+3b. **A campaign piece** (`00-index.md` has `origin-piece`): aim for 10 slices. Above 14, write every slice, continue, and warn in the chat return with the count; the person can split the piece later.
 4. Assign each slice a **slice-slug** (lowercase kebab-case).
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user sees the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion, `charter scenario executes through step N`: the milestone slice proves the steps built so far, the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, on the same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario.
-6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) recommending `Slug-wide (Recommended)` ("One `07-review.md` against the cumulative branch diff"; persons picked it 10 times of 13) over `Per slice` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options, per [_question-craft.md](_question-craft.md). A campaign unit asks nothing: the campaign's standing default (`review-scope` in `campaign.mjs status`) answers it, recorded with `by: standing default`. Record the answer in `po-answers.md` (`stage: slice`); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
+6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) recommending `Slug-wide (Recommended)` ("One `07-review.md` against the cumulative branch diff"; persons picked it 10 times of 13) over `Per slice` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options, per [_question-craft.md](_question-craft.md). A campaign piece asks nothing: the answer is `slug-wide`, recorded with `by: standing default`. Record the answer in `po-answers.md` (`stage: slice`); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (template below).
 8. **Write the master `03-slice.md`** (template below) with links to every per-slice file.
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
@@ -201,9 +202,7 @@ recommended-routes:
 
 The producer writes every `refs:` link at creation. Later stages do not edit this file's links.
 
-In a campaign, a roster entry can also carry `unit: <packet key>`. The field names the campaign unit that walks the slice. `campaign.mjs unit <key> defer` writes it. The `slice-order` command of the campaign adds a `depends-on` edge from a plan; remove an edge here, with the person.
-
-In a campaign, a need on a slice of another unit goes into the dependency graph, not into the brainstorm: `campaign.mjs deps <key> needs add --by prepare`. A `## Cross-Unit Needs` section in the body of `03-slice.md` lists these needs. `wave <n> start` refuses an item of the section that names another unit of the wave when the graph holds no need between the two units.
+The `slice-order` command of `campaign.mjs` adds a `depends-on` edge from a plan; remove an edge here, with the person.
 
 Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 - `## Goal`, `## Why This Slice Exists`, `## Scope` (what is in; what is out and which slice handles it).

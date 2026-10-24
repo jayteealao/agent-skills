@@ -26,8 +26,8 @@ h3{font-size:15px;margin:16px 0 6px}
 const byKey = (list = []) => new Map((list ?? []).filter((e) => e?.key).map((e) => [e.key, e]));
 const isLive = (i) => i && !i['replaced-by'] && i.scope !== 'cut';
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
-// The forms that get a packet (lib/work-packets.mjs PACKET_FORMS); a copy keeps the page free of the schema validator.
-const PACKET_FORMS = new Set(['intake', 'investigate', 'discover', 'rca', 'fix', 'hotfix', 'task', 'extension']);
+// The forms that get a piece file (lib/pieces.mjs PIECE_FORMS); a copy keeps the page free of the schema validator.
+const PIECE_FORMS = new Set(['intake', 'investigate', 'discover', 'rca', 'fix', 'hotfix', 'task', 'extension']);
 
 /**
  * The `##` sections of a markdown document, as heading → text. HTML comments are
@@ -199,7 +199,7 @@ export function renderBrainstormPage(board, doc = '', { generatedAt = '' } = {})
   // The pieces of work, in order, with the stale ones marked.
   const pieces = [...(b.work ?? [])].sort((x, y) => (x.order ?? 1e9) - (y.order ?? 1e9) || String(x.key).localeCompare(String(y.key)));
   out.push(section('Pieces of work', list(pieces.map((p) => {
-    const packet = PACKET_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
+    const packet = PIECE_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
     const files = (p['written-files'] ?? []).map((f) => `<code>${esc(f.path)}</code>`).join(', ');
     const meta = [p.order ? `${p.order}.` : null, p.shape === 'write-now' ? 'written in the session' : p.shape, p.state].filter(Boolean).join(' · ');
     const stale = p.stale ? `${tag('stale')}${p['stale-because'] ? `<br><span class="why">Stale because ${esc(p['stale-because'])}</span>` : ''}` : '';

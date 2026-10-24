@@ -76,6 +76,7 @@
           "with no token, stop and show the forms:": "WF-KEY-SURFACE-PLAN A3: the no-topic stop moved here from the deleted /wf brainstorm key router (BRAINSTORM-DESIGN-PLAN 9.168.0)"
         },
         "skills/wf/reference/intake.md": {
+          "- when token0 is the path of a": "WF-PIECES-PLAN 6.1: a build piece file stops intake and routes to /wf campaign, because campaign.mjs open writes its folder",
           "- if token0 is close and token1 exactly": "WF-KEY-SURFACE-PLAN A7: close is a slug-first maintenance word; the slug-second order stops with the right order"
         },
         "skills/wf/reference/intake/default.md": {
@@ -119,23 +120,23 @@
       "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/implement.md": {
-      "words": 3039,
+      "words": 3034,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3362,
-      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run."
+      "words": 3485,
+      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run. WF-PIECES-PLAN (6.1, 12.6) added 123 words: the List piece rule, which stops a build piece file and routes it to /wf campaign, and runs a routed piece of another form with its piece slug; the packet-first rule it replaces is gone."
     },
     "skills/wf/reference/plan.md": {
-      "words": 4847,
-      "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words). WF-ROUTE-WIZARD-PLAN W5 (G1, G2) added 106 words: the slice-name check with its near-match stop, and supplemental text as planning guidance in single plan mode."
+      "words": 4925,
+      "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words). WF-ROUTE-WIZARD-PLAN W5 (G1, G2) added 106 words: the slice-name check with its near-match stop, and supplemental text as planning guidance in single plan mode. WF-PIECES-PLAN (D16, D28) added 78 words: each step names its files and its done check, and the required ## Handover section that lets the implement agent of a slice start without a second research pass."
     },
     "skills/wf/reference/probe.md": {
       "words": 3226,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: probe.md holds 7 artifact keys, the branch gate, the sweep dispatch, the charter/decidability/re-observe contracts and the surface-sweep pins; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (the runtime-commands 2x2, branch-posture rationale, anecdotes) landed in ef04eb84."
     },
     "skills/wf/reference/shape.md": {
-      "words": 4608,
+      "words": 4606,
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words). WF-ROUTE-WIZARD-PLAN W5 (G3) added 23 words: the text after the slug is a focus hint that discovery reads."
     },
     "skills/wf/reference/ship.md": {

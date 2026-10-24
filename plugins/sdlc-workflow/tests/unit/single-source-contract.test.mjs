@@ -197,15 +197,6 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   // Haiku runs only the agents that run fixed commands or copy data (PO 2026-10-20).
   const haikuLabels = (src) => [...src.matchAll(/label: ((?:(?!label: )[^\n])+?), phase: '[A-Za-z]+', \.\.\.HAIKU\b/g)].map((m) => m[1]).sort();
   assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'run-end'", '`writeback:${sliceArg}`']);
-  const wave = read('skills', 'wf', 'workflows', 'campaign-wave.js');
-  assert.match(wave, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/);
-  assert.deepEqual(haikuLabels(wave), [
-    "'boundary-setup'", "lbl(u, 'ask-early')", "lbl(u, 'slice-order')", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
-    "'run-end'", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
-    'lbl(u, `park:${kind}`)', 'lbl(u, `wait:${e.from}`)', 'lbl(u, `writeback:${sliceArg}`)', 'tag', '`waiter#${WAITERS}`',
-    // WF-CAMPAIGN-THROUGHPUT-PLAN T9, T7: the lock wait and the verify mark are bookkeeping, as the wait agent is.
-    "'locks-wait'", 'lbl(u, `verified:${sliceArg}`)',
-  ].sort());
   assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
   assert.match(src, /Never use `opus` below high/);
   assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);

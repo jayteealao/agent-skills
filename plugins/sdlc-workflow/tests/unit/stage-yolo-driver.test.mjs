@@ -117,17 +117,12 @@ test('CLI exits 2 without an argument and 1 on a bad root', () => {
   }
 });
 
-test('CLI --driver campaign-wave stages the wave driver beside yolo.js; campaign-boundary is refused', () => {
+test('CLI --driver: the wave driver is gone (WF-PIECES-PLAN), so campaign-wave is refused', () => {
   const root = scratchRepo();
   try {
-    const r = spawnSync(process.execPath, [SCRIPT, root, '--driver', 'campaign-wave'], { encoding: 'utf8' });
-    assert.equal(r.status, 0, r.stderr);
-    const parsed = JSON.parse(r.stdout.trim());
-    assert.equal(parsed.scriptPath, join(root, '.scratch', 'wf', 'campaign-wave.js'));
-    assert.equal(readFileSync(parsed.scriptPath, 'utf8'), readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'campaign-wave.js'), 'utf8'));
-    const old = spawnSync(process.execPath, [SCRIPT, root, '--driver', 'campaign-boundary'], { encoding: 'utf8' });
+    const old = spawnSync(process.execPath, [SCRIPT, root, '--driver', 'campaign-wave'], { encoding: 'utf8' });
     assert.equal(old.status, 1);
-    assert.match(old.stderr, /the driver is one of yolo, campaign-wave/);
+    assert.match(old.stderr, /the driver is one of yolo, optimize/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

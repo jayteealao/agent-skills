@@ -105,7 +105,6 @@ settings except <code>readCheck</code> and <code>viewStyle</code> are switches:<
 <tr><td><code>hubNotice</code></td><td><code>true</code></td><td>At session start, one line with the hub version and repos; a toast when the hub stops or returns.</td></tr>
 <tr><td><code>stageCompact</code></td><td><code>true</code></td><td>After a stage turn lands its artifact, compacts the session with instructions that keep the workflow position and the decisions.</td></tr>
 <tr><td><code>probeJournal</code></td><td><code>true</code></td><td>Records which parts of the mod ran in <code>~/.sdlc/mod-probe.jsonl</code> (at most 400 rows, no prompt text).</td></tr>
-<tr><td><code>usageGuard</code></td><td><code>true</code></td><td>Reads the 5-hour and 7-day usage windows, shows them in the status line, and pauses and resumes a live campaign or yolo run at its pause line.</td></tr>
 <tr><td><code>readCheck</code></td><td><code>"warn"</code></td><td>The read check. When an agent writes a stage artifact, the mod compares the files the agent read with the stage's Requires table. <code>"warn"</code>: the write lands, and the agent gets the list of missing and partial reads. <code>"block"</code>: the mod refuses the write unless the artifact frontmatter carries <code>read-waiver: "&lt;reason&gt;"</code>. <code>"off"</code>: no check. Each check appends one row to the workflow's <code>.read-ledger.jsonl</code>. See <a href="../guides/the-standard-lifecycle.html#reads-and-writes">What every stage reads and writes</a>.</td></tr>
 <tr><td><code>viewStyle</code></td><td><code>"dashboard"</code></td><td>How the views look: the live views, the picker band, the strip, the hub notice and the dashboard. <code>"dashboard"</code>: calm. <code>"instrument"</code>: an instrument panel. <code>"grid"</code>: a brutalist grid.</td></tr>
 <tr><td><code>liveView</code></td><td><code>true</code></td><td>Opens a live view pane while a brainstorm, yolo or campaign runs. Off: no pane; the band, the status line and the toasts stay.</td></tr>
@@ -126,11 +125,6 @@ settings except <code>readCheck</code> and <code>viewStyle</code> are switches:<
 <tr><td><code>yolo.usageBudget.fiveHourSlow</code></td><td><code>75</code></td><td>The percent of the 5-hour usage window above which the watch emits a usage event at level <code>slow</code>.</td></tr>
 <tr><td><code>yolo.usageBudget.fiveHourPause</code></td><td><code>90</code></td><td>The percent of the 5-hour usage window above which the watch emits a usage event at level <code>pause</code>.</td></tr>
 <tr><td><code>yolo.usageBudget.sevenDayReserve</code></td><td><code>15</code></td><td>The last percent of the 7-day usage window, kept for the person. A 7-day use inside the reserve is level <code>pause</code>.</td></tr>
-<tr><td><code>campaign.output</code></td><td><em>unset</em></td><td>How <code>/wf campaign</code> builds a slug or wave output: <code>{"build-cmd", "artifacts", "try"}</code>. The campaign writes it at setup when you give the recipe.</td></tr>
-<tr><td><code>campaign.isolation</code></td><td><em>unset</em></td><td>The isolation contract that gives each slug of a wave its own worktree, so the slugs can drive at once: <code>port-env</code> (each port variable with its base value; the drive with index i gets base + 100 × i), <code>build-dirs</code>, <code>heavy-suites</code> (test commands that run one worktree at a time, under a lock), <code>min-free-gb</code> (default 20), <code>quiet-suites</code> (timed checks that need an idle machine; no heavy suite runs while one holds the quiet lock), <code>outside-root</code> (a short absolute path outside the repo for each unit's folders that cannot be in its worktree, for example <code>C:/co</code>), <code>worktree-root</code> (a short absolute path for the worktrees, for example <code>C:/cw</code>; the default is <code>~/.sdlc/cw/&lt;repo tag&gt;</code>, outside every repo), <code>build-depth</code> (the deepest build path inside a worktree, for the Windows path check; default 140), and <code>parallel</code> (<code>false</code> keeps one slug at a time, still in worktrees). On Windows, give <code>outside-root</code> and <code>worktree-root</code> short paths: a deep build path can pass the 260-character limit. The waves need it: without it, the campaign starts no wave and asks you for the contract.</td></tr>
-<tr><td><code>campaign.width</code></td><td><code>3</code></td><td>How many slugs of a wave drive at once under the isolation contract. The usage budget narrows it to 1 above its slow line.</td></tr>
-<tr><td><code>campaign.stack</code></td><td><code>true</code></td><td><code>false</code> keeps plain wave PRs against the trunk even when gh-stack v0.1.0 or later is installed.</td></tr>
-<tr><td><code>campaign.max-unshipped</code></td><td><code>2</code></td><td>With stacked wave PRs, how many unshipped waves may wait above the trunk before the next wave waits.</td></tr>
 <tr><td><code>solutions.globalDir</code></td><td><code>null</code></td><td>The absolute path to a user-level solutions corpus. Plan's reuse scan reads the corpus alongside the repo's own <code>.ai/solutions/</code>, and retro uses the corpus for user-confirmed lesson promotion. <code>null</code> disables it. The directory stays local. The plugin never syncs the directory, because repo lessons can contain project specifics.</td></tr>
 </tbody>
 </table>
@@ -215,14 +209,11 @@ the hook script, the payload size, the parsed keys, the event and tool names, an
 A <code>hook-debug</code> file in the plugin data folder does the same. The log holds raw tool
 payloads, so turn it off after the debugging.</dd>
 <dt><code>SDLC_USAGE_DIR</code></dt>
-<dd>The folder of usage readings that the campaign budget and the run watch read. The default is
-<code>~/.claude/sdlc/usage/</code>, where the mod's usage guard writes them.</dd>
+<dd>The folder of usage readings that the run watch reads. The default is
+<code>~/.claude/sdlc/usage/</code>.</dd>
 <dt><code>SDLC_CLAUDE_PROJECTS_DIR</code></dt>
 <dd>The Claude Code transcript folder that the run watch reads. The default is
 <code>~/.claude/projects</code>.</dd>
-<dt><code>SDLC_INSTALLED_PLUGINS</code></dt>
-<dd>The installed-plugins file that the campaign reads to find a newer installed plugin. The
-default is <code>~/.claude/plugins/installed_plugins.json</code>.</dd>
 <dt><code>SDLC_WATCH_LOCK_DIR</code></dt>
 <dd>The folder of the run watch's locks: one lock per journal, so a newer watch replaces an older
 one. The default is <code>sdlc-watch-locks</code> in the temp folder, never a workflow folder.</dd>
@@ -246,10 +237,9 @@ on its command when the question is about a slug.</dd>
 <dd>Set by the plugin. The first three record which host started the hub and why.
 <code>SDLC_DISPATCH_ACTIVE</code> marks a consult child session, which writes no cost row and runs
 no leak guard.</dd>
-<dt><code>SDLC_ASSUME_HUB_READY</code>, <code>SDLC_HUB_CONFIRM_TIMEOUT_MS</code>, <code>SDLC_ALLOW_TEMP_ROOTS</code>, <code>SDLC_CAMPAIGN_SKIP_TOOLS</code>, <code>SDLC_CAMPAIGN_PATH_CHECK</code></dt>
+<dt><code>SDLC_ASSUME_HUB_READY</code>, <code>SDLC_HUB_CONFIRM_TIMEOUT_MS</code>, <code>SDLC_ALLOW_TEMP_ROOTS</code></dt>
 <dd>Set by the test suite. They skip or shorten the session-start hub check (default 5000 ms),
-let repos under the temp folder register, skip the gh-stack check, and turn the Windows path
-check on outside Windows.</dd>
+and let repos under the temp folder register.</dd>
 </dl>
 
 <div class="related">

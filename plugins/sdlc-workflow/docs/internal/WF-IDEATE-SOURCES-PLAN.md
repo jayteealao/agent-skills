@@ -1,7 +1,7 @@
 # WF-IDEATE-SOURCES-PLAN — ideate reads sources, issues, and research
 
 Status **BUILT 2026-10-18, not released** (S1 to S5 and B1 to B4; the live run is open) · Date **2026-10-03** · Plugin **v9.178.0** · Checked against **v9.183.0** on **2026-10-08** (section 13) and **v9.189.0** on **2026-10-18** (section 14) · Owner **jayte**
-Depends on: [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md) (part B1 reuses the work packets).
+Depends on: [BRAINSTORM-WORK-PACKETS-PLAN.md](archived/BRAINSTORM-WORK-PACKETS-PLAN.md) (part B1 reuses the work packets).
 
 ## 1. Why
 

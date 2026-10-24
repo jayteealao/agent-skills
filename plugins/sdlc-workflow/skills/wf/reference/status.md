@@ -75,9 +75,9 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 
 The render below runs after this step, against the reconciled set.
 
-# Live campaign first (B7)
+# Lists first (B7)
 
-With a live campaign wave, lead with `now` of `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <brainstorm-slug>`: what runs, what waits for the person, what comes next.
+For each list with an unfinished piece, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its pieces, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
 
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
@@ -157,6 +157,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
 5. **Render the detail view** from the detail render in [status/_renders.md](status/_renders.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
 6. For the **slice progress matrix**, list `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.
+6b. Show the steps of a slice in progress (detail render).
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_liveness.md](_liveness.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
 9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries and entries with no recorded probe.

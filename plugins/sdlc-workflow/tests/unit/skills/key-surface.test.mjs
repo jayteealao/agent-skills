@@ -87,7 +87,7 @@ test('the reserved slug names cover every key, sub-key and mode word', () => {
   const subs = Object.keys(SUB_KEYS).map((s) => s.split(' ')[1]);
   for (const w of [...KEYS, ...subs, ...ENTRY_MODES, ...MAINTENANCE]) ok(words.has(w), `${w} is reserved`);
   match(read(`${REF}/intake/default.md`), /When the slug is a reserved name \(\[_intake-context\.md\]\(_intake-context\.md\)\), STOP and ask for another slug/);
-  match(read(`${REF}/intake/_packet.md`), /or `<work-slug>` is a reserved slug name, ask the person for a new slug/);
+  match(read(`${REF}/intake/brainstorm/_work.md`), /When the slug is a reserved slug name \(\[\.\.\/_intake-context\.md\]\(\.\.\/_intake-context\.md\)\), or `\.ai\/workflows\/<slug>\/` exists for other work, ask the person for a new slug/);
   match(read(`${REF}/status.md`), /6\. A reserved slug name \(`intake\/_intake-context\.md`\) → flag/);
 });
 

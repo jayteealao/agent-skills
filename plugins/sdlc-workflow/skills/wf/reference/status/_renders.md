@@ -70,6 +70,12 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
 | Slice | Plan | Implement | Verify | Review | Handoff | Ship |
 |-------|------|-----------|--------|--------|---------|------|
 
+Steps of a slice in progress (WF-PIECES-PLAN 6.6): <slice> — step <n> of <m>
+- step 1 ✓ <sha>
+- step 2 · open
+
+<n> counts the `step` rows of `.implement-progress.jsonl` after the slice's last `complete` row whose sha is an ancestor of HEAD. <m> counts the numbered steps of the plan's `## Step-by-Step Plan`.
+
 ## Key Metrics
 - Files changed / lines ± (from implement records)
 - Review findings (from review records)

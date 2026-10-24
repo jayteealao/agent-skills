@@ -31,16 +31,6 @@
  *       clock now. Every line goes out through JSON.stringify, so a path with
  *       backslashes always parses.
  *
- * In a campaign (YOLO-COMMENTARY-PLAN section 4, K1-K6), add --campaign <brainstorm>:
- *   watch    one watch per wave over the wave's slugs and the campaign journal. It
- *            reads work/campaign/ledger.json every 20 s and follows each unit of a
- *            live wave into its worktree: journal, commits, protected files. A
- *            slug's run-end does not end it; the campaign journal's wave-end,
- *            campaign-end or run-end line does (`end <root> - --campaign <b>`).
- *   note     <slug> also writes to work/campaign/commentary.md; `-` writes there only.
- *   control  writes work/campaign/.control.json with --scope slug|wave|campaign;
- *            a slug stop also takes --then move|hold (WF-CAMPAIGN-DRIVER-PLAN D28).
- *
  * S1 Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
  *    protected files every 20 s, the usage readings every 60 s. A poll needs no
  *    file-change events, so it works on Windows.
@@ -55,8 +45,7 @@
  *    live run counts from its last line, not from the 30-minute Monitor restart.
  * F4 Each stage-start and commit event also appends one line to commentary.md.
  * F5 One watch per journal: a newer watch takes the lock, and the older one emits
- *    watch-replaced and exits; a slug watch under a live campaign watch emits
- *    watch-covered and exits.
+ *    watch-replaced and exits.
  * F6 A running agent is stale when its own transcript is silent for 15 minutes
  *    (AGENT_SILENT_MS); the journal rule applies only when no transcript is found.
  *
@@ -76,27 +65,15 @@ import { fileURLToPath } from 'node:url';
 import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
-import { LIVE_WAVE_STATES } from '../lib/campaign.mjs';
-import { lockState } from '../lib/campaign-locks.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
 
 export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
 export { STALE_FLOOR_MS };
-// K1 — a first campaign watch still reports the campaign events of this window, because the
-// wave start writes `wave-start` just before the session starts the watch.
-export const CAMPAIGN_FIRST_WINDOW_MS = 5 * 60 * 1000;
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 export const DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 const STATE_FILE = '.watch-state.json';
-// The campaign journal lines that become events (K3). Heartbeats and bookkeeping
-// lines (agent-start, agent-end, unit-state, replan, wave-state) are not news.
-export const CAMPAIGN_EVENTS = Object.freeze([
-  'wave-start', 'merge', 'wave-verify', 'refuter', 'fidelity', 'wave-ready', 'drift', 'pr-opened', 'ci-result',
-  'merged', 'released', 'asked', 'paused', 'resumed', 'wave-end', 'campaign-end',
-]);
-const CAMPAIGN_END_EVENTS = Object.freeze(['wave-end', 'campaign-end', 'run-end']);
 // The events whose chat reply is a full note (_commentary.md). One of them restarts the look-in clock.
 export const FULL_NOTE_EVENTS = Object.freeze(['stage-end', 'decision', 'protected-change', 'stale', 'stop', 'run-end', 'look-in']);
 const STATE_VERSION = 1;
@@ -106,13 +83,6 @@ export const journalPath = (root, slug) => path.join(workflowDir(root, slug), '.
 export const statePath = (root, slug) => path.join(workflowDir(root, slug), STATE_FILE);
 export const controlPath = (root, slug) => path.join(workflowDir(root, slug), '.control.json');
 export const commentaryPath = (root, slug) => path.join(workflowDir(root, slug), 'commentary.md');
-const campaignDir = (root, b) => path.join(workflowDir(root, b), 'work', 'campaign');
-export const campaignJournalPath = (root, b) => path.join(campaignDir(root, b), '.campaign-journal.jsonl');
-export const campaignStatePath = (root, b) => path.join(campaignDir(root, b), STATE_FILE);
-export const campaignControlPath = (root, b) => path.join(campaignDir(root, b), '.control.json');
-export const campaignCommentaryPath = (root, b) => path.join(campaignDir(root, b), 'commentary.md');
-const workIndexPath = (root, b) => path.join(workflowDir(root, b), 'work', 'index.md');
-const ledgerPath = (root, b) => path.join(campaignDir(root, b), 'ledger.json');
 
 const iso = (ms) => new Date(ms).toISOString();
 
@@ -153,9 +123,7 @@ function hashFile(file) {
 // ---------------------------------------------------------------------------
 // One watch per journal (F5 of WF-WATCH-MONITOR-PLAN). A watch writes a lock for
 // each journal it reads. A newer watch takes the lock over, and the older watch
-// stops with one `watch-replaced` line. A slug watch stops at once with one
-// `watch-covered` line when a live campaign watch already reads its journal.
-// The locks live in the temp folder: never in a workflow folder, which a slug
+// stops with one `watch-replaced` line. The locks live in the temp folder: never in a workflow folder, which a slug
 // commit stages and which local records copy.
 // ---------------------------------------------------------------------------
 export const lockFileOf = (journal, dir = null) => path.join(dir || path.join(os.tmpdir(), 'sdlc-watch-locks'),
@@ -452,13 +420,6 @@ export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {
   return applyLines(slug, st, lines, { emitFrom, artifactOf });
 }
 
-export function readWorkRevision(root, b) {
-  try {
-    const n = Number(frontmatterField(readFileSync(workIndexPath(root, b), 'utf8'), 'work-revision'));
-    return Number.isFinite(n) ? n : null;
-  } catch { return null; }
-}
-
 /**
  * The watch start that a restart keeps (F3 of WF-WATCH-MONITOR-PLAN). The
  * Monitor tool stops a watch after 30 minutes, and the session starts it again.
@@ -474,7 +435,6 @@ export function keptWatchFrom(saved, nowMs) {
   return live ? from : nowMs;
 }
 
-const UNITS_MS = 20 * 1000;
 /** B3 — one protected-change event per file in this window. */
 export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 
@@ -482,7 +442,7 @@ export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 // The watcher: one object, polled by a timer in main() and by tests directly.
 // ---------------------------------------------------------------------------
 export function createWatcher({
-  projectRoot, slugs, since = null, usageDir = null, campaign = null, now = () => Date.now(),
+  projectRoot, slugs, since = null, usageDir = null, now = () => Date.now(),
   projectsDir = null, lockDir = null, lockId = null, lookInMs = 0,
 }) {
   const root = path.resolve(projectRoot);
@@ -494,70 +454,34 @@ export function createWatcher({
     roots: [root, process.cwd()], now,
   });
   const locks = lockDir || process.env.SDLC_WATCH_LOCK_DIR || null;
-  const me = { id: lockId || `${process.pid}-${watchStartMs}`, pid: process.pid, kind: campaign ? 'campaign' : 'slug', ...(campaign ? { campaign } : {}), at: iso(watchStartMs) };
+  const me = { id: lockId || `${process.pid}-${watchStartMs}`, pid: process.pid, kind: 'slug', at: iso(watchStartMs) };
   const held = new Set();
 
-  // F2 — a slug's journal is where its drive writes: in its worktree when it has one.
+  // A state saved for another journal (a drive in a worktree that an older watch
+  // followed, or another root) reads this journal from the start. Its lines older
+  // than this moment are history.
   function setSource(slug, entry) {
-    const source = journalPath(entry.root, slug);
+    const source = journalPath(root, slug);
     const { st } = entry;
     // A state from before F2 read the journal of the root it was given.
     if (!st.source) st.source = source;
     if (st.source === source) return;
-    // The drive moved: a worktree was added, or removed after the merge. The new
-    // journal's lines older than this moment are history.
     st.source = source;
     st.offset = 0;
     entry.historyBefore = now();
   }
 
-  function addSlug(slug, srcRoot, { fresh = 'first' } = {}) {
+  for (const slug of slugs) {
     const saved = loadState(root, slug);
     const entry = saved
       // A new watch belongs to a new launch or a re-arm. The previous run's end
       // must not end this watch before the relaunched driver writes its first line.
       // A state from before `endedRun` that ended keeps its run as ended.
-      ? { st: { ...saved, ended: false, endedRun: saved.endedRun || (saved.ended && saved.run ? saved.run : null), watchFrom: keptWatchFrom(saved, watchStartMs) }, first: false, root: srcRoot, historyBefore: null }
-      : { st: { ...freshSlugState(), watchFrom: watchStartMs }, first: fresh === 'first', root: srcRoot, historyBefore: fresh === 'first' ? null : watchStartMs };
+      ? { st: { ...saved, ended: false, endedRun: saved.endedRun || (saved.ended && saved.run ? saved.run : null), watchFrom: keptWatchFrom(saved, watchStartMs) }, first: false, historyBefore: null }
+      : { st: { ...freshSlugState(), watchFrom: watchStartMs }, first: true, historyBefore: null };
     states.set(slug, entry);
     setSource(slug, entry);
-    return entry;
   }
-  for (const slug of slugs) addSlug(slug, root);
-
-  // F2 — in a campaign, the ledger names the units of each live wave and their worktrees.
-  let unitsReadAt = -Infinity;
-  function refreshUnits() {
-    if (!campaign || now() - unitsReadAt < UNITS_MS) return;
-    unitsReadAt = now();
-    const ledger = readJson(ledgerPath(root, campaign));
-    const want = new Map();
-    if (ledger && Array.isArray(ledger.waves) && ledger.units && typeof ledger.units === 'object') {
-      for (const w of ledger.waves) {
-        if (!w || !LIVE_WAVE_STATES.includes(w.state)) continue;
-        for (const key of Array.isArray(w.units) ? w.units : []) {
-          const u = ledger.units[key];
-          if (!u || typeof u.slug !== 'string' || !u.slug) continue;
-          const wt = u.worktree && typeof u.worktree.path === 'string' ? path.resolve(u.worktree.path) : null;
-          want.set(u.slug, wt && existsSync(workflowDir(wt, u.slug)) ? wt : root);
-        }
-      }
-    }
-    for (const [slug, src] of want) {
-      const entry = states.get(slug);
-      if (!entry) {
-        // A unit that a later wave start adds: its lines from before this watch are history.
-        if (existsSync(workflowDir(src, slug))) addSlug(slug, src, { fresh: 'history' });
-        continue;
-      }
-      if (entry.root !== src) { entry.root = src; setSource(slug, entry); }
-    }
-    // A unit whose worktree is gone reads the main checkout again.
-    for (const [slug, entry] of states) {
-      if (entry.root !== root && !want.has(slug) && !existsSync(workflowDir(entry.root, slug))) { entry.root = root; setSource(slug, entry); }
-    }
-  }
-  refreshUnits();
 
   const lead = states.get(slugs[0]).st;
   // The repo-wide parts (HEAD, protected files, usage) live in the first slug's state.
@@ -569,35 +493,21 @@ export function createWatcher({
   }
 
   // F5 — one watch per journal.
-  const lockTargets = () => [
-    ...(campaign ? [campaignJournalPath(root, campaign)] : []),
-    ...[...states].map(([slug, e]) => journalPath(e.root, slug)),
-  ].map((t) => lockFileOf(t, locks));
-  function claimLocks() {
-    for (const file of lockTargets()) {
-      if (held.has(file)) continue;
-      try {
-        mkdirSync(path.dirname(file), { recursive: true });
-        writeJsonAtomic(file, me);
-        held.add(file);
-      } catch (e) { process.stderr.write(`yolo-watch: cannot write the lock ${file}: ${e.message}\n`); }
-    }
+  for (const slug of states.keys()) {
+    const file = lockFileOf(journalPath(root, slug), locks);
+    try {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeJsonAtomic(file, me);
+      held.add(file);
+    } catch (e) { process.stderr.write(`yolo-watch: cannot write the lock ${file}: ${e.message}\n`); }
   }
-  let covered = null;
-  if (!campaign) {
-    for (const file of lockTargets()) {
-      const cur = readLock(file);
-      if (cur && cur.id !== me.id && cur.kind === 'campaign' && pidAlive(cur.pid)) { covered = cur; break; }
-    }
-  }
-  if (!covered) claimLocks();
 
   /** A `watch-replaced` event when a newer live watch took one of this watch's locks; else null. */
   function checkLocks() {
     for (const file of held) {
       const cur = readLock(file);
       if (cur && cur.id !== me.id && pidAlive(cur.pid)) {
-        return { event: 'watch-replaced', by: cur.kind, ...(cur.campaign ? { campaign: cur.campaign } : {}), slugs: [...states.keys()], at: iso(now()) };
+        return { event: 'watch-replaced', by: cur.kind, slugs: [...states.keys()], at: iso(now()) };
       }
       // A deleted lock, or one whose holder died: take it again.
       if (!cur || cur.id !== me.id) {
@@ -635,88 +545,11 @@ export function createWatcher({
     return p ? { ...ev, signal: 'pending-tool', tool: p.tool, toolSince: p.since } : ev;
   };
 
-  // K1/K3 — the campaign journal and the work revision, in a campaign only.
-  let camp = null;
-  if (campaign) {
-    const saved = readJson(campaignStatePath(root, campaign));
-    camp = saved && saved.version === STATE_VERSION
-      ? { ...saved, ended: false, first: false, watchFrom: keptWatchFrom(saved, watchStartMs) }
-      : { version: STATE_VERSION, offset: 0, ended: false, first: true, revision: readWorkRevision(root, campaign), open: {}, openWaves: [], lastLineAt: null, longestGapMs: 0, prevLineAt: null, newest: null, staleFor: null, watchFrom: watchStartMs };
-  }
-
-  function pollCampaign() {
-    if (!camp) return [];
-    const events = [];
-    const r = readJournalFrom(campaignJournalPath(root, campaign), camp.offset);
-    const skip = camp.first;
-    camp.first = false;
-    // A replaced or truncated campaign journal: the lines up to now are history.
-    const resetCut = r.reset ? now() + 1 : null;
-    for (const line of r.lines) {
-      const at = Date.parse(line.at || '');
-      if (Number.isFinite(at)) {
-        if (camp.prevLineAt !== null) camp.longestGapMs = Math.max(camp.longestGapMs, at - camp.prevLineAt);
-        camp.prevLineAt = at; camp.lastLineAt = at;
-      }
-      camp.newest = { event: line.event || null, agent: line.agent || null, status: line.status || null };
-      camp.staleFor = null;
-      if (line.event === 'agent-start') { camp.open[line.agent] = line.at || null; continue; }
-      if (line.event === 'agent-end') { delete camp.open[line.agent]; continue; }
-      // Waves overlap: wave n ships while wave n+1 runs. A wave-end ends the watch
-      // only when no other started wave is still open.
-      if (line.event === 'wave-start' && camp.openWaves && line.wave != null && !camp.openWaves.includes(line.wave)) camp.openWaves.push(line.wave);
-      // A new wave reopens the watch. An earlier end line (a wave built before the
-      // campaign, a finished run) is history and must not end this watch.
-      if (line.event === 'wave-start') camp.ended = false;
-      if (line.event === 'wave-end' && camp.openWaves) {
-        camp.openWaves = camp.openWaves.filter((n) => n !== line.wave);
-        if (!camp.openWaves.length) camp.ended = true;
-      } else if (CAMPAIGN_END_EVENTS.includes(line.event)) camp.ended = true;
-      if (skip && !(Number.isFinite(at) && at >= watchStartMs - CAMPAIGN_FIRST_WINDOW_MS)) continue;
-      if (resetCut !== null && !(Number.isFinite(at) && at >= resetCut)) continue;
-      if (CAMPAIGN_EVENTS.includes(line.event)) {
-        const { at: lineAt, event: name, ...rest } = line;
-        events.push({ ...rest, event: name, campaign, at: lineAt || iso(now()) });
-        // 9.3 step 6 — units that moved at a wave start wait for prepare.
-        if (name === 'wave-start' && Array.isArray(line.moved) && line.moved.length) {
-          events.push({ event: 'prepare-waiting', campaign, wave: line.wave, units: line.moved, at: lineAt || iso(now()) });
-        }
-      }
-      if (line.event === 'run-end' && !skip) events.push({ event: 'run-end', campaign, inferred: false, at: line.at || iso(now()) });
-    }
-    camp.offset = r.offset;
-    // A boundary agent that started and went silent: by its own transcript when
-    // one is found (F6), else past the journal's liveness limit, counted from the
-    // last line or from the first watch of this run (F3).
-    if (!camp.ended && camp.lastLineAt !== null && camp.newest && camp.newest.event === 'agent-start') {
-      const act = activityOf(camp);
-      const silentMs = now() - (act !== null ? Math.max(camp.lastLineAt, act) : Math.max(camp.lastLineAt, camp.watchFrom ?? watchStartMs));
-      const limit = act !== null ? AGENT_SILENT_MS : Math.max(STALE_FLOOR_MS, camp.longestGapMs || 0);
-      if (silentMs > limit && camp.staleFor !== String(camp.lastLineAt)) {
-        camp.staleFor = String(camp.lastLineAt);
-        events.push(withPendingTool({ event: 'stale', campaign, lastAgent: camp.newest.agent, lastLineAt: iso(camp.lastLineAt), silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), signal: act !== null ? 'transcript' : 'journal', at: iso(now()) }, camp));
-      }
-    }
-    return events;
-  }
-
-  // K3 work-changed — the brainstorm wrote a new work-revision.
-  function pollWorkRevision() {
-    if (!camp) return [];
-    const rev = readWorkRevision(root, campaign);
-    if (rev === null || rev === camp.revision) return [];
-    const from = camp.revision;
-    camp.revision = rev;
-    return from === null ? [] : [{ event: 'work-changed', campaign, from, to: rev, at: iso(now()) }];
-  }
-
   function pollJournals() {
-    refreshUnits();
-    if (campaign && !covered) claimLocks();
     const events = [];
     for (const [slug, entry] of states) {
       const { st } = entry;
-      const r = readJournalFrom(journalPath(entry.root, slug), st.offset);
+      const r = readJournalFrom(journalPath(root, slug), st.offset);
       // A replaced or truncated journal: the lines up to now are history.
       if (r.reset) entry.historyBefore = now() + 1;
       let emitFrom = null;
@@ -734,19 +567,19 @@ export function createWatcher({
       }
       let lines = r.lines;
       // K1 — a journal this watch never saw a line of can arrive with old lines, when a
-      // wave merge brings in a drive that ran in a worktree. F2 — so can the journal of
-      // a drive that moved. Lines older than the cut are history.
+      // merge or a checkout brings in a drive that ran elsewhere. So can the journal of
+      // a state saved for another journal. Lines older than the cut are history.
       const cut = entry.historyBefore !== null ? entry.historyBefore : (st.lastLineAt === null ? watchStartMs : null);
       entry.historyBefore = null;
       if (!emitFrom && cut !== null && lines.length) {
         const old = lines.filter((l) => Date.parse(l.at || '') < cut);
         if (old.length) {
-          applyJournalLines(entry.root, slug, st, old, { emitFrom: { run: null, seq: Infinity } });
+          applyJournalLines(root, slug, st, old, { emitFrom: { run: null, seq: Infinity } });
           st.ended = false;
         }
         lines = lines.filter((l) => !(Date.parse(l.at || '') < cut));
       }
-      events.push(...applyJournalLines(entry.root, slug, st, lines, { emitFrom }));
+      events.push(...applyJournalLines(root, slug, st, lines, { emitFrom }));
       // B1 — the history of a first watch is an earlier run. Its run-end must not end
       // a watch that the session started for a relaunch whose first line is still to come.
       if (emitFrom && emitFrom.seq === Infinity) st.ended = false;
@@ -757,83 +590,40 @@ export function createWatcher({
     // commentary gives a stage end one line and keeps the full note for the run end.
     const running = [...states.values()].filter(({ st }) => Object.keys(st.openStages || {}).length).length;
     for (const ev of events) if (ev.event === 'stage-end') ev.parallel = Math.max(1, running + 1);
-    return [...events, ...pollCampaign()];
+    return events;
   }
 
-  function commitsIn(dir, old, head, slugList) {
-    const range = old && git(dir, ['merge-base', '--is-ancestor', old, head]) !== null ? `${old}..${head}` : null;
-    const log = git(dir, ['log', '--no-merges', '--format=%H%x1f%s%x1f%an%x1f%cI', '-n', '20', ...(range ? [range] : ['-1', head])]);
+  function pollCommits() {
+    const head = git(root, ['rev-parse', 'HEAD']);
+    if (!head || head === lead.repo.head) return [];
+    const old = lead.repo.head;
+    lead.repo.head = head;
+    const range = old && git(root, ['merge-base', '--is-ancestor', old, head]) !== null ? `${old}..${head}` : null;
+    const log = git(root, ['log', '--no-merges', '--format=%H%x1f%s%x1f%an%x1f%cI', '-n', '20', ...(range ? [range] : ['-1', head])]);
     if (!log) return [];
     return log.split(/\r?\n/).reverse().map((l) => {
       const [sha, subject, author, committedAt] = l.split('\x1f');
-      const files = git(dir, ['show', '--format=', '--name-only', sha]);
-      return { event: 'commit', slugs: slugList, sha: sha.slice(0, 12), subject, author, committedAt, files: files ? files.split(/\r?\n/).filter(Boolean).length : null, at: iso(now()) };
+      const files = git(root, ['show', '--format=', '--name-only', sha]);
+      return { event: 'commit', slugs: [...states.keys()], sha: sha.slice(0, 12), subject, author, committedAt, files: files ? files.split(/\r?\n/).filter(Boolean).length : null, at: iso(now()) };
     });
-  }
-
-  // F2 — the protected files of a worktree: the defaults, the config list, and the slug's steer.md paths.
-  function worktreeHashes(dir, slug) {
-    const list = new Set([...DEFAULT_PROTECTED, ...cfg.protectedFiles]);
-    try { for (const p of steerProtectedPaths(readFileSync(path.join(workflowDir(dir, slug), 'steer.md'), 'utf8'))) list.add(p); } catch { /* no steer.md */ }
-    const hashes = {};
-    for (const f of list) hashes[f] = hashFile(path.join(dir, f));
-    return hashes;
-  }
-
-  /** The worktree state of a unit in a worktree. The first look records it and gives no event. */
-  function worktreeOf(slug, entry) {
-    if (entry.root === root) return null;
-    if (entry.st.wt && entry.st.wt.root === entry.root) return entry.st.wt;
-    const head = git(entry.root, ['rev-parse', 'HEAD']);
-    if (!head) return null;
-    entry.st.wt = { root: entry.root, head, hashes: worktreeHashes(entry.root, slug) };
-    return null;
-  }
-
-  const mainSlugs = () => [...states].filter(([, e]) => e.root === root).map(([slug]) => slug);
-
-  function pollCommits() {
-    const events = [];
-    const head = git(root, ['rev-parse', 'HEAD']);
-    if (head && head !== lead.repo.head) {
-      const old = lead.repo.head;
-      lead.repo.head = head;
-      events.push(...commitsIn(root, old, head, mainSlugs()));
-    }
-    // F2 — a drive in a worktree commits on its slug branch there.
-    for (const [slug, entry] of states) {
-      const wt = worktreeOf(slug, entry);
-      if (!wt) continue;
-      const h = git(entry.root, ['rev-parse', 'HEAD']);
-      if (!h || h === wt.head) continue;
-      const old = wt.head;
-      wt.head = h;
-      events.push(...commitsIn(entry.root, old, h, [slug]));
-    }
-    return events;
   }
 
   function pollProtected() {
     const events = [];
-    const check = (dir, hashes, slugList, dirty, said) => {
-      for (const [file, before] of Object.entries(hashes)) {
-        const after = hashFile(path.join(dir, file));
-        if (after === before) continue;
-        hashes[file] = after;
-        // An agent that edits a file saves it many times. Say it once per quiet window.
-        if (now() - (said[file] ?? -Infinity) < PROTECTED_QUIET_MS) continue;
-        said[file] = now();
-        events.push({
-          event: 'protected-change', slugs: slugList, file,
-          change: before === null ? 'created' : after === null ? 'deleted' : 'modified',
-          dirtyAtStart: dirty.includes(file), ...(dir === root ? {} : { worktree: dir }), at: iso(now()),
-        });
-      }
-    };
-    check(root, lead.repo.hashes, [...states.keys()], lead.repo.dirtyAtStart, lead.repo.protectedSaid ||= {});
-    for (const [slug, entry] of states) {
-      const wt = worktreeOf(slug, entry);
-      if (wt) check(entry.root, wt.hashes, [slug], [], wt.protectedSaid ||= {});
+    const { hashes, dirtyAtStart } = lead.repo;
+    const said = (lead.repo.protectedSaid ||= {});
+    for (const [file, before] of Object.entries(hashes)) {
+      const after = hashFile(path.join(root, file));
+      if (after === before) continue;
+      hashes[file] = after;
+      // An agent that edits a file saves it many times. Say it once per quiet window.
+      if (now() - (said[file] ?? -Infinity) < PROTECTED_QUIET_MS) continue;
+      said[file] = now();
+      events.push({
+        event: 'protected-change', slugs: [...states.keys()], file,
+        change: before === null ? 'created' : after === null ? 'deleted' : 'modified',
+        dirtyAtStart: dirtyAtStart.includes(file), at: iso(now()),
+      });
     }
     return events;
   }
@@ -869,17 +659,12 @@ export function createWatcher({
   }
 
   // F4 — the record of the facts: one commentary line per stage start and per
-  // commit, written where the drive writes its records (its worktree when it has
-  // one). The model still gives the chat reply and the full notes.
-  const rootOf = (slug) => (states.get(slug) ? states.get(slug).root : root);
+  // commit. The model still gives the chat reply and the full notes.
   function fact(slugList, text, atIso) {
     const parsed = Date.parse(atIso || '');
     const ms = Number.isFinite(parsed) ? parsed : now();
     for (const s of slugList) {
-      try { writeFact(commentaryPath(rootOf(s), s), s, text, ms); } catch (e) { process.stderr.write(`yolo-watch: cannot write the commentary of ${s}: ${e.message}\n`); }
-    }
-    if (campaign) {
-      try { writeFact(campaignCommentaryPath(root, campaign), `campaign ${campaign}`, slugList.length ? `${slugList.join(', ')} · ${text}` : text, ms); } catch (e) { process.stderr.write(`yolo-watch: cannot write the campaign commentary: ${e.message}\n`); }
+      try { writeFact(commentaryPath(root, s), s, text, ms); } catch (e) { process.stderr.write(`yolo-watch: cannot write the commentary of ${s}: ${e.message}\n`); }
     }
   }
   function recordFacts(events) {
@@ -901,7 +686,7 @@ export function createWatcher({
     const since = lead.repo.lookInAt;
     lead.repo.lookInAt = t;
     const running = [];
-    for (const [slug, { st, root: slugRoot }] of states) {
+    for (const [slug, { st }] of states) {
       // A run that ended runs nothing: an agent-start with no agent-end is a stopped agent.
       if (st.ended || (st.run && st.endedRun === st.run)) continue;
       for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
@@ -909,30 +694,21 @@ export function createWatcher({
         const startMs = Date.parse(startedAt || '');
         // C7 — the look-in reader reads these paths and does not search for them.
         running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null,
-          root: slugRoot, journal: st.source || journalPath(slugRoot, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
+          root, journal: st.source || journalPath(root, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
       }
     }
-    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4/F6: in a campaign, who holds the heavy and quiet locks, who waits, and which hold is idle.
-    let locks = null;
-    if (campaign) { try { locks = lockState(root, { now: t }); } catch { locks = null; } }
-    return [{ event: 'look-in', slugs: [...states.keys()], ...(campaign ? { campaign } : {}), running, ...(locks ? { locks } : {}), sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
+    return [{ event: 'look-in', slugs: [...states.keys()], running, sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
   }
 
-  // In a campaign, a slug's run-end does not end the watch: the next slug of the
-  // wave still runs. The campaign journal's wave-end or run-end does.
-  const allEnded =() => (camp ? camp.ended : [...states.values()].every(({ st }) => st.ended));
+  const allEnded = () => [...states.values()].every(({ st }) => st.ended);
 
   function finish() {
     lead.repo.runEnded = allEnded();
     save();
-    if (camp) {
-      const { first, ...keep } = camp;
-      try { writeJsonAtomic(campaignStatePath(root, campaign), keep); } catch (e) { process.stderr.write(`yolo-watch: cannot save the campaign state: ${e.message}\n`); }
-    }
   }
 
   return {
-    root, states, covered, pollJournals, pollCommits, pollProtected, pollUsage, pollUsageReset, pollWorkRevision,
+    root, states, pollJournals, pollCommits, pollProtected, pollUsage, pollUsageReset,
     pollLookIn, recordFacts, checkLocks, releaseLocks, allEnded, save: finish,
   };
 }
@@ -940,16 +716,11 @@ export function createWatcher({
 // ---------------------------------------------------------------------------
 // Subcommands.
 // ---------------------------------------------------------------------------
-export function appendNote(root, slug, text, kind = null, nowMs = Date.now(), campaign = null) {
+export function appendNote(root, slug, text, kind = null, nowMs = Date.now()) {
   const body = String(text || '').trim();
   if (!body) throw new Error('note: empty text on stdin');
-  // K4 — a campaign note goes to work/campaign/commentary.md, and a slug's note
-  // also to the slug's own commentary.md. Slug `-` means the campaign only.
-  const files = [];
-  if (campaign) files.push(writeNote(campaignCommentaryPath(root, campaign), `campaign ${campaign}`, body, kind, nowMs));
-  if (slug && slug !== '-') files.push(writeNote(commentaryPath(root, slug), slug, body, kind, nowMs));
-  if (!files.length) throw new Error('note: name a slug, or `-` with --campaign');
-  return files[files.length - 1];
+  if (!slug) throw new Error('note: name a slug');
+  return writeNote(commentaryPath(root, slug), slug, body, kind, nowMs);
 }
 
 function ensureCommentary(file, name) {
@@ -973,27 +744,19 @@ export function writeFact(file, name, text, nowMs) {
   return file;
 }
 
-export function writeControl(root, slug, action, rest, nowMs = Date.now(), { campaign = null, scope = null, then = null } = {}) {
-  // K5 — in a campaign, the request goes to the campaign's control file with a
-  // scope: one slug, the wave ("stop after this wave"), or the campaign.
-  if (campaign && !['slug', 'wave', 'campaign'].includes(scope || 'slug')) throw new Error('control: --scope is slug, wave, or campaign');
-  if (campaign && (scope || 'slug') === 'slug' && (!slug || slug === '-')) throw new Error('control: a slug scope names the slug');
-  const file = campaign ? campaignControlPath(root, campaign) : controlPath(root, slug);
-  const tag = campaign ? { scope: scope || 'slug', ...((scope || 'slug') === 'slug' ? { slug } : {}) } : {};
+export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
+  const file = controlPath(root, slug);
   if (action === 'clear') { rmSync(file, { force: true }); return null; }
   if (action === 'show') return readJson(file);
   let value;
   if (action === 'stop') {
     const after = rest[0] || 'current';
     if (!STOP_AFTER.includes(after)) throw new Error(`control stop: "after" must be one of ${STOP_AFTER.join(', ')}`);
-    // D28: a stop of one slug in a campaign says what follows: move the unit out, or hold it.
-    const slugStop = campaign && (scope || 'slug') === 'slug';
-    if (slugStop && !['move', 'hold'].includes(then)) throw new Error('control stop --scope slug: give --then move (move the unit out of the wave) or --then hold (park it until the person says continue)');
-    value = { action: 'stop', ...tag, after, ...(slugStop ? { then } : {}), requestedAt: iso(nowMs) };
+    value = { action: 'stop', after, requestedAt: iso(nowMs) };
   } else if (action === 'pause') {
     const until = rest[0];
     if (!until || !Number.isFinite(Date.parse(until))) throw new Error('control pause: give the reset time as an ISO 8601 timestamp');
-    value = { action: 'pause', ...tag, until: iso(Date.parse(until)), reason: rest.slice(1).join(' ') || 'usage limit', requestedAt: iso(nowMs) };
+    value = { action: 'pause', until: iso(Date.parse(until)), reason: rest.slice(1).join(' ') || 'usage limit', requestedAt: iso(nowMs) };
   } else {
     throw new Error('control: the action is stop, pause, clear, or show');
   }
@@ -1002,8 +765,8 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now(), { cam
   return value;
 }
 
-export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), campaign = null, opts = {}) {
-  const file = campaign && (!slug || slug === '-') ? campaignJournalPath(root, campaign) : journalPath(root, slug);
+export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), opts = {}) {
+  const file = journalPath(root, slug);
   let run = null;
   let lastEndRun;
   for (const l of readJournalFrom(file, 0).lines) {
@@ -1103,12 +866,7 @@ async function watch(root, slugs, flags) {
   const gitMs = ms('SDLC_WATCH_GIT_MS', 20000);
   const usageMs = ms('SDLC_WATCH_USAGE_MS', 60000);
   const since = flags.since !== undefined ? Number(flags.since) : null;
-  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, usageDir: process.env.SDLC_USAGE_DIR || null, campaign: flags.campaign || null, lookInMs: lookInMsOf(flags) });
-  // F5 — a live campaign watch already reads these journals: say so once and stop.
-  if (w.covered) {
-    out({ event: 'watch-covered', by: 'campaign', campaign: w.covered.campaign || null, slugs, at: new Date().toISOString() });
-    return;
-  }
+  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, usageDir: process.env.SDLC_USAGE_DIR || null, lookInMs: lookInMsOf(flags) });
   let lastGit = 0;
   let lastUsage = 0;
   let stopping = false;
@@ -1122,7 +880,7 @@ async function watch(root, slugs, flags) {
       if (replaced) { out(replaced); break; }
       const t = Date.now();
       const events = [];
-      if (t - lastGit >= gitMs) { lastGit = t; events.push(...w.pollCommits(), ...w.pollProtected(), ...w.pollWorkRevision()); }
+      if (t - lastGit >= gitMs) { lastGit = t; events.push(...w.pollCommits(), ...w.pollProtected()); }
       if (t - lastUsage >= usageMs) { lastUsage = t; events.push(...w.pollUsage()); }
       events.push(...w.pollUsageReset());
       // The journal goes last, so a run-end follows the commits the run made.
@@ -1154,18 +912,18 @@ export async function main(argv = process.argv.slice(2)) {
   if (first === 'note') {
     const [, root, slug] = pos;
     const text = readFileSync(0, 'utf8');
-    process.stderr.write(`yolo-watch: note appended to ${appendNote(path.resolve(root), slug, text, flags.event || null, Date.now(), flags.campaign || null)}\n`);
+    process.stderr.write(`yolo-watch: note appended to ${appendNote(path.resolve(root), slug, text, flags.event || null, Date.now())}\n`);
     return 0;
   }
   if (first === 'control') {
     const [, root, slug, action, ...rest] = pos;
-    const v = writeControl(path.resolve(root), slug, action, rest, Date.now(), { campaign: flags.campaign || null, scope: flags.scope || null, then: flags.then || null });
+    const v = writeControl(path.resolve(root), slug, action, rest, Date.now());
     process.stderr.write(`yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n`);
     return 0;
   }
   if (first === 'end') {
     const [, root, slug] = pos;
-    appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), flags.campaign || null, { reason: flags.reason || null, run: flags.run || null, agent: flags.agent || null });
+    appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), { reason: flags.reason || null, run: flags.run || null, agent: flags.agent || null });
     return 0;
   }
   if (first === 'line') {
@@ -1182,17 +940,9 @@ export async function main(argv = process.argv.slice(2)) {
     }
     return 0;
   }
-  const [root, ...named] = pos;
-  // A campaign watch with no unit slug, or `-`: the brainstorm slug holds the watch
-  // state, and the ledger gives the units of the live wave.
-  const units = named.filter((s) => s !== '-');
-  const slugs = units.length || !flags.campaign ? units : [flags.campaign];
+  const [root, ...slugs] = pos;
   if (!root || !slugs.length) {
-    process.stderr.write('usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]; with --campaign <brainstorm>, the slugs are optional\n');
-    return 2;
-  }
-  if (flags.campaign && !existsSync(workflowDir(path.resolve(root), flags.campaign))) {
-    process.stderr.write(`yolo-watch: no workflow folder for the campaign ${flags.campaign}\n`);
+    process.stderr.write('usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]\n');
     return 2;
   }
   for (const slug of slugs) {

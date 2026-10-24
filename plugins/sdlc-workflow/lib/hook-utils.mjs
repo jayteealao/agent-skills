@@ -131,24 +131,24 @@ export function isBrainstormSourcePath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:research|references)\//.test(normalized);
 }
 
-// A brainstorm's work set: work/<slug>.md packets (type work-packet) and
-// work/index.md (type work-set), written by work-packets.mjs. Both carry a
-// schema type but no NN- name. work/changes.md (a prose log) and anything in a
-// subfolder of work/ (the campaign's work/campaign/) are free-form.
+// A list (WF-PIECES-PLAN 4.1): work/<piece-slug>.md pieces (type piece) and
+// work/index.md (type list), written by campaign.mjs write. Both carry a schema
+// type but no NN- name. work/changes.md, work/migration.md (prose) and anything in a
+// subfolder of work/ (work/archive/) are free-form.
 export const WORK_DIR = 'work';
 
 export function isWorkSetPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\//.test(normalizePathForMatch(filePath));
 }
 
-export function isWorkPacketPath(filePath) {
+export function isPiecePath(filePath) {
   const m = normalizePathForMatch(filePath).match(/(?:^|\/)\.ai\/workflows\/[^/]+\/work\/([^/]+\.md)$/);
-  return Boolean(m) && m[1] !== 'index.md' && m[1] !== 'changes.md';
+  return Boolean(m) && !['index.md', 'changes.md', 'migration.md'].includes(m[1]);
 }
 
 export function isWorkSetFreeFormPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\/(?:changes\.md$|[^/]+\/)/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\/(?:changes\.md$|migration\.md$|[^/]+\/)/.test(normalized);
 }
 
 // history/ holds snapshots: copies of stage artifacts, and the documents a

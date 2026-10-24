@@ -6,7 +6,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
 | Produces | `02c-craft.md` (type `design-contract`); the boards in `design/` and the frozen revision `design/r<N>/` ([_boards.md](_boards.md)); `00-index.md` updates |
-| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now. In a campaign, the campaign order of [Chat return](#chat-return). |
+| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now. For a campaign piece, the campaign command of [Chat return](#chat-return). |
 
 ## Step 0 — Orient
 
@@ -134,4 +134,4 @@ Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how
 
 Write the next step as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
 - Next: "Type `/wf slice <slug>`.", or "Type `/wf auto <slug>`." when the person wants the build driven.
-- When `00-index.md` has `origin-packet` and `.ai/workflows/<board>/work/campaign/ledger.json` exists, name the campaign order: "Type `/wf slice <slug>`.", then "Run `campaign.mjs unit <key> prepared`.", then "Type `/wf campaign <board>`." When `campaign.mjs status` gives a `command` for this unit, use that command.
+- When `00-index.md` has `origin-piece`, the workflow is a campaign piece, and the campaign walk slices it. The next step is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-piece` path (`.ai/workflows/<source-slug>/work/<piece-slug>.md`).

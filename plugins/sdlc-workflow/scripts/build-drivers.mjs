@@ -3,10 +3,9 @@
  * scripts/build-drivers.mjs — write skills/wf/workflows/_shared.js into the BEGIN SHARED
  * block of each driver that shares it (WF-SYSTEM-REVIEW-2026-10-21 E1).
  *
- * A Workflow script cannot import, so yolo.js and campaign-wave.js each carry a copy of
- * the shared helpers. The copy is generated: edit _shared.js, then run `npm run build`
- * (scripts/build.mjs calls this). The drivers on disk stay complete, so the staged copy
- * and the tests read the same script.
+ * A Workflow script cannot import, so yolo.js carries a copy of the helpers of _shared.js.
+ * The copy is generated: edit _shared.js, then run `npm run build` (scripts/build.mjs calls
+ * this). The driver on disk stays complete, so the staged copy and the tests read the same script.
  *
  *   node scripts/build-drivers.mjs           write the blocks
  *   node scripts/build-drivers.mjs --check   exit 1 when a block differs from _shared.js
@@ -17,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const WORKFLOWS = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows');
-export const SHARED_DRIVERS = Object.freeze(['yolo.js', 'campaign-wave.js']);
+export const SHARED_DRIVERS = Object.freeze(['yolo.js']);
 const BEGIN = '// ---- BEGIN SHARED: generated from _shared.js by scripts/build-drivers.mjs. Edit _shared.js, then run npm run build. ----';
 const END = '// ---- END SHARED ----';
 

@@ -2,7 +2,7 @@
  * facts → the brainstorm view's model (WF-LIVE-VIEWS-PLAN.md 3.5). Pure (M1).
  *
  * The board (`brainstorm-board.json`) holds the threads, the items, the
- * scope calls and the packets (`work[]`). An item takes its own `scope`
+ * scope calls and the pieces of the list (`work[]`). An item takes its own `scope`
  * when the board records one, else its area's; an area marked `mixed` leaves
  * its items undecided until the board records them (the note of 3.5).
  */
@@ -14,7 +14,7 @@ export type BrainstormFacts = {
   board: Record<string, unknown> | null
   liveness: SdlcLiveness
   sources: { research: number; references: number; work: number }
-  /** The `work-revision` of `work/index.md`, or null. */
+  /** The `list-revision` of `work/index.md`, or null. */
   revision: number | null
   /** The newest row of `work/changes.md`, or null. */
   change: string | null
@@ -32,11 +32,11 @@ function callOf(value: unknown): Call {
   return value === 'keep' || value === 'cut' || value === 'later' ? value : value === 'pending-cut' ? 'cut' : null
 }
 
-/** The size of a packet: the decisions it carries. */
-function sizeOf(work: Record<string, unknown>, items: ReadonlyArray<Record<string, unknown>>): number {
-  const keys = Array.isArray(work['items']) ? (work['items'] as unknown[]).filter((key): key is string => typeof key === 'string') : []
-  const decisions = keys.filter(key => items.find(item => item['key'] === key)?.['kind'] === 'decision').length
-  return decisions > 0 ? decisions : keys.length
+/** WF-PIECES-PLAN 4.2: a piece is sized by its estimated slices (target 10, band 6 to 14), not by its decisions. 0 = no estimate. */
+export const SLICE_MAX = 14
+function sizeOf(work: Record<string, unknown>): number {
+  const est = work['estimated-slices']
+  return typeof est === 'number' && Number.isInteger(est) && est > 0 ? est : 0
 }
 
 export function buildBrainstormModel(facts: BrainstormFacts): SdlcBrainstormModel {
@@ -83,9 +83,10 @@ export function buildBrainstormModel(facts: BrainstormFacts): SdlcBrainstormMode
   const packets = works
     .slice()
     .sort((a, b) => Number(a['order'] ?? 0) - Number(b['order'] ?? 0))
-    .map(work => ({ key: text(work['key']), title: text(work['title']), size: sizeOf(work, items), state: text(work['state']) || 'proposed' }))
+    .map(work => ({ key: text(work['key']), title: text(work['title']), size: sizeOf(work), state: text(work['state']) || 'proposed' }))
 
-  const needs: SdlcNeed[] = packets.filter(packet => packet.size > 40).map(packet => splitNeedOf(facts.slug, packet.key, packet.size))
+  // D38: above 14 slices the walk warns and continues; the need proposes a split the person may decline.
+  const needs: SdlcNeed[] = packets.filter(packet => packet.size > SLICE_MAX && !['open', 'built', 'done', 'dropped'].includes(packet.state)).map(packet => splitNeedOf(facts.slug, packet.key, packet.size))
 
   return {
     kind: 'brainstorm',
@@ -102,11 +103,14 @@ export function buildBrainstormModel(facts: BrainstormFacts): SdlcBrainstormMode
   }
 }
 
-/** The newest table row of `work/changes.md`, as plain words, or null. */
+/** The newest entry of `work/changes.md` (a `- ` line of the last revision, or an old table row), as plain words, or null. */
 export function newestChangeOf(changesText: string | null): string | null {
   if (changesText === null) return null
-  const rows = changesText
-    .split(/\r?\n/u)
+  const lines = changesText.split(/\r?\n/u)
+  const bullets = lines.filter(line => line.startsWith('- '))
+  const bullet = bullets[bullets.length - 1]
+  if (bullet !== undefined) return bullet.slice(2).replace(/`/gu, '').trim()
+  const rows = lines
     .filter(line => line.startsWith('|') && !/^\|\s*-/u.test(line))
     .slice(1)
   const last = rows[rows.length - 1]

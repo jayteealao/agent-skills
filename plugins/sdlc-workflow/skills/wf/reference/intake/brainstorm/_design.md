@@ -34,7 +34,7 @@ A sketch is an idea the person can drop tomorrow at no cost. The person confirms
 
 The walk (3.2) and the split (3.3) run as usual. These additions apply:
 
-1. A piece of work that holds a kept item with `design: true` records `ux-impact` (the value you propose per `design/_lane.md`) and `sketches` (the keys of its carried sketches). The person confirms `ux-impact` at intake.
+1. A piece of work that holds a kept item with `design: true` records `ux-impact` (the value you propose per `design/_lane.md`) and `sketches` (the keys of its carried sketches). The person confirms `ux-impact` in 3.4, with `ux-impact-confirmed: true`. A piece with a `ux-impact` other than `none` gets `try-out: yes`.
 2. The `design-form` flag of 3.3 ([_work.md](_work.md)) takes one of two values:
    - `design-direction` — a change to the project's design direction. Entry: `/wf design direction from <slug>`. The direction command shows the carried items to the person and writes only what the person confirms.
    - `design` — the design stage of a feature workflow (next section).
@@ -45,7 +45,7 @@ The walk (3.2) and the split (3.3) run as usual. These additions apply:
 `/wf intake brainstorm <feature-slug> design` brainstorms the design of a workflow that exists, before or after its design stage.
 
 1. **Files.** Write the board to `.ai/workflows/<slug>/brainstorm-board-design.json` and the person's document to `.ai/workflows/<slug>/design-notes/brainstorm-design.md`, per the templates in [_artifact.md](_artifact.md), with `board: brainstorm-board-design.json`. When both files exist, resume them as Step 0 resumes a board. Write no `00-index.md` of a new workflow and no slice. Add the two files to `workflow-files` in the workflow's `00-index.md`, and change no other index field during the loop.
-2. **At `done`**, the kept design items become one piece of work: `shape: design`, `state: routed`, `routed-to: <slug>`.
+2. **At `done`**, the kept design items become one piece of work on this board: `shape: design`, `slug: <slug>`, `state: proposed`, and `entry` (below). It gets no piece file and no list: the design stage reads this board ([../../design/_carried.md](../../design/_carried.md), source 3).
    - When `02c-craft.md` does not carry `direction-confirmed-by`, the entry is `/wf design <slug>`.
    - When it does, the entry is `/wf design <slug> amend`. Also set `progress.design: in-progress` in `00-index.md`: the design is reopened per `design/_lane.md`.
    - When `02-shape.md` is complete, set `next-command: wf-design` and `next-invocation` to the entry in `00-index.md`. When it is not, leave both: shape pre-fills the brief from the carried thoughts, and the design stage follows shape.

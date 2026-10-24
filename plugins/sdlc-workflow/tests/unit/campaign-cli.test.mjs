@@ -1,767 +1,543 @@
-// WF-CAMPAIGN-PLAN C2-C7 — the disk side of /wf campaign (scripts/campaign.mjs):
-// orient writes the ledger, ledger.md and forecast.md; the setup answers, the
-// rolling prepare, the wave start, the context file, the drift check, the
-// versions at ship time, the questions, the pause, and the re-plan after the
-// brainstorm changes its work set.
+// WF-PIECES-PLAN sections 6 and 12 — the disk side of /wf campaign in scripts/campaign.mjs:
+// the serial walk over one list (status, open, land, start, built, done), the review base
+// of 6.2, the fidelity and try-out gates, `owner`, `slice-order add`, and the migration of
+// an old wave campaign (report, apply, start of a migrated piece, finish, the guarded remove).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { repoTag, shortStamp } from '../../lib/campaign.mjs';
 
-const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SCRIPT = path.join(pluginRoot, 'scripts', 'campaign.mjs');
-const B = 'realism';
-// The worktrees default to <SDLC_HOME>/cw. Keep them out of the real ~/.sdlc when this file runs alone.
-if (!process.env.SDLC_HOME?.trim()) process.env.SDLC_HOME = mkdtempSync(path.join(os.tmpdir(), 'campaign-home-'));
+import { migrateApply, migrationReport, removeWorktree, run } from '../../scripts/campaign.mjs';
+import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
+import { hashFile } from '../../lib/campaign-records.mjs';
+import { setFrontmatterValue } from '../../lib/roster-edit.mjs';
 
-function git(root, ...args) {
-  return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-}
+const SRC = 'brainstorm-demo';
+const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+const fm = (file) => safeParseFrontmatter(readFileSync(file, 'utf8')).data;
+const wf = (root, slug) => path.join(root, '.ai', 'workflows', slug);
+const tmp = (label) => realpathSync(mkdtempSync(path.join(os.tmpdir(), label)));
 
-function run(root, ...args) {
-  try {
-    return JSON.parse(execFileSync(process.execPath, [SCRIPT, args[0], root, B, ...args.slice(1)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
-  } catch (e) {
-    return JSON.parse(e.stdout);
-  }
-}
-
-/**
- * Orient, then confirm the dependency graph as the deps phase proposes it
- * (WF-CAMPAIGN-ORDER-PLAN 4.4). The result carries the waves of the confirm.
- */
-function orient(root) {
-  const o = run(root, 'orient');
-  if (!o.ok) return o;
-  const c = run(root, 'deps', 'confirm');
-  return { ...o, ...c, ok: o.ok && c.ok, warnings: [...(o.warnings ?? []), ...(c.warnings ?? [])] };
-}
-function packetFile(root, fm) {
-  const dir = path.join(root, '.ai', 'workflows', B, 'work');
-  mkdirSync(dir, { recursive: true });
-  const full = {
-    schema: 'sdlc/v1', type: 'work-packet', slug: B, title: `Piece ${fm.key}`, form: 'intake', 'target-slug': null,
-    urgency: 'normal', revision: 1, 'origin-brainstorm': B, order: 1, 'depends-on': [], provides: [], expects: [],
-    'carried-decisions': [{ key: `${fm.key}-d1`, text: `decision of ${fm.key}`, session: 's1', 'decided-at': '2026-10-01' }],
-    'ux-impact': 'none', state: 'proposed', 'routed-to': null, ...fm,
-  };
-  writeFileSync(path.join(dir, `${fm['work-slug']}.md`), `---\n${JSON.stringify(full, null, 2)}\n---\n\n# ${full.title}\n`);
-}
-
-function workIndex(root, revision, extra = {}) {
-  writeFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'index.md'), `---\n${JSON.stringify({ schema: 'sdlc/v1', type: 'work-set', slug: B, 'work-set': 'multi', 'work-revision': revision, ...extra })}\n---\n\n# Work set\n`);
-}
-
-function makeRepo() {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'campaign cli '));
+function makeRepo(label = 'pieces ') {
+  const root = tmp(label);
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', 'c@test');
   git(root, 'config', 'user.name', 'c');
-  packetFile(root, { key: 'W1', 'work-slug': 'engine', order: 1, provides: [{ key: 'tick', text: 'a match tick function' }] });
-  packetFile(root, { key: 'W2', 'work-slug': 'squads', order: 2 });
-  packetFile(root, { key: 'W3', 'work-slug': 'season', order: 3, 'depends-on': ['W1'], expects: [{ from: 'W1', key: 'tick', text: 'a match tick function' }] });
-  packetFile(root, { key: 'W4', 'work-slug': 'pick-sim', form: 'investigate', order: 4 });
-  packetFile(root, { key: 'W5', 'work-slug': 'ai-coach', order: 5, 'depends-on': ['W4'] });
-  workIndex(root, 1);
-  writeFileSync(path.join(root, 'README.md'), 'x\n');
+  writeFileSync(path.join(root, '.gitignore'), '.ai/\n');
+  writeFileSync(path.join(root, 'app.txt'), 'v0\n');
   git(root, 'add', '.');
-  git(root, 'commit', '-q', '-m', 'base');
-  git(root, 'tag', 'v0.2.0');
+  git(root, 'commit', '-q', '-m', 'init');
   return root;
 }
 
-test('orient writes the ledger, ledger.md and forecast.md, with the waves and the packets that need the person', () => {
-  const root = makeRepo();
-  try {
-    // WF-CAMPAIGN-ORDER-PLAN 4.4: orient plans no wave; the deps phase comes next.
-    const first = run(root, 'orient');
-    assert.equal(first.ok, true, JSON.stringify(first));
-    assert.deepEqual(first.waves, []);
-    assert.deepEqual(first.next, { action: 'deps', units: ['W1', 'W2', 'W3', 'W4', 'W5'] });
-    assert.deepEqual(first.deps.seeded, ['W1', 'W2', 'W3', 'W4', 'W5'], 'the old packet fields seed the graph (D8)');
-    assert.deepEqual(first.deps.serial, []);
-    assert.equal(run(root, 'answer', 'forecast', 'continue').ok, false, 'setup refuses while the graph is proposed');
-    // A seed of the old fields gives the waves of before.
-    const o = { ...first, ...run(root, 'deps', 'confirm') };
-    assert.equal(o.ok, true, JSON.stringify(o));
-    assert.deepEqual(o.waves, [['W1', 'W2'], ['W3']]);
-    assert.deepEqual(o.outside, ['W4']);
-    assert.deepEqual(o.waiting.map((w) => `${w.key}:${w.reason}:${w.on.join(',')}`), ['W5:needs-you:W4']);
-    assert.equal(o.next.action, 'setup');
-    assert.ok(o.toolGaps.some((g) => g.tool === 'ship-plan'), 'no ship plan: handoff and ship refuse, so orient names the gap');
-    const camp = path.join(root, '.ai', 'workflows', B, 'work', 'campaign');
-    for (const f of ['ledger.json', 'ledger.md', 'forecast.md', '.campaign-journal.jsonl']) assert.ok(existsSync(path.join(camp, f)), f);
-    assert.match(readFileSync(path.join(camp, 'forecast.md'), 'utf8'), /an estimate/);
-    assert.equal(run(root, 'orient').ok, false, 'a second orient refuses: the ledger decides the phase');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+const WRITE_UP = { 'ux-impact': 'none', 'ux-impact-confirmed': true, 'try-out': 'no', 'estimated-slices': 8 };
 
-test('a project with a ship plan has no ship-plan gap', () => {
-  const root = makeRepo();
-  try {
-    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\nschema: sdlc/v1\ntype: ship-plan\nship-meaning: merge-only\nversion-scheme: none\n---\n');
-    const o = orient(root);
-    assert.equal(o.ok, true, JSON.stringify(o));
-    assert.ok(!o.toolGaps.some((g) => g.tool === 'ship-plan'));
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('D19: a project without an isolation contract gets an isolation gap at orient; a project with one gets none', () => {
-  const root = makeRepo();
-  try {
-    const o = orient(root);
-    assert.equal(o.ok, true, JSON.stringify(o));
-    assert.deepEqual(o.toolGaps.find((g) => g.tool === 'isolation'), { tool: 'isolation', have: 'none', need: 'campaign.isolation in .ai/sdlc-config.json', fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
-  } finally { rmSync(root, { recursive: true, force: true }); }
-  const other = makeRepo();
-  try {
-    writeFileSync(path.join(other, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: { 'port-env': {}, 'build-dirs': [] } } }));
-    const o = orient(other);
-    assert.equal(o.ok, true, JSON.stringify(o));
-    assert.ok(!o.toolGaps.some((g) => g.tool === 'isolation'));
-  } finally { rmSync(other, { recursive: true, force: true }); }
-});
-
-test('a dependency on a piece the brainstorm already wrote is done: orient accepts it, and the context names it', () => {
-  const root = makeRepo();
-  try {
-    packetFile(root, { key: 'W6', 'work-slug': 'runtime', order: 6, 'depends-on': ['charter'], expects: [{ from: 'charter', key: 'doc', text: 'the product charter' }] });
-    workIndex(root, 1);
-    // The graph errors come at the deps phase, in the campaign session (4.4 step 7).
-    assert.equal(run(root, 'orient').ok, true);
-    assert.ok(run(root, 'deps', 'plan').errors.some((e) => /W6 depends on charter, which is not a packet of this work set and not in the written list/.test(e)));
-    assert.ok(run(root, 'deps', 'confirm').errors.some((e) => /W6 depends on charter/.test(e)), 'confirm refuses a graph error');
-    workIndex(root, 1, { written: ['charter'] });
-    const o = run(root, 'deps', 'confirm');
-    assert.equal(o.ok, true, JSON.stringify(o));
-    assert.deepEqual(o.waves, [['W1', 'W2', 'W6'], ['W3']]);
-    const text = readFileSync(run(root, 'context', 'W6').path, 'utf8');
-    assert.match(text, /### charter — written in the brainstorm session/);
-    assert.match(text, /- Expects `doc`: the product charter/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('a single build packet is not a campaign; a gitignored .ai/ turns on local records', () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'campaign single '));
-  try {
-    git(root, 'init', '-q');
-    packetFile(root, { key: 'W1', 'work-slug': 'engine' });
-    workIndex(root, 1);
-    const o = orient(root);
-    assert.equal(o.single, true);
-    assert.match(o.start, /\/wf intake \.ai\/workflows\/realism\/work\/engine\.md/);
-    packetFile(root, { key: 'W2', 'work-slug': 'squads' });
-    writeFileSync(path.join(root, '.gitignore'), '.ai/\n');
-    const local = orient(root);
-    assert.equal(local.ok, true, JSON.stringify(local));
-    assert.equal(local.records, 'local');
-    assert.ok(local.warnings.some((w) => /records stay in the main checkout/.test(w)));
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-/** makeRepo, with .ai/ ignored and untracked: the records exist only in the main checkout. */
-function makeLocalRepo() {
-  const root = makeRepo();
-  writeFileSync(path.join(root, '.gitignore'), '.ai/*\n');
-  git(root, 'rm', '-r', '-q', '--cached', '.ai');
-  git(root, 'add', '.gitignore');
-  git(root, 'commit', '-q', '-m', 'ignore .ai');
-  writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ artifactTracking: 'ignored', campaign: { isolation: ISOLATION } }));
-  mkdirSync(path.join(root, '.ai', 'workflows', 'squads'), { recursive: true });
-  writeFileSync(path.join(root, '.ai', 'workflows', 'squads', '00-index.md'), '---\nslug: squads\n---\n');
-  return root;
+function writeBoard(root, work, items) {
+  const dir = wf(root, SRC);
+  mkdirSync(dir, { recursive: true });
+  const board = {
+    schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: SRC, topic: 'demo',
+    stack: { platforms: ['node'], languages: ['js'], 'user-confirmed': true },
+    areas: [{ key: 'eng', name: 'Engine', side: 'solution', state: 'explored', scope: 'keep' }],
+    threads: [{ key: 'main', name: 'Main', area: 'eng', state: 'live' }],
+    items: items.map((key) => ({ key, kind: 'decision', thread: 'main', text: `Decision ${key}.`, source: 'person', scope: 'keep', session: 1, 'decided-at': '2026-10-24T00:00:00Z' })),
+    work,
+  };
+  writeFileSync(path.join(dir, 'brainstorm-board.json'), JSON.stringify(board, null, 2));
+  return dir;
 }
 
-test('local records: a worktree gets the main .ai/, its records come back, and remove loses no file (13)', () => {
-  const root = makeLocalRepo();
+function review(root, slug, rows) {
+  writeFileSync(path.join(wf(root, slug), '07-review.md'), `# Review\n\n## Decision Fidelity\n\n| Key | Verdict | Evidence | Approval |\n|---|---|---|---|\n${rows.map((r) => `| ${r.join(' | ')} |`).join('\n')}\n`);
+}
+
+test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; the next piece reviews from the end branch', () => {
+  const root = makeRepo();
   try {
-    const o = orient(root);
-    assert.equal(o.records, 'local', JSON.stringify(o));
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    const ai = (p, ...rel) => path.join(p, '.ai', ...rel);
-    assert.ok(existsSync(ai(a.path, 'workflows', 'squads', '00-index.md')), 'the prepared folder is copied in');
-    assert.ok(existsSync(ai(a.path, 'sdlc-config.json')), 'the whole .ai/ tree is copied in');
-    assert.ok(existsSync(ai(a.path, 'workflows', B, 'work', 'squads.md')), 'the packets are copied in');
-    assert.ok(!existsSync(ai(a.path, 'workflows', B, 'work', 'campaign')), 'the campaign folder stays in the main checkout');
-    assert.match(readFileSync(run(root, 'context', 'W2').path, 'utf8'), /Local records: this repo does not track `\.ai\/`/);
-    // The drive writes records in the worktree; a second slug-less file appears too.
-    writeFileSync(ai(a.path, 'workflows', 'squads', '05-implement-a.md'), 'implemented');
-    writeFileSync(ai(a.path, 'workflows', 'squads', '00-index.md'), '---\nslug: squads\ncurrent-stage: verify\n---\n');
-    mkdirSync(ai(a.path, 'solutions'), { recursive: true });
-    writeFileSync(ai(a.path, 'solutions', 'tick-order.md'), 'a learning');
-    writeFileSync(ai(a.path, 'workflows', 'squads', '.watch-state.json'), '{}');
-    const s = run(root, 'worktree', 'W2', 'sync');
-    assert.equal(s.ok, true, JSON.stringify(s));
-    assert.deepEqual(s.records.copied.sort(), ['solutions/tick-order.md', 'workflows/squads/00-index.md', 'workflows/squads/05-implement-a.md']);
-    assert.equal(readFileSync(ai(root, 'workflows', 'squads', '05-implement-a.md'), 'utf8'), 'implemented');
-    assert.ok(!existsSync(ai(root, 'workflows', 'squads', '.watch-state.json')), 'the watch cursor is machine-local');
-    // A record written after the sync still comes back: remove syncs first.
-    writeFileSync(ai(a.path, 'workflows', 'squads', '06-verify-a.md'), 'verified');
-    // An ignored file outside .ai/ that is not a build folder stops the remove.
-    writeFileSync(path.join(a.path, '.gitignore'), '.ai/*\n.env.local\ntarget/\n');
-    git(a.path, 'commit', '-q', '-am', 'ignore env');
-    writeFileSync(path.join(a.path, '.env.local'), 'SECRET=1');
-    mkdirSync(path.join(a.path, 'target'), { recursive: true });
-    writeFileSync(path.join(a.path, 'target', 'sm'), 'binary');
-    const refused = run(root, 'worktree', 'W2', 'remove');
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build the engine.', 'acceptance-criteria': ['The engine runs.'], risks: ['The engine is slow.'], ...WRITE_UP },
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show the engine.', 'acceptance-criteria': ['The screen shows it.'], ...WRITE_UP, 'ux-impact': 'visual', 'try-out': 'yes' },
+    ], ['d-one', 'd-two']);
+    assert.equal(run(['write', dir]).ok, true);
+
+    let st = run(['status', root, SRC]);
+    assert.equal(st.branch, `pieces/${SRC}`);
+    assert.deepEqual([st.current.key, st.current.step], ['engine', 'open']);
+    assert.deepEqual(st.needDesign.map((d) => d.key), ['screen'], 'a piece with a user-facing change needs design');
+
+    const opened = run(['open', root, SRC, 'engine']);
+    assert.equal(opened.ok, true, JSON.stringify(opened));
+    const index = fm(path.join(wf(root, 'demo-engine'), '00-index.md'));
+    assert.equal(index['workflow-type'], 'feature');
+    assert.equal(index.branch, `pieces/${SRC}`);
+    assert.equal(index['origin-piece'], `.ai/workflows/${SRC}/work/demo-engine.md`);
+    assert.equal(index['review-scope'], 'slug-wide');
+    assert.equal(index.stack['user-confirmed'], true);
+    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '01-intake.md'), 'utf8'), /The engine runs\./);
+    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '02-shape.md'), 'utf8'), /\| \*\*d-one\*\* — Decision d-one\. \| honored \|/);
+    // A risk the person confirmed at brainstorm done is carried, never open: handoff.md refuses an open risk.
+    assert.deepEqual(index['intent-risks'].map((r) => [r.id, r.status, r['po-ratified']]), [['RIM-1', 'carried', true]]);
+    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '02-shape.md'), 'utf8'), /## Unknowns \/ Open Questions\n\n- \*\*RIM-1\*\* \(carried to the slug-wide review\) — The engine is slow\./);
+    assert.match(readFileSync(path.join(root, '.ai', 'workflows', 'INDEX.md'), 'utf8'), /demo-engine\tactive\tfeature\tpieces\/brainstorm-demo/);
+    assert.equal(run(['open', root, SRC, 'engine']).opened, false, 'a second open changes nothing');
+    assert.equal(run(['status', root, SRC]).current.step, 'slice');
+
+    assert.equal(run(['start', root, SRC, 'engine']).ok, false, 'start needs the list branch');
+    const land = run(['land', root, SRC]);
+    assert.deepEqual([land.ok, land.created, land.from], [true, true, 'main']);
+    const start = run(['start', root, SRC, 'engine']);
+    assert.equal(start.base, 'main', 'the first piece reviews from the trunk');
+
+    // The yolo run: a code commit, a slice roster, a review.
+    writeFileSync(path.join(root, 'app.txt'), 'v1 engine\n');
+    git(root, 'commit', '-qam', 'engine');
+    writeFileSync(path.join(wf(root, 'demo-engine'), '03-slice.md'), '---\ntype: slice\n---\n');
+    assert.equal(run(['status', root, SRC]).current.step, 'yolo');
+    assert.equal(run(['done', root, SRC, 'engine']).ok, false, 'done needs a built piece');
+    assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+    assert.match(run(['status', root, SRC]).current.reason, /no ## Decision Fidelity table/);
+    review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
+    st = run(['status', root, SRC]);
+    assert.equal(st.current.step, 'fidelity');
+    assert.deepEqual(st.current.rows.map((r) => r.key), ['d-one']);
+    const refused = run(['done', root, SRC, 'engine']);
     assert.equal(refused.ok, false);
-    assert.deepEqual(refused.ignored, ['.env.local'], 'the build folder is disposable; the env file is not');
-    assert.equal(readFileSync(ai(root, 'workflows', 'squads', '06-verify-a.md'), 'utf8'), 'verified', 'the refused remove still synced the records');
-    rmSync(path.join(a.path, '.env.local'));
-    const removed = run(root, 'worktree', 'W2', 'remove');
-    assert.equal(removed.ok, true, JSON.stringify(removed));
-    assert.ok(!existsSync(a.path));
-    for (const f of ['05-implement-a.md', '06-verify-a.md']) assert.ok(existsSync(ai(root, 'workflows', 'squads', f)), f);
-    assert.ok(existsSync(ai(root, 'solutions', 'tick-order.md')));
+    assert.match(refused.error, /not approved/);
+    appendFileSync(path.join(wf(root, 'demo-engine'), 'po-answers.md'), '\n- d-one: approved — fine for now\n');
+
+    // The trunk moves while the piece is built: done merges it in.
+    git(root, 'switch', '-q', 'main');
+    writeFileSync(path.join(root, 'other.txt'), 'trunk\n');
+    git(root, 'add', 'other.txt');
+    git(root, 'commit', '-qm', 'trunk moves');
+    git(root, 'switch', '-q', `pieces/${SRC}`);
+    const done = run(['done', root, SRC, 'engine']);
+    assert.equal(done.ok, true, JSON.stringify(done));
+    assert.equal(done.trunkMerged, true);
+    assert.equal(done.endBranch, `pieces/${SRC}--engine`);
+    assert.equal(git(root, 'rev-parse', `pieces/${SRC}--engine`), git(root, 'rev-parse', 'HEAD'));
+    assert.equal(fm(path.join(wf(root, 'demo-engine'), '00-index.md'))['base-branch'], 'main', 'done puts base-branch back to the trunk');
+    assert.equal(fm(path.join(dir, 'work', 'demo-engine.md')).state, 'done');
+
+    // The second piece: design first, then its review base is the end branch of the first.
+    assert.equal(run(['open', root, SRC, 'screen']).ok, true);
+    const screenIndex = fm(path.join(wf(root, 'demo-screen'), '00-index.md'));
+    assert.equal(screenIndex['next-command'], 'wf-design');
+    st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current.step], ['screen', 'design']);
+    assert.equal(run(['start', root, SRC, 'screen']).base, `pieces/${SRC}--engine`);
+    assert.deepEqual(run(['owner', root, 'demo-screen']), { ok: true, owned: false, slug: 'demo-screen' });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('local records: a worktree gets the evidence of its own slug only; the wave worktree gets the evidence of every wave slug (13)', () => {
-  const root = makeLocalRepo();
-  try {
-    const ev = (slug) => path.join(root, '.ai', 'workflows', slug, 'verify-evidence', 's1');
-    for (const slug of ['squads', 'engine', 'old-finished']) {
-      mkdirSync(ev(slug), { recursive: true });
-      writeFileSync(path.join(ev(slug), 'checks.md'), `checks of ${slug}`);
-    }
-    writeFileSync(path.join(root, '.ai', 'workflows', 'old-finished', '06-verify.md'), 'verified');
-    orient(root);
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const has = (p, slug) => existsSync(path.join(p, '.ai', 'workflows', slug, 'verify-evidence', 's1', 'checks.md'));
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.ok(has(a.path, 'squads'), 'the slug the worktree drives keeps its evidence');
-    assert.ok(!has(a.path, 'engine') && !has(a.path, 'old-finished'), 'the evidence of other workflows stays in the main checkout');
-    assert.ok(existsSync(path.join(a.path, '.ai', 'workflows', 'old-finished', '06-verify.md')), 'their records still travel');
-    const w = run(root, 'worktree', 'wave-1', 'add');
-    assert.equal(w.ok, true, JSON.stringify(w));
-    assert.ok(has(w.path, 'squads') && has(w.path, 'engine'), 'the wave worktree gets the evidence of every unit of the wave');
-    assert.ok(!has(w.path, 'old-finished'));
-    const s = run(root, 'worktree', 'W2', 'sync');
-    assert.equal(s.records.deletedInWorktree.length, 0, 'evidence that never travelled is not reported as deleted');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('local records: a tracked .ai/ file keeps its committed version in the worktree, so a commit there cannot publish a main edit (13)', () => {
-  const root = makeLocalRepo();
-  try {
-    // The SoccerManager shape: .ai/* ignored, but the project contracts tracked.
-    writeFileSync(path.join(root, '.gitignore'), '.ai/*\n!.ai/ship-plan.md\n');
-    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (committed)\n');
-    git(root, 'add', '.gitignore', '.ai/ship-plan.md');
-    git(root, 'commit', '-q', '-m', 'track the ship plan');
-    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (uncommitted edit)\n');
-    orient(root);
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.deepEqual(a.records.tracked, ['ship-plan.md']);
-    const plan = path.join(a.path, '.ai', 'ship-plan.md');
-    // git may check the file out with CRLF line ends on Windows.
-    const planText = () => readFileSync(plan, 'utf8').replace(/\r\n/g, '\n');
-    assert.equal(planText(), 'plan (committed)\n');
-    assert.equal(git(a.path, 'status', '--porcelain'), '', 'git sees no change in the worktree');
-    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (second edit)\n');
-    run(root, 'worktree', 'W2', 'refresh');
-    assert.equal(planText(), 'plan (committed)\n', 'a refresh does not write over it');
-    assert.deepEqual(run(root, 'worktree', 'W2', 'sync').records.conflicts, [], 'no false conflict on the way out');
-    assert.equal(readFileSync(path.join(root, '.ai', 'ship-plan.md'), 'utf8'), 'plan (second edit)\n');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('worktree add keeps the path short, and a failed add leaves no branch behind (13)', () => {
+test('6.1: a built piece that can be tried waits for the try-out record', () => {
   const root = makeRepo();
   try {
-    orient(root);
-    setupDone(root);
-    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: ISOLATION } }));
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const runId = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), 'utf8'))['run-id'];
-    // The default root is outside the repo: <SDLC_HOME>/cw/<repo tag>/<run stamp>.
-    const target = path.join(process.env.SDLC_HOME, 'cw', repoTag(path.resolve(root)), shortStamp(runId), 'w1-2');
-    assert.ok(shortStamp(runId).length <= 7, `the stamp is short: ${shortStamp(runId)}`);
-    // A file in the way makes git refuse the add.
-    mkdirSync(target, { recursive: true });
-    writeFileSync(path.join(target, 'in-the-way'), 'x');
-    const failed = run(root, 'worktree', 'W2', 'add');
-    assert.equal(failed.ok, false);
-    assert.equal(git(root, 'branch', '--list', 'campaign/realism/wave-1--squads'), '', 'the failed add left no branch');
-    rmSync(target, { recursive: true, force: true });
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.equal(path.resolve(a.path), path.resolve(target));
-    assert.ok(path.relative(process.env.SDLC_HOME, a.path).length < 30, `short path: ${a.path}`);
-    assert.ok(path.relative(root, a.path).startsWith('..'), `the worktree is outside the repo: ${a.path}`);
-    // A branch left by an earlier attempt (an older version, or a crash) is reused, never refused.
-    git(root, 'worktree', 'remove', a.path);
-    const ledgerFile = path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json');
-    const ledger = JSON.parse(readFileSync(ledgerFile, 'utf8'));
-    delete ledger.units.W2.worktree;
-    writeFileSync(ledgerFile, JSON.stringify(ledger));
-    const again = run(root, 'worktree', 'W2', 'add');
-    assert.equal(again.ok, true, JSON.stringify(again));
-    assert.equal(again.branch, 'campaign/realism/wave-1--squads');
-    // A branch of the same name from another run (it lacks the wave tip) is never reused.
-    git(root, 'worktree', 'remove', again.path);
-    delete ledger.units.W2.worktree;
-    writeFileSync(ledgerFile, JSON.stringify(ledger));
-    git(root, 'branch', '-f', 'campaign/realism/wave-1--squads', `${st.branch}~0`);
-    git(root, 'checkout', '-q', st.branch);
-    writeFileSync(path.join(root, 'wave-only.txt'), 'x');
-    git(root, 'add', 'wave-only.txt');
-    git(root, 'commit', '-q', '-m', 'move the wave tip');
-    git(root, 'checkout', '-q', '-');
-    assert.match(run(root, 'worktree', 'W2', 'add').error, /comes from another run/);
+    const dir = writeBoard(root, [
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 1, items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP, 'try-out': 'yes' },
+    ], ['d-two']);
+    assert.equal(run(['write', dir]).ok, true);
+    assert.equal(run(['open', root, SRC, 'screen']).ok, true);
+    run(['land', root, SRC]);
+    assert.equal(run(['start', root, SRC, 'screen']).ok, true);
+    assert.equal(run(['built', root, SRC, 'screen']).ok, true);
+    review(root, 'demo-screen', [['d-two', 'honored', 'app.txt:1', '—']]);
+    assert.equal(run(['status', root, SRC]).current.step, 'try-out');
+    assert.match(run(['done', root, SRC, 'screen']).error, /try-out of screen is not recorded/);
+    appendFileSync(path.join(wf(root, 'demo-screen'), 'po-answers.md'), '\n- try-out: works — the screen shows the engine\n');
+    assert.equal(run(['done', root, SRC, 'screen']).ok, true);
+    assert.equal(run(['status', root, SRC]).finished, true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('local records: with an untracked .gitignore, the worktree still hides every copied record from git (13)', () => {
+/** A list of one build piece, opened, started and built on the list branch. */
+function builtPiece(items) {
+  const root = makeRepo();
+  writeBoard(root, [
+    { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items, goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+  ], items);
+  assert.equal(run(['write', wf(root, SRC)]).ok, true);
+  assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+  run(['land', root, SRC]);
+  assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+  assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+  return root;
+}
+
+test('8: the fidelity check fails closed: markdown, other verdicts, the Approval column and a missing row', () => {
+  const root = builtPiece(['d-one', 'd-two', 'd-three']);
+  try {
+    // The review cites an approval that the person never gave, and leaves out d-three.
+    review(root, 'demo-engine', [['`d-one`', '**narrowed**', 'app.txt:1', 'pending'], ['d-two', 'partial', 'app.txt:1', '—']]);
+    let st = run(['status', root, SRC]);
+    assert.equal(st.current.step, 'fidelity');
+    assert.deepEqual(st.current.missing, ['d-three']);
+    assert.match(st.current.reason, /no row for d-three/);
+    assert.match(run(['done', root, SRC, 'engine']).error, /no row for d-three/);
+
+    review(root, 'demo-engine', [['`d-one`', '**narrowed**', 'app.txt:1', 'pending'], ['d-two', 'partial', 'app.txt:1', '—'], ['d-three', 'Honored', 'app.txt:1', '—']]);
+    st = run(['status', root, SRC]);
+    assert.deepEqual(st.current.rows.map((r) => [r.key, r.verdict]), [['d-one', 'narrowed'], ['d-two', 'partial']], 'only a po-answers.md line approves a row');
+    appendFileSync(path.join(wf(root, 'demo-engine'), 'po-answers.md'), '\n## Decision fidelity approvals\n\n- **d-one**: approved — fine\n- d-two: approved — fine\n');
+    assert.equal(run(['status', root, SRC]).current.step, 'done');
+    assert.equal(run(['done', root, SRC, 'engine']).ok, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('6.1 step 13: a fix slice sends a built piece back to the driver, also in a new call', () => {
+  const root = builtPiece(['d-one']);
+  try {
+    review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
+    assert.equal(run(['status', root, SRC]).current.step, 'done');
+    // /wf intake extend adds a fix slice to the roster.
+    const idx = path.join(wf(root, 'demo-engine'), '00-index.md');
+    writeFileSync(idx, setFrontmatterValue(readFileSync(idx, 'utf8'), 'slices', [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'defined' }]));
+    const st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.step, st.current.state], ['yolo', 'built']);
+    assert.match(st.current.reason, /fix-1/);
+    assert.match(run(['done', root, SRC, 'engine']).error, /fix-1 of demo-engine are not complete/);
+    assert.deepEqual([run(['reopen', root, SRC, 'engine']).changed, fm(path.join(wf(root, SRC), 'work', 'demo-engine.md')).state], [true, 'open']);
+    assert.equal(run(['reopen', root, SRC, 'engine']).changed, false);
+    // The driver builds the slice.
+    writeFileSync(idx, setFrontmatterValue(readFileSync(idx, 'utf8'), 'slices', [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'complete' }]));
+    assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+    assert.equal(run(['status', root, SRC]).current.step, 'done');
+    assert.equal(run(['done', root, SRC, 'engine']).ok, true);
+    assert.equal(run(['reopen', root, SRC, 'engine']).ok, false, 'a done piece never opens again');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('6.1: a piece of another form is routed to its own command, never opened', () => {
   const root = makeRepo();
   try {
-    // The Secbot shape: .ai/ untracked, and the .gitignore that ignores it never committed.
-    git(root, 'rm', '-r', '-q', '--cached', '.ai');
-    git(root, 'commit', '-q', '-m', 'untrack .ai');
-    writeFileSync(path.join(root, '.gitignore'), '.ai/*\n');
-    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ artifactTracking: 'ignored', campaign: { isolation: ISOLATION } }));
-    writeFileSync(path.join(root, '.ai', '.gitignore'), '# managed by sdlc-workflow\n_view/\n');
-    assert.equal(orient(root).records, 'local');
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.ok(!existsSync(path.join(a.path, '.gitignore')), 'the worktree has no root .gitignore');
-    assert.equal(git(a.path, 'status', '--porcelain', '--untracked-files=all'), '', 'git sees no copied record');
-    assert.match(readFileSync(path.join(a.path, '.ai', '.gitignore'), 'utf8'), /^\*$/m);
-    writeFileSync(path.join(a.path, '.ai', 'workflows', 'squads-new.md'), 'new');
-    assert.equal(run(root, 'worktree', 'W2', 'remove').ok, true);
-    assert.equal(readFileSync(path.join(root, '.ai', '.gitignore'), 'utf8'), '# managed by sdlc-workflow\n_view/\n', 'the main .ai/.gitignore never takes the worktree version');
-    assert.equal(readFileSync(path.join(root, '.ai', 'workflows', 'squads-new.md'), 'utf8'), 'new');
+    const dir = writeBoard(root, [
+      { key: 'why-slow', title: 'Why slow', shape: 'rca', slug: 'why-slow', entry: 'x', state: 'proposed', order: 1, items: ['d-one'] },
+    ], ['d-one']);
+    assert.equal(run(['write', dir]).ok, true);
+    const st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.step, st.current.route], ['route', '/wf intake rca why-slow']);
+    assert.equal(run(['open', root, SRC, 'why-slow']).ok, false);
+    const closed = run(['close', root, SRC, 'why-slow', 'done']);
+    assert.equal(closed.ok, true, JSON.stringify(closed));
+    assert.equal(fm(path.join(dir, 'work', 'why-slow.md')).state, 'done');
+    assert.equal(JSON.parse(readFileSync(path.join(dir, 'brainstorm-board.json'), 'utf8')).work[0].state, 'done');
+    assert.equal(run(['status', root, SRC]).finished, true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('local records: the wave worktree takes the main records for handoff, and its changes come back (13)', () => {
-  const root = makeLocalRepo();
-  try {
-    orient(root);
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const w = run(root, 'worktree', 'wave-1', 'add');
-    assert.equal(w.ok, true, JSON.stringify(w));
-    assert.equal(w.branch, 'campaign/realism/wave-1');
-    const idx = path.join(w.path, '.ai', 'workflows', 'squads', '00-index.md');
-    assert.ok(existsSync(idx));
-    // The campaign session sets branch: in the main checkout; refresh carries it in.
-    writeFileSync(path.join(root, '.ai', 'workflows', 'squads', '00-index.md'), '---\nslug: squads\nbranch: campaign/realism/wave-1\n---\n');
-    assert.deepEqual(run(root, 'worktree', 'wave-1', 'refresh').records.refreshed, ['workflows/squads/00-index.md']);
-    assert.match(readFileSync(idx, 'utf8'), /branch: campaign\/realism\/wave-1/);
-    // Handoff writes its package in the wave worktree.
-    writeFileSync(path.join(w.path, '.ai', 'workflows', 'squads', '08-handoff.md'), 'handoff');
-    assert.deepEqual(run(root, 'worktree', 'wave-1', 'sync').records.copied, ['workflows/squads/08-handoff.md']);
-    assert.equal(run(root, 'worktree', 'wave-1', 'remove').ok, true);
-    assert.equal(readFileSync(path.join(root, '.ai', 'workflows', 'squads', '08-handoff.md'), 'utf8'), 'handoff');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-// DESIGN-BOARDS-PLAN W5b: a worktree gets the design boards of its own slug only, and
-// a PNG travels byte for byte.
-test('local records: a worktree gets the design boards of its own slug only; a PNG copies exactly (13)', () => {
-  const root = makeLocalRepo();
-  try {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 5, 0, 0, 0, 3, 0x20, 0xff, 0x00, 0x7f]);
-    const board = (slug) => path.join(root, '.ai', 'workflows', slug, 'design', 'r1', 'boards');
-    for (const slug of ['squads', 'engine']) {
-      mkdirSync(board(slug), { recursive: true });
-      writeFileSync(path.join(board(slug), 'squad-list--default.png'), png);
-    }
-    orient(root);
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    const copied = path.join(a.path, '.ai', 'workflows', 'squads', 'design', 'r1', 'boards', 'squad-list--default.png');
-    assert.ok(readFileSync(copied).equals(png), 'the board PNG of the driven slug arrives byte for byte');
-    assert.ok(!existsSync(path.join(a.path, '.ai', 'workflows', 'engine', 'design')), 'the boards of another workflow stay in the main checkout');
-    const capture = path.join(a.path, '.ai', 'workflows', 'squads', 'design', 'captures', 's1', 'squad-list--default.png');
-    mkdirSync(path.dirname(capture), { recursive: true });
-    writeFileSync(capture, png);
-    const s = run(root, 'worktree', 'W2', 'sync');
-    assert.equal(s.ok, true, JSON.stringify(s));
-    assert.ok(readFileSync(path.join(root, '.ai', 'workflows', 'squads', 'design', 'captures', 's1', 'squad-list--default.png')).equals(png), 'a verify capture comes back to the main checkout');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-// WF-DESIGN-PLAN B2 (DP13): the design record belongs to the main checkout. A worktree reads its
-// copy; a change or a revert there goes to the conflict store and never overwrites the main record.
-test('local records: .ai/design/ stays main-owned; a worktree change goes to the conflict store (B2)', () => {
-  const root = makeLocalRepo();
-  try {
-    const design = (p, f) => path.join(p, '.ai', 'design', f);
-    mkdirSync(path.join(root, '.ai', 'design'), { recursive: true });
-    writeFileSync(design(root, 'direction.md'), 'direction v1');
-    orient(root);
-    setupDone(root);
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.equal(readFileSync(design(a.path, 'direction.md'), 'utf8'), 'direction v1', 'the worktree gets a copy to read');
-    // The retro in main settles a new direction; a stage in the worktree writes its own version.
-    writeFileSync(design(root, 'direction.md'), 'direction v2 (retro in main)');
-    writeFileSync(design(a.path, 'direction.md'), 'direction (worktree)');
-    writeFileSync(design(a.path, 'current.md'), 'current (worktree)');
-    const s = run(root, 'worktree', 'W2', 'sync');
-    assert.equal(s.ok, true, JSON.stringify(s));
-    assert.equal(readFileSync(design(root, 'direction.md'), 'utf8'), 'direction v2 (retro in main)');
-    assert.ok(!existsSync(design(root, 'current.md')), 'a new design file never copies out to main');
-    assert.deepEqual(s.records.copied, []);
-    assert.deepEqual(s.records.conflicts.map((c) => [c.rel, c.mainOwned]).sort(), [['design/current.md', true], ['design/direction.md', true]]);
-    const removed = run(root, 'worktree', 'W2', 'remove');
-    assert.equal(removed.ok, true, JSON.stringify(removed));
-    assert.equal(readFileSync(design(root, 'direction.md'), 'utf8'), 'direction v2 (retro in main)', 'the remove keeps the main record');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-// WF-DESIGN-PLAN B4 (P4): status reads the design focus of the board and the design record on disk.
-test('status returns design-setup before prepare for a design board without PRODUCT.md or DESIGN.md (B4)', () => {
+test('close: a build piece is done only through the walk; a dropped piece holds no decision on the next write', () => {
   const root = makeRepo();
   try {
-    writeFileSync(path.join(root, '.ai', 'workflows', B, 'brainstorm-board.json'), JSON.stringify({ focus: 'design' }));
-    orient(root);
-    setupDone(root);
-    const s = run(root, 'status');
-    assert.equal(s.next.action, 'design-setup');
-    assert.deepEqual(s.next.missing, ['PRODUCT.md', 'DESIGN.md']);
-    assert.equal(s.next.command, 'Type `/wf design setup`.');
-    writeFileSync(path.join(root, 'PRODUCT.md'), '# Product\n');
-    mkdirSync(path.join(root, 'docs'), { recursive: true });
-    writeFileSync(path.join(root, 'docs', 'DESIGN.md'), '# Design\n');
-    const t = run(root, 'status');
-    assert.equal(t.next.action, 'prepare', 'the action clears when both files exist');
-    assert.match(t.next.command, /^Type `\/wf intake /);
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+    ], ['d-one']);
+    assert.equal(run(['write', dir]).ok, true);
+    assert.match(run(['close', root, SRC, 'engine', 'done']).error, /build piece/);
+    assert.equal(run(['close', root, SRC, 'engine', 'dropped']).ok, true);
+    assert.equal(run(['close', root, SRC, 'engine', 'later']).ok, false);
+    const board = JSON.parse(readFileSync(path.join(dir, 'brainstorm-board.json'), 'utf8'));
+    assert.equal(board.work[0].state, 'dropped');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('unit prepared refuses a unit whose needed design has no confirmed boards on disk (DESIGN-BOARDS-PLAN W5b)', () => {
-  const root = makeRepo();
+test('slice-order add writes the edge into the roster and the slice file, and refuses a cycle', () => {
+  const root = tmp('sord ');
   try {
-    orient(root);
-    const dir = path.join(root, '.ai', 'workflows', 'squads');
-    mkdirSync(path.join(dir, 'design', 'r1', 'boards'), { recursive: true });
-    writeFileSync(path.join(dir, '00-index.md'), '---\nslug: squads\nux-impact: new-surface\n---\n');
-    const notSettled = run(root, 'unit', 'W2', 'prepared');
-    assert.equal(notSettled.ok, false);
-    assert.match(notSettled.error, /design is not settled/);
-    writeFileSync(path.join(dir, '02c-craft.md'), '---\nimage-gate: pass\ndirection-confirmed-by: in-session\n---\n');
-    assert.match(run(root, 'unit', 'W2', 'prepared').error, /names no boards/);
-    writeFileSync(path.join(dir, '02c-craft.md'), '---\nimage-gate: pass\ndirection-confirmed-by: in-session\nboards: design/r1/boards.json\ndesign-revision: 1\n---\n');
-    writeFileSync(path.join(dir, 'design', 'r1', 'boards.json'), JSON.stringify({
-      schema: 'sdlc/design-boards/v1', slug: 'squads', revision: 1, viewports: { desktop: '1280x800' },
-      boards: [{ key: 'squad-list--default', surface: 'squad-list', state: 'default', png: 'boards/squad-list--default.png' }], confirmed: [],
-    }));
-    assert.match(run(root, 'unit', 'W2', 'prepared').error, /boards are missing: design\/r1\/boards\/squad-list--default\.png/);
-    writeFileSync(path.join(dir, 'design', 'r1', 'boards', 'squad-list--default.png'), 'png');
-    assert.equal(run(root, 'unit', 'W2', 'prepared').ok, true);
-    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true, 'a unit without a workflow folder yet is not checked');
+    const dir = wf(root, 'engine');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, '03-slice.md'), '---\nslug: engine\nslices:\n  - {slug: s1, status: defined}\n  - {slug: s2, status: defined}\n  - {slug: s3, status: defined}\n---\n\n# Slices\n');
+    writeFileSync(path.join(dir, '03-slice-s1.md'), '---\nslice: s1\ndepends-on: []\n---\n');
+    writeFileSync(path.join(dir, '04-plan.md'), '---\nslug: engine\nimplementation-order:\n  - s1\n  - s2\n  - s3\n---\n');
+    const r = run(['slice-order', root, 'engine', 'add', '--slice', 's1', '--after', 's3', '--why', 'the plan of s3 makes the table']);
+    assert.equal(r.added, true, JSON.stringify(r));
+    assert.deepEqual(r.walkOrder, ['s2', 's3', 's1']);
+    assert.match(readFileSync(path.join(dir, '03-slice.md'), 'utf8'), /- \{slug: s1, status: defined, depends-on: \[s3\]\}/);
+    assert.match(readFileSync(path.join(dir, '03-slice-s1.md'), 'utf8'), /depends-on: \[s3\]/);
+    assert.match(readFileSync(path.join(dir, '04-plan.md'), 'utf8'), /implementation-order: \[s2, s3, s1\]/);
+    assert.match(readFileSync(path.join(dir, 'index-history.jsonl'), 'utf8'), /slice-order: 's1' after 's3': the plan of s3 makes the table/);
+    assert.equal(run(['slice-order', root, 'engine', 'add', '--slice', 's1', '--after', 's3']).added, false, 'the same edge again adds nothing');
+    const cyc = run(['slice-order', root, 'engine', 'add', '--slice', 's3', '--after', 's1']);
+    assert.equal(cyc.ok, false);
+    assert.equal(cyc.cycle, true, JSON.stringify(cyc));
+    assert.equal(run(['slice-order', root, 'engine', 'add', '--slice', 's9', '--after', 's1']).ok, false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('setup, rolling prepare, and a wave that starts with its prepared units', () => {
-  const root = makeRepo();
-  try {
-    orient(root);
-    assert.equal(run(root, 'answer', 'forecast', 'continue').next.action, 'setup');
-    run(root, 'answer', 'target-version', '"0.3.0"');
-    run(root, 'answer', 'release-each-wave', 'false');
-    run(root, 'answer', 'output', '{"build-cmd":"cargo build --release","artifacts":["target/release/sm"],"try":"run target/release/sm"}');
-    const last = run(root, 'answer', 'budget', 'default');
-    assert.deepEqual(last.value, { fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
-    // WF-CAMPAIGN-THROUGHPUT-PLAN T3: W3 needs only W1 of the next wave, so it may prepare ahead.
-    assert.deepEqual(last.next, { action: 'prepare', wave: 1, units: ['W1', 'W2'], ahead: ['W3'], command: 'Type `/wf intake .ai/workflows/realism/work/engine.md`.' });
-    // WF-DESIGN-PLAN B3: unit <key> prepared names the next command: the intake of the next unit.
-    const prepared = run(root, 'unit', 'W1', 'prepared');
-    assert.equal(prepared.next.action, 'prepare');
-    assert.deepEqual(prepared.next.units, ['W2']);
-    assert.match(prepared.next.command, /^Type `\/wf intake \.ai\/workflows\/realism\/work\/\S+\.md`\.$/);
-    const st = run(root, 'wave', '1', 'start');
-    assert.equal(st.ok, true, JSON.stringify(st));
-    assert.equal(st.branch, 'campaign/realism/wave-1');
-    assert.deepEqual(st.units, [{ key: 'W1', slug: 'engine' }]);
-    assert.deepEqual(st.moved, [{ key: 'W2', reason: 'not prepared' }]);
-    const s = run(root, 'status');
-    assert.equal(s.next.action, 'running');
-    assert.deepEqual(s.ledger.waves.map((w) => [w.n, w.state, w.units.join(',')]), [[1, 'running', 'W1'], [2, 'planned', 'W2,W3']]);
-    assert.match(run(root, 'wave', '2', 'start').error, /wave 1 is running/);
-    const journal = readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', '.campaign-journal.jsonl'), 'utf8');
-    assert.match(journal, /"event":"wave-start"/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+/**
+ * An old wave campaign, as the real ledgers have it (12.1): wave 1 shipped by a squash
+ * merge, wave 2 running with the unit `eng` in its own worktree and the extension unit
+ * `eng-ext` absorbed into the same slug, and wave 3 planned. Records are local. Beside
+ * them: the old wave-1 worktree with a link to a folder outside it, a worktree that is not
+ * the campaign's, and a stray folder.
+ */
+function makeOldCampaign() {
+  const root = makeRepo('mig ');
+  const outside = tmp('mig-out ');
+  const W1 = `campaign/${SRC}/wave-1`;
+  const W2 = `campaign/${SRC}/wave-2`;
+  const UNIT = `campaign/${SRC}/wave-2--eng`;
+  // Wave 1: its branch, then the squash merge on main (the same change, another commit).
+  git(root, 'switch', '-q', '-c', W1);
+  writeFileSync(path.join(root, 'base.txt'), 'wave 1\n');
+  git(root, 'add', 'base.txt');
+  git(root, 'commit', '-qm', 'wave 1 work');
+  git(root, 'switch', '-q', 'main');
+  git(root, 'merge', '-q', '--squash', W1);
+  git(root, 'commit', '-qm', 'wave 1 (#1)');
+  // Wave 2 starts from the unsquashed wave 1; the unit adds its code in its worktree.
+  git(root, 'branch', W2, W1);
+  const wtEng = path.join(outside, 'w2-1');
+  git(root, 'worktree', 'add', '-q', '-b', UNIT, wtEng, W2);
+  git(wtEng, 'config', 'user.email', 'c@test');
+  git(wtEng, 'config', 'user.name', 'c');
+  writeFileSync(path.join(wtEng, 'app.txt'), 'v0\nengine\n');
+  git(wtEng, 'commit', '-qam', 'eng: slice 1');
+  writeFileSync(path.join(wtEng, 'eng.txt'), 'not committed\n');
+  // The old wave-1 worktree, clean, with a link to a folder outside the worktree.
+  const wtW1 = path.join(outside, 'wave-1');
+  git(root, 'worktree', 'add', '-q', wtW1, W1);
+  const target = path.join(outside, 'shared-deps');
+  mkdirSync(target);
+  writeFileSync(path.join(target, 'keep.txt'), 'never deleted\n');
+  writeFileSync(path.join(wtW1, '.gitignore'), '.ai/\nnode_modules\n');
+  git(wtW1, '-c', 'user.email=c@test', '-c', 'user.name=c', 'commit', '-qam', 'ignore node_modules');
+  symlinkSync(target, path.join(wtW1, 'node_modules'), 'junction');
+  // A worktree that is not the campaign's.
+  const wtOther = path.join(outside, 'other');
+  git(root, 'worktree', 'add', '-q', '-b', 'feat/other', wtOther, 'main');
 
-test('the context file names the carried decisions, the succeeding expects lines and the as-built differences', () => {
-  const root = makeRepo();
-  try {
-    orient(root);
-    const c = run(root, 'context', 'W1');
-    assert.equal(c.ok, true);
-    const text = readFileSync(c.path, 'utf8');
-    assert.match(text, /\*\*W1-d1\*\* — decision of W1/);
-    assert.match(text, /W3 `season` expects `tick`: a match tick function/);
-    const camp = path.join(root, '.ai', 'workflows', B, 'work', 'campaign');
-    mkdirSync(path.join(camp, 'as-built'), { recursive: true });
-    writeFileSync(path.join(camp, 'as-built', 'engine.json'), JSON.stringify({ key: 'W1', slug: 'engine', lines: [{ key: 'tick', status: 'changed', class: 'implementation-detail', note: 'tick takes a seed' }] }));
-    const c3 = readFileSync(run(root, 'context', 'W3').path, 'utf8');
-    assert.match(c3, /\*\*Differs:\*\* `tick` is changed: tick takes a seed/);
-    assert.match(c3, /\[as-built\]\(\.\.\/as-built\/engine\.md\)/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+  writeBoard(root, [
+    { key: 'base', title: 'Base', shape: 'intake', slug: 'base', entry: 'x', state: 'routed', order: 1, items: ['d-base'] },
+    { key: 'eng', title: 'Engine', shape: 'intake', slug: 'eng', entry: 'x', state: 'routed', order: 2, 'why-here': 'after the base', items: ['d-eng'] },
+    { key: 'eng-ext', title: 'Engine extension', shape: 'extension', slug: 'eng-ext', 'target-slug': 'eng', entry: 'x', state: 'routed', order: 3, 'why-here': 'extends the engine', items: ['d-ext'] },
+    { key: 'later', title: 'Later', shape: 'intake', slug: 'later', entry: 'x', state: 'proposed', order: 4, 'why-here': 'after the engine', items: ['d-later'] },
+  ], ['d-base', 'd-eng', 'd-ext', 'd-later']);
+  const camp = path.join(wf(root, SRC), 'work', 'campaign');
+  mkdirSync(path.join(camp, 'records'), { recursive: true });
+  // The records: the main checkout and the worktree had the same 00-index at wave start; the worktree's is newer now.
+  const mainIdx = path.join(wf(root, 'eng'), '00-index.md');
+  mkdirSync(path.dirname(mainIdx), { recursive: true });
+  writeFileSync(mainIdx, '---\nschema: sdlc/v1\ntype: workflow-index\nslug: eng\nstatus: active\n---\n');
+  const wtIdx = path.join(wtEng, '.ai', 'workflows', 'eng', '00-index.md');
+  mkdirSync(path.dirname(wtIdx), { recursive: true });
+  writeFileSync(wtIdx, '---\nschema: sdlc/v1\ntype: workflow-index\nslug: eng\nstatus: active\ncurrent-stage: implement\n---\n');
+  writeFileSync(path.join(wtEng, '.ai', 'workflows', 'eng', '05-implement-s1.md'), '# Implement s1\n');
+  writeFileSync(path.join(camp, 'records', 'eng.json'), JSON.stringify({ version: 1, id: 'eng', files: { 'workflows/eng/00-index.md': { base: hashFile(mainIdx), kept: [] } } }));
+  writeFileSync(path.join(camp, 'ledger.json'), JSON.stringify({
+    version: 2, brainstorm: SRC, records: 'local', trunk: 'main',
+    waves: [{ n: 1, state: 'shipped', branch: W1 }, { n: 2, state: 'running', branch: W2 }, { n: 3, state: 'planned', branch: null }],
+    units: {
+      base: { slug: 'base', state: 'shipped', wave: 1 },
+      eng: { slug: 'eng', state: 'running', wave: 2, worktree: { path: wtEng, branch: UNIT } },
+      'eng-ext': { slug: 'eng', state: 'merged-in', wave: 2 },
+      later: { slug: 'later', state: 'planned', wave: 3 },
+    },
+  }, null, 2));
+  // The old ledger is quiet: older than the 30 minutes of a live run.
+  const old = new Date(Date.now() - 2 * 60 * 60_000);
+  execFileSync(process.execPath, ['-e', `require('fs').utimesSync(${JSON.stringify(path.join(camp, 'ledger.json'))}, new Date(${old.getTime()}), new Date(${old.getTime()}))`]);
+  mkdirSync(path.join(root, '.ai', 'workflows', '{slug}'), { recursive: true });
+  writeFileSync(path.join(root, '.ai', 'workflows', '{slug}', 'stray.md'), 'x\n');
+  return { root, outside, wtEng, wtW1, wtOther, target, W2, UNIT };
+}
 
-test('the drift check: an implementation-detail change continues; a contract change stops the slug and its dependents', () => {
-  const root = makeRepo();
-  try {
-    orient(root);
-    const camp = path.join(root, '.ai', 'workflows', B, 'work', 'campaign');
-    mkdirSync(path.join(camp, 'as-built'), { recursive: true });
-    writeFileSync(path.join(camp, 'as-built', 'engine.json'), JSON.stringify({ key: 'W1', lines: [{ key: 'tick', status: 'changed', class: 'implementation-detail', note: 'renamed' }] }));
-    let d = run(root, 'drift', '2');
-    assert.deepEqual(d.results, [{ key: 'W3', class: 'implementation-detail' }]);
-    assert.deepEqual(d.stop, []);
-    assert.match(readFileSync(run(root, 'context', 'W3').path, 'utf8'), /## 5\. Drift notes[\s\S]*`W1\/tick`/);
-    writeFileSync(path.join(camp, 'as-built', 'engine.json'), JSON.stringify({ key: 'W1', lines: [{ key: 'tick', status: 'unverified' }] }));
-    d = run(root, 'drift', '2');
-    assert.deepEqual(d.stop, ['W3']);
-    assert.match(readFileSync(path.join(camp, 'drift', 'wave-2.md'), 'utf8'), /Contract differences: W3/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+const merged = () => 1;
 
-test('versions at ship time follow the tags; no target means build labels only (V2, V6)', () => {
-  const root = makeRepo();
+test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-flight units become the first pieces', () => {
+  const m = makeOldCampaign();
+  const { root } = m;
   try {
-    orient(root);
-    assert.equal(run(root, 'version', 'wave').version, null, 'no ship plan: no versioning');
-    run(root, 'answer', 'target-version', '"0.3.0"');
-    assert.equal(run(root, 'version', 'wave').version, '0.3.0-beta.1');
-    git(root, 'tag', 'v0.3.0-beta.1');
-    assert.equal(run(root, 'version', 'wave').version, '0.3.0-beta.2');
-    assert.equal(run(root, 'version', 'hotfix').version, '0.3.0-beta.2');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+    const st = run(['status', root, SRC]);
+    assert.equal(st.migrate, true, JSON.stringify(st));
 
-test('questions, the pause, and the re-plan when the brainstorm adds a packet', () => {
-  const root = makeRepo();
-  try {
-    orient(root);
-    for (const [k, v] of [['forecast', 'continue'], ['target-version', '"0.3.0"'], ['release-each-wave', 'false'], ['output', '{"build-cmd":"make","artifacts":["out"],"try":"open out"}'], ['budget', '{"fiveHourPause":85}']]) run(root, 'answer', k, v);
-    run(root, 'ask', 'q1', '--wave', '1', 'CI', 'is', 'red', 'on', 'the', 'wave', 'PR');
-    assert.equal(run(root, 'status').next.action, 'ask');
-    run(root, 'reply', 'q1', 'fix', 'the', 'flaky', 'test');
-    const p = run(root, 'pause', '2026-10-03T15:00:00Z', 'five-hour', 'window');
-    assert.equal(p.pause.reason, 'five-hour window');
-    const ctl = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', '.control.json'), 'utf8'));
-    assert.equal(ctl.action, 'pause');
-    assert.equal(ctl.scope, 'campaign');
-    assert.equal(run(root, 'status').next.action, 'paused');
-    run(root, 'resume');
-    packetFile(root, { key: 'W6', 'work-slug': 'engine-fix', form: 'fix', 'target-slug': 'engine', order: 6 });
-    workIndex(root, 2);
-    assert.equal(run(root, 'status').next.action, 'work-changed');
-    const r = run(root, 'replan');
-    assert.deepEqual(r.added, ['W6']);
-    // WF-CAMPAIGN-ORDER-PLAN 4.7: a new packet joins no wave before the person confirms its graph.
-    assert.deepEqual(r.waves.map((w) => w.units), [['W1', 'W2'], ['W3']]);
-    assert.deepEqual(run(root, 'status').next, { action: 'deps', units: ['W6'] });
-    const c = run(root, 'deps', 'confirm');
-    assert.deepEqual(c.confirmed, ['W6']);
-    assert.deepEqual(c.waves, [['W1', 'W2'], ['W3', 'W6']], 'R1: the fix of engine never shares a wave with engine');
-    run(root, 'outside', 'W4', 'closed');
-    const after = run(root, 'status');
-    assert.ok(after.ledger.waves.some((w) => w.units.includes('W5')), 'a closed investigate releases its dependents');
-  } finally { rmSync(root, { recursive: true, force: true }); }
-});
+    const rep = migrationReport(root, SRC, {}, { isMerged: merged });
+    assert.equal(rep.ok, true, JSON.stringify(rep));
+    assert.equal(rep.live, false);
+    assert.deepEqual(rep.shipped.map((u) => u.key), ['base']);
+    assert.deepEqual(rep.notStarted.map((u) => u.key), ['later']);
+    assert.equal(rep.inflight.length, 1, 'one piece per workflow slug');
+    const p = rep.inflight[0];
+    assert.deepEqual([p.slug, p.lead, p.branch, p.land, p.uncommitted], ['eng', 'eng', m.UNIT, 'squashed', 1]);
+    assert.deepEqual(p.units.map((u) => u.key).sort(), ['eng', 'eng-ext']);
+    const byPath = (w) => rep.worktrees.find((x) => path.resolve(x.path).toLowerCase() === path.resolve(w).toLowerCase());
+    assert.deepEqual([byPath(m.wtEng).old, byPath(m.wtEng).inflight], [true, true]);
+    assert.deepEqual([byPath(m.wtW1).old, byPath(m.wtW1).inflight], [true, false]);
+    assert.equal(byPath(m.wtOther).old, false);
+    assert.deepEqual(rep.strays, ['{slug}']);
+    const blocked = migrationReport(root, SRC, {}, { isMerged: () => null });
+    assert.equal(blocked.inflight[0].land, 'blocked', 'an open earlier wave PR blocks the migration');
+    assert.equal(migrateApply(root, SRC, {}, { isMerged: () => null }).ok, false);
 
-// ---------------------------------------------------------------- Stage D
+    const ap = migrateApply(root, SRC, {}, { isMerged: merged });
+    assert.equal(ap.ok, true, JSON.stringify(ap));
+    assert.deepEqual(ap.absorbed, ['eng-ext']);
+    assert.ok(ap.records[0].copied >= 2, JSON.stringify(ap.records));
+    assert.ok(existsSync(path.join(wf(root, 'eng'), '05-implement-s1.md')), 'the records sync brings the worktree records home');
+    const idx = fm(path.join(wf(root, 'eng'), '00-index.md'));
+    assert.equal(idx['current-stage'], 'implement', 'the newer worktree index wins');
+    assert.deepEqual([idx.branch, idx['migrated-from'], idx['wave-base'], idx.land], [`pieces/${SRC}`, m.UNIT, m.W2, 'squashed']);
+    assert.deepEqual(idx['origin-items'].sort(), ['d-eng', 'd-ext']);
+    const board = JSON.parse(readFileSync(path.join(wf(root, SRC), 'brainstorm-board.json'), 'utf8'));
+    assert.deepEqual(board.work.map((w) => [w.key, w.order, w.state]), [['base', 1, 'done'], ['eng', 2, 'open'], ['eng-ext', 3, 'dropped'], ['later', 4, 'proposed']]);
+    assert.equal(board.work[1].migrated.land, 'squashed');
 
-function runEnv(root, env, ...args) {
-  try {
-    return JSON.parse(execFileSync(process.execPath, [SCRIPT, args[0], root, B, ...args.slice(1)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } }));
-  } catch (e) {
-    return JSON.parse(e.stdout);
+    // 12.4: the person regroups the units that are not started; then the list is written.
+    const later = board.work.find((w) => w.key === 'later');
+    Object.assign(later, { goal: 'Do it later.', 'acceptance-criteria': ['It is done.'], ...WRITE_UP });
+    writeFileSync(path.join(wf(root, SRC), 'brainstorm-board.json'), JSON.stringify(board, null, 2));
+    const written = run(['write', wf(root, SRC)]);
+    assert.equal(written.ok, true, JSON.stringify(written));
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'eng.md')).state, 'open');
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'base.md')).state, 'done');
+    assert.equal(run(['status', root, SRC]).migrate, 'finish', 'a call after the regroup finishes the migration');
+
+    // 12.2 steps 8 to 10: archive the ledger, move the strays, remove the old worktrees that are not in flight.
+    const fin = run(['migrate', root, SRC, 'finish']);
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.ok(existsSync(path.join(wf(root, SRC), 'work', 'archive', 'campaign', 'ledger.json')));
+    assert.ok(!existsSync(path.join(wf(root, SRC), 'work', 'campaign')));
+    assert.ok(existsSync(path.join(wf(root, SRC), 'work', 'archive', 'stray', '_slug_', 'stray.md')));
+    assert.deepEqual(fin.refused, []);
+    assert.ok(!existsSync(m.wtW1), 'the old wave-1 worktree is removed');
+    assert.equal(readFileSync(path.join(m.target, 'keep.txt'), 'utf8'), 'never deleted\n', 'the remove never follows a link');
+    assert.ok(existsSync(m.wtOther), 'a worktree that is not the campaign\'s stays');
+    assert.ok(existsSync(m.wtEng), 'the in-flight worktree stays until its piece is done');
+    assert.equal(run(['status', root, SRC]).current.key, 'eng');
+
+    // 12.3: start commits the unit's work, rebases it off the squashed wave, and merges it into the list branch.
+    assert.equal(run(['land', root, SRC]).ok, true);
+    const start = run(['start', root, SRC, 'eng']);
+    assert.equal(start.ok, true, JSON.stringify(start));
+    // Two commits (slice 1 and the snapshot) become one commit before the rebase; the old commits stay on a backup branch.
+    assert.match(git(m.wtEng, 'log', '-1', '--format=%s'), /^eng: the work of the old unit, in one commit/);
+    assert.equal(git(m.wtEng, 'rev-list', '--count', 'main..HEAD'), '1');
+    assert.match(git(root, 'log', '-1', '--format=%s', `campaign/${SRC}/backup--eng`), /wip\(eng\): migration snapshot/);
+    assert.deepEqual(start.migration.steps.map((s) => Object.keys(s)[0]), ['snapshot', 'squashed', 'rebased', 'merged']);
+    assert.equal(readFileSync(path.join(root, 'app.txt'), 'utf8').replace(/\r\n/g, '\n'), 'v0\nengine\n');
+    assert.equal(readFileSync(path.join(root, 'eng.txt'), 'utf8').replace(/\r\n/g, '\n'), 'not committed\n');
+    assert.equal(git(root, 'log', '--format=%s', 'main..HEAD').split('\n').filter((s) => s === 'wave 1 work').length, 0, 'the squashed wave is not merged twice');
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'eng.md')).migrated.merged, true);
+    assert.equal(run(['start', root, SRC, 'eng']).migration.skipped, 'already merged');
+
+    // done removes the unit's worktree with the guarded remove.
+    assert.equal(run(['built', root, SRC, 'eng']).ok, true);
+    review(root, 'eng', [['d-eng', 'honored', 'app.txt:2', '—'], ['d-ext', 'honored', 'app.txt:2', '—']]);
+    const done = run(['done', root, SRC, 'eng']);
+    assert.equal(done.ok, true, JSON.stringify(done));
+    assert.equal(done.worktree?.removed, true, JSON.stringify(done.worktree));
+    assert.ok(!existsSync(m.wtEng));
+  } finally {
+    try { git(root, 'worktree', 'remove', '--force', m.wtOther); } catch { /* gone */ }
+    rmSync(root, { recursive: true, force: true });
+    rmSync(m.outside, { recursive: true, force: true });
   }
+});
+
+/** An old campaign, migrated and regrouped: the list is written and the walk is on the list branch. */
+function migratedList(m) {
+  assert.equal(migrateApply(m.root, SRC, {}, { isMerged: merged }).ok, true);
+  const boardPath = path.join(wf(m.root, SRC), 'brainstorm-board.json');
+  const board = JSON.parse(readFileSync(boardPath, 'utf8'));
+  Object.assign(board.work.find((w) => w.key === 'later'), { goal: 'Do it later.', 'acceptance-criteria': ['It is done.'], ...WRITE_UP });
+  writeFileSync(boardPath, JSON.stringify(board, null, 2));
+  assert.equal(run(['write', wf(m.root, SRC)]).ok, true);
+  assert.equal(run(['land', m.root, SRC]).ok, true);
 }
 
-function setupDone(root) {
-  for (const [k, v] of [['forecast', 'continue'], ['target-version', 'none'], ['release-each-wave', 'false'], ['output', 'none'], ['budget', 'default']]) run(root, 'answer', k, v);
+function dropOldCampaign(m) {
+  for (const w of [m.wtOther, m.wtEng, m.wtW1]) { try { git(m.root, 'worktree', 'remove', '--force', w); } catch { /* gone */ } }
+  rmSync(m.root, { recursive: true, force: true });
+  rmSync(m.outside, { recursive: true, force: true });
 }
 
-const ISOLATION = { parallel: true, 'port-env': { PORT: 3000 }, 'build-dirs': ['target'], 'heavy-suites': ['npm test'], 'min-free-gb': 0 };
-
-test('budget reads the newest usage reading and gives the state and the width (17.3, 17.5, 13)', () => {
-  const root = makeRepo();
-  const usage = mkdtempSync(path.join(os.tmpdir(), 'campaign usage '));
+test('12.3: start after a rebase by hand does not rebase again', () => {
+  const m = makeOldCampaign();
   try {
-    orient(root);
-    setupDone(root);
-    const env = { SDLC_USAGE_DIR: usage };
-    let r = runEnv(root, env, 'budget');
-    assert.equal(r.state, 'unknown');
-    assert.equal(r.width, 1);
-    const at = new Date(Date.now() - 60_000).toISOString();
-    writeFileSync(path.join(usage, 'old.json'), JSON.stringify({ at: '2020-01-01T00:00:00Z', rateLimits: [{ kind: 'five_hour', percentUsed: 99 }] }));
-    writeFileSync(path.join(usage, 'new.json'), JSON.stringify({ at, rateLimits: [{ kind: 'five_hour', percentUsed: 20, resetsAt: '2099-01-01T00:00:00Z' }, { kind: 'seven_day', percentUsed: 10 }] }));
-    r = runEnv(root, env, 'budget');
-    assert.equal(r.state, 'ok');
-    assert.equal(r.width, 1, 'no isolation contract: width 1');
-    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { width: 2, isolation: ISOLATION } }));
-    assert.equal(runEnv(root, env, 'budget').width, 2);
-    writeFileSync(path.join(usage, 'new.json'), JSON.stringify({ at, rateLimits: [{ kind: 'five_hour', percentUsed: 93, resetsAt: '2099-01-01T00:00:00Z' }] }));
-    r = runEnv(root, env, 'budget');
-    assert.equal(r.state, 'pause');
-    assert.equal(r.until, '2099-01-01T00:00:00Z');
-    assert.equal(r.width, 0);
-  } finally { rmSync(root, { recursive: true, force: true }); rmSync(usage, { recursive: true, force: true }); }
+    migratedList(m);
+    // The person rebases the unit by hand, as the conflict message asks.
+    git(m.wtEng, 'add', 'eng.txt');
+    git(m.wtEng, 'commit', '-qm', 'eng: by hand');
+    git(m.wtEng, 'rebase', '-q', '--onto', `pieces/${SRC}`, m.W2);
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, true, JSON.stringify(start));
+    assert.deepEqual(start.migration.steps.map((s) => Object.keys(s)[0]), ['merged'], 'no second rebase and no one-commit step');
+    assert.equal(readFileSync(path.join(m.root, 'app.txt'), 'utf8').replace(/\r\n/g, '\n'), 'v0\nengine\n');
+    assert.equal(readFileSync(path.join(m.root, 'eng.txt'), 'utf8').replace(/\r\n/g, '\n'), 'not committed\n');
+  } finally { dropOldCampaign(m); }
 });
 
-test('worktree add gives each slug its own checkout, branch, ports and workflow folder; remove never forces (13)', () => {
-  const root = makeRepo();
+test('12.3: a squashed unit whose commits are all in the wave base is refused before the snapshot', () => {
+  const m = makeOldCampaign();
   try {
-    orient(root);
-    setupDone(root);
-    assert.match(run(root, 'worktree', 'W1', 'add').error, /isolation/, 'no contract: drive in the main checkout');
-    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: ISOLATION } }));
-    mkdirSync(path.join(root, '.ai', 'workflows', 'squads'), { recursive: true });
-    writeFileSync(path.join(root, '.ai', 'workflows', 'squads', '00-index.md'), '---\nslug: squads\n---\n');
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    const st = run(root, 'wave', '1', 'start');
-    git(root, 'branch', st.branch, st.base);
-    const a = run(root, 'worktree', 'W2', 'add');
-    assert.equal(a.ok, true, JSON.stringify(a));
-    assert.equal(a.branch, 'campaign/realism/wave-1--squads');
-    assert.deepEqual(a.ports, { PORT: 3100 }, 'W2 is the second unit of the wave');
-    assert.ok(existsSync(path.join(a.path, 'README.md')));
-    assert.ok(existsSync(path.join(a.path, '.ai', 'workflows', 'squads', '00-index.md')), 'the prepared workflow folder travels with the drive');
-    const c = run(root, 'context', 'W2');
-    assert.match(readFileSync(c.path, 'utf8'), /PORT=3100/);
-    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F1: the context names heavy-run with the main checkout and the brainstorm.
-    assert.match(readFileSync(c.path, 'utf8'), /heavy-run "[^"]+" realism squads --agent/);
-    const r = run(root, 'worktree', 'W2', 'remove');
-    assert.equal(r.ok, false, 'an uncommitted workflow folder makes git refuse; the campaign asks the person');
-    git(a.path, 'add', '.ai');
-    git(a.path, 'commit', '-q', '-m', 'prepared');
-    writeFileSync(path.join(a.path, '.ai', 'workflows', 'squads', '.watch-state.json'), '{}');
-    assert.equal(run(root, 'worktree', 'W2', 'remove').ok, true, 'the watch cursor never blocks the remove');
-    assert.ok(!existsSync(a.path));
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    git(m.root, 'branch', '-f', m.W2, m.UNIT);
+    migratedList(m);
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, false);
+    assert.match(start.error, /no commit beyond the wave base/);
+    assert.equal(git(m.wtEng, 'log', '-1', '--format=%s'), 'eng: slice 1', 'no snapshot commit');
+  } finally { dropOldCampaign(m); }
 });
 
-test('the heavy-suite lock admits one holder; a stale lock is taken over (13)', () => {
-  const root = makeRepo();
+test('12.2: a fresh yolo journal in a unit worktree makes the old run live', () => {
+  const m = makeOldCampaign();
   try {
-    orient(root);
-    assert.equal(run(root, 'lock', 'acquire', 'engine').acquired, true);
-    assert.equal(run(root, 'lock', 'acquire', 'engine').acquired, true, 'the holder may ask again');
-    const busy = run(root, 'lock', 'acquire', 'squads');
-    assert.equal(busy.acquired, false);
-    assert.equal(busy.holder, 'engine');
-    assert.equal(run(root, 'lock', 'release', 'squads').released, false, 'only the holder releases');
-    assert.equal(run(root, 'lock', 'release', 'engine').released, true);
-    assert.equal(run(root, 'lock', 'acquire', 'squads').acquired, true);
-    const lockFile = path.join(root, '.scratch', 'campaign', 'heavy.lock');
-    writeFileSync(lockFile, JSON.stringify({ holder: 'squads', at: '2020-01-01T00:00:00Z' }));
-    assert.equal(run(root, 'lock', 'acquire', 'engine').acquired, true, 'a lock older than 3 hours is stale');
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    assert.equal(migrationReport(m.root, SRC, {}, { isMerged: merged }).live, false);
+    writeFileSync(path.join(m.wtEng, '.ai', 'workflows', 'eng', '.driver-journal.jsonl'), '{"event":"agent-start"}\n');
+    assert.equal(migrationReport(m.root, SRC, {}, { isMerged: merged }).live, true);
+    assert.equal(migrateApply(m.root, SRC, {}, { isMerged: merged }).ok, false);
+  } finally { dropOldCampaign(m); }
 });
 
-test('stacked waves: the next wave starts on the wave branch below, up to max-unshipped (D2)', () => {
-  const root = makeRepo();
+test('close: a dropped migrated piece removes its old worktree and keeps its branch', () => {
+  const m = makeOldCampaign();
   try {
-    orient(root);
-    setupDone(root);
-    run(root, 'stack', 'disable');
-    run(root, 'unit', 'W1', 'prepared');
-    run(root, 'unit', 'W2', 'prepared');
-    run(root, 'unit', 'W3', 'prepared');
-    assert.equal(run(root, 'wave', '1', 'start').base, 'main');
-    run(root, 'unit', 'W1', 'merged');
-    run(root, 'unit', 'W2', 'merged');
-    run(root, 'wave', '1', 'set', 'handoff');
-    assert.match(run(root, 'wave', '2', 'start').error, /after the previous wave merged/);
-    const en = run(root, 'stack', 'enable');
-    assert.equal(en.stack.enabled, true);
-    assert.equal(en.stack['max-unshipped'], 2);
-    assert.equal(run(root, 'status').next.action, 'start-wave');
-    const w2 = run(root, 'wave', '2', 'start');
-    assert.equal(w2.ok, true, JSON.stringify(w2));
-    assert.equal(w2.base, 'campaign/realism/wave-1');
-    assert.equal(run(root, 'stack', 'set', '17').stack.number, 17);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    migratedList(m);
+    git(m.wtEng, 'add', 'eng.txt');
+    git(m.wtEng, 'commit', '-qm', 'eng: the rest');
+    const closed = run(['close', m.root, SRC, 'eng', 'dropped']);
+    assert.equal(closed.ok, true, JSON.stringify(closed));
+    assert.equal(closed.worktree?.removed, true, JSON.stringify(closed.worktree));
+    assert.ok(!existsSync(m.wtEng));
+    assert.ok(git(m.root, 'rev-parse', '--verify', m.UNIT));
+  } finally { dropOldCampaign(m); }
 });
 
-test('WF-SYSTEM-REVIEW D6: unit prepared records the revision and decisions; a reopening asks again only the changed decisions', () => {
-  const root = makeRepo();
+test('12.7: the guarded remove asks before it deletes ignored files, and refuses past its link limit', () => {
+  const m = makeOldCampaign();
   try {
-    orient(root);
-    run(root, 'answer', 'forecast', 'continue');
-    run(root, 'answer', 'target-version', '"0.3.0"');
-    run(root, 'answer', 'release-each-wave', 'false');
-    run(root, 'answer', 'output', '{"build-cmd":"cargo build --release","artifacts":["target/release/sm"],"try":"run target/release/sm"}');
-    run(root, 'answer', 'budget', 'default');
-    const readLedger = () => JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), 'utf8'));
-    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true);
-    assert.equal(run(root, 'unit', 'W2', 'prepared').ok, true);
-    let led = readLedger();
-    assert.equal(led.units.W1['prepared-at-revision'], 1);
-    assert.deepEqual(led.units.W1['prepared-decisions'], { 'W1-d1': 'decision of W1' });
-    // The brainstorm reopens: one decision of W1 changes, and W1 gains a decision. W2 does not change.
-    packetFile(root, { key: 'W1', 'work-slug': 'engine', order: 1, provides: [{ key: 'tick', text: 'a match tick function' }],
-      'carried-decisions': [{ key: 'W1-d1', text: 'decision of W1, changed', session: 's2', 'decided-at': '2026-10-20' }, { key: 'W1-d2', text: 'a new decision', session: 's2', 'decided-at': '2026-10-20' }] });
-    workIndex(root, 2);
-    const rp = run(root, 'replan');
-    assert.equal(rp.ok, true, JSON.stringify(rp));
-    const s = run(root, 'status');
-    const l2 = readLedger();
-    assert.equal(l2.units.W1.state, 'planned');
-    assert.deepEqual(l2.units.W1['stale-decisions'], ['W1-d1', 'W1-d2']);
-    assert.equal(l2.units.W2.state, 'prepared', 'an unchanged unit stays prepared');
-    assert.deepEqual(s.next.reask, { W1: ['W1-d1', 'W1-d2'] });
-    // The person answers again; unit prepared clears the mark and stamps the new decisions.
-    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true);
-    led = readLedger();
-    assert.equal(led.units.W1.state, 'prepared');
-    assert.equal(led.units.W1['stale-decisions'], undefined);
-    assert.equal(led.units.W1['prepared-at-revision'], 2);
-    assert.equal(run(root, 'replan').ok, true);
-    assert.equal(readLedger().units.W1.state, 'prepared', 'a second replan with no change keeps it prepared');
-    assert.match(readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'campaign', '_prepare.md'), 'utf8'), /`reask`/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    writeFileSync(path.join(m.wtW1, '.gitignore'), '.ai/\nnode_modules\n.env\nlocal.properties\nsub/\n');
+    git(m.wtW1, '-c', 'user.email=c@test', '-c', 'user.name=c', 'commit', '-qam', 'ignore more');
+    writeFileSync(path.join(m.wtW1, '.env'), 'SECRET=1\n');
+    writeFileSync(path.join(m.wtW1, 'local.properties'), 'sdk.dir=x\n');
+    const asked = run(['remove-worktree', m.root, SRC, m.wtW1]);
+    assert.deepEqual([asked.ok, asked.ignoredAtRisk, asked.ignored], [false, true, ['.env']], JSON.stringify(asked));
+    mkdirSync(path.join(m.wtW1, 'sub'));
+    symlinkSync(m.target, path.join(m.wtW1, 'sub', 'deps'), 'junction');
+    const limited = removeWorktree(m.root, SRC, m.wtW1, { allowIgnored: true, linkLimit: 1 });
+    assert.equal(limited.ok, false);
+    assert.match(limited.error, /more than 1 links/);
+    assert.ok(existsSync(m.wtW1));
+    const removed = run(['remove-worktree', m.root, SRC, m.wtW1, '--allow-ignored']);
+    assert.equal(removed.ok, true, JSON.stringify(removed));
+    assert.equal(removed.linksRemoved, 2);
+    assert.equal(readFileSync(path.join(m.target, 'keep.txt'), 'utf8'), 'never deleted\n', 'the remove never follows a link');
+  } finally { dropOldCampaign(m); }
+});
+
+test('12.7: the guarded remove refuses a worktree with uncommitted code and never touches another worktree', () => {
+  const m = makeOldCampaign();
+  try {
+    const dirty = run(['remove-worktree', m.root, SRC, m.wtEng]);
+    assert.equal(dirty.ok, false);
+    assert.match(dirty.error, /uncommitted change/);
+    const other = run(['remove-worktree', m.root, SRC, m.wtOther]);
+    assert.deepEqual([other.ok, other.untouched], [false, true]);
+    assert.ok(existsSync(m.wtEng) && existsSync(m.wtOther));
+  } finally {
+    for (const w of [m.wtOther, m.wtEng, m.wtW1]) { try { git(m.root, 'worktree', 'remove', '--force', w); } catch { /* gone */ } }
+    rmSync(m.root, { recursive: true, force: true });
+    rmSync(m.outside, { recursive: true, force: true });
+  }
 });

@@ -1,271 +1,150 @@
 /**
- * facts → the campaign view's model (WF-LIVE-VIEWS-PLAN.md 3.4). Pure (M1).
+ * facts → the campaign view's model (WF-PIECES-PLAN.md 6.1). Pure (M1).
  *
- * The ledger (`work/campaign/ledger.json`) is the truth of waves and units.
- * The campaign journal adds the gate lights: each boundary step writes one
- * line with its wave (merge, wave-verify, drift, refuter, fidelity, then
- * released, merged or wave-end for the ship).
+ * The campaign keeps no ledger. Its state is the `state` field of each piece
+ * file `work/<piece-slug>.md`, in the order `work/index.md` lists the keys.
+ * The view shows the pieces in order, the state of each, the current piece
+ * (the first that is not done or dropped), and the build pieces whose design
+ * waits on the person.
  */
-import type { SdlcCampaignModel, SdlcGates, SdlcLiveness, SdlcNeed, SdlcStageMark, SdlcUsage } from '../../../../types'
-import { askedNeedOf, openNeedsOf, outsideNeedOf, pausedNeedOf, prepareNeedOf, staleNeedOf } from './needs.ts'
-import type { ControlFact } from './yolo.ts'
-import { YOLO_STAGES } from './yolo.ts'
+import type { SdlcCampaignModel, SdlcLiveness, SdlcNeed, SdlcPiece } from '../../../../types'
+import { designNeedOf, openNeedsOf } from './needs.ts'
 
-/** The gate each campaign journal event lights. */
-const GATE_OF_EVENT: Record<string, keyof SdlcGates> = {
-  merge: 'merge',
-  'wave-verify': 'verify',
-  drift: 'drift',
-  refuter: 'refuter',
-  fidelity: 'fidelity',
-  released: 'ship',
-  merged: 'ship',
-  'wave-end': 'ship',
-}
+/** The forms the walk builds (`lib/pieces.mjs` BUILD_FORMS); the others route to their own command. */
+export const BUILD_FORMS: ReadonlySet<string> = new Set(['intake', 'fix', 'hotfix', 'extension'])
+/** The states that end a piece: the walk moves past them. */
+const FINISHED_STATES: ReadonlySet<string> = new Set(['done', 'dropped'])
 
-/** The gates each wave passed, by wave number, after new campaign journal lines. */
-export function gatesAfter(previous: Readonly<Record<string, string[]>>, lines: ReadonlyArray<Record<string, unknown>>): Record<string, string[]> {
-  const next: Record<string, string[]> = Object.fromEntries(Object.entries(previous).map(([wave, gates]) => [wave, [...gates]]))
-  for (const line of lines) {
-    const gate = GATE_OF_EVENT[String(line['event'] ?? '')]
-    const wave = Number(line['wave'] ?? line['n'])
-    if (gate === undefined || !Number.isFinite(wave)) continue
-    const key = String(wave)
-    const list = next[key] ?? []
-    if (!list.includes(gate)) list.push(gate)
-    next[key] = list
-  }
-  return next
-}
-
-/** The slugs that wrote a `lock-wait` line since the lock last changed hands. */
-export function lockWaitsAfter(previous: readonly string[], lines: ReadonlyArray<Record<string, unknown>>): string[] {
-  let waiting = [...previous]
-  for (const line of lines) {
-    const event = String(line['event'] ?? '')
-    const slug = typeof line['slug'] === 'string' ? line['slug'] : typeof line['holder'] === 'string' ? line['holder'] : null
-    if (slug === null) continue
-    if (event === 'lock-wait' && !waiting.includes(slug)) waiting.push(slug)
-    if (event === 'lock' || event === 'lock-acquired' || event === 'lock-release') waiting = waiting.filter(entry => entry !== slug)
-  }
-  return waiting
-}
-
-/**
- * Where one unit's drive stands, from its own driver journal. `slots` is the number of
- * the unit's agents that hold a heavy slot of the wave driver now (WF-CAMPAIGN-DRIVER-PLAN D18).
- */
-export type UnitDrive = { stage: string | null; startedAt: number | null; status: string | null; slots?: number }
-
-/** The labels of the agents that hold a heavy slot after new journal lines: a start line with `"heavy":true` that has no end line yet. */
-export function slotHoldersAfter(previous: readonly string[], lines: ReadonlyArray<Record<string, unknown>>): string[] {
-  let held = [...previous]
-  for (const line of lines) {
-    const agent = typeof line['agent'] === 'string' ? line['agent'] : null
-    const event = String(line['event'] ?? '')
-    if (event === 'run-end') held = []
-    if (agent === null) continue
-    if (event === 'agent-start' && line['heavy'] === true && !held.includes(agent)) held.push(agent)
-    if (event === 'agent-end') held = held.filter(entry => entry !== agent)
-  }
-  return held
-}
-
-/**
- * W0a: where a unit's driver journal is. The ledger names the unit's worktree
- * (`worktree-root`, or by default `~/.sdlc/cw/<repo tag>`; older ledgers name
- * `.scratch/cw`); the journal is there first,
- * then in the main checkout.
- */
-export function driveJournalPathsOf(root: string, slug: string, worktree: string | null): string[] {
-  const at = (base: string): string => `${base.replace(/[\\/]+$/u, '')}/.ai/workflows/${slug}/.driver-journal.jsonl`
-  return [...(worktree === null ? [] : [at(worktree)]), at(root)]
+/** One piece as the live module read it: the piece file, and the files of the workflow it opened. */
+export type PieceFact = {
+  key: string
+  slug: string
+  title: string
+  form: string
+  state: string
+  order: number
+  /** The piece file's `ux-impact`. */
+  pieceUxImpact: string | null
+  /** The workflow's `00-index.md`, or null while the piece is not opened. */
+  indexText: string | null
+  /** The workflow's `02c-craft.md`, or null. */
+  craftText: string | null
 }
 
 export type CampaignFacts = {
   slug: string
-  now: number
-  ledger: Record<string, unknown> | null
+  /** The `pieces:` keys of `work/index.md`, in list order. */
+  order: readonly string[]
+  pieces: readonly PieceFact[]
   liveness: SdlcLiveness
-  gates: Readonly<Record<string, readonly string[]>>
-  drives: Readonly<Record<string, UnitDrive>>
-  heavy: { holder: string | null; waiting: readonly string[] }
-  usage: SdlcUsage
-  control: ControlFact | null
   dismissed: readonly string[]
 }
 
-type Wave = { n: number; state: string; units: string[]; version: string | null; label: string | null; pr: string | null }
-type Unit = { slug: string; state: string; wave: number | null; title: string | null; route: string | null; question: string | null }
-
-const LIVE_WAVE_STATES = new Set(['running', 'boundary', 'handoff', 'shipping'])
-
-function wavesOf(ledger: Record<string, unknown> | null): Wave[] {
-  const raw = Array.isArray(ledger?.['waves']) ? (ledger?.['waves'] as unknown[]) : []
-  return raw
-    .filter((wave): wave is Record<string, unknown> => wave !== null && typeof wave === 'object')
-    .map(wave => ({
-      n: Number(wave['n']),
-      state: typeof wave['state'] === 'string' ? wave['state'] : 'planned',
-      units: Array.isArray(wave['units']) ? (wave['units'] as unknown[]).filter((unit): unit is string => typeof unit === 'string') : [],
-      version: typeof wave['version'] === 'string' ? wave['version'] : null,
-      label: typeof wave['label'] === 'string' ? wave['label'] : null,
-      pr: typeof wave['pr'] === 'string' ? wave['pr'] : typeof wave['pr'] === 'number' ? `#${wave['pr']}` : null,
-    }))
-    .filter(wave => Number.isFinite(wave.n))
+function frontmatterBodyOf(text: string): string | null {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(text)
+  return match ? (match[1] ?? '') : null
 }
 
-function unitsOf(ledger: Record<string, unknown> | null): Record<string, Unit> {
-  const raw = ledger?.['units']
-  if (raw === null || typeof raw !== 'object') return {}
-  // The open question of each unit: the wave driver asks it with `--unit` when it parks the unit.
-  const asked: Record<string, string> = {}
-  for (const entry of Array.isArray(ledger?.['questions']) ? (ledger?.['questions'] as unknown[]) : []) {
-    if (entry === null || typeof entry !== 'object') continue
-    const question = entry as Record<string, unknown>
-    if (question['answered-at'] || typeof question['unit'] !== 'string') continue
-    asked[question['unit']] = String(question['id'] ?? '?')
+function unquote(value: string): string {
+  const trimmed = value.trim()
+  const quoted = /^"(.*)"$|^'(.*)'$/u.exec(trimmed)
+  // A plain value ends at its comment; a quoted one keeps its `#`.
+  return quoted ? (quoted[1] ?? quoted[2] ?? '').trim() : trimmed.replace(/\s+#.*$/u, '').trim()
+}
+
+/** A top-level scalar of the frontmatter, or null. */
+export function fieldOf(text: string | null, field: string): string | null {
+  const body = text === null ? null : frontmatterBodyOf(text)
+  if (body === null) return null
+  for (const line of body.split(/\r?\n/u)) {
+    const match = /^([A-Za-z0-9_-]+):\s*(.*)$/u.exec(line)
+    if (match && match[1] === field) return unquote(match[2] ?? '')
   }
-  const out: Record<string, Unit> = {}
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (value === null || typeof value !== 'object') continue
-    const unit = value as Record<string, unknown>
-    out[key] = {
-      slug: typeof unit['slug'] === 'string' ? unit['slug'] : key,
-      state: typeof unit['state'] === 'string' ? unit['state'] : 'planned',
-      wave: typeof unit['wave'] === 'number' ? unit['wave'] : null,
-      title: typeof unit['title'] === 'string' ? unit['title'] : null,
-      route: typeof unit['route'] === 'string' && unit['route'] !== '' ? unit['route'] : null,
-      question: asked[key] ?? null,
+  return null
+}
+
+/** One child scalar of a top-level map (`progress:` then `  design: skipped`), or null. */
+export function childFieldOf(text: string | null, parent: string, child: string): string | null {
+  const body = text === null ? null : frontmatterBodyOf(text)
+  if (body === null) return null
+  const lines = body.split(/\r?\n/u)
+  const start = lines.findIndex(line => new RegExp(`^${parent}:\\s*$`, 'u').test(line))
+  if (start < 0) return null
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/u.test(line)) break
+    const match = /^\s+([A-Za-z0-9_-]+):\s*(.*)$/u.exec(line)
+    if (match && match[1] === child) return unquote(match[2] ?? '')
+  }
+  return null
+}
+
+/** A top-level list of scalars, as a block (`  - a`) or in flow (`[a, b]`); empty when absent. */
+export function listFieldOf(text: string | null, field: string): string[] {
+  const body = text === null ? null : frontmatterBodyOf(text)
+  if (body === null) return []
+  const lines = body.split(/\r?\n/u)
+  const start = lines.findIndex(line => line.startsWith(`${field}:`))
+  if (start < 0) return []
+  const inline = (lines[start] as string).slice(field.length + 1).trim()
+  if (inline.startsWith('[')) {
+    return inline
+      .replace(/^\[|\]$/gu, '')
+      .split(',')
+      .map(unquote)
+      .filter(entry => entry !== '')
+  }
+  const out: string[] = []
+  for (const line of lines.slice(start + 1)) {
+    const item = /^\s*-\s+(.*)$/u.exec(line)
+    if (item) {
+      out.push(unquote(item[1] ?? ''))
+      continue
     }
+    if (/^\S/u.test(line)) break
   }
-  return out
+  return out.filter(entry => entry !== '')
 }
 
-function marksOf(unit: Unit, drive: UnitDrive | undefined): SdlcStageMark[] {
-  if (['finished', 'merged', 'shipped'].includes(unit.state)) return YOLO_STAGES.map(() => 'done')
-  const at = drive?.stage === null || drive === undefined ? -1 : (YOLO_STAGES as readonly string[]).indexOf(drive.stage)
-  if (unit.state === 'stopped' || unit.state === 'needs-fix') return YOLO_STAGES.map((_, i) => (i < at ? 'done' : i === at ? 'stop' : 'wait'))
-  if ((unit.state !== 'running' && unit.state !== 'waiting') || at === -1) return YOLO_STAGES.map(() => 'wait')
-  return YOLO_STAGES.map((_, i) => (i < at ? 'done' : i === at ? 'run' : 'wait'))
+/**
+ * Whether the design is settled (`design/_lane.md`, "Design is settled"), from
+ * the frontmatter alone: not reopened, and either skipped with a reason or a
+ * confirmed `02c-craft.md` with a resolved image gate. The board files are not
+ * checked here; `campaign.mjs status` and the pre-write hook check them.
+ */
+export function designSettledOf(indexText: string | null, craftText: string | null): boolean {
+  const progress = childFieldOf(indexText, 'progress', 'design')
+  if (progress === 'in-progress') return false
+  if (progress === 'skipped' && (fieldOf(indexText, 'design-skip-reason') ?? '') !== '') return true
+  if (craftText === null) return false
+  const gate = fieldOf(craftText, 'image-gate') ?? ''
+  if (gate !== 'pass' && !/^skipped:\s*\S/u.test(gate)) return false
+  return (fieldOf(craftText, 'direction-confirmed-by') ?? '') !== ''
 }
 
-function noteOf(unit: Unit, drive: UnitDrive | undefined, heavy: CampaignFacts['heavy'], now: number, needsPrepare: boolean): string {
-  if (unit.state === 'running') {
-    const parts = [drive?.stage ?? 'starting']
-    if (drive?.startedAt != null) parts.push(`${Math.max(0, Math.round((now - drive.startedAt) / 60000))}m`)
-    const slots = drive?.slots ?? 0
-    if (slots > 0) parts.push(slots === 1 ? 'holds a slot' : `holds ${slots} slots`)
-    else if (heavy.holder === unit.slug) parts.push('holds lock')
-    else if (heavy.waiting.includes(unit.slug)) parts.push('waits for lock')
-    return parts.join(' · ')
-  }
-  if (unit.state === 'waiting') return unit.route === null ? 'merges a dependency' : `waiting · ${unit.route}`
-  if (unit.state === 'stopped' && unit.question !== null) return `asks ${unit.question}`
-  if (unit.state === 'stopped' && unit.route !== null) return `stopped · ${unit.route}`
-  if (needsPrepare) return 'needs prepare'
-  if (unit.state === 'prepared') return 'prepared'
-  if (unit.state === 'stopped' || unit.state === 'needs-fix') return unit.state
-  if (unit.state === 'planned') return 'waiting'
-  return ''
+const isUi = (impact: string | null): boolean => impact !== null && impact !== '' && impact !== 'none'
+
+/** A piece of the list: a build piece needs design once its workflow exists, names a ux-impact other than none, and has not settled it. */
+export function pieceOf(fact: PieceFact): SdlcPiece {
+  const isBuild = BUILD_FORMS.has(fact.form)
+  const indexImpact = fieldOf(fact.indexText, 'ux-impact')
+  const uxImpact = indexImpact ?? fact.pieceUxImpact
+  const designNeeded = isBuild && !FINISHED_STATES.has(fact.state) && fact.indexText !== null && isUi(indexImpact) && !designSettledOf(fact.indexText, fact.craftText)
+  return { key: fact.key, slug: fact.slug, title: fact.title, form: fact.form, state: fact.state, uxImpact, isBuild, designNeeded }
 }
 
 export function buildCampaignModel(facts: CampaignFacts): SdlcCampaignModel {
-  const { ledger, slug, now } = facts
-  const waves = wavesOf(ledger)
-  const units = unitsOf(ledger)
-  const live = waves.filter(wave => LIVE_WAVE_STATES.has(wave.state))
-  const activeWave = live[0]?.n ?? null
-  const next = waves.find(wave => wave.state === 'planned') ?? null
-  // The units that need a prepare: those of the next planned wave, and of a live wave, still planned.
-  const prepareWaves = new Set([...live.map(wave => wave.n), ...(next === null ? [] : [next.n])])
-  const needsPrepare = (key: string) => {
-    const unit = units[key]
-    return unit !== undefined && unit.state === 'planned' && unit.wave !== null && prepareWaves.has(unit.wave)
-  }
-
-  const needs: SdlcNeed[] = []
-  const pauseRaw = ledger?.['pause']
-  const paused =
-    pauseRaw !== null && typeof pauseRaw === 'object'
-      ? { until: typeof (pauseRaw as Record<string, unknown>)['until'] === 'string' ? ((pauseRaw as Record<string, unknown>)['until'] as string) : null, reason: typeof (pauseRaw as Record<string, unknown>)['reason'] === 'string' ? ((pauseRaw as Record<string, unknown>)['reason'] as string) : null }
-      : null
-  if (paused !== null) needs.push(pausedNeedOf(slug, paused.until, paused.reason))
-  for (const wave of waves) for (const key of wave.units) if (needsPrepare(key)) needs.push(prepareNeedOf(slug, key, units[key]?.slug ?? key, wave.n))
-  const questions = Array.isArray(ledger?.['questions']) ? (ledger?.['questions'] as unknown[]) : []
-  for (const raw of questions) {
-    if (raw === null || typeof raw !== 'object') continue
-    const question = raw as Record<string, unknown>
-    if (question['answered-at']) continue
-    needs.push(askedNeedOf(slug, String(question['id'] ?? '?'), String(question['text'] ?? ''), typeof question['wave'] === 'number' ? question['wave'] : null))
-  }
-  const outside = ledger?.['outside']
-  if (outside !== null && typeof outside === 'object') {
-    for (const [key, raw] of Object.entries(outside as Record<string, unknown>)) {
-      if (raw === null || typeof raw !== 'object') continue
-      const entry = raw as Record<string, unknown>
-      if (entry['state'] !== 'needs-you') continue
-      needs.push(outsideNeedOf(slug, key, String(entry['slug'] ?? key), String(entry['form'] ?? 'task'), String(entry['title'] ?? '')))
-    }
-  }
-  if (facts.liveness.state === 'stale' && activeWave !== null && facts.liveness.lastLineAt !== null) needs.unshift(staleNeedOf(slug, 'campaign', Math.round((now - facts.liveness.lastLineAt) / 60000)))
-
-  const modelWaves = waves.map(wave => {
-    const passed = new Set(facts.gates[String(wave.n)] ?? [])
-    const shipped = wave.state === 'shipped'
-    const gates: SdlcGates = {
-      merge: shipped || passed.has('merge'),
-      verify: shipped || passed.has('verify'),
-      drift: shipped || passed.has('drift'),
-      refuter: shipped || passed.has('refuter'),
-      fidelity: shipped || passed.has('fidelity'),
-      ship: shipped || passed.has('ship'),
-    }
-    return {
-      n: wave.n,
-      state: wave.state,
-      version: wave.version,
-      gates,
-      slugs: wave.units.map(key => {
-        const unit = units[key] ?? { slug: key, state: 'planned', wave: wave.n, title: null, route: null, question: null }
-        const drive = facts.drives[unit.slug]
-        return { key, slug: unit.slug, state: unit.state, marks: marksOf(unit, drive), note: noteOf(unit, drive, facts.heavy, now, needsPrepare(key)) }
-      }),
-    }
-  })
-
-  const outputs = waves.filter(wave => wave.pr !== null || wave.version !== null).map(wave => ({ wave: wave.n, pr: wave.pr, state: wave.state, label: wave.version ?? wave.label }))
-  const unshipped = waves.filter(wave => wave.state !== 'shipped' && wave.label !== null)
-  const usage = facts.usage
-  const forecast: SdlcCampaignModel['forecast'] = usage.level === 'unknown' ? null : usage.level === 'pause' ? 'does-not-fit' : usage.level === 'slow' ? 'tight' : 'fits'
-  const control = facts.control
-  const stop = control !== null && control.action === 'stop' && control.after !== null ? { after: control.after, by: control.by ?? 'person', requestedAt: control.requestedAt } : null
-
+  const rank = new Map(facts.order.map((key, index) => [key, index]))
+  // The list's order first; a piece the index does not name goes after, by its own `order`.
+  const sorted = [...facts.pieces].sort((a, b) => (rank.get(a.key) ?? facts.order.length + a.order) - (rank.get(b.key) ?? facts.order.length + b.order))
+  const pieces = sorted.map(pieceOf)
+  const current = pieces.find(piece => !FINISHED_STATES.has(piece.state)) ?? null
+  const needs: SdlcNeed[] = pieces.filter(piece => piece.designNeeded).map(piece => designNeedOf(piece.slug, piece.uxImpact ?? 'unset'))
   return {
     kind: 'campaign',
-    slug,
+    slug: facts.slug,
     liveness: facts.liveness,
-    activeWave,
-    running: Object.values(units).filter(unit => unit.state === 'running').length,
-    paused,
-    waves: modelWaves,
+    pieces,
+    current: current?.key ?? null,
     needs: openNeedsOf(needs, facts.dismissed),
-    usage,
-    forecast,
-    outputs,
-    build: unshipped[unshipped.length - 1]?.label ?? null,
-    heavy: { holder: facts.heavy.holder, waiting: [...facts.heavy.waiting] },
-    stop,
-  }
-}
-
-/** The holder of `.scratch/campaign/heavy.lock`, or null. */
-export function heavyHolderOf(text: string | null): string | null {
-  if (text === null) return null
-  try {
-    const value = JSON.parse(text) as { holder?: unknown }
-    return typeof value.holder === 'string' ? value.holder : null
-  } catch {
-    return null
   }
 }

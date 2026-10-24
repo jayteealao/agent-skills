@@ -1,7 +1,7 @@
 # WF-SYSTEM-REVIEW-2026-10-21 — improvement avenues across brainstorm, ideate, campaign, yolo, and the stages
 
 Status **BUILT, not released** (2026-10-21): A1–A4, B1–B7, C1–C6, D1–D3, D5, D6, E1, E3, E4 are in the working tree, CHANGELOG `[Unreleased]`. Deviations: E1 writes `_shared.js` into each driver at build time (`scripts/build-drivers.mjs`), not at staging, so the drivers on disk stay complete; E4 keeps `plan-index-writeback` (it writes the durable `reconcile-pending` marker that a resume needs) and the wave driver's write-back (it runs `slice-done`). SQ1–SQ6 answered by the PO 2026-10-21 (section 10). Dropped by the answers: D4 (tranches) and E2 (release train). Changed by the answers: C1 (Opus stays, the model becomes configurable) and B2/B4 (no appetite default). · Date **2026-10-21** · Plugin **v9.195.0** · Owner **jayte**
-Companions: [WF-CAMPAIGN-SLICE-ORDER-PLAN.md](WF-CAMPAIGN-SLICE-ORDER-PLAN.md) (waits between slices) and [WF-CAMPAIGN-THROUGHPUT-PLAN.md](WF-CAMPAIGN-THROUGHPUT-PLAN.md) (unit order, waves, slots, the wave slicer). This review looks at the whole system and leaves those two topics to them. Origin: the PO, 2026-10-21: "what other avenues for improvement exist, zoom out".
+Companions: [WF-CAMPAIGN-SLICE-ORDER-PLAN.md](archived/WF-CAMPAIGN-SLICE-ORDER-PLAN.md) (waits between slices) and [WF-CAMPAIGN-THROUGHPUT-PLAN.md](archived/WF-CAMPAIGN-THROUGHPUT-PLAN.md) (unit order, waves, slots, the wave slicer). This review looks at the whole system and leaves those two topics to them. Origin: the PO, 2026-10-21: "what other avenues for improvement exist, zoom out".
 
 ## 1. Method
 

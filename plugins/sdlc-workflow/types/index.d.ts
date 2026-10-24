@@ -100,7 +100,7 @@ export type SdlcNeedAction = { key: string; label: string; kind: 'prompt' | 'lin
 /** One item of "Needs you" (L5). */
 export type SdlcNeed = {
   id: string
-  kind: 'decision' | 'awaiting' | 'protected' | 'prepare' | 'asked' | 'outside' | 'split' | 'stale' | 'paused'
+  kind: 'decision' | 'awaiting' | 'protected' | 'design' | 'split' | 'stale'
   title: string
   body: string
   /** The section of the view that holds its detail (V8). */
@@ -150,29 +150,33 @@ export type SdlcYoloModel = {
   outcome: 'running' | 'stopped' | 'ended' | 'stale' | 'none'
 }
 
-export type SdlcGates = { merge: boolean; verify: boolean; drift: boolean; refuter: boolean; fidelity: boolean; ship: boolean }
+/** One piece of a list (WF-PIECES-PLAN.md 4.1): its file's fields, and whether its design waits on the person. */
+export type SdlcPiece = {
+  key: string
+  /** The workflow slug the piece opens (`piece-slug`). */
+  slug: string
+  title: string
+  /** `intake`, `fix`, `hotfix`, `extension` (the build forms) or a routed form. */
+  form: string
+  /** `written`, `open`, `built`, `done` or `dropped`. */
+  state: string
+  /** The workflow's `ux-impact`, else the piece file's; null when neither names one. */
+  uxImpact: string | null
+  isBuild: boolean
+  /** A build piece, not done or dropped, whose workflow needs design and has not settled it. */
+  designNeeded: boolean
+}
 
+/** The campaign walk (WF-PIECES-PLAN.md 6.1): no ledger, only the pieces of `work/index.md` and their states. */
 export type SdlcCampaignModel = {
   kind: 'campaign'
   slug: string
   liveness: SdlcLiveness
-  activeWave: number | null
-  running: number
-  paused: { until: string | null; reason: string | null } | null
-  waves: Array<{
-    n: number
-    state: string
-    version: string | null
-    gates: SdlcGates
-    slugs: Array<{ key: string; slug: string; state: string; marks: SdlcStageMark[]; note: string }>
-  }>
+  /** The pieces in list order. */
+  pieces: SdlcPiece[]
+  /** The key of the first piece that is not done or dropped; null when the list is finished. */
+  current: string | null
   needs: SdlcNeed[]
-  usage: SdlcUsage
-  forecast: 'fits' | 'tight' | 'does-not-fit' | null
-  outputs: Array<{ wave: number; pr: string | null; state: string; label: string | null }>
-  build: string | null
-  heavy: { holder: string | null; waiting: string[] }
-  stop: { after: string; by: string; requestedAt: string | null } | null
 }
 
 export type SdlcBrainstormModel = {
@@ -201,8 +205,6 @@ declare module 'claude-code' {
       /** The `wf-dashboard` pane: its open state, from `ui.open` and `ui.close`, and its details state (Y5). */
       dashboard: SdlcShaped<SdlcDashboard>
       hub: SdlcShaped<SdlcHub | null>
-      /** The usage guard's two windows for the status line. */
-      usage: SdlcShaped<string | null>
       /** The dollars the last `/wf` turn cost, for the strip's cost row. */
       lastStageUsd: SdlcShaped<number | null>
       liveStatus: SdlcShaped<SdlcLiveStatus | null>

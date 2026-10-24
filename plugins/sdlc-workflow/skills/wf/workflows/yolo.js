@@ -68,11 +68,10 @@ const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
 const MODELS = OPT.models && typeof OPT.models === 'object' ? OPT.models : {}
 const stageModel = (stage) => (MODELS[stage] === 'sonnet' ? SONNET : OPUS)
 
-// WF-SYSTEM-REVIEW C2, C3: implement commits each plan step and records it in the slug's
-// .implement-progress.jsonl; a re-run resumes after the last committed step. A plan of more
-// than IMPLEMENT_GROUP steps runs in groups, each in a fresh agent with a hand-over note.
+// WF-SYSTEM-REVIEW C2: implement commits each plan step and records it in the slug's
+// .implement-progress.jsonl; a re-run resumes after the last committed step. WF-PIECES-PLAN
+// D33: one implement agent runs the whole slice; the step groups of C3 are gone.
 // A slice whose implement hard-stopped SPLIT_AFTER_STOPS times stops with a split question.
-const IMPLEMENT_GROUP = 6
 const SPLIT_AFTER_STOPS = 2
 
 // WF-SYSTEM-REVIEW C5: the charter checkpoint runs only after work that touched the charter:
@@ -102,29 +101,17 @@ function touchesCharter(results, charter) {
     ids.some(id => String(d.decision || '').split(/[^A-Za-z0-9]+/).includes(id)))))
 }
 
-function implementGroups(planSteps, committed, size) {
-  const total = Number(planSteps) || 0
-  if (total <= size) return [null]
-  const out = []
-  for (let a = Math.max(0, Number(committed) || 0) + 1; a <= total; a += size) out.push({ from: a, to: Math.min(total, a + size - 1), total })
-  return out.length ? out : [null]
-}
+function implementStepsClause(slice, progressPath, retry) {
 
-function implementStepsClause(slice, steps, progressPath, handoverPath, retry) {
   const rec = (event, fields) => `\`${lineCmd(progressPath, { slice, event })}${fields ? ` --fields '${fields}'` : ''}\``
   return `\n\nSTEP COMMITS (C2). After each plan step, commit it as the reference says, and record it: ` +
     `${rec('step', '{"step":<n>,"sha":"<commit sha>"}')}. When ${progressPath} records steps of this slice ` +
     `already, continue after the last one whose sha is an ancestor of HEAD; never redo it. When you hard-stop, ` +
     `record ${rec('hard-stop', '')} with --reason "<one line>". After the final commit of the slice, record ` +
     `${rec('complete', '{"sha":"<commit sha>"}')}.` +
-    (retry ? ` The person answered the split question with a retry: before any other work, record ${rec('retry', '')}.` : '') +
-    (!steps ? '' : `\n\nSTEP GROUP (C3). Implement plan steps ${steps.from} to ${steps.to} of ${steps.total} ONLY. ` +
-      `Read ${handoverPath} first when it exists. ` + (steps.to >= steps.total
-      ? `This is the last group: finish the stage as the reference says (the record, the roster, the final commit, and the test receipt).`
-      : `When step ${steps.to} is committed, overwrite ${handoverPath} with a short hand-over note (what is done, ` +
-        `what is next, the traps you found), and return status 'complete' with stepsDone: ${steps.to}. Do NOT ` +
-        `write the implementation record, the roster status, the final commit, or the test receipt: the last group writes them.`))
+    (retry ? ` The person answered the split question with a retry: before any other work, record ${rec('retry', '')}.` : '')
 }
+
 
 // ---------------------------------------------------------------------------
 // STANDING STEERING — every agent that judges or writes reads steer.md FRESH.
@@ -845,9 +832,8 @@ const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl
 // there would call a live run "presumed dead" (and the mod has no append, so it could
 // drop driver lines). This script only ever READS the ledger, through the report agent.
 const READ_LEDGER_PATH = `${projectRoot}/.ai/workflows/${slug}/.read-ledger.jsonl`
-// C2, C3: the implement step record and the hand-over note of a step group.
+// C2: the implement step record.
 const PROGRESS_PATH = `${projectRoot}/.ai/workflows/${slug}/.implement-progress.jsonl`
-const handoverPath = (sliceArg) => `${projectRoot}/.ai/workflows/${slug}/.implement-handover-${sliceArg || slug}.md`
 
 // runId is minted by orient (the first subagent — it has the clock this script
 // lacks) and threaded into every later heartbeat so one run's entries are
@@ -897,8 +883,7 @@ const CONTROL_FILE_RULE =
 
 
 const STEER_PATH = `${projectRoot}/.ai/workflows/${slug}/steer.md`
-// A campaign drives its units with the wave driver (workflows/campaign-wave.js), never with yolo:
-// yolo reads no campaign file (WF-CAMPAIGN-DRIVER-PLAN W8).
+// The campaign walk runs yolo on one piece slug at a time; yolo reads no campaign file (WF-PIECES-PLAN W8).
 const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`)
 
 // ---------------------------------------------------------------------------
@@ -1772,7 +1757,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `dies silently inside an artifact.\n` +
     `- When the policy says STOP, still finish the artifact in its honest terminal state, then return ` +
     `status:'hard-stop' with hardStopReason.` +
-    (stage === 'implement' ? implementStepsClause(sliceArg || slug, extra.steps || null, PROGRESS_PATH, handoverPath(sliceArg), extra.retry === true) : '') +
+    (stage === 'implement' ? implementStepsClause(sliceArg || slug, PROGRESS_PATH, extra.retry === true) : '') +
     (stage === 'verify' && sliceArg ? sliceStatusClause(sliceArg) : '') +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when the ` +
@@ -2298,18 +2283,10 @@ async function planFreshness(sliceArg) {
   return s ? { fresh: false, reason: s.reason || 'the code changed under the plan' } : { fresh: true }
 }
 
-// C3: implement in step groups, each in a fresh agent; the first group's start sha is the slice's.
+// WF-PIECES-PLAN D33: one implement agent for the whole slice. A re-run resumes after the
+// last committed step (C2).
 async function implementSlice(sliceArg, idx, entry) {
-  let res = null
-  let startSha = null
-  for (const g of implementGroups(entry && entry.planSteps, entry && entry.stepsCommitted, IMPLEMENT_GROUP)) {
-    if (g) log(`yolo → implement ${slug} ${sliceArg} steps ${g.from}-${g.to} of ${g.total}`)
-    res = await runStage('implement', sliceArg, idx, { stopCheck: true, steps: g })
-    if (res && res.startSha && !startSha) startSha = res.startSha
-    if (!res || res.status !== 'complete') break
-  }
-  if (res && startSha) res.startSha = startSha
-  return res
+  return await runStage('implement', sliceArg, idx, { stopCheck: true })
 }
 
 async function driveChain(stages, sliceArg, idx, opts = {}) {

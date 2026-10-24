@@ -59,7 +59,7 @@ export function parseJsonLines(text) {
  */
 export function stageOf(line) {
   if (!line) return { stage: null, slice: null };
-  // The wave driver labels a unit agent `<stage>:<slice>@<slug>` (WF-CAMPAIGN-DRIVER-PLAN 5.3 item 5).
+  // A driver may label a stage agent `<stage>:<slice>@<slug>`.
   const raw = String(line.agent || '');
   const at = raw.lastIndexOf('@');
   const label = at === -1 ? raw : raw.slice(0, at);
@@ -197,7 +197,7 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       events.push({
         event: 'stop', slug, run: line.run || st.run, stage, slice,
         kind: line.status === 'stopped' ? 'stop-request' : 'hard-stop', at: line.at || null,
-        resume: resumeCommand(slug, st, line),
+        resume: resumeCommand(slug),
       });
     }
     if (artifact && artifact.signal) {
@@ -212,13 +212,11 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
 }
 
 /**
- * The command that resumes a stopped run. A unit of the wave driver resumes through
- * its campaign, not through its own yolo drive.
+ * The command that resumes a stopped run: its own yolo drive. A piece of a campaign list
+ * resumes the same way; the walk reads the piece states again (WF-PIECES-PLAN 6.1).
  */
-export function resumeCommand(slug, st, line = {}) {
-  const driver = line.driver || (st && st.driver);
-  const campaign = line.campaign || (st && st.campaign);
-  return driver === 'campaign-wave' && campaign ? `/wf campaign ${campaign}` : `/wf yolo ${slug}`;
+export function resumeCommand(slug) {
+  return `/wf yolo ${slug}`;
 }
 
 /**

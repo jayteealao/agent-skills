@@ -307,7 +307,11 @@
             }
           }
         },
-        "origin-packet": { "type": "string", "description": "The work packet this workflow started from: .ai/workflows/<brainstorm>/work/<work-slug>.md (BRAINSTORM-WORK-PACKETS-PLAN P1)." },
+        "origin-packet": { "type": "string", "description": "Of the old form: the work packet this workflow started from. The migration replaces it with origin-piece (WF-PIECES-PLAN 12.3)." },
+        "origin-piece": { "type": "string", "description": "The piece this workflow builds: .ai/workflows/<source>/work/<piece-slug>.md (WF-PIECES-PLAN section 5). The review rubric intent-fidelity reads its carried decisions." },
+        "migrated-from": { "type": "string", "description": "WF-PIECES-PLAN 12.3: the branch of the old campaign unit that this piece finishes." },
+        "wave-base": { "type": "string", "description": "WF-PIECES-PLAN 12.3: the old wave base branch of a migrated unit." },
+        "land": { "enum": ["merged", "squashed"], "description": "WF-PIECES-PLAN 12.2 step 3: how the earlier waves reached the trunk. squashed makes start rebase the unit's own commits." },
         "origin-items": { "$ref": "#/$defs/stringArray", "description": "The brainstorm item keys this workflow carries (I3). Charter entries and RIMs from a carried decision cite <board>#<item-key> in source." },
         "charter": {
           "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero commitments writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form.",
@@ -1939,6 +1943,7 @@
         "sessions": { "type": "integer", "minimum": 1 },
         "batches": { "type": "integer", "minimum": 0 },
         "page": { "type": ["string", "null"] },
+        "stack": { "type": "object", "description": "WF-PIECES-PLAN 4.3 step 4: the stack of the list, detected once and confirmed by the person at done (user-confirmed: true). campaign.mjs open copies it into each piece's 00-index.md.", "properties": { "user-confirmed": { "type": "boolean" } } },
         "stories": {
           "type": "array",
           "description": "The story of each session, told to the person at a pause, in the chat return, and on the next resume (intake/brainstorm/_talk.md).",
@@ -2085,12 +2090,22 @@
               "target-slug": { "type": ["string", "null"], "description": "extension, fix and hotfix: the existing workflow slug." },
               "amends": { "type": ["string", "null"], "description": "The work[].key of the started packet that this packet amends (V3)." },
               "urgency": { "enum": ["normal", "urgent"] },
-              "depends-on": { "$ref": "#/$defs/stringArray", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; work-packets.mjs no longer writes it into a packet." },
-              "provides": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; work-packets.mjs no longer writes it into a packet.", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
-              "expects": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; work-packets.mjs no longer writes it into a packet.", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
-              "needs": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; work-packets.mjs no longer writes it into a packet. (Was WF-CAMPAIGN-RUN-FIXES-PLAN N1: a partial need on another build piece.)", "items": { "type": "object", "required": ["from"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "through": { "type": "string", "description": "A slice of `from`, or finished (the default)." }, "before": { "type": ["string", "null"], "description": "The slice of this piece that needs it; null is the first slice." }, "why": { "type": "string" } } } },
-              "size": { "enum": ["small", "medium", "large", "too-large"], "description": "Counts carried decisions: more than 25 is large, more than 40 is too-large." },
-              "shared": { "$ref": "#/$defs/stringArray", "description": "Kept decision keys that this piece shares with another piece (I6)." },
+              "depends-on": { "$ref": "#/$defs/stringArray", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no piece file carries it." },
+              "provides": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no piece file carries it.", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
+              "expects": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no piece file carries it.", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
+              "needs": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no piece file carries it. (Was WF-CAMPAIGN-RUN-FIXES-PLAN N1: a partial need on another build piece.)", "items": { "type": "object", "required": ["from"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "through": { "type": "string", "description": "A slice of `from`, or finished (the default)." }, "before": { "type": ["string", "null"], "description": "The slice of this piece that needs it; null is the first slice." }, "why": { "type": "string" } } } },
+              "size": { "enum": ["small", "medium", "large", "too-large"], "description": "Deprecated (WF-PIECES-PLAN 4.2): the decision count no longer sizes a piece. A board of the old form keeps it." },
+              "shared": { "$ref": "#/$defs/stringArray", "description": "Deprecated (WF-PIECES-PLAN 4.2 rule 6): every kept decision lands in exactly one piece. A board of the old form keeps it." },
+              "goal": { "type": "string", "description": "WF-PIECES-PLAN 4.3: the goal of the piece, written at done." },
+              "in-scope": { "$ref": "#/$defs/stringArray" },
+              "out-of-scope": { "$ref": "#/$defs/stringArray" },
+              "acceptance-criteria": { "$ref": "#/$defs/stringArray", "description": "Each checkable criterion; the piece file numbers them AC-1, AC-2, …" },
+              "constraints": { "$ref": "#/$defs/stringArray" },
+              "risks": { "$ref": "#/$defs/stringArray", "description": "campaign.mjs open seeds intent-risks from these." },
+              "ux-impact-confirmed": { "type": "boolean", "description": "The person confirmed ux-impact at done (D20)." },
+              "try-out": { "enum": ["yes", "no"], "description": "D37: yes when ux-impact is not none or the piece adds a user-facing command." },
+              "estimated-slices": { "type": "integer", "minimum": 1, "description": "The brainstorm's estimate of the capability slices (D15: a target of 10, a band of 6 to 14)." },
+              "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: a piece made from an in-flight unit of the old campaign.", "properties": { "unit-key": { "type": "string" }, "from-branch": { "type": "string" }, "worktree": { "type": ["string", "null"] }, "wave-base": { "type": ["string", "null"] }, "land": { "enum": ["merged", "squashed"] } } },
               "research": { "$ref": "#/$defs/stringArray" },
               "references": { "$ref": "#/$defs/stringArray" },
               "written-files": { "type": "array", "items": { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" }, "section": { "type": "string" } } } },
@@ -2101,7 +2116,7 @@
               "threads": { "$ref": "#/$defs/stringArray" },
               "items": { "$ref": "#/$defs/stringArray" },
               "entry": { "type": "string" },
-              "state": { "enum": ["proposed", "prepared", "routed", "written"] },
+              "state": { "enum": ["proposed", "prepared", "routed", "written", "open", "built", "done", "dropped"], "description": "proposed and written are the brainstorm's; open, built, done and dropped are set by the migration (WF-PIECES-PLAN 12.2). prepared and routed are of the old form." },
               "routed-to": { "type": ["string", "null"] },
               "stale": { "type": "boolean" },
               "stale-because": { "type": "string" },
@@ -2112,7 +2127,7 @@
         "selected": { "$ref": "#/$defs/stringArray" },
         "archived": {
           "type": "array",
-          "description": "WF-SYSTEM-REVIEW D1: each move of the closed part of the board to archive/board.json (work-packets.mjs archive).",
+          "description": "WF-SYSTEM-REVIEW D1: each move of the closed part of the board to archive/board.json (campaign.mjs archive).",
           "items": { "type": "object", "properties": { "session": {}, "at": { "type": "string" }, "file": { "type": "string" }, "items": { "type": "integer" }, "log": { "type": "integer" }, "stories": { "type": "integer" } } }
         },
         "log": {
@@ -2154,26 +2169,27 @@
         }
       }
     },
-    "workPacketFrontmatter": {
+    "pieceFrontmatter": {
       "type": "object",
-      "description": "work/<work-slug>.md — a work packet that a brainstorm's done writes for one resulting workflow slug (BRAINSTORM-WORK-PACKETS-PLAN section 5). Generated from brainstorm-board.json by work-packets.mjs; the board wins on a difference. slug is the brainstorm folder (every file in a workflow folder carries that folder's slug); work-slug is the slug the packet opens.",
-      "required": ["schema", "type", "slug", "key", "work-slug", "form", "origin-brainstorm", "carried-decisions", "state"],
+      "description": "work/<piece-slug>.md — one piece of a list (WF-PIECES-PLAN 4.1). Generated from the board by campaign.mjs write; the board wins on a difference. slug is the source folder (a brainstorm or an ideate folder); piece-slug is the workflow slug the piece opens. The campaign walk owns state.",
+      "required": ["schema", "type", "slug", "key", "piece-slug", "form", "origin-source", "carried-decisions", "state"],
       "properties": {
-        "type": { "const": "work-packet" },
+        "type": { "const": "piece" },
         "key": { "$ref": "#/$defs/brainstormKey" },
-        "work-slug": { "$ref": "#/$defs/brainstormKey" },
+        "piece-slug": { "$ref": "#/$defs/brainstormKey" },
         "title": { "type": "string" },
         "form": { "enum": ["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"] },
         "target-slug": { "type": ["string", "null"] },
         "amends": { "type": ["string", "null"] },
         "urgency": { "enum": ["normal", "urgent"] },
         "revision": { "type": "integer", "minimum": 1 },
-        "origin-brainstorm": { "type": "string" },
-        "order": { "type": "integer", "minimum": 1, "description": "The place of the piece in the brainstorm sequence. A packet of the old form also carries depends-on, provides, expects and needs: the campaign reads them once, as the seed of its dependency graph (WF-CAMPAIGN-ORDER-PLAN D8)." },
-        "why-here": { "type": "string", "description": "Why the piece comes after the piece before it in the sequence (WF-CAMPAIGN-ORDER-PLAN 4.1)." },
+        "origin-source": { "type": "string" },
+        "order": { "type": "integer", "minimum": 1 },
+        "why-here": { "type": "string" },
+        "state": { "enum": ["written", "open", "built", "done", "dropped"] },
         "carried-decisions": {
           "type": "array",
-          "description": "Each kept decision, verbatim. Intake shows these to the person for confirmation (I1a) and never re-words them (I1).",
+          "description": "Each kept decision, word for word. campaign.mjs open copies them into the workflow folder; nobody re-words them.",
           "items": {
             "type": "object",
             "required": ["key", "text"],
@@ -2182,8 +2198,7 @@
               "text": { "type": "string" },
               "why": { "type": "string" },
               "session": { "type": ["integer", "null"] },
-              "decided-at": { "anyOf": [{ "$ref": "#/$defs/iso8601" }, { "type": "null" }] },
-              "shared": { "type": "boolean" }
+              "decided-at": { "anyOf": [{ "$ref": "#/$defs/iso8601" }, { "type": "null" }] }
             }
           }
         },
@@ -2194,25 +2209,26 @@
         "research": { "$ref": "#/$defs/stringArray" },
         "references": { "$ref": "#/$defs/stringArray" },
         "ux-impact": { "enum": ["none", "visual", "flow", "new-surface"] },
-        "design": { "enum": ["none", "design", "design-direction"] },
-        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/ (DESIGN-BOARDS-PLAN W5b). Intake copies each file into the new slug's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"], "description": "The sketch file; may end in #<artboard> (WF-DESIGN-PLAN A6)." }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
-        "size": { "enum": ["small", "medium", "large", "too-large"] },
-        "state": { "enum": ["proposed", "prepared", "routed"] },
-        "routed-to": { "type": ["string", "null"] },
-        "decision-changed": { "$ref": "#/$defs/stringArray", "description": "Carried decision keys the person changed at intake (I1a). The next brainstorm resume asks the person to record each one on the board." },
+        "try-out": { "enum": ["yes", "no"] },
+        "estimated-slices": { "type": "integer", "minimum": 1 },
+        "design-form": { "enum": ["none", "design", "design-direction"] },
+        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
+        "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: the in-flight unit of the old campaign that this piece finishes." },
         "generated-at": { "$ref": "#/$defs/iso8601" }
       }
     },
-    "workSetFrontmatter": {
+    "listFrontmatter": {
       "type": "object",
-      "description": "work/index.md — the overview of a brainstorm's work set (BRAINSTORM-WORK-PACKETS-PLAN K2, V2). Written last by work-packets.mjs, so a reader that sees a new work-revision finds every packet already written.",
-      "required": ["schema", "type", "slug", "work-set", "work-revision", "slugs"],
+      "description": "work/index.md — the list (WF-PIECES-PLAN 4.1). Written last by campaign.mjs write, so a reader that sees a new list-revision finds every piece already written.",
+      "required": ["schema", "type", "slug", "list-revision", "pieces"],
       "properties": {
-        "type": { "const": "work-set" },
-        "work-set": { "enum": ["single", "multi", "none"] },
-        "work-revision": { "type": "integer", "minimum": 1 },
+        "type": { "const": "list" },
+        "list-revision": { "type": "integer", "minimum": 1 },
+        "list-branch": { "type": "string" },
+        "pieces": { "$ref": "#/$defs/stringArray", "description": "The piece keys, in list order." },
         "slugs": { "$ref": "#/$defs/stringArray" },
         "written": { "$ref": "#/$defs/stringArray", "description": "The write-now pieces, by key." },
+        "stack": { "type": "object" },
         "generated-at": { "$ref": "#/$defs/iso8601" }
       }
     },
@@ -2733,8 +2749,8 @@
         { "$ref": "#/$defs/optimizeSpecFrontmatter" },
         { "$ref": "#/$defs/goalFrontmatter" },
         { "$ref": "#/$defs/prototypeFrontmatter" },
-        { "$ref": "#/$defs/workPacketFrontmatter" },
-        { "$ref": "#/$defs/workSetFrontmatter" },
+        { "$ref": "#/$defs/pieceFrontmatter" },
+        { "$ref": "#/$defs/listFrontmatter" },
         { "$ref": "#/$defs/depScanFrontmatter" },
         { "$ref": "#/$defs/depResearchFrontmatter" },
         { "$ref": "#/$defs/depPlanFrontmatter" },

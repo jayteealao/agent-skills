@@ -1,6 +1,6 @@
-# Step commits, step groups, and the test receipt
+# Step commits, the steps table, and the test receipt
 
-`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared` (WF-SYSTEM-REVIEW C2, C3, C4). An implement that hard-stops loses no committed work, a long plan runs in fresh agents, and verify reuses a green test run.
+`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared` (WF-SYSTEM-REVIEW C2, C4; WF-PIECES-PLAN D16, D33). One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
 
 ## Step commits (C2)
 
@@ -10,14 +10,17 @@
 4. When you hard-stop, record `{"slice", "event": "hard-stop"}` with the reason. A driver counts these rows: after 2 hard-stops of one slice, it asks the person to split the slice instead of a third run. A `retry` row clears the count.
 5. After the final commit of the slice (step 12), record `{"slice", "event": "complete", "sha"}`.
 
-## Step groups (C3)
+## The steps table
 
-A driver can name a group of plan steps ("steps 7 to 12 of 14"). Then:
+The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` table: one row per step of the plan's `## Step-by-Step Plan`, in plan order.
 
-1. Read the hand-over note `.ai/workflows/<slug>/.implement-handover-<slice-slug>.md` when it exists. Only the first group runs the research of `implement.md` "Parallel research". A later group does not load `implement/_research.md` again.
-2. Implement only the steps of the group, with a step commit for each.
-3. When the group is not the last one, overwrite the hand-over note: what is done, what is next, and the traps you found. Do not write the implementation record, the roster status, the final commit, or the test receipt. Return with `stepsDone`.
-4. The last group finishes the stage: steps 8 to 12 of `implement.md`.
+| Step | Title | Result | Commit |
+|---|---|---|---|
+| `<n>` | `<the step title of the plan>` | `done` or `deviated` | `<the short sha of its step commit>` |
+
+- Take each sha from the `step` rows of `.implement-progress.jsonl` for this slice, after its last `complete` row. A step that an earlier run committed keeps the sha of that run.
+- `deviated` means the step was done in a different way than the plan says. Give the reason in `## Deviations from Plan`.
+- A step with no commit, for example a step that changed no file, gets `—` in Commit.
 
 ## The test receipt (C4)
 

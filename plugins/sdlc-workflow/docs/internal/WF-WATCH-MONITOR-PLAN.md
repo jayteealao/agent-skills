@@ -1,7 +1,7 @@
 # WF-WATCH-MONITOR-PLAN — one session-long watch for yolo and campaign
 
 Status **BUILT 2026-10-08, not released: F2–F9 built; F1 not built, because probe P1 fails on the Desktop app (section 9)** · Date **2026-10-08** · Plugin **v9.182.0** · Owner **jayte**
-Follows: [YOLO-COMMENTARY-PLAN.md](YOLO-COMMENTARY-PLAN.md) (the watch and the commentary) and its open question Q4. Used by: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md).
+Follows: [YOLO-COMMENTARY-PLAN.md](YOLO-COMMENTARY-PLAN.md) (the watch and the commentary) and its open question Q4. Used by: [WF-CAMPAIGN-PLAN.md](archived/WF-CAMPAIGN-PLAN.md).
 
 ## 1. Why
 

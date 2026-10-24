@@ -19,7 +19,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 
 ## What a goal is, and is not
 
-- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf loop goal <slug> resume`. This is why `yolo` and the campaign waves do not use goals: they answer gates by written policy, and they own their own loop.
+- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf loop goal <slug> resume`. This is why `yolo` and the campaign walk do not use goals: they answer gates by written policy, and they own their own loop.
 - **The goal adds no stop hook.** The host goal is the only continuation. A second continuation would compete with it.
 - **The contract lives in the slug.** `goal.md` and `goal/checks.jsonl` stay when the host goal is cleared, so `resume` arms the same contract again.
 

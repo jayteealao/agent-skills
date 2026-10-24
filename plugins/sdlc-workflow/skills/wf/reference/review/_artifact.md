@@ -68,6 +68,14 @@ recommended-routes:              # every viable option from _stage.md Adaptive r
 
 {3-4 sentence rationale. Name the most critical finding. State whether any blockers exist.}
 
+## Decision Fidelity
+
+Only when `00-index.md` records `origin-piece` and the scope is slug-wide; omit it otherwise. One row per carried decision of the origin piece, in the order of the piece file, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table". The campaign walk reads this table.
+
+| Key | Verdict | Evidence | Approval |
+|---|---|---|---|
+| {key} | {honored / narrowed / dropped} | {file:line} | {po-answers.md: {key} approved / —} |
+
 ## Domain Coverage
 
 | Domain | Command | Status |

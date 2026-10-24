@@ -34,7 +34,7 @@ import {
 import {
   aggregateCost,
   readCostRows
-} from "./chunk-HCBBZN2S.mjs";
+} from "./chunk-2IS7NC7D.mjs";
 import {
   escapeHtml,
   renderWarnBanner,
@@ -44,17 +44,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-GC4Q2V2L.mjs";
+} from "./chunk-72ZR7X6H.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-RLA7BOVL.mjs";
+} from "./chunk-2ESFO7YN.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-JTJFHSOY.mjs";
-import "./chunk-G4VG2HNC.mjs";
+import "./chunk-CBBYFU4T.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -70,7 +70,6 @@ import {
   configHash,
   loadConfigWithMeta
 } from "./chunk-QUEAOP62.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -86,7 +85,8 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-OVD25SAL.mjs";
+} from "./chunk-HPVINV2O.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

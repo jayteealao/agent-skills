@@ -109,7 +109,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Parallel research
 
-Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip them for a trivial single-file change or a later step group. Charters are in [implement/_research.md](implement/_research.md); when they run, list `research` in `modes:`. Merge the findings; if the codebase diverged significantly, note deviations in the implementation record and adapt plan steps before implementing.
+Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip them for a trivial single-file change. Charters are in [implement/_research.md](implement/_research.md); when they run, list `research` in `modes:`. Merge the findings; if the codebase diverged significantly, note deviations in the implementation record and adapt plan steps before implementing.
 
 # Build discipline — climb the ladder before writing each step
 

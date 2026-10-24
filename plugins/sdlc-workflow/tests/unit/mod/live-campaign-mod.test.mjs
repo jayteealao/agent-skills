@@ -22,7 +22,7 @@ function supportsStripTypes() {
   return major > 22 || (major === 22 && minor >= 6);
 }
 
-test('the campaign live view: journal paths and the unit facts', { skip: supportsStripTypes() ? false : `Node ${process.versions.node} has no --experimental-strip-types` }, () => {
+test('the campaign live view: the list, the piece states and the design needs', { skip: supportsStripTypes() ? false : `Node ${process.versions.node} has no --experimental-strip-types` }, () => {
   const result = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', '--test', '--test-reporter=tap', HARNESS], {
     encoding: 'utf8',
     env: childEnv(),

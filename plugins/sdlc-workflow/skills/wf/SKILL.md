@@ -51,7 +51,7 @@ Run this check before any read or write. Its result is your first visible output
 | `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
-| `campaign` | `<slug>` | Drive a workflow's work packets in dependency waves, one PR per wave. | `work/campaign/` |
+| `campaign` | `<slug>` | Walk a list one piece at a time: slice, yolo, fidelity, try-out. | `work/<piece>.md` |
 | `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 
 ### Navigation · routers

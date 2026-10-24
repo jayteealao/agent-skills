@@ -557,7 +557,7 @@ function canvasEntry(root, kind, key, where, path, canvas) {
 
 /**
  * The sketches and boards of a workflow, with their recorded canvas: the brainstorm
- * board `sketches[]`, the packet `sketches:` of `work/` and of `origin-packet`, and the
+ * board `sketches[]`, the piece `sketches:` of `work/` and of `origin-piece`, and the
  * `canvas` of each board in `design/boards.json`.
  */
 function canvasEntries(root, slug) {
@@ -577,14 +577,15 @@ function canvasEntries(root, slug) {
   const packets = [];
   const workDir = join(wdir, 'work');
   if (existsSync(workDir)) for (const name of readdirSync(workDir).filter((n) => n.endsWith('.md')).sort()) packets.push(join(workDir, name));
-  const origin = readFm(join(wdir, '00-index.md'))?.['origin-packet'];
+  const idx = readFm(join(wdir, '00-index.md'));
+  const origin = idx?.['origin-piece'] ?? idx?.['origin-packet'];
   if (typeof origin === 'string' && origin.trim()) {
     const abs = resolve(root, origin.trim());
     if (existsSync(abs) && !packets.includes(abs)) packets.push(abs);
   }
   for (const file of packets) {
     const fm = readFm(file);
-    if (fm?.type !== 'work-packet') continue;
+    if (fm?.type !== 'piece' && fm?.type !== 'work-packet') continue;
     const rel = posix(relative(root, file));
     (fm.sketches ?? []).forEach((s, i) => {
       if (!s?.key) return;

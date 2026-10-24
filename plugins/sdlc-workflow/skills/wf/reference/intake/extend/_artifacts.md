@@ -17,7 +17,7 @@ updated-at: "<ISO 8601>"
 complexity: <xs|s|m|l|xl>
 depends-on: [<existing-slice-slug-if-any>, ...]
 source: <from-review | from-retro | from-probe | from-simplify | extension>
-source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
+source-ref: <07-review-<slice-slug>.md | 10-retro.md | 07-review.md (a decision fidelity row) | po-answers.md (a try-out) | "user description">
 extension-round: <N>  # 1 for the first extension on this workflow, 2 for the second, etc.
 tags: []
 ux-impact: <none|visual|flow|new-surface>  # this slice's own value, from Step 3c (design/_lane.md)
@@ -64,7 +64,6 @@ Explain what motivated this extension — which review finding, retro item, or u
   depends-on: [<if-any>]
   source: <from-review | from-retro | from-probe | from-simplify | extension>
   extension-round: <N>
-  unit: <packet key>  # campaign only, optional: the unit that walks the slice
 ```
 
 ## `03-slice.md` Extension Round section (Step 5, item 4)

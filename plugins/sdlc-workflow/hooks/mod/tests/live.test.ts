@@ -13,7 +13,8 @@ import { DASHBOARD_KEY, LIVE_KEY, PLUGIN_NAME } from '../names.ts'
 import { absorb, freshJournalState, livenessFrom } from '../live/model/journal.ts'
 import type { JournalState } from '../live/model/journal.ts'
 import { buildBrainstormModel } from '../live/model/brainstorm.ts'
-import { buildCampaignModel, slotHoldersAfter } from '../live/model/campaign.ts'
+import { buildCampaignModel } from '../live/model/campaign.ts'
+import type { PieceFact } from '../live/model/campaign.ts'
 import { buildYoloModel } from '../live/model/yolo.ts'
 import type { RosterFact } from '../live/model/yolo.ts'
 import { usageOf } from '../live/model/usage.ts'
@@ -55,17 +56,26 @@ const ROSTER: RosterFact[] = [
   { slug: 'ui', stage: 'defined', reviewed: false },
 ]
 
-const LEDGER = {
-  waves: [
-    { n: 1, state: 'running', units: ['u1', 'u2'] },
-    { n: 2, state: 'planned', units: ['u3'] },
-  ],
-  units: {
-    u1: { slug: 'alpha-auth', state: 'running', wave: 1 },
-    u2: { slug: 'alpha-ui', state: 'finished', wave: 1 },
-    u3: { slug: 'alpha-docs', state: 'planned', wave: 2 },
-  },
-}
+/** A piece file of the list in `camp/work/` (WF-PIECES-PLAN.md 4.1). */
+const pieceText = (key: string, slug: string, order: number, state: string, uxImpact = 'none', form = 'intake') =>
+  `---\nschema: sdlc/v1\ntype: piece\nslug: camp\nkey: ${key}\npiece-slug: ${slug}\ntitle: "${slug}: the piece"\nform: ${form}\norder: ${order}\nstate: ${state}\nux-impact: ${uxImpact}\n---\n# ${slug}\n`
+
+/** The list: alpha-auth done, alpha-ui open with a visual change, alpha-docs written. */
+const LIST = '---\nschema: sdlc/v1\ntype: list\nslug: camp\nlist-branch: pieces/camp\npieces:\n  - p1\n  - p2\n  - p3\n---\n# List: camp\n'
+
+/** One piece as the live module reads it, with its workflow's files. */
+const pieceFact = (key: string, slug: string, order: number, state: string, rest: Partial<PieceFact> = {}): PieceFact => ({
+  key,
+  slug,
+  title: slug,
+  form: 'intake',
+  state,
+  order,
+  pieceUxImpact: 'none',
+  indexText: null,
+  craftText: null,
+  ...rest,
+})
 
 const BOARD = {
   areas: [{ key: 'a1', name: 'Core', scope: 'mixed' }],
@@ -93,7 +103,10 @@ const TREE: Record<string, string> = {
   '/work/.ai/workflows/alpha-flow/04-plan-auth.md': '---\nstatus: complete\n---\n',
   '/work/.ai/workflows/alpha-flow/05-implement-auth.md': '---\nstatus: complete\n---\n',
   '/work/.ai/workflows/camp/00-index.md': '---\nslug: camp\nstatus: active\n---\n',
-  '/work/.ai/workflows/camp/work/campaign/ledger.json': JSON.stringify(LEDGER),
+  '/work/.ai/workflows/camp/work/index.md': LIST,
+  '/work/.ai/workflows/camp/work/alpha-auth.md': pieceText('p1', 'alpha-auth', 1, 'done'),
+  '/work/.ai/workflows/camp/work/alpha-ui.md': pieceText('p2', 'alpha-ui', 2, 'open', 'visual'),
+  '/work/.ai/workflows/camp/work/alpha-docs.md': pieceText('p3', 'alpha-docs', 3, 'written'),
   '/work/.ai/workflows/idea/00-index.md': '---\nslug: idea\nstatus: active\n---\n',
   '/work/.ai/workflows/idea/brainstorm-board.json': JSON.stringify(BOARD),
 }
@@ -319,57 +332,57 @@ describe('live models (T1)', () => {
     expect(model.outcome).toBe('running')
   })
 
-  test('the campaign model reads the live wave, its units and the prepare need', async () => {
+  test('the campaign model reads the pieces in list order, their states, the current piece and the design needs', async () => {
+    const unsettled = '---\nslug: alpha-ui\nstatus: active\nux-impact: visual\nprogress:\n  design: pending\n---\n'
+    const skipped = '---\nslug: alpha-api\nstatus: active\nux-impact: flow\nprogress:\n  design: skipped\ndesign-skip-reason: the flow is the old one\n---\n'
     const model = buildCampaignModel({
       slug: 'camp',
-      now: NOW,
-      ledger: LEDGER,
+      order: ['p1', 'p2', 'p3', 'p4', 'p5'],
+      pieces: [
+        pieceFact('p3', 'alpha-docs', 3, 'written'),
+        pieceFact('p1', 'alpha-auth', 1, 'done', { indexText: '---\nux-impact: visual\n---\n' }),
+        pieceFact('p2', 'alpha-ui', 2, 'open', { pieceUxImpact: 'visual', indexText: unsettled }),
+        pieceFact('p4', 'alpha-api', 4, 'open', { indexText: skipped }),
+        pieceFact('p5', 'alpha-rca', 5, 'written', { form: 'rca', pieceUxImpact: 'visual' }),
+      ],
       liveness: livenessFrom(freshJournalState(), NOW),
-      gates: {},
-      drives: { u1: { stage: 'implement', startedAt: NOW - 5 * 60_000, status: null } },
-      heavy: { holder: null, waiting: [] },
-      usage: usageOf(null),
-      control: null,
       dismissed: [],
     })
-    expect(model.activeWave).toBe(1)
-    expect(model.waves.map(wave => wave.n)).toEqual([1, 2])
-    expect(model.waves[0]?.slugs.map(unit => unit.state)).toEqual(['running', 'finished'])
-    expect(model.needs.some(need => need.kind === 'prepare')).toBe(true)
+    expect(model.pieces.map(piece => piece.key)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5'])
+    expect(model.pieces.map(piece => piece.state)).toEqual(['done', 'open', 'written', 'open', 'written'])
+    expect(model.current).toBe('p2')
+    // A done piece, a written piece with no workflow, a skipped design and a routed form need no design.
+    expect(model.pieces.map(piece => piece.designNeeded)).toEqual([false, true, false, false, false])
+    expect(model.needs.map(need => need.id)).toEqual(['design:alpha-ui'])
+    expect(model.needs[0]?.actions[0]?.prompt).toBe('/wf design alpha-ui')
+    const facts = factsOf(model, NOW)
+    expect(facts.focus.line).toBe('alpha-ui · open · needs design')
+    expect(facts.focus.eyebrow).toBe('piece 2 of 5')
+    expect(facts.groups[0]?.tracks.map(track => track.marks)).toEqual([['done'], ['run'], ['wait'], ['wait'], ['wait']])
+    expect(facts.controls).toEqual([])
   })
 
-  test('the campaign model shows the wave driver: slot holders, a waiting unit and a parked unit with its question (W5)', async () => {
-    const slots = slotHoldersAfter([], [
-      { event: 'agent-start', agent: 'implement:s1@alpha-auth', heavy: true },
-      { event: 'agent-start', agent: 'plan:s2@alpha-auth' },
-      { event: 'agent-start', agent: 'verify:s0@alpha-auth', heavy: true },
-      { event: 'agent-end', agent: 'verify:s0@alpha-auth' },
-    ])
-    expect(slots).toEqual(['implement:s1@alpha-auth'])
+  test('a confirmed design contract settles the design; a reopened design does not; a finished list has no current piece', async () => {
+    const index = '---\nux-impact: new-surface\n---\n'
+    const craft = '---\nimage-gate: pass\ndirection-confirmed-by: jayte\n---\n'
+    const reopened = '---\nux-impact: visual\nprogress:\n  design: in-progress\n---\n'
     const model = buildCampaignModel({
       slug: 'camp',
-      now: NOW,
-      ledger: {
-        waves: [{ n: 1, state: 'running', units: ['u1', 'u2', 'u3'] }],
-        units: {
-          u1: { slug: 'alpha-auth', state: 'running', wave: 1 },
-          u2: { slug: 'alpha-ui', state: 'waiting', wave: 1, route: 'merge-in u1 s1' },
-          u3: { slug: 'alpha-docs', state: 'stopped', wave: 1, route: 'stage: implement s1' },
-        },
-        questions: [{ id: 'w1-u3-1', unit: 'u3', kind: 'stage', text: 'which API?', wave: 1 }],
-      },
+      order: ['p1', 'p2', 'p3'],
+      pieces: [
+        pieceFact('p1', 'alpha-auth', 1, 'open', { indexText: index, craftText: craft }),
+        pieceFact('p2', 'alpha-ui', 2, 'built', { indexText: reopened, craftText: craft }),
+        pieceFact('p3', 'alpha-docs', 3, 'open', { indexText: index, craftText: '---\nimage-gate: pending\ndirection-confirmed-by: jayte\n---\n' }),
+      ],
       liveness: livenessFrom(freshJournalState(), NOW),
-      gates: {},
-      drives: {
-        'alpha-auth': { stage: 'implement', startedAt: NOW - 5 * 60_000, status: null, slots: slots.length },
-        'alpha-ui': { stage: 'plan', startedAt: null, status: 'complete', slots: 0 },
-      },
-      heavy: { holder: null, waiting: [] },
-      usage: usageOf(null),
-      control: null,
-      dismissed: [],
+      dismissed: ['design:alpha-docs'],
     })
-    expect(model.waves[0]?.slugs.map(unit => unit.note)).toEqual(['implement · 5m · holds a slot', 'waiting · merge-in u1 s1', 'asks w1-u3-1'])
+    expect(model.pieces.map(piece => piece.designNeeded)).toEqual([false, true, true])
+    // A dismissed need leaves the list; the piece still says it needs design.
+    expect(model.needs.map(need => need.id)).toEqual(['design:alpha-ui'])
+    const finished = buildCampaignModel({ slug: 'camp', order: ['p1'], pieces: [pieceFact('p1', 'alpha-auth', 1, 'done'), pieceFact('p2', 'alpha-ui', 2, 'dropped')], liveness: livenessFrom(freshJournalState(), NOW), dismissed: [] })
+    expect(finished.current).toBeNull()
+    expect(factsOf(finished, NOW).focus.word).toBe('DONE')
   })
 
   test('the brainstorm model reads the threads, the walk and the mode', async () => {
@@ -774,27 +787,27 @@ describe('the live pane', () => {
     await fillOrSend(desktop, '/wf yolo alpha-flow')
     expect(sent).toEqual(['/wf yolo alpha-flow'])
     // An answer waits for the person's words: it is named, not sent.
-    await fillOrSend(desktop, '/wf campaign idea answer q1: ')
+    await fillOrSend(desktop, '/wf intake brainstorm idea split p1 ')
     expect(sent).toEqual(['/wf yolo alpha-flow'])
-    expect(toasts).toEqual(['Type this in the prompt box, then your words: /wf campaign idea answer q1:'])
+    expect(toasts).toEqual(['Type this in the prompt box, then your words: /wf intake brainstorm idea split p1'])
     // The terminal fills the box: nothing is sent.
     await fillOrSend(engineWith({ isFilled: true }), '/wf yolo alpha-flow')
     expect(sent).toHaveLength(1)
   })
 
-  test('a run is over after its end, a campaign with no wave running, a done brainstorm, or two silent hours', () => {
+  test('a run is over after its end, a campaign whose list is finished, a done brainstorm, or two silent hours', () => {
     const min = 60_000
     const liveness = (silentMs: number, state = 'live') => ({ state, lastLineAt: NOW - silentMs, limitMs: 20 * min, lastLine: null, beats: [] })
     const yolo = (silentMs: number, outcome: string) => ({ kind: 'yolo', outcome, liveness: liveness(silentMs, outcome === 'ended' ? 'ended' : 'live') }) as unknown as SdlcLiveModel
-    const campaign = (silentMs: number, activeWave: number | null) => ({ kind: 'campaign', activeWave, running: 0, paused: null, liveness: liveness(silentMs, 'stale') }) as unknown as SdlcLiveModel
+    const campaign = (silentMs: number, current: string | null) => ({ kind: 'campaign', current, liveness: liveness(silentMs, 'quiet') }) as unknown as SdlcLiveModel
     const brainstorm = (silentMs: number, mode: string) => ({ kind: 'brainstorm', mode, liveness: liveness(silentMs, 'quiet') }) as unknown as SdlcLiveModel
     expect(isRunOver(yolo(29 * min, 'ended'), NOW)).toBe(false)
     expect(isRunOver(yolo(31 * min, 'ended'), NOW)).toBe(true)
     expect(isRunOver(yolo(31 * min, 'stopped'), NOW)).toBe(true)
     expect(isRunOver(yolo(60 * min, 'running'), NOW)).toBe(false)
     expect(isRunOver(campaign(31 * min, null), NOW)).toBe(true)
-    expect(isRunOver(campaign(60 * min, 1), NOW)).toBe(false)
-    expect(isRunOver(campaign(121 * min, 1), NOW)).toBe(true)
+    expect(isRunOver(campaign(60 * min, 'p2'), NOW)).toBe(false)
+    expect(isRunOver(campaign(121 * min, 'p2'), NOW)).toBe(true)
     expect(isRunOver(brainstorm(60 * min, 'explore'), NOW)).toBe(false)
     expect(isRunOver(brainstorm(31 * min, 'done'), NOW)).toBe(true)
     expect(isRunOver(brainstorm(121 * min, 'explore'), NOW)).toBe(true)

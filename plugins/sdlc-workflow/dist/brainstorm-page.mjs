@@ -28,7 +28,7 @@ h3{font-size:15px;margin:16px 0 6px}
 var byKey = (list2 = []) => new Map((list2 ?? []).filter((e) => e?.key).map((e) => [e.key, e]));
 var isLive = (i) => i && !i["replaced-by"] && i.scope !== "cut";
 var IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
-var PACKET_FORMS = /* @__PURE__ */ new Set(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
+var PIECE_FORMS = /* @__PURE__ */ new Set(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
 function documentSections(text) {
   const body = String(text ?? "").replace(/\r\n/g, "\n").replace(/^---\n[\s\S]*?\n---\n?/, "").replace(/<!--[\s\S]*?-->/g, "");
   const out = /* @__PURE__ */ new Map();
@@ -177,7 +177,7 @@ function renderBrainstormPage(board, doc = "", { generatedAt = "" } = {}) {
   }
   const pieces = [...b.work ?? []].sort((x, y) => (x.order ?? 1e9) - (y.order ?? 1e9) || String(x.key).localeCompare(String(y.key)));
   out.push(section("Pieces of work", list(pieces.map((p) => {
-    const packet = PACKET_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
+    const packet = PIECE_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
     const files = (p["written-files"] ?? []).map((f) => `<code>${esc(f.path)}</code>`).join(", ");
     const meta2 = [p.order ? `${p.order}.` : null, p.shape === "write-now" ? "written in the session" : p.shape, p.state].filter(Boolean).join(" \xB7 ");
     const stale = p.stale ? `${tag("stale")}${p["stale-because"] ? `<br><span class="why">Stale because ${esc(p["stale-because"])}</span>` : ""}` : "";

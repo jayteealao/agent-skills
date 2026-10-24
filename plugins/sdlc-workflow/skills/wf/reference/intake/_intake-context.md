@@ -53,3 +53,4 @@ This is the additive bootstrap. Every mode that creates a new workflow registers
 - **If `.ai/workflows/INDEX.md` exists AND the slug is already present**, do nothing. A matching row means this is a resume on a row that an earlier intake run wrote. Leave the existing row in place so sync owns updates.
 - **If `.ai/workflows/INDEX.md` exists AND the slug is missing**, append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
 - **Mutate no other row.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.
+- **A build piece of a list is not registered here.** `campaign.mjs open` writes its folder and its row (`campaign.md`, step 3).

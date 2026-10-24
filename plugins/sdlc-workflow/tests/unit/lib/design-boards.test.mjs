@@ -371,7 +371,7 @@ test('A5b: canvasStale reports a changed file, a missing file and a foreign acco
   deepEqual(validateManifest(m), []);
 });
 
-test('A5b: the schema accepts a canvas record and state reference on sketches and packets', () => {
+test('A5b: the schema accepts a canvas record and state reference on sketches and pieces', () => {
   const canvas = { link: 'https://claude.ai/a/1', account: 'me', 'published-at': '2026-10-22T10:00:00Z', sha256: hash('a'), previous: ['https://claude.ai/a/0', { link: 'https://claude.ai/a/00', account: 'outlook' }] };
   const board = {
     schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: 'demo', areas: [], threads: [], items: [],
@@ -384,14 +384,14 @@ test('A5b: the schema accepts a canvas record and state reference on sketches an
   equal(validateBrainstormBoard({ ...board, sketches: [{ ...board.sketches[0], canvas: { link: 'x' } }] }).valid, false, 'a canvas records its sha256');
   equal(validateBrainstormBoard({ ...board, sketches: [{ ...board.sketches[0], state: 'kept' }] }).valid, false);
   const packet = {
-    schema: 'sdlc/v1', type: 'work-packet', slug: 'demo', key: 'home', 'work-slug': 'home', form: 'intake', 'origin-brainstorm': 'demo',
-    'carried-decisions': [], state: 'proposed', sketches: [{ key: 'home', path: '.ai/workflows/demo/design/sketches/screens.html#home', link: canvas.link, canvas }],
+    schema: 'sdlc/v1', type: 'piece', slug: 'demo', key: 'home', 'piece-slug': 'home', form: 'intake', 'origin-source': 'demo',
+    'carried-decisions': [], state: 'written', sketches: [{ key: 'home', path: '.ai/workflows/demo/design/sketches/screens.html#home', link: canvas.link, canvas }],
   };
   ok(validateFrontmatter(packet).valid, JSON.stringify(validateFrontmatter(packet).errors));
   equal(validateFrontmatter({ ...packet, sketches: [{ key: 'home', path: null, canvas: { sha256: hash('a') } }] }).valid, false);
 });
 
-test('A5b: tool canvas-stale reads the board, the packets and boards.json', () => {
+test('A5b: tool canvas-stale reads the board, the pieces and boards.json', () => {
   const root = project();
   try {
     const wdir = join(root, '.ai', 'workflows', 'demo');
@@ -408,7 +408,7 @@ test('A5b: tool canvas-stale reads the board, the packets and boards.json', () =
         { key: 'strip', thread: 't', caption: 'Strip', state: 'carried', path: 'design/sketches/strip.png' },
       ],
     }));
-    writeFileSync(join(wdir, 'work', 'home.md'), `---\nschema: sdlc/v1\ntype: work-packet\nslug: demo\nkey: home\nsketches:\n  - key: home\n    path: .ai/workflows/demo/design/sketches/screens.html#home\n    link: https://claude.ai/a/1\n    canvas:\n      link: https://claude.ai/a/1\n      account: outlook\n      sha256: ${hash('<p>v2</p>')}\n---\n`);
+    writeFileSync(join(wdir, 'work', 'home.md'), `---\nschema: sdlc/v1\ntype: piece\nslug: demo\nkey: home\nsketches:\n  - key: home\n    path: .ai/workflows/demo/design/sketches/screens.html#home\n    link: https://claude.ai/a/1\n    canvas:\n      link: https://claude.ai/a/1\n      account: outlook\n      sha256: ${hash('<p>v2</p>')}\n---\n`);
     writeFileSync(designFile(root, 'boards.json'), JSON.stringify({ ...emptyManifest('demo'), boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', html: 'boards/cart--empty.html', png: null, canvas: canvas('<p>cart</p>') }] }));
     const r = run(root, ['canvas-stale', 'demo', '--account', 'me']);
     equal(r.status, 0, r.stdout);

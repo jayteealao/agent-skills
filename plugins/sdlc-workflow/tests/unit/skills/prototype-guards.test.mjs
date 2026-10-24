@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { NOT_DRIVEN } from '../../../lib/lifecycle-done.mjs';
-import { PACKET_FORMS } from '../../../lib/work-packets.mjs';
+import { PIECE_FORMS } from '../../../lib/pieces.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const read = (rel) => readFileSync(path.join(pluginRoot, rel), 'utf8');
@@ -21,7 +21,7 @@ test('each of the four drivers refuses a prototype slug', () => {
   assert.match(read(`${REF}/yolo.md`), /`prototype` \(the person starts every round; route `\/wf loop prototype <slug> <request>`\)/);
   assert.match(read('skills/wf/workflows/yolo.js'), /5b2\. PROTOTYPE — workflow-type 'prototype'[^]*yolo drives NOTHING here/);
   assert.ok(NOT_DRIVEN.prototype, 'goal: lifecycle-done refuses a prototype');
-  assert.ok(!PACKET_FORMS.includes('prototype'), 'campaign: no packet can start a prototype');
+  assert.ok(!PIECE_FORMS.includes('prototype'), 'campaign: no piece can start a prototype');
 });
 
 test('the key reference: person-only rounds, one round per run, decide-only commits, the worktree rule', () => {

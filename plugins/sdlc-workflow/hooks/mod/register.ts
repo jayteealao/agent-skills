@@ -138,7 +138,6 @@ import {
 } from './readledger.ts'
 import type { CheckResult, Io, ModeFacts, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
 import { REQUIRES } from './requires.ts'
-import { createUsageGuard } from './usage-guard.ts'
 
 /**
  * The store key a test puts a fixture Requires table under; the engine loads
@@ -159,7 +158,6 @@ const activeAtom = atom({ plugin: 'sdlc-workflow', key: 'active' } as const, nul
 const workflowsAtom = atom({ plugin: 'sdlc-workflow', key: 'workflows' } as const, EMPTY_WORKFLOWS, { shape: 'workflows-2' })
 const dashboardAtom = atom({ plugin: 'sdlc-workflow', key: 'dashboard' } as const, EMPTY_DASHBOARD, { shape: 'dashboard-2' })
 const hubAtom = atom({ plugin: 'sdlc-workflow', key: 'hub' } as const, null, { shape: 'hub-1' })
-const usageAtom = atom({ plugin: 'sdlc-workflow', key: 'usage' } as const, null, { shape: 'usage-1' })
 const lastStageUsdAtom = atom({ plugin: 'sdlc-workflow', key: 'lastStageUsd' } as const, null, { shape: 'stage-usd-1' })
 const liveBandAtom = atom({ plugin: 'sdlc-workflow', key: 'liveBand' } as const, null, { shape: 'live-band-1' })
 
@@ -170,7 +168,6 @@ type Published =
   | { name: 'workflows'; value: SdlcWorkflows }
   | { name: 'dashboard'; value: SdlcDashboard }
   | { name: 'hub'; value: SdlcHub | null }
-  | { name: 'usage'; value: string | null }
   | { name: 'lastStageUsd'; value: number | null }
 
 /** Every `$.noun.event` the mod calls after `session.start`, bound once. */
@@ -357,10 +354,6 @@ export function register(on: On, options: PluginOptions = {}) {
   let host: Host | null = null
   let model: Model = EMPTY
   let settings: Settings = settingsOf(options ?? {})
-  // The usage guard (WF-CAMPAIGN-PLAN.md 17): its own file, called from this module's session hooks.
-  const usageGuard = createUsageGuard(() => settings.usageGuard)
-  /** The usage guard's windows for the status line, or null before its first reading. */
-  let usageText: string | null = null
   let bracket: Bracket | null = null
   /**
    * A `/wf` turn that ended while its background sub-agents still ran. The
@@ -448,7 +441,6 @@ export function register(on: On, options: PluginOptions = {}) {
       { name: 'workflows', value: { root: model.root, isRead: model.isRead, entries: model.workflows, slices: Object.fromEntries(model.slices), reads: model.reads } },
       { name: 'dashboard', value: { isOpen: model.isDashboardOpen, details: model.isDashboardDetailed } },
       { name: 'hub', value: model.hub },
-      { name: 'usage', value: usageText },
       { name: 'lastStageUsd', value: model.lastStageUsd },
     ]
     for (const published of values) {
@@ -568,18 +560,14 @@ export function register(on: On, options: PluginOptions = {}) {
     publish(engine)
   }
 
-  /**
-   * The pinned status line: the live view's line while a run shows (with `driverStatus` on), else the
-   * strip's short text, then the usage guard's two windows.
-   */
+  /** The pinned status line: the live view's line while a run shows (with `driverStatus` on), else the strip's short text. */
   function drawStatus(engine: Host): void {
     if (!drawsHere()) return
     const workflow = activeWorkflow()
-    // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the strip's text and the usage.
+    // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the strip's text.
     const shownLive = settings.driverStatus ? liveText : null
-    const base = shownLive ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
-    const text = [base, shownLive === null ? usageText : null].filter(part => part !== null && part !== '').join(' · ')
-    engine.status(text === '' ? undefined : text)
+    const text = shownLive ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
+    engine.status(text === null || text === '' ? undefined : text)
     publish(engine)
   }
 
@@ -806,50 +794,11 @@ export function register(on: On, options: PluginOptions = {}) {
   }
 
   on('session.measure', async ($, e, next) => {
-    await usageGuard.measure(e)
     if (e.changed.includes('rateLimits')) live.measure(e.rateLimits)
     return next(e)
   })
 
   on('session.start', async ($, e, next) => {
-    usageGuard.start({
-      cwd: e.cwd,
-      home: async () => (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')),
-      sessionId: async () => {
-        try {
-          return await $.session.id()
-        } catch {
-          return ''
-        }
-      },
-      now: () => $.clock.now(),
-      usage: async () => (await $.session.usage()).rateLimits,
-      read: async path => {
-        try {
-          return (await $.fs.exists(path)) ? await $.fs.read(path) : null
-        } catch {
-          return null
-        }
-      },
-      write: (path, text) => $.fs.write(path, text),
-      list: async path => {
-        try {
-          return await $.fs.list(path)
-        } catch {
-          return []
-        }
-      },
-      exists: path => $.fs.exists(path),
-      status: text => {
-        usageText = text ?? null
-        if (host !== null && model.step === null) drawStatus(host)
-      },
-      toast: text => $.ui.toast(text),
-      submit: text => $.prompt.submit({ text }),
-      storeGet: key => $.store.get(key),
-      storeSet: (key, value) => $.store.set(key, value),
-      every: (ms, fn) => $.clock.every(ms, fn),
-    })
     // A reload (a `/config` change, a hot reload) runs this hook again: the drawn values come back from `$.state` (X1, F2).
     model = { ...EMPTY, surface: e.surface, interactive: e.isInteractive, ...(await restoredOf($)) }
     synced = new Map()
@@ -887,9 +836,6 @@ export function register(on: On, options: PluginOptions = {}) {
             break
           case 'hub':
             await update($, hubAtom, () => published.value)
-            break
-          case 'usage':
-            await update($, usageAtom, () => published.value)
             break
           case 'lastStageUsd':
             await update($, lastStageUsdAtom, () => published.value)
@@ -983,7 +929,6 @@ export function register(on: On, options: PluginOptions = {}) {
     } catch {
       // No store: the generated module.
     }
-    usageText = await read($, usageAtom).catch(() => null)
     lastRun = null
     noticeRequestId = null
     hubTimer?.cancel()

@@ -75,7 +75,7 @@ export function protectedNeedsOf(root: string, changed: readonly string[]): Sdlc
 }
 
 /** A stale driver: quiet past its own limit with an agent still out. */
-export function staleNeedOf(slug: string, kind: 'yolo' | 'campaign', minutes: number): SdlcNeed {
+export function staleNeedOf(slug: string, minutes: number): SdlcNeed {
   return {
     id: `stale:${slug}`,
     kind: 'stale',
@@ -85,55 +85,23 @@ export function staleNeedOf(slug: string, kind: 'yolo' | 'campaign', minutes: nu
     tone: 'stop',
     actions: [
       { key: 'status', label: 'Check status', kind: 'prompt', prompt: `/wf status ${slug}` },
-      { key: 'resume', label: 'Resume', kind: 'fill', prompt: `/wf ${kind} ${slug}` },
+      { key: 'resume', label: 'Resume', kind: 'fill', prompt: `/wf yolo ${slug}` },
       { key: 'dismiss', label: 'Dismiss', kind: 'dismiss' },
     ],
   }
 }
 
-/** A campaign slug that waits for its prepare. */
-export function prepareNeedOf(brainstorm: string, unitKey: string, slug: string, wave: number | null): SdlcNeed {
+/** A build piece whose design waits on the person (`design/_lane.md`): the walk stops there until it is settled. */
+export function designNeedOf(pieceSlug: string, uxImpact: string): SdlcNeed {
   return {
-    id: `prepare:${unitKey}`,
-    kind: 'prepare',
-    title: `Prepare ${slug}`,
-    body: wave === null ? 'It waits for its prepare.' : `Wave ${wave} waits for its prepare.`,
-    section: 'waves',
+    id: `design:${pieceSlug}`,
+    kind: 'design',
+    title: `Design ${pieceSlug}`,
+    body: `ux-impact ${uxImpact}: the design is not settled.`,
+    section: 'pieces',
     tone: 'attention',
     actions: [
-      { key: 'prepare', label: 'Prepare', kind: 'prompt', prompt: `/wf campaign ${brainstorm} prepare ${unitKey}` },
-      { key: 'later', label: 'Later', kind: 'dismiss' },
-    ],
-  }
-}
-
-/** A question the campaign asked the person. */
-export function askedNeedOf(brainstorm: string, id: string, text: string, wave: number | null): SdlcNeed {
-  return {
-    id: `asked:${id}`,
-    kind: 'asked',
-    title: wave === null ? `Question ${id}` : `Wave ${wave} · question ${id}`,
-    body: text,
-    section: 'waves',
-    tone: 'attention',
-    actions: [
-      { key: 'answer', label: 'Answer', kind: 'fill', prompt: `/wf campaign ${brainstorm} answer ${id}: ` },
-      { key: 'later', label: 'Later', kind: 'dismiss' },
-    ],
-  }
-}
-
-/** A task, investigate or discover packet that the campaign leaves to the person. */
-export function outsideNeedOf(brainstorm: string, key: string, slug: string, form: string, title: string): SdlcNeed {
-  return {
-    id: `outside:${key}`,
-    kind: 'outside',
-    title: `${form} · ${slug}`,
-    body: title,
-    section: 'waves',
-    tone: 'plain',
-    actions: [
-      { key: 'start', label: 'Start', kind: 'fill', prompt: `/wf intake .ai/workflows/${brainstorm}/work/${slug}.md` },
+      { key: 'design', label: 'Design it', kind: 'fill', prompt: `/wf design ${pieceSlug}` },
       { key: 'later', label: 'Later', kind: 'dismiss' },
     ],
   }
@@ -144,27 +112,14 @@ export function splitNeedOf(brainstorm: string, key: string, size: number): Sdlc
   return {
     id: `split:${key}`,
     kind: 'split',
-    title: `${key} carries ${size} decisions`,
-    body: 'Over 40: split it before a campaign runs it.',
+    title: `${key}: about ${size} slices`,
+    body: 'Above 14: propose a split where the first part is complete. The person may keep it whole.',
     section: 'packets',
-    tone: 'stop',
+    tone: 'attention',
     actions: [
       { key: 'split', label: 'Split it', kind: 'fill', prompt: `/wf intake brainstorm ${brainstorm} split ${key} ` },
       { key: 'later', label: 'Later', kind: 'dismiss' },
     ],
-  }
-}
-
-/** A paused campaign: the reset time, and resume now. */
-export function pausedNeedOf(brainstorm: string, until: string | null, reason: string | null): SdlcNeed {
-  return {
-    id: `paused:${brainstorm}:${until ?? 'open'}`,
-    kind: 'paused',
-    title: until === null ? 'Paused' : `Paused until ${until.slice(11, 16)}`,
-    body: reason ?? 'The usage window is over the pause line.',
-    section: 'usage',
-    tone: 'stop',
-    actions: [{ key: 'resume', label: 'Resume now', kind: 'prompt', prompt: `/wf campaign ${brainstorm}` }],
   }
 }
 

@@ -1,10 +1,10 @@
-# Work packets and write-now pieces (brainstorm `done`)
+# Pieces and write-now pieces (brainstorm `done`)
 
-`done` ends in work. Each agreed piece of work is one of two things:
-- a **work packet**: the file `work/<slug>.md` for a piece that opens or extends a workflow slug. A successor workflow starts from it.
-- a **write-now piece**: a piece that changes only documents. The brainstorm writes it in this session, after the person confirms the scope. It gets no packet and no successor workflow.
+`done` ends in one list. Each agreed piece of work is one of two things:
+- a **piece**: the file `work/<piece-slug>.md` (`type: piece`) for a piece that opens or extends a workflow slug. The list is `work/index.md` (`type: list`). The campaign walk builds the pieces in list order, one at a time, on the list branch `pieces/<slug>` (`/wf campaign <slug>`).
+- a **write-now piece**: a piece that changes only documents. The brainstorm writes it in this session, after the person confirms the list. It gets no piece file and no workflow.
 
-The board's `work` list stays the single truth. A script writes the packets from the board, so a kept decision reaches its packet word for word. Do not write a packet by hand, and do not edit a packet to change its content: change the board, then write again.
+The board's `work` list stays the single truth. A script writes the piece files from the board, so a kept decision reaches its piece word for word. Do not write a piece file by hand, and do not edit a piece file to change its content: change the board, then write again.
 
 ## What 3.3 agrees for each piece
 
@@ -12,20 +12,34 @@ Agree these with the person, in plain words, and give your view with its reason.
 
 | Field | What to agree |
 |---|---|
-| `slug` | The workflow slug the piece opens, in kebab form. For an extension, the new scope's descriptor. |
+| `slug` | The workflow slug the piece opens, in kebab form. For an extension, the new scope's descriptor. When the slug is a reserved slug name ([../_intake-context.md](../_intake-context.md)), or `.ai/workflows/<slug>/` exists for other work, ask the person for a new slug. |
 | `shape` | The form (table below). |
 | `target-slug` | For `extension`, `fix` and `hotfix`: the existing workflow slug. |
-| `order` | The place of the piece in the sequence. Every piece has one, write-now pieces included. The orders are 1 to n, each used once. The sequence is the safe serial order: piece N may use anything that pieces 1 to N−1 built. |
+| `order` | The place of the piece in the list. Every piece has one, write-now pieces included. The orders are 1 to n, each used once. The list is the safe serial order: piece N may use anything that pieces 1 to N−1 built. |
 | `why-here` | On each piece after order 1: why the piece comes after the pieces before it, in the person's words, for example "billing waits until the limits ship". When the position has no reason other than value, the note says so, for example "less urgent than the pieces before it". |
-| `items` | The kept items the piece carries. |
-| `shared` | A kept decision that two pieces carry. List it on each piece that carries it. |
+| `items` | The kept items the piece carries. Each kept decision is in exactly one piece. |
 | `research`, `references` | The research notes (`R<NN>`) and references (`F<NN>`, or a repo path) the piece draws on. |
 | `design-form` | `design` or `design-direction` when a design focus adds the design stage to the piece ([_design.md](_design.md)); otherwise `none`. |
-| `sketches` | With a design focus: the carried sketches, by key. The packet carries each key with its path under this board's `design/sketches/`. |
+| `sketches` | With a design focus: the carried sketches, by key. The piece file carries each key with its path under this board's `design/sketches/`. |
 
-Propose the sequence and each `why-here` note yourself, with the reason. Put first the smallest piece that shows the thinking is right. The person confirms them or changes them.
+Propose the order and each `why-here` note yourself, with the reason. Put first the smallest piece that shows the thinking is right. The person confirms them or changes them. Do not ask for `depends-on`, `needs`, `provides` or `expects`: the walk builds the pieces in list order, one at a time.
 
-Do not ask for `depends-on`, `needs`, `provides`, or `expects`. The campaign owns the dependency graph: it reads the packets and the code, proposes the graph, and the person confirms it in the deps phase of `/wf campaign`. The `why-here` notes are its evidence.
+### The write-up of a build piece
+
+The brainstorm writes each build piece (form `intake`, `fix`, `hotfix`, `extension`) in full at `done`. No intake and no shape run for a piece: `campaign.mjs open` writes its `01-intake.md` and `02-shape.md` from these fields, word for word. Write them yourself from the board, and show them in the confirmation of 3.4.
+
+| Field | What to write |
+|---|---|
+| `goal` | One or two plain sentences: the outcome of the piece. |
+| `in-scope`, `out-of-scope` | One line per item. The items left for later and the cut items of the piece's threads belong in `out-of-scope`. |
+| `acceptance-criteria` | One checkable criterion per entry. The piece file numbers them `AC-1`, `AC-2`, and so on. |
+| `constraints` | The constraints that are not carried decisions. `open` copies each carried decision into the Known Constraints by itself, so do not repeat one here. |
+| `risks` | Each way the piece can be misread or fail, one line each. `open` seeds the intent-risks of the piece from them. |
+| `ux-impact`, `ux-impact-confirmed` | Propose `none`, `visual`, `flow` or `new-surface` per `design/_lane.md`. The person confirms it. Then write `ux-impact-confirmed: true`. |
+| `try-out` | `yes` when `ux-impact` is not `none`, or when the piece adds a user-facing command. Otherwise `no`. The person confirms it. A piece with `try-out: yes` gets a try-out pause in the walk. |
+| `estimated-slices` | Your estimate of the capability slices of the piece (Size, below). |
+
+**The stack.** Detect the stack once for the list: run the probes in `intake/default/_stack-fingerprint.md`. Ask the person to confirm or correct it. Write it to the board's top-level `stack` with `user-confirmed: true`. The `write` command copies it into `work/index.md`, and `open` copies it into each piece.
 
 ### Forms
 
@@ -41,13 +55,19 @@ Do not ask for `depends-on`, `needs`, `provides`, or `expects`. The campaign own
 | `extension` | New scope on a workflow that exists. Set `target-slug`. |
 | `write-now` | A change to documents only. The brainstorm writes it in this session. |
 
-`design` and `design-direction` are not forms. They are the `design-form` flag on the piece they serve.
+`intake`, `fix`, `hotfix` and `extension` are the build forms: the walk builds them. The walk routes an `investigate`, `discover`, `rca` or `task` piece to the command of its form. `design` and `design-direction` are not forms. They are the `design-form` flag on the piece they serve.
 
 ### Size
 
-Count the carried decisions of each piece: its kept decisions, not all its items.
-- More than 25: propose a split, with its reason. The person may keep the piece whole.
-- More than 40: the piece must be split before 3.4 confirms. Walk the split with the person, the same way as the rest of 3.3.
+The number of carried decisions does not size a piece. Apply these rules:
+1. Each piece is one deliverable in one area of the product. Engine and platform pieces are deliverables too, but they have nothing for the person to try.
+2. A piece holds one family of outcomes, so the setup cost of the family is paid once. Two areas that the person tries together can be one piece.
+3. Engine and platform work get pieces of their own.
+4. A piece has a target of 10 capability slices, in a band of 6 to 14. A capability slice is a group of mechanisms that verify checks together. When you expect an area to need more than 14, split the area at a point where the first part is complete.
+5. The number of pieces has no cap.
+6. Every kept decision of the board goes into exactly one piece.
+
+Record your estimate as `estimated-slices`. The slice stage counts the real slices.
 
 ## Write-now pieces
 
@@ -56,7 +76,7 @@ A piece whose whole deliverable is a change to documents in the repository takes
 A piece stays a `task` when any of these is true:
 - It changes a file that is not a document, such as code, a test, configuration, or CI.
 - It acts outside the repository: an external service, a published page, an issue, or a sign-off. The `task` lifecycle keeps its gates for these.
-- It rewrites a packet that is `prepared` or `routed` (see Reopening).
+- It rewrites a started piece (see Reopening).
 - The person chooses `task`.
 
 Propose `task` instead of `write-now` when either of these is true, and give the reason:
@@ -67,79 +87,96 @@ The person decides.
 
 ### Run a write-now piece
 
-Run each write-now piece after the board write in 3.4, before the packets are written. Run the pieces in sequence order.
+Run each write-now piece after the board write in 3.4, before the piece files are written. Run the pieces in list order.
 1. Copy each document that the piece changes to `history/`, with the session number in the name: `history/<name>.s<session>.<ext>`.
 2. Write the changes. Each changed section names the item keys that it carries, in an HTML comment: `<!-- brainstorm: <slug>#<item-key>, ... -->`.
 3. Read back each changed section. Every carried decision key of the piece must appear in the changed text. A missing key is a failed check.
 4. When a check fails, fix the text and read it back again. When the check fails a second time, stop and ask the person. Do not change the piece's form to `task` without the person.
 5. Record the piece on the board: `state: written`, `written-files` (each path with its section), and `written-at`.
 
-The `write` command (below) adds the entry to `work/changes.md` that lists the changed documents. A write-now piece earlier in the sequence is done when its `state` is `written`.
+The `write` command (below) adds the entry to `work/changes.md` that lists the changed documents. A write-now piece earlier in the list is done when its `state` is `written`.
 
-## Check and write the work set (3.4)
+## Check and write the list (3.4)
 
 Run the commands from the project root. `<skill-dir>` resolves per [_host-invocation.md](../../_host-invocation.md).
 
-1. After the board write, check the work set:
+1. After the board write, check the list:
    ```
-   node "<skill-dir>/scripts/work-packets.mjs" check .ai/workflows/<slug>
+   node "<skill-dir>/scripts/campaign.mjs" check .ai/workflows/<slug>
    ```
    The check fails on each of these:
-   - a piece with no `order`, or a sequence with a gap or a repeat: the orders are 1 to n, each used once;
+   - a piece with no `order`, or a list with a gap or a repeat: the orders are 1 to n, each used once;
    - a piece after order 1 with no `why-here` note;
-   - a kept decision that lands in no piece, or in two pieces without `shared`;
-   - a piece with more than 40 carried decisions;
-   - a packet piece with no `slug`, or an `extension`, `fix` or `hotfix` piece with no `target-slug`;
+   - a kept decision that lands in no piece, or in two pieces;
+   - a piece with no `slug`, two pieces with one slug, or an `extension`, `fix` or `hotfix` piece with no `target-slug`;
+   - a build piece with no `goal`, no `acceptance-criteria`, or a `ux-impact` that the person did not confirm;
+   - a build piece with `try-out: no` and a `ux-impact` other than `none`;
+   - a list with build pieces and no `stack` with `user-confirmed: true`;
+   - a sketch that is still an idea, or a carried sketch that is in no piece;
    - a citation of `.scratch/` or another gitignored path (see the sources rules in [_artifact.md](_artifact.md)).
 
-   The check also warns on a piece with decisions and no finding (D3), and on a carried decision with no `session` or `decided-at` (D5). Fix a warning yourself when the board has the answer; otherwise bring it to the person.
+   The check warns on a build piece with no `estimated-slices`, and on an estimate above 14 or below 6. On a warning, propose a split or a merge to the person, with its reason. The person may keep the piece.
 
    Bring each failure to the person in plain words, with your proposal. Record the person's answer on the board, then check again. The check must pass before you continue.
 2. Run each write-now piece (above).
-3. Write the work set:
+3. Write the list:
    ```
-   node "<skill-dir>/scripts/work-packets.mjs" write .ai/workflows/<slug>
+   node "<skill-dir>/scripts/campaign.mjs" write .ai/workflows/<slug>
    ```
-   The command writes each packet to `work/<slug>.md`, then `research/index.md`, then `work/index.md` last, and appends one entry to `work/changes.md`. A reader that sees the new `work-revision` in `work/index.md` finds every packet already written.
-4. Read `work/index.md`. Set each piece's `entry` on the board to its start command from that file.
+   The command writes each piece file to `work/<piece-slug>.md`, then `research/index.md`, then `work/index.md` last, and appends one entry to `work/changes.md`. A reader that sees the new `list-revision` in `work/index.md` finds every piece file already written. The command moves the files of the old work packets to `work/archive/packets/`.
+4. Set each piece's `entry` on the board: `/wf campaign <slug>` for a build piece, and the command of its form for any other piece, for example `/wf intake investigate <piece-slug>`.
 5. Run the archive command ([_artifact.md](_artifact.md), Archive).
 
-A packet says at its top that the board wins on a difference.
+A piece file says at its top that the board wins on a difference.
 
 ## Next
 
-- One packet: print its start command as `Next`.
-- Two or more packets: print the start command of the packet with the lowest order as `Next`, then `/wf campaign <slug>` to build the packets in parallel waves, and the path of `work/index.md`. The person may also start the packets one after the other, in sequence order.
-- No packet (only write-now pieces): print the resume command, or `/wf intake <slug> close` when no thread is live.
+- One build piece or more: print `/wf campaign <slug>` as `Next`, and the path of `work/index.md`. The walk builds the pieces in list order, and it routes each other piece to its command.
+- Only pieces of other forms: print the command of the piece with the lowest order as `Next`.
+- No piece (only write-now pieces): print the resume command, or `/wf intake <slug> close` when no thread is live.
 
 Never print a write-now piece as a `/wf intake task` command.
 
-## Reopening a work set
+## Reopening a list
 
-A person can resume a brainstorm at any time, also while the packets run.
-- **The brainstorm owns the board and the packets.** A successor writes only the link-back fields: the piece's `state` and `routed-to` on the board, and the same fields on the packet.
-- **Each change has a revision.** Each `write` that changes the work set adds 1 to `work-revision` and appends one entry to `work/changes.md`.
-- **A started packet is never rewritten.** A packet whose `state` is `prepared` or `routed` keeps its text. The `write` command keeps it, and puts the regenerated text in `history/` beside it. A new decision about its slug becomes a new piece:
+A person can resume a brainstorm at any time, also while the walk runs.
+- **The brainstorm owns the board and the piece files.** The walk writes only the `state` of a piece file, through `campaign.mjs`.
+- **Each change has a revision.** Each `write` that changes the list adds 1 to `list-revision` and appends one entry to `work/changes.md`.
+- **A started piece is never rewritten.** A piece whose `state` is `open`, `built`, `done` or `dropped` keeps its text. The `write` command keeps it, and puts the regenerated text in `history/` beside it. A new decision about its slug becomes a new piece:
   - `extension` when it adds scope to the slug;
   - `fix` when it corrects what the slug built;
   - `hotfix` when it is urgent and corrects a version that people already use.
 
   The new piece sets `target-slug` to the slug and `amends` to the key of the started piece.
-- **A cut of a started piece is a question.** When the person cuts a kept decision whose piece is `prepared` or `routed`, record the decision's `scope: pending-cut`, not `cut`. Removing built work is a revert, and a revert is the person's decision. Tell the person that the work stays until the person decides.
-- **Changed decisions come back.** On a resume, read each packet in `work/`. A packet with `decision-changed` lists decisions that the person changed at intake. Show each one in plain words, with the old text and the new answer from the successor's `po-answers.md`, and ask the person to record it on the board.
+- **A cut of a started piece is a question.** When the person cuts a kept decision whose piece is started, record the decision's `scope: pending-cut`, not `cut`. Removing built work is a revert, and a revert is the person's decision. Tell the person that the work stays until the person decides.
 
 ## Quick capture: `add`
 
-`/wf intake brainstorm <brainstorm-slug> add <text>` records one new piece of work without a full session, for example a bug that the person found while trying a built piece.
+`/wf intake brainstorm <brainstorm-slug> add <text>` records one new piece without a full session, for example a problem that the person found while trying a built piece.
 1. Record the text on the board as an item on the thread it belongs to: a `decision` when the person states what to do, an `idea` otherwise.
-2. Ask one batch per [_gate-question.md](../../_gate-question.md): the form (`fix`, `hotfix`, `extension`, or `intake`), the target slug, and the urgency.
-3. Add the piece to the board's `work` list as the last piece of the sequence (the next `order`), with a `why-here` note that the person confirms. Run the check, then run the `write` command.
-4. Return the new packet's start command as `Next`.
+2. Ask one batch per [_gate-question.md](../../_gate-question.md): the form (`fix`, `hotfix`, `extension`, or `intake`), the target slug, and the urgency. Propose the write-up of the piece, its `ux-impact` and its `try-out`, and ask the person to confirm them.
+3. Put the piece in the list:
+   - A `fix` or `hotfix` piece goes before the first piece that the walk has not sliced: a piece with `state: written` or `state: open` whose workflow has no `03-slice.md`.
+   - Any other piece goes last.
 
-A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the packets. No other session writes them.
+   Give it its `order`, add 1 to the order of each piece after it, and write a `why-here` note that the person confirms.
+4. Run the check, then run the `write` command.
+5. Return `/wf campaign <brainstorm-slug>` as `Next`.
+
+A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the piece files. No other session writes them, except the regroup of a migration (below).
+
+## Regroup (the migration of an old campaign)
+
+The first `/wf campaign <slug>` on a board with an old campaign ledger migrates it (`campaign.md`, "The migration"). After `migrate apply`, the board holds a `done` piece for each shipped unit and an `open` piece for each in-flight unit. The walk then runs this regroup in its own session, with the person:
+1. Take the units that are not started, in their old order. Propose pieces from them under the Size rules. Every kept decision goes into exactly one piece. Do not confirm the decisions again.
+2. A unit with intake and shape already written (`01-intake.md` and `02-shape.md`) can stay one piece. Keep its slug as the piece slug. `open` then keeps its folder, and the walk does not slice it again when it has `03-slice.md`.
+3. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one piece, keep its slug as the piece slug, and its design files stay. When the unit goes into a larger piece, move its `02c-craft.md` and its `design/` folder into `.ai/workflows/<piece-slug>/` before the walk opens the piece. The design stage of the piece then starts from them.
+4. Write the write-up of each new build piece, and confirm the stack, as at `done`.
+5. Confirm the whole list with the person as in 3.4: the `done` pieces, the in-flight pieces first, then the new pieces. The person can merge, split, reorder or drop pieces.
+6. Run the check and the `write` command.
 
 ## An older board
 
-A board from before work packets gets the folders on its next `done`. The coherence pass ([_cohere.md](_cohere.md)) lists each citation of `.scratch/` or another gitignored path, and asks the person whether to copy each file into `references/` or to record a pointer row.
+A board from before pieces gets the folders on its next `done`. The coherence pass ([_cohere.md](_cohere.md)) lists each citation of `.scratch/` or another gitignored path, and asks the person whether to copy each file into `references/` or to record a pointer row.
 
-A board from before the sequence fails the next check when its orders are not 1 to n, or when a piece after order 1 has no `why-here` note. Propose the sequence and the notes, and ask the person to confirm them. Its `depends-on`, `needs`, `provides` and `expects` fields stay on the board, but the `write` command no longer puts them into a packet.
+A board from before the list fails the next check when its orders are not 1 to n, when a piece after order 1 has no `why-here` note, when a kept decision is in two pieces (the old `shared` field), or when a build piece has no write-up. Propose the order, the notes, one home for each shared decision, and the write-up, and ask the person to confirm them. Its `depends-on`, `needs`, `provides`, `expects`, `size` and `shared` fields stay on the board, but the `write` command does not put them into a piece file.

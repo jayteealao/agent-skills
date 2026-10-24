@@ -1,188 +1,107 @@
 ---
-description: Drive the many workflow slugs that one brainstorm ended in, in dependency waves. Setup and the rolling prepare run with the person on every host. One wave driver run drives every slug of a wave in its own worktree, then merges, verifies and reviews the wave. Handoff and ship open one PR per wave. The ledger in the brainstorm's work/campaign/ folder holds the state, so one command resumes at any point.
-argument-hint: <slug>
+description: Walk the list of one brainstorm or ideate folder, one piece at a time, on one branch. The walk asks how far to go, opens each build piece, stops for the design stage when a design is not settled, slices the piece, runs the yolo driver, reads the decision fidelity table of the review, and pauses for a try-out when the person can try the piece. A problem goes back into the piece as a new slice. When the list is finished, the walk hands off one PR for the list. The first call on a folder with an old campaign ledger migrates it first.
+argument-hint: <source-slug>
 ---
 
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many slugs (`reference/intake/brainstorm/_work.md`) leaves one work packet per slug in `.ai/workflows/<brainstorm-slug>/work/`. The campaign drives those packets in dependency waves, so the person does not keep the order in their head.
+You are running `/wf campaign <source-slug>`, the **walk**. The source is a brainstorm folder or an ideate folder in `.ai/workflows/`. Its `work/index.md` (`type: list`) is the **list**: one piece file `work/<piece-slug>.md` (`type: piece`) per piece, in strict order. A brainstorm `done` or an ideate pick writes the list ([intake/brainstorm/_work.md](intake/brainstorm/_work.md)). Each piece is one normal workflow, `.ai/workflows/<piece-slug>/`. The walk builds the pieces in list order, one piece at a time, on the **list branch** `pieces/<source-slug>`.
 
-> **Hosts.** Setup and the rolling prepare run on every host. The waves run the wave driver (`workflows/campaign-wave.js`), and the wave driver is Claude Code only. Under another host, the campaign stops before a wave starts and says so ([_host-invocation.md](_host-invocation.md)).
+> **Hosts.** Step 10 launches the yolo driver, which is Claude Code only. Under Codex or pi, step 10 runs `/wf auto <piece-slug>` with the person in place of the driver ([_host-invocation.md](_host-invocation.md)). Every other step runs on every host.
 
-## What the campaign is, and is not
+## The rules of the walk
 
-- **The person decides every intake and shape question.** The campaign prepares each slug with the person (intake, shape, the design lane when the packet needs one, and slice). It never makes an intake or shape decision.
-- **The waves are autonomous.** One run of the wave driver drives every unit of a wave, then runs the boundary steps. The yolo rules all stay: an intent-bearing decision stops the unit, a steering veto outranks every auto-resolve, and the charter checkpoint runs after charter-touching work. A unit that stops parks with one question, and the other units continue.
-- **The campaign asks the person** at each handoff or ship issue and each ambiguity. It never guesses past one.
-- **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/`, the dependency graph ([campaign/_deps.md](campaign/_deps.md)), and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
-- **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
+- **The scope is confirmed.** The person confirmed the goal, the scope, the acceptance criteria, `ux-impact`, `try-out` and the stack of each piece at brainstorm `done`. Do not ask about them again. Do not re-word a carried decision.
+- **The state is on disk.** The state of a piece is the `state` field of its piece file: `written`, `open`, `built`, `done`, or `dropped`. The walk keeps no other state, so a new call resumes at step 1.
+- **The script writes the exact things.** Change the state of a piece, the list branch, the end branches and `base-branch` only through the script. Do not edit a piece file by hand.
+- **The person decides.** The walk asks at each stop, each fidelity row, each try-out and each conflict. It never guesses past one.
 
-Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave can start on the wave branch below when that wave is ready ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 8).
+A piece has a key (`key`, the name on the board) and a slug (`piece-slug`, the name of its workflow folder). Each command takes the key, and it also accepts the slug. `<cmd>` stands for `node "<skill-dir>/scripts/campaign.mjs"`, with `<skill-dir>` per [_host-invocation.md](_host-invocation.md). `<root>` is the absolute root of the repo that owns `.ai/workflows/`, resolved as `yolo.md` Step 0.3 does. Each command prints one JSON object. When `ok` is `false`, show the `error` to the person in plain words, and do not continue to the next step.
 
-## Step 0 — Resolve
+## Step 0 — Resolve, and migrate an old campaign
 
-1. The slug is the workflow whose `work/index.md` lists the packets. When it is empty, list the workflows that have one and ask which.
-2. Resolve `projectRoot` (the repo root that owns `.ai/workflows`) and `pluginRoot` as yolo.md Step 0 does.
-3. Every ledger change goes through the campaign script, which prints one JSON object and regenerates `ledger.md`:
+1. The argument is the source slug. When it is empty, list the folders whose `work/index.md` has `type: list`, and ask which.
+2. Run `<cmd> status "<root>" <source-slug>`. When the result has `migrate: true`, run the migration below. When the result has `migrate: finish`, run steps 8 and 9 of the migration. Then go to step 1.
 
-   ```
-   node "<pluginRoot>/skills/wf/scripts/campaign.mjs" <command> "<projectRoot>" <brainstorm-slug> ...
-   ```
+### The migration
 
-   Never edit `ledger.json` by hand ([Commands](#commands)).
-4. Run `status`. Run it again after each compaction. Follow every entry of its `rules` (see [Standing rules](#standing-rules)). When it has `presence.state: away`, follow [Away mode](#away-mode). Its `next.action` says what this invocation does. When `next` has `command`, the person types that command: write "Type `<command>`" ([_chat-return.md](_chat-return.md)).
+The source folder has an old campaign ledger (`work/campaign/ledger.json`) and no list. Its units are the old form of pieces. The person types no command for the migration.
 
-| `next.action` | Do |
-|---|---|
-| `orient` | Phase 0, then Phase 0b and Phase 1 ([campaign/_phases.md](campaign/_phases.md)). |
-| `deps` | Phase 0b for `next.units` (`_phases.md`), before anything else. |
-| `setup` | Continue Phase 1 at `next.question`. |
-| `work-changed` | The brainstorm changed its work set. Pick it up ([campaign/_prepare.md](campaign/_prepare.md), "Reopen pick-up"). |
-| `ask` | Show each open question again, with its context. Record the answer with `reply`, then continue the step that asked. With `next.driving`, use only `reply` or `decided`: the wave driver continues the unit ([campaign/_waves.md](campaign/_waves.md), "Questions while the run goes"). |
-| `paused` | Show the reason and the reset time. Resume when the person asks, or when the reset time passed (`_waves.md`, "Pause and resume"). |
-| `design-setup` | Have the person type `/wf design setup` before wave 1 prepare (`_phases.md`, "Design setup"). |
-| `prepare` | Prepare `next.units` with the person (`_prepare.md`, "Rolling prepare"). |
-| `start-wave` | Show the forecast and the wave plan. Ask the person to start, then run the wave (`_waves.md`). |
-| `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Run Phase 0b first for `next.deps`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
-| `sort-waits` | Sort the waits of wave `next.wave` with the person ([campaign/_order.md](campaign/_order.md), "Sort waits"). |
-| `running` | No run of the wave is live. When its units are `merged`, continue at `_waves.md`, "Run a wave", step 10. Otherwise, launch the wave again (step 4). Prepare `next.prepare`. |
-| `stopped` | Show why the wave stopped and what waits on which answer. When the person answered, resume the wave. |
-| `blocked` | No wave can start. List what waits on which packet, and the packets that need the person. |
-| `end` | Phase 3 ([campaign/_ship.md](campaign/_ship.md), "End"). |
-| `done` | Show `report.md`. |
+1. Run `<cmd> migrate "<root>" <source-slug> report`. It writes `work/migration.md`. It changes no branch and deletes nothing.
+2. When the result has `live: true`, stop. Tell the person that an old wave run is live, and that it must stop first.
+3. When `blocked` is not empty, stop. List each wave PR of `blocked` that is not merged, and tell the person to merge it first. Otherwise the review and the PR of the first piece include the earlier waves.
+4. Show the report to the person in plain words: the shipped units, the in-flight units with their branches and uncommitted files, the units that are not started, the old worktrees, and the stray folders.
+5. Run `<cmd> migrate "<root>" <source-slug> apply`. It brings the records of each in-flight unit home to the main checkout. It makes each shipped unit a `done` piece and each in-flight unit an `open` piece, and it puts the in-flight pieces first, in their old unit order.
+6. For each entry of `records` with `conflicts`, show the person both versions: the main version, and the worktree version under `work/campaign/records/conflicts/`. Ask which version to keep, and write the kept version in the main checkout.
+7. Regroup the units that are not started into pieces, with the person, in this session. For a brainstorm source, follow "Regroup" in [intake/brainstorm/_work.md](intake/brainstorm/_work.md). For an ideate source, follow "Regroup" in [intake/ideate.md](intake/ideate.md). The regroup confirms the whole list with the person and runs `<cmd> write`. The person can drop any piece, an in-flight piece too. A dropped in-flight piece keeps its branch unmerged, and its carried decisions go back into the regroup.
+8. Run `<cmd> migrate "<root>" <source-slug> finish`. It moves the old ledger folder to `work/archive/campaign/` and each stray folder to `work/archive/stray/`. It removes each old campaign worktree that is not the worktree of an in-flight piece, with the guarded remove.
+9. Show the person each worktree of `refused`, with its reason. The person decides what to do with it. When the entry has `ignoredAtRisk: true`, show its `ignored` files. When the person says yes, run `<cmd> remove-worktree "<root>" <source-slug> <path> --allow-ignored`.
 
-## The files
+CAUTION: do not run `git worktree remove --force` on an old campaign worktree. It deletes through a `node_modules` junction into the files that the junction points to. Remove an old worktree only with `<cmd> remove-worktree "<root>" <source-slug> <path>`.
 
-The campaign keeps its state inside the brainstorm, beside the packets.
+## The walk
 
-| File | Writer | What |
-|---|---|---|
-| `work/campaign/ledger.json` | the campaign script | The state: setup answers, waves, units, questions, pause, revisions |
-| `work/campaign/ledger.md` | the campaign script | The view of the ledger for the person |
-| `work/campaign/forecast.md` | the campaign script | Time and usage estimate, updated after each wave |
-| `work/campaign/.campaign-journal.jsonl` | the script and the wave driver's agents | Heartbeats and campaign events, for the watch |
-| `work/campaign/.control.json` | the campaign session | Stop and pause requests; every agent reads it |
-| `work/campaign/context/<slug>.md` | the campaign script | The context that each stage agent of the unit reads; section 7 lists its waits |
-| `work/campaign/steer.md` | the campaign script (`steer all`) | Steering for every slug of the campaign; each unit reads it beside its own `steer.md` |
-| `work/campaign/decided-for-you.md` | the campaign script (`decided`) | Each decision taken for the person while away |
-| `work/campaign/as-built/<slug>.md`, `.json` | the boundary | What the slug actually built, after its merge |
-| `work/campaign/refute/<slug>.md` | the boundary refuter | The refuter's verdicts |
-| `work/campaign/review/wave-<n>.md`, `.yaml` | the wave review writer | The review of the merged wave diff: the defects where units meet |
-| `work/campaign/drift/wave-<n>.md` | the campaign script | The drift check before wave n |
-| `work/campaign/fidelity/wave-<n>.md` | the boundary | The fidelity checkpoint after wave n |
-| `work/campaign/waves/wave-<n>.md` | the boundary | The try-it note, for a person |
-| `work/campaign/commentary.md` | the watch, and its `note` command | The campaign commentary ([yolo/_commentary.md](yolo/_commentary.md)) |
-| `work/campaign/report.md` | the campaign session | The campaign report |
+1. **Read the list.** Run `<cmd> status "<root>" <source-slug>`. The result gives `pieces` (each piece with its key, slug, form, state and try-out), `current` (the first piece that is not `done` or `dropped`, with `step`, the next step of the walk for it), `needDesign` (the build pieces whose design is needed and not settled), and `finished`.
+2. **Ask how far to go.** Ask this once per call, per [_gate-question.md](_gate-question.md): the next piece only; a number of pieces (free text gives the number); the whole list. Count the pieces that reach `done` in this call against the answer.
+3. **Open the written pieces.** For each build piece with `state: written`, in list order, run `<cmd> open "<root>" <source-slug> <piece-key>`. Run `status` again. Show the person the pieces of `needDesign`, in list order, each with `/wf design <piece-slug>`. Tell the person that a later piece can be designed between pieces, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the walk.
+4. **Choose the next step.** When `finished` is `true`, or the count of step 2 is done, go to step 15. Otherwise act on `current.step`:
 
-Built outputs are not artifacts. They go to `<projectRoot>/.scratch/campaign/<run-id>/` (`wave-<n>/` and `slugs/<slug>/`). The outcome of a wave run goes to the `outcomePath` that `wave <n> launch` gives.
+   | `current.step` | Do |
+   |---|---|
+   | `route` | Step 5. |
+   | `open` | Step 3. |
+   | `design` | Step 6. |
+   | `slice`, `yolo` | Step 7, then step 8. A resumed piece runs `start` again, and `start` changes nothing that is already done. |
+   | `fidelity` | Step 7, then step 11. |
+   | `try-out` | Step 7, then step 12. |
+   | `done` | Step 7, then step 14. |
 
-## Unit states
+5. **A piece that is not a build piece.** The form is `investigate`, `discover`, `rca` or `task`. Stop. Tell the person to type `current.route`, as "Type `<route>`". The mode starts the workflow `<piece-slug>` from the piece file (`intake.md`, "List piece"). When the `00-index.md` of that workflow has `status: complete` or `status: closed`, run `<cmd> close "<root>" <source-slug> <piece-key> done`. When the person drops a piece, of any form, run `<cmd> close "<root>" <source-slug> <piece-key> dropped`. The command sets the state in the piece file and on the piece in the board. Then go to step 1.
+6. **The design is not settled.** Stop. Show `current.reason` in plain words. Tell the person to type `/wf design <piece-slug>`. When the piece file has `design-form: design-direction`, tell the person to type `/wf design direction from <source-slug>` first. The design stage reads the carried design thoughts of the piece ([design/_carried.md](design/_carried.md)). When the person returns, go to step 1.
+7. **Land on the list branch.** Run `<cmd> land "<root>" <source-slug>`. It switches the checkout to `pieces/<source-slug>`, or creates the branch from the trunk. It never stashes and never forces. When git refuses the switch, show the person the files in the way, and ask.
+8. **Start the piece.** Run `<cmd> start "<root>" <source-slug> <piece-key>`. It sets `base-branch` of the piece to the end branch of the build piece before, or to the trunk for the first build piece. For a migrated piece, it first commits, rebases and merges the work of the unit branch into the list branch. When the result has `conflict`, stop. Ask the person to resolve the conflict by hand, then run `start` again.
+9. **Slice the piece.** When `03-slice.md` is absent, dispatch one subagent per [_subagents.md](_subagents.md) that follows [slice.md](slice.md) with these policy answers:
+   - The scope, the acceptance criteria, `ux-impact` and the stack are confirmed. Do not ask about them again.
+   - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has fewer than 40 steps. Do not size a slice by lines.
+   - Aim for 10 slices. When the piece needs more than 14, write them and return a warning.
+   - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
+   - When `02c-craft.md` exists, map each slice to its surfaces and board keys, and write `ux-impact` into each slice file ([design/_lane.md](design/_lane.md), "One duty per stage").
+   - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
 
-A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`, `investigate`, or `discover` packet never enters a wave: the person runs it in this session, and its dependents wait for it.
+   When the subagent returns the warning, tell the person the slice count, and continue. The person can split the piece later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer. When the person already ran `/wf slice <piece-slug>`, skip this step.
+10. **Run the yolo driver.** Launch the driver on the piece slug in slug mode, as `/wf yolo <piece-slug>` does: [yolo.md](yolo.md) Steps 0.3 to 0.5, then Step 1 onward. Wait for the run to end, and hand back per yolo.md Step 2.
+    - When the run stopped (`outcome.stoppedAt` is set), show the stop to the person and follow the answer. Resume the driver per yolo.md "Resuming". Do not continue to the next piece.
+    - When the run reached its endpoint, run `<cmd> built "<root>" <source-slug> <piece-key>`.
+    - A stop request stops the run at its next stage boundary, as in yolo.
+11. **Read the fidelity table.** The review rubric `intent-fidelity` writes `## Decision Fidelity` in `07-review.md`: `| Key | Verdict | Evidence | Approval |`, with the verdict `honored`, `narrowed` or `dropped` (`review/intent-fidelity.md`). `status` gives the rows that the person has not approved in `current.rows`: each row whose verdict is not `honored`. Only a line in `po-answers.md` approves a row. The script does not read the Approval column. When `current.reason` says that the table is absent or has no row for a carried key, go to step 10: the review runs again. For each row of `current.rows`, ask the person, up to four rows per batch: approve it, or fix it. Give the key, the carried decision word for word, the verdict and the evidence in the question text.
+    - **Approve.** Append the line `- <decision-key>: approved — <the person's words>` under `## Decision fidelity approvals` in the piece's `po-answers.md`. Add the heading when it is absent.
+    - **Fix.** Go to step 13 with the row as the problem text.
+12. **Pause for the try-out.** This step runs only for a piece with `try-out: yes`: `ux-impact` is not `none`, or the piece adds a user-facing command. An engine or platform piece gets no pause. Tell the person how to run the piece: the build command, the screen or the command to open, and each acceptance criterion of the piece file to try, word for word. Ask one question: the piece works, or describe the problem.
+    - **Works.** Append the line `- try-out: works — <the person's words>` under `## Try-out` in the piece's `po-answers.md`. Add the heading when it is absent. Go to step 14.
+    - **A problem.** Go to step 13 with the person's words.
+13. **Fix as new work.** Run the extension mode of intake on the piece with the person: `/wf intake <piece-slug> <problem text>` (`intake/extend.md`). It adds a slice to the roster of the piece. Run `<cmd> reopen "<root>" <source-slug> <piece-key>`, so that a new call also builds the slice. Then go to step 10. The driver plans, implements and verifies the new slice, and it runs the slug-wide review again over the whole piece. When the problem is new scope and not a defect of this piece, the person can add it to the list as a new piece with `/wf intake brainstorm <source-slug> add <text>` instead. Then record the approval of step 11 or the try-out of step 12 with the person's words.
 
-| State | Meaning |
-|---|---|
-| `planned` | In a wave, not prepared yet |
-| `prepared` | Intake, shape, design, and slice are done with the person |
-| `running` | The wave driver walks its slices |
-| `waiting` | The wave driver merges the cleared slice of another unit of the wave into it |
-| `finished` | Its review is clean and its slug output is built; not merged yet |
-| `stopped` | It parked with a question, or it moved out of the wave; `route` says why |
-| `merged` | Merged into its wave branch; the wave verify passed |
-| `needs-fix` | Its merge broke the wave verify, or the wave review reverted it |
-| `shipped` | Its wave shipped |
+    NOTE: a relaunch with only a steering entry changes no code: only the review runs again.
+14. **Close the piece.** Run `<cmd> done "<root>" <source-slug> <piece-key>`. It refuses unless the piece is `built`, the fidelity table has no unapproved row, and the try-out is recorded for a piece with `try-out: yes`. Then it merges the trunk, moves the end branch `pieces/<source-slug>--<piece-key>` to HEAD, and sets `base-branch` back to the trunk. When the result has `conflict: trunk`, stop. Ask the person to merge the trunk by hand, then run `done` again. Report the piece in one line, run `status` again, and go to step 4.
+15. **End the call.** When `finished` is `true`, hand off (below). Otherwise report the pieces that reached `done` in this call, the next piece with its step, and the pieces of `needDesign`. End with "Type `/wf campaign <source-slug>`" ([_chat-return.md](_chat-return.md)).
 
-## Commands
+## Handoff and ship
 
-| Command | Does |
-|---|---|
-| `orient` | Phase 0: check the work set, seed the graph, write the ledger and the forecast |
-| `deps show\|plan\|confirm` | Show, plan, or confirm the graph |
-| `deps <key> <field> ...` | Change the graph ([campaign/_deps.md](campaign/_deps.md), "The deps commands") |
-| `status` | The next action and the ledger summary |
-| `replan` | Re-read the packets; re-plan the waves that did not start |
-| `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output`, `budget`, `conventions` |
-| `unit <key> <state> [--route r] [--merge sha] [--digest json] [--on "<from>: <through>"]` | Set a unit's state, its route, its merge commit, or its decision digest |
-| `outside <key> closed\|needs-you` | Close a task, investigate, or discover packet; its dependents re-plan |
-| `wave <n> start` | Start a wave with its prepared units; the unprepared ones move on |
-| `wave <n> launch [--mode drift]` | Add each worktree and context file, and print the wave driver's args; `--mode drift` gives the drift check's args only |
-| `wave <n> record --outcome <path>` | Record the outcome of a wave run; it ends the live run |
-| `wave <n> set <state> [--pr url] [--version v] [--label l]` | Record a wave state: `boundary`, `handoff`, `shipping`, `shipped`, `stopped` |
-| `ask <id> [--wave n] [--unit k --kind k --stage s --slice s] <text>` / `reply <id> [--by person] [--move] <answer>` | Record a question for the person, and the answer |
-| `pause <until> <reason>` / `resume` | Pause the campaign and write the control file; resume |
-| `context <key>` | Write `context/<slug>.md` |
-| `drift <n>` | Write `drift/wave-<n>.md` from the as-built notes |
-| `version wave\|hotfix` | The version at ship time |
-| `label <n> [<slug>]` | The build label of a wave or slug branch tip |
-| `journal <event> [<json>]` | Append a campaign event for the watch |
-| `forecast [--wave n --minutes m --tokens t]` | Update the forecast (`wave <n> record` does it too) |
-| `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
-| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: [campaign/_records.md](campaign/_records.md)). `remove` refuses while a file would be lost, and never forces |
-| `heavy-run <slug> [--quiet] -- <cmd>` | One suite under the cross-session lock, in turn |
-| `lock status\|reap\|acquire\|release` | Holds; end idle ones; a 30-minute lease |
-| `locks wait [--max s]` | Wait for the project locks |
-| `schedule <n> [--width w] [--medians plan]` | Simulate wave n (`_prepare.md`, "Wave slicer") |
-| `stack enable\|disable\|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
-| `merge-in <key> <from> [--at <sha>] [--refresh]`, `merge-order <n>`, `slice-done [--verified]`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents |
-| `wave <n> sorted`, `unit <key> absorb`, `unit <key> defer`, `slice-order` | The order commands ([campaign/_order.md](campaign/_order.md)) |
-| `owner <slug>` | The live wave run that drives a slug, for `/wf yolo` |
-| `steer <key\|wave-<n>\|all> add\|replace\|remove\|list [--text t] [--match m] [--by who]` | Change steering: a key writes the unit's `steer.md` (main checkout and worktree); `all` writes the campaign `steer.md` |
-| `rule add\|list\|remove [--text t] [<id>]` | The standing rules; every `status` result has them |
-| `away --words "<the person's words>" [--until t]` / `back` | The person leaves, or comes back; `back` returns the recap and the steps that waited |
-| `decided <id> --question q --answer a --why w [--options json] [--intent-bearing true] [--unit key]` | Record a decision taken for the person; it also answers the open question `<id>` |
-| `recap [--since t]` | The facts since the person left: decisions, stages, commits, open questions, time against the forecast |
+The handoff needs all of these:
+- each piece is `done` or `dropped`;
+- no piece has an unapproved fidelity row;
+- the open-RIM gate of `handoff.md` passes for each piece.
 
-## Standing rules
+At `done`, the `base-branch` of each piece is the trunk again, so handoff and ship work as on any workflow. Before the handoff, set `handoff-lead: <the slug of the last done piece>` in the `00-index.md` of each done piece.
 
-A rule that the person gives for the whole campaign goes into the ledger, not only into chat. A compaction summary can drop a chat rule. The ledger keeps it.
+**One PR for the list.** This is the default. Tell the person to type `/wf handoff pieces/<source-slug>`. The batch mode packages every slug on the list branch in one PR. In the PR body, list each piece with its title, the result of its acceptance criteria, and its decision fidelity table. Then `/wf ship pieces/<source-slug>` ships it as usual.
 
-1. When the person states a rule for the campaign, run `<cmd> rule add --text "<the rule, in the person's words>"`. For example: "Do not push, open a PR or merge without me", or "When I am present, ask with full context in each question".
-2. At each start of this command, and after each compaction, run `status` and follow every entry of `rules`.
-3. When the person withdraws a rule, run `<cmd> rule remove <id>`.
+**Stacked PRs are not built.** `.ai/ship-plan.md` has no key that asks for stacked PRs for a list, so every list hands off as one PR. An end branch also holds the trunk merge of `done`, so a PR between two end branches would show trunk changes as the piece's own.
 
-## Steering
+**An early handoff.** The person can hand off between pieces. Then the handoff packages the done pieces only: a piece with no implemented slice is not ready, and the batch mode skips it. After that PR merges, ask the person whether to delete the list branch and the end branches of the shipped pieces, and delete them only on a yes. A squash merge leaves the old commits off the trunk, so the next PR must not start from the old list branch. Step 7 then creates the list branch again from the trunk, and `start` uses the trunk as the base, because no end branch is left.
 
-Change steering only through the script. The script writes the time, and it writes every copy of a file at once.
+WARNING: do not delete a remote branch, a tag or a release without the person's yes. These deletions cannot be undone.
 
-- One slug: `<cmd> steer <key> add --text "<entry>"`. The command writes the slug's `steer.md` in the main checkout and in the unit's worktree.
-- Every slug of a wave: `<cmd> steer wave-<n> add --text "<entry>"`.
-- A direction decision: `steer <key> add` for each unit that it applies to, never `wave-<n>`. The person confirms the units.
-- Every slug of the campaign: `<cmd> steer all add --text "<entry>"`. The command writes `work/campaign/steer.md`. Each unit reads it beside its own `steer.md`, at every stage agent. On a conflict, the slug's own entry wins.
-- Change or remove one entry with `replace --match "<text>" --text "<entry>"` or `remove --match "<text>"`. When the match finds zero entries, or more than one entry, in any copy, nothing is written.
-- Use `--by coordinator` for an entry that the person did not dictate. The default is "the person".
-- `list` shows each copy, and `differs` names each copy that differs from the main copy.
-
-CAUTION: do not edit a `steer.md` copy by hand or with a script of your own. The two copies then differ, and a hand-written time can be wrong.
-
-Do not write a wait between units as steering. A wait comes from the unit's `needs` in the ledger ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 3).
-
-## Stop one slug
-
-Write a stop request for one slug per [campaign/_waves.md](campaign/_waves.md), "Pause and resume", step 3, which owns the `--then` question.
-
-## Away mode
-
-The person can leave the campaign running, for example overnight.
-
-1. When the person says that they leave, run `<cmd> away --words "<the person's words, quoted>"`. Add `--until <ISO time>` when the person names a return time. The result has `limits`.
-2. While away, answer each question by the away answer of its kind ([campaign/_waves.md](campaign/_waves.md), "Questions while the run goes"). Record each answer with `<cmd> decided <id> --question "<text>" --options '<json>' --answer "<text>" --why "away: <the rule>"`, with `--unit <key>` for a unit's question. The unit continues in the same run.
-3. Answer an intent-bearing question only when the person's away words cover escalated decisions. Record it with `--intent-bearing true`. Do not launch the wave again.
-4. For each question that holds, send one push notification with the question id, the unit, and the question. The boundary waits for the answer.
-5. When the run returns, run `wave <n> record`. Do not run the cleanup or handoff. Start the next wave only when the away words name it.
-6. When the person comes back ("I am back", "recap the night"), run `<cmd> back`. Write the recap from the result's `recap`, in this order: the intent-bearing decisions, the other decisions, the driver's own decisions (`driver`), each unit's stages and commits, the questions that hold, and the time against the forecast. Then list each step of `waited`, and continue them with the person.
-7. `<cmd> recap [--since <time>]` gives the same facts at any time.
-
-WARNING: while the person is away, do not push, open a PR, merge into the trunk, tag, release, or delete anything. These acts cannot be undone, and they need the person.
-
-CAUTION: while the person is away, do not answer a question of the classes `shared-env`, `external-party` or `irreversible`. Such a question holds for the person. When the session itself has such a question, record it with `ask`.
-
-## Where the rest is
-
-- Setup (Phase 0, Phase 0b, Phase 1, "Width"): [campaign/_phases.md](campaign/_phases.md).
-- The rolling prepare, the packets outside the waves, and the reopen pick-up: [campaign/_prepare.md](campaign/_prepare.md).
-- A wave run, its questions and park kinds, and pause and resume: [campaign/_waves.md](campaign/_waves.md).
-- Handoff, ship, and the end: [campaign/_ship.md](campaign/_ship.md). Local records: [campaign/_records.md](campaign/_records.md). Stacked PRs: [campaign/_gh-stack.md](campaign/_gh-stack.md).
-- The order rules and the sort of waits: [campaign/_order.md](campaign/_order.md). The resolve answers: [campaign/_drive.md](campaign/_drive.md). The boundary: [campaign/_boundary.md](campaign/_boundary.md).
-- The watch and the commentary: [yolo/_commentary.md](yolo/_commentary.md), with [campaign/_watch.md](campaign/_watch.md).
+After the last ship, tell the person that `/wf retro pieces/<source-slug>` runs the batch retro over every piece on the list branch.

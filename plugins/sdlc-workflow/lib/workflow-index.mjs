@@ -170,7 +170,7 @@ export function activeWorkflowIndexes(workflows) {
 // (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files (index-history.jsonl,
 // .read-ledger.jsonl, cost.jsonl) are ignored by the extension filter below.
 // A brainstorm's research/, references/ and work/ get no page, so they never
-// mark a workflow stale either (BRAINSTORM-WORK-PACKETS-PLAN).
+// mark a workflow stale either (WF-PIECES-PLAN).
 const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);
 // The yolo commentary is appended after every watch event, long after the index
 // was written, so it never marks a workflow stale (YOLO-COMMENTARY-PLAN C4).

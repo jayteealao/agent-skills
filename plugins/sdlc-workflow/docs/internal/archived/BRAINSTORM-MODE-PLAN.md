@@ -1,6 +1,6 @@
 # `/wf intake brainstorm` — a rubber-duck intake mode — plan
 
-Later change (2026-10-03): `done` now ends in work packets and write-now pieces, and the sources stay in `research/` and `references/`. See [BRAINSTORM-WORK-PACKETS-PLAN.md](../BRAINSTORM-WORK-PACKETS-PLAN.md).
+Later change (2026-10-03): `done` now ends in work packets and write-now pieces, and the sources stay in `research/` and `references/`. See [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md).
 
 Status: **DRAFTED 2026-09-22** against v9.158.0 (`a4e3b579`); **W1–W7 and W9
 BUILT 2026-09-22** as v9.159.0. The operator settled one point before the

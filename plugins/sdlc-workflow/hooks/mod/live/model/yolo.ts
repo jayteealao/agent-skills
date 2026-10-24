@@ -74,7 +74,7 @@ export function buildYoloModel(facts: YoloFacts): SdlcYoloModel {
   else if (liveness.state === 'ended') outcome = stoppedStatus !== null ? 'stopped' : 'ended'
 
   const needs: SdlcNeed[] = [...recordNeedsOf(slug, facts.records), ...protectedNeedsOf(facts.root, facts.protectedChanged)]
-  if (outcome === 'stale' && liveness.lastLineAt !== null) needs.unshift(staleNeedOf(slug, 'yolo', Math.round((now - liveness.lastLineAt) / 60000)))
+  if (outcome === 'stale' && liveness.lastLineAt !== null) needs.unshift(staleNeedOf(slug, Math.round((now - liveness.lastLineAt) / 60000)))
 
   const agents = Object.keys(journal.agents)
     .sort((a, b) => (journal.agents[b] ?? 0) - (journal.agents[a] ?? 0))

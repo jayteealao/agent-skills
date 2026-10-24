@@ -6,7 +6,7 @@
  * one of the five questions: alive (Q1), where (Q2), decided (Q3), needs me
  * (Q4), cost (Q5).
  */
-import type { SdlcBrainstormModel, SdlcCampaignModel, SdlcLiveModel, SdlcNeed, SdlcStageMark, SdlcUsage, SdlcYoloModel } from '../../../types'
+import type { SdlcBrainstormModel, SdlcCampaignModel, SdlcLiveModel, SdlcNeed, SdlcPiece, SdlcStageMark, SdlcUsage, SdlcYoloModel } from '../../../types'
 import { ageText, clockOf, percentText } from '../live/glyphs.ts'
 import type { Tone } from './tokens.ts'
 
@@ -171,56 +171,75 @@ function yoloFacts(model: SdlcYoloModel, now: number): ViewFacts {
   }
 }
 
-const GATE_LABELS: Array<[keyof SdlcCampaignModel['waves'][number]['gates'], string]> = [
-  ['merge', 'merge'],
-  ['verify', 'verify'],
-  ['drift', 'drift'],
-  ['refuter', 'refuter'],
-  ['fidelity', 'fidelity'],
-  ['ship', 'ship'],
-]
+/** The piece states in walk order (`lib/pieces.mjs` PIECE_STATES): the summary counts each. */
+const PIECE_STATES = ['done', 'built', 'open', 'written', 'dropped']
+
+/** One piece's mark: done, the current piece running, every other waiting; a dropped piece has none. */
+function pieceMarks(piece: SdlcPiece, isCurrent: boolean): SdlcStageMark[] {
+  if (piece.state === 'dropped') return []
+  if (piece.state === 'done') return ['done']
+  return [isCurrent ? 'run' : 'wait']
+}
+
+/** A piece's note: its state, its routed form, and a design that waits on the person. */
+function pieceNote(piece: SdlcPiece): string {
+  return [piece.state, piece.isBuild ? null : piece.form, piece.designNeeded ? 'needs design' : null].filter(Boolean).join(' · ')
+}
+
+/** A piece's tone: a design that waits, done, dropped, the current piece, or plain. */
+function pieceTone(piece: SdlcPiece, isCurrent: boolean): Tone {
+  if (piece.designNeeded) return 'attention'
+  if (piece.state === 'done') return 'done'
+  if (piece.state === 'dropped') return 'quiet'
+  return isCurrent ? 'run' : 'plain'
+}
 
 function campaignFacts(model: SdlcCampaignModel, now: number): ViewFacts {
-  const paused = model.paused
-  const countdown = paused?.until == null ? null : Math.max(0, Date.parse(paused.until) - now)
-  const word = paused !== null ? 'PAUSED' : model.activeWave === null ? 'IDLE' : `WAVE ${model.activeWave}`
-  const groups: TrackGroup[] = model.waves.map(wave => ({
-    key: `wave-${wave.n}`,
-    title: `Wave ${wave.n} · ${wave.state}${wave.version === null ? '' : ` · ${wave.version}`}`,
-    lights: GATE_LABELS.map(([gate, label]) => ({ label, on: wave.gates[gate] })),
-    tracks: wave.slugs.map(slug => ({ key: slug.key, label: slug.slug, marks: slug.marks, note: slug.note, tone: slug.note === 'needs prepare' ? 'attention' : markTone(slug.marks) })),
-    tone: wave.state === 'shipped' ? 'done' : wave.state === 'planned' ? 'quiet' : 'run',
-  }))
-  const controls: Control[] = []
-  if (paused !== null) controls.push({ key: 'resume', label: 'Resume now', armedLabel: 'Resume requested', armed: false, isPrimary: true })
-  else if (model.activeWave !== null) controls.push({ key: 'stop-wave', label: 'Stop after this wave', armedLabel: 'Stop requested · after this wave', armed: model.stop !== null, isPrimary: true })
-  const prepare = model.needs.find(need => need.kind === 'prepare')
-  if (prepare !== undefined) controls.push({ key: 'prepare-next', label: 'Prepare next', armedLabel: 'Prepare asked', armed: false, isPrimary: paused === null && model.activeWave === null })
+  const pieces = model.pieces
+  const index = pieces.findIndex(piece => piece.key === model.current)
+  const current = index === -1 ? null : (pieces[index] as SdlcPiece)
+  const done = pieces.filter(piece => piece.state === 'done' || piece.state === 'dropped').length
+  const design = pieces.filter(piece => piece.designNeeded).length
+  const tone: Tone = current === null ? 'done' : current.designNeeded || !current.isBuild ? 'attention' : 'run'
   return {
     kind: 'campaign',
     slug: model.slug,
     title: `campaign · ${model.slug}`,
     focus: {
-      eyebrow: model.activeWave === null ? `${model.waves.length} waves` : `wave ${model.activeWave} of ${model.waves.length}`,
-      word,
-      line: paused !== null ? `paused · resumes ${clockOf(paused.until)}` : `${model.running} drive${model.running === 1 ? '' : 's'} running`,
-      sub: paused !== null ? (paused.reason ?? 'usage limit') : model.forecast === null ? 'forecast —' : `forecast ${model.forecast.replace(/-/gu, ' ')}`,
-      tone: paused !== null ? 'stop' : model.activeWave === null ? 'quiet' : 'run',
+      eyebrow: current === null ? `${pieces.length} pieces` : `piece ${index + 1} of ${pieces.length}`,
+      word: current === null ? 'DONE' : current.state.toUpperCase(),
+      line: current === null ? 'list finished' : `${current.slug} · ${pieceNote(current)}`,
+      sub: [`${done} of ${pieces.length} done`, design === 0 ? null : `${design} need design`].filter(Boolean).join(' · '),
+      tone,
       rail: null,
     },
-    clock: countdown === null ? null : { label: 'RESUMES IN', value: `${Math.floor(countdown / 60000)}:${String(Math.floor((countdown % 60000) / 1000)).padStart(2, '0')}`, unit: 'MIN', sub: `at ${clockOf(paused?.until ?? null)}` },
+    clock: null,
     liveness: livenessFacts(model, now),
-    steps: STEP_NAMES,
-    groups,
-    needs: model.needs,
-    meters: usageMeters(model.usage),
-    summary: [`${model.outputs.length} PR${model.outputs.length === 1 ? '' : 's'}`, model.build === null ? null : `try ${model.build}`, model.heavy.holder === null ? 'heavy suites free' : `${model.heavy.holder} holds heavy suites`].filter(Boolean).join(' · '),
-    sections: [
-      { key: 'outputs', title: 'Outputs', lines: model.outputs.length === 0 ? [{ text: 'no wave PR yet', tone: 'quiet' }] : model.outputs.map(output => ({ text: `wave ${output.wave} · ${output.pr ?? 'no PR'} · ${output.state}${output.label === null ? '' : ` · ${output.label}`}`, tone: output.state === 'shipped' ? 'done' : 'plain' as Tone })), detail: true },
-      { key: 'build', title: 'Build to try', lines: [{ text: model.build ?? 'nothing unshipped', tone: model.build === null ? 'quiet' : 'run' }], detail: true },
-      { key: 'heavy', title: 'Heavy suites', lines: [{ text: model.heavy.holder === null ? 'free' : `held by ${model.heavy.holder}`, tone: model.heavy.holder === null ? 'quiet' : 'run' }, ...model.heavy.waiting.map(slug => ({ text: `${slug} waits`, tone: 'attention' as Tone }))], detail: true },
+    steps: [],
+    groups: [
+      {
+        key: 'pieces',
+        title: 'Pieces',
+        lights: [],
+        tracks: pieces.map(piece => ({ key: piece.key, label: piece.slug, marks: pieceMarks(piece, piece.key === model.current), note: pieceNote(piece), tone: pieceTone(piece, piece.key === model.current) })),
+        tone: needsTone(model.needs) ?? 'plain',
+      },
     ],
-    controls,
+    needs: model.needs,
+    meters: [],
+    summary: PIECE_STATES.map(state => [state, pieces.filter(piece => piece.state === state).length] as const)
+      .filter(([, count]) => count > 0)
+      .map(([state, count]) => `${count} ${state}`)
+      .join(' · '),
+    sections: [
+      {
+        key: 'pieces',
+        title: 'Pieces',
+        lines: pieces.length === 0 ? [{ text: 'no piece listed', tone: 'quiet' as Tone }] : pieces.map((piece, at) => ({ text: `${at + 1}. ${piece.slug} · ${pieceNote(piece)}${piece.uxImpact === null ? '' : ` · ux-impact ${piece.uxImpact}`}`, tone: pieceTone(piece, false) })),
+        detail: true,
+      },
+    ],
+    controls: [],
   }
 }
 
@@ -253,12 +272,12 @@ function brainstormFacts(model: SdlcBrainstormModel, now: number): ViewFacts {
       tone: 'plain',
     })),
     needs: model.needs,
-    meters: model.packets.map(packet => ({ key: `packet-${packet.key}`, label: packet.key, value: packet.size, max: 50, marks: [25, 40], text: `${packet.size} decisions · ${packet.state}`, tone: packet.size > 40 ? 'stop' : packet.size > 25 ? 'attention' : 'done' })),
-    summary: `research ${model.sources.research} · references ${model.sources.references} · packets ${model.sources.work}`,
+    meters: model.packets.map(packet => ({ key: `packet-${packet.key}`, label: packet.key, value: packet.size, max: 20, marks: [6, 14], text: `${packet.size ? `about ${packet.size} slices` : 'no slice estimate'} · ${packet.state}`, tone: packet.size > 14 ? 'attention' : 'done' })),
+    summary: `research ${model.sources.research} · references ${model.sources.references} · pieces ${model.sources.work}`,
     sections: [
       { key: 'walk', title: 'Walk', lines: [{ text: `keep ${walk.keep} · cut ${walk.cut} · later ${walk.later} · ${walk.total - walk.walked} undecided`, tone: 'plain' }], detail: model.mode === 'explore' },
       { key: 'sources', title: 'Sources', lines: [{ text: `research ${model.sources.research} · references ${model.sources.references} · work ${model.sources.work}`, tone: 'plain' }], detail: true },
-      { key: 'revision', title: 'Revision', lines: [{ text: model.revision.n === null ? 'no work revision yet' : `work-revision ${model.revision.n}`, tone: 'plain' }, ...(model.revision.change === null ? [] : [{ text: model.revision.change, tone: 'quiet' as Tone }])], detail: true },
+      { key: 'revision', title: 'Revision', lines: [{ text: model.revision.n === null ? 'no list yet' : `list-revision ${model.revision.n}`, tone: 'plain' }, ...(model.revision.change === null ? [] : [{ text: model.revision.change, tone: 'quiet' as Tone }])], detail: true },
     ],
     controls: [],
   }

@@ -30,9 +30,9 @@ import { isDarkThemeOf, nextViewStyle, paletteOf, viewStyleOf } from '../styles/
 import type { ViewStyle } from '../styles/tokens.ts'
 import { findProjectRoot, joinPath, listSlices } from '../workflows.ts'
 import { buildBrainstormModel, newestChangeOf } from './model/brainstorm.ts'
-import { buildCampaignModel, driveJournalPathsOf, gatesAfter, heavyHolderOf, lockWaitsAfter, slotHoldersAfter } from './model/campaign.ts'
-import type { UnitDrive } from './model/campaign.ts'
-import { absorb, freshJournalState, judge, livenessFrom, openStagesOf } from './model/journal.ts'
+import { buildCampaignModel, fieldOf, listFieldOf } from './model/campaign.ts'
+import type { PieceFact } from './model/campaign.ts'
+import { absorb, freshJournalState, judge, livenessFrom } from './model/journal.ts'
 import type { JournalState } from './model/journal.ts'
 import type { RecordFact } from './model/needs.ts'
 import { budgetOf, usageOf } from './model/usage.ts'
@@ -62,8 +62,8 @@ export const IDLE_BAND_MS = 2 * 60 * 60_000
 /**
  * Whether a run is over for the band's live line, the status line and the
  * poll. A run silent for `IDLE_BAND_MS` is over. Past `ENDED_BAND_MS` of
- * silence: a yolo run that ended or stopped, a campaign with no wave running
- * and no pause, a brainstorm that is done. The strip's `live` button still
+ * silence: a yolo run that ended or stopped, a campaign whose list is
+ * finished, a brainstorm that is done. The strip's `live` button still
  * opens an over run's pane.
  */
 export function isRunOver(model: SdlcLiveModel, now: number): boolean {
@@ -73,7 +73,7 @@ export function isRunOver(model: SdlcLiveModel, now: number): boolean {
   if (silent > IDLE_BAND_MS) return true
   if (silent <= ENDED_BAND_MS) return false
   if (model.kind === 'yolo') return model.outcome === 'ended' || model.outcome === 'stopped' || model.liveness.state === 'ended'
-  if (model.kind === 'campaign') return model.activeWave === null && model.running === 0 && model.paused === null
+  if (model.kind === 'campaign') return model.current === null
   return model.mode === 'done'
 }
 /** F8: a push-class toast stays 10 s, so a person who looked away can read it. */
@@ -96,9 +96,7 @@ type Tracker = {
   slowAt: number
   roster: RosterFact[]
   rosterAt: number
-  gates: Record<string, string[]>
-  lockWaits: string[]
-  drives: Map<string, { journal: JournalState; slots: string[] }>
+  /** A brainstorm's board, or a campaign's newest piece write: the pulse of a run no driver journals. */
   boardAt: number | null
   boardBeats: number[]
   toasted: Set<string>
@@ -117,7 +115,7 @@ export type LiveLink = {
   open: () => Promise<void>
   /** The strip's `live` button: follows the run of `slug` and opens its pane. */
   follow: (slug: string) => Promise<void>
-  /** The kind of run `slug` has on disk (a driver journal, a campaign ledger, a board), or null. */
+  /** The kind of run `slug` has on disk (a driver journal, a started list, a board), or null. */
   kindOf: (slug: string) => Promise<Kind | null>
   onStatus: (text: string | null) => void
   /** Called from `register.ts`'s `session.measure` hook (U1). */
@@ -145,7 +143,7 @@ export type LiveContext = {
 const liveStatusAtom = atom({ plugin: 'sdlc-workflow', key: 'liveStatus' } as const, null, { shape: 'live-status-1' })
 const liveBandAtom = atom({ plugin: 'sdlc-workflow', key: 'liveBand' } as const, null, { shape: 'live-band-1' })
 const liveViewAtom = atom({ plugin: 'sdlc-workflow', key: 'liveView' } as const, EMPTY_LIVE_VIEW, { shape: 'live-view-1' })
-const liveModelsAtom = atom({ plugin: 'sdlc-workflow', key: 'liveModels' } as const, {}, { shape: 'live-models-1' })
+const liveModelsAtom = atom({ plugin: 'sdlc-workflow', key: 'liveModels' } as const, {}, { shape: 'live-models-2' })
 
 const keyOf = (kind: string, slug: string) => `${kind}:${slug}`
 
@@ -168,9 +166,6 @@ function newTracker(kind: Kind, slug: string, now: number): Tracker {
     slowAt: 0,
     roster: [],
     rosterAt: -1,
-    gates: {},
-    lockWaits: [],
-    drives: new Map(),
     boardAt: null,
     boardBeats: [],
     toasted: new Set(),
@@ -201,15 +196,6 @@ export function toastTextOf(event: LiveEvent): string | null {
   }
 }
 
-/** The campaign journal lines that raise a toast (K5). */
-const CAMPAIGN_TOASTS: Record<string, (line: Record<string, unknown>, slug: string) => string> = {
-  'wave-ready': (line, slug) => `wf campaign ${slug}: wave ${String(line['wave'] ?? '?')} is ready to try`,
-  asked: (line, slug) => `wf campaign ${slug}: a question needs you · ${String(line['text'] ?? '')}`.trim(),
-  paused: (line, slug) => `wf campaign ${slug}: paused until ${String(line['until'] ?? '?').slice(11, 16)}`,
-  'wave-end': (line, slug) => `wf campaign ${slug}: wave ${String(line['wave'] ?? '?')} shipped`,
-  'campaign-end': (_line, slug) => `wf campaign ${slug}: the campaign ended`,
-}
-
 /*
  * The module's own variables. `register` runs again on a reload, and `registerLive` sets them
  * afresh; the engine lets `$` reach only functions declared at the top of the file, so the
@@ -223,7 +209,6 @@ let onStatus: (text: string | null) => void = () => undefined
 let engine: LiveEngine | null = null
 let reader: LiveReader | null = null
 let root: string | null = null
-let home: string | null = null
 let budget: Budget = budgetOf(null)
 let rateLimits: RateLimitLike[] | null = null
 let isDarkTheme = true
@@ -267,8 +252,6 @@ export type LiveEngine = {
   storeGet: (key: string) => Promise<unknown>
   storeSet: (key: string, value: unknown) => Promise<void>
   usage: () => Promise<{ rateLimits?: readonly unknown[] | null | undefined }>
-  /** The person's home directory, from USERPROFILE then HOME. */
-  home: () => Promise<string | undefined>
 }
 
 function liveEngineOf($: EngineInterface): LiveEngine {
@@ -298,7 +281,6 @@ function liveEngineOf($: EngineInterface): LiveEngine {
     storeGet: key => $.store.get(key),
     storeSet: (key, value) => $.store.set(key, value),
     usage: () => $.session.usage(),
-    home: async () => (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')),
   }
 }
 
@@ -445,11 +427,12 @@ function unopenedTextOf(kind: Kind, slug: string, why: string): string {
   return `The live view of ${kind} ${slug} follows the run, but its pane is not drawn: ${why}.`
 }
 
-/** The kind of run a workflow has on disk, or null: a campaign ledger, a brainstorm board, a driver journal. */
+/** The kind of run a workflow has on disk, or null: a list with a started piece, a brainstorm board, a driver journal. */
 async function runKindOf(slug: string): Promise<Kind | null> {
   if (root === null || reader === null) return null
   const base = joinPath(root, '.ai', 'workflows', slug)
-  if ((await reader.mtime(joinPath(base, 'work', 'campaign', 'ledger.json'))) != null) return 'campaign'
+  const list = await readList(slug)
+  if (list !== null && list.pieces.some(piece => piece.state !== 'written')) return 'campaign'
   if ((await reader.mtime(joinPath(base, 'brainstorm-board.json'))) != null) return 'brainstorm'
   if ((await reader.mtime(joinPath(base, '.driver-journal.jsonl'))) != null) return 'yolo'
   return null
@@ -516,18 +499,12 @@ async function pollAll(x: LiveEngine): Promise<void> {
 async function scan(x: LiveEngine, now: number): Promise<void> {
   if (reader === null || root === null) return
   const dir = joinPath(root, '.ai', 'workflows')
-  const campaignSlugs = new Set<string>()
-  for (const tracker of trackers.values()) if (tracker.kind === 'campaign') for (const slug of tracker.drives.keys()) campaignSlugs.add(slug)
+  // A campaign has no journal of its own: its `/wf campaign` turn follows it, and the yolo run of each piece is a yolo tab.
   for (const entry of await reader.list(dir)) {
     if (entry.kind !== 'dir') continue
     const slug = entry.name
     const journal = await reader.mtime(joinPath(dir, slug, '.driver-journal.jsonl'))
-    if (journal !== null && now - journal < FRESH_MS && !campaignSlugs.has(slug) && !trackers.has(keyOf('yolo', slug))) {
-      const ledger = await reader.mtime(joinPath(dir, slug, 'work', 'campaign', 'ledger.json'))
-      if (ledger === null) await follow(x, 'yolo', slug, false)
-    }
-    const campaign = await reader.mtime(joinPath(dir, slug, 'work', 'campaign', '.campaign-journal.jsonl'))
-    if (campaign !== null && now - campaign < FRESH_MS && !trackers.has(keyOf('campaign', slug))) await follow(x, 'campaign', slug, false)
+    if (journal !== null && now - journal < FRESH_MS && !trackers.has(keyOf('yolo', slug))) await follow(x, 'yolo', slug, false)
     const board = await reader.mtime(joinPath(dir, slug, 'brainstorm-board.json'))
     if (board !== null && now - board < FRESH_MS && !trackers.has(keyOf('brainstorm', slug))) await follow(x, 'brainstorm', slug, false)
   }
@@ -683,95 +660,62 @@ function firstLineOf(journal: JournalState): number | null {
   return journal.beats[0] ?? null
 }
 
-/** The unit states whose driver journal the campaign view reads (WF-CAMPAIGN-DRIVER-PLAN 5.3 item 8). */
-const DRIVEN_UNIT_STATES = new Set(['running', 'waiting', 'stopped'])
+/** The files of `work/` that are no piece. */
+const NOT_PIECES: ReadonlySet<string> = new Set(['index.md', 'changes.md', 'migration.md'])
+
+/**
+ * The list of a source folder (WF-PIECES-PLAN.md 4.1): the `pieces:` keys of
+ * `work/index.md`, each `type: piece` file of `work/`, and the files of the
+ * workflow each piece opened. Null when `work/index.md` is no list.
+ */
+async function readList(slug: string): Promise<{ order: string[]; pieces: PieceFact[]; newestAt: number | null } | null> {
+  if (reader === null || root === null) return null
+  const work = joinPath(root, '.ai', 'workflows', slug, 'work')
+  const indexPath = joinPath(work, 'index.md')
+  const index = (await reader.changed(indexPath)).text
+  if (index === null || fieldOf(index, 'type') !== 'list') return null
+  let newestAt = await reader.mtime(indexPath)
+  const pieces: PieceFact[] = []
+  for (const entry of await reader.list(work)) {
+    if (entry.kind !== 'file' || !entry.name.endsWith('.md') || NOT_PIECES.has(entry.name)) continue
+    const path = joinPath(work, entry.name)
+    const text = (await reader.changed(path)).text
+    if (text === null || fieldOf(text, 'type') !== 'piece') continue
+    const at = await reader.mtime(path)
+    if (at !== null && (newestAt === null || at > newestAt)) newestAt = at
+    const key = fieldOf(text, 'key') ?? entry.name.replace(/\.md$/u, '')
+    const pieceSlug = fieldOf(text, 'piece-slug') ?? key
+    const workflow = joinPath(root, '.ai', 'workflows', pieceSlug)
+    pieces.push({
+      key,
+      slug: pieceSlug,
+      title: fieldOf(text, 'title') ?? key,
+      form: fieldOf(text, 'form') ?? 'intake',
+      state: fieldOf(text, 'state') ?? 'written',
+      order: Number(fieldOf(text, 'order')) || 0,
+      pieceUxImpact: fieldOf(text, 'ux-impact'),
+      indexText: (await reader.changed(joinPath(workflow, '00-index.md'))).text,
+      craftText: (await reader.changed(joinPath(workflow, '02c-craft.md'))).text,
+    })
+  }
+  return { order: listFieldOf(index, 'pieces'), pieces, newestAt }
+}
 
 async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promise<void> {
   if (reader === null || root === null) return
-  const campDir = joinPath(root, '.ai', 'workflows', tracker.slug, 'work', 'campaign')
-  const ledgerText = (await reader.changed(joinPath(campDir, 'ledger.json'))).text
-  let ledger: Record<string, unknown> | null = null
-  try {
-    ledger = ledgerText === null ? null : (JSON.parse(ledgerText) as Record<string, unknown>)
-  } catch {
-    ledger = null
-  }
-  const { lines, reset } = await reader.tail(joinPath(campDir, '.campaign-journal.jsonl'))
-  if (reset) {
-    tracker.journal = freshJournalState()
-    tracker.gates = {}
-    tracker.lockWaits = []
-  }
-  if (lines.length > 0) {
-    tracker.journal = absorb(tracker.slug, tracker.journal, lines).state
-    tracker.gates = gatesAfter(tracker.gates, lines)
-    tracker.lockWaits = lockWaitsAfter(tracker.lockWaits, lines)
-    for (const line of lines) {
-      const text = CAMPAIGN_TOASTS[String(line['event'] ?? '')]?.(line, tracker.slug) ?? null
-      toast(x, tracker, `campaign:${String(line['event'])}:${String(line['at'])}`, text)
-    }
-  }
-  // The drives: the driver journal of each unit that runs, waits or is parked, in its worktree or the main checkout.
-  const units = (ledger?.['units'] ?? {}) as Record<string, { slug?: unknown; state?: unknown; worktree?: { path?: unknown } }>
-  const drives: Record<string, UnitDrive> = {}
-  let lastLineAt = tracker.journal.run.lastLineAt
-  const beats = [...tracker.journal.beats]
-  for (const unit of Object.values(units)) {
-    const slug = typeof unit.slug === 'string' ? unit.slug : null
-    if (slug === null) continue
-    const drive = tracker.drives.get(slug) ?? { journal: freshJournalState(), slots: [] }
-    tracker.drives.set(slug, drive)
-    if (!DRIVEN_UNIT_STATES.has(String(unit.state))) continue
-    const candidates = driveJournalPathsOf(root, slug, typeof unit.worktree?.path === 'string' ? unit.worktree.path : null)
-    for (const path of candidates) {
-      const tail = await reader.tail(path)
-      if (!tail.exists) continue
-      if (tail.lines.length > 0) {
-        drive.journal = absorb(slug, drive.journal, tail.lines).state
-        drive.slots = slotHoldersAfter(drive.slots, tail.lines)
-      }
-      break
-    }
-    const open = openStagesOf(drive.journal)[0]
-    drives[slug] = { stage: open?.stage ?? drive.journal.lastStage?.stage ?? null, startedAt: open?.at ?? null, status: drive.journal.lastStage?.status ?? null, slots: unit.state === 'running' ? drive.slots.length : 0 }
-    if (drive.journal.run.lastLineAt !== null && (lastLineAt === null || drive.journal.run.lastLineAt > lastLineAt)) lastLineAt = drive.journal.run.lastLineAt
-    beats.push(...drive.journal.beats)
-  }
-  const liveness = livenessFrom({ ...tracker.journal, run: { ...tracker.journal.run, lastLineAt }, beats: beats.sort((a, b) => a - b).slice(-40) }, now)
-  const heavy = heavyHolderOf((await reader.changed(joinPath(root, '.scratch', 'campaign', 'heavy.lock'))).text)
-  const control = controlOf((await reader.changed(joinPath(campDir, '.control.json'))).text)
+  const list = await readList(tracker.slug)
+  const listAt = list?.newestAt ?? null
+  if (listAt !== null && listAt !== tracker.boardAt) tracker.boardBeats = [...tracker.boardBeats, listAt].slice(-40)
+  tracker.boardAt = listAt
+  // The walk is the person's: its pulse is the piece writes, and between pieces the person decides, so a long
+  // silence is quiet, never stale. The yolo run of the current piece has its own tab and its own liveness.
+  const judged = livenessFrom({ ...freshJournalState(), run: { ...freshJournalState().run, lastLineAt: listAt, run: tracker.slug }, beats: tracker.boardBeats, lastLine: listAt === null ? null : 'piece written' }, now)
+  const liveness = judged.state === 'stale' ? { ...judged, state: 'quiet' as const } : judged
   const view = await viewOf(x)
-  const model = buildCampaignModel({
-    slug: tracker.slug,
-    now,
-    ledger,
-    liveness,
-    gates: tracker.gates,
-    drives,
-    heavy: { holder: heavy, waiting: tracker.lockWaits.filter(slug => slug !== heavy) },
-    usage: usageOf((await guardUsage(x)) ?? rateLimits, budget),
-    control,
-    dismissed: view.dismissed,
-  })
-  for (const need of model.needs) if (need.kind === 'prepare') toast(x, tracker, `prepare:${need.id}`, `wf campaign ${tracker.slug}: ${need.title.toLowerCase()} · ${need.body}`)
+  const model = buildCampaignModel({ slug: tracker.slug, order: list?.order ?? [], pieces: list?.pieces ?? [], liveness, dismissed: view.dismissed })
+  for (const need of model.needs) toast(x, tracker, need.id, `wf campaign ${tracker.slug}: ${need.title} · ${need.body}`)
   tracker.isPrimed = true
   await writeModel(x, tracker, model)
-}
-
-/** U2: the newest reading the usage guard wrote to `~/.claude/sdlc/usage/`, or null. */
-async function guardUsage(x: LiveEngine): Promise<RateLimitLike[] | null> {
-  if (reader === null || home === null) return null
-  const dir = joinPath(home, '.claude', 'sdlc', 'usage')
-  const files = (await reader.list(dir)).filter(entry => entry.kind === 'file' && entry.name.endsWith('.json'))
-  const newest = files.sort((a, b) => b.mtimeMs - a.mtimeMs)[0]
-  if (newest === undefined) return null
-  const text = (await reader.changed(joinPath(dir, newest.name))).text
-  try {
-    const value = JSON.parse(text ?? '') as { rateLimits?: unknown }
-    return Array.isArray(value.rateLimits) ? (value.rateLimits as RateLimitLike[]) : null
-  } catch {
-    return null
-  }
 }
 
 async function pollBrainstorm(x: LiveEngine, tracker: Tracker, now: number): Promise<void> {
@@ -792,10 +736,10 @@ async function pollBrainstorm(x: LiveEngine, tracker: Tracker, now: number): Pro
   const sources = {
     research: await count('research', name => /^R\d+/u.test(name)),
     references: await count('references', name => name !== 'index.md'),
-    work: await count('work', name => name.endsWith('.md') && name !== 'index.md' && name !== 'changes.md'),
+    work: await count('work', name => name.endsWith('.md') && !['index.md', 'changes.md', 'migration.md'].includes(name)),
   }
   const index = (await reader.changed(joinPath(dir, 'work', 'index.md'))).text
-  const revision = Number(frontmatterField(index ?? '', 'work-revision'))
+  const revision = Number(frontmatterField(index ?? '', 'list-revision') ?? frontmatterField(index ?? '', 'work-revision'))
   const change = newestChangeOf((await reader.changed(joinPath(dir, 'work', 'changes.md'))).text)
   // A brainstorm is a conversation: its pulse is the board's writes. No driver runs that could die, so a
   // long silence is the person thinking: quiet, never stale (red, "past its limit").
@@ -896,12 +840,10 @@ async function writeBand(x: LiveEngine, isPlaced: boolean | null): Promise<void>
 // Actions (section 6)
 // -------------------------------------------------------------------------
 
-/** The control file of the tab on screen: the slug's for yolo, the campaign's for a campaign. */
+/** The control file of the tab on screen: a yolo run's. A campaign and a brainstorm have none. */
 function controlPathOf(kind: Kind, slug: string): string | null {
-  if (root === null) return null
-  if (kind === 'campaign') return joinPath(root, '.ai', 'workflows', slug, 'work', 'campaign', '.control.json')
-  if (kind === 'yolo') return joinPath(root, '.ai', 'workflows', slug, '.control.json')
-  return null
+  if (root === null || kind !== 'yolo') return null
+  return joinPath(root, '.ai', 'workflows', slug, '.control.json')
 }
 
 /**
@@ -940,18 +882,6 @@ async function pressControl(x: LiveEngine, key: string): Promise<void> {
     } else {
       await writeControl(x, path, { action: 'stop', after, by: 'live-view', requestedAt, at: requestedAt })
     }
-  } else if (model.kind === 'campaign' && path !== null && key === 'stop-wave') {
-    if (model.stop !== null) {
-      if (model.stop.by === 'live-view') await writeControl(x, path, { action: 'none', clearedBy: 'live-view', at: requestedAt })
-    } else {
-      await writeControl(x, path, { action: 'stop', scope: 'wave', after: 'wave', by: 'live-view', requestedAt, at: requestedAt })
-    }
-  } else if (model.kind === 'campaign' && path !== null && key === 'resume') {
-    if (await writeControl(x, path, { action: 'resume', by: 'live-view', requestedAt })) await submit(x, `/wf campaign ${model.slug}`)
-  } else if (model.kind === 'campaign' && key === 'prepare-next') {
-    const need = model.needs.find(entry => entry.kind === 'prepare')
-    const prompt = need?.actions.find(action => action.key === 'prepare')?.prompt
-    if (prompt !== undefined) await submit(x, prompt)
   }
   const tracker = trackers.get(keyOf(current.kind, current.slug))
   if (tracker !== undefined) tracker.modelText = ''
@@ -1063,8 +993,6 @@ async function startLive(x: LiveEngine, cwd: string): Promise<void> {
     pollMs = 0
     lastScanAt = 0
     root = await findProjectRoot(cwd, { list: path => x.list(path), read: path => x.read(path), exists: path => x.exists(path) })
-    const profile = await x.home()
-    home = profile === undefined || profile === '' ? null : profile
     try {
       const rows = await x.configList()
       isDarkTheme = isDarkThemeOf(rows.find(row => row.key === 'theme')?.value)

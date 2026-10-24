@@ -1,8 +1,8 @@
 // skills/wf/workflows/_shared.js — WF-SYSTEM-REVIEW-2026-10-21 E1.
 //
-// The helpers that yolo.js and campaign-wave.js share, word for word. A Workflow script
-// cannot import, so scripts/build-drivers.mjs (run by npm run build) writes this file into
-// the BEGIN SHARED block of each driver. Edit the helpers here, never in a driver.
+// The helpers of the yolo driver that are kept apart from yolo.js. A Workflow script cannot
+// import, so scripts/build-drivers.mjs (run by npm run build) writes this file into the BEGIN
+// SHARED block of yolo.js. Edit the helpers here, never in the driver.
 // Only function declarations go here: they hoist, so the block can sit anywhere in a driver.
 
 function refuteGroups(raw, limit) {
@@ -25,29 +25,17 @@ function touchesCharter(results, charter) {
     ids.some(id => String(d.decision || '').split(/[^A-Za-z0-9]+/).includes(id)))))
 }
 
-function implementGroups(planSteps, committed, size) {
-  const total = Number(planSteps) || 0
-  if (total <= size) return [null]
-  const out = []
-  for (let a = Math.max(0, Number(committed) || 0) + 1; a <= total; a += size) out.push({ from: a, to: Math.min(total, a + size - 1), total })
-  return out.length ? out : [null]
-}
+function implementStepsClause(slice, progressPath, retry) {
 
-function implementStepsClause(slice, steps, progressPath, handoverPath, retry) {
   const rec = (event, fields) => `\`${lineCmd(progressPath, { slice, event })}${fields ? ` --fields '${fields}'` : ''}\``
   return `\n\nSTEP COMMITS (C2). After each plan step, commit it as the reference says, and record it: ` +
     `${rec('step', '{"step":<n>,"sha":"<commit sha>"}')}. When ${progressPath} records steps of this slice ` +
     `already, continue after the last one whose sha is an ancestor of HEAD; never redo it. When you hard-stop, ` +
     `record ${rec('hard-stop', '')} with --reason "<one line>". After the final commit of the slice, record ` +
     `${rec('complete', '{"sha":"<commit sha>"}')}.` +
-    (retry ? ` The person answered the split question with a retry: before any other work, record ${rec('retry', '')}.` : '') +
-    (!steps ? '' : `\n\nSTEP GROUP (C3). Implement plan steps ${steps.from} to ${steps.to} of ${steps.total} ONLY. ` +
-      `Read ${handoverPath} first when it exists. ` + (steps.to >= steps.total
-      ? `This is the last group: finish the stage as the reference says (the record, the roster, the final commit, and the test receipt).`
-      : `When step ${steps.to} is committed, overwrite ${handoverPath} with a short hand-over note (what is done, ` +
-        `what is next, the traps you found), and return status 'complete' with stepsDone: ${steps.to}. Do NOT ` +
-        `write the implementation record, the roster status, the final commit, or the test receipt: the last group writes them.`))
+    (retry ? ` The person answered the split question with a retry: before any other work, record ${rec('retry', '')}.` : '')
 }
+
 
 // ---------------------------------------------------------------------------
 // STANDING STEERING — every agent that judges or writes reads steer.md FRESH.

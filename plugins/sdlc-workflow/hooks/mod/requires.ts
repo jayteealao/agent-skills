@@ -661,12 +661,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:slug",
         "sections": []
-      },
-      {
-        "input": "intake/_packet.md",
-        "kind": "procedure",
-        "when": "mode:packet",
-        "sections": []
       }
     ]
   },

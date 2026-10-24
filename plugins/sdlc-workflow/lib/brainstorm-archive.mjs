@@ -8,7 +8,7 @@
  * of older sessions) to an archive that a session reads only on demand. `docCheck`
  * reports a document that is over its caps.
  */
-import { isStartedState } from './work-packets.mjs';
+import { isStartedState } from './pieces.mjs';
 
 /** The newest sessions whose log and stories stay on the board. */
 export const SESSIONS_KEPT = 3;
@@ -16,7 +16,8 @@ export const SESSIONS_KEPT = 3;
 export const SUMMARY_WORD_CAP = 150;
 
 const CLOSED_THREAD_STATES = new Set(['routed', 'dropped']);
-const DONE_PIECE_STATES = new Set(['written']);
+// A written piece stays on the board, and so does a started piece of the old form (prepared, routed).
+const DONE_PIECE_STATES = new Set(['written', 'prepared', 'routed']);
 
 function wordCount(text) {
   return String(text ?? '').split(/\s+/).filter(Boolean).length;

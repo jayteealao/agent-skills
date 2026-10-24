@@ -50,8 +50,7 @@ import {
 // The types whose sibling `.yaml` agents read (v9.187.0,
 // VIEW-AUTHORING-REMOVAL-PLAN): `review` and `review-command` (the findings
 // ledger, _findings-ledger.md) and `plan` (files and edges, read by the master
-// `## Sibling Plans` table, the yolo bookkeeping agent, and the campaign wave
-// driver). Every other type writes no `.yaml`; its page renders from the `.md`.
+// `## Sibling Plans` table and the yolo bookkeeping agent). Every other type writes no `.yaml`; its page renders from the `.md`.
 const RICH_TIER_TYPES = new Set(['review', 'review-command', 'plan']);
 
 // Types whose siblingYamlSchemas.<type> is validated at write time. The hook

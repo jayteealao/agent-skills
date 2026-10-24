@@ -21,7 +21,6 @@ Read every row before you run the mode reference. [_requires.md](_requires.md) d
 |---|---|---|---|
 | `intake/_intake-context.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
-| `intake/_packet.md` | procedure | mode:packet | |
 
 # Step 0 — Parse the invocation (mode + shape resolution)
 
@@ -29,7 +28,9 @@ Read every row before you run the mode reference. [_requires.md](_requires.md) d
 
 Two shape carve-outs: `adopt` and `optimize` are **standalone-only** (never slug-attachable, never auto-proposed); `amend`, `modernize` and `close` are **slug-REQUIRED** (never compressed slices, never auto-proposed). The branches below enforce both.
 
-**Packet first.** A `token0` path to a `type: work-packet` file runs [intake/_packet.md](intake/_packet.md).
+**List piece.** A brainstorm `done` or an ideate pick writes a list of pieces: `.ai/workflows/<source-slug>/work/<piece-slug>.md`, `type: piece` (`campaign.md`). Check these before the order below:
+- When `token0` is the path of a piece file whose `form` is `intake`, `fix`, `hotfix` or `extension`, STOP: *"The campaign walk opens and builds this piece. Type `/wf campaign <source-slug>`."* Intake does not open a build piece: `campaign.mjs open` writes its folder.
+- When `token0` is `investigate`, `discover`, `rca` or `task`, and `token1` is the `piece-slug` of a piece file of that form, run that mode standalone with the piece as its source. The new workflow's slug is the piece slug. The token `from <source-slug>` is implied ([intake/_intake-provenance-consume.md](intake/_intake-provenance-consume.md), row `brainstorm`). A `token0` path to a piece file of one of these forms runs the same way.
 
 Resolve in this exact order (the order matters — the slug checks come FIRST):
 
@@ -112,8 +113,8 @@ The mode decides how far the flow travels. Run only the stages the mode needs. T
 | `hotfix` | compressed **standard** lifecycle — `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]**; branch `hotfix/<slug>` off the production branch | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `security`) |
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
 | `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `/wf review <slug>` (self-authors `05`/`06`; skips `/wf implement`+`/wf verify`); audit-only → `/wf intake <slug> close deferred`; a bare existing run-slug resumes |
-| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks; the pick (`ideate <slug> <idea-id...>`) writes one work packet per idea and closes the workflow |
-| `brainstorm` | **terminal thinking loop** — roots a `type:workflow-index` slug with the `01-brainstorm` board only; no branch | compressed slice (the board in the slice body) | terminal → **stays open**; only the person's `done` leaves the loop; `brainstorm <slug>` resumes; retire via `/wf intake <slug> close` |
+| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks; the pick (`ideate <slug> <idea-id...>`) writes a list of pieces for `/wf campaign` and closes the workflow |
+| `brainstorm` | **terminal thinking loop** — roots a `type:workflow-index` slug with the `01-brainstorm` board only; no branch | compressed slice (the board in the slice body) | terminal → **stays open**; only the person's `done` leaves the loop, and `done` writes a list of pieces for `/wf campaign`; `brainstorm <slug>` resumes; retire via `/wf intake <slug> close` |
 | `audit` | **terminal defect hunt** — roots a `type:workflow-index` slug with `01-audit.md` (the brief) + the `07-review*` accumulating findings ledger; no branch | compressed slice (one-shot, inline findings, no ledger) | terminal → **stays open**; each accepted finding routes to its own command (`fix`/`rca`/`investigate`/`intake`/`probe`/`task`, all `from <slug>`); re-invoking `audit <slug>` merges into the ledger; retire via `/wf intake <slug> close` |
 | `adopt` | **reverse-entry** — reconstructs `01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → **`05-implement`** from the working-tree diff (all `provenance: adopted`), confirm-before-write gate; records the current branch, never creates one | n/a — adopt is standalone-only (never slug-attachable) | → `/wf verify <slug>` (the standard verification chain takes over from stage 6) |
 | `optimize` | `01-optimize` → `02-optimize-spec` | n/a | → `/wf loop optimize <slug>` |

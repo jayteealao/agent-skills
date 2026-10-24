@@ -73,7 +73,7 @@ test('schema: the contract records carried-from; the document names a design boa
 test('the thoughts travel: provenance, the brief, the design stage, the direction command', () => {
   match(read(`${REF}/intake/_intake-provenance-consume.md`), /When the piece of work records `ux-impact`, propose that value in the stack question/);
   const carried = read(`${REF}/design/_carried.md`);
-  match(carried, /whose `routed-to` is this slug/);
+  match(carried, /Take the board piece in `work\[\]` whose `slug` is this slug/);
   match(carried, /keep, change \(free text says how\), or drop/);
   match(carried, /`## Carried design thoughts`/);
   match(read(`${REF}/design/shape.md`), /the carried design thoughts \(\[_carried\.md\]\(_carried\.md\) → In the brief\)/);

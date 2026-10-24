@@ -24,7 +24,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingBoardFiles } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { startedPacketRewriteError } from '../lib/work-packets.mjs';
+import { startedPieceRewriteError } from '../lib/pieces.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
@@ -33,7 +33,7 @@ import {
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkflowMarkdownPath,
-  isWorkPacketPath,
+  isPiecePath,
   isWorkSetPath,
   outputSystemMessage,
   projectContextPathInfo,
@@ -109,8 +109,8 @@ export async function run(input) {
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
   // NN-stagename convention (they carry the design-augmentation type instead).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
-  // work/<slug>.md packets and work/index.md carry a schema type but are named
-  // for the slug they open (BRAINSTORM-WORK-PACKETS-PLAN section 5).
+  // work/<piece-slug>.md pieces and work/index.md carry a schema type but are named
+  // for the slug they open (WF-PIECES-PLAN 4.1).
   const inWorkSet = isWorkSetPath(filePath);
   if (!inDesignNotes && !isProseLog && !inWorkSet) {
     const filenameError = validateFilename(filename);
@@ -147,10 +147,10 @@ export async function run(input) {
     }
   }
 
-  // A started packet is never rewritten (V3): only its link-back fields change.
-  if (errors.length === 0 && isWorkPacketPath(filePath)) {
+  // A started piece is never rewritten: the campaign walk owns it, and only its state changes.
+  if (errors.length === 0 && isPiecePath(filePath)) {
     const prior = await readTextIfExists(resolveProjectPath(projectRoot, filePath));
-    const refusal = prior === null ? null : startedPacketRewriteError(prior, content);
+    const refusal = prior === null ? null : startedPieceRewriteError(prior, content);
     if (refusal) errors.push(refusal);
   }
 

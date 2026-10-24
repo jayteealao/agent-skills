@@ -28,8 +28,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
    3. Start the same command again. The offsets in `.watch-state.json` keep every later event. Do not filter the output; the watch has no noise to remove.
    4. A `watch-timeout` line means that 110 minutes passed with no event. Start the command again, and say nothing in chat.
 5. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
-6. In a campaign, do not start a watch for one unit. The campaign watch reads the unit's journal and commits in its worktree (`campaign/_watch.md`, K1). A watch that is started anyway emits `watch-covered` and exits.
-7. When a `watch-replaced` or `watch-covered` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
+6. When a `watch-replaced` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
 
 ## The events
 
@@ -42,12 +41,11 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
 | `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. A file gives one event per 10 minutes, however often it is saved. In a worktree, uncommitted files at the watch start are an earlier run's work, not the person's, so they are not protected. | A full note: the file, the change, and the stage that ran. | yes |
 | `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: pending-tool`, a tool call of the agent (`tool`, since `toolSince`) has no result yet: the agent waits on that tool, most often for the person's approval of a prompt. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. With `signal: pending-tool`, say which tool call waits and since when, and ask the person to look for an approval prompt in the app. Do not offer to stop the run: a stop throws away the stage's work. | yes |
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
-| `look-in` | 15 minutes passed with no full note (`--look-in <minutes>` changes it; 0 turns it off). `running` lists each open stage agent: its minutes, its `root`, its `journal`, and its `transcript` when the watch finds it. In a campaign, `locks` gives each hold of the heavy and quiet locks, the units that wait, and `idle`: the kinds whose hold nothing uses. | Send a reader to look in, and tell the person what is happening (C7). | no |
+| `look-in` | 15 minutes passed with no full note (`--look-in <minutes>` changes it; 0 turns it off). `running` lists each open stage agent: its minutes, its `root`, its `journal`, and its `transcript` when the watch finds it. | Send a reader to look in, and tell the person what is happening (C7). | no |
 | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
 | `usage` | A usage reading crossed a budget line. | One line with both windows and their reset times. At level `pause`, a full note. | at `pause` |
 | `usage-reset` | The window of a pause reset. | One line. | no |
 | `watch-replaced` | A newer watch reads the same journal. This watch exited. | Nothing. Do not start this watch again. | no |
-| `watch-covered` | A live campaign watch already reads this journal. This watch exited. | Nothing. Do not start this watch again. | no |
 | `watch-timeout` | A `--once` watch gave no event for 110 minutes. | Nothing. Start the `--once` watch again. | no |
 
 Scout, classifier, and bookkeeping agents give no event.
@@ -70,8 +68,8 @@ Scout, classifier, and bookkeeping agents give no event.
   ```
 
   The script adds the time. After a compaction, read the last notes in `commentary.md` before the next note, so the story continues.
-- **R1.** The watch appends one line per `stage-start` and per `commit` event, for example `- 2026-10-08 10:01 UTC · stage start · plan · slice auth`. It writes the line where the drive writes its records: in the worktree when the drive has one. In a campaign, the line also goes to `work/campaign/commentary.md`. Do not append a note for these two events.
-- **R2.** The chat reply for each event stays as the table says. The record no longer depends on the chat reply: in the two campaigns before R1, the notes were skipped, and `commentary.md` stayed empty.
+- **R1.** The watch appends one line per `stage-start` and per `commit` event, for example `- 2026-10-08 10:01 UTC · stage start · plan · slice auth`. It writes the line where the drive writes its records: in the worktree when the drive has one. Do not append a note for these two events.
+- **R2.** The chat reply for each event stays as the table says. The record no longer depends on the chat reply: before R1, the notes were skipped, and `commentary.md` stayed empty.
 - **C5.** Send a push notification (the `PushNotification` tool) only for the events that the table marks. Lead with what the person acts on, for example "yolo engine-modules: plan stopped on decision D6".
 - **C6.** Answer the person's questions between events from the records: the artifacts, the journal, `commentary.md`, and git. Do not answer from memory. A watch event does not block the conversation.
 - **C7.** For `look-in`, do not read the run in this session: the reading fills the session's context. Dispatch one research sub-agent at the summary tier ([../_subagents.md](../_subagents.md)), and wait for its answer. Give it:
@@ -82,11 +80,10 @@ Scout, classifier, and bookkeeping agents give no event.
      - the commits since the newest note (`git -C <root> log --since "<the note's time>" --oneline`);
      - the changed files (`git -C <root> status --short`);
      - the newest 60 lines of its `transcript`, when the event names one;
-  4. in a campaign, the open questions: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <brainstorm-slug>`;
+  4. for a campaign piece (`00-index.md` has `origin-piece`), the state of its list: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`;
   5. the answer it returns: at most six sentences that say what each running stage does now and for how long, what changed since the newest note, what comes next, and what waits on the person. When nothing changed, the answer is one line that says so. The answer quotes no file contents and no transcript lines.
 
   The sub-agent changes no file. Tell the person its answer, and append the answer with `--event look-in`. When the sub-agent gives no answer, say in one line that the look-in failed, and wait for the next event.
-- **C8.** In a campaign, when `locks.idle` names a lock, end the idle hold: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" lock "<projectRoot>" <brainstorm-slug> reap`. Tell the person which unit held it, for how long, and which unit waits next. When units wait on a hold that is not idle, say which suite runs and for how long. A unit that waits on the lock does no suite work.
 
 ## Quiet
 

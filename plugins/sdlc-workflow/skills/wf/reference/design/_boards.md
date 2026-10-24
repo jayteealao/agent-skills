@@ -89,7 +89,7 @@ On **amend**, change only the named boards in the working set, render them, show
 
 A sketch or board file in git is the design. A canvas is a published view of that file. Every stage, sub-agent, machine, and account reads the file, so no stage needs a canvas to read the design.
 
-**Publish.** Publish every canvas from the session's own account. Record `canvas: { link, account, published-at, sha256 }`, where `sha256` is the hash of the published file. A sketch records it on its sketch entry (board `sketches[]`, packet `sketches:`); a board records it in `boards.json`. On a host with no design canvas, give the file path only, and record no `canvas`.
+**Publish.** Publish every canvas from the session's own account. Record `canvas: { link, account, published-at, sha256 }`, where `sha256` is the hash of the published file. A sketch records it on its sketch entry (board `sketches[]`, piece file `sketches:`); a board records it in `boards.json`. On a host with no design canvas, give the file path only, and record no `canvas`.
 
 **Republish a stale view.** Before a link goes into a question, run `canvas-stale <slug> --account <session account>`. For each listed file:
 1. When `canvas.account` is not the session's account, publish the file again under the session's account. Record the new link, and keep the old link in `canvas.previous[]`. Before you stop using the old link, read its comments once when the session's account can read them.

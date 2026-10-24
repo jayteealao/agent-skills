@@ -6,14 +6,14 @@ A design brainstorm (`intake/brainstorm/_design.md`) leaves design thoughts on a
 
 Look in these places, in this order. Read every source that exists.
 
-1. **The origin packet.** When `00-index.md` records `origin-packet: <packet path>`, read the packet's `sketches:`: each key with its file, its link, and its caption.
-2. **The origin board.** When `00-index.md` records `origin-brainstorm: <board-slug>`, read `.ai/workflows/<board-slug>/brainstorm-board.json`. Take the piece of work in `work[]` whose `routed-to` is this slug.
+1. **The origin piece.** When `00-index.md` records `origin-piece: .ai/workflows/<source-slug>/work/<piece-slug>.md`, read the piece file's `sketches:`: each key with its file, its link, and its caption.
+2. **The origin board.** When `00-index.md` records `origin-piece`, read the board of the source folder, with `<source-slug>` from that path: `.ai/workflows/<source-slug>/brainstorm-board.json`, or `ideate-work.json` for an ideate source. When it records `origin-brainstorm: <board-slug>`, read `.ai/workflows/<board-slug>/brainstorm-board.json`. Take the board piece in `work[]` whose `slug` is this slug. The piece file records the same value as `piece-slug`.
 3. **This workflow's own board.** When `.ai/workflows/<slug>/brainstorm-board-design.json` exists, take its piece of work with `shape: design`.
 
 From each piece of work, the carried set is:
 - its kept items (`scope: keep`) with `design: true`: the decisions and the open ideas, with each item's `why`;
 - the open questions and the open tensions on its threads with `design: true`;
-- its sketches (`sketches`), with each sketch's file, link, and caption. The packet gives the file; the board gives a sketch that the packet does not list.
+- its sketches (`sketches`), with each sketch's file, link, and caption. The piece file gives the file; the board gives a sketch that the piece file does not list.
 
 An item with `scope: cut` or `scope: later` is not carried. When no source exists, or the carried set is empty, there is nothing to present: continue without this file.
 
