@@ -74,7 +74,7 @@ Steps of a slice in progress: <slice> — step <n> of <m>
 - step 1 ✓ <sha>
 - step 2 · open
 
-<n> counts the `step` rows of `.implement-progress.jsonl` after the slice's last `complete` row whose sha is an ancestor of HEAD. <m> counts the numbered steps of the plan's `## Step-by-Step Plan`.
+Take <n>, <m> and each step line from `node "<skill-dir>/scripts/wf.mjs" step where "<projectRoot>" <slug> <slice> --json`: <n> is the length of its `done` list, and <m> is its `total`.
 
 ## Key Metrics
 - Files changed / lines ± (from implement records)

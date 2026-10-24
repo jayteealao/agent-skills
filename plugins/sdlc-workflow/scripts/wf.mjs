@@ -25,6 +25,13 @@
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
  *   decide   import <root> <slug>
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
+ *   step     start <root> <slug> <slice> <n> [--title t]
+ *   step     done <root> <slug> <slice> <n> [--sha s|HEAD]
+ *   step     stop|retry <root> <slug> <slice> [--reason r]
+ *   step     complete <root> <slug> <slice> [--sha s|HEAD]
+ *             record a plan step in steps.jsonl
+ *   step     where <root> <slug> [<slice>] [--json]
+ *             the done steps of the slice, the step that runs, the next open step, the hard-stops
  *   profile  show <root> [--json]
  *             the suites of the test profile with their commands and times
  *   profile  record <root> <suite> <seconds>
@@ -45,13 +52,14 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|profile|brief> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|profile|brief> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -385,6 +393,42 @@ export function runDecide(pos, opt) {
   }
 }
 
+// ---------------------------------------------------------------- step
+
+export function runStep(pos, opt) {
+  const [verb, root, slug, slice, n] = pos;
+  if (!verb || !root || !slug) throw new Error('step: <start|done|stop|retry|complete|where> <root> <slug> are required');
+  const projectRoot = resolve(root);
+  const dir = join(wfRoot(projectRoot), slug);
+  if (!existsSync(dir)) throw new Error(`step: no workflow folder ${dir}`);
+  const sha = () => {
+    if (!opt.sha) return null;
+    const s = gitRevParse(projectRoot, opt.sha);
+    if (!s) throw new Error(`step: ${opt.sha} is not a commit of ${projectRoot}`);
+    return s;
+  };
+  if (verb === 'where') {
+    const target = slice ?? lastSlice(dir);
+    if (!target) { out(opt.json ? { slice: null } : 'no steps recorded'); return 0; }
+    const w = whereOf(dir, target, { isAncestor: gitIsAncestor(projectRoot) });
+    out(opt.json ? w : whereLine(w));
+    return 0;
+  }
+  if (!slice) throw new Error(`step ${verb}: <slice> is required`);
+  const step = n == null ? null : Number(n);
+  const rows = {
+    start: () => ({ slice, event: 'start', step, title: opt.title ?? null }),
+    done: () => ({ slice, event: 'done', step, sha: sha() }),
+    stop: () => ({ slice, event: 'hard-stop', reason: opt.reason ?? null }),
+    retry: () => ({ slice, event: 'retry' }),
+    complete: () => ({ slice, event: 'complete', sha: sha() }),
+  };
+  if (!rows[verb]) throw new Error(`step: unknown verb ${verb}`);
+  const line = appendStep(dir, rows[verb]());
+  out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}`);
+  return 0;
+}
+
 // ---------------------------------------------------------------- profile
 
 export function runProfile(pos, opt) {
@@ -449,6 +493,7 @@ export async function main(argv = process.argv.slice(2)) {
         return 0;
       }
       case 'decide': return runDecide(pos, opt);
+      case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
       case 'brief': {
         const [root, slug, stage, slice] = pos;

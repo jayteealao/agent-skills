@@ -4,11 +4,13 @@
 
 ## Step commits
 
-1. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`.
-2. Record the step in `.ai/workflows/<slug>/.implement-progress.jsonl`: one JSON line `{"slice", "event": "step", "step": <n>, "sha"}`. Under a driver, use the command that the driver gives.
-3. Before the first step, read the progress file. Take the rows of this slice after its last `complete` row. Continue after the last `step` row whose sha is an ancestor of HEAD (`git merge-base --is-ancestor <sha> HEAD`). Do not do that step again.
-4. When you hard-stop, record `{"slice", "event": "hard-stop"}` with the reason. A driver counts these rows: after 2 hard-stops of one slice, it asks the person to split the slice instead of a third run. A `retry` row clears the count.
-5. After the final commit of the slice (step 12), record `{"slice", "event": "complete", "sha"}`.
+The step record is `.ai/workflows/<slug>/steps.jsonl`. Only `wf.mjs step` writes it. Use it in place of a host task list. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
+
+1. Before the first step, run `<wf> step where "<projectRoot>" <slug> <slice-slug>`. It names the done steps, the step that ran last, and the next open step. A step is done only when its commit is in the history of HEAD. Start at the next open step. Do not do a done step again.
+2. Before each step, run `<wf> step start "<projectRoot>" <slug> <slice-slug> <n> --title "<the step title of the plan>"`.
+3. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`. Then run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --sha HEAD`. For a step that changed no file, omit `--sha`.
+4. When you hard-stop, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --reason "<one line>"`. After 2 hard-stops of one slice, `step where` says to ask the person to split the slice instead of a third run. `step retry` clears the count.
+5. After the final commit of the slice (step 12), run `<wf> step complete "<projectRoot>" <slug> <slice-slug> --sha HEAD`.
 
 ## The steps table
 
@@ -18,7 +20,7 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 |---|---|---|---|
 | `<n>` | `<the step title of the plan>` | `done` or `deviated` | `<the short sha of its step commit>` |
 
-- Take each sha from the `step` rows of `.implement-progress.jsonl` for this slice, after its last `complete` row. A step that an earlier run committed keeps the sha of that run.
+- Take each sha from `<wf> step where "<projectRoot>" <slug> <slice-slug> --json` (its `done` list). A step that an earlier run committed keeps the sha of that run.
 - `deviated` means the step was done in a different way than the plan says. Give the reason in `## Deviations from Plan`.
 - A step with no commit, for example a step that changed no file, gets `—` in Commit.
 
