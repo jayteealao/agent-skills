@@ -14,6 +14,17 @@
  *             the sums of the slug's cost.jsonl per key
  *   stamp    <type> [--slug s] [--slice x]
  *             the frontmatter template of an artifact type, with every required field
+ *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
+ *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--json]
+ *             record a decision; a live entry with the same key and scope is superseded
+ *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
+ *             the live entries in a scope (--all: every entry)
+ *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
+ *             exit 0 and the entry when a live entry answers the key, exit 1 when none does
+ *   decide   drop <root> <slug> <questions.json> [--packet p] [--slice s] [--json]
+ *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
+ *   decide   import <root> <slug>
+ *             copy po-answers.md and steer.md into the store; a second run adds nothing
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -21,6 +32,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
+import { addDecision, answeredBy, decisionLine, dropAnswered, importLegacy, liveDecisions, readDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -28,7 +40,7 @@ import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide> ...';
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
 
@@ -44,7 +56,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -312,6 +324,55 @@ export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } 
   return lines.join('\n');
 }
 
+// ---------------------------------------------------------------- decide
+
+const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice, files: opt.files });
+
+export function runDecide(pos, opt) {
+  const [verb, root, slug, arg] = pos;
+  if (!verb || !root || !slug) throw new Error('decide: <add|list|answered|drop|import> <root> <slug> are required');
+  const dir = join(wfRoot(resolve(root)), slug);
+  if (!existsSync(dir)) throw new Error(`decide: no workflow folder ${dir}`);
+  switch (verb) {
+    case 'add': {
+      const r = addDecision(dir, {
+        kind: opt.kind, key: opt.key, question: opt.question, answer: opt.answer, by: opt.by,
+        scope: scopeOf(opt), stage: opt.stage, source: opt.source,
+        rewrote: opt.rewrote ? String(opt.rewrote).split(',').map((s) => s.trim()).filter(Boolean) : [],
+      });
+      out(opt.json ? r : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`)].join('\n'));
+      return 0;
+    }
+    case 'list': {
+      const all = readDecisions(dir);
+      const rows = opt.all ? all : liveDecisions(all, scopeOf(opt), { by: opt.by, kind: opt.kind });
+      out(opt.json ? rows : rows.length ? rows.map(decisionLine).join('\n') : 'no decisions');
+      return 0;
+    }
+    case 'answered': {
+      if (!opt.key) throw new Error('decide answered: --key is required');
+      const hit = answeredBy(readDecisions(dir), opt.key, scopeOf(opt));
+      out(opt.json ? { answered: Boolean(hit), entry: hit } : hit ? decisionLine(hit) : `not answered: ${opt.key}`);
+      return hit ? 0 : 1;
+    }
+    case 'drop': {
+      if (!arg) throw new Error('decide drop: <questions.json> is required');
+      const doc = JSON.parse(readFileSync(resolve(arg), 'utf8'));
+      const questions = Array.isArray(doc) ? doc : doc.questions ?? [];
+      const r = dropAnswered(readDecisions(dir), questions, scopeOf(opt));
+      out(opt.json ? r : [`ask: ${r.ask.length}`, ...r.answered.map((q) => `answered: ${q.key} by ${q.decision}`)].join('\n'));
+      return 0;
+    }
+    case 'import': {
+      const r = importLegacy(dir);
+      out(opt.json ? r : `imported ${r.added}, already held ${r.skipped}`);
+      return 0;
+    }
+    default:
+      throw new Error(`decide: unknown verb ${verb}`);
+  }
+}
+
 // ---------------------------------------------------------------- main
 
 export async function main(argv = process.argv.slice(2)) {
@@ -347,6 +408,7 @@ export async function main(argv = process.argv.slice(2)) {
         out(stampOf(type, { slug: opt.slug, slice: opt.slice ?? null }));
         return 0;
       }
+      case 'decide': return runDecide(pos, opt);
       default:
         process.stderr.write(`${USAGE}\n`);
         return 2;
