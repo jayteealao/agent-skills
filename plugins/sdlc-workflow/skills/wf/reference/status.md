@@ -95,7 +95,7 @@ This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answer
 
 # Dashboard Mode (no slug)
 
-Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow in it carries its `group` (`active`, `blocked`, `completed`, or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`. Use them as they are. For the other columns, read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for:
+Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow in it carries its `group` (`active`, `blocked`, `completed`, or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`. Use them as they are. A workflow with a run also carries `progress`: its `state` (`running`, `waiting`, `stopped` or `done`; a dead driver shows as `stopped`), the stage, slice and step, `etaSeconds`, and `resume`. For each run that is not `done`, add one line under the table: `<slug>: <state> at <stage> <slice> step <n> of <m>`, the ETA when it has one, and the `resume` command when it stopped. For the other columns, read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for:
 - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
 - `selected-slice`, `open-questions`
 - `recommended-next-command`, `recommended-next-invocation` (fall back to `next-command`, `next-invocation`)

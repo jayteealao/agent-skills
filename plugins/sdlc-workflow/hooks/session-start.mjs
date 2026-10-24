@@ -8,12 +8,15 @@
 //      directly from codex.hooks.json for that reason;
 //   2. runs the one-time removal of the old hub and tray from this machine
 //      (hooks/machine-cleanup.mjs). After the first clean run it only checks a
-//      marker file.
+//      marker file;
+//   3. names each workflow run that stopped or died (hooks/run-notice.mjs), as
+//      context for the model.
 //
 // A `compact` source returns at once: a context compaction is not a session
 // start. Always exits 0 — a session start must never block a session.
 
 import {
+  emitAdditionalContext,
   findProjectRoot,
   parseHookArgs,
   readEvent,
@@ -43,6 +46,17 @@ function main() {
     cwd: projectRoot,
     timeoutMs: 20000,
   });
+
+  // 3. Names each workflow run that stopped or died, with its resume command. On Codex the
+  //    notice goes to the model, which tells the person.
+  const notice = runPolicy(layout.runtimeRoot, 'run-notice', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
+    cwd: projectRoot,
+    timeoutMs: 8000,
+  });
+  try {
+    const text = JSON.parse(notice.stdout.trim() || '{}').systemMessage;
+    if (text) emitAdditionalContext('SessionStart', text);
+  } catch { /* a notice never blocks a session */ }
 }
 
 try { main(); } finally { process.exit(0); }

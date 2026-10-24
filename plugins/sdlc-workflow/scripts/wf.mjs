@@ -40,6 +40,11 @@
  *             a real run of a suite: its time replaces the estimate
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
+ *   progress set <root> <slug> [--stage s] [--slice x] [--status running|waiting|stopped|done]
+ *                [--run id] [--driver d] [--reason r] [--resume cmd]
+ *             write progress.json: where a run stands
+ *   progress show <root> <slug> [--json]
+ *             where the run stands, a dead run as stopped, with the ETA of the slice
  *   defer    check <root> <slug> [--next <slice>] [--json]
  *             run the clearing-probe of each open deferral; exit 1 when the next slice needs
  *             an open deferral now (a person task)
@@ -58,6 +63,7 @@ import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, impor
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { progressLine, progressOf, writeProgress } from '../lib/progress.mjs';
 import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -65,7 +71,7 @@ import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|profile|defer|brief> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -154,6 +160,7 @@ function summaryOf(w, now) {
     stale: Number.isFinite(updated) && now - updated > STALE_DAYS * 86_400_000,
     openQuestions: count(fm['open-questions']),
     next: fm['recommended-next-invocation'] ?? fm['next-invocation'] ?? null,
+    progress: w.workflowDir ? progressOf(w.workflowDir, w.directorySlug ?? w.slug, { now }) : null,
   };
 }
 
@@ -201,9 +208,11 @@ function statusText(s) {
   if (s.workflows) {
     if (!s.workflows.length) return 'No workflows found. Start one with `/wf intake <description>`.';
     const rows = s.workflows.map((w) => [w.slug, w.group, `${w.status ?? '?'}${w.stale ? ' (stale)' : ''}`, w.stage ?? '-', w.next ?? '-'].join('\t'));
-    return ['slug\tgroup\tstatus\tstage\tnext', ...rows].join('\n');
+    const runs = s.workflows.filter((w) => w.progress && w.progress.state !== 'done').map((w) => `${w.slug}: ${progressLine(w.progress)}`);
+    return ['slug\tgroup\tstatus\tstage\tnext', ...rows, ...(runs.length ? ['', ...runs] : [])].join('\n');
   }
   const lines = [`${s.workflow.slug}: ${s.workflow.status} at ${s.workflow.stage ?? '-'}`];
+  if (s.workflow.progress) lines.push(`run: ${progressLine(s.workflow.progress)}`);
   for (const st of s.stages) if (st.present) lines.push(`  ${st.file}\t${st.status ?? '-'}`);
   for (const sl of s.slices) lines.push(`  slice ${sl.slice}\t${SLICE_STAGES.map(([k]) => `${k}=${sl[k] ?? '-'}`).join(' ')}`);
   lines.push(`next: ${s.next.invocation ?? '-'}`);
@@ -431,6 +440,11 @@ export function runStep(pos, opt) {
   };
   if (!rows[verb]) throw new Error(`step: unknown verb ${verb}`);
   const line = appendStep(dir, rows[verb]());
+  // The progress record follows the step of the slice.
+  if (verb === 'start') {
+    const total = whereOf(dir, slice).total;
+    writeProgress(dir, { stage: 'implement', slice, step: { n: step, of: total || null, title: opt.title ?? null } });
+  } else if (verb === 'complete') writeProgress(dir, { slice, step: null });
   out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}`);
   return 0;
 }
@@ -507,6 +521,19 @@ export async function main(argv = process.argv.slice(2)) {
       case 'decide': return runDecide(pos, opt);
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
+      case 'progress': {
+        const [verb, root, slug] = pos;
+        if (!['set', 'show'].includes(verb) || !root || !slug) throw new Error('progress: <set|show> <root> <slug> are required');
+        const dir = join(wfRoot(resolve(root)), slug);
+        if (!existsSync(dir)) throw new Error(`progress: no workflow folder ${dir}`);
+        if (verb === 'set') {
+          const change = Object.fromEntries(['stage', 'slice', 'status', 'run', 'driver', 'reason', 'resume'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
+          writeProgress(dir, change);
+        }
+        const p = progressOf(dir, slug);
+        out(opt.json ? p : progressLine(p));
+        return 0;
+      }
       case 'defer': {
         const [verb, root, slug] = pos;
         if (verb !== 'check' || !root || !slug) throw new Error('defer: check <root> <slug> is required');
