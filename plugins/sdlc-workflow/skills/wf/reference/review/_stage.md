@@ -8,15 +8,15 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 | | Detail |
 |---|---|
 | Requires | See [review.md ## Requires](../review.md#requires). |
-| Produces (per-slice mode) | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command. These are an **accumulating ledger** — a re-run on the same slice MERGES new findings into the existing files (dedupe + resolve-sweep), never overwrites. Running review on a different slice never touches a sibling slice's files. |
-| Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow). Re-running review **merges into the existing files** (accumulating ledger — new findings deduped + appended in place, cleared findings marked `resolved`; nothing overwritten or deleted). Sibling per-slice review files (if any from prior runs) are left untouched. |
+| Produces (slug-wide mode, the default) | `07-review.md`, one review file for the work packet, written whole on every run from the findings ledger `findings.yaml` ([_findings-ledger.md](../_findings-ledger.md)). The ledger keeps the history: a re-run merges into the ledger, never into the file. |
+| Produces (per-slice mode) | `07-review-<slice-slug>.md`, written whole from the entries of that slice in `findings.yaml`. A run on one slice never changes the entries of another slice. |
 | Next | `/wf handoff <slug>` (when `verdict: ship`/`ship-with-caveats` and no OPEN blocker findings remain + all slices complete). If OPEN blockers remain: re-invoke `/wf review <slug> [<slice>]` (a normal accumulating re-run that re-checks the fixed code and merges fresh findings), or escalate to `/wf implement <slug> [<slice>] reviews` as a manual escape. Also: `/wf plan <slug> <next-slice>` (if more slices remain), or `/wf intake <slug> from-review` (if the review surfaced new scope — adds net-new slices via extension; a wrong spec becomes a new slice too, since there is no in-place amend). |
 
 # Role
-You are a **review dispatch orchestrator that owns an accumulating findings ledger and its own triage→fix loop**.
-- Do not run reviews yourself — **select review commands and dispatch sub-agents**. Each sub-agent runs one command independently and reports findings. The review artifacts **accumulate across invocations**. Before writing, READ the existing `07-review[-<slice>].md` + per-command files (if present) and **MERGE** this run's findings. The merge law — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs:` append — is single-sourced in [_findings-ledger.md](../_findings-ledger.md); apply it, never restate it. Never overwrite or delete a prior finding.
-- Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`. Do not improvise fixes while sub-agents are running; the fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b. At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. After all fix sub-agents return, record each outcome **onto its finding** (`status: fixed` / `could-not-fix` + `fixed-at`) and refresh `## Fix Status`. Do not handoff or ship — those are later stages.
-- Your job: **orient → read existing ledger → gather change stats → select commands → dispatch review sub-agents → merge + dedupe + resolve-sweep → triage → dispatch fix sub-agents → record outcomes → write merged verdict + Fix Status**. Order matters only where the ledger does: merge before triage, triage before the fix loop, outcomes recorded before the verdict. Reading and dispatch may interleave freely.
+You are a **review dispatch orchestrator that owns the findings ledger of the work packet and its own triage→fix loop**.
+- Do not run reviews yourself — **select review commands and dispatch scouts**. Each scout runs one command independently and returns its findings. A refuter tries to refute every finding before it enters the ledger. `wf.mjs findings add` merges the survivors and the refuted findings into `findings.yaml` by the merge law of [_findings-ledger.md](../_findings-ledger.md); the law is in code, so never apply it by hand and never restate it.
+- Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`. Do not improvise fixes while sub-agents are running; the fix loop runs only at Step 4c, AFTER the merge and AFTER triage at Step 4b. At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. Record each outcome with `wf.mjs findings set`. Do not handoff or ship — those are later stages.
+- Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → dispatch fix sub-agents → record outcomes → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix loop, outcomes recorded before the review file. Reading and dispatch may interleave freely.
 
 # Triage mode
 
@@ -27,9 +27,9 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - a slice of the roster → the **slice selector** (per-slice mode only; ignored in slug-wide mode);
    - a rubric or alias key from [_ad-hoc.md](_ad-hoc.md) → the **user focus override** of Step 2, in either review scope.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
-3. **Resolve `review-scope`** from `00-index.md`. Default: `per-slice`.
-   - `per-slice` → continue with slice-resolution below; all artifact paths use `-<slice-slug>` suffix.
-   - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; paths drop the slice suffix (`07-review.md`, `07-review-<command>.md`). Re-runs **merge** into the prior `07-review.md` (dedupe, resolve-sweep re-run dimensions, append a `runs:` entry; never overwritten). The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect all code on the branch; verdict is "ship this branch" not "ship this slice".
+3. **Resolve `review-scope`** from `00-index.md`. Default: `slug-wide`, one review per work packet.
+   - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect all code on the branch; the verdict is "ship this branch", not "ship this slice".
+   - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
 4. **Resolve the slice-slug** (per-slice mode only; skip if `review-scope: slug-wide`): Use the passed slug; else `selected-slice` from the index; else ask.
 5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
    Read `workflow-type` from `00-index.md`. Recognize these modes:
@@ -39,7 +39,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - **Change-mode** (`workflow-type: fix` / `hotfix` / `refactor`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.) Default rubric by mode: **hotfix** → `security`, **refactor** → `refactor-safety` (`/wf review <slug> <rubric>`); widen only if the change warrants it.
    - **update-deps** (`workflow-type: update-deps`): update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered) in its own flow and **routes here** for review. The implement/verify records are the un-suffixed `05-implement.md` / `06-verify.md`; the plan is `04-plan.md`. Review against `01-update-deps.md` (the scan/research brief) + `03-slice.md` (the P0/P1/P2 tiers). `review-scope: slug-wide`.
    - **Task** (`workflow-type: task`): a task self-authors `05-implement.md`/`06-verify.md` in `/wf intake task`'s own flow and is not normally reviewed — there is no `03-slice.md`/`04-plan.md` and never will be. STOP cleanly: "This is a task workflow — resume it with `/wf intake task <slug>`. If the task left a reviewable diff, run ad-hoc `/wf review <dimension>` against it." Never fall through to standard mode.
-   - **Audit** (`workflow-type: audit`): the `07-review*` files here ARE the audit's own accumulating findings ledger, not a change review — the workflow has no implement record and never will. STOP cleanly: "This is an audit workflow — its ledger belongs to `/wf intake audit <slug>`; re-invoking that merges new findings into it." Never fall through to standard mode.
+   - **Audit** (`workflow-type: audit`): the ledger here holds the audit's own findings (`--source audit`), not a change review — the workflow has no implement record and never will. STOP cleanly: "This is an audit workflow — its ledger belongs to `/wf intake audit <slug>`; re-invoking that merges new findings into it." Never fall through to standard mode.
    - **Optimize** (`workflow-type: optimize`): the loop's finish wrote one suffixed slice, `optimize`: `03-slice-optimize.md` (the acceptance criteria), `05-implement-optimize.md` (the squash and the table of kept trials), and verify wrote `06-verify-optimize.md`. There is no plan file: the confirmed `02-optimize-spec.md` replaces shape and plan, so review against it. Always add `correctness` with `focus: metric-gaming` (see the core set below).
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
@@ -48,14 +48,13 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    **Per-slice mode** (`review-scope: per-slice`):
    - `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not required.
    - If verify shows `Status: Awaiting input` → STOP.
-   - If `07-review-<slice-slug>.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Sibling slices' review files are never touched.
 
    **Slug-wide mode** (`review-scope: slug-wide`):
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
    - Any `06-verify-*.md` files are read for context but never block.
    - **Adoption-matrix reconciliation (mechanical pass over shape).** If `02-shape.md` carries an adoption matrix (the table of dependencies/libraries with a `USE`/`AVOID`/etc. decision per row), reconcile every `USE` row against the branch diff: each must cite at least one production usage site — a real import/call in shipped code. A `USE` row with zero usage (installed, never wired in) becomes a finding, severity **MED**, titled "committed and abandoned" (installed, zero usage) and routed through the normal ledger. This is a mechanical check, not a judgment call: no production import/call for a `USE` dependency ⇒ finding.
    - **Success-Criteria re-basing (mandatory, slug-wide milestone check).** The slug-wide review must answer the intake's **Success Criteria exactly** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same exact Success-Criteria check also runs once at that slice's per-slice review.
-   - If `07-review.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Prior per-slice `07-review-<slice>.md` files are left untouched.
+   - Prior per-slice `07-review-<slice>.md` files are left untouched.
 6. **Read the context.** Read every Requires row for the current `review-scope`.
 7. **Apply the augmentation and verify inputs** per *Augmentation and verify inputs* below. Verify values can auto-promote to BLOCKER or HIGH findings.
 8. **Carry forward** `open-questions` from the index.
@@ -87,7 +86,7 @@ Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti
 - `## Friction Notes` and `## Free Exploration Notes` — these are informational (not auto-promoted to issues) but must appear in the review's `## Soft Findings` section so the human reviewer can see them. They represent observations a first-time user would notice that no AC captured.
 
 # Workflow rules
-Apply [_workflow-rules.md](../_workflow-rules.md). Review-specific: the review files are an accumulating ledger — merge in place, never overwrite.
+Apply [_workflow-rules.md](../_workflow-rules.md). Review-specific: `findings.yaml` is the ledger and only `wf.mjs findings` writes it; the review file is written whole from it.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
@@ -103,7 +102,7 @@ After writing files, return per [_chat-return.md](../_chat-return.md). Lead with
 Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track these items:
 
 - one item per selected review command (independent — they run as parallel sub-agents);
-- the four bookkeeping items, in ledger order: merge + dedupe + resolve-sweep; triage; fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the merged verdict + Fix Status;
+- the five bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the review file;
 - inside Step 4c, one item per `Fix` decision (`Fix [{ID}] {SEV}: {title}`).
 
 Mark each item done as its outcome is recorded. A `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
@@ -126,6 +125,7 @@ Extract:
 - `correctness` — logic, invariants, edge cases; its sections also cover testing, data integrity, concurrency, and reliability
 - `security` — vulnerabilities, insecure defaults; its sections also cover infrastructure security, supply chain, and privacy
 - `architecture` — boundaries, maintainability, overengineering, missed reuse, style consistency, refactor safety
+- `performance` — queries, loops over variable-size data, caches, render cost; its sections also cover scalability and cost
 - `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: feature`, or unset), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
 - `correctness` (focus metric-gaming) — **always-on for optimize slugs** (`workflow-type: optimize`): does the kept diff improve the code, or only the number? It is never suppressed by the user-focus override.
 
@@ -133,11 +133,11 @@ Extract:
 Load [_select.md](_select.md) and apply its rules: the backend and frontend always-include sets, the design-work rule (`design-audit` / `design-critique` map to `design/audit.md` / `design/critique.md`), and the signal → rubric table for motion, concurrency, refactors, architecture, data, migrations, privacy, API surface, scale, dependencies, infra, CI, release, logging, observability, cost, docs, style, and developer tooling. Dispatch one reviewer per rubric: a core rubric reads every section; a rubric that only a trigger selected receives `focus:` naming the triggered sections.
 
 ### Selection Constraints
-- **Minimum**: 3 (`correctness` + `security` + `architecture`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
+- **Minimum**: 4 (`correctness` + `security` + `performance` + `architecture`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 5. Add every other rubric whose signal the change shows.
 - **Maximum**: 11 — one reviewer per rubric; a rubric never dispatches twice in one run
 - **User focus override**: include the named rubrics (an alias becomes its rubric with `focus: <alias>`) + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated rubrics
-- **Config/docs-only**: drop `correctness`/`architecture`; keep `security`, `docs`, and `infra` (focus ci, release) where relevant
-- **Test-only**: keep `correctness` (focus testing) and `architecture`; drop most others
+- **Config/docs-only**: drop `correctness`/`architecture`/`performance`; keep `security`, `docs`, and `infra` (focus ci, release) where relevant
+- **Test-only**: keep `correctness` (focus testing) and `architecture`; drop most others; keep `performance` only when the suite time changes
 - **When in doubt, include**: a false positive costs one sub-agent; a missed issue costs a production incident
 
 Before dispatching, print the `## Review Scope` + `## Commands Selected` block from [_select.md](_select.md) to chat.
@@ -146,29 +146,27 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 For EACH selected command, dispatch ONE sub-agent at **low** effort per [_subagents.md](../_subagents.md). The `architecture` and `security` rubrics use **medium** effort. Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_subagents.md](../_subagents.md), "Effort tiering"). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
-**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt unchanged. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` duty.
+**Each scout receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its Step 3 prompt unchanged. The prompt carries the pre-existing determination, the acceptance-check rule and the JSON reply. A scout writes no file.
 
-Wait for ALL sub-agents to complete before proceeding.
+Wait for ALL scouts to complete before proceeding.
 
-# Step 4: Merge into the existing ledger (dedupe + resolve-sweep)
+# Step 3b: Refute every finding
 
-After all sub-agents finish, **MERGE** this run's findings into the existing master ledger — edit `07-review[-<slice>].md` + `.yaml` **in place**, never overwriting.
+Every finding gets a refuter before it enters the ledger. Group the findings of all scouts, up to 4 to a group, and dispatch one refuter per group at **low** effort with the Step 3b prompt of [_dispatch.md](_dispatch.md). All refuters run in parallel. A refuted finding keeps the refuter's reason as `refuted`. A refuter that returns no verdict for a finding leaves the finding standing. When the run prompt passes findings that a driver already refuted, skip this step.
 
-1. **Read the existing master** `07-review[-<slice-slug>].md` + sibling `.yaml` (if present). Capture every prior finding: `id`, `surfaced-at`, `status`, `dimension`, triage decision. If no prior master, every finding below is net-new.
-2. **Read every `07-review-<slice-slug>-<command>.md`** the sub-agents wrote this run; collect every row with ID, severity, file:line, description. (Sub-agents already merged within their dimension; you reconcile across dimensions and against the master.)
-3. **Merge per the ledger law.** Apply [_findings-ledger.md](../_findings-ledger.md) rules 1–5 across this run's findings and against the master: within-run cross-dimension dedupe, the cross-run reconcile (re-surfaced vs net-new), and the resolve-sweep for re-run dimensions.
-4. **Sort by severity:** BLOCKER → HIGH → MED → LOW → NIT, then alphabetically by file path within each level. Resolved findings sort last, clearly marked.
-5. **Determine verdict** from OPEN, non-pre-existing findings only (status ∈ open / deferred / could-not-fix AND `pre-existing: false`):
-   - Any OPEN BLOCKER → **Don't Ship**
-   - OPEN HIGH only → **Ship with caveats** (if addressable as follow-ups)
-   - OPEN MED/LOW/NIT only, or no open findings → **Ship**
-   Fixed / dismissed / resolved findings never count against the verdict. **Neither do `pre-existing: true` findings — including pre-existing BLOCKERs**: the verdict is about *this change*. Pre-existing findings surface in `## Pre-existing Debt` and route to `/wf intake fix|refactor`.
+# Step 4: Merge into the ledger
+
+1. **Write `found.json`** to `.ai/workflows/<slug>/.found.json`: every finding of every scout, with the refuter's reason on each refuted finding, and `dimensions` = every command of this run, also the clean ones.
+2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
+3. **Read the ledger.** Run `wf.mjs findings table` and `wf.mjs findings metrics` with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
 
 Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
 
 # Step 4b: Triage findings needing a decision
 
-After the merge, present findings that **need a decision** as a gate question per [_gate-question.md](../_gate-question.md): net-new findings, re-surfaced findings that were previously `resolved`, and prior `open` (untriaged) findings. **Skip `pre-existing: true` findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. **`Fix` decisions execute in Step 4c.**
+First run `wf.mjs findings questions "<root>" <slug>`. Each question is an open finding whose fix changes an acceptance check, a confirmed board or a craft line. Do not fix such a finding at Step 4c. Before you ask, run `wf.mjs decide answered "<root>" <slug> --key finding:<id>`: a live answer settles the question. Otherwise ask the question as a gate question per [_gate-question.md](../_gate-question.md), with the recommended option first. Record the answer with `wf.mjs decide add --kind answer --key finding:<id>` per [_decisions.md](../_decisions.md). Then record the outcome on the finding with `wf.mjs findings set`.
+
+Then present the other findings that **need a decision** as a gate question per [_gate-question.md](../_gate-question.md): net-new findings, findings that opened again, and `open` (untriaged) findings. A refuted finding needs no decision. **Skip pre-existing findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. Record each `Defer` and `Dismiss` with `wf.mjs findings set <id> deferred|dismissed --reason "<the reason>"`. **`Fix` decisions execute in Step 4c.**
 
 **For BLOCKER and HIGH findings** — present each individually:
 
@@ -203,7 +201,7 @@ Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (on
 1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](../_subagents.md) (REQUIRED — both; the tier pin follows [_fix-loop.md](../_fix-loop.md) rule 3). Send the fix prompt in [_fix-prompt.md](_fix-prompt.md) unchanged. `/wf implement reviews` sends the same prompt. The child returns `Method: as-prescribed | deviated` first, then its self-check exit status.
 2. As each sub-agent completes, take its patch through step 3 before accepting it. Under a worktree host, accept by merging the child's branch result; under a partition host (no worktree flag, per [_subagents.md](../_subagents.md)) the edit is already in the working tree, so step 3 reviews the diff first and `git checkout -- <files>` discards a rejected one. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
 3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
-4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`: fixed → `status: fixed` (drops out of OPEN counts and verdict); could not fix → `status: could-not-fix` (stays OPEN; still counts against verdict) + record the reason (`COULD NOT FIX: <reason>`).
+4. **Record the outcome ON the finding** with `wf.mjs findings set`: fixed → `findings set <id> fixed` (drops out of OPEN counts and verdict); could not fix → `findings set <id> could-not-fix --reason "<reason>"` (stays OPEN; still counts against verdict).
 
 ## After the fix dispatch (no re-review this invocation)
 
@@ -211,29 +209,21 @@ Do **not** re-dispatch reviews this invocation — re-checking the fixed code is
 
 ## Commit (only when fixes landed)
 
-If at least one `Fix` sub-agent successfully modified files: follow the shared commit discipline ([_fix-loop.md](../_fix-loop.md) rule 7) with message `fix(<slug>): review-time fixes for <slice-slug>` (per-slice mode) or `fix(<slug>): review-time fixes` (slug-wide mode), and record the commit SHA in the review artifact's `## Fix Status` section AND in this run's `runs:` frontmatter entry (`fix-commit`). The fix sub-agents and commit replace the manual `/wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode remains as a manual escape (e.g., `could-not-fix` findings remain, or the user prefers the per-finding fix UI).
+If at least one `Fix` sub-agent successfully modified files: follow the shared commit discipline ([_fix-loop.md](../_fix-loop.md) rule 7) with message `fix(<slug>): review-time fixes for <slice-slug>` (per-slice mode) or `fix(<slug>): review-time fixes` (slug-wide mode), and record the commit SHA in the review file's `## Fix Status` section AND as `fix-commit` in its frontmatter. The fix sub-agents and commit replace the manual `/wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode remains as a manual escape (e.g., `could-not-fix` findings remain, or the user prefers the per-finding fix UI).
 
-# Step 5: Write the merged master ledger
+# Step 5: Write the review file whole
 
-Write (merge into) the master artifact. Filename depends on `review-scope`: **per-slice** → `07-review-<slice-slug>.md`; **slug-wide** → `07-review.md`. Load [_artifact.md](_artifact.md) and write the file from its Step 5 template: the `type: review` frontmatter (verdict, cumulative `commands-run`, OPEN metric counts, `runs:` audit trail, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write the review file. Filename depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix loop. Load [_artifact.md](_artifact.md) and write the file from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
-When the file already exists, **edit in place** — preserve sections not changing (especially `## Triage Decisions` rows not re-triaged), update finding rows by ID, append net-new findings in severity-sorted position, mark resolved findings, and **append one entry to `runs:`**. Never overwrite the file wholesale.
-
-# Step 5b: Write the rich `.yaml` (do not skip)
-
-For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) per [_artifact.md](_artifact.md) Step 5b. Author the `.yaml` in the same turn, while the findings are in context.
-
-# Step 5c: Write per-dimension rich `.yaml` (do not skip)
-
-Each per-dimension file (`07-review-<command>.md` slug-wide, `07-review-<slice-slug>-<command>.md` per-slice) needs its own `<stem>.yaml` (`siblingYamlSchemas.review-dimension`). The Step-3 review sub-agent authors it; confirm every per-dimension `.md` with open findings has its `.yaml` and author any the sub-agent missed, per [_artifact.md](_artifact.md) Step 5c.
+Write the whole file on every run, also when it exists. Keep only `created-at` from the old file. Do not merge into the old body: the ledger holds the history.
 
 # Step 6: Update Index and Return
 
 1. Update `00-index.md` frontmatter:
    - `current-stage: review`, `status: active`, `progress.review: complete` (stays `complete` on every accumulating re-run)
    - Add review artifacts to `workflow-files` (idempotent — do not duplicate entries a prior run already added):
-     - **Per-slice**: add `07-review-<slice-slug>.md` and every `07-review-<slice-slug>-<command>.md` (do NOT remove sibling slices' review files).
-     - **Slug-wide**: add `07-review.md` and every `07-review-<command>.md`. Leave any prior per-slice review files in `workflow-files`.
+     - **Slug-wide**: add `07-review.md` and `findings.yaml`. Leave any prior per-slice review files in `workflow-files`.
+     - **Per-slice**: add `07-review-<slice-slug>.md` and `findings.yaml` (do NOT remove sibling slices' review files).
    - Set `next-command` and `next-invocation` from the default route.
 2. Return the compact chat summary with verdict and options.
 

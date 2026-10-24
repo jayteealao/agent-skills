@@ -34,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `03-slice.md` | artifact | always | |
 | `05-implement-*.md` | artifact | always | Summary of Changes; Files Changed; Deviations from Plan; Known Risks / Caveats |
 | `06-verify-*.md` | artifact | if-present | Acceptance Criteria Status; Adversarial Tests; Cross-Browser Delta; Friction Notes; Free Exploration Notes |
-| `07-review-*.yaml` | artifact | always | |
+| `findings.yaml` | artifact | always | |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | Mock fidelity inventory |
 | `04b-instrument.md` | artifact | if-present | |

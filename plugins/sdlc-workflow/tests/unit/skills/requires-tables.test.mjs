@@ -168,7 +168,7 @@ const READ_ORDER = /\b(?:Read|Load|read|load)\b(?:\*\*)?[ \t]+(?:\*\*)?(?:`([^`]
 /** The kind of a named file: 'artifact', 'procedure', or null for anything else. */
 export function fileKind(name) {
   const base = path.posix.basename(name.replace(/\\/g, '/'));
-  if (/^\d{2}[a-z]?-.+\.md$/.test(base) || base === 'po-answers.md' || base === 'decisions.yaml' || base === '00-index.md') return 'artifact';
+  if (/^\d{2}[a-z]?-.+\.md$/.test(base) || base === 'po-answers.md' || base === 'decisions.yaml' || base === 'findings.yaml' || base === '00-index.md') return 'artifact';
   if (/^_.+\.md$/.test(base) || /^runtime-adapters.*\.md$/.test(base)) return 'procedure';
   return null;
 }

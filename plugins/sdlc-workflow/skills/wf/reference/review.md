@@ -1,5 +1,5 @@
 ---
-description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one sub-agent per selected dimension, and maintains an ACCUMULATING LEDGER (re-runs dedupe + merge in place, mark cleared findings resolved, never overwrite). `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
+description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one scout per selected dimension and one refuter for every finding, merges the findings into the ledger `findings.yaml` (re-runs keep IDs, mark cleared findings resolved, never delete a row), and writes one review file whole. `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
@@ -27,9 +27,10 @@ You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
 - Fix every BLOCKER, HIGH and MED finding. Fix a LOW or NIT finding only when it is in this diff, local and safe. Otherwise defer it, with the reason.
 - Dismiss a finding only when it is a false positive, with the reason.
-- A finding against a confirmed design board is the decision of the person: record it open, with triage `needs-amend`.
+- Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`; never edit `findings.yaml` by hand.
+- A finding whose fix changes an acceptance check, a confirmed design board or a `02c-craft.md` line is a question for the person (`wf.mjs findings questions`). Do not apply that fix before the answer.
 - After the fix loop, run the full and heavy suites of the test profile once for the packet. Record the time of each run with `wf.mjs profile record`.
-- Compute the verdict from the open findings only.
+- Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
 - Stop on a `dont-ship` verdict, or on an open security or data-loss BLOCKER that the fix loop did not fix.
 
 ## Requires
@@ -64,7 +65,7 @@ Mode `triage`: the second argument is `triage`. Mode `select`: you select the ru
 | `07-design-audit.md` | artifact | if-present | |
 | `07-design-critique.md` | artifact | if-present | |
 | `07-review-<slice>.md` | artifact | on-resume | |
-| `07-review-<slice>.yaml` | artifact | on-resume | |
+| `findings.yaml` | artifact | if-present | |
 | `review/_stage.md` | procedure | always | |
 | `review/_triage.md` | procedure | mode:triage | |
 | `review/_select.md` | procedure | mode:select | |
@@ -76,7 +77,7 @@ Mode `triage`: the second argument is `triage`. Mode `select`: you select the ru
 | `07-review-<slice>.md` | writes | | |
 | `07-review.md` | writes | | |
 
-Stage mode only: ad-hoc review writes no stage artifact, so no check runs for it. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and its `.yaml`.
+Stage mode only: ad-hoc review writes no stage artifact, so no check runs for it. Slug-wide is the default scope. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and the ledger `findings.yaml`.
 
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 

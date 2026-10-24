@@ -81,7 +81,7 @@ Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
 1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
-2. For every stage file in `workflow-files`, use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (review `07-review-*.yaml`), what shipped (handoff/ship), and lessons (retro).
+2. For every stage file in `workflow-files`, use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (the ledger `findings.yaml`), what shipped (handoff/ship), and lessons (retro).
 3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
 3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
@@ -163,8 +163,8 @@ no advancing the workflow.
    | `plan` | `00-index.md`, `02-shape.md`, `04-plan.md` + every `04-plan-<slice>.md`, the live entries of `decide list` |
    | `shape` | `00-index.md`, `01-intake.md`, `02-shape.md`, the live entries of `decide list` |
    | `slice` | `00-index.md`, `02-shape.md`, `03-slice.md` (+ a named `03-slice-<slice>.md` if the user also gave one) |
-   | `review` | every `07-review-*.yaml` and the review masters' frontmatter, plus `02-shape.md` for the acceptance criteria the review was against |
-   | `findings` | every `07-review-*.yaml` **and** `06-verify-*.md` (+ `verify-evidence/`), plus `05-implement-*.md` and `02-shape.md` for context |
+   | `review` | the ledger `findings.yaml` and the review files' frontmatter, plus `02-shape.md` for the acceptance criteria the review was against |
+   | `findings` | the ledger `findings.yaml` **and** `06-verify-*.md` (+ `verify-evidence/`), plus `05-implement-*.md` and `02-shape.md` for context |
 
 2. **Write the explanation** in the recap voice. Structure for `plan`/`shape`/`slice`:
 

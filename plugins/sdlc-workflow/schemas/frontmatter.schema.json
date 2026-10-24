@@ -393,7 +393,7 @@
         },
         "review-scope-confirmed": {
           "type": "boolean",
-          "description": "false = review-scope is the provisional intake default (per-slice), not yet PO-confirmed; slice asks once the roster is known (plan asks on the skip-to-plan path) and flips this to true (INTAKE-SHAPE-HARDENING W3.2). Absent on pre-v9.136.0 workflows (treated as confirmed — they were asked at intake)."
+          "description": "true on every new workflow: review-scope is slug-wide, one review per work packet, and nobody is asked. false only on an older workflow whose provisional per-slice default was never confirmed; slice (or plan on the skip-to-plan path) sets slug-wide and flips this to true. Absent on older workflows (treated as confirmed)."
         }
       }
     },

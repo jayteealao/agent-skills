@@ -147,7 +147,7 @@ branch-strategy: none
 branch: "<current branch name>"
 base-branch: "<base>"
 review-scope: slug-wide
-review-scope-confirmed: false
+review-scope-confirmed: true
 appetite: small
 pr-url: ""
 pr-number: 0

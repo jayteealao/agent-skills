@@ -1,16 +1,16 @@
 ---
-description: Defect-hunting workflow for a named subsystem with no symptom, no hypothesis, and no diff. Takes a concern ("audit the paint-ordering code for wrong assumptions") plus optional paths, resolves the concern to a concrete file surface via parallel enumeration, selects review lenses from the existing rubric set, hunts, adversarially refutes each candidate finding, and merges survivors into an accumulating findings ledger (`07-review*`). Terminal and route-don't-fix — every accepted finding routes to its own follow-up command; this mode never edits code. Re-runs MERGE into the same ledger. Read-only.
+description: Defect-hunting workflow for a named subsystem with no symptom, no hypothesis, and no diff. Takes a concern ("audit the paint-ordering code for wrong assumptions") plus optional paths, resolves the concern to a concrete file surface via parallel enumeration, selects review lenses from the existing rubric set, hunts, adversarially refutes each candidate finding, and merges survivors and refuted candidates into the findings ledger `findings.yaml` (source `audit`), with one review file `07-review.md` written whole. Terminal and route-don't-fix — every accepted finding routes to its own follow-up command; this mode never edits code. Re-runs MERGE into the same ledger. Read-only.
 argument-hint: <concern> [paths…] | <slug> (re-run) | lenses=<a>,<b> override
 ---
 
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
-You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is an **accumulating findings ledger** — the same `07-review*` family the review stage owns, governed by the same merge law.
+You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is the **findings ledger** `findings.yaml` with source `audit` — the same ledger the review stage writes, governed by the same merge law — and one review file, `07-review.md`.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-audit-<descriptor>.md` (`type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no `07-review*` files, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-audit-<descriptor>.md` (`type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no ledger entries and no `07-review.md`, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
 
 If the first token matched an existing slug whose `workflow-type` IS `audit`, that is a **re-run** of the standalone flow below (Step 0 resume), not slug-mode.
 
@@ -22,7 +22,7 @@ If neither applies, proceed standalone below.
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). Pass a concern (plus optional paths), or an existing audit slug to re-run. |
-| Produces | `00-index.md` (`type: workflow-index`), `01-audit.md` (`type: intake`, the brief), `07-review.md` (master ledger, `type: review`), `07-review-<lens>.md` per lens (`type: review-command`) |
+| Produces | `00-index.md` (`type: workflow-index`), `01-audit.md` (`type: intake`, the brief), `findings.yaml` (the ledger, source `audit`), `07-review.md` (`type: review`, written whole from the ledger) |
 | Skips | No `02-shape.md`, no `04-plan.md` — for an audit, scoping and briefing are one motion. No branch. |
 | Next | Terminal → each accepted finding routes to its own command (Step 6 table). The workflow **stays open** for accumulating re-runs; close it with `/wf intake <slug> close` when the concern is retired. |
 | Escalate | A finding that static reading cannot settle is recorded at `confidence: low` with `needs-runtime-evidence` and the exact experiment named → `/wf probe` (see Step 4). |
@@ -36,7 +36,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `00-index.md` | artifact | on-resume | |
 | `01-audit.md` | artifact | on-resume | |
 | `07-review.md` | artifact | on-resume | |
-| `07-review-*.md` | artifact | on-resume | |
+| `findings.yaml` | artifact | on-resume | |
 | `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `_findings-ledger.md` | procedure | always | |
@@ -44,20 +44,19 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-audit.md` | writes | | |
 | `07-review.md` | writes | | |
-| `07-review-*.md` | writes | | |
 
 # Audit discipline
 You are a **read-only defect hunter that owns an accumulating findings ledger**.
 - Do not edit application code. Do not run a fix loop — there is none in this mode, ever. Every finding **routes**; none is fixed here.
 - Do not run the lenses yourself — dispatch sub-agents (Step 3) and refuters (Step 4) per [_subagents.md](../_subagents.md).
-- The ledger **accumulates across invocations**: the merge law — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs:` append — is single-sourced in [_findings-ledger.md](../_findings-ledger.md). Apply it; never restate it; never overwrite a prior finding.
+- The ledger **accumulates across invocations**: `wf.mjs findings add --source audit` applies the merge law of [_findings-ledger.md](../_findings-ledger.md) — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs` append. Never edit `findings.yaml` by hand; never restate the law.
 - Scope and lens selection must be **legible and correctable**: state the resolved surface, the exclusions, and every selected lens with its reason, in the artifact AND in chat, BEFORE the hunt runs. An audit whose scope was silently guessed cannot be trusted when it reports "no findings" — the reader cannot tell clean from unread.
 - **Zero findings is a valid, useful result.** Write the artifact with the resolved surface, lenses run, and not-observable set. Never pad a clean result with nits.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from the instructions:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: audit` → **re-run mode**. This run MERGES into the existing `07-review*` ledger. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
+   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: audit` → **re-run mode**. This run MERGES into the existing ledger `findings.yaml`. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
    - Otherwise → **new audit**. Derive a slug: `audit-<short-concern>` (kebab-case, max 5 words, e.g. `audit-paint-ordering`).
 2. **Collision check:** if `.ai/workflows/<slug>/00-index.md` exists with a different `workflow-type` → WARN and stop, as `discover` does.
 3. **Branch posture:** read-only — do not create or switch branches. Record the current branch in the index.
@@ -94,9 +93,9 @@ Lenses are the existing review rubrics at `../review/<lens>.md`, or one alias se
 For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the ad-hoc review sweep's rule ([review.md](../review.md)): **medium** for `architecture`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
 
 - The lens reference path: `<skill-dir>/reference/review/<lens>.md` (resolved to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch) — read it and apply its rubric.
-- **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — record `pre-existing: true` on every row for schema compatibility with the review family).
+- **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — set `preExisting: true` on every finding).
 - The exact concern, so the lens reads with intent.
-- **Candidate findings only** — findings do NOT enter the ledger until they survive Step 4. Return each with severity (BLOCKER/HIGH/MED/LOW/NIT), confidence (High/Med/Low), `file:line`, evidence snippet, and the claimed invariant it violates.
+- **Candidate findings only** — findings do NOT enter the ledger before Step 4 refutes them. Return each with severity (BLOCKER/HIGH/MED/LOW/NIT), confidence (High/Med/Low), `file:line`, evidence snippet, and the claimed invariant it violates.
 - **The decidability boundary:** a candidate that static reading cannot settle (most sharply: "these two paths disagree at runtime") is returned with `needs-runtime-evidence: true` and **the exact experiment that would settle it** (a test run, a profile, a log line, a parity harness) — named, never guessed. Refuse to under-report; refuse to invent runtime facts.
 
 # Step 4 — Adversarial refutation (before anything lands)
@@ -106,22 +105,22 @@ A plausible-but-wrong finding costs more here than in the review stage — nobod
 1. Refuter count scales with severity: **BLOCKER/HIGH → three refuters with distinct lenses** (does it reproduce from the code as written · is the claimed invariant real · does a caller/guard upstream prevent it); **MED and below → one refuter**. Effort **high** for BLOCKER/HIGH refuters (causal reasoning), **low** otherwise, stated explicitly per [_subagents.md](../_subagents.md).
 2. Each refuter is prompted to **KILL the finding** — "prove this claim wrong; default to refuted when uncertain" — and returns `refuted: true|false` with its reasoning.
 3. A BLOCKER/HIGH candidate survives when **at least two of three** refuters fail to kill it; a MED-and-below candidate survives when its single refuter fails.
-4. **Survivors** enter the merge (Step 5). **Refuted candidates go in the master ledger's `## Refuted` section with the refutation** — never silently dropped; a refuted candidate is evidence that the lens looked.
-5. A candidate carrying `needs-runtime-evidence` skips refutation (there is nothing static to refute): it enters the ledger at `confidence: low`, `status: open`, with the named experiment, and Step 6 routes it to `/wf probe`.
+4. **Survivors and refuted candidates both** enter the merge (Step 5). A refuted candidate carries the killing refutation as `refuted`, and the ledger keeps it with status `refuted` — never silently dropped; a refuted candidate is evidence that the lens looked.
+5. A candidate carrying `needs-runtime-evidence` skips refutation (there is nothing static to refute): it enters the ledger at `confidence: low`, `status: open`, with the named experiment as `needsRuntimeEvidence`, and Step 6 routes it to `/wf probe`.
 
 # Step 5 — Merge into the ledger
 
-Write the `07-review*` family under `.ai/workflows/<slug>/`, applying [_findings-ledger.md](../_findings-ledger.md) in full — within-run dedupe, cross-run reconcile against any prior ledger, resolve-sweep for re-run lenses, `runs:` append, full merged set emitted. Timestamps per [_timestamp.md](../_timestamp.md).
+Timestamps per [_timestamp.md](../_timestamp.md).
 
-1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only); a clean lens writes no `.yaml`.
-2. **Master ledger** — `07-review.md`, `type: review`, `review-scope: slug-wide`, with `## All Findings`, `## Findings (Detailed)`, `## Refuted` (this mode's addition — candidate, killing refutation, refuter lens), `## Triage Decisions` (routes recorded in Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`. Sibling `.yaml` per the review shape.
-3. **Edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
-4. **`01-audit.md`** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
+1. **Merge.** Write every candidate (survivors and refuted) to `.ai/workflows/<slug>/.found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.found.json --source audit --run <now>`.
+2. **Review file** — write `07-review.md` (`type: review`, `review-scope: slug-wide`) whole, from the ledger: the frontmatter metrics from `wf.mjs findings metrics --source audit`, `## Findings` from `wf.mjs findings table --source audit` (refuted rows included, with the killing refutation), `## Triage Decisions` (the routes of Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`.
+3. **`01-audit.md` edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
+4. **`01-audit.md` content** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
 5. **`00-index.md`** (`type: workflow-index`) — `workflow-type: audit`, `status: active` (an audit stays open for accumulating re-runs), `current-stage: audit`, `review-scope: slug-wide`, `branch-strategy: none`, progress map `{audit: complete}`, `recommended-routes` from Step 6. Register the row in `.ai/workflows/INDEX.md` per `_intake-context.md`.
 
 # Step 6 — Route (terminal; route-don't-fix)
 
-For each OPEN finding, record a route in `## Triage Decisions`:
+For each OPEN finding, record its route with `wf.mjs findings set "<root>" <slug> <id> deferred --reason "route: <command>"`, so the route survives the next run. `## Triage Decisions` of `07-review.md` lists the routes from the ledger:
 
 | Finding shape | Route |
 |---|---|
@@ -146,13 +145,13 @@ Lenses: <lens (reason) · lens (reason) …>
 Findings: <O open / R resolved / X refuted>   (this run: A net-new, B re-confirmed, C cleared)
 Not observable statically: <N — see 01-audit.md ## Not observable>
 Routes: <top routes, one per open BLOCKER/HIGH>
-Artifacts: .ai/workflows/<slug>/01-audit.md, 07-review.md, 07-review-<lens>.md …
+Artifacts: .ai/workflows/<slug>/01-audit.md, findings.yaml, 07-review.md
 Next: <top route> | /wf intake audit <slug> (re-run) | /wf intake <slug> close (retire the concern)
 ```
 
 # Crash-safe / resume
 
-The ledger on disk is the state. A killed run resumes by re-invoking `/wf intake audit <slug>`: orientation re-reads `01-audit.md` (surface, lenses) and the existing `07-review*` files, and the merge law makes the re-run idempotent — nothing is lost, nothing duplicated.
+The ledger on disk is the state. A killed run resumes by re-invoking `/wf intake audit <slug>`: orientation re-reads `01-audit.md` (surface, lenses) and the ledger `findings.yaml`, and the merge law makes the re-run idempotent — nothing is lost, nothing duplicated.
 
 # Boundary tripwires (warn-and-continue, never refuse)
 

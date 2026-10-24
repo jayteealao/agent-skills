@@ -75,6 +75,14 @@ When ambiguous, prefer the more severe class. Bots producing very long walkthrou
 
 `Source` is the reviewer login (or `<login> [bot]` for bot accounts). `Summary` is one short sentence in product language (per External Output Boundary: cite no workflow artifact paths in the summary, even though the table is internal).
 
+### 4b. Record the threads in the findings ledger
+
+Record every 🔴 and 🟡 thread of this iteration in the ledger of [../_findings-ledger.md](../_findings-ledger.md), with source `pr-bot`. A 🟢 comment is not a finding.
+
+1. Write `.ai/workflows/<slug>/.found.json` with `dimensions: ["pr-review"]` and one finding per thread: `dimension: pr-review`, `key: <threadId>`, `severity: HIGH` for 🔴 and `LOW` for 🟡, `file`, `line`, `issue` (the summary of step 4) and `fix` (the recommended action).
+2. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.found.json --source pr-bot --run <now>`. A thread that a later iteration does not fetch again (it was resolved on the PR) becomes `resolved`.
+3. When an outcome is known, record it on the entry with `wf.mjs findings set`: a fix that landed → `fixed`; a deferred thread → `deferred --reason "<the deferral rationale>"`; a declined thread → `dismissed --reason "<the decline rationale>"`.
+
 ### 5. Address 🔴 blockers
 
 Fixes run in **subagents, never inline**; this is what keeps the orchestrator context clean. The orchestrator collects approved threads and dispatches the fix work; it does not read source or patch code itself.

@@ -17,8 +17,8 @@ selected-slice: ""
 branch-strategy: <dedicated|shared|none>
 branch: "<feat/slug or empty>"
 base-branch: "<main|master|develop>"
-review-scope: per-slice
-review-scope-confirmed: false
+review-scope: slug-wide
+review-scope-confirmed: true
 appetite: <small|medium|large>
 pr-url: ""
 pr-number: 0
@@ -83,7 +83,7 @@ The index has no markdown body. The frontmatter is the current state of the work
 - Write no YAML comments in the index.
 - Append history (old notes, old next-step commentary) to `index-history.jsonl`, one JSON object per line: `{"at","kind","text","stage"}`.
 - Keep the deferral list, `intent-risks`, `charter`, and `revisions:` in the index.
-- `review-scope: per-slice` is a provisional default. Slice (or plan on the skip-to-plan path) confirms it.
+- `review-scope: slug-wide` is the rule: one review per work packet. Nobody is asked. A person who wants a review per slice sets `review-scope: per-slice` with `/wf intake <slug> amend` before the first review.
 - `stack` is the Step 0.5 fingerprint. Batch B confirms it. `design/_lane.md` defines the `ux-impact` values.
 - Write `design-move` only when `/wf design <move>` started the workflow. Otherwise omit the key.
 - When `ux-impact: none`, shape sets `progress.design: skipped` and writes `design-skip-reason`. Otherwise omit the key.

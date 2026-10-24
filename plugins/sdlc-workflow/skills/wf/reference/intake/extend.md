@@ -30,7 +30,9 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `03-slice.md` | artifact | always | |
-| `07-review-*.md` | artifact | mode:from-review | Recommendations; Triage Decisions |
+| `07-review.md` | artifact | mode:from-review | Recommendations |
+| `07-review-*.md` | artifact | mode:from-review | Recommendations |
+| `findings.yaml` | artifact | mode:from-review | |
 | `10-retro.md` | artifact | mode:from-retro | Recommended Improvements; Keep / Change / Drop; Deferred Debt |
 | `03-slice-probe-*.md` | artifact | mode:from-probe | |
 | `02-shape.md` | artifact | mode:general | |
@@ -85,13 +87,13 @@ Depending on the seed:
 
 ## `from-review` seed
 
-Read every `07-review-<slice-slug>.md` file → `## Recommendations` and `## Triage Decisions` of each. Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
+Read `## Recommendations` of every review file (`07-review.md`, and each `07-review-<slice-slug>.md`), and the open findings of the ledger (`wf.mjs findings list "<root>" <slug> --source review --open`). Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
 
 Signs that a finding warrants a new slice (not a bug fix):
 - Finding says "this feature should also do X, but X was never scoped"
 - Finding describes a gap in the system that requires new code paths, not correction of existing ones
 - Multiple related findings that together describe an unimplemented capability
-- Finding tagged as `defer` (deferred findings often become extension scope)
+- Finding with status `deferred` (deferred findings often become extension scope)
 - Finding describes a non-functional requirement (performance, security, scalability) that requires architectural additions
 
 Signs that a finding is a bug fix, NOT extension scope:

@@ -15,7 +15,7 @@ You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3
 | Requires | See [## Requires](#requires). |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master. Schemas: [implement/_artifact.md](implement/_artifact.md). |
 | Next | `/wf verify <slug> <slice-slug>` (default); skip to `/wf review <slug> <slice-slug>` if verification is trivial. |
-| Special | `/wf implement <slug> reviews` — fix the findings in `07-review-<slice-slug>.md` in parallel, per [implement/_reviews-mode.md](implement/_reviews-mode.md). Example: `/wf implement my-slug reviews`. |
+| Special | `/wf implement <slug> reviews` — fix the open review findings of the ledger `findings.yaml` in parallel, per [implement/_reviews-mode.md](implement/_reviews-mode.md). Example: `/wf implement my-slug reviews`. |
 
 ## Card
 
@@ -55,7 +55,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
 | `review/_fix-prompt.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
-| `07-review-<slice>.yaml` | artifact | mode:reviews | |
+| `findings.yaml` | artifact | mode:reviews | |
 | `05-implement-<slice>.md` | writes | | |
 
 Change-mode (`fix` / `hotfix` / `refactor`) and single-scope workflows use the un-suffixed names: `03-slice.md`, `04-plan.md`, `05-implement.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.

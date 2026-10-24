@@ -40,7 +40,7 @@ Question 2:
 ```
 Record the appetite answer as `appetite:` in `00-index.md` frontmatter; it is machine-read downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations).
 
-**Review scope is NOT asked here:** the PO cannot judge review layout before slicing exists. `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`; `slice` asks the PO once the roster is known (`plan` asks instead on the skip-to-plan path that bypasses slice).
+**Review scope is not a question:** one review per work packet. `00-index.md` carries `review-scope: slug-wide` with `review-scope-confirmed: true`. Only `/wf intake <slug> amend` changes it.
 
 If the user chose "Dedicated" for branch strategy, follow up (in chat or as a second gate question) for:
 - Preferred branch name (default: `feat/<slug>`)

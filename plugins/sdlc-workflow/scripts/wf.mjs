@@ -51,6 +51,18 @@
  *   brief    <root> <slug> <stage> [<slice>] [--json]
  *             the brief of a stage agent: the stage card, the slice and its acceptance criteria,
  *             the plan sections of the stage, and the live decisions in scope
+ *   findings add <root> <slug> <found.json> [--source review|audit|pr-bot] [--slice x]
+ *                [--dimensions a,b] [--run id] [--json]
+ *             merge the findings of one run into findings.yaml by the merge law
+ *   findings list <root> <slug> [--source s] [--slice x] [--open] [--json]
+ *             the entries of the ledger (--open: open, deferred and could-not-fix only)
+ *   findings set <root> <slug> <id> <status> [--reason r]
+ *             the triage status of one entry
+ *   findings table|metrics <root> <slug> [--source s] [--slice x] [--json]
+ *             the verdict and the findings table, or the metric fields, of a review file
+ *             (the source defaults to review, the scope to the whole packet)
+ *   findings questions <root> <slug> [--json]
+ *             the open findings whose fix changes an acceptance check, as questions
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -62,6 +74,7 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
+import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { progressLine, progressOf, writeProgress } from '../lib/progress.mjs';
 import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
@@ -71,7 +84,7 @@ import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -88,7 +101,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -483,6 +496,59 @@ export function runProfile(pos, opt) {
   throw new Error(`profile: unknown verb ${verb}`);
 }
 
+// ---------------------------------------------------------------- findings
+
+export function runFindings(pos, opt) {
+  const [verb, root, slug, a, b] = pos;
+  if (!verb || !root || !slug) throw new Error('findings: <add|list|set|table|metrics|questions> <root> <slug> are required');
+  const dir = join(wfRoot(resolve(root)), slug);
+  if (!existsSync(dir)) throw new Error(`findings: no workflow folder ${dir}`);
+  const ledger = readLedger(dir);
+  const source = opt.source ?? null;
+  // A review file shows one source and one scope: the packet (no slice) unless --slice names one.
+  const scope = { source: source ?? 'review', slice: opt.slice ?? null };
+  switch (verb) {
+    case 'add': {
+      if (!a) throw new Error('findings add: <found.json> is required');
+      const doc = JSON.parse(readFileSync(resolve(a), 'utf8'));
+      const found = Array.isArray(doc) ? doc : doc.findings ?? [];
+      const dimensions = opt.dimensions ? String(opt.dimensions).split(',').map((d) => d.trim()).filter(Boolean) : (doc.dimensions ?? []);
+      const r = mergeRun(ledger, found, { ...scope, dimensions, run: opt.run ?? null });
+      writeLedger(dir, r.ledger);
+      out(opt.json ? { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, verdict: r.verdict } : `added ${r.added.length}, seen again ${r.resurfaced.length}, resolved ${r.resolved.length}: ${r.verdict}`);
+      return 0;
+    }
+    case 'metrics': {
+      const m = metricsOf(ledger, scope);
+      out(opt.json ? m : Object.entries(m).map(([k, v]) => `${k}: ${Array.isArray(v) ? `[${v.join(', ')}]` : v}`).join('\n'));
+      return 0;
+    }
+    case 'list': {
+      const rows = ledger.findings.filter((f) => (!source || f.source === source) && (opt.slice == null || f.slice === opt.slice) && (!opt.open || OPEN_STATUSES.has(f.status)));
+      out(opt.json ? rows : rows.length ? rows.map((f) => `${f.id} ${f.severity} ${f.status}${f.file ? ` ${f.file}${f.line ? `:${f.line}` : ''}` : ''}: ${f.issue}`).join('\n') : 'no findings');
+      return 0;
+    }
+    case 'set': {
+      if (!a || !b) throw new Error('findings set: <id> <status> are required');
+      const e = setStatus(ledger, a, b, opt.reason ?? null);
+      writeLedger(dir, ledger);
+      out(opt.json ? e : `${e.id} ${e.status}`);
+      return 0;
+    }
+    case 'table': {
+      process.stdout.write(`Verdict: ${verdictOf(ledger, scope)}\n\n${findingsTable(ledger, scope)}\n`);
+      return 0;
+    }
+    case 'questions': {
+      const q = questionsOf(ledger);
+      out(opt.json ? { questions: q } : q.length ? q.map((x) => `${x.key}: ${x.question}`).join('\n') : 'no questions');
+      return 0;
+    }
+    default:
+      throw new Error(`findings: unknown verb ${verb}`);
+  }
+}
+
 // ---------------------------------------------------------------- main
 
 export async function main(argv = process.argv.slice(2)) {
@@ -521,6 +587,7 @@ export async function main(argv = process.argv.slice(2)) {
       case 'decide': return runDecide(pos, opt);
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
+      case 'findings': return runFindings(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;
         if (!['set', 'show'].includes(verb) || !root || !slug) throw new Error('progress: <set|show> <root> <slug> are required');

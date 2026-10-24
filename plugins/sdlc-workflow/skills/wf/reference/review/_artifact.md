@@ -1,54 +1,50 @@
-# Review stage — master ledger template and rich siblings (Steps 5, 5b, 5c of `_stage.md`)
+# Review stage — the review file template (Step 5 of `_stage.md`)
 
-Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template (Step 5), the sweep-level sibling `.yaml` rules (Step 5b), and the per-dimension sibling rules (Step 5c).
+Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template. The file is written whole on every run, from the findings ledger `findings.yaml` ([_findings-ledger.md](../_findings-ledger.md)). Take every count from `wf.mjs findings metrics` and the findings table from `wf.mjs findings table`, with the scope of the run. Never count findings by hand.
 
-## Step 5 — master ledger template
+## The template
 
 ```yaml
 ---
 schema: sdlc/v1
 type: review
 slug: <slug>
-review-scope: <per-slice|slug-wide>
+review-scope: <slug-wide|per-slice>
 slice-slug: <slice-slug or "" if slug-wide>
 status: complete
 stage-number: 7
-created-at: "<iso-8601>"        # first run's timestamp — PRESERVE across re-runs
+created-at: "<iso-8601>"        # the first run's timestamp — keep it from the old file
 updated-at: "<iso-8601>"        # this run's timestamp
-verdict: <ship|ship-with-caveats|dont-ship>     # from OPEN findings with pre-existing: false only
-commands-run: [correctness, security, ...]      # cumulative union of every dimension ever run
-modes: [select]                  # the modes of THIS run (review.md ## Requires); omit the key when none applies
+# The next 14 fields are the output of `wf.mjs findings metrics`, unchanged:
+verdict: <ship|ship-with-caveats|dont-ship>
+commands-run: [correctness, security, ...]
 metric-commands-run: <N>
-metric-findings-total: <N>       # OPEN findings (status open|deferred|could-not-fix)
-metric-findings-raw: <N>         # raw findings collected this run, pre-dedup
-metric-findings-blocker: <N>     # OPEN blockers with pre-existing: false. Handoff's blocker gate reads this field; pre-existing defects never count here.
-metric-findings-pre-existing: <N> # OPEN findings with pre-existing: true (any severity) — the ## Pre-existing Debt bucket
-metric-findings-high: <N>        # OPEN, pre-existing: false
-metric-findings-med: <N>         # OPEN
-metric-findings-low: <N>         # OPEN
-metric-findings-nit: <N>         # OPEN
-metric-findings-resolved: <N>    # findings cleared by a re-run (status resolved)
-metric-findings-fixed: <N>       # findings with status fixed, cumulative; ship's release notes read it
-metric-findings-total-ever: <N>  # every finding ever recorded (open + closed) — ledger size
-runs:                            # compact per-invocation audit trail (frontmatter only; append one entry per run)
-  - at: "<iso-8601>"
-    dimensions: [correctness, security, ...]    # commands run THIS invocation
-    verdict: <ship|ship-with-caveats|dont-ship>  # verdict snapshot after this run
-    fix-commit: "<SHA | null>"                   # review-time fix commit this run, if any
+metric-findings-total: <N>
+metric-findings-raw: <N>
+metric-findings-blocker: <N>     # handoff's blocker gate reads this field
+metric-findings-high: <N>
+metric-findings-med: <N>
+metric-findings-low: <N>
+metric-findings-nit: <N>
+metric-findings-pre-existing: <N>
+metric-findings-resolved: <N>
+metric-findings-fixed: <N>       # ship's release notes read it
+metric-findings-total-ever: <N>
+fix-commit: "<SHA | null>"       # the review-time fix commit of this run, if any
+modes: [select]                  # the modes of THIS run (review.md ## Requires); omit the key when none applies
 tags: []
 refs:
   index: 00-index.md
-  # Per-slice mode:
-  slice-def: 03-slice-<slice-slug>.md
-  implement: 05-implement-<slice-slug>.md
-  verify: 06-verify-<slice-slug>.md
-  sub-reviews: [07-review-<slice-slug>-correctness.md, 07-review-<slice-slug>-security.md, ...]
-  # Slug-wide mode (replace the four per-slice keys above with these):
+  findings: findings.yaml
+  # Slug-wide mode:
   shape: 02-shape.md
   slice-index: 03-slice.md
   implements: [05-implement-<slice-1>.md, 05-implement-<slice-2>.md, ...]
   verifies: [06-verify-<slice-1>.md, 06-verify-<slice-2>.md, ...]
-  sub-reviews: [07-review-correctness.md, 07-review-security.md, ...]
+  # Per-slice mode (replace the four slug-wide keys above with these):
+  slice-def: 03-slice-<slice-slug>.md
+  implement: 05-implement-<slice-slug>.md
+  verify: 06-verify-<slice-slug>.md
 next-command: <key of the default route>
 next-invocation: "/wf <key> <slug> [<slice>]"   # equals the default route's invocation
 recommended-routes:              # every viable option from _stage.md Adaptive routing; exactly one default
@@ -66,7 +62,7 @@ recommended-routes:              # every viable option from _stage.md Adaptive r
 
 **{Ship / Ship with caveats / Don't Ship}**
 
-{3-4 sentence rationale. Name the most critical finding. State whether any blockers exist.}
+{3-4 sentence rationale. Name the most critical finding. State whether any blockers exist. Say what this run did: the net-new, seen-again and resolved counts that `findings add` printed, and how many findings the refuters refuted.}
 
 ## Decision Fidelity
 
@@ -82,64 +78,36 @@ Only when `00-index.md` records `origin-packet` and the scope is slug-wide; omit
 |--------|---------|--------|
 | {domain} | `{command}` | {Clean / Issues / Blockers} |
 
-## All Findings
+## Findings
 
-ALL findings ever recorded — open AND closed. Resolved / fixed / dismissed rows are kept for history; they sort last within their severity.
+{The output of `wf.mjs findings table`, unchanged: open rows first, then the closed rows (resolved, refuted, fixed, dismissed) for history.}
 
-| ID | Sev | Conf | Status | Pre | Surfaced | Source | File:Line | Issue |
-|----|-----|------|--------|-----|----------|--------|-----------|-------|
+## Open Findings (Detailed)
 
-**Open:** BLOCKER: {X} | HIGH: {X} | MED: {X} | LOW: {X} | NIT: {X}   **Pre-existing:** {X}
-**Closed:** resolved: {X} | fixed: {X} | dismissed: {X}   **Ledger size (ever):** {N}
-*(This run: {A} net-new, {B} re-confirmed, {C} resolved; merged from {M} raw findings across {K} commands)*
+One section per open BLOCKER and HIGH finding of this scope, from its ledger entry:
 
-## Findings (Detailed)
+### {ID}: {issue} [{SEVERITY}]
 
-### {ID}: {Title} [{SEVERITY}]
-
-**Location:** `{file}:{line-range}`
-**Source:** {command(s) that flagged this}
-
-**Evidence:**
-```
-{snippet}
-```
-
-**Issue:** {description}
-
-**Fix:** {suggestion for HIGH+}
-
-**Severity:** {level} | **Confidence:** {High/Med/Low} | **Pre-existing:** {true/false}
-**Status:** {status} | **Surfaced:** {surfaced-at} | **Last seen:** {last-seen-at}  {— **Resolved:** {resolved-at} / **Fixed:** {fixed-at} when applicable}
+**Location:** `{file}:{line}` | **Source:** {dimension and `also`}
+**Evidence:** {evidence}
+**Fix:** {fix}
+**Confidence:** {confidence} | **Surfaced:** {surfaced-at} | **Last seen:** {last-seen-at}
 
 ## Pre-existing Debt
 
-Findings whose defect exists on the base branch untouched by this diff (`pre-existing: true`, determined by diff test with `git blame` as tiebreaker). They do NOT count toward the verdict or blocker gate but are real debt — must not be silently dropped. Route each to `/wf intake fix <description>` (defects) or `/wf intake refactor <description>` (structural). Omit this section when no pre-existing findings exist.
+The open findings with `pre-existing: true`: the defect is on the base branch, on lines this diff did not touch. They do NOT count toward the verdict or the blocker gate but are real debt. Route each to `/wf intake fix <description>` (defects) or `/wf intake refactor <description>` (structural). Omit this section when there are none.
 
 | ID | Sev | Source | File:Line | Issue | Suggested routing |
 |----|-----|--------|-----------|-------|-------------------|
-| {ID} | {SEV} | {command} | {file}:{line} | {one-line issue} | `/wf intake fix\|refactor <desc>` |
-
-## Triage Decisions
-
-Accumulates across runs — decisions persist until re-triaged (Step 4b or `/wf review <slug> triage`). Update rows by ID; never drop a prior row.
-
-| ID | Sev | Source | Decision | Notes |
-|----|-----|--------|----------|-------|
-| {ID} | {SEV} | {command} | {fix/defer/dismiss} | {user's reason or —} |
-
-{All BLOCKER/HIGH/MED findings ever triaged. LOW/NIT listed as "untriaged".}
+| {ID} | {SEV} | {dimension} | {file}:{line} | {one-line issue} | `/wf intake fix\|refactor <desc>` |
 
 ## Fix Status
 
-Present once any finding has been through the fix loop. **Accumulating per-finding ledger** (one row per finding ever marked `Fix`), keyed by ID — update in place; never start a new per-run "round" table. Omit only when no finding has ever been fixed.
+Present once any finding of this scope has status `fixed` or `could-not-fix`. One row per such entry of the ledger.
 
-| ID | Sev | Source | Status | Fixed-at | Commit | Notes |
-|----|-----|--------|--------|----------|--------|-------|
-| {ID} | {SEV} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {one-line summary} |
-
-{List each `could-not-fix` finding under `## Recommendations → Must Fix (remaining)` with the
-sub-agent's stated reason so the next stage knows what is still open.}
+| ID | Sev | Status | Commit | Notes |
+|----|-----|--------|--------|-------|
+| {ID} | {SEV} | fixed / could-not-fix | {SHA or —} | {the reason of a could-not-fix, or a one-line summary} |
 
 ## Soft Findings
 
@@ -147,37 +115,14 @@ Informational observations that are not findings: each verify `## Friction Notes
 
 ## Recommendations
 
-### Must Fix (triaged "fix")
-{List with finding IDs and estimated effort}
+### Must Fix
+{The open BLOCKER and HIGH findings, and each `could-not-fix` finding with its reason}
 
-### Should Fix (MED triaged "fix")
-{List}
+### Should Fix
+{The open MED findings}
 
-### Deferred (triaged "defer")
-{List — re-triage later via `/wf review <slug> triage`}
+### Deferred
+{The `deferred` findings with their reasons — re-triage later via `/wf review <slug> triage`}
 
-### Dismissed
-{List with finding IDs and reason}
-
-### Consider (LOW/NIT — not triaged)
-{List}
-
----
-
-## Step 5b — the sweep-level rich `.yaml` (do not skip)
-
-The sibling `.yaml` is the findings ledger: later stages and the yolo driver read it. Author it in the same turn as the `.md`, while the findings are in context.
-
-For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
-
-Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `schemas/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
-
----
-
-## Step 5c — per-dimension rich `.yaml` (do not skip)
-
-Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — has its own sibling `.yaml`.
-
-Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` and author any the sub-agent missed. A clean dimension writes no `.yaml`. For each per-dimension review `.md`:
-
-Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `schemas/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
+### Consider
+{The open LOW and NIT findings}
