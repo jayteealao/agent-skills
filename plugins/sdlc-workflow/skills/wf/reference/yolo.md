@@ -72,7 +72,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.
 
-**Plan fan-out (`planFanout: true`).** Plan agents write only their own plan files, in `depends-on` order. A bookkeeping agent writes the master sibling table and sets `reconcile-pending: true`. The driver re-plans each overlapping slice (review-and-fix), then clears the marker. While the marker is set, every run reconciles first.
+**Progress record.** Each stage agent runs `wf.mjs progress set` when it starts, and the `run-end` agent writes `done`, `stopped` or `waiting` with the reason and the resume command. `/wf status <slug>` reads that record.
 
 **Plan check.** Before an implement, a read-only agent refreshes a plan that code built earlier this run contradicts.
 
@@ -91,13 +91,13 @@ Every gate `auto` defers to the user, `yolo` resolves by this rule. Two tiers: *
 
 | Gate | Auto-resolve | HARD-STOP |
 |---|---|---|
-| `plan` discovery interview / scope fork | Implementation-detail forks: pick the option best satisfying the slice AC at least cost; **record the assumption** in `## Assumptions`. | A fork that changes **user-observable scope or a contract** (public API, data shape, UX behavior, migration). |
+| `plan` discovery interview / scope fork | Implementation-detail forks: pick the option best satisfying the slice AC at least cost; **record the assumption** in `## Assumptions`. A fork that changes **user-observable scope or a contract** (public API, data shape, UX behavior, migration) is intent-bearing: the stage returns it as a question (see the intent-bearing row). |
 | `verify` failing check / unmet AC | Auto-fix: apply the minimal patch, run the stage's single fix round. Up to **2 rounds**. Before any deferral, climb the **env-remediation rung** (runtime-adapters/_ladder.md): rebind a harness-owned service to a free port and record it, boot the documented headless mode, start an existing AVD, run a provisioning script the repo ships, execute a plan-authorized install — **never defer over a port the run itself binds**. Then classify the wall (`wall-ownership`): a `code-owned` wall (the repo's own hard-coded port/host/endpoint or fixture) is **not** auto-deferrable — it is a surfaced decision. A user-observable AC the environment genuinely cannot evidence is **deferred** (verify's `interactive-verification: deferred` hatch) — lawful ONLY over a **probed** incapability: the capability probe's command + output tail is carried as a structured `probe` **receipt** on the deferral; an all-specs-skipped-at-guard sweep is never an auto-deferral. A deferral that arrives with **no** probe receipt draws exactly **one** corrective re-run demanding it; still receipt-less after that → HARD-STOP. A deferral recorded by an **earlier run** is a claim to **re-probe fresh, never inherit**. Recorded in `00-index.md` `runtime-evidence-deferrals`; the run continues at `result: partial`. | A **substantive** failure still unresolved after 2 rounds (`convergence: escalated`), a bare `result: blocked-runtime-evidence-missing`, a deferral still carrying no probe receipt after the corrective re-run, or a **`code-owned` wall with no scoped resolution**. Never fabricate runtime proof. |
-| `review` triage | **Fix** every BLOCKER + HIGH + **MED (always)**. **Fix** LOW/NIT when in-scope ∧ localized ∧ safe; else **defer-and-record**. Never silently dismiss. | `verdict: dont-ship`, an unfixable **security / data-loss** blocker after the fix loop, or a `needs-amend` finding (route `/wf design <slug> amend`). |
+| `review` triage | **Fix** every BLOCKER + HIGH + **MED (always)**. **Fix** LOW/NIT when in-scope ∧ localized ∧ safe; else **defer-and-record**. Never silently dismiss. | `verdict: dont-ship`, or an unfixable **security / data-loss** blocker after the fix loop. A finding whose fix changes an acceptance check, a confirmed design board or a craft line is a question: `wf.mjs findings questions` prints it with its key. |
 | charter fidelity checkpoint (every **3** slices) | A commitment judged **honored** — drive on; **at-risk** — drive on but surface it in `outcome.charterCheckpoints`. | A commitment judged **broken**. HARD-STOP with `outcome.stoppedAt = 'charter-checkpoint'`; even an autonomous driver does not silently walk away from a charter commitment. |
 | `update-deps` scope gate (Step 6) | **Proceed with the full plan** — P0 security + P1 major+migration (one at a time, only the API-forced app-code changes) + P2 safe batch. A package that fails its test/build is marked `blocked` and the run continues (`result: partial`); its `06-verify.md` deferrals reuse the runtime-evidence hatch. Never audit-only, never hand-edit lockfiles, never mix a security update with a major migration in one commit. | A substantive `06-verify.md` failure unresolved (same rule as `verify`), or a slug-wide review that returns `dont-ship` / an unfixable security blocker. |
 | branch posture (`dedicated` only) | Land the tree on the slug branch **before any stage runs**: switch to it if it exists, else **create it from `base-branch`**. `shared`/`none` never switch. | A switch or create that would clobber uncommitted work (never stash/force), or a missing `base-branch` that blocks the create. |
-| intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous. | STOP: record the pending decision in the artifact as awaiting-input, and surface it in the run report. Record the answer of the person in the decision store. |
+| intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous, except in delegate mode. A live answer in the decision store settles it (`decide answered`). | The stage records the open question in its artifact as awaiting-input and returns `status: 'questions'`. The run stops as `waiting` with `outcome.questions`. See [Questions](#questions--the-stop-that-waits-for-the-person). |
 | `intake` / `shape` / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. |
 | standing steering (live `steer` entries) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. |
 
@@ -143,8 +143,10 @@ Workflow({
     referenceRoot: "<pluginRoot>/skills/wf/reference",
     slug:          "<slug>",
     slice:         "<slice>",       // slice mode only — omit for slug mode
-    models:        { … }            // the `models` block of .ai/sdlc-config.json
-    // reviewFanout (on) / planFanout (off): omit unless the person asks
+    models:        { … },           // the `models` block of .ai/sdlc-config.json
+    answered:      [ … ],           // a relaunch after questions only — see Questions
+    delegate:      true             // delegate mode only — omit otherwise
+    // reviewFanout (on): omit unless the person asks
   }
 })
 ```
@@ -156,6 +158,24 @@ The workflow runs in the background. Right after this call, start the watch and 
 - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
 - **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
+
+# Questions — the stop that waits for the person
+
+A stage agent never asks the person. It returns each intent-bearing decision as a question: `{ key, question, options, recommended, why }`. The run stops, and `outcome.questions` holds every question with its `stage` and `slice`. The main session asks them and relaunches:
+
+1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
+2. Ask the questions with **AskUserQuestion**, at most four per call. Put the `recommended` option first.
+3. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. Keep the id that the command prints.
+4. Repeat Step 0.4.
+5. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
+
+The answer reaches only the stage and the slice that asked it. Orientation skips every stage that is already terminal-clean, so the relaunch starts at the stage that asked. An answered stage can settle in three ways:
+
+- It settles the decision and continues.
+- A verify accepts the slice with its failing or residual items on the answer. The slice passes, and the verify frontmatter records `accepted-by`.
+- The answer needs a new plan or new code. The stage routes back to `plan` or `implement`, and the driver runs that stage and every later stage of the slice again with the answer. A slice routes back at most twice on one answer.
+
+**Delegate mode.** When the person says that the run decides for them, launch with `delegate: true`. Each stage settles an intent-bearing decision by the option it recommends, and records it with `--by delegate`. The run returns no questions. At the end, run `outcome.delegate.digest` (`decide list --by delegate`). Show each delegate decision to the person, who confirms or reverses it. A reversal is a `decide add --by person` with the same key: it supersedes the delegate entry. Then relaunch with that answer in `answered`.
 
 # Hot-patching the driver mid-run
 
@@ -185,7 +205,8 @@ Reconciled: <omit when absent | outcome.reconciled: N deferral classification(s)
 Clearing events satisfied: <omit when absent | outcome.clearingEventsSatisfied: N open deferral(s) whose clearing-probe reports the event HAS happened — run /wf probe <slug> to capture the evidence; nothing was cleared automatically>
 Subagent errors: <omit when absent | outcome.subagentErrors: N recovered, M fatal — recovered errors changed no verdict, but the run does not claim zero>
 Deferral pressure: <omit when absent | outcome.deferralPressure: N open, oldest since <date>, M repeat-of wall(s)>
-Plan reconcile: <omit when absent | outcome.planReconcile.replanned, or "no overlap">
+Questions: <omit when absent | outcome.questions: N — key and question of each; ask them now per Questions>
+Delegate decisions: <omit when not delegate mode | the entries that outcome.delegate.digest prints, each with its key and answer>
 Next: <outcome.route — the routing command>
 ```
 
@@ -194,6 +215,7 @@ Next: <outcome.route — the routing command>
 - **Endpoint, slug mode:** `/wf handoff <slug>`.
 - **HARD-STOP:** the gate that fired and the command to resolve it, then `/wf yolo <slug> [<slice>]` to resume.
 - **Stop request** (`stoppedAt` is `stop-request`): where the run stopped, then `outcome.route`.
+- **Questions** (`outcome.questions` is not empty): ask them and relaunch per [Questions](#questions--the-stop-that-waits-for-the-person). Do not wait for the person to type the command.
 
 Rules:
 - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains why it stopped.

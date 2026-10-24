@@ -271,6 +271,14 @@ test('reChallengeClause: lists each open prior deferral and forbids inheriting i
   assert.match(clause, /Do NOT inherit|NOT facts/);
 });
 
+test('reChallengeClause: runs defer check first and does not probe an unchanged entry again', () => {
+  const clause = reChallengeClause([{ slice: 's1', reason: 'no device' }], 'node "/p/wf.mjs" defer check "/r" demo --next s1');
+  assert.match(clause, /First run `node "\/p\/wf\.mjs" defer check "\/r" demo --next s1`/);
+  assert.match(clause, /reports 'unchanged' still stands: keep it, .* do not probe it again/s);
+  assert.match(clause, /reports 'changed' or 'no-probe'/);
+  assert.equal(reChallengeClause([{ slice: 's1', reason: 'r', authorized: true }], 'x'), '', 'an authorized deferral is settled');
+});
+
 // ---------------------------------------------------------------------------
 // deferralPressure (F3) — hand-back rollup across prior (index) + this run's deferrals.
 // Visibility only; null when there is no pressure.
@@ -784,15 +792,17 @@ test('steering: every judging or writing agent carries the clause; bookkeeping a
     driveWallProbe: "steer('context')",
     classifyDecisions: "steer('classify')",
     charterCheckpoint: "steer('checkpoint')",
-    reconcilePlans: "steer('context')",
+    planFreshness: "steer('context')",
   };
   for (const [fn, call] of Object.entries(withClause)) {
     assert.ok(fnSrc(fn).includes(call), `${fn} lacks ${call}`);
   }
   const review = fnSrc('driveReview');
-  for (const call of ["steer('context')", "steer('scout')", "steer('refute')", "steer('writer')"]) {
+  for (const call of ["steer('context')", "steer('scout')", "steer('refute')"]) {
     assert.ok(review.includes(call), `driveReview lacks ${call}`);
   }
+  // The review writer is runStage, which carries steer('writer').
+  assert.match(review, /return await runStage\('review', sliceArg, idx, \{\n\s+scan:/);
   assert.match(review, /selection\.steeringPresent === true/);
   for (const fn of ['ensureBranch', 'writeBackSliceStatus', 'runEnd']) {
     assert.ok(!fnSrc(fn).includes('steer('), `${fn} is bookkeeping and must not carry the clause`);

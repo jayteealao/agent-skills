@@ -29,6 +29,17 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `/wf intake <slug> close deferred` (see Step 6). |
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
 
+## Card
+
+The rules of Steps 6 to 9 when a driver runs them (`/wf yolo`), with nobody to ask:
+
+- The Step 6 gate answer is "Proceed with full plan": run every planned tier. Never treat the run as audit-only.
+- Run P0 security updates one package at a time, then P1 major updates one at a time, then the P2 safe updates in one batch. Apply only the app-code changes that the bump forces.
+- Never mix a security update and a major migration in one commit. Never edit a lockfile by hand: use the package manager.
+- When the tests or the build of a package fail, record the package as blocked in `05-implement.md`, with the reason, and continue. A run that updates some packages and blocks others is `result: partial`, not a stop.
+- Write `06-verify.md` from the full suite and the build. Defer an acceptance criterion only by the law of `verify/_deferrals.md`, once, with the probe of this run.
+- Stop after `06-verify.md`. Do not run the review or the handoff.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.

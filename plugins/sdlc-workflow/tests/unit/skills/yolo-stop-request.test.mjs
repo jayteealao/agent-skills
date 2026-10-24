@@ -34,35 +34,48 @@ function extractFn(name) {
 
 // driveChain with every dispatch stubbed: `answers` maps a stage to the result its
 // agent returns. The stubs record each dispatch and the extra options it carried.
-function chainHarness(answers) {
+// An answer may be a function of the dispatch count of its stage, so a stage can answer
+// differently when a route back runs it again. `answered` is the args.answered list of the run.
+function chainHarness(answers, answered = []) {
   const calls = [];
   const logs = [];
   const writeBacks = [];
   const build = new Function('stubs', `
-    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug } = stubs
+    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug, ANSWERED } = stubs
+    const projectRoot = '/r'
+    const WF_CMD = 'node "/p/scripts/wf.mjs"'
     // No implement ran before this chain, so it runs no plan check.
     let codeMoved = 0
     const planFreshness = async () => ({ fresh: true })
     // WF-SYSTEM-REVIEW C2: the split threshold that driveChain reads.
     const SPLIT_AFTER_STOPS = 2
+    const MAX_ROUTE_BACKS = 2
+    const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
     // C3: implement runs through implementSlice, which dispatches runStage with the stop check.
-    const implementSlice = (slice, idx) => runStage('implement', slice, idx, { stopCheck: true })
+    const implementSlice = (slice, idx, entry, answered) => runStage('implement', slice, idx, { stopCheck: true, answered })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
-    // WF-DESIGN-PLAN B1: the review's design findings stop the chain for the person.
-    ${extractFn('amendFindingsOf')}
-    ${extractFn('amendFindingsText')}
-    ${extractFn('amendStopReason')}
+    ${extractFn('questionsOf')}
+    ${extractFn('questionsText')}
+    ${extractFn('questionStop')}
+    ${extractFn('answeredFor')}
     ${extractFn('driveChain')}
     return driveChain
   `);
-  const answer = (stage) => answers[stage] || { stage, status: 'complete', artifactPath: `x/${stage}.md`, terminal: { statusField: 'complete', convergence: 'converged', result: 'pass', verdict: 'ship', blockerCount: 0 } };
+  const count = {};
+  const answer = (stage) => {
+    count[stage] = (count[stage] || 0) + 1;
+    const a = answers[stage];
+    const r = typeof a === 'function' ? a(count[stage]) : a;
+    return r || { stage, status: 'complete', artifactPath: `x/${stage}.md`, terminal: { statusField: 'complete', convergence: 'converged', result: 'pass', verdict: 'ship', blockerCount: 0 } };
+  };
   const driveChain = build({
     slug: 'engine-modules',
+    ANSWERED: answered,
     log: (m) => logs.push(m),
     runStage: async (stage, slice, idx, extra = {}) => { calls.push({ stage, extra }); return answer(stage); },
-    driveVerify: async () => { calls.push({ stage: 'verify' }); return answer('verify'); },
-    driveReview: async () => { calls.push({ stage: 'review' }); return answer('review'); },
+    driveVerify: async (slice, idx, extra = {}) => { calls.push({ stage: 'verify', extra }); return answer('verify'); },
+    driveReview: async (slice, idx, extra = {}) => { calls.push({ stage: 'review', extra }); return answer('review'); },
     driveWallProbe: async () => null,
     classifyDecisions: async (r) => r,
     writeBackSliceStatus: async (slice, idx, stages) => { writeBacks.push(stages); return { ok: true, wrote: [] }; },
@@ -115,40 +128,104 @@ test('the stop check reads the control file by path, fresh, and never edits it',
 });
 
 test('every stage boundary carries the stop check, and no fix round does', () => {
-  assert.match(src, /status: \{ enum: \['complete', 'hard-stop', 'stopped'\] \}/, 'STAGE_RESULT allows stopped');
-  assert.match(src, /runStage\(stage, sliceArg, idx, \{ stopCheck: true \}\)/, 'plan and implement in driveChain');
+  assert.match(src, /status: \{ enum: \['complete', 'hard-stop', 'stopped', 'questions'\] \}/, 'STAGE_RESULT allows stopped and questions');
+  assert.match(src, /runStage\(stage, sliceArg, idx, \{ stopCheck: true, answered \}\)/, 'plan in driveChain');
+  assert.match(src, /runStage\('implement', sliceArg, idx, \{ stopCheck: true, answered \}\)/, 'implement in driveChain');
   assert.match(src, /stopCheck: round === 1 && !probeCorrection/, 'verify: the first round only');
-  assert.match(src, /runStage\('review', sliceArg, idx, \{ stopCheck: true \}\)/, 'review without the fan-out');
+  assert.match(src, /runStage\('review', sliceArg, idx, \{ stopCheck: true, answered: extra\.answered \|\| null \}\)/, 'review without the fan-out');
   assert.match(extractFn('driveReview'), /stopCheck\(\) \+ ` When the stop-request check stops you/, 'review fan-out: the rubric selection agent checks before any scout');
   assert.match(extractFn('runUpdateDepsExec'), /stopCheck\(\)/, 'update-deps exec');
-  assert.match(extractFn('driveVerify'), /last\.status === 'stopped'\) return last/, 'verify passes a stop through');
+  assert.match(extractFn('driveVerify'), /last\.status === 'stopped' \|\| last\.status === 'questions'\) return last/, 'verify passes a stop and questions through');
   assert.match(src, /if \(outcome\.stoppedAt === 'stop-request'\) \{/);
   assert.match(src, /outcome\.route = `\/wf yolo \$\{slug\}\$\{slice \? ' ' \+ slice : ''\}`/, 'the route is the resume command');
 });
 
-// WF-DESIGN-PLAN B1 (P2): a review with findings against the confirmed design stops the chain at
-// review, with the findings as the reason and the amend route; the driver neither fixes nor dismisses them.
-test('a review with design findings stops at review with the route /wf design <slug> amend', async () => {
-  const review = {
-    stage: 'review', slice: 'auth', status: 'complete', artifactPath: 'x/07-review-auth.md',
-    terminal: { verdict: 'ship-with-caveats', blockerCount: 0 },
-    amendFindings: [{ key: 'design-1', severity: 'HIGH', summary: 'the list uses cards, the board shows rows', contract: 'design/r1/boards/list--default.png' }],
-  };
-  const h = chainHarness({ review });
+// A stage with an intent-bearing decision returns it as a question; the chain stops there.
+const ASK = (stage) => ({
+  stage, slice: 'auth', status: 'questions', artifactPath: '', terminal: {},
+  questions: [{ key: 'finding:design-1', question: 'The list uses cards and the board shows rows. Keep the cards?', options: ['keep', 'fix'], recommended: 'fix', why: 'the board is confirmed' }],
+});
+
+test('a review that returns questions stops the chain at review with the questions', async () => {
+  const h = chainHarness({ review: ASK('review') });
   const chain = await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);
   assert.equal(chain.stopped, true);
   assert.equal(chain.at, 'review');
-  assert.equal(chain.route, '/wf design engine-modules amend');
-  assert.ok(chain.reason.includes('design-1 (HIGH): the list uses cards, the board shows rows [against design/r1/boards/list--default.png]'), chain.reason);
-  assert.match(chain.reason, /the person decides amend, keep, or defer/);
-  assert.deepEqual(chain.amendFindings.map((f) => f.key), ['design-1']);
+  assert.deepEqual(chain.questions.map((q) => q.key), ['finding:design-1']);
+  assert.equal(chain.questions[0].stage, 'review');
+  assert.equal(chain.questions[0].slice, 'auth');
+  assert.match(chain.reason, /finding:design-1: The list uses cards/);
+  assert.match(chain.reason, /\(recommended: fix\)/);
+  assert.match(chain.route, /answer the questions, then re-run \/wf yolo engine-modules/);
   assert.deepEqual(h.writeBacks, [], 'the slice does not clear');
-  const clean = chainHarness({ review: { ...review, amendFindings: [] } });
-  assert.equal((await clean.driveChain(['review'], 'auth', IDX)).stopped, false, 'an empty list clears the gate as before');
 });
 
-test('the slice and slug outcomes carry the chain route; the slug-wide review stops with the amend route', () => {
+test('an entry with no key or no question is not a question', async () => {
+  const h = chainHarness({ plan: { ...ASK('plan'), questions: [{ key: '', question: 'x' }, { key: 'k', question: '' }] } });
+  const chain = await h.driveChain(['plan', 'implement'], 'auth', IDX);
+  assert.equal(chain.stopped, true, 'status questions still stops the chain');
+  assert.deepEqual(chain.questions, []);
+  assert.match(chain.reason, /plan returned status questions without a question/);
+});
+
+test('an answer reaches only the stage and slice that asked it', async () => {
+  const a = { key: 'finding:design-1', stage: 'review', slice: 'auth', answer: 'fix', by: 'person' };
+  const other = { key: 'k2', stage: 'review', slice: 'billing', answer: 'keep' };
+  const h = chainHarness({}, [other, a]);
+  await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);
+  const byStage = Object.fromEntries(h.calls.map((c) => [c.stage, c.extra.answered]));
+  assert.equal(byStage.plan, null);
+  assert.equal(byStage.implement, null);
+  assert.equal(byStage.verify, null);
+  assert.equal(byStage.review, a);
+});
+
+test('an answered verify that the person accepted passes the gate with its residual items', async () => {
+  const failing = { stage: 'verify', slice: 'auth', status: 'complete', artifactPath: 'x/06.md', accepted: true, acceptedByPerson: true, terminal: { statusField: 'complete', convergence: 'escalate', result: 'fail', substantiveResidual: true } };
+  const h = chainHarness({ verify: failing }, [{ key: 'verify:auth', stage: 'verify', answer: 'accept it' }]);
+  const chain = await h.driveChain(['verify'], 'auth', IDX);
+  assert.equal(chain.stopped, false);
+  const gated = chainHarness({ verify: { ...failing, accepted: false } });
+  assert.equal((await gated.driveChain(['verify'], 'auth', IDX)).stopped, true, 'without the acceptance the gate stops it');
+});
+
+test('an answered verify that routes back to plan runs plan, implement and verify again with the answer', async () => {
+  const a = { key: 'verify:auth', stage: 'verify', slice: 'auth', answer: 'the empty state shows a sign-up link' };
+  const done = { slices: [{ slice: 'auth', stages: { plan: 'done', implement: 'done' } }], priorDeferrals: [] };
+  const h = chainHarness({ verify: (n) => (n === 1 ? { stage: 'verify', slice: 'auth', status: 'complete', routeBack: 'plan', artifactPath: '', terminal: {} } : null) }, [a]);
+  const chain = await h.driveChain(['plan', 'implement', 'verify'], 'auth', done);
+  assert.equal(chain.stopped, false);
+  assert.deepEqual(h.calls.map((c) => c.stage), ['verify', 'plan', 'implement', 'verify']);
+  for (const c of h.calls.slice(1)) {
+    assert.equal(c.extra.answered.key, 'verify:auth', `${c.stage} carries the answer`);
+    assert.equal(c.extra.answered.routedBack, 'plan', `${c.stage} knows the walk routed back`);
+  }
+});
+
+test('a route back without an answer is ignored, and a route back that repeats stops the chain', async () => {
+  const back = { stage: 'verify', slice: 'auth', status: 'complete', routeBack: 'implement', artifactPath: '', terminal: { statusField: 'complete', convergence: 'converged', result: 'pass' } };
+  const loose = chainHarness({ verify: back });
+  assert.equal((await loose.driveChain(['implement', 'verify'], 'auth', IDX)).stopped, false);
+  assert.deepEqual(loose.calls.map((c) => c.stage), ['implement', 'verify']);
+  const loop = chainHarness({ verify: back }, [{ key: 'v', stage: 'verify', answer: 'redo it' }]);
+  const chain = await loop.driveChain(['implement', 'verify'], 'auth', IDX);
+  assert.equal(chain.stopped, true);
+  assert.match(chain.reason, /routed back to implement 3 times on one answer/);
+  assert.equal(loop.calls.filter((c) => c.stage === 'verify').length, 3);
+});
+
+test('the slice and slug outcomes carry the chain route and the questions; the slug-wide review stops on questions', () => {
   assert.ok(src.includes("route = chain.route || `address the gate at '${chain.at}'"), 'slice mode');
   assert.ok(src.includes("route: chain.route || `address the gate at '${chain.at}' on slice"), 'slug mode');
-  assert.ok(src.includes("stoppedAt: 'review', reason: amendStopReason(rev), amendFindings: amendFindingsOf(rev), results, slugWide: rev, route: `/wf design ${slug} amend` }"), 'slug-wide review');
+  assert.ok(src.includes("...(chain.questions ? { questions: chain.questions } : {})"), 'both modes carry the questions');
+  assert.ok(src.includes("const rev = await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })"), 'the slug-wide review carries its answer');
+  assert.ok(src.includes("? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }"), 'slug-wide review');
+  assert.doesNotMatch(src, /amendFindings|amendStopReason/);
+});
+
+test('a run that waits on questions ends as waiting, with the resume command and the relaunch route', () => {
+  assert.ok(src.includes("waiting ? { status: 'waiting', reason: `${outcome.questions.length} question(s) wait for the person`, resume: resumeCmd }"));
+  assert.match(extractFn('runEnd'), /progress set "\$\{projectRoot\}" \$\{slug\} --run/);
+  assert.ok(src.includes('re-run ${resumeCmd} with args.answered'));
+  assert.ok(src.includes('if (DELEGATE) outcome.delegate = { digest: `${WF_CMD} decide list "${projectRoot}" ${slug} --by delegate` }'));
 });

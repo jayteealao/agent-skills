@@ -1,6 +1,7 @@
-// ARTIFACT-SPLIT-PLAN yolo fixes Y4, Y6, Y7, Y8 — the read check reaches the stage
-// agent, the run report shows reads, the plan fan-out reconciles its siblings through
-// a durable marker, and orient reads only current index state.
+// ARTIFACT-SPLIT-PLAN yolo fixes Y4, Y6, Y8 — the read check reaches the stage agent,
+// the run report shows reads, and orient reads only current index state. The question
+// loop: a stage returns questions, the run stops as waiting, and a relaunch carries the
+// answers in args.answered.
 //
 // workflows/yolo.js is a Workflow SCRIPT (top-level return/await, injected globals).
 // The pure helpers are extracted by brace-matching, as in yolo-gates.test.mjs. The
@@ -26,11 +27,6 @@ function extractFn(src, name) {
   }
   throw new Error(`unbalanced braces extracting ${name}`);
 }
-
-const { reconcileDue, overlappingSlices } = new Function(
-  ['reconcileDue', 'overlappingSlices'].map((n) => extractFn(yoloSrc, n)).join('\n') +
-    '\nreturn { reconcileDue, overlappingSlices };',
-)();
 
 // ---- whole-script harness ---------------------------------------------------
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -66,9 +62,7 @@ function common(label) {
   if (label && label.startsWith('scout:')) return { findings: [] };
   if (label === 'review') return { stage: 'review', status: 'complete', artifactPath: '/repo/07-review.md', terminal: { verdict: 'ship', blockerCount: 0 } };
   if (label === 'run-end') return { present: false };
-  if (label === 'plan-reconcile-clear') return { ok: true, wrote: ['00-index.md'] };
   if (label && label.startsWith('writeback:')) return { ok: true, wrote: [] };
-  if (label === 'plan-index-writeback') return { ok: true, wrote: ['04-plan.md', '00-index.md'] };
   return undefined;
 }
 
@@ -94,89 +88,88 @@ test('S6: the fan-out review writer names the rubrics it was fed and its output 
   assert.match(writer.prompt, /Prompt-fed inputs: review\/correctness\.md\nOutput artifact: \/repo\/\.ai\/workflows\/demo\/07-review\.md/);
 });
 
-// ---- Y7 ---------------------------------------------------------------------
+// ---- the stage prompt -------------------------------------------------------
 
-test('Y7: fan-out plan agents never write the master; bookkeeping writes the table and SETS the marker', async () => {
-  let orients = 0;
-  const { calls, labels, outcome } = await run({ planFanout: true }, (label) => {
-    if (label === 'orient') {
-      orients++;
-      return orients === 1
-        ? orientResult({ slices: [slice('a', { plan: 'todo', implement: 'todo', verify: 'todo', review: 'n-a' }), slice('b', { plan: 'todo', implement: 'todo', verify: 'todo', review: 'n-a' })] })
-        : orientResult({ reconcilePending: true });
-    }
-    if (label === 'plan:a' || label === 'plan:b') return { stage: 'plan', slice: label.slice(5), status: 'complete', artifactPath: 'x', terminal: { statusField: 'complete' } };
-    if (label === 'plan-reconcile') return { overlaps: [{ slice: 'b', with: ['a'], files: ['src/db.ts'] }] };
-    return common(label);
-  });
-  const planA = calls.find((c) => c.label === 'plan:a').prompt;
-  assert.match(planA, /PLAN FAN-OUT: you plan 'a' CONCURRENTLY with these sibling slices: b/);
-  assert.match(planA, /Do NOT create or edit the master 04-plan\.md/);
-  assert.match(planA, /Prompt-fed inputs: 04-plan\.md\nOutput artifact: \/repo\/\.ai\/workflows\/demo\/04-plan-a\.md/);
-  assert.match(planA, /DRIVER HEARTBEAT/);
-  const book = calls.find((c) => c.label === 'plan-index-writeback').prompt;
-  assert.match(book, /PLAN FAN-OUT BOOKKEEPING/);
-  assert.match(book, /`## Sibling Plans` table with one row for EVERY 04-plan-<slice>\.yaml/);
-  assert.match(book, /set `reconcile-pending: true`/);
-  // reconcile → re-plan the overlapping slice in review-and-fix mode → clear the marker
-  const iRec = labels.indexOf('plan-reconcile');
-  assert.ok(iRec > labels.indexOf('plan-index-writeback'));
-  const replan = calls.slice(iRec).find((c) => c.label === 'plan:b');
-  assert.match(replan.prompt, /RECONCILE RE-PLAN: 04-plan-b\.md already exists/);
-  assert.match(replan.prompt, /overlaps a \(file src\/db\.ts\)/);
-  assert.ok(labels.indexOf('plan-reconcile-clear') > labels.lastIndexOf('plan:b'));
-  assert.match(calls.find((c) => c.label === 'plan-reconcile').prompt, /DRIVER HEARTBEAT/);
-  assert.deepEqual(outcome.planReconcile, { replanned: ['b'], stopped: false, markerCleared: true });
-  // reconcile ran exactly once in the run
-  assert.equal(labels.filter((l) => l === 'plan-reconcile').length, 1);
+const PLAN_A = { slices: [slice('a', { plan: 'todo', implement: 'done', verify: 'done', review: 'n-a' })] };
+
+test('a stage agent records its progress, reads its brief, and returns an intent-bearing decision as a question', async () => {
+  const { calls } = await run({}, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)));
+  const plan = calls.find((c) => c.label === 'plan:a').prompt;
+  assert.match(plan, /1\. Run `node "\/plugin\/skills\/wf\/reference\/\.\.\/scripts\/wf\.mjs" progress set "\/repo" demo --run 20260928T100000Z-demo --driver yolo --stage plan --slice a --status running`/);
+  assert.match(plan, /2\. Run `node "\/plugin\/skills\/wf\/reference\/\.\.\/scripts\/wf\.mjs" brief "\/repo" demo plan a`/);
+  assert.match(plan, /QUESTION CONTRACT/);
+  assert.match(plan, /decide answered "\/repo" demo --key <key>/);
+  assert.match(plan, /return status 'questions'/);
+  assert.doesNotMatch(plan, /DELEGATE MODE/);
 });
 
-test('Y7: orient resumes reconcile while the marker is set, even when every plan is done', async () => {
-  const { labels, calls, outcome } = await run({}, (label) => {
-    if (label === 'orient') return orientResult({ reconcilePending: true });
-    if (label === 'plan-reconcile') return { overlaps: [] };
-    return common(label);
-  });
-  assert.ok(labels.includes('plan-reconcile'), 'a resumed run must reconcile while reconcile-pending is set');
-  assert.ok(labels.indexOf('plan-reconcile') < labels.indexOf('review'), 'reconcile runs before the drive');
-  const clear = calls.find((c) => c.label === 'plan-reconcile-clear').prompt;
-  assert.match(clear, /DELETE the `reconcile-pending` key/);
-  assert.equal(outcome.planReconcile.markerCleared, true);
-  assert.match(extractFn(yoloSrc, 'orient'), /reconcile-pending \(reconcilePending = true iff/);
+test('an implement agent records each step with the step commands', async () => {
+  const { calls } = await run({}, (label) => (label === 'orient'
+    ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'done', review: 'n-a' })] })
+    : stageAnswer(label) || common(label)));
+  const impl = calls.find((c) => c.label === 'implement:a').prompt;
+  for (const verb of ['where "/repo" demo a', 'start "/repo" demo a <n>', 'done "/repo" demo a <n> --sha HEAD', 'stop "/repo" demo a', 'complete "/repo" demo a --sha HEAD']) {
+    assert.ok(impl.includes(`wf.mjs" step ${verb}`), `implement names step ${verb}`);
+  }
 });
 
-test('Y7: a failed re-plan stops the run and leaves the marker set (no clear agent)', async () => {
-  const { labels, outcome } = await run({}, (label) => {
-    if (label === 'orient') return orientResult({ reconcilePending: true });
-    if (label === 'plan-reconcile') return { overlaps: [{ slice: 'a', with: ['b'] }] };
-    if (label === 'plan:a') return { stage: 'plan', slice: 'a', status: 'hard-stop', artifactPath: 'x', terminal: {}, hardStopReason: 'contract fork' };
+// ---- the question loop -------------------------------------------------------
+
+const QUESTION = { key: 'empty-state', question: 'What does the empty list show?', options: ['a sign-up link', 'nothing'], recommended: 'a sign-up link', why: 'the shape names no empty state' };
+
+test('a stage that returns questions stops the run as waiting, with the questions and the relaunch route', async () => {
+  const { outcome, calls, labels } = await run({}, (label) => {
+    if (label === 'orient') return orientResult(PLAN_A);
+    if (label === 'plan:a') return { stage: 'plan', slice: 'a', status: 'questions', artifactPath: 'x', terminal: {}, questions: [QUESTION] };
+    return stageAnswer(label) || common(label);
+  });
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.stopped, true);
+  assert.equal(outcome.stoppedAt, 'plan');
+  assert.deepEqual(outcome.questions.map((q) => [q.key, q.stage, q.slice]), [['empty-state', 'plan', 'a']]);
+  assert.match(outcome.route, /answer the questions, record each answer with decide add, then re-run \/wf yolo demo with args\.answered/);
+  assert.ok(!labels.includes('review'), 'no later stage runs');
+  const end = calls.find((c) => c.label === 'run-end').prompt;
+  assert.match(end, /progress set "\/repo" demo --run "20260928T100000Z-demo" --driver yolo --status waiting --reason "1 question\(s\) wait for the person" --resume "\/wf yolo demo"/);
+});
+
+test('a relaunch with args.answered carries the answer to the stage that asked it', async () => {
+  const answered = [{ key: 'empty-state', stage: 'plan', slice: 'a', answer: 'a sign-up link', by: 'person', id: 'd-12', question: QUESTION.question }];
+  const { outcome, calls } = await run({ answered }, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)));
+  assert.equal(outcome.ok, true, outcome.reason);
+  const plan = calls.find((c) => c.label === 'plan:a').prompt;
+  assert.match(plan, /ANSWERED QUESTION \(MANDATORY\)/);
+  assert.match(plan, /as d-12: "a sign-up link"/);
+  assert.match(plan, /Do not ask it again/);
+  assert.doesNotMatch(calls.find((c) => c.label === 'review').prompt, /ANSWERED QUESTION/, 'the answer reaches only its stage');
+  const end = calls.find((c) => c.label === 'run-end').prompt;
+  assert.match(end, /--status done --resume "\/wf handoff demo"/);
+});
+
+test('an answer with no text is not an answer', async () => {
+  const { calls } = await run({ answered: [{ key: 'empty-state', stage: 'plan', answer: '  ' }] }, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)));
+  assert.doesNotMatch(calls.find((c) => c.label === 'plan:a').prompt, /ANSWERED QUESTION/);
+});
+
+test('delegate mode settles each intent-bearing decision by the recommendation and names the digest command', async () => {
+  const { outcome, calls } = await run({ delegate: true }, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)));
+  const plan = calls.find((c) => c.label === 'plan:a').prompt;
+  assert.match(plan, /DELEGATE MODE/);
+  assert.match(plan, /decide add "\/repo" demo --kind answer --by delegate --key <key>/);
+  assert.match(plan, /Return no questions/);
+  assert.doesNotMatch(plan, /return status 'questions'/);
+  assert.deepEqual(outcome.delegate, { digest: 'node "/plugin/skills/wf/reference/../scripts/wf.mjs" decide list "/repo" demo --by delegate' });
+});
+
+test('the slug-wide review that returns finding questions stops the run as waiting', async () => {
+  const { outcome } = await run({}, (label) => {
+    if (label === 'orient') return orientResult();
+    if (label === 'review') return { stage: 'review', status: 'questions', artifactPath: '/repo/07-review.md', terminal: {}, questions: [{ key: 'finding:F-3', question: 'Keep the retry loop?', options: ['keep', 'fix'], recommended: 'fix' }] };
     return common(label);
   });
   assert.equal(outcome.stopped, true);
-  assert.equal(outcome.stoppedAt, 'plan-reconcile');
-  assert.ok(!labels.includes('plan-reconcile-clear'));
-  assert.match(outcome.route, /reconcile-pending stays set/);
-});
-
-test('Y7: no marker, no reconcile', async () => {
-  const { labels } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
-  assert.ok(!labels.includes('plan-reconcile'));
-});
-
-test('Y7 helpers: reconcileDue and overlappingSlices', () => {
-  assert.equal(reconcileDue({ reconcilePending: true, workflowType: 'feature' }), true);
-  assert.equal(reconcileDue({ reconcilePending: true, workflowType: 'update-deps' }), false);
-  assert.equal(reconcileDue({ reconcilePending: false }), false);
-  assert.equal(reconcileDue(null), false);
-  const roster = [{ slice: 'a' }, { slice: 'b' }, { slice: 'c', status: 'skipped' }];
-  const out = overlappingSlices([
-    { slice: 'b', with: ['a'], files: ['x.ts'] },
-    { slice: 'b', with: ['a', 'b'], edges: ['a->b'] },
-    { slice: 'c', with: ['a'] },
-    { slice: 'zz' },
-    null,
-  ], roster);
-  assert.deepEqual(out, [{ slice: 'b', with: ['a'], detail: 'file x.ts; edge a->b' }]);
+  assert.equal(outcome.stoppedAt, 'review');
+  assert.deepEqual(outcome.questions.map((q) => q.key), ['finding:F-3']);
 });
 
 // ---- Y4 ---------------------------------------------------------------------
@@ -211,25 +204,6 @@ function stageAnswer(label) {
   if (stage === 'verify') return { stage: 'verify', slice: sl, status: 'complete', artifactPath: 'x', terminal: { convergence: 'converged', result: 'pass', deferrals: [], substantiveResidual: false } };
   return undefined;
 }
-
-test('plan order: the yolo fan-out plans a slice after the slice it depends on', async () => {
-  let orients = 0;
-  const { calls, labels, outcome } = await run({ planFanout: true }, (label) => {
-    if (label === 'orient') {
-      orients++;
-      return orients === 1
-        ? orientResult({ slices: [slice('a', TODO, { dependsOn: [] }), slice('b', TODO, { dependsOn: ['a'] }), slice('c', TODO, { dependsOn: [] })] })
-        : orientResult();
-    }
-    if (label === 'plan-reconcile') return { overlaps: [] };
-    return stageAnswer(label) || common(label);
-  });
-  assert.equal(outcome.ok, true, outcome.reason);
-  assert.ok(labels.indexOf('plan:b') > labels.indexOf('plan:a'));
-  assert.ok(labels.indexOf('plan:c') < labels.indexOf('plan:b'), 'c plans with a, in the first wave');
-  assert.match(calls.find((c) => c.label === 'plan:b').prompt, /These slices are planned already: a, c\./);
-  assert.match(calls.find((c) => c.label === 'plan:a').prompt, /CONCURRENTLY with these sibling slices: c\..*These slices plan after you and build on your plan: b\./s);
-});
 
 test('plan freshness: yolo refreshes a plan that an earlier implement of the run made out of date', async () => {
   const { calls, labels, outcome } = await run({}, (label) => {
