@@ -1,5 +1,5 @@
 // renderers/_validator.mjs
-// Wrap ajv to validate merged frontmatter against tests/frontmatter.schema.json.
+// Wrap ajv to validate merged frontmatter against schemas/frontmatter.schema.json.
 // Failure surfaces as a warn-banner — the renderer never aborts on a bad
 // frontmatter (best-effort HTML still emits).
 

@@ -44,17 +44,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-72ZR7X6H.mjs";
+} from "./chunk-3PEBLKEB.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-2ESFO7YN.mjs";
+} from "./chunk-7AACUWBN.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-JTJFHSOY.mjs";
-import "./chunk-CBBYFU4T.mjs";
+import "./chunk-WC46J5NI.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -538,7 +538,7 @@ function parseArgs(argv) {
     else if (a === "--schema") args.schema = resolve(argv[++i]);
     else if (a === "--no-shared-output") args.sharedOutput = false;
   }
-  args.schema ??= join2(args.pluginRoot, "tests", "frontmatter.schema.json");
+  args.schema ??= join2(args.pluginRoot, "schemas", "frontmatter.schema.json");
   return args;
 }
 var cachedAssetBase = null;

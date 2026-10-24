@@ -8,7 +8,7 @@ import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import yaml from 'js-yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'tests', 'frontmatter.schema.json');
+const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'schemas', 'frontmatter.schema.json');
 
 const schemaCache = new Map();
 const ajvCache = new Map();

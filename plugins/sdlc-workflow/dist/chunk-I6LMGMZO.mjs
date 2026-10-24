@@ -53,24 +53,28 @@ async function runStages(label, plan, { stopOnBlock = false } = {}) {
   }
   beginSystemMessages();
   let code = 0;
-  for (const [name, run] of stages) {
+  for (const [name, run, { failClosed = false } = {}] of stages) {
     try {
       await run(input);
     } catch (err) {
-      if (err instanceof HookBlock) {
+      const blocked = err instanceof HookBlock;
+      if (!blocked) await safeLog(name, err);
+      if (!blocked && failClosed) {
+        process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. Repair the plugin install, or set hooks.verifyOnWrite: false.
+`);
+      }
+      if (blocked || failClosed) {
         code = 2;
         if (stopOnBlock) break;
-      } else {
-        await safeLog(name, err);
       }
     }
   }
   flushSystemMessages();
   return code;
 }
-async function runStandalone(label, run) {
+async function runStandalone(label, run, { failClosed = false } = {}) {
   if (hookSuppressed()) process.exit(0);
-  process.exit(await runStages(label, () => [[label, run]], { stopOnBlock: true }));
+  process.exit(await runStages(label, () => [[label, run, { failClosed }]], { stopOnBlock: true }));
 }
 async function runFolded(label, plan, opts = {}) {
   if (hookSuppressed()) process.exit(0);

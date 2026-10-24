@@ -53,7 +53,7 @@ test('the plugin root carries every entrypoint needed to operate the hub standal
     join('dist', 'code-browser.js'),
     join('dist', 'code-browser.css'),
     join('docs', 'site', 'index.html'),
-    join('tests', 'frontmatter.schema.json'),
+    join('schemas', 'frontmatter.schema.json'),
     'runtime-manifest.json',
   ]) {
     assert.ok(existsSync(join(PKG_ROOT, rel)), `missing runtime entry: ${rel}`);

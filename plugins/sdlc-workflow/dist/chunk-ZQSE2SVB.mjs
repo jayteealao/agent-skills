@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
-var DEFAULT_SCHEMA_PATH = resolve(__dirname, "..", "tests", "frontmatter.schema.json");
+var DEFAULT_SCHEMA_PATH = resolve(__dirname, "..", "schemas", "frontmatter.schema.json");
 var schemaCache = /* @__PURE__ */ new Map();
 var ajvCache = /* @__PURE__ */ new Map();
 var validatorCache = /* @__PURE__ */ new Map();

@@ -69,9 +69,11 @@ async function safeLog(label, err) {
 
 /**
  * Read the payload once, run the stages `plan(input)` returns
- * (`[[label, run], …]`), flush systemMessages, return the exit code.
+ * (`[[label, run, opts?], …]`), flush systemMessages, return the exit code.
  * A HookBlock → 2 (stop when `stopOnBlock`); any other error is logged and the
  * stage counts as passed — hook infrastructure must never break a tool call.
+ * The one exception is a stage with `{ failClosed: true }`, a schema gate: its
+ * error also blocks, because a gate that cannot run must not pass the write.
  */
 export async function runStages(label, plan, { stopOnBlock = false } = {}) {
   let input;
@@ -89,15 +91,19 @@ export async function runStages(label, plan, { stopOnBlock = false } = {}) {
   }
   beginSystemMessages();
   let code = 0;
-  for (const [name, run] of stages) {
+  for (const [name, run, { failClosed = false } = {}] of stages) {
     try {
       await run(input);
     } catch (err) {
-      if (err instanceof HookBlock) {
+      const blocked = err instanceof HookBlock;
+      if (!blocked) await safeLog(name, err);
+      if (!blocked && failClosed) {
+        process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. `
+          + 'Repair the plugin install, or set hooks.verifyOnWrite: false.\n');
+      }
+      if (blocked || failClosed) {
         code = 2;
         if (stopOnBlock) break;
-      } else {
-        await safeLog(name, err);
       }
     }
   }
@@ -106,9 +112,9 @@ export async function runStages(label, plan, { stopOnBlock = false } = {}) {
 }
 
 /** The single-purpose entry: one check, one process. */
-export async function runStandalone(label, run) {
+export async function runStandalone(label, run, { failClosed = false } = {}) {
   if (hookSuppressed()) process.exit(0);
-  process.exit(await runStages(label, () => [[label, run]], { stopOnBlock: true }));
+  process.exit(await runStages(label, () => [[label, run, { failClosed }]], { stopOnBlock: true }));
 }
 
 /** The per-event entry: every check the payload selects, one process. */

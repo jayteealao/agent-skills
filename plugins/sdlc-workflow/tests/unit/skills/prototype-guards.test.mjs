@@ -57,7 +57,7 @@ test('status, recap and close find a prototype in its worktree', () => {
 });
 
 test('the schema knows the prototype: the workflow type, the person document, and the ledger', () => {
-  const schema = JSON.parse(read('tests/frontmatter.schema.json'));
+  const schema = JSON.parse(read('schemas/frontmatter.schema.json'));
   assert.ok(schema.$defs.prototypeLedger);
   assert.ok(schema.$defs.prototypeFrontmatter);
   assert.ok(JSON.stringify(schema).includes('"optimize", "prototype"') || JSON.stringify(schema).includes('"optimize","prototype"'));

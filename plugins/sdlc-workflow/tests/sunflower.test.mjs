@@ -28,7 +28,7 @@ import { expand as expandSnippets, clearCache as clearSnippetCache } from '../co
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
-const SCHEMA_PATH = resolve(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
+const SCHEMA_PATH = resolve(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json');
 
 /* ── _paths ────────────────────────────────────────────────────────── */
 

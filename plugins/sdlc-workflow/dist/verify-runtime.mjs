@@ -44,8 +44,7 @@ var REQUIRED = [
   "components",
   "schemas",
   join2("docs", "site"),
-  "runtime-manifest.json",
-  join2("tests", "frontmatter.schema.json")
+  "runtime-manifest.json"
 ];
 function verifyRuntime(runtimeRoot) {
   const problems = [];

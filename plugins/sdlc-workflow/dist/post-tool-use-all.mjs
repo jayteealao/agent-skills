@@ -3,25 +3,25 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   run
-} from "./chunk-IRX26Z32.mjs";
+} from "./chunk-R2ZIKIRQ.mjs";
 import {
   run as run2
-} from "./chunk-ZBT6JQD2.mjs";
+} from "./chunk-73QANAHN.mjs";
 import "./chunk-CI2GKFZ3.mjs";
 import "./chunk-AZ4QRSJA.mjs";
-import "./chunk-GKIHU4J2.mjs";
+import "./chunk-ZQSE2SVB.mjs";
 import "./chunk-JTJFHSOY.mjs";
 import {
   run as run3
-} from "./chunk-5ESR5WXJ.mjs";
-import "./chunk-CBBYFU4T.mjs";
+} from "./chunk-K7IJGZ56.mjs";
+import "./chunk-WC46J5NI.mjs";
 import "./chunk-CGSPUUFD.mjs";
 import "./chunk-U653767U.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import "./chunk-KRRL2TSM.mjs";
 import {
   runFolded
-} from "./chunk-6DHDY4SV.mjs";
+} from "./chunk-I6LMGMZO.mjs";
 import "./chunk-YYMENX7Z.mjs";
 import "./chunk-3RY6QOZQ.mjs";
 import "./chunk-QUEAOP62.mjs";
@@ -35,7 +35,7 @@ import "./chunk-SGA7NFMW.mjs";
 function planPostToolUse() {
   return [
     ["post-write-auto-stage", run],
-    ["post-write-verify", run2],
+    ["post-write-verify", run2, { failClosed: true }],
     ["post-write-render", run3]
   ];
 }

@@ -27,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RUNTIME_BUILD_DIRS, computeBuildId } from '../lib/runtime-buildid.mjs';
 
 // The full self-contained payload — a superset of the buildId inputs. docs/site
-// and tests/frontmatter.schema.json are required for operation but not hashed
+// is required for operation but not hashed
 // (see lib/runtime-buildid.mjs). Mirrors runtime-store PAYLOAD_DIRS/PAYLOAD_FILES.
 const REQUIRED = [
   'dist',
@@ -36,7 +36,6 @@ const REQUIRED = [
   'schemas',
   join('docs', 'site'),
   'runtime-manifest.json',
-  join('tests', 'frontmatter.schema.json'),
 ];
 
 /**

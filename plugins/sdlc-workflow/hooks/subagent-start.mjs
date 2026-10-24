@@ -17,6 +17,10 @@ import { join } from 'node:path';
 import { emitAdditionalContext, findProjectRoot, readEvent } from './_adapter.mjs';
 
 const MAX_SLUGS = 3;
+// The schema's slug shape (`$defs.slug`). INDEX.md is plain text in the repo, so a row that
+// does not match is skipped: it never reaches a path join or the injected context.
+const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const STAGE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 function activeWorkflows(projectRoot) {
   // INDEX.md rows: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at
@@ -31,7 +35,7 @@ function activeWorkflows(projectRoot) {
     const cells = line.split('\t');
     if (cells.length < 2) continue;
     const [slug, status] = cells.map((c) => c.trim());
-    if (!slug || slug === 'slug' || /^[-|\s]*$/.test(slug)) continue;
+    if (slug === 'slug' || !SLUG.test(slug)) continue;
     if (status === 'active') rows.push({ slug, stage: currentStage(projectRoot, slug) });
   }
   return rows;
@@ -40,7 +44,8 @@ function activeWorkflows(projectRoot) {
 function currentStage(projectRoot, slug) {
   try {
     const head = readFileSync(join(projectRoot, '.ai', 'workflows', slug, '00-index.md'), 'utf-8').slice(0, 4000);
-    return /^current-stage:\s*(.+)$/m.exec(head)?.[1]?.trim() ?? null;
+    const stage = /^current-stage:\s*(.+)$/m.exec(head)?.[1]?.trim() ?? null;
+    return stage && STAGE.test(stage) ? stage : null;
   } catch {
     return null;
   }

@@ -35,7 +35,7 @@ import yaml from 'js-yaml';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RENDER = join(PLUGIN_ROOT, 'scripts', 'render-sunflower.mjs');
-const SCHEMA_PATH = join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
+const SCHEMA_PATH = join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json');
 
 // A filename resolveViewPath() accepts (→ non-null view path). Reused for every
 // type; only the slug + frontmatter type vary.

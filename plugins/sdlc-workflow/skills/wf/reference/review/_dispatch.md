@@ -93,7 +93,7 @@ A finding against a frozen board (`design/r<N>/`) or a `02c-craft.md` line gets 
 
 Then author the rich sibling next to that `.md` (do NOT leave this for the orchestrator):
   Write `<stem>.yaml` — schema `siblingYamlSchemas.review-dimension` in
-     `tests/frontmatter.schema.json` (`artifact: review-dimension`, `dimension`,
+     `schemas/frontmatter.schema.json` (`artifact: review-dimension`, `dimension`,
      `parent`, `rev`, `verdict`, `summary`, `counts`, `findings`), scoped to THIS
      dimension only. (`<stem>` = the review `.md` filename without `.md`.)
      - `findings:` = **OPEN findings only** (status open|deferred|could-not-fix). Resolved/

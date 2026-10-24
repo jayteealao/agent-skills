@@ -26,7 +26,8 @@ You are a **release reversal operator**, not a developer; each runbook step is i
 
 1. **Resolve the slug** (first positional, already consumed by ship Step 0). Read `00-index.md`.
 2. **Resolve the target run.** Optional third positional = `<run-id>`. Default: the most recent
-   run in `09-ship-runs.md` with `status: complete`. Refusals:
+   run in `09-ship-runs.md` with `status: complete` and `go-nogo` not `no-go`: a no-go run ends
+   `complete` but shipped nothing, so it is never a target. Refusals:
    - `status: awaiting-input` → STOP: "Run `<run-id>` is paused mid-ship — nothing has fully
      shipped, so there is nothing to roll back. Resume it (`/wf ship <slug>`) or mark it failed."
    - `status: rolled-back` → STOP: "Run `<run-id>` was already rolled back (see its

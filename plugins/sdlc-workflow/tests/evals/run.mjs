@@ -4,7 +4,7 @@
 //
 // Each case scaffolds a fixture repo, runs one headless `claude -p` turn with this
 // plugin loaded, then applies DETERMINISTIC assertions: files exist, frontmatter
-// validates against tests/frontmatter.schema.json, git state is as expected. No
+// validates against schemas/frontmatter.schema.json, git state is as expected. No
 // LLM grader. Cases that share a fixture run in `order` in ONE workspace, so
 // `shape` sees the slug `intake` created (`<slug>` in a prompt is substituted).
 //
@@ -38,7 +38,7 @@ const CASES_DIR = path.join(HERE, 'cases');
 const FIXTURES_DIR = path.join(HERE, 'fixtures');
 const RESULTS_DIR = path.join(HERE, 'results');
 const BASELINE_DIR = path.join(HERE, 'baseline');
-const SCHEMA_PATH = path.join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
+const SCHEMA_PATH = path.join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json');
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(name);

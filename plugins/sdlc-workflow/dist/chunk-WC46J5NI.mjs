@@ -221,7 +221,7 @@ import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdir as mkdir2, readFile as readFile2, rename as rename2, rm as rm2 } from "node:fs/promises";
 import { dirname as dirname2, join } from "node:path";
 var PAYLOAD_DIRS = ["dist", "assets", "components", "schemas", join("docs", "site")];
-var PAYLOAD_FILES = ["runtime-manifest.json", join("tests", "frontmatter.schema.json")];
+var PAYLOAD_FILES = ["runtime-manifest.json"];
 var REQUIRED = ["runtime-manifest.json", "dist", "schemas"];
 function runtimeStoreDir() {
   return join(sdlcHomeDir(), "runtime");

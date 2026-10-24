@@ -61,7 +61,7 @@ test('schema: the board admits focus, sketches, design items, and design work', 
 });
 
 test('schema: the contract records carried-from; the document names a design board', () => {
-  const schema = JSON.parse(read('tests/frontmatter.schema.json'));
+  const schema = JSON.parse(read('schemas/frontmatter.schema.json'));
   ok(schema.$defs.designContractFrontmatter.properties['carried-from']);
   const doc = schema.$defs.brainstormFrontmatter.properties;
   ok(doc.focus);

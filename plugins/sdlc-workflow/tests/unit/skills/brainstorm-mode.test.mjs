@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { validateBrainstormBoard, validateFrontmatter } from '../../../lib/schema-validator.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const SCHEMA_PATH = path.join(pluginRoot, 'tests', 'frontmatter.schema.json');
+const SCHEMA_PATH = path.join(pluginRoot, 'schemas', 'frontmatter.schema.json');
 
 const read = (...rel) => readFileSync(path.join(pluginRoot, 'skills', 'wf', ...rel), 'utf8');
 const refPath = (...rel) => path.join(pluginRoot, 'skills', 'wf', 'reference', ...rel);

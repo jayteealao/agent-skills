@@ -4,7 +4,7 @@
 
 ## `brainstorm-board.json` — the agent's board
 
-The write hook validates this file against `$defs.brainstormBoard` in `tests/frontmatter.schema.json` on every write.
+The write hook validates this file against `$defs.brainstormBoard` in `schemas/frontmatter.schema.json` on every write.
 
 ```json
 {

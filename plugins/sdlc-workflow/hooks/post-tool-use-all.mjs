@@ -17,7 +17,7 @@ import { run as renderEnqueue } from './render-on-artifact-write.mjs';
 export function planPostToolUse() {
   return [
     ['post-write-auto-stage', postWriteAutoStage],
-    ['post-write-verify', postWriteVerify],
+    ['post-write-verify', postWriteVerify, { failClosed: true }],
     ['post-write-render', renderEnqueue],
   ];
 }

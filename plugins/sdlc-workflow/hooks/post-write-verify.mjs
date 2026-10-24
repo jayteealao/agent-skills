@@ -8,7 +8,7 @@
  *   probe-evidence/ + verify-evidence/ folders (see isEvidencePath).
  * - Lint 00-index.md (warn only, never blocks): over 20 KB, YAML comment prose
  *   in the frontmatter, `current-stage:` outside the first 4000 characters.
- * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
+ * - Run deep schema validation against schemas/frontmatter.schema.json (native Ajv).
  * - Enforce sibling .yaml: a review, review-command, or plan `.md` written
  *   without its sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
  * - Silent exit 0 on success.
@@ -23,6 +23,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
+import { logError } from '../lib/error-log.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
@@ -120,7 +121,7 @@ async function enforceSiblingFragments(paths, config) {
       'Later stages read this .yaml: the review .yaml is the findings ledger, and the plan\n' +
       '.yaml carries the files and edges that the sibling-plan table and the campaign read.\n' +
       'Write <stem>.yaml NOW, while this artifact is still in context. The schema is\n' +
-      'siblingYamlSchemas.<type> in plugins/sdlc-workflow/tests/frontmatter.schema.json.\n' +
+      'siblingYamlSchemas.<type> in plugins/sdlc-workflow/schemas/frontmatter.schema.json.\n' +
       'If this artifact has no findings or no file changes, set `fragment: none` in its\n' +
       'frontmatter to opt out.\n',
     );
@@ -168,7 +169,7 @@ async function validateSiblingYamls(paths, config, schemaPath) {
     process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
   }
   process.stderr.write('The sibling .yaml does not conform to siblingYamlSchemas.<type>\n');
-  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json). The sunflower view\n');
+  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json). The sunflower view\n');
   process.stderr.write('reads this file to build the rich page; a malformed shape degrades the figure.\n');
   process.stderr.write('Fix the issues above, then continue.\n');
   blockToolCall();
@@ -502,7 +503,7 @@ async function validateBrainstormBoards(paths, config, schemaPath) {
     process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
   }
   process.stderr.write('The board does not conform to $defs.brainstormBoard\n');
-  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n');
+  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
   process.stderr.write('skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n');
   blockToolCall();
 }
@@ -531,7 +532,7 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
     for (const r of f.rules) process.stderr.write(`  - ${r}\n`);
   }
   process.stderr.write('The ledger does not conform to $defs.prototypeLedger and the ledger rules\n');
-  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n');
+  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
   process.stderr.write('skills/wf/reference/prototype.md). Fix the ledger, then continue.\n');
   blockToolCall();
 }
@@ -670,7 +671,7 @@ export async function run(input) {
   const config = await loadConfig(projectRoot);
   if (config.hooks.verifyOnWrite === false) return;
 
-  const schemaPath = join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
+  const schemaPath = join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json');
   const paths = collectToolInputPaths(input)
     .filter((path) => isManagedArtifactMarkdownPath(path))
     // probe-evidence/ and verify-evidence/ are free-form evidence — never
@@ -683,7 +684,13 @@ export async function run(input) {
 
   // Code-file advisory lints run even when this write touched no managed artifact
   // (they target source files, not artifacts) — so they precede the early return.
-  enforceCodeFileLints(input, config, paths);
+  // They only advise, so an error in them is logged and passes: this stage fails
+  // closed for the schema gate only.
+  try {
+    enforceCodeFileLints(input, config, paths);
+  } catch (err) {
+    await logError('post-write-verify:code-lints', err, { projectRoot }).catch(() => {});
+  }
 
   // The ship-plan audit ledger is kind-keyed (never schema-gated) but has its own
   // triage gate; it is collected separately so it never enters the Ajv pass.
@@ -745,9 +752,9 @@ export async function run(input) {
     process.stderr.write(`${formatValidationErrors(failure.result.errors)}\n\n`);
   }
   process.stderr.write('The file was written but does not conform to the sdlc/v1 schema\n');
-  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json).\n');
+  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n');
   process.stderr.write('Re-Edit the frontmatter to fix the issues above, then continue.\n');
   blockToolCall();
 }
 
-if (isEntry('post-write-verify')) runStandalone('post-write-verify', run);
+if (isEntry('post-write-verify')) runStandalone('post-write-verify', run, { failClosed: true });

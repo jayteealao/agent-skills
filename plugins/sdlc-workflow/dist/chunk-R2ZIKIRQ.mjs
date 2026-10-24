@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isEntry,
   runStandalone
-} from "./chunk-6DHDY4SV.mjs";
+} from "./chunk-I6LMGMZO.mjs";
 import {
   loadConfig
 } from "./chunk-QUEAOP62.mjs";

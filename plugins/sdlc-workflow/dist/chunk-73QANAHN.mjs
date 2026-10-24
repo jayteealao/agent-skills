@@ -12,7 +12,7 @@ import {
   validateFrontmatterFile,
   validatePrototypeLedgerFile,
   validateSiblingYamlFile
-} from "./chunk-GKIHU4J2.mjs";
+} from "./chunk-ZQSE2SVB.mjs";
 import {
   designModesOf
 } from "./chunk-JTJFHSOY.mjs";
@@ -20,7 +20,10 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-6DHDY4SV.mjs";
+} from "./chunk-I6LMGMZO.mjs";
+import {
+  logError
+} from "./chunk-3RY6QOZQ.mjs";
 import {
   loadConfig
 } from "./chunk-QUEAOP62.mjs";
@@ -144,7 +147,7 @@ ${lines2.join("\n")}
 Later stages read this .yaml: the review .yaml is the findings ledger, and the plan
 .yaml carries the files and edges that the sibling-plan table and the campaign read.
 Write <stem>.yaml NOW, while this artifact is still in context. The schema is
-siblingYamlSchemas.<type> in plugins/sdlc-workflow/tests/frontmatter.schema.json.
+siblingYamlSchemas.<type> in plugins/sdlc-workflow/schemas/frontmatter.schema.json.
 If this artifact has no findings or no file changes, set \`fragment: none\` in its
 frontmatter to opt out.
 `
@@ -181,7 +184,7 @@ async function validateSiblingYamls(paths, config, schemaPath) {
 `);
   }
   process.stderr.write("The sibling .yaml does not conform to siblingYamlSchemas.<type>\n");
-  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json). The sunflower view\n");
+  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json). The sunflower view\n");
   process.stderr.write("reads this file to build the rich page; a malformed shape degrades the figure.\n");
   process.stderr.write("Fix the issues above, then continue.\n");
   blockToolCall();
@@ -422,7 +425,7 @@ async function validateBrainstormBoards(paths, config, schemaPath) {
 `);
   }
   process.stderr.write("The board does not conform to $defs.brainstormBoard\n");
-  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n");
+  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
   process.stderr.write("skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n");
   blockToolCall();
 }
@@ -453,7 +456,7 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
 `);
   }
   process.stderr.write("The ledger does not conform to $defs.prototypeLedger and the ledger rules\n");
-  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n");
+  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
   process.stderr.write("skills/wf/reference/prototype.md). Fix the ledger, then continue.\n");
   blockToolCall();
 }
@@ -565,9 +568,14 @@ async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   if (config.hooks.verifyOnWrite === false) return;
-  const schemaPath = join(PLUGIN_ROOT, "tests", "frontmatter.schema.json");
+  const schemaPath = join(PLUGIN_ROOT, "schemas", "frontmatter.schema.json");
   const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).filter((path) => !isFreeFormWorkflowPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
-  enforceCodeFileLints(input, config, paths);
+  try {
+    enforceCodeFileLints(input, config, paths);
+  } catch (err) {
+    await logError("post-write-verify:code-lints", err, { projectRoot }).catch(() => {
+    });
+  }
   const auditPaths = collectToolInputPaths(input).filter((path) => isShipPlanAuditPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
   const boardPaths = collectToolInputPaths(input).filter((path) => isBrainstormBoardPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
@@ -605,11 +613,11 @@ async function run(input) {
 `);
   }
   process.stderr.write("The file was written but does not conform to the sdlc/v1 schema\n");
-  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json).\n");
+  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n");
   process.stderr.write("Re-Edit the frontmatter to fix the issues above, then continue.\n");
   blockToolCall();
 }
-if (isEntry("post-write-verify")) runStandalone("post-write-verify", run);
+if (isEntry("post-write-verify")) runStandalone("post-write-verify", run, { failClosed: true });
 
 export {
   auditTriageViolation,

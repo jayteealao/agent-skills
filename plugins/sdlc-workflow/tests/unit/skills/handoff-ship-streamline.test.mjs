@@ -246,7 +246,7 @@ test('W6.3 — every notes cap agrees with the schema (160, not 80)', () => {
       `${name}: a notes cap of 80 disagrees with the schema's 160 and will block the write`);
   }
   // And the schema itself is still the 160 both files claim.
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const runs = schema.shipRunsFrontmatter ?? schema;
   assert.ok(JSON.stringify(runs).includes('"maxLength":160'),
     'the notes cap moved off 160 — the reference prose now lies about it');
@@ -401,7 +401,7 @@ test('handoff replies to and resolves every fixed or declined thread, whichever 
     assert.match(tri, /triage-fixed-threads: \[\{ thread: <id>, sha: <fix sha> \}/, `${name}: the fixed-thread ledger is gone`);
     assert.match(ref(root, 'handoff.md'), /resolve each still-open thread of `triage-fixed-threads`/, `${name}: T5.3 no longer resolves the fixed threads`);
   }
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const text = JSON.stringify(schema);
   assert.match(text, /"triage-fixed-threads"/);
   assert.match(text, /"triage-resolve-failed"/);

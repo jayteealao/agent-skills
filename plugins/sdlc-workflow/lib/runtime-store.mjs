@@ -30,7 +30,7 @@ import { sdlcHomeDir, hubPidPath } from './registry.mjs';
 // The shared runtime payload copied into the store. Mirrors what a hub/renderer
 // actually executes + serves: the bundled dist/ (entrypoints + chunks +
 // renderers + flat lib assets), the render assets (assets/, components/), the
-// served docs site, and the schemas/frontmatter the validators read via `../`.
+// served docs site, and the schemas/ the validators read via `../`.
 //
 // EXPORTED so every consumer (materialize-into-store, the parity tests) copies
 // the EXACT same set. One definition ⇒ the bytes the hub runs from can never
@@ -38,7 +38,7 @@ import { sdlcHomeDir, hubPidPath } from './registry.mjs';
 // (dist/assets/components/schemas, see scripts/build.mjs) are a subset of
 // these, so copying this set verbatim also reproduces the buildId.
 export const PAYLOAD_DIRS = ['dist', 'assets', 'components', 'schemas', join('docs', 'site')];
-export const PAYLOAD_FILES = ['runtime-manifest.json', join('tests', 'frontmatter.schema.json')];
+export const PAYLOAD_FILES = ['runtime-manifest.json'];
 // A store is "verified" only if these survived materialization (the hub can't run
 // without them) and its manifest buildId matches.
 const REQUIRED = ['runtime-manifest.json', 'dist', 'schemas'];

@@ -191,7 +191,7 @@ test('schema — appetite / review-scope-confirmed / none-declared / charter-sce
   const require = createRequire(import.meta.url);
   let Ajv;
   try { Ajv = require('ajv'); } catch { return; } // ajv is a maintainer dep; skip if absent
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const defs = schema.$defs ?? schema.definitions;
   const ajv = new Ajv({ allErrors: true, strict: false });
   const idx = defs.indexFrontmatter.properties;

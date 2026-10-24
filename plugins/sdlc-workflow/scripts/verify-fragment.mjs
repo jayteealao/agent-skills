@@ -68,7 +68,7 @@ const FORBIDDEN_TAGS = ['<html', '<head', '<body', '<iframe', '<link'];
 const REMOTE_SCRIPT_RE = /<script[^>]*\bsrc\s*=/i;
 
 function parseArgs(argv) {
-  const args = { root: '.ai/workflows', schema: join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json'), verbose: false, targets: [] };
+  const args = { root: '.ai/workflows', schema: join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json'), verbose: false, targets: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--root')         args.root = argv[++i];

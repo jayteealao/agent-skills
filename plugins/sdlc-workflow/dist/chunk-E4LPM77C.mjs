@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   validateBrainstormBoard,
   validateFrontmatter
-} from "./chunk-GKIHU4J2.mjs";
+} from "./chunk-ZQSE2SVB.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";

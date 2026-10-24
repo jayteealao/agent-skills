@@ -26,7 +26,7 @@ and the `metric-row`, hero figure, verdict heatmap, etc. never appear. So for ev
 rich artifact:
 
 1. **Write the sibling `<stem>.yaml`** — the structured data, conforming to
-   `siblingYamlSchemas.<type>` in `tests/frontmatter.schema.json` (one of
+   `siblingYamlSchemas.<type>` in `schemas/frontmatter.schema.json` (one of
    `review`, `rca`, `plan`, `design`, `ship-run`). This step is **MANDATORY** even
    if you skip the fragment; managed-artifact enforcement ([_host-invocation.md](../skills/wf/reference/_host-invocation.md)) **BLOCKS** a rich
    `.md` written without its sibling `.yaml`. Write the `.yaml` first (or in the same
@@ -256,7 +256,7 @@ Timeline navigation is CSS-only via `:target`. JS only enhances hover/focus.
 ## YAML → fragment mapping
 
 Each fragment is a deterministic projection of its sibling YAML. The
-five sibling-YAML schemas in `tests/frontmatter.schema.json` under
+five sibling-YAML schemas in `schemas/frontmatter.schema.json` under
 `siblingYamlSchemas` define the exact shape. Re-running the author on
 the same YAML must produce byte-identical fragment output.
 

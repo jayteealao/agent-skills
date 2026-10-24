@@ -21,7 +21,7 @@ import {
 } from "./chunk-CI2GKFZ3.mjs";
 import {
   validatePrototypeLedger
-} from "./chunk-GKIHU4J2.mjs";
+} from "./chunk-ZQSE2SVB.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
   safeParseFrontmatter

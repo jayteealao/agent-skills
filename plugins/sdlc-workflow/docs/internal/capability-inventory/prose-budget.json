@@ -140,7 +140,7 @@
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words). WF-ROUTE-WIZARD-PLAN W5 (G3) added 23 words: the text after the slug is a focus hint that discovery reads."
     },
     "skills/wf/reference/ship.md": {
-      "words": 3954,
+      "words": 3949,
       "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words). WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/verify.md": {

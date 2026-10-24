@@ -15,12 +15,29 @@ import { homedir } from 'node:os';
 
 import { emitPermissionRequestDecision, parseHookArgs, readEvent, resolveLayout } from './_adapter.mjs';
 
-/** Extract the command being approved from the (partially undocumented) event. */
+/**
+ * True when a shell command string can run more than its first command: an operator
+ * (`;` `&` `|`), a redirection, a substitution, a second line, or a bare `(`, which
+ * PowerShell evaluates as a subexpression (`(…)`, `@(…)`). Single quotes stop all
+ * expansion; inside double quotes `$` and a backtick still expand, so they count.
+ */
+export function hasShellOperator(command) {
+  const s = String(command);
+  for (const m of s.matchAll(/"([^"]*)"/g)) if (/[$`]/.test(m[1])) return true;
+  const bare = s.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
+  return /[;&|<>`\n\r(]/.test(bare);
+}
+
+/**
+ * Extract the command being approved from the (partially undocumented) event. A command
+ * string with a shell operator gets null (no opinion): only the first command of
+ * `node <runtime>.mjs && <anything>` is the plugin's, so the whole line is never allowed.
+ */
 export function commandFromEvent(event) {
   const ti = event?.tool_input ?? {};
   const raw = ti.command ?? event?.command ?? null;
   if (Array.isArray(raw)) return raw.map(String);
-  if (typeof raw === 'string') return splitCommand(raw);
+  if (typeof raw === 'string') return hasShellOperator(raw) ? null : splitCommand(raw);
   return null;
 }
 

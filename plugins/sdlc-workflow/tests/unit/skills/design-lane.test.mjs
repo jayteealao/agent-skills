@@ -209,7 +209,7 @@ test('hook: allows a plan when ux-impact is none, and when the gate is off', () 
 // ── schema ────────────────────────────────────────────────────────────────────
 
 test('schema: the contract carries the confirmation fields and no pen-doc', () => {
-  const schema = JSON.parse(read('tests/frontmatter.schema.json'));
+  const schema = JSON.parse(read('schemas/frontmatter.schema.json'));
   const contract = schema.$defs?.designContractFrontmatter ?? schema.definitions?.designContractFrontmatter;
   ok(contract, 'designContractFrontmatter branch');
   for (const k of ['canvas', 'direction-confirmed-by', 'confirmed-at', 'surfaces']) ok(contract.properties[k], k);

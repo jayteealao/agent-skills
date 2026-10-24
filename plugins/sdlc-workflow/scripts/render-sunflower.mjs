@@ -19,7 +19,7 @@
  *   --docs <path>        Default ".ai/docs"
  *   --asset-base <path>  Override asset URL prefix (default: the hub route /__sdlc/assets/<buildId>)
  *   --plugin-root <path> Default plugin install dir (auto-detected)
- *   --schema <path>      Default <plugin-root>/tests/frontmatter.schema.json
+ *   --schema <path>      Default <plugin-root>/schemas/frontmatter.schema.json
  */
 
 import {
@@ -118,7 +118,7 @@ function parseArgs(argv) {
     else if (a === '--schema')       args.schema = resolve(argv[++i]);
     else if (a === '--no-shared-output') args.sharedOutput = false;
   }
-  args.schema ??= join(args.pluginRoot, 'tests', 'frontmatter.schema.json');
+  args.schema ??= join(args.pluginRoot, 'schemas', 'frontmatter.schema.json');
   return args;
 }
 

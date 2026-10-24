@@ -125,7 +125,7 @@ test('a move on a confirmed design runs the move pass, not the stage', () => {
 });
 
 test('the contract schema accepts directions on a design contract', () => {
-  const schema = JSON.parse(read('tests/frontmatter.schema.json'));
+  const schema = JSON.parse(read('schemas/frontmatter.schema.json'));
   const text = JSON.stringify(schema);
   ok(text.includes('"directions":{"$ref":"#/$defs/stringArray"'), 'design-contract has an optional directions list');
 });

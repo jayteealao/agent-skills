@@ -93,7 +93,7 @@ test('intent-risks validates against the 00-index frontmatter schema', () => {
   const require = createRequire(import.meta.url);
   let Ajv;
   try { Ajv = require('ajv'); } catch { return; } // ajv is a maintainer dep; skip if absent
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const idx = schema.$defs?.indexFrontmatter ?? schema.definitions?.indexFrontmatter;
   assert.ok(idx?.properties?.['intent-risks'], 'indexFrontmatter schema is missing intent-risks');
   const ajv = new Ajv({ allErrors: true, strict: false });
@@ -192,7 +192,7 @@ test('R2 — verify + index evidence fields validate (EVIDENCE-SCHEMA-CONTRACT)'
   const require = createRequire(import.meta.url);
   let Ajv;
   try { Ajv = require('ajv'); } catch { return; }
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const defs = schema.$defs ?? schema.definitions;
   const ajv = new Ajv({ allErrors: true, strict: false });
   const compile = (s) => ajv.compile(s);
@@ -223,7 +223,7 @@ test('R4 — charter validates against the index schema', () => {
   const require = createRequire(import.meta.url);
   let Ajv;
   try { Ajv = require('ajv'); } catch { return; }
-  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const defs = schema.$defs ?? schema.definitions;
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validate = ajv.compile(defs.indexFrontmatter.properties['charter']);

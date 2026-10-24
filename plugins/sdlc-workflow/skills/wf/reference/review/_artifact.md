@@ -170,7 +170,7 @@ The sunflower view renders the review page from a sibling `.yaml`. **Without it 
 
 For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
 
-Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
+Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `schemas/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
 
 Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
 
@@ -182,6 +182,6 @@ Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-
 
 Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed. For each per-dimension review `.md`:
 
-Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
+Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `schemas/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
 
 Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.

@@ -83,7 +83,7 @@ export function countArtifactStems(root = PLUGIN_ROOT) {
 
 /** Distinct `type` values the frontmatter schema's oneOf branches accept. */
 export function countFrontmatterTypes(root = PLUGIN_ROOT) {
-  const schema = JSON.parse(read(root, 'tests', 'frontmatter.schema.json'));
+  const schema = JSON.parse(read(root, 'schemas', 'frontmatter.schema.json'));
   const branches = (schema.allOf ?? []).flatMap((a) => a.oneOf ?? []);
   const types = new Set();
   for (const b of branches) {
