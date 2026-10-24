@@ -27,7 +27,6 @@ import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.autoStage === false) return;
 
   if (existsSync(join(projectRoot, '.ai', '.no-auto-stage'))) return;
   if (!existsSync(join(projectRoot, '.ai', 'workflows'))) return;

@@ -7,7 +7,7 @@ import {
   designGateRefusal,
   isPlanArtifact,
   planSliceOf
-} from "./chunk-WAHMOTHP.mjs";
+} from "./chunk-XRORYZXI.mjs";
 import {
   missingBoardFiles
 } from "./chunk-3O7UYQ5X.mjs";
@@ -15,11 +15,12 @@ import {
   safeParseFrontmatter
 } from "./chunk-R35WUHOB.mjs";
 import {
-  blockToolCall,
   isEntry,
+  refuseWrite,
   runStandalone
-} from "./chunk-FATSKH6O.mjs";
+} from "./chunk-NZ4BKMW5.mjs";
 import {
+  checksModeOf,
   formatList,
   hasFrontmatterFence,
   isFreeFormWorkflowPath,
@@ -35,7 +36,7 @@ import {
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 
 // hooks/pre-write-validate.mjs
 import { existsSync } from "node:fs";
@@ -65,13 +66,13 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
 async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.validateOnWrite === false) return;
+  if (checksModeOf(config) === "off") return;
   const filePath = input?.tool_input?.file_path;
   const content = input?.tool_input?.content;
   if (!filePath || !isWorkflowMarkdownPath(filePath) && !isProjectContextMarkdownPath(filePath)) return;
   if (!content) return;
   if (isProjectContextMarkdownPath(filePath)) {
-    validateProjectContextWrite({ filePath, content });
+    validateProjectContextWrite({ filePath, content, mode: checksModeOf(config) });
     return;
   }
   const info = workflowPathInfo(filePath);
@@ -120,17 +121,17 @@ async function run(input) {
     const refusal = prior === null ? null : startedPacketRewriteError(prior, content);
     if (refusal) errors.push(refusal);
   }
-  if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
+  if (errors.length === 0 && isPlanArtifact(info.storageRel)) {
     const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: info.storageRel });
     if (refusal) errors.push(refusal);
   }
   if (errors.length > 0) {
-    process.stderr.write(`wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:
+    refuseWrite(checksModeOf(config), `wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:
 ${formatList(errors)}
 
 Fix these issues and retry the write.
 `);
-    blockToolCall();
+    return;
   }
   const warnings = await registryWarnings({
     projectRoot,
@@ -160,7 +161,7 @@ async function designGate({ projectRoot, filePath, slug, storageRel }) {
     return null;
   }
 }
-function validateProjectContextWrite({ filePath, content }) {
+function validateProjectContextWrite({ filePath, content, mode }) {
   const info = projectContextPathInfo(filePath);
   if (!info || !hasFrontmatterFence(content)) return;
   const parsed = safeParseFrontmatter(content, { filePath });
@@ -183,12 +184,12 @@ function validateProjectContextWrite({ filePath, content }) {
     }
   }
   if (errors.length > 0) {
-    process.stderr.write(`wf-validate: blocked write to project context file ${info.filename}. Errors:
+    refuseWrite(mode, `wf-validate: blocked write to project context file ${info.filename}. Errors:
 ${formatList(errors)}
 
 Fix these issues and retry the write.
 `);
-    blockToolCall();
+    return;
   }
 }
 function escapeRegex(value) {

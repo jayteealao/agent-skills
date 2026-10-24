@@ -5,7 +5,7 @@ import {
   loadConfig,
   projectRootFromInput,
   readStdinJson
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 import "./chunk-DS4JUPRY.mjs";
 import {
   logError
@@ -581,7 +581,6 @@ async function runCostLedger({ input, cursorDir, env = process.env, now = () => 
   if (!sessionId) return { wrote: false, reason: "no session_id" };
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks?.costLedger === false) return { wrote: false, reason: "disabled" };
   let transcript = typeof input.transcript_path === "string" && input.transcript_path ? input.transcript_path : null;
   if (!transcript) transcript = findCodexRollout(sessionId, env.CODEX_HOME || void 0);
   if (!transcript || !existsSync2(transcript)) return { wrote: false, reason: "no transcript" };

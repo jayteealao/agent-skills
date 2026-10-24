@@ -117,14 +117,15 @@ test('claude Stop: a Workflow agent\'s tokens go to its slug in the main checkou
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('hooks.costLedger:false disables the row; a payload without session_id writes nothing', () => {
+test('the ledger has no switch; a payload without session_id writes nothing', () => {
   const { dir, repo, home } = setup();
   try {
-    writeFileSync(join(repo, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { costLedger: false } }));
+    writeFileSync(join(repo, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'off' }));
     const transcript = join(dir, 't.jsonl');
     writeFileSync(transcript, claudeAssistant('r1', { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, [{ type: 'tool_use', name: 'Write', input: { file_path: join(repo, '.ai', 'workflows', 'demo', '04-plan.md') } }]));
     runHook({ session_id: 's', transcript_path: transcript, cwd: repo }, { env: { SDLC_HOME: home } });
-    assert.ok(!existsSync(join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl')));
+    assert.ok(existsSync(join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl')), 'checks: off does not stop the ledger');
+    rmSync(join(home, 'cost-cursor'), { recursive: true, force: true });
     runHook({ transcript_path: transcript, cwd: repo }, { env: { SDLC_HOME: home } });
     assert.ok(!existsSync(join(home, 'cost-cursor')), 'no session → no cursor');
   } finally { rmSync(dir, { recursive: true, force: true }); }

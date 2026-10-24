@@ -67,7 +67,7 @@ Arguments and artifacts for each key are in [reference/commands.html](docs/site/
 
 ## Hooks
 
-Hooks verify each managed artifact on write, stage it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook, its event, and its toggle in `.ai/sdlc-config.json` ([reference/configuration.html](docs/site/reference/configuration.html)).
+Hooks verify each managed artifact on write, stage it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook and its event. One setting in `.ai/sdlc-config.json`, `checks`, sets how the checks act: `strict` (the default) refuses a write that fails a gate, `warn` lets it stand with a warning, and `off` runs no check ([reference/configuration.html](docs/site/reference/configuration.html)).
 
 One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module with one job. The model cannot type the built-in `/goal`, so at the end of a `/wf loop goal` turn the mod puts the `/goal` line into the prompt box for your Enter; in the Desktop app it sends the line at once. It needs `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`. Without the flag the module does not load, and you paste the `/goal` line that `/wf loop goal` prints.
 

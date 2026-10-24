@@ -11,7 +11,7 @@
  * - Exempt the po-answers.md prose log (see isProseLogPath).
  * - Warn, do not block, when .ai/workflows/INDEX.md is missing or lacks the slug row.
  * - Refuse a 04-plan*.md write while a needed design is unsettled (design lane human
- *   rule, lib/design-lane.mjs; opt out with hooks.designDirectionGate: false).
+ *   rule, lib/design-lane.mjs).
  * - Block with exit 2 + stderr on validation errors.
  *
  * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW
@@ -20,12 +20,12 @@
 
 import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { loadConfig } from '../lib/config.mjs';
+import { checksModeOf, loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingBoardFiles } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
-import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
+import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
@@ -78,7 +78,7 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
 export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.validateOnWrite === false) return;
+  if (checksModeOf(config) === 'off') return;
 
   const filePath = input?.tool_input?.file_path;
   const content = input?.tool_input?.content;
@@ -86,7 +86,7 @@ export async function run(input) {
   if (!content) return;
 
   if (isProjectContextMarkdownPath(filePath)) {
-    validateProjectContextWrite({ filePath, content });
+    validateProjectContextWrite({ filePath, content, mode: checksModeOf(config) });
     return;
   }
 
@@ -154,14 +154,14 @@ export async function run(input) {
     if (refusal) errors.push(refusal);
   }
 
-  if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
+  if (errors.length === 0 && isPlanArtifact(info.storageRel)) {
     const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: info.storageRel });
     if (refusal) errors.push(refusal);
   }
 
   if (errors.length > 0) {
-    process.stderr.write(`wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
-    blockToolCall();
+    refuseWrite(checksModeOf(config), `wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
+    return;
   }
 
   const warnings = await registryWarnings({
@@ -205,7 +205,7 @@ async function designGate({ projectRoot, filePath, slug, storageRel }) {
   }
 }
 
-function validateProjectContextWrite({ filePath, content }) {
+function validateProjectContextWrite({ filePath, content, mode }) {
   const info = projectContextPathInfo(filePath);
   if (!info || !hasFrontmatterFence(content)) return;
 
@@ -230,8 +230,8 @@ function validateProjectContextWrite({ filePath, content }) {
   }
 
   if (errors.length > 0) {
-    process.stderr.write(`wf-validate: blocked write to project context file ${info.filename}. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
-    blockToolCall();
+    refuseWrite(mode, `wf-validate: blocked write to project context file ${info.filename}. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
+    return;
   }
 }
 

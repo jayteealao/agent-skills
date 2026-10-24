@@ -9,13 +9,13 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-FATSKH6O.mjs";
+} from "./chunk-NZ4BKMW5.mjs";
 import {
   loadConfig,
   normalizePathForMatch,
   outputSystemMessage,
   projectRootFromInput
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 
 // hooks/leak-guard-write.mjs
 function isPublicDocPath(filePath, roots) {

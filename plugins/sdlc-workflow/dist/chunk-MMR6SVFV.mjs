@@ -18,107 +18,10 @@ import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var DEFAULT_SCHEMA_PATH = resolve(__dirname, "..", "schemas", "sdlc-config.schema.json");
 var DEFAULT_SDLC_CONFIG = Object.freeze({
-  view: {
-    render: {
-      concurrency: 4,
-      debounceMs: 2e3
-    },
-    // NOTE: there is deliberately no `serve` block here. Serve/daemon settings
-    // (host, port, liveReload, tailscale, and the perRepoServe master switch)
-    // are MACHINE-WIDE only and live in ~/.sdlc/hub-config.json — a repo cannot
-    // set them. `view.serve` is rejected by the per-repo schema. See §6.1.
-    bootstrap: {
-      enabled: true,
-      renderMissing: true,
-      renderStale: true
-    },
-    // Per-repo participation toggle for the machine-wide multi-repo hub
-    // (default-on / opt-out since v9.34.0). The ONLY per-repo hub field — all
-    // singleton hub settings live in ~/.sdlc/hub-config.json (§6.1).
-    hub: {
-      enabled: true
-    },
-    // Free narrative fragments (Tier 2, v9.70.0): any artifact may ship N
-    // `<stem>.<label>.html.fragment` siblings of UNRESTRICTED raw HTML, injected
-    // raw-inline below the page body. Default-on; set false to suppress them
-    // repo-wide (e.g. if an unrestricted fragment's global CSS/JS breaks a page
-    // and you want to render without it while fixing the fragment).
-    narrativeFragments: true,
-    // CSS containment for free narrative fragments (v9.71.0): default-on. Each
-    // fragment's `<style>` rules are wrapped in `@scope (.nfrag[data-label=…])`
-    // so a global selector can't bleed to the page or sibling fragments. Set
-    // false to inject `<style>` verbatim/unscoped (the pre-9.71.0 behaviour).
-    scopeNarrativeCss: true,
-    // Where a managed-artifact write gets rendered (RENDER-DISPATCH-PLAN):
-    //   'hub'    — the hook ENQUEUES the change to a durable per-repo render
-    //              queue (.ai/_view/.render-queue/) and the serving daemon
-    //              drains + renders it through the shared bounded engine. No
-    //              short-lived per-write renderer; one renderer (the daemon)
-    //              keeps .last-render identity consistent across hosts.
-    //   'inline' — DEPRECATED in 9.154.0, removed in the next release (W11.9):
-    //              the hook spawns `render-sunflower` itself (2s debounce). A
-    //              session that sets it logs one deprecated-config line.
-    renderDispatch: "hub",
-    // When 'hub' dispatch is active and no daemon is answering, the write hook
-    // makes a best-effort detached attempt to start the hub (the queued change
-    // renders at the hub's startup catch-up). Set false to never auto-start.
-    ensureHubOnWrite: true,
-    // Render queue tuning (RENDER-DISPATCH-PLAN). maxPending is a hard backstop;
-    // coalescing by bucket normally bounds the queue well below it.
-    renderQueue: {
-      maxPending: 500
-    }
-  },
-  hooks: {
-    autoStage: true,
-    // When true, the Stop hook appends the turn's exact token usage (copied from
-    // the host transcript) to .ai/workflows/<slug>/cost.jsonl. Never blocks.
-    // WIDE-VIEW-REPAIR-PLAN §10.
-    costLedger: true,
-    validateOnWrite: true,
-    verifyOnWrite: true,
-    // When true, post-write-verify BLOCKS a review, review-command, or plan .md
-    // written without its sibling .yaml, which later stages read. Opt out
-    // globally here, or per-artifact with `fragment: none` in its frontmatter.
-    remindMissingFragments: true,
-    // When true, post-write-verify validates a present sibling .yaml against
-    // siblingYamlSchemas.<type> and BLOCKS on a schema violation — but only for
-    // types whose schema has been reconciled to the live authoring convention
-    // (see SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs). Set
-    // false to disable while other type schemas are still being reconciled.
-    validateSiblingYaml: true,
-    // When true, post-write-verify WARNS (never blocks) when 00-index.md is over
-    // 20 KB, carries YAML comment prose, or has current-stage past its first
-    // 4,000 characters. ARTIFACT-SPLIT-PLAN S4.
-    indexLint: true,
-    // When true, post-write-verify HARD-BLOCKS a `verify` artifact whose
-    // frontmatter contradicts a passing result: `result: pass` with
-    // metric-acceptance-met < metric-acceptance-total, or `result: pass` with
-    // interactive-verification: deferred. These are false-positive-free
-    // cross-field checks (a true pass meets every AC and defers none). Set false
-    // to disable the result gate (AC-VERIFIABILITY recommendations R7).
-    verifyResultGate: true,
-    // When true, post-write-verify HARD-BLOCKS a `.ai/ship-plan-audit.md` write
-    // that finalizes the ledger without triage: an open BLOCKER/HIGH finding with
-    // no `triage: accept` while `triage-status` is not `complete` or
-    // `awaiting-user` with `awaiting-since` equal to `last-run` (ship-plan/audit.md
-    // Step 5; the awaiting escape lasts one run). Under Codex the Stop hook
-    // re-checks the same gate, so a turn cannot end on an untriaged ledger.
-    shipPlanAuditTriageGate: true,
-    // When true, pre-write-validate REFUSES a `04-plan*.md` write while the
-    // workflow needs design (`ux-impact` visual/flow/new-surface, or a legacy
-    // `02b-design.md`) and the design is not settled: no `02c-craft.md` with a
-    // resolved `image-gate` and `direction-confirmed-by`, and no
-    // `progress.design: skipped` + `design-skip-reason`. The design lane's human
-    // rule (skills/wf/reference/design/_lane.md; lib/design-lane.mjs).
-    designDirectionGate: true,
-    // When true, post-write-verify WARNS (non-blocking) on shadow-deferral
-    // vocabulary in a `verify` body that co-occurs with `result: pass`
-    // ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified
-    // during <slice>", "decidable by static reasoning"). Heuristic, so it warns
-    // rather than blocks. Set false to silence the prose-deferral lint.
-    verifyDeferralLint: true
-  },
+  // How the write-time checks act: `strict` refuses a write that fails a gate,
+  // `warn` lets it stand and shows the same reason as a warning, and `off` runs
+  // no check. The lints only warn, in `strict` and `warn` alike.
+  checks: "strict",
   // Semantic leak guards (HOOKS-SEMANTIC Phase 1): scan outward-facing text —
   // git commit/tag messages, gh pr/release titles+bodies, public-doc writes —
   // for internal workflow vocabulary, using the lexicon derived from
@@ -156,7 +59,11 @@ function configPathFor(projectRoot = process.cwd()) {
 function clone(value) {
   return structuredClone(value);
 }
-var RETIRED_CONFIG_KEYS = Object.freeze(["campaign", "yolo.usageBudget"]);
+var RETIRED_CONFIG_KEYS = Object.freeze(["campaign", "hooks", "view", "yolo.usageBudget"]);
+var CHECKS_MODES = Object.freeze(["strict", "warn", "off"]);
+function checksModeOf(config) {
+  return CHECKS_MODES.includes(config?.checks) ? config.checks : "strict";
+}
 function withoutRetiredKeys(userConfig, retired = RETIRED_CONFIG_KEYS) {
   if (!userConfig || typeof userConfig !== "object" || Array.isArray(userConfig)) return { config: userConfig, dropped: [] };
   const config = clone(userConfig);
@@ -528,6 +435,7 @@ async function readStdinJson({ emptyValue = {} } = {}) {
 }
 
 export {
+  checksModeOf,
   loadConfig,
   projectRootFromInput,
   beginSystemMessages,

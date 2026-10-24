@@ -202,13 +202,12 @@ test('post-write-verify warns (exit 0) on an oversized index with comment prose'
     match(out.systemMessage, /index lint \(advisory\)/);
     match(out.systemMessage, /over the 20480-byte limit/);
     match(out.systemMessage, /YAML comment line\(s\) of prose/);
-    match(out.systemMessage, /hooks\.indexLint: false/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
 
-test('post-write-verify is silent for a clean index and honours hooks.indexLint: false', () => {
+test('post-write-verify is silent for a clean index and under checks: off', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/00-index.md';
@@ -218,7 +217,7 @@ test('post-write-verify is silent for a clean index and honours hooks.indexLint:
     equal(result.stdout, '');
 
     writeFile(join(tmp, rel), indexText({ body: 'x'.repeat(INDEX_SIZE_WARN_BYTES + 1) }));
-    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { indexLint: false } }));
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'off' }));
     result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
     equal(result.status, 0, result.stderr);
     equal(result.stdout, '');

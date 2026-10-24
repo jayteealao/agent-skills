@@ -41,4 +41,4 @@ This contract governs how a **revisable artifact** is rewritten. It says nothing
 
 ## cost.jsonl is hook-owned
 
-`.ai/workflows/<slug>/cost.jsonl` is the exact cost ledger (one JSON row per turn: the main model's usage, each sub-agent's usage, and the stage key the turn wrote). The Stop hook appends it; the consult dispatcher appends `external` rows when `SDLC_COST_SLUG` is set. No stage writes, edits, or rewrites the file, and no stage copies its numbers into an artifact body — `/wf status`, the slug page, and the dashboard sum the rows on read. Commit the file with the next commit that touches the slug. Disable the ledger with `hooks.costLedger: false`.
+`.ai/workflows/<slug>/cost.jsonl` is the exact cost ledger (one JSON row per turn: the main model's usage, each sub-agent's usage, and the stage key the turn wrote). The Stop hook appends it; the consult dispatcher appends `external` rows when `SDLC_COST_SLUG` is set. No stage writes, edits, or rewrites the file, and no stage copies its numbers into an artifact body — `/wf status`, the slug page, and the dashboard sum the rows on read. Commit the file with the next commit that touches the slug.

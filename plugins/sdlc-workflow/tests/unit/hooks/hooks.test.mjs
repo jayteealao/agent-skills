@@ -581,10 +581,12 @@ test('post-write-verify ship-plan audit triage gate blocks an untriaged ledger a
     r = run();
     ok(!/frontmatter validation FAILED/.test(r.stderr), r.stderr);
 
-    // Opt-out.
-    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { shipPlanAuditTriageGate: false } }));
+    // checks: warn lets the write stand and shows the reason.
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'warn' }));
     writeFile(p, auditLedger({ triageStatus: 'pending' }));
-    equal(run().status, 0);
+    r = run();
+    equal(r.status, 0, r.stderr);
+    match(JSON.parse(r.stdout).systemMessage, /triage gate BLOCKED[^]*checks: warn, so the write stands/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -782,15 +784,26 @@ test('post-write-verify WARNS (non-blocking) on a prose-only deferral with resul
   }
 });
 
-test('post-write-verify honours the hooks.verifyResultGate:false opt-out (R7)', () => {
+test('checks: strict blocks a false pass and names the warn mode; warn lets it stand; off runs no check', () => {
   const tmp = tempDir();
   try {
-    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { verifyResultGate: false } }));
     const rel = '.ai/workflows/demo/06-verify-core.md';
     writeFile(join(tmp, rel), md(validVerify({ result: 'pass', 'metric-acceptance-met': 0, 'metric-acceptance-total': 2 })));
+    const hook = () => runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
 
-    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
-    equal(result.status, 0, result.stderr);   // gate disabled → no block
+    let result = hook();
+    equal(result.status, 2);
+    match(result.stderr, /Set checks: warn in \.ai\/sdlc-config\.json/);
+
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'warn' }));
+    result = hook();
+    equal(result.status, 0, result.stderr);
+    match(JSON.parse(result.stdout).systemMessage, /verify result gate BLOCKED[^]*checks: warn, so the write stands/);
+
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'off' }));
+    result = hook();
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout.trim(), '');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

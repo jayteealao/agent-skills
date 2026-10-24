@@ -10,184 +10,20 @@
       "type": "string"
     },
     "artifactTracking": {
-      "enum": ["tracked", "ignored"],
+      "enum": [
+        "tracked",
+        "ignored"
+      ],
       "description": "Whether the .ai/ workflow artifact tree is committed to git ('tracked') or gitignored except ship-plan.md + sdlc-config.json ('ignored'). Recorded once by /wf ship-plan init Step 3.5 so handoff/ship's clean-tree handling reads a policy instead of deciding ad hoc mid-release. Absent = policy unset (status surfaces a one-time advisory; ship asks per-run)."
     },
-    "view": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "render": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "concurrency": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 32,
-              "default": 4
-            },
-            "debounceMs": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 60000,
-              "default": 2000
-            }
-          }
-        },
-        "bootstrap": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": true
-            },
-            "renderMissing": {
-              "type": "boolean",
-              "default": true
-            },
-            "renderStale": {
-              "type": "boolean",
-              "default": true
-            }
-          }
-        },
-        "hub": {
-          "type": "object",
-          "description": "Per-repo participation toggle for the machine-wide multi-repo hub (default-on / opt-out since v9.34.0). This is the ONLY per-repo hub field: it decides whether this repo participates (registers + is willing to start/use the hub). Every singleton hub setting (host, port, limits, Tailscale) lives in the machine-wide ~/.sdlc/hub-config.json instead, so the two files share zero fields and there are no precedence rules. additionalProperties:false rejects any singleton setting placed here by mistake. See MULTI-REPO-REGISTRY-PLAN §6.1.",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": true
-            }
-          }
-        },
-        "narrativeFragments": {
-          "type": "boolean",
-          "default": true,
-          "description": "Free narrative fragments (Tier 2, v9.70.0): when true, any artifact's `<stem>.<label>.html.fragment` siblings — UNRESTRICTED raw HTML the agent authors to tell the artifact's story — are injected raw-inline below the page body, in label (filename) order. Set false to suppress them repo-wide (e.g. while a fragment's global CSS/JS is breaking a page). The one typed `<stem>.html.fragment` is unaffected by this switch."
-        },
-        "scopeNarrativeCss": {
-          "type": "boolean",
-          "default": true,
-          "description": "CSS containment for free narrative fragments (v9.71.0): when true (default), each fragment's `<style>` rules are wrapped in a native `@scope (.nfrag[data-label=\"<label>\"])` so a global selector (`body`, `*`, `.x`) can only match inside that fragment's wrapper — never the page chrome above it or a sibling fragment. `<style>`-less fragments and inline `style=\"\"` are untouched. Set false to inject `<style>` verbatim/unscoped (pre-9.71.0 behaviour). Has no effect when `narrativeFragments` is false. Note: scripts are out of scope here — inline `<script>` is already blocked by the serve `script-src 'self'` CSP."
-        },
-        "renderDispatch": {
-          "type": "string",
-          "enum": ["hub", "inline"],
-          "default": "hub",
-          "description": "Where a managed-artifact write gets rendered (RENDER-DISPATCH-PLAN). 'hub' (default): the write hook ENQUEUES the change to a durable per-repo render queue (.ai/_view/.render-queue/) and the serving daemon (hub or standalone) drains + renders it through the shared bounded engine — no short-lived per-write renderer, one renderer keeps .last-render version identity consistent (the prerequisite for the native Codex host). 'inline': the legacy behaviour where the hook spawns render-sunflower itself after a 2s debounce — the rollback / A-B switch."
-        },
-        "ensureHubOnWrite": {
-          "type": "boolean",
-          "default": true,
-          "description": "When 'hub' renderDispatch is active and no daemon answers the health probe, the write hook makes a best-effort, non-blocking detached attempt to start the hub (the queued change then renders at the hub's startup catch-up). Set false to never auto-start a daemon from a write hook — queued changes wait until a daemon is started another way."
-        },
-        "renderQueue": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "Render queue tuning (RENDER-DISPATCH-PLAN). Applies only under 'hub' renderDispatch.",
-          "properties": {
-            "maxPending": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100000,
-              "default": 500,
-              "description": "Hard backstop on pending requests per repo. Coalescing by (kind, bucket) normally bounds the queue well below this; beyond the cap the oldest requests are evicted with a logged warning."
-            }
-          }
-        }
-      }
-    },
-    "hooks": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "autoStage": {
-          "type": "boolean",
-          "default": true
-        },
-        "validateOnWrite": {
-          "type": "boolean",
-          "default": true
-        },
-        "verifyOnWrite": {
-          "type": "boolean",
-          "default": true
-        },
-        "remindMissingFragments": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook BLOCKS (exit 2) a review, review-command, or plan artifact written without its sibling .yaml. Later stages read that .yaml: the review .yaml is the findings ledger, and the plan .yaml carries the files and edges. Set false to disable the block. A single artifact can opt out instead via `fragment: none` in its frontmatter."
-        },
-        "validateSiblingYaml": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan and review — keyed by the .md's type:, so review-dimension (authored as type: review-command) is not reachable here, and the types with no real sibling corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
-        },
-        "verifyResultGate": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact whose frontmatter contradicts a passing result: `result: pass` with metric-acceptance-met < metric-acceptance-total, or `result: pass` with interactive-verification: deferred. False-positive-free cross-field checks (a true pass meets every AC and defers none). Set false to disable the result gate. See the AC-VERIFIABILITY recommendations R7."
-        },
-        "shipPlanAuditTriageGate": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a write of `.ai/ship-plan-audit.md` that finalizes the ledger without triage: an open BLOCKER/HIGH finding while `triage-status` is neither `complete` nor `awaiting-user`, or `complete` while such a finding has no `triage: accept` (reference/ship-plan/audit.md Step 5). The end-of-turn re-check, where the host wires one, re-runs the same gate. Set false to disable."
-        },
-        "designDirectionGate": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the pre-write-validate hook refuses a `04-plan*.md` write while the workflow needs design (`ux-impact` is visual, flow, or new-surface, or a legacy `02b-design.md` exists) and the design is not settled: no `02c-craft.md` carrying a resolved `image-gate` and `direction-confirmed-by`, and no `progress.design: skipped` with a `design-skip-reason` (skills/wf/reference/design/_lane.md). A person confirms the design at `/wf design <slug>` before planning. Set false to disable."
-        },
-        "designModeLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a design artifact carries only the deprecated `register`; it reads as a design mode (brand → persuade, product → operate). Set false to silence."
-        },
-        "verifyDeferralLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook WARNS (non-blocking systemMessage) when shadow-deferral vocabulary in a `verify` body co-occurs with `result: pass` (e.g. 'deferred to user/manual', 'UNVERIFIED-INTERACTIVE', 'will be verified during <slice>', 'decidable by static reasoning'). Heuristic, so it warns rather than blocks. Set false to silence the prose-deferral lint."
-        },
-        "mockEvidenceGate": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact with `result: pass` while metric-acceptance-mock-rung > 0 — i.e. at least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). A user-observable AC evidenced only by a mock or static analysis is not met — climb the ladder or defer. WARNS additionally when an unproven-integration (first-light: null) co-occurs with a passing dependent AC. Set false to disable. See EVIDENCE-SCHEMA-CONTRACT.md §5."
-        },
-        "limitationClaimLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the pre-write-validate (code files) and post-write-verify (artifacts) hooks WARN (non-blocking) when an added/modified comment claims a dependency capability does not exist / is not exposed / was removed (the limitation lexicon) with no citation marker within ±3 lines (source:, node_modules/, repro:, issue:, a URL). INTENT-FIDELITY W3.2 — a comment is a hypothesis, not authority. Set false to silence."
-        },
-        "suppressionDebtLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the hooks WARN (non-blocking) when a new type/lint suppression (`as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, language equivalents) is added without an `sdlc-debt:` marker within ±2 lines. INTENT-FIDELITY W9.3 — the existing debt lifecycle (verify validates, retro reconciles, simplify sweeps) then inherits the class. Set false to silence."
-        },
-        "namedMechanismLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, pipeline, orchestrator, regex) appears in a shape/slice AC or verification line but in no decision section of the artifact body. INTENT-FIDELITY W7 — a test may not name a machine the design does not own. Heuristic, so it warns. Set false to silence."
-        },
-        "costLedger": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the Stop hook appends one row per turn to .ai/workflows/<slug>/cost.jsonl with the exact token usage copied from the host transcript (Claude Code, Codex, or pi), attributed to the slug and stage key the turn wrote. WIDE-VIEW-REPAIR-PLAN §10. Never blocks. Set false to write no ledger."
-        },
-        "intakeLedgerLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a default-mode intake artifact (01-intake.md, type: intake) lands with neither RIM/charter ledger entries on the sibling 00-index.md nor the explicit `intent-risks: none-declared` / `charter: none-declared` escape. INTAKE-SHAPE-HARDENING W2.1 — a default intake may not be silently ledger-less; shape's Step 9a backfill is the hard consequence. Set false to silence."
-        },
-        "indexLint": {
-          "type": "boolean",
-          "default": true,
-          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) after a write to a workflow's 00-index.md when the file is over 20 KB, when its frontmatter carries a YAML comment line of prose (a `#` comment of more than 8 words), or when `current-stage:` is not in the first 4000 characters (the subagent-start hook reads only that much). History commentary belongs in index-history.jsonl (ARTIFACT-SPLIT-PLAN S4). Never blocks. Set false to silence."
-        }
-      }
+    "checks": {
+      "enum": [
+        "strict",
+        "warn",
+        "off"
+      ],
+      "default": "strict",
+      "description": "How the write-time checks act. strict: a write that fails a gate is refused. warn: the write stands, and the same reason shows as a warning. off: no check runs. The lints only warn, in strict and warn alike."
     },
     "semantic": {
       "type": "object",
@@ -200,7 +36,10 @@
           "description": "Master switch for both leak guards. Default false (the hooks exit silently)."
         },
         "mode": {
-          "enum": ["advisory", "enforce"],
+          "enum": [
+            "advisory",
+            "enforce"
+          ],
           "default": "advisory",
           "description": "'advisory' emits a non-blocking systemMessage naming the matched vocabulary; 'enforce' denies the tool call (exit 2) with the same message."
         }
@@ -212,7 +51,10 @@
       "description": "Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/` is always the per-repo corpus; globalDir optionally adds a user-level one.",
       "properties": {
         "globalDir": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "description": "Absolute path to a USER-LEVEL solutions corpus read by plan's reuse scan alongside the repo's .ai/solutions/, and the target for retro's user-confirmed lesson promotion + the about-the-workflow plugin-feedback.md channel. null (default) disables it. The dir stays local — never synced by the plugin, since repo lessons can contain project specifics (privacy)."
         }
@@ -223,11 +65,41 @@
       "additionalProperties": false,
       "description": "WF-SYSTEM-REVIEW C1: the model of each stage agent of the /wf yolo and campaign wave drivers. A stage that is not named runs on Opus, the default. Read at launch and passed in the driver args.",
       "properties": {
-        "plan": { "enum": ["opus", "sonnet"], "description": "The plan stage agent." },
-        "implement": { "enum": ["opus", "sonnet"], "description": "The implement stage agent. The A/B of 2026-10-16 passed Sonnet here." },
-        "verify": { "enum": ["opus", "sonnet"], "description": "The verify stage agent." },
-        "review": { "enum": ["opus", "sonnet"], "description": "The review writer." },
-        "update-deps": { "enum": ["opus", "sonnet"], "description": "The update-deps execution agent (yolo)." }
+        "plan": {
+          "enum": [
+            "opus",
+            "sonnet"
+          ],
+          "description": "The plan stage agent."
+        },
+        "implement": {
+          "enum": [
+            "opus",
+            "sonnet"
+          ],
+          "description": "The implement stage agent. The A/B of 2026-10-16 passed Sonnet here."
+        },
+        "verify": {
+          "enum": [
+            "opus",
+            "sonnet"
+          ],
+          "description": "The verify stage agent."
+        },
+        "review": {
+          "enum": [
+            "opus",
+            "sonnet"
+          ],
+          "description": "The review writer."
+        },
+        "update-deps": {
+          "enum": [
+            "opus",
+            "sonnet"
+          ],
+          "description": "The update-deps execution agent (yolo)."
+        }
       }
     },
     "memory": {

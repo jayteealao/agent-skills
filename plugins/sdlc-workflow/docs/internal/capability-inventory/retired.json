@@ -1098,5 +1098,26 @@
     "entry": "04-plan-<X>.html.fragment",
     "reason": "The view layer and its fragments are deleted; no stage writes or names a plan fragment.",
     "release": "10.0.0"
+  },
+  {
+    "file": "*",
+    "category": "config",
+    "entry": "hooks.mockEvidenceGate",
+    "reason": "One checks setting (strict, warn, off) replaces the per-gate and per-lint hook switches; the old switch is ignored with one warning.",
+    "release": "10.0.0"
+  },
+  {
+    "file": "*",
+    "category": "config",
+    "entry": "hooks.verifyDeferralLint",
+    "reason": "One checks setting (strict, warn, off) replaces the per-gate and per-lint hook switches; the old switch is ignored with one warning.",
+    "release": "10.0.0"
+  },
+  {
+    "file": "*",
+    "category": "config",
+    "entry": "hooks.verifyResultGate",
+    "reason": "One checks setting (strict, warn, off) replaces the per-gate and per-lint hook switches; the old switch is ignored with one warning.",
+    "release": "10.0.0"
   }
 ]

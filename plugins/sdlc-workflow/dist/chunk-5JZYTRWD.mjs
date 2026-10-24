@@ -19,11 +19,12 @@ import {
   safeParseFrontmatter
 } from "./chunk-R35WUHOB.mjs";
 import {
-  blockToolCall,
   isEntry,
+  refuseWrite,
   runStandalone
-} from "./chunk-FATSKH6O.mjs";
+} from "./chunk-NZ4BKMW5.mjs";
 import {
+  checksModeOf,
   collectToolInputPaths,
   hasFrontmatterFence,
   isBrainstormBoardPath,
@@ -39,7 +40,7 @@ import {
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 import {
   logError
 } from "./chunk-TIGAJNZN.mjs";
@@ -114,24 +115,20 @@ function artifactType(text) {
   return augMatch ? augMatch[1] : type;
 }
 var SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|deferred to manual user|UNVERIFIED[ -]INTERACTIVE|will be verified (?:interactively )?(?:during|in|at)\b|decidable by static reasoning|deferred to user verification)/i;
-function blockVerifyResultGate(rel, message) {
-  process.stderr.write(
+function blockVerifyResultGate(config, rel, message) {
+  refuseWrite(
+    checksModeOf(config),
     `wf-postwrite-verify: verify result gate BLOCKED ${rel}
 
 ${message}
 
 This gate blocks a pass that the acceptance evidence does not support.
 Re-Edit the frontmatter to reconcile result
-with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.
+with the acceptance evidence, then continue.
 `
   );
-  blockToolCall();
 }
 async function enforceVerifyResultGate(paths, config) {
-  const resultGate = config.hooks?.verifyResultGate !== false;
-  const proseLint = config.hooks?.verifyDeferralLint !== false;
-  const mockGate = config.hooks?.mockEvidenceGate !== false;
-  if (!resultGate && !proseLint && !mockGate) return;
   const warnings = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
@@ -139,42 +136,39 @@ async function enforceVerifyResultGate(paths, config) {
     if (artifactType(text) !== "verify") continue;
     const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!data || data.result !== "pass") continue;
-    if (mockGate) {
-      const mock = data["metric-acceptance-mock-rung"];
-      if (typeof mock === "number" && mock > 0) {
-        blockVerifyResultGate(
-          path.original,
-          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static / asserted \u2014 a mock, a static analysis, or an unverified claim of success does not evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/emulator rung (for a task AC: re-read the system of record \u2014 live \u2014 or record a cited attestation \u2014 attested), or take the deferral path (interactive-verification: deferred + a 00-index runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.`
-        );
-      }
+    const mock = data["metric-acceptance-mock-rung"];
+    if (typeof mock === "number" && mock > 0) {
+      blockVerifyResultGate(
+        config,
+        path.original,
+        `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static / asserted \u2014 a mock, a static analysis, or an unverified claim of success does not evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/emulator rung (for a task AC: re-read the system of record \u2014 live \u2014 or record a cited attestation \u2014 attested), or take the deferral path (interactive-verification: deferred + a 00-index runtime-evidence-deferrals entry), then set result: partial.`
+      );
     }
-    if (resultGate) {
-      const met = data["metric-acceptance-met"];
-      const total = data["metric-acceptance-total"];
-      if (typeof met === "number" && typeof total === "number" && total > 0 && met < total) {
-        blockVerifyResultGate(
-          path.original,
-          `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet AC is user-observable and this environment cannot evidence it, set interactive-verification: deferred (result becomes \`partial\`) and register a 00-index runtime-evidence-deferrals entry.`
-        );
-      }
-      if (data["interactive-verification"] === "deferred") {
-        blockVerifyResultGate(
-          path.original,
-          "result: pass but interactive-verification: deferred. A deferred user-observable AC has no runtime evidence, so the slice cannot pass \u2014 set result: partial. (`/wf ship` then hard-blocks until a probe/re-verify run clears the deferral.)"
-        );
-      }
+    const met = data["metric-acceptance-met"];
+    const total = data["metric-acceptance-total"];
+    if (typeof met === "number" && typeof total === "number" && total > 0 && met < total) {
+      blockVerifyResultGate(
+        config,
+        path.original,
+        `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet AC is user-observable and this environment cannot evidence it, set interactive-verification: deferred (result becomes \`partial\`) and register a 00-index runtime-evidence-deferrals entry.`
+      );
     }
-    if (proseLint) {
-      const hit = SHADOW_DEFERRAL_RE.exec(content || "");
-      if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
+    if (data["interactive-verification"] === "deferred") {
+      blockVerifyResultGate(
+        config,
+        path.original,
+        "result: pass but interactive-verification: deferred. A deferred user-observable AC has no runtime evidence, so the slice cannot pass \u2014 set result: partial. (`/wf ship` then hard-blocks until a probe/re-verify run clears the deferral.)"
+      );
     }
+    const hit = SHADOW_DEFERRAL_RE.exec(content || "");
+    if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
   }
   if (warnings.length) {
     const lines2 = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
     outputSystemMessage(
       `wf: possible prose-only deferral in a passing verify artifact:
 ${lines2.join("\n")}
-A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what happened, set result: partial + interactive-verification: deferred (with the rungs tried in the defer-reason) and register the deferral in 00-index runtime-evidence-deferrals \u2014 do not leave it as a silent pass. Disable this lint with hooks.verifyDeferralLint: false.`
+A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what happened, set result: partial + interactive-verification: deferred (with the rungs tried in the defer-reason) and register the deferral in 00-index runtime-evidence-deferrals \u2014 do not leave it as a silent pass.`
     );
   }
 }
@@ -186,9 +180,6 @@ function newTextFromInput(input) {
   return "";
 }
 function enforceCodeFileLints(input, config, artifactPaths) {
-  const limitationLint = config.hooks?.limitationClaimLint !== false;
-  const debtLint = config.hooks?.suppressionDebtLint !== false;
-  if (!limitationLint && !debtLint) return;
   const artifactSet = new Set((artifactPaths ?? []).map((p) => p.original));
   const paths = collectToolInputPaths(input).filter(
     (p) => !artifactSet.has(p) && !isManagedArtifactMarkdownPath(p) && !isProseLogPath(p)
@@ -197,25 +188,20 @@ function enforceCodeFileLints(input, config, artifactPaths) {
   const text = newTextFromInput(input);
   if (!text.trim()) return;
   const lines2 = [];
-  if (limitationLint) {
-    for (const hit of findUncitedLimitationClaims(text)) {
-      lines2.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
-    }
+  for (const hit of findUncitedLimitationClaims(text)) {
+    lines2.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
   }
-  if (debtLint) {
-    for (const hit of findUnmarkedSuppressions(text)) {
-      lines2.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
-    }
+  for (const hit of findUnmarkedSuppressions(text)) {
+    lines2.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
   }
   if (!lines2.length) return;
   outputSystemMessage(
     `wf: intent-fidelity code lints (advisory) on ${paths.join(", ")}:
 ${lines2.join("\n")}
-A "does not exist / not exposed / was removed" comment is a HYPOTHESIS \u2014 cite the installed source (a study-sources read of node_modules/, a repro, an issue, or a URL) within \xB13 lines, or delete it; never replicate an in-repo limitation comment into new code without re-verifying it. A new \`as any\` / \`@ts-ignore\` / \`eslint-disable\` needs an \`sdlc-debt:\` marker so the debt lifecycle (verify/retro/simplify) inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.`
+A "does not exist / not exposed / was removed" comment is a HYPOTHESIS \u2014 cite the installed source (a study-sources read of node_modules/, a repro, an issue, or a URL) within \xB13 lines, or delete it; never replicate an in-repo limitation comment into new code without re-verifying it. A new \`as any\` / \`@ts-ignore\` / \`eslint-disable\` needs an \`sdlc-debt:\` marker so the debt lifecycle (verify/retro/simplify) inherits it.`
   );
 }
 async function enforceIntakeLedgerLint(paths, config) {
-  if (config.hooks?.intakeLedgerLint === false) return;
   const warns = [];
   for (const path of paths) {
     const base = path.original.replace(/\\/g, "/").split("/").at(-1);
@@ -242,12 +228,11 @@ async function enforceIntakeLedgerLint(paths, config) {
     outputSystemMessage(
       `wf: intake ledger lint (advisory) \u2014 a default-mode intake landed without its intent ledger:
 ${lines2.join("\n")}
-A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit escape \`intent-risks: none-declared\` / \`charter: none-declared\` with a one-line reason in the body. Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating. Opt out: hooks.intakeLedgerLint: false.`
+A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit escape \`intent-risks: none-declared\` / \`charter: none-declared\` with a one-line reason in the body. Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating.`
     );
   }
 }
 async function enforceNamedMechanismLint(paths, config) {
-  if (config.hooks?.namedMechanismLint === false) return;
   const warns = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
@@ -271,7 +256,7 @@ async function enforceNamedMechanismLint(paths, config) {
     outputSystemMessage(
       `wf: named-mechanism lint (advisory) \u2014 a mechanism named in an AC/verification line has no owning decision in the artifact body:
 ${lines2.join("\n")}
-A test may not name a machine the design does not own. State the mechanism in the body (what it is, what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC. Opt out: hooks.namedMechanismLint: false.`
+A test may not name a machine the design does not own. State the mechanism in the body (what it is, what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC.`
     );
   }
 }
@@ -308,7 +293,6 @@ function auditTriageViolation(data) {
   };
 }
 async function enforceShipPlanAuditTriage(paths, config) {
-  if (config.hooks?.shipPlanAuditTriageGate === false) return;
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
     if (!hasFrontmatterFence(text)) continue;
@@ -316,7 +300,8 @@ async function enforceShipPlanAuditTriage(paths, config) {
     if (!data || String(data.kind ?? "") !== "ship-plan-audit") continue;
     const violation = auditTriageViolation(data);
     if (!violation) continue;
-    process.stderr.write(
+    refuseWrite(
+      checksModeOf(config),
       `wf-postwrite-verify: ship-plan audit triage gate BLOCKED ${path.original}
 
 ${violation.reason}
@@ -326,35 +311,33 @@ before the ledger is finalized. Ask the gate now (per reference/_gate-question.m
 decision in the ledger: accept -> \`triage: accept\` on the finding; acknowledge -> \`status: acknowledged\`
 + the reason; reject -> drop the finding. Then set \`triage-status: complete\`. If the turn must end while
 the user answers, set \`triage-status: awaiting-user\` and \`awaiting-since: <last-run>\` instead; that escape
-lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.
+lasts one run.
 `
     );
-    blockToolCall();
   }
 }
 async function validateBrainstormBoards(paths, config, schemaPath) {
-  if (config.hooks?.validateBrainstormBoard === false) return;
   const failures = [];
   for (const path of paths) {
     const result = await validateBrainstormBoardFile(path.absolute, { schemaPath });
     if (!result.valid) failures.push({ path, result });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}
+    reason.push(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}
 
 `);
-    process.stderr.write(`${formatValidationErrors(f.result.errors)}
+    reason.push(`${formatValidationErrors(f.result.errors)}
 
 `);
   }
-  process.stderr.write("The board does not conform to $defs.brainstormBoard\n");
-  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
-  process.stderr.write("skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n");
-  blockToolCall();
+  reason.push("The board does not conform to $defs.brainstormBoard\n");
+  reason.push("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
+  reason.push("skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n");
+  refuseWrite(checksModeOf(config), reason.join(""));
 }
 async function validatePrototypeLedgers(paths, config, schemaPath) {
-  if (config.hooks?.validatePrototypeLedger === false) return;
   const failures = [];
   for (const path of paths) {
     const result = await validatePrototypeLedgerFile(path.absolute, { schemaPath });
@@ -369,23 +352,23 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
     if (!result.valid || rules.length) failures.push({ path, result, rules });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: proof ledger validation FAILED for ${f.path.original}
+    reason.push(`wf-postwrite-verify: proof ledger validation FAILED for ${f.path.original}
 
 `);
-    if (!f.result.valid) process.stderr.write(`${formatValidationErrors(f.result.errors)}
+    if (!f.result.valid) reason.push(`${formatValidationErrors(f.result.errors)}
 
 `);
-    for (const r of f.rules) process.stderr.write(`  - ${r}
+    for (const r of f.rules) reason.push(`  - ${r}
 `);
   }
-  process.stderr.write("The ledger does not conform to $defs.prototypeLedger and the ledger rules\n");
-  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
-  process.stderr.write("skills/wf/reference/prototype.md). Fix the ledger, then continue.\n");
-  blockToolCall();
+  reason.push("The ledger does not conform to $defs.prototypeLedger and the ledger rules\n");
+  reason.push("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n");
+  reason.push("skills/wf/reference/prototype.md). Fix the ledger, then continue.\n");
+  refuseWrite(checksModeOf(config), reason.join(""));
 }
 async function enforceSourceCoverage(paths, config) {
-  if (config.hooks?.ideateSourceCoverage === false) return;
   const failures = [];
   for (const path of paths) {
     if (!/(?:^|\/)01-ideate\.md$/.test(normalizePathForMatch(path.original))) continue;
@@ -397,15 +380,16 @@ async function enforceSourceCoverage(paths, config) {
     if (problems.length) failures.push({ path, problems });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}
+    reason.push(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}
 `);
-    for (const p of f.problems) process.stderr.write(`  - ${p}
+    for (const p of f.problems) reason.push(`  - ${p}
 `);
   }
-  process.stderr.write("Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n");
-  process.stderr.write("Give each named item its result, then continue.\n");
-  blockToolCall();
+  reason.push("Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n");
+  reason.push("Give each named item its result, then continue.\n");
+  refuseWrite(checksModeOf(config), reason.join(""));
 }
 var INDEX_SIZE_WARN_BYTES = 20480;
 var INDEX_STAGE_HEAD_CHARS = 4e3;
@@ -453,7 +437,6 @@ function designModeAdvice(fm) {
   return `carries \`register: ${register}\`, read as design mode \`${modes[0].mode}\`. \`register\` is deprecated: each surface now has its own design mode (persuade, operate, read, or experience). Write ${field} instead.`;
 }
 async function enforceDesignModeLint(paths, config) {
-  if (config.hooks?.designModeLint === false) return;
   const lines2 = [];
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
@@ -464,11 +447,9 @@ async function enforceDesignModeLint(paths, config) {
   }
   if (!lines2.length) return;
   outputSystemMessage(`wf: design mode (advisory):
-${lines2.join("\n")}
-Opt out: hooks.designModeLint: false.`);
+${lines2.join("\n")}`);
 }
 async function enforceIndexLint(paths, config) {
-  if (config.hooks?.indexLint === false) return;
   const lines2 = [];
   for (const path of paths) {
     if (!isWorkflowIndexPath(path.original)) continue;
@@ -484,14 +465,13 @@ async function enforceIndexLint(paths, config) {
   }
   if (!lines2.length) return;
   outputSystemMessage(`wf: index lint (advisory):
-${lines2.join("\n")}
-Opt out: hooks.indexLint: false.`);
+${lines2.join("\n")}`);
 }
 var PLUGIN_ROOT = fileURLToPath(new URL("..", import.meta.url));
 async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.verifyOnWrite === false) return;
+  if (checksModeOf(config) === "off") return;
   const schemaPath = join(PLUGIN_ROOT, "schemas", "frontmatter.schema.json");
   const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).filter((path) => !isFreeFormWorkflowPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   try {
@@ -526,18 +506,19 @@ async function run(input) {
     await enforceDesignModeLint(paths, config);
     return;
   }
+  const reason = [];
   for (const failure of failures) {
-    process.stderr.write(`wf-postwrite-verify: frontmatter validation FAILED for ${failure.path.original}
+    reason.push(`wf-postwrite-verify: frontmatter validation FAILED for ${failure.path.original}
 
 `);
-    process.stderr.write(`${formatValidationErrors(failure.result.errors)}
+    reason.push(`${formatValidationErrors(failure.result.errors)}
 
 `);
   }
-  process.stderr.write("The file was written but does not conform to the sdlc/v1 schema\n");
-  process.stderr.write("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n");
-  process.stderr.write("Re-Edit the frontmatter to fix the issues above, then continue.\n");
-  blockToolCall();
+  reason.push("The file was written but does not conform to the sdlc/v1 schema\n");
+  reason.push("(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n");
+  reason.push("Re-Edit the frontmatter to fix the issues above, then continue.\n");
+  refuseWrite(checksModeOf(config), reason.join(""));
 }
 if (isEntry("post-write-verify")) runStandalone("post-write-verify", run, { failClosed: true });
 

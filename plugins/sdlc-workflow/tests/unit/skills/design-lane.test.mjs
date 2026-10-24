@@ -201,9 +201,10 @@ test('designGateRefusal: a slice with ux-impact none passes; the slug-wide plan 
   equal(planSliceOf('04-plan.md'), null);
 });
 
-test('hook: allows a plan when ux-impact is none, and when the gate is off', () => {
+test('hook: allows a plan when ux-impact is none, under checks: warn, and under checks: off', () => {
   equal(runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'none' }) }).status, 0);
-  equal(runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }) }, { hooks: { designDirectionGate: false } }).status, 0);
+  equal(runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }) }, { checks: 'warn' }).status, 0);
+  equal(runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }) }, { checks: 'off' }).status, 0);
 });
 
 // ── schema ────────────────────────────────────────────────────────────────────
@@ -233,7 +234,7 @@ test('schema: the contract carries the confirmation fields and no pen-doc', () =
 test('prose: the lane, the stage, and the drivers state the human rule', () => {
   const lane = read('skills/wf/reference/design/_lane.md');
   match(lane, /Neither `\/wf auto` nor `\/wf yolo` runs it/);
-  match(lane, /hooks\.designDirectionGate/);
+  match(lane, /Under `checks: warn` in `\.ai\/sdlc-config\.json` the write stands with a warning/);
   match(read('skills/wf/reference/design/stage.md'), /A driver never resolves a design direction/);
   match(read('skills/wf/reference/auto.md'), /`auto` never runs the design stage/);
   match(read('skills/wf/reference/yolo.md'), /never `intake`, `shape`, or `design`/);

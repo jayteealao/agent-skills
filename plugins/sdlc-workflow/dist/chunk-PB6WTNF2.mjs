@@ -6,7 +6,7 @@ import {
 import {
   isEntry,
   runStandalone
-} from "./chunk-FATSKH6O.mjs";
+} from "./chunk-NZ4BKMW5.mjs";
 import {
   EVIDENCE_DIRS,
   SOURCE_DIRS,
@@ -16,7 +16,7 @@ import {
   isInsideWorkflowArtifacts,
   loadConfig,
   projectRootFromInput
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 
 // hooks/post-write-auto-stage.mjs
 import { existsSync as existsSync2 } from "node:fs";
@@ -192,7 +192,6 @@ async function walkWorkflowFiles(root) {
 async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.autoStage === false) return;
   if (existsSync2(join2(projectRoot, ".ai", ".no-auto-stage"))) return;
   if (!existsSync2(join2(projectRoot, ".ai", "workflows"))) return;
   const filePaths = collectToolInputPaths(input).filter((p) => !isInsideWorkflowArtifacts(p));

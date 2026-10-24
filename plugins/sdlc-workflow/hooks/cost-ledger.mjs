@@ -7,7 +7,6 @@
  * - Exit 0 for all outcomes; a parse or write failure logs through
  *   lib/error-log.mjs and writes no row (a wrong number is never visible, a
  *   missing row is a turn gap in `/wf status`).
- * - Honor `hooks.costLedger: false` in .ai/sdlc-config.json.
  * - Read only the bytes appended since the per-session cursor; the cursor lives
  *   in `<cursorDir>/cost-cursor/<session_id>.json`.
  * - Write a row only when the turn has usage AND a slug is known — written this
@@ -86,7 +85,6 @@ export async function runCostLedger({ input, cursorDir, env = process.env, now =
   if (!sessionId) return { wrote: false, reason: 'no session_id' };
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks?.costLedger === false) return { wrote: false, reason: 'disabled' };
 
   let transcript = typeof input.transcript_path === 'string' && input.transcript_path ? input.transcript_path : null;
   if (!transcript) transcript = findCodexRollout(sessionId, env.CODEX_HOME || undefined);

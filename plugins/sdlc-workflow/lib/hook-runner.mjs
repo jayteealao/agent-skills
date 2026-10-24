@@ -26,7 +26,7 @@
 
 import { basename } from 'node:path';
 import { logError } from './error-log.mjs';
-import { beginSystemMessages, flushSystemMessages } from './hook-utils.mjs';
+import { beginSystemMessages, flushSystemMessages, outputSystemMessage } from './hook-utils.mjs';
 import { readStdinJson } from './stdin.mjs';
 
 export class HookBlock extends Error {
@@ -39,6 +39,20 @@ export class HookBlock extends Error {
 /** Throw the block sentinel. Write the reason to stderr before calling this. */
 export function blockToolCall() {
   throw new HookBlock();
+}
+
+/**
+ * Refuse a write that failed a gate, as the checks mode says. `strict` writes the
+ * reason to stderr and blocks. `warn` shows the same reason as a warning, and the
+ * write stands.
+ */
+export function refuseWrite(mode, reason) {
+  if (mode === 'warn') {
+    outputSystemMessage(`${reason.trimEnd()}\n(checks: warn, so the write stands.)`);
+    return;
+  }
+  process.stderr.write(`${reason.trimEnd()}\nSet checks: warn in .ai/sdlc-config.json to let such a write stand with a warning.\n`);
+  blockToolCall();
 }
 
 /**
@@ -99,7 +113,7 @@ export async function runStages(label, plan, { stopOnBlock = false } = {}) {
       if (!blocked) await safeLog(name, err);
       if (!blocked && failClosed) {
         process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. `
-          + 'Repair the plugin install, or set hooks.verifyOnWrite: false.\n');
+          + 'Repair the plugin install, or set checks: off in .ai/sdlc-config.json.\n');
       }
       if (blocked || failClosed) {
         code = 2;

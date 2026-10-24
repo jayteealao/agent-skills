@@ -13,16 +13,16 @@
  * - Exit 2 + stderr when validation fails.
  *
  * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW
- * §14.2.6). A check blocks with blockToolCall() after writing its reason; the
+ * §14.2.6). A check refuses a write with refuseWrite(), as the checks mode says; the
  * standalone entry below stays one release.
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '../lib/config.mjs';
+import { checksModeOf, loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
-import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
+import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { ledgerProblems } from '../lib/prototype.mjs';
@@ -71,38 +71,32 @@ function artifactType(text) {
 // legitimately quote the phrase while explaining it was AVOIDED).
 const SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|deferred to manual user|UNVERIFIED[ -]INTERACTIVE|will be verified (?:interactively )?(?:during|in|at)\b|decidable by static reasoning|deferred to user verification)/i;
 
-function blockVerifyResultGate(rel, message) {
-  process.stderr.write(
+function blockVerifyResultGate(config, rel, message) {
+  refuseWrite(checksModeOf(config),
     `wf-postwrite-verify: verify result gate BLOCKED ${rel}\n\n${message}\n\n` +
     'This gate blocks a pass that the acceptance evidence does not support.\n' +
     'Re-Edit the frontmatter to reconcile result\n' +
-    'with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.\n',
+    'with the acceptance evidence, then continue.\n',
   );
-  blockToolCall();
 }
 
 /**
  * Write-time `verify` result gate (AC-VERIFIABILITY R7). Closes the
  * "verified but actually broken" leak at the artifact boundary.
  *
- * HARD BLOCK (exit 2), gated by config.hooks.verifyResultGate — frontmatter
+ * HARD BLOCK (exit 2) under `checks: strict` — frontmatter
  * cross-field contradictions with no false-positive surface (a true pass meets
  * every AC and defers none):
  *   G1: result: pass while metric-acceptance-met < metric-acceptance-total.
  *   G2: result: pass while interactive-verification: deferred.
  *
- * WARN (non-blocking systemMessage), gated by config.hooks.verifyDeferralLint —
+ * WARN (non-blocking systemMessage) —
  * heuristic prose-deferral lint: shadow vocabulary in the body co-occurring
  * with result: pass.
  *
  * Only `verify` per-slice artifacts are inspected; everything else is skipped.
  */
 async function enforceVerifyResultGate(paths, config) {
-  const resultGate = config.hooks?.verifyResultGate !== false;
-  const proseLint = config.hooks?.verifyDeferralLint !== false;
-  const mockGate = config.hooks?.mockEvidenceGate !== false;
-  if (!resultGate && !proseLint && !mockGate) return;
-
   const warnings = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
@@ -115,43 +109,37 @@ async function enforceVerifyResultGate(paths, config) {
     // A user-observable AC evidenced only by a mock / static rung is NOT met. The verify
     // stage records the count in metric-acceptance-mock-rung (the machine-readable projection
     // of the per-AC evidence-rung labels). result: pass with any such AC is a hard block.
-    if (mockGate) {
-      const mock = data['metric-acceptance-mock-rung'];
-      if (typeof mock === 'number' && mock > 0) {
-        blockVerifyResultGate(path.original,
-          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's ` +
-          'highest evidence-rung is cited-mock / uncited-mock / static / asserted — a mock, a static ' +
-          'analysis, or an unverified claim of success does not evidence user-observable behaviour. ' +
-          'Climb the constraint-resolution ladder to a live/headless/emulator rung (for a task AC: ' +
-          're-read the system of record — live — or record a cited attestation — attested), or take ' +
-          'the deferral path (interactive-verification: deferred + a 00-index ' +
-          'runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.');
-      }
+    const mock = data['metric-acceptance-mock-rung'];
+    if (typeof mock === 'number' && mock > 0) {
+      blockVerifyResultGate(config, path.original,
+        `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's ` +
+        'highest evidence-rung is cited-mock / uncited-mock / static / asserted — a mock, a static ' +
+        'analysis, or an unverified claim of success does not evidence user-observable behaviour. ' +
+        'Climb the constraint-resolution ladder to a live/headless/emulator rung (for a task AC: ' +
+        're-read the system of record — live — or record a cited attestation — attested), or take ' +
+        'the deferral path (interactive-verification: deferred + a 00-index ' +
+        'runtime-evidence-deferrals entry), then set result: partial.');
     }
 
-    if (resultGate) {
-      const met = data['metric-acceptance-met'];
-      const total = data['metric-acceptance-total'];
-      if (typeof met === 'number' && typeof total === 'number' && total > 0 && met < total) {
-        blockVerifyResultGate(path.original,
-          `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). ` +
-          'A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and ' +
-          `raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet ` +
-          'AC is user-observable and this environment cannot evidence it, set interactive-verification: ' +
-          'deferred (result becomes `partial`) and register a 00-index runtime-evidence-deferrals entry.');
-      }
-      if (data['interactive-verification'] === 'deferred') {
-        blockVerifyResultGate(path.original,
-          'result: pass but interactive-verification: deferred. A deferred user-observable AC has no ' +
-          'runtime evidence, so the slice cannot pass — set result: partial. (`/wf ship` then hard-blocks ' +
-          'until a probe/re-verify run clears the deferral.)');
-      }
+    const met = data['metric-acceptance-met'];
+    const total = data['metric-acceptance-total'];
+    if (typeof met === 'number' && typeof total === 'number' && total > 0 && met < total) {
+      blockVerifyResultGate(config, path.original,
+        `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). ` +
+        'A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and ' +
+        `raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet ` +
+        'AC is user-observable and this environment cannot evidence it, set interactive-verification: ' +
+        'deferred (result becomes `partial`) and register a 00-index runtime-evidence-deferrals entry.');
+    }
+    if (data['interactive-verification'] === 'deferred') {
+      blockVerifyResultGate(config, path.original,
+        'result: pass but interactive-verification: deferred. A deferred user-observable AC has no ' +
+        'runtime evidence, so the slice cannot pass — set result: partial. (`/wf ship` then hard-blocks ' +
+        'until a probe/re-verify run clears the deferral.)');
     }
 
-    if (proseLint) {
-      const hit = SHADOW_DEFERRAL_RE.exec(content || '');
-      if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
-    }
+    const hit = SHADOW_DEFERRAL_RE.exec(content || '');
+    if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
   }
 
   if (warnings.length) {
@@ -162,7 +150,7 @@ async function enforceVerifyResultGate(paths, config) {
       'later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what ' +
       'happened, set result: partial + interactive-verification: deferred (with the rungs tried in the ' +
       'defer-reason) and register the deferral in 00-index runtime-evidence-deferrals — do not leave it as ' +
-      'a silent pass. Disable this lint with hooks.verifyDeferralLint: false.',
+      'a silent pass.',
     );
   }
 }
@@ -182,9 +170,6 @@ function newTextFromInput(input) {
 // A limitation comment with no citation is a hypothesis; a suppression with no sdlc-debt:
 // marker is untracked debt. Emits one systemMessage per lint class.
 function enforceCodeFileLints(input, config, artifactPaths) {
-  const limitationLint = config.hooks?.limitationClaimLint !== false;
-  const debtLint = config.hooks?.suppressionDebtLint !== false;
-  if (!limitationLint && !debtLint) return;
 
   const artifactSet = new Set((artifactPaths ?? []).map((p) => p.original));
   const paths = collectToolInputPaths(input).filter(
@@ -195,15 +180,11 @@ function enforceCodeFileLints(input, config, artifactPaths) {
   if (!text.trim()) return;
 
   const lines = [];
-  if (limitationLint) {
-    for (const hit of findUncitedLimitationClaims(text)) {
-      lines.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
-    }
+  for (const hit of findUncitedLimitationClaims(text)) {
+    lines.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
   }
-  if (debtLint) {
-    for (const hit of findUnmarkedSuppressions(text)) {
-      lines.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
-    }
+  for (const hit of findUnmarkedSuppressions(text)) {
+    lines.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
   }
   if (!lines.length) return;
   outputSystemMessage(
@@ -212,7 +193,7 @@ function enforceCodeFileLints(input, config, artifactPaths) {
     '(a study-sources read of node_modules/, a repro, an issue, or a URL) within ±3 lines, or delete it; ' +
     'never replicate an in-repo limitation comment into new code without re-verifying it. A new `as any` / ' +
     '`@ts-ignore` / `eslint-disable` needs an `sdlc-debt:` marker so the debt lifecycle (verify/retro/simplify) ' +
-    'inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.',
+    'inherits it.',
   );
 }
 
@@ -224,7 +205,6 @@ function enforceCodeFileLints(input, config, artifactPaths) {
 // Step 9a backfill is the hard consequence; this lint just surfaces the gap at write time
 // while the author is still in context.
 async function enforceIntakeLedgerLint(paths, config) {
-  if (config.hooks?.intakeLedgerLint === false) return;
   const warns = [];
   for (const path of paths) {
     const base = path.original.replace(/\\/g, '/').split('/').at(-1);
@@ -255,8 +235,7 @@ async function enforceIntakeLedgerLint(paths, config) {
       'A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, ' +
       'the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit ' +
       'escape `intent-risks: none-declared` / `charter: none-declared` with a one-line reason in the body. ' +
-      "Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating. " +
-      'Opt out: hooks.intakeLedgerLint: false.',
+      "Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating.",
     );
   }
 }
@@ -265,7 +244,6 @@ async function enforceIntakeLedgerLint(paths, config) {
 // mechanism noun that appears in an AC / verification line but in NO decision section of
 // the body is a design decision smuggled past adjudication. Warn-only.
 async function enforceNamedMechanismLint(paths, config) {
-  if (config.hooks?.namedMechanismLint === false) return;
   const warns = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
@@ -292,8 +270,7 @@ async function enforceNamedMechanismLint(paths, config) {
       `wf: named-mechanism lint (advisory) — a mechanism named in an AC/verification line has no owning ` +
       `decision in the artifact body:\n${lines.join('\n')}\n` +
       'A test may not name a machine the design does not own. State the mechanism in the body (what it is, ' +
-      'what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC. ' +
-      'Opt out: hooks.namedMechanismLint: false.',
+      'what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC.',
     );
   }
 }
@@ -352,7 +329,6 @@ export function auditTriageViolation(data) {
 }
 
 async function enforceShipPlanAuditTriage(paths, config) {
-  if (config.hooks?.shipPlanAuditTriageGate === false) return;
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
     if (!hasFrontmatterFence(text)) continue;
@@ -360,16 +336,15 @@ async function enforceShipPlanAuditTriage(paths, config) {
     if (!data || String(data.kind ?? '') !== 'ship-plan-audit') continue;
     const violation = auditTriageViolation(data);
     if (!violation) continue;
-    process.stderr.write(
+    refuseWrite(checksModeOf(config),
       `wf-postwrite-verify: ship-plan audit triage gate BLOCKED ${path.original}\n\n${violation.reason}\n\n` +
       'Step 5 of reference/ship-plan/audit.md requires a gate question for every open BLOCKER/HIGH finding\n' +
       'before the ledger is finalized. Ask the gate now (per reference/_gate-question.md), then record each\n' +
       'decision in the ledger: accept -> `triage: accept` on the finding; acknowledge -> `status: acknowledged`\n' +
       '+ the reason; reject -> drop the finding. Then set `triage-status: complete`. If the turn must end while\n' +
       'the user answers, set `triage-status: awaiting-user` and `awaiting-since: <last-run>` instead; that escape\n' +
-      'lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.\n',
+      'lasts one run.\n',
     );
-    blockToolCall();
   }
 }
 
@@ -380,21 +355,21 @@ async function enforceShipPlanAuditTriage(paths, config) {
  * the author is still in context. Opt out with hooks.validateBrainstormBoard: false.
  */
 async function validateBrainstormBoards(paths, config, schemaPath) {
-  if (config.hooks?.validateBrainstormBoard === false) return;
   const failures = [];
   for (const path of paths) {
     const result = await validateBrainstormBoardFile(path.absolute, { schemaPath });
     if (!result.valid) failures.push({ path, result });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}\n\n`);
-    process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
+    reason.push(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}\n\n`);
+    reason.push(`${formatValidationErrors(f.result.errors)}\n\n`);
   }
-  process.stderr.write('The board does not conform to $defs.brainstormBoard\n');
-  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
-  process.stderr.write('skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n');
-  blockToolCall();
+  reason.push('The board does not conform to $defs.brainstormBoard\n');
+  reason.push('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
+  reason.push('skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n');
+  refuseWrite(checksModeOf(config), reason.join(''));
 }
 
 /**
@@ -404,7 +379,6 @@ async function validateBrainstormBoards(paths, config, schemaPath) {
  * (lib/prototype.mjs) BLOCKS (exit 2). Opt out with hooks.validatePrototypeLedger: false.
  */
 async function validatePrototypeLedgers(paths, config, schemaPath) {
-  if (config.hooks?.validatePrototypeLedger === false) return;
   const failures = [];
   for (const path of paths) {
     const result = await validatePrototypeLedgerFile(path.absolute, { schemaPath });
@@ -415,15 +389,16 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
     if (!result.valid || rules.length) failures.push({ path, result, rules });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: proof ledger validation FAILED for ${f.path.original}\n\n`);
-    if (!f.result.valid) process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
-    for (const r of f.rules) process.stderr.write(`  - ${r}\n`);
+    reason.push(`wf-postwrite-verify: proof ledger validation FAILED for ${f.path.original}\n\n`);
+    if (!f.result.valid) reason.push(`${formatValidationErrors(f.result.errors)}\n\n`);
+    for (const r of f.rules) reason.push(`  - ${r}\n`);
   }
-  process.stderr.write('The ledger does not conform to $defs.prototypeLedger and the ledger rules\n');
-  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
-  process.stderr.write('skills/wf/reference/prototype.md). Fix the ledger, then continue.\n');
-  blockToolCall();
+  reason.push('The ledger does not conform to $defs.prototypeLedger and the ledger rules\n');
+  reason.push('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json and\n');
+  reason.push('skills/wf/reference/prototype.md). Fix the ledger, then continue.\n');
+  refuseWrite(checksModeOf(config), reason.join(''));
 }
 
 /**
@@ -433,7 +408,6 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
  * Opt out with hooks.ideateSourceCoverage: false.
  */
 async function enforceSourceCoverage(paths, config) {
-  if (config.hooks?.ideateSourceCoverage === false) return;
   const failures = [];
   for (const path of paths) {
     if (!/(?:^|\/)01-ideate\.md$/.test(normalizePathForMatch(path.original))) continue;
@@ -445,13 +419,14 @@ async function enforceSourceCoverage(paths, config) {
     if (problems.length) failures.push({ path, problems });
   }
   if (!failures.length) return;
+  const reason = [];
   for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}\n`);
-    for (const p of f.problems) process.stderr.write(`  - ${p}\n`);
+    reason.push(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}\n`);
+    for (const p of f.problems) reason.push(`  - ${p}\n`);
   }
-  process.stderr.write('Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n');
-  process.stderr.write('Give each named item its result, then continue.\n');
-  blockToolCall();
+  reason.push('Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n');
+  reason.push('Give each named item its result, then continue.\n');
+  refuseWrite(checksModeOf(config), reason.join(''));
 }
 
 // Index lint (ARTIFACT-SPLIT-PLAN S4, D7). 00-index.md is read by every stage,
@@ -525,7 +500,6 @@ export function designModeAdvice(fm) {
 }
 
 async function enforceDesignModeLint(paths, config) {
-  if (config.hooks?.designModeLint === false) return;
   const lines = [];
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
@@ -535,11 +509,10 @@ async function enforceDesignModeLint(paths, config) {
     if (advice) lines.push(`  - ${path.original} ${advice}`);
   }
   if (!lines.length) return;
-  outputSystemMessage(`wf: design mode (advisory):\n${lines.join('\n')}\nOpt out: hooks.designModeLint: false.`);
+  outputSystemMessage(`wf: design mode (advisory):\n${lines.join('\n')}`);
 }
 
 async function enforceIndexLint(paths, config) {
-  if (config.hooks?.indexLint === false) return;
   const lines = [];
   for (const path of paths) {
     if (!isWorkflowIndexPath(path.original)) continue;
@@ -550,7 +523,7 @@ async function enforceIndexLint(paths, config) {
     for (const w of indexLintWarnings(text, size)) lines.push(`  - ${path.original}: ${w}`);
   }
   if (!lines.length) return;
-  outputSystemMessage(`wf: index lint (advisory):\n${lines.join('\n')}\nOpt out: hooks.indexLint: false.`);
+  outputSystemMessage(`wf: index lint (advisory):\n${lines.join('\n')}`);
 }
 
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -558,7 +531,7 @@ const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  if (config.hooks.verifyOnWrite === false) return;
+  if (checksModeOf(config) === 'off') return;
 
   const schemaPath = join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json');
   const paths = collectToolInputPaths(input)
@@ -632,14 +605,15 @@ export async function run(input) {
     return;
   }
 
+  const reason = [];
   for (const failure of failures) {
-    process.stderr.write(`wf-postwrite-verify: frontmatter validation FAILED for ${failure.path.original}\n\n`);
-    process.stderr.write(`${formatValidationErrors(failure.result.errors)}\n\n`);
+    reason.push(`wf-postwrite-verify: frontmatter validation FAILED for ${failure.path.original}\n\n`);
+    reason.push(`${formatValidationErrors(failure.result.errors)}\n\n`);
   }
-  process.stderr.write('The file was written but does not conform to the sdlc/v1 schema\n');
-  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n');
-  process.stderr.write('Re-Edit the frontmatter to fix the issues above, then continue.\n');
-  blockToolCall();
+  reason.push('The file was written but does not conform to the sdlc/v1 schema\n');
+  reason.push('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json).\n');
+  reason.push('Re-Edit the frontmatter to fix the issues above, then continue.\n');
+  refuseWrite(checksModeOf(config), reason.join(''));
 }
 
 if (isEntry('post-write-verify')) runStandalone('post-write-verify', run, { failClosed: true });

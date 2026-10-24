@@ -3,8 +3,9 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   beginSystemMessages,
   flushSystemMessages,
+  outputSystemMessage,
   readStdinJson
-} from "./chunk-YE4HRDEF.mjs";
+} from "./chunk-MMR6SVFV.mjs";
 import {
   logError
 } from "./chunk-TIGAJNZN.mjs";
@@ -19,6 +20,17 @@ var HookBlock = class extends Error {
 };
 function blockToolCall() {
   throw new HookBlock();
+}
+function refuseWrite(mode, reason) {
+  if (mode === "warn") {
+    outputSystemMessage(`${reason.trimEnd()}
+(checks: warn, so the write stands.)`);
+    return;
+  }
+  process.stderr.write(`${reason.trimEnd()}
+Set checks: warn in .ai/sdlc-config.json to let such a write stand with a warning.
+`);
+  blockToolCall();
 }
 function hookSuppressed(env = process.env) {
   return env.CLAUDE_PLUGIN_INSTALL === "1" || env.SDLC_DISPATCH_ACTIVE === "1";
@@ -58,7 +70,7 @@ async function runStages(label, plan, { stopOnBlock = false } = {}) {
       const blocked = err instanceof HookBlock;
       if (!blocked) await safeLog(name, err);
       if (!blocked && failClosed) {
-        process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. Repair the plugin install, or set hooks.verifyOnWrite: false.
+        process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. Repair the plugin install, or set checks: off in .ai/sdlc-config.json.
 `);
       }
       if (blocked || failClosed) {
@@ -81,6 +93,7 @@ async function runFolded(label, plan, opts = {}) {
 
 export {
   blockToolCall,
+  refuseWrite,
   isEntry,
   runStandalone,
   runFolded

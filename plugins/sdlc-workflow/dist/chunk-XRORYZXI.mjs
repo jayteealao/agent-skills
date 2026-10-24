@@ -60,7 +60,7 @@ function designGateRefusal({ index, hasBrief, contract, slug, slice = null, slic
   const why = reopened ? "the design is reopened (progress.design: in-progress)" : !contract ? "02c-craft.md is missing" : boardsMissing(index, contract, missingBoards) ? `the confirmed boards are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug})` : "02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by";
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
   const sliceHint = sliceSlug ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.` : "";
-  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run ${route}.${sliceHint} (Opt out: hooks.designDirectionGate: false.)`;
+  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run ${route}.${sliceHint}`;
 }
 
 export {
