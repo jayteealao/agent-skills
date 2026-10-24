@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   needsPictures
-} from "./chunk-6NAHF4FM.mjs";
+} from "./chunk-3O7UYQ5X.mjs";
 
 // lib/design-lane.mjs
 var UX_IMPACT_VALUES = Object.freeze(["none", "visual", "flow", "new-surface"]);

@@ -36,4 +36,4 @@ A story is short plain prose, not a list of decisions. It has five parts:
 
 Write no count of items, questions, or areas, and name no mode mechanism. *Weak:* "A coherence pass settled two conflicts." *Better:* "Two earlier decisions disagreed about the time a verdict may take, and you chose a quick preview, with the blocking verdict an hour later."
 
-Record the story in the board's `stories` list with its session number, add it at the top of the document's `## Sessions` section, and republish the page (2.9). After a `pause`, write both files and return per Step 4. The loop continues on the resume.
+Record the story in the board's `stories` list with its session number, add it at the top of the document's `## Sessions` section. After a `pause`, write both files and return per Step 4. The loop continues on the resume.

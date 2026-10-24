@@ -15,7 +15,6 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
   "updated-at": "<ISO 8601>",
   "sessions": 1,
   "batches": 0,
-  "page": null,
   "stories": [
     { "session": 1, "text": "We set out to see what a project costs. We learned that the ledger already records every run, so the gap is showing the cost, not measuring it. You chose a limit that warns and never blocks, because a blocked run loses work already paid for. The ledger format is still open. Next time we start with research runs." }
   ],
@@ -54,7 +53,6 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
 
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
-- **`page`** is the link of the published page, or `null` where the host has none.
 - **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number and its plain `text`.
 - **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `.ai/workflows/<slug>/design/sketches/<key>.<ext>`, `<file>#<artboard>` when one file holds several sketches, or `null`), a plain `caption`, `state` (`idea`, `carried`, `dropped`, or `reference` for an outside link with no file), and for a published sketch `canvas` (`link`, `account`, `published-at`, `sha256` of the published file, and `previous[]` links).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
@@ -148,7 +146,6 @@ slug: <slug>
 topic: "<topic as given>"
 status: open                 # open | distilled
 board: brainstorm-board.json
-page: null                   # the published page link, where the host has one
 created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 sessions: 1

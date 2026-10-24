@@ -26,7 +26,7 @@ import {
   revisionDir,
   sketchAdvice,
   splitAnchor
-} from "./chunk-6NAHF4FM.mjs";
+} from "./chunk-3O7UYQ5X.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-R35WUHOB.mjs";

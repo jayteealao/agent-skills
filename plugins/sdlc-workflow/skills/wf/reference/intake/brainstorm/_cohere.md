@@ -23,7 +23,7 @@ A budget is a limit the person decided, for example "a matchday runs in about th
    - Bring each real conflict to the person as a choice with its costs (2.1), one to four per batch, in the question text.
    - Merge a repeat: set `replaced-by` on the older item.
    - A contradiction with the document of a started work packet marks that work packet `stale: true`, with the reason in `stale-because`.
-6. **Rewrite the summary** so the board reads as one design, and republish the page (2.9).
+6. **Rewrite the summary** so the board reads as one design.
 7. **Log** one entry with kind `cohere`: what the pass read, and how many conflicts and merges it found.
 
 In the first question after the pass, say in one plain sentence that the pass ran and what it read.

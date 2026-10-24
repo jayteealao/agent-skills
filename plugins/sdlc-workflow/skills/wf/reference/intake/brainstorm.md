@@ -82,13 +82,12 @@ These are principles, not quotas. Before each batch, judge it against them.
 
 **Be the counterweight.** When the person sets a risk aside, or takes the costliest option, and the consequence is material — it cannot be undone, it breaks a budget on the board, or it contradicts an earlier decision — state the consequence once, in one sentence, in the next question text. A smaller cost stays in the option text. Record the choice as a decision with that consequence as its `accepted-risk`, not as a closed question. When you think a choice is a mistake, say so once, with your reason. *Why:* a partner who agrees with everything adds cost and no judgement; the person still decides. *Weak:* "not worried" about a data licence closes the licence question in one batch. *Better:* "Then the test ships bands measured on data that a commercial game may not use, and a complaint means measuring them again before release. I record that as a risk you accept."
 
-**Explain, then ask.** When the ground is new to the person — a research result, a finding the person has not seen, a specialist subject — or when the person asks a question or asks you to go deeper, take a talk turn before the next batch ([brainstorm/_talk.md](brainstorm/_talk.md)). Otherwise open every question with two or three plain sentences: what we know, and why it matters now. Headers are plain words, for example "Club style". Every question follows [_question-craft.md](../_question-craft.md) rules 2 and 3 and [_ste-procedural.md](../_ste-procedural.md) section 1. A brainstorm question has no right answer, so mark no option `(Recommended)`. Offer no "explain this more" option, because the explanation comes first and a free-text reply can still ask for more. *Why:* a choice made on ground the person has not seen teaches nothing and does not hold. *Weak:* six research results go to the page, and the next question asks which statistical pass rule to use. *Better:* explain the three pass rules in chat, with one example each and your view, and ask when the person has replied.
+**Explain, then ask.** When the ground is new to the person — a research result, a finding the person has not seen, a specialist subject — or when the person asks a question or asks you to go deeper, take a talk turn before the next batch ([brainstorm/_talk.md](brainstorm/_talk.md)). Otherwise open every question with two or three plain sentences: what we know, and why it matters now. Headers are plain words, for example "Club style". Every question follows [_question-craft.md](../_question-craft.md) rules 2 and 3 and [_ste-procedural.md](../_ste-procedural.md) section 1. A brainstorm question has no right answer, so mark no option `(Recommended)`. Offer no "explain this more" option, because the explanation comes first and a free-text reply can still ask for more. *Why:* a choice made on ground the person has not seen teaches nothing and does not hold. *Weak:* six research results go to the document, and the next question asks which statistical pass rule to use. *Better:* explain the three pass rules in chat, with one example each and your view, and ask when the person has replied.
 
 # The board
 The board is two files with one truth. [brainstorm/_artifact.md](brainstorm/_artifact.md) holds both templates.
 - **`01-brainstorm.md` is the person's document.** It is plain prose with no keys. It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now (the open tensions, the top risks, and the open questions). The story of each session follows the front, newest first. The full record follows the front: the decisions, the open ideas, the findings, the assumptions, the tensions, and the questions for the plan.
 - **`brainstorm-board.json` is your working board.** It holds the areas with their briefs, the threads, every item with its kind and source, the scope answers, the work packets, and the log of every question and answer. The write hook validates it on every write.
-- **The page** is a published page that presents the board to the person, when the host offers one (2.9). It never replaces the two files.
 
 Every item has a **readable key**, for example `club-style` or `referee-home-bias`. A key is stable once written, and the keys link items to threads, to work packets, and to successors. Keys stay in the JSON. The person's document names things in words.
 
@@ -141,7 +140,7 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 A control word that names no known thread gets the thread names back and changes nothing.
 
 ## 2.4 Update the board
-After every batch, write only what changed to `brainstorm-board.json`: the new and changed items, the area states, one log entry per question, `batches`, and `updated-at`. Add the new items to `01-brainstorm.md` and refresh its frontmatter. Rewrite the document's front at a check-in, and its full record at an area close and at `done`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`. Republish the page (2.9) at a check-in, an area close, `board`, and `done`, not after every batch.
+After every batch, write only what changed to `brainstorm-board.json`: the new and changed items, the area states, one log entry per question, `batches`, and `updated-at`. Add the new items to `01-brainstorm.md` and refresh its frontmatter. Rewrite the document's front at a check-in, and its full record at an area close and at `done`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`.
 
 ## 2.5 Check in and sum up
 Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. The question text carries everything the person needs to answer it, per [_gate-question.md](../_gate-question.md): the host can hide the chat text before a question. A check-in has three parts:
@@ -152,7 +151,7 @@ Check in at a natural moment, not on a schedule: when a thread feels settled, wh
 A correction to the summary is a decision. Record it, and rewrite the summary.
 
 ## 2.6 Show where we are
-In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the coverage of each open brief, then the open tensions and the top risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
+In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the coverage of each open brief, then the open tensions and the top risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Point the person to `01-brainstorm.md` for the full record.
 
 ## 2.7 Second opinion
 Run this only when the person says `second opinion`; never run it unasked. Run `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` with the live threads and open tensions as the brief. Write the panel's answer as a research note in `research/`. Fold the panel's distinct additions in as findings with `source: consult` and `evidence` pointing at the note, never as work packets.
@@ -160,18 +159,11 @@ Run this only when the person says `second opinion`; never run it unasked. Run `
 ## 2.8 Close an area
 An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
 1. Write the area's `brief` in the board and in the document's map: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.
-2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the page or to the document for the rest.
+2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the document for the rest.
 3. Give the area's price in the question text: its rough size, and what it adds to each budget on the board ([brainstorm/_cohere.md](brainstorm/_cohere.md)). List its accepted risks.
 4. Ask in one batch, as one digest with your recommendation marked on each item: which decisions are core (multi-select); which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so; and whether the area changes a work packet that already exists (name each work packet in words). Ask which risk worries the person most only when a risk has no owner and no mitigating decision; otherwise mark the risk you rank highest and say so.
 5. Record `core: true` on each core item, `first-version: true` and `scope: keep` on each first-version item, `scope: later` on the rest, `top-risk: true` on the chosen risk, and the area's `scope`. Only a top risk appears in the document's front. Then run a coherence pass.
 6. When the area changes an existing work packet, set `stale: true` and `stale-because` on that work packet; step 3.3 proposes the work packet that brings it up to date. When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
-
-## 2.9 The page
-When the host offers a published page (`_host-surfaces.md`, row "Published page"), present the board to the person as one page, and keep it current:
-1. Build `brainstorm-page.html` beside the board from the two files with `node "<skill-dir>/scripts/brainstorm-page.mjs" "<projectRoot>" <slug>`, in plain words and with no key: the summary; the session stories, newest first; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the sketches, each with its caption, file, and link; the work packets, with the stale ones marked.
-2. Publish it the first time the person needs to see the board: the first check-in, `board`, or a resume. Record its link as `page` in the board and in the document frontmatter, and give the link in the question text.
-3. Republish it to the same link at each check-in, each area close, each `board`, and at `done`.
-4. The page presents the board and never replaces it. Write every change to the two files first. Where the host has no published page, the person reads `01-brainstorm.md`, and the question text carries what the person needs.
 
 # Step 3 — `done`: scope the work together
 Enter this step only when the person's reply is the control word `done`.
@@ -187,7 +179,7 @@ The person decides what goes into work, and decides it with you. You recap, expl
 
 ## 3.2 Walk through the discussion
 Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**. A finding appears only as the reason behind a decision. An area closed with a scope (2.8) is not walked again: give each such area and its first version in one line, and ask whether any has changed.
-1. In each question's text, list the area's decisions and ideas, one plain sentence each, with the reason given for it. For a long area, list the core items and point to the page or to the document for the rest.
+1. In each question's text, list the area's decisions and ideas, one plain sentence each, with the reason given for it. For a long area, list the core items and point to the document for the rest.
 2. Ask what happens to the area: keep all of it; go through it one by one; cut all of it; leave it for later. Ask about up to four areas per batch.
 3. For an area the person goes through one by one, ask one question per item: keep; cut; later; change it (free text says how). Ask about up to four items per batch. When you have a view, give it and its reason in the question text. The person decides.
 4. Record each answer on the item as `scope: keep`, `scope: cut`, or `scope: later`. Rewrite a changed item, then record it as kept. Record the person's reason for a cut when the person gives one.
@@ -228,5 +220,4 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 - `batches: <N> this session · <sessions> sessions`
 - `scope:` — `<kept> kept · <later> later · <cut> cut` after `done`, or `not scoped yet`
 - `work:` — one line per work packet (after `done`): a work packet with the path of its work packet file, or a write-now work packet with the documents it changed; `none yet` before `done`; a stale work packet is marked `stale`
-- `page:` — the page link, or `none` where the host has no published page
 - `Next:` — `/wf intake brainstorm <slug>` (resume); after `done`, per [brainstorm/_work.md](brainstorm/_work.md) "Next"; `/wf intake <slug> close` when no thread is live. Never a write-now work packet as a `/wf intake task` command.

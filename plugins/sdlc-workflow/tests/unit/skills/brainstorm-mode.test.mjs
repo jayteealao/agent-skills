@@ -328,19 +328,17 @@ test('every question carries its own context', () => {
   assert.match(src, /Put that scope in the text of a question that asks the person to confirm it/, 'the scope to confirm is not in the question');
 });
 
-test('the document has a short front, and the page presents the board where the host has one', () => {
+test('the document has a short front, and the person reads the document', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
   const host = read('reference', '_host-surfaces.md');
   assert.match(src, /It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now/, 'the person document lost its short front');
   assert.ok(artifact.includes('\n## Open now\n'), 'the document template lost the Open now section');
   assert.match(artifact, /<!-- The front ends here\. The record follows\. -->/, 'the template no longer separates the front from the record');
-  assert.match(src, /^## 2\.9 The page$/m, 'the loop lost the page');
-  assert.match(src, /row "Published page"/, 'the page does not defer its mechanics to the host contract');
-  assert.match(host, /^\| Published page \(brainstorm, prototype\) \| When the session lists the Artifact tool: load the `artifact-design` skill/m, '_host-invocation.md lost the published-page row');
-  assert.match(src, /The page presents the board and never replaces it\. Write every change to the two files first/, 'the page can become the source of truth');
-  assert.match(src, /Republish it to the same link at each check-in, each area close, each `board`, and at `done`/, 'the page is no longer kept current');
-  assert.match(src, /Where the host has no published page, the person reads `01-brainstorm\.md`/, 'a host with no page has no fallback');
+  assert.ok(!/^## 2\.9 The page$/m.test(src), 'the old brainstorm page step is back');
+  assert.ok(!/brainstorm-page/.test(src), 'brainstorm.md still builds the old page');
+  assert.match(host, /^\| Published page \(prototype\) \| When the session lists the Artifact tool: load the `artifact-design` skill/m, '_host-surfaces.md lost the published-page row');
+  assert.match(src, /Point the person to `01-brainstorm\.md` for the full record/, 'the check-in no longer points to the document');
   assert.ok(!/Artifact tool|AskUserQuestion/.test(src), 'brainstorm.md names a host tool instead of citing the contract');
 });
 
@@ -469,7 +467,6 @@ test('each sitting ends with a story, and a resume opens with it', () => {
   assert.match(talk, /When that session has no story, because the person left without a pause, write it from that session's log entries first/, 'a session left without a pause gets no story');
   assert.match(talk, /Write no count of items, questions, or areas, and name no mode mechanism/, 'the story can recite counts and mechanics');
   assert.ok(artifact.includes('\n## Sessions\n'), 'the document template lost the Sessions section');
-  assert.match(src, /the session stories, newest first/, 'the page no longer shows the stories');
 });
 
 test('a board with stories and talk entries validates', () => {

@@ -40,7 +40,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| Published page (brainstorm, prototype) | When the session lists the Artifact tool: load the `artifact-design` skill before the first publish, publish the page file with the Artifact tool and follow the tool's own instructions, and pass the recorded link to update the same page in a later session | None; the person reads the document | None; the person reads the document |
+| Published page (prototype) | When the session lists the Artifact tool: load the `artifact-design` skill before the first publish, publish the page file with the Artifact tool and follow the tool's own instructions, and pass the recorded link to update the same page in a later session | None; the person reads the document | None; the person reads the document |
 
 ## PR monitor
 

@@ -28,7 +28,6 @@ A sketch is an idea the person can drop tomorrow at no cost. The person confirms
 - **Record each sketch** in the board's `sketches[]`: its key, its thread, the keys of the items it shows, its link, its `path`, a one-line caption in plain words, and `state: idea`. A `path` may be `<file>#<artboard>` when one file holds several sketches: record one key for each artboard. For a published sketch, record `canvas: { link, account, published-at, sha256 }`, where `sha256` is the hash of the published file. Give the link or the path, and the caption, in the question text.
 - **Raise a tension** when an idea pulls against `PRODUCT.md` or against a goal in `direction.md`. Name the goal in words.
 - **Close an area** as in step 2.8. Also ask which of the area's sketches carry forward. Set `state: carried` or `state: dropped` on each.
-- **The page** (step 2.9) shows each carried sketch beside the decisions it shows.
 
 ## At `done`
 

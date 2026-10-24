@@ -1,20 +1,20 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  sourceItemProblems
+} from "./chunk-AZ4QRSJA.mjs";
+import {
   ledgerProblems
 } from "./chunk-CI2GKFZ3.mjs";
 import {
-  sourceItemProblems
-} from "./chunk-AZ4QRSJA.mjs";
+  designModesOf
+} from "./chunk-3O7UYQ5X.mjs";
 import {
   formatValidationErrors,
   validateBrainstormBoardFile,
   validateFrontmatterFile,
   validatePrototypeLedgerFile
 } from "./chunk-LJCAG37B.mjs";
-import {
-  designModesOf
-} from "./chunk-6NAHF4FM.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-R35WUHOB.mjs";

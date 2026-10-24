@@ -209,7 +209,7 @@ export function frozenBoardsOf(workflowDir, contract) {
 // ---------------------------------------------------------------- contact sheet
 
 const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-/** HTML-escape a text. The brainstorm page (lib/brainstorm-page.mjs) uses it too. */
+/** HTML-escape a text. */
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ENTITIES[c]);
 /** An escaped href: an http(s) link or a path inside the folder, else `#`. */
 export const safeHref = (s) => (/^https?:\/\//i.test(String(s ?? '')) || isInsidePath(s) ? esc(s) : '#');
@@ -239,7 +239,7 @@ export function directionSketches(fileNames) {
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The style of the contact sheet; the brainstorm page (lib/brainstorm-page.mjs) uses it too. */
+/** The style of the contact sheet. */
 export const SHEET_CSS = `:root{color-scheme:light dark;--bg:#f6f6f4;--ink:#1c1d1f;--mute:#5f626a;--rule:#d9d9d4;--card:#fff}
 @media (prefers-color-scheme:dark){:root{--bg:#141517;--ink:#e4e6ea;--mute:#a3a7ae;--rule:#2b2e33;--card:#1c1e21}}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}

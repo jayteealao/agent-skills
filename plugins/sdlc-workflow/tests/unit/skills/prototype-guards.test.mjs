@@ -45,7 +45,7 @@ test('the dispatcher, the picker, and the host contract name the key', () => {
   assert.match(skill, /the reference is `reference\/route\.md` with every token, reason `not a key`/);
   assert.match(skill, /^\| `loop goal`, `loop optimize`, `loop prototype` \|/m);
   assert.match(read('hooks/mod/catalog.ts'), /key: 'loop prototype'/);
-  assert.match(read(`${REF}/_host-surfaces.md`), /\| Published page \(brainstorm, prototype\) \|/);
+  assert.match(read(`${REF}/_host-surfaces.md`), /\| Published page \(prototype\) \|/);
   assert.equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
 });
 
