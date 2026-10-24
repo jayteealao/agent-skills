@@ -36,7 +36,7 @@ test('the counters see the surface the docs name', () => {
   for (const mode of ['fix', 'rca', 'audit', 'adopt', 'amend', 'modernize', 'simplify', 'task', 'close']) assert.ok(m.intakeModes.includes(mode), `intakeModes lacks ${mode}`);
   for (const r of ['correctness', 'security', 'intent-fidelity']) assert.ok(m.reviewRubrics.includes(r), `reviewRubrics lacks ${r}`);
   for (const a of ['all', 'pre-merge', 'quick']) assert.ok(m.aggregates.includes(a), `aggregates lacks ${a}`);
-  for (const s of ['00-index.md', '04-plan-<X>.md', '09-ship-run-<X>.md']) assert.ok(m.artifactStems.includes(s), `artifactStems lacks ${s}`);
+  for (const s of ['00-index.md', '04-plan-<slice>.md', '09-ship-run-<run-id>.md']) assert.ok(m.artifactStems.includes(s), `artifactStems lacks ${s}`);
   for (const t of ['index', 'plan', 'review', 'ship-run']) assert.ok(m.frontmatterTypes.includes(t), `frontmatterTypes lacks ${t}`);
 });
 

@@ -8,9 +8,6 @@
 //       workflow artifact or a procedure file that the table does not name;
 //   (c) each `procedure` row names a file on disk, and each `artifact` / `writes`
 //       row uses only the `<slice>` and `<mode>` placeholders.
-// Covered elsewhere, not duplicated here:
-//   (d) the prose budget does not grow — tests/unit/prose-budget.test.mjs runs
-//       scripts/verify-prose-budget.mjs against the committed ceilings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';

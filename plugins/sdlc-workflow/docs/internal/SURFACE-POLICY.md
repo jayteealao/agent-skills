@@ -16,7 +16,7 @@ from the tree and fails when a count exceeds its pin.
 | `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) → 14 (2026-10-17, `optimize`) → 17 (2026-10-18, `simplify`, `task` and the maintenance word `close` moved in by WF-KEY-SURFACE-PLAN.md; §2a) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review/_ad-hoc.md` | 7 |
-| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references); the counter later read 70 → 75 (2026-10-17, `01-optimize`, `02-optimize-spec`, `03-slice-optimize`, `05-implement-optimize`, `06-verify-optimize`) → 76 (2026-10-18, `01-prototype`) |
+| `artifactStems` | distinct artifact names of the keys and intake modes in `skills/wf/keys.json` | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references); the counter later read 70 → 75 (2026-10-17, `01-optimize`, `02-optimize-spec`, `03-slice-optimize`, `05-implement-optimize`, `06-verify-optimize`) → 76 (2026-10-18, `01-prototype`) → 40 (2026-10-24, the count moved from the deleted capability inventory to the key registry) |
 | `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) → 69 (2026-10-03, `work-packet`, `work-set`; earn rule in BRAINSTORM-WORK-PACKETS-PLAN.md section 13) → 71 (2026-10-08, `design-current`, `design-direction`: the design record files had a documented type and no schema branch; DESIGN-BOARDS-PLAN W1) → 73 (2026-10-17, `optimize-spec`, `goal`) → 74 (2026-10-18, `prototype`) |
 
 A count under its pin is slack. The gate reports slack and does not fail on
@@ -25,17 +25,17 @@ it. Lower a pin when a surface is deleted, so the file states the tree.
 ## 2. The earn rule
 
 A pull request that adds a key, an intake mode, a rubric, an aggregate, an
-artifact stem, or a frontmatter type must carry all five items:
+artifact stem, or a frontmatter type must carry all four items:
 
 1. One sentence that names a user job no existing key covers.
 2. Three real invocations of the current workaround, cited from `cost.jsonl`
    rows or from transcripts.
-3. The new file within its class budget (`npm run verify:prose`).
-4. One eval case under `tests/evals/`.
-5. The raised pin in `surface-policy.json`, in the same pull request.
+3. The new row in `skills/wf/keys.json`, with `npm run generate` run and
+   `npm run lint:drift` clean.
+4. The raised pin in `surface-policy.json`, in the same pull request.
 
 A pull request that lacks one item does not raise a pin. The reviewer checks
-the five items against the diff.
+the four items against the diff.
 
 ## 2a. A move is not an addition
 
@@ -48,9 +48,7 @@ applies to it.
 
 ## 3. How long the freeze holds
 
-The freeze holds until `npm run measure:load` meets every §1.1 target of the
-WIDE-VIEW-REPAIR-PLAN for two consecutive releases. When that holds, the PO
-decides whether the freeze continues.
+The freeze holds until the PO lifts it.
 
 ## 4. Router extraction — decided: no
 
@@ -75,7 +73,7 @@ sub-key of `project`, under the earn rule. `docs` stays a key.
 
 ## 5. Raising a pin
 
-1. Meet the five items of the earn rule.
+1. Meet the four items of the earn rule.
 2. Edit the one number in `surface-policy.json`.
 3. Run `npm run verify:surface`. The gate must print `OK`.
 4. Name the raised pin in the pull request description.

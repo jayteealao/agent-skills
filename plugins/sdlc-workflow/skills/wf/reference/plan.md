@@ -229,7 +229,7 @@ Each line carries `wall-ownership: code-owned | environment-negotiable | externa
 ## Step F — Write the sibling `.yaml`
 For each per-slice `04-plan-<slice-slug>.md`, write `04-plan-<slice-slug>.yaml` flat in the slug dir. Agents read it: the master `## Sibling Plans` table and the yolo bookkeeping agent read its `files:` and `edges:`. Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks the `.md` write when the `.yaml` is missing, so write the `.yaml` first or in the same turn. A plan with no file changes sets `fragment: none` in its frontmatter and writes no `.yaml`.
 
-The schema is `siblingYamlSchemas.plan` in `schemas/frontmatter.schema.json`, validated at write time under `hooks.validateSiblingYaml`. Write only these keys:
+The schema is `siblingYamlSchemas.plan` in `schemas/frontmatter.schema.json`, validated at write time; the `checks` setting of `.ai/sdlc-config.json` sets whether a failed check blocks the write. Write only these keys:
 
 - `artifact: plan` and `slice: <slice-slug>`.
 - `files:` — one entry for each file the plan changes: `path` and `status` (`new | modified | deleted | external`).

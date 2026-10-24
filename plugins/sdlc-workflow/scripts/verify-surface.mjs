@@ -8,8 +8,8 @@
 //   intakeModes       the intake modes of skills/wf/keys.json
 //   reviewRubrics     skills/wf/reference/review/<rubric>.md (no underscore files)
 //   aggregates        rows of the "| Aggregate | Rubrics |" table in review/_ad-hoc.md
-//   artifactStems     distinct artifact names in the capability inventory's
-//                     `artifacts` union (the W0 extractor, run on the tree)
+//   artifactStems     distinct artifact names of the keys and intake modes in
+//                     skills/wf/keys.json
 //   frontmatterTypes  distinct `type` values the schema's oneOf branches accept
 //
 // Raising a pin is a one-line change to surface-policy.json in the same pull
@@ -24,8 +24,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLUGIN_ROOT, extractInventory } from './extract-capabilities.mjs';
-import { loadRegistry } from './generate.mjs';
+import { PLUGIN_ROOT, loadRegistry } from '../lib/registry.mjs';
 
 export const POLICY_REL = join('docs', 'internal', 'surface-policy.json');
 export const POLICY_PATH = join(PLUGIN_ROOT, POLICY_REL);
@@ -71,11 +70,13 @@ export function countAggregates(root = PLUGIN_ROOT) {
   return rows.map((r) => /^\| `([a-z-]+)`/.exec(r)?.[1]).filter(Boolean);
 }
 
-/** Distinct artifact names across the inventory's per-file `artifacts`. */
+/** Distinct artifact names of the registry's keys and intake modes. */
 export function countArtifactStems(root = PLUGIN_ROOT) {
-  const inv = extractInventory(root);
   const set = new Set();
-  for (const f of Object.values(inv.files ?? {})) for (const a of f.artifacts ?? []) set.add(a);
+  for (const k of loadRegistry(root).keys) {
+    for (const a of k.artifacts ?? []) set.add(a);
+    for (const m of k.modes ?? []) for (const a of m.artifacts ?? []) set.add(a);
+  }
   return [...set].sort();
 }
 
