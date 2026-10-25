@@ -59,7 +59,27 @@ const quote = (a) => (process.platform === 'win32' && /[\s"]/.test(a) ? `"${a.re
 function run(host, prompt, cwd, exec, piDir) {
   const [cmd, args] = commandOf(host, prompt, { cwd, piDir });
   const shell = process.platform === 'win32';
-  return exec(cmd, shell ? args.map(quote) : args, { cwd, shell, encoding: 'utf8', timeout: TIMEOUT_MS, windowsHide: true });
+  const r = exec(cmd, shell ? args.map(quote) : args, { cwd, shell, encoding: 'utf8', timeout: TIMEOUT_MS, windowsHide: true });
+  if (shell && (r.error?.code === 'ETIMEDOUT' || r.signal)) killOrphans(r.pid);
+  return r;
+}
+
+// On Windows the timeout stops only the cmd.exe shell. The host CLI under it keeps running, and
+// its working folder stays locked. The orphans keep the pid of the shell as their parent id.
+function killOrphans(pid) {
+  if (!pid) return;
+  const ps = `Get-CimInstance Win32_Process -Filter "ParentProcessId=${Number(pid)}" | ForEach-Object { taskkill /T /F /PID $_.ProcessId }`;
+  spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { encoding: 'utf8', windowsHide: true, timeout: 30_000 });
+}
+
+/** Delete a fixture. A folder that a process still holds stays, and the result names it. */
+export function removeFixture(dir, rm = rmSync) {
+  try {
+    rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    return null;
+  } catch (e) {
+    return `${dir} (${e.code || e.message})`;
+  }
 }
 
 /** The workflows that the intake wrote: an index as state.yaml and meta.yaml, or the old 00-index.md. */
@@ -75,21 +95,26 @@ function indexesOf(dir) {
 export function smokeHost(host, { exec = spawnSync, keep = false, has = onPath, piDir } = {}) {
   if (!has(host)) return { host, skipped: true };
   const dir = makeFixture();
+  let result;
   try {
     const s = run(host, promptOf(host, 'status'), dir, exec, piDir);
     const status = s.status === 0 && String(s.stdout || '').trim().length > 0;
     const i = run(host, promptOf(host, INTAKE), dir, exec, piDir);
     const slugs = indexesOf(dir);
     const intake = slugs.length > 0;
-    return { host, status, intake, slugs, ok: status && intake, dir: keep ? dir : undefined, tail: (s.status === 0 ? '' : String(s.stderr || s.stdout || '').slice(-400)) || (intake ? '' : String(i.stderr || i.stdout || '').slice(-400)) };
+    const timedOut = [s, i].some((r) => r.error?.code === 'ETIMEDOUT');
+    result = { host, status, intake, slugs, ok: status && intake, timedOut, dir: keep ? dir : undefined, tail: (s.status === 0 ? '' : String(s.stderr || s.stdout || '').slice(-400)) || (intake ? '' : String(i.stderr || i.stdout || '').slice(-400)) };
   } finally {
-    if (!keep) rmSync(dir, { recursive: true, force: true });
+    // A cleanup failure never hides the result of the host.
+    const leftover = keep ? null : removeFixture(dir);
+    if (leftover && result) result.leftover = leftover;
   }
+  return result;
 }
 
 export function smokeLine(r) {
   if (r.skipped) return `${r.host}: skipped (no ${r.host} CLI on PATH)`;
-  return `${r.host}: status ${r.status ? 'ok' : 'FAIL'}, intake ${r.intake ? `ok (${r.slugs.join(', ')})` : 'FAIL'}${r.ok ? '' : ` — ${r.tail.trim().split('\n').pop()}`}`;
+  return `${r.host}: status ${r.status ? 'ok' : 'FAIL'}, intake ${r.intake ? `ok (${r.slugs.join(', ')})` : 'FAIL'}${r.timedOut ? ', a run timed out' : ''}${r.leftover ? `, left ${r.leftover}` : ''}${r.ok ? '' : ` — ${r.tail.trim().split('\n').pop()}`}`;
 }
 
 function main() {

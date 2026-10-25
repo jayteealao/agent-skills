@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { commandOf, promptOf, smokeHost, smokeLine } from '../../scripts/smoke-hosts.mjs';
+import { commandOf, promptOf, removeFixture, smokeHost, smokeLine } from '../../scripts/smoke-hosts.mjs';
 
 test('each host gets its skill spelling and its headless command line', () => {
   assert.equal(promptOf('claude', 'status'), '/wf status');
@@ -35,4 +35,19 @@ test('a host passes when status prints and the intake writes an index; a missing
   assert.equal(bad.ok, false);
   assert.match(smokeLine(bad), /^pi: status ok, intake FAIL/);
   assert.deepEqual(smokeHost('claude', { has: () => false }), { host: 'claude', skipped: true });
+});
+
+test('a fixture that a process holds stays, and the host result survives the failed delete', () => {
+  const busy = () => { throw Object.assign(new Error('busy'), { code: 'EPERM' }); };
+  assert.equal(removeFixture('/tmp/wf-smoke-x', busy), '/tmp/wf-smoke-x (EPERM)');
+  assert.equal(removeFixture('/tmp/wf-smoke-x', () => {}), null);
+  const timeout = (cmd, args, opts) => {
+    mkdirSync(path.join(opts.cwd, '.ai', 'workflows', 'add-negative'), { recursive: true });
+    writeFileSync(path.join(opts.cwd, '.ai', 'workflows', 'add-negative', '00-index.md'), '---\n---\n');
+    return { status: null, stdout: 'done\n', stderr: '', error: Object.assign(new Error('spawnSync ETIMEDOUT'), { code: 'ETIMEDOUT' }) };
+  };
+  const r = smokeHost('codex', { exec: timeout, has: () => true });
+  assert.equal(r.timedOut, true);
+  assert.equal(r.intake, true);
+  assert.match(smokeLine(r), /^codex: status FAIL, intake ok \(add-negative\), a run timed out/);
 });
