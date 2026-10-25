@@ -7,6 +7,9 @@
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
  *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
  *             no .ai/ folder, so the setup runs before the key.
+ *   gh       <flush|status> [<root>] [--json]
+ *             the GitHub layer: send the queued issue edits and comments in order, or show what
+ *             is queued. Each state change of a workflow queues one progress edit by itself.
  *   setup    <root> [--about "<one line>"] [--ignore] [--json]
  *             the first-run setup: the .ai/ tree, the project line, the merge method and the gaps
  *             of ship (--ignore: add .ai/ to .gitignore, after the person said yes)
@@ -108,7 +111,7 @@
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +122,7 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
+import { flushOutbox, layerOf, layerStatus, noteAnswer, noteChange, readOutbox } from '../lib/github-layer.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -137,7 +141,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -200,6 +204,8 @@ async function runDispatch(pos, opt) {
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
   r.firstRun = Boolean(r.key && r.key !== 'status' && needsSetup(projectRoot));
+  // The queued GitHub edits go out in the background, so the call does not wait on the network.
+  if (layerOf(projectRoot) && readOutbox().length) flushInBackground();
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];
   if (r.reason) lines.push(`reason: ${r.reason}`);
@@ -811,12 +817,63 @@ function runShip(pos, opt) {
 
 // ---------------------------------------------------------------- main
 
+function flushInBackground() {
+  try {
+    spawn(process.execPath, [fileURLToPath(import.meta.url), 'gh', 'flush'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } catch { /* the next call flushes */ }
+}
+
+// The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
+const CHANGES = {
+  record: ['put', 'set', 'migrate'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'],
+};
+function changed(cmd, pos) {
+  if (cmd === 'close') return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
+  return CHANGES[cmd]?.includes(pos[0]) && pos[1] && pos[2] ? [pos[1], pos[2]] : null;
+}
+
+function runGh(pos, opt) {
+  const [verb, root] = pos;
+  if (verb === 'flush') {
+    const r = flushOutbox();
+    out(opt.json ? r : r.busy ? 'another flush runs' : `sent ${r.sent}, left ${r.left}${r.error ? `; stopped: ${r.error}` : ''}`);
+    return r.error ? 1 : 0;
+  }
+  if (verb === 'status') {
+    const s = layerStatus(root ? resolve(root) : null);
+    const lines = [
+      s.layer ? `layer: ${s.layer.repo} as ${s.layer.project}${s.layer.board ? `, board ${s.layer.board}` : ''}` : root ? 'layer: off (records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json)' : null,
+      `queued: ${s.queued}`,
+      s.error ? `last error: ${s.error.message} (${s.error.at})` : null,
+      ...s.issues.map((i) => `${i.workflow}: issue ${i.number}${i.closed ? ' (closed)' : ''}${i.needsMe ? ' needs-me' : ''}`),
+    ].filter(Boolean);
+    out(opt.json ? s : lines.join('\n'));
+    return 0;
+  }
+  throw new Error('gh: <flush|status> is required');
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const [cmd, ...rest] = argv;
   const { pos, opt } = flags(rest);
+  const code = await runMain(cmd, pos, opt);
+  const target = code === 0 ? changed(cmd, pos) : null;
+  if (target) {
+    // The GitHub layer mirrors the change; a failure here never fails the command.
+    try {
+      const [root, slug] = [resolve(target[0]), target[1]];
+      if (cmd === 'decide' && opt.answer) noteAnswer(root, slug, { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null });
+      else noteChange(root, slug);
+    } catch (e) { process.stderr.write(`wf.mjs: the GitHub layer did not queue the change: ${e.message}\n`); }
+  }
+  return code;
+}
+
+async function runMain(cmd, pos, opt) {
   try {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
+      case 'gh': return runGh(pos, opt);
       case 'setup': {
         const [root] = pos;
         if (!root) throw new Error('setup: <root> is required');

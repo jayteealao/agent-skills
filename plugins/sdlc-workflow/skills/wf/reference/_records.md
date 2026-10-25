@@ -53,6 +53,14 @@ The command reads the file, merges the change and writes the file in one step. S
 - Do not Write a record name beside the records, such as `.ai/workflows/<slug>/04-plan-api.md`. The check refuses it and names the draft path.
 - Do not make an `.ai/` folder below the project root. The check refuses it.
 
+## The GitHub layer
+
+When the records repo is set up, each workflow has one issue in it, with a status block at the end of its body. `wf.mjs` keeps the issues: each command that changes the state of a workflow queues one edit, and each answer that `decide add` records queues one comment. The queue goes out in order at the next `/wf` call.
+
+- Do not read the issues or the board for the state of a workflow. The records are the truth.
+- Do not write to the issues with `gh`. `wf.mjs` is the only writer.
+- To see what is queued and which issue belongs to each workflow, run `<wf> gh status <root>`.
+
 ## Workflows of the old layout
 
 For one release, a workflow of the old layout keeps working. `record get` reads its Markdown files. The first `record put` or `record set` of a record writes its section and moves its old file to `.old/`, and `redirects.yaml` maps the old path to the new place. `<wf> record migrate <root> <slug>` does the same for every record of the workflow at once. `<wf> record where <root> <slug> <old path>` prints the new place of one old path.

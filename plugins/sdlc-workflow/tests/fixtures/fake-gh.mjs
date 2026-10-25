@@ -12,6 +12,7 @@ if (a === 'auth' && b === 'status') process.exit(0);
 if (a === 'pr' && b === 'list') say('[]');
 else if (a === 'pr' && b === 'create') say('https://github.com/o/r/pull/7');
 else if (a === 'pr' && b === 'view') say(process.env.FAKE_GH_PR ?? '{"state":"MERGED","headRefName":"feat/x"}');
+else if (a === 'issue' && b === 'create') say(process.env.FAKE_GH_ISSUE ?? 'https://github.com/o/records/issues/5');
 else if (a === 'repo' && b === 'view') say(process.env.FAKE_GH_REPO ?? '{"nameWithOwner":"o/r","defaultBranchRef":{"name":"main"},"mergeCommitAllowed":true,"squashMergeAllowed":true,"rebaseMergeAllowed":false,"deleteBranchOnMerge":false}');
 else if (a === 'api' && /\/rules\/branches\//.test(b)) say(process.env.FAKE_GH_RULES ?? '[]');
 else if (a === 'api' && /\/protection$/.test(b)) process.exit(1);

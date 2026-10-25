@@ -1,7 +1,7 @@
 // lib/home.mjs — the machine-wide state folder (~/.sdlc), its settings file
 // and its two logs.
 //
-//   config.json     machine-wide settings (the external-dispatch consent)
+//   config.json     machine-wide settings (the external-dispatch consent, the records repo)
 //   errors.log      every hook error (lib/error-log.mjs), keyed by repoRoot
 //   lifecycle.log   one JSON line per machine-level event (a deprecated setting,
 //                   the one-time cleanup)
@@ -11,7 +11,7 @@
 // Writes are synchronous and never throw — a log that cannot be written is a
 // stderr line, not a failed hook.
 
-import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -33,6 +33,13 @@ export const KEEP_GENERATIONS = 2;           // <file>.1 and <file>.2
  * themselves).
  */
 export const machineConfigPath = (home = sdlcHomeDir()) => join(home, 'config.json');
+/** The machine-wide settings, or {} when the file is missing or not JSON. */
+export function readMachineConfig(home = sdlcHomeDir()) {
+  try {
+    const c = JSON.parse(readFileSync(machineConfigPath(home), 'utf-8'));
+    return c && typeof c === 'object' && !Array.isArray(c) ? c : {};
+  } catch { return {}; }
+}
 export const lifecycleLogPath = (home = sdlcHomeDir()) => join(home, 'lifecycle.log');
 export const errorsLogPath = (home = sdlcHomeDir()) => join(home, 'errors.log');
 

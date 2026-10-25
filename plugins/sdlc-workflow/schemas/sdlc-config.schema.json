@@ -120,6 +120,18 @@
         }
       }
     },
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How the project links to the records repo of this machine.",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "The name of the project in the records repo. With records.repo in ~/.sdlc/config.json, it turns on the GitHub layer."
+        }
+      }
+    },
     "project": {
       "type": "object",
       "additionalProperties": false,
