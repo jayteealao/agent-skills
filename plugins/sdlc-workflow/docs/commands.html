@@ -44,6 +44,8 @@
 }
 
 * { box-sizing: border-box; }
+/* The hidden attribute wins over every display rule below: the contents sheet, the back-to-top button and the search filter set it. */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
 body {
@@ -550,6 +552,142 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       <div class="cmds" data-group="drive"></div>
     </section>
 
+    <section id="design-guide" data-title="Design in depth">
+      <h2><span class="n"></span>Design, step by step</h2>
+      <p class="intro">The design stage runs between intake and slice when the work changes what a person sees. You approve every changed screen before any driver runs, so yolo and the campaign never decide a design. The screens are HTML pages with mock data on the design surface of the repo, <code>.ai/design/</code>, and git tracks them. Start or resume the stage with <code class="hp">/wf design &lt;slug&gt;</code>.</p>
+      <nav class="subnav static" aria-label="Design topics">
+        <a href="#ds-forms">Ways to start</a><a href="#ds-flow">The flow</a><a href="#ds-approve">Checks and approval</a><a href="#ds-later">After the approval</a><a href="#ds-canvas">The canvas</a><a href="#ds-moves">Moves</a><a href="#ds-record">The design record</a><a href="#ds-migrate">Older boards</a><a href="#ds-files">Files</a>
+      </nav>
+
+      <h3 class="group" id="ds-forms">Ways to start</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt;</code></td><td>Runs the stage: draws each changed screen, checks it, and records your approval.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; &lt;move&gt;</code></td><td>On a new design, the move focuses the stage. On an approved design, it runs the checks of the move, writes a note, and draws nothing.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; amend [instructions]</code></td><td>Reopens an approved design. It changes only the screens that the reason names, asks for a new approval, and names each plan that cites a changed screen.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; import &lt;link|path&gt;…</code></td><td>Turns outside design work into screens, then asks for your approval.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design explore [slug] [instructions]</code></td><td>Sketches ideas in <code>.ai/design/explore/</code>. It settles nothing and writes no screen.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design [slug] audit|critique</code></td><td>Runs the design review dimension now. Without a slug, the findings come back in chat.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;move&gt; &lt;instructions&gt;</code></td><td>Starts a new workflow, with the move recorded for its design stage.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design setup|teach|extract|direction|sync</code></td><td>Keeps the design record of the project. See <a href="#ds-record">The design record</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="ds-flow">The flow <em>a driver never runs this stage</em></h3>
+      <div class="flow-wrap static">
+        <ol class="flow">
+          <li class="phase"><span class="pn">1</span><b>Orient</b><span class="who auto">agent</span><p>Stops when a driver called it or the shape is not complete. When <code>ux-impact</code> is <code>none</code>, asks whether to design or to skip.</p></li>
+          <li class="phase"><span class="pn">2</span><b>Read the record</b><span class="who auto">agent</span><p>Reads PRODUCT.md, DESIGN.md, the current design and the direction. Every reference must be a file that an agent can read.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Carried thoughts</b><span class="who you">you</span><p>Shows what a design brainstorm or an explore run left, and asks only about contradictions and open questions.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Inspect</b><span class="who auto">agent</span><p>Four sub-agents read the code. When the product runs, each touched surface is captured as it is now.</p></li>
+          <li class="phase"><span class="pn">5</span><b>The form</b><span class="who you">you</span><p>One question: the whole feature, three directions first, a flow of states, or changes to existing screens.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Directions</b><span class="who you">you, when open</span><p>Three named directions on different axes, plus the category standard. You pick one, mix two, or ask for another round.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Draw</b><span class="who auto">agent</span><p>Every changed screen of the whole feature, in five states: default, empty, loading, error and worst. Each step of a flow is a link.</p></li>
+          <li class="phase"><span class="pn">8</span><b>Rounds</b><span class="who you">you</span><p>Three to five decisions per round, with numbered options, until no decision is open. The canvas comments feed each round.</p></li>
+          <li class="phase"><span class="pn">9</span><b>Check and approve</b><span class="who you">you</span><p>The check runs. You answer Approve, Adjust or Stop, with each failure in view.</p></li>
+          <li class="phase"><span class="pn">10</span><b>Record</b><span class="who auto">script</span><p>Commits the screens, keeps one picture of each, writes the visual contract, and updates the tokens in DESIGN.md.</p></li>
+        </ol>
+      </div>
+
+      <h3 class="group" id="ds-approve">Checks and approval <em>only your answer approves</em></h3>
+      <ul class="rules">
+        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit and worst-case content of each screen, in each viewport and state. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>.</span></li>
+        <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, and writes the approval commit into the contract. Agreement in free chat is not an approval.</span></li>
+        <li data-s><b>Adjust</b><span>The agent changes the screens that you name, runs the check again, and asks again. Each adjustment is a recorded decision.</span></li>
+        <li data-s><b>Stop</b><span>The contract stays unwritten, and the workflow waits for you.</span></li>
+        <li data-s><b>The settled rule</b><span>A contract that names screens is settled only when a script recorded the approval and every screen page exists. Slice, yolo and the campaign stop until then.</span></li>
+        <li data-s><b>You always see the screens</b><span>A confirmed PRODUCT.md or an earlier <code>teach</code> answer never replaces the approval.</span></li>
+      </ul>
+
+      <h3 class="group" id="ds-later">After the approval <em>each later stage uses the screen keys</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Stage</th><th>What it does with the screens</th></tr></thead>
+          <tbody>
+            <tr data-s><td>slice</td><td>Writes the screen keys of each slice into its scope and its own <code>ux-impact</code>. The canvas shows a design card for each slice.</td></tr>
+            <tr data-s><td>plan</td><td>Cites the screen keys in the steps that build each screen.</td></tr>
+            <tr data-s><td>implement</td><td>Reads each screen page at the approval commit. It makes the worst-case content loadable in development, never in production code.</td></tr>
+            <tr data-s><td>verify</td><td>Captures each built screen, and its worst state, beside its approved picture, and lists the differences.</td></tr>
+            <tr data-s><td>retro</td><td>Names the screen keys of each surface in <code>.ai/design/current.md</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="ds-canvas">The canvas and the design server <em>review from the phone</em></h3>
+      <p class="aside" data-s>The canvas shows every screen of a repo on one board, in each viewport and state, with the check failures, the comment threads, the flows, the history and a card for each slice. One design server per computer serves the canvas of every registered repo, on 127.0.0.1 and on the tailnet address. The server writes two things only: a comment on a screen that exists, and the positions that you drag. In the commands, <code>wf.mjs</code> is <code>node &lt;plugin&gt;/scripts/wf.mjs</code>.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>wf.mjs design server start</code></td><td>Starts the server in the background.</td></tr>
+            <tr data-s><td><code>wf.mjs design server url</code></td><td>Prints its addresses. On the phone, open <code>/r/&lt;repo&gt;/?workflow=&lt;slug&gt;</code> on the tailnet address.</td></tr>
+            <tr data-s><td><code>wf.mjs design server status</code></td><td>Tells whether the server runs and whether the logon task is installed.</td></tr>
+            <tr data-s><td><code>wf.mjs design server install</code> · <code>uninstall</code></td><td>Adds or removes one Windows scheduled task that starts the server at logon. After a plugin update, run <code>install</code> again.</td></tr>
+            <tr data-s><td><code>wf.mjs design publish &lt;root&gt;</code></td><td>Writes one self-contained canvas page, with no comments and no layout saves, for a reviewer who cannot reach the server.</td></tr>
+            <tr data-s><td><code>wf.mjs design comments &lt;root&gt;</code></td><td>Prints the open comment threads. The agent reads them before each round.</td></tr>
+            <tr data-s><td><code>wf.mjs design viewports &lt;root&gt; [name=WxH…]</code></td><td>Shows or sets the viewports. The defaults are phone 375×812, tablet 768×1024 and desktop 1280×800.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="ds-moves">Moves <em>each one focuses the stage, or checks an approved design</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Move</th><th>For</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>adapt</code></td><td>A new context: a window size, an input method, a platform or a medium.</td></tr>
+            <tr data-s><td><code>animate</code></td><td>Motion where it earns its place, and a reason for each motion it rejects.</td></tr>
+            <tr data-s><td><code>bolder</code> · <code>quieter</code></td><td>More presence for a timid design, or less intensity without loss of personality.</td></tr>
+            <tr data-s><td><code>clarify</code></td><td>Interface text that tells a person what happened, what matters and what to do next.</td></tr>
+            <tr data-s><td><code>colorize</code></td><td>Color as hierarchy and meaning, inside the confirmed brand. It also fixes contrast failures.</td></tr>
+            <tr data-s><td><code>delight</code> · <code>overdrive</code></td><td>Moments of personality, or one part of the interface made extraordinary.</td></tr>
+            <tr data-s><td><code>distill</code></td><td>Only the essential elements. It removes complexity, decoration and noise.</td></tr>
+            <tr data-s><td><code>harden</code></td><td>Real people, real data and real failures: access needs, long content, errors and slow networks.</td></tr>
+            <tr data-s><td><code>layout</code> · <code>typeset</code></td><td>Reading order, grouping and space, or the type, inside the current visual identity.</td></tr>
+            <tr data-s><td><code>onboard</code></td><td>Empty states and the first run, so people reach first value fast.</td></tr>
+            <tr data-s><td><code>optimize</code></td><td>Performance as a feature: find the real bottleneck, fix it, measure again.</td></tr>
+            <tr data-s><td><code>polish</code></td><td>The details of an approved design. It never hides a redesign.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="ds-record">The design record <em>the memory of the project's design</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> design setup</code></td><td>Writes PRODUCT.md and DESIGN.md from a discovery round, then <code>.ai/design/current.md</code> and <code>direction.md</code>.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design teach</code></td><td>Asks about the design, and updates each part of the record that your answers touch.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design extract</code></td><td>Reads the design system in the code into <code>current.md</code>.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design direction [from &lt;board-slug&gt;]</code></td><td>Goes over the goals, the future direction and the open decisions with you, and writes only what you confirm.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design sync</code></td><td>Keeps DESIGN.md and the design system of the host canvas in step, one component at a time.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="ds-migrate">Older boards <em>once per repo</em></h3>
+      <p class="aside" data-s>A workflow from before the design surface keeps its boards in <code>.ai/workflows/&lt;slug&gt;/design/</code>. Run <code>wf.mjs design migrate &lt;root&gt; --check</code> first. It lists each workflow, its revisions, the confirmed revision and the screen key of each board, and it writes nothing. Then run <code>wf.mjs design migrate &lt;root&gt;</code>. It must exit 0. The boards of one surface and state become one screen, and each viewport stays a page of that screen. Each revision becomes one commit, and a confirmed revision counts as an approval. <code>.ai/design/migrated.json</code> maps each board key to its screen key, and the old board files stay.</p>
+
+      <h3 class="group" id="ds-files">Files <em>in .ai/design/ of the product repo</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>What you find there</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>screens/&lt;key&gt;.html</code></td><td>One screen: an interactive page with mock data and the five states. <code>?state=&lt;name&gt;</code> shows one state.</td></tr>
+            <tr data-s><td><code>explore/&lt;key&gt;.html</code></td><td>A sketch of an explore run or a direction. It is not a screen.</td></tr>
+            <tr data-s><td><code>tokens.css</code></td><td>The token sheet, made from the token roles of DESIGN.md.</td></tr>
+            <tr data-s><td><code>screens.json</code> · <code>layout.json</code> · <code>references.json</code></td><td>The manifest, the canvas positions and the references. Only the scripts and the canvas write them.</td></tr>
+            <tr data-s><td><code>current.md</code> · <code>direction.md</code></td><td>The design record: the current design and where it goes next.</td></tr>
+            <tr data-s><td><code>design.yaml</code></td><td>In the workflow folder: the design brief, the visual contract with its screen keys and approval commit, and the design checks.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>The comments, the approval pictures and the check results are kept in the records, not in <code>.ai/design/</code>, because a product repo can be public.</p>
+    </section>
+
     <section id="brainstorm-guide" data-title="Brainstorm in depth">
       <h2><span class="n"></span>Brainstorm, step by step</h2>
       <p class="intro">A thinking partner for a half-formed idea. You lead. The agent maps the areas the idea touches, goes wide before it goes deep, brings ideas of its own, and keeps a board of everything said. It never commits: a choice that other work would build on, such as a data format, becomes a question for the plan. Only you end a brainstorm.</p>
@@ -790,10 +928,31 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="campaign-guide" data-title="Campaign in depth">
       <h2><span class="n">06</span>Campaign, step by step</h2>
-      <p class="intro">Use a campaign when a brainstorm or an ideate pick wrote a list of work packets. The campaign walks the list in order, one work packet at a time, on one branch, <code>packets/&lt;slug&gt;</code>. Each work packet is a normal workflow. When the list is done, you hand off one PR for the whole list. Start or resume it with <code class="hp">/wf campaign &lt;slug&gt;</code>, where the slug is the brainstorm or ideate workflow that holds <code>work/index.md</code>.</p>
+      <p class="intro">Use a campaign when a brainstorm or an ideate pick wrote a list of work packets. The campaign is a walk: it goes down the list in order, one work packet at a time, on one branch, <code>packets/&lt;slug&gt;</code>. Each work packet is a normal workflow. When the list is done, you hand off one PR for the whole list. Start or resume the walk with <code class="hp">/wf campaign &lt;slug&gt;</code>, where the slug is the brainstorm or ideate workflow that holds <code>work/index.md</code>.</p>
       <nav class="subnav static" aria-label="Campaign topics">
-        <a href="#cg-flow">The flow</a><a href="#cg-before">Before you start</a><a href="#cg-forms">Each form</a><a href="#cg-stops">Each stop</a><a href="#cg-ship">Handoff and ship</a><a href="#cg-old">An old campaign</a><a href="#cg-files">Files</a>
+        <a href="#cg-packet">A work packet</a><a href="#cg-flow">The flow</a><a href="#cg-resume">Where a call resumes</a><a href="#cg-before">Before you start</a><a href="#cg-forms">Each form</a><a href="#cg-slice">Slicing</a><a href="#cg-stops">Each stop</a><a href="#cg-ship">Handoff and ship</a><a href="#cg-old">An old campaign</a><a href="#cg-files">Files</a>
       </nav>
+
+      <h3 class="group" id="cg-packet">A work packet <em>one agreed part of the work</em></h3>
+      <ul class="rules">
+        <li data-s><b>Where it comes from</b><span>At <code>done</code>, a brainstorm writes one work packet for each agreed part of the work. An ideate pick writes one for each picked idea. The list, <code>work/index.md</code>, holds them in one strict order, and each place after the first has a reason.</span></li>
+        <li data-s><b>What it carries</b><span>Your decisions word for word, with their dates. Also the findings, the open questions, the sources, the form, <code>ux-impact</code>, <code>try-out</code> and its state.</span></li>
+        <li data-s><b>A key and a slug</b><span>The key is the name on the board. The slug names the workflow folder of the work packet. Each campaign command takes the key, and also accepts the slug.</span></li>
+        <li data-s><b>One workflow</b><span>The walk opens each build packet as a normal workflow, <code>.ai/workflows/&lt;packet-slug&gt;/</code>, with its intake and shape written word for word from the work packet.</span></li>
+        <li data-s><b>Started work stays</b><span>A work packet whose workflow started is never rewritten. A new decision about it becomes a new work packet.</span></li>
+      </ul>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>State</th><th>Means</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>written</code></td><td>The brainstorm or the ideate pick wrote the work packet. No workflow exists yet.</td></tr>
+            <tr data-s><td><code>open</code></td><td>The walk opened its workflow. Design, slice and the driver run from here.</td></tr>
+            <tr data-s><td><code>built</code></td><td>The driver reached its endpoint, and the work is pushed. Fidelity and the try-out come next.</td></tr>
+            <tr data-s><td><code>done</code></td><td>Each fidelity row is approved, the try-out is recorded, and the trunk is merged in.</td></tr>
+            <tr data-s><td><code>dropped</code></td><td>You dropped the work packet. The walk continues with the next one.</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <h3 class="group" id="cg-flow">The flow <em>steps 4 to 9 repeat for each work packet</em></h3>
       <div class="flow-wrap static">
@@ -803,10 +962,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">3</span><b>Open</b><span class="who auto">agent</span><p>Writes the intake and the shape of each build packet from the packet, word for word. Lists the packets whose design is not settled.</p></li>
           <li class="phase rep"><span class="pn">4</span><b>Design</b><span class="who you">you, when needed</span><p>Stops for <code class="hp">/wf design &lt;packet-slug&gt;</code> when the work packet needs a design that is not confirmed.</p></li>
           <li class="phase rep"><span class="pn">5</span><b>Slice</b><span class="who auto">agent</span><p>One slice per capability, about 10 per work packet. A slice that drops a criterion is a question to you.</p></li>
-          <li class="phase rep"><span class="pn">6</span><b>Drive</b><span class="who auto">autonomous</span><p>yolo plans, implements, verifies and reviews the work packet on the list branch.</p></li>
+          <li class="phase rep"><span class="pn">6</span><b>Drive</b><span class="who auto">autonomous</span><p>yolo plans, implements, verifies and reviews the work packet on the list branch. The work is pushed, so CI runs.</p></li>
           <li class="phase rep"><span class="pn">7</span><b>Fidelity</b><span class="who you">you</span><p>Each carried decision that the review marks narrowed or dropped: approve it, or fix it.</p></li>
           <li class="phase rep"><span class="pn">8</span><b>Try-out</b><span class="who you">you</span><p>Only for a packet with <code>try-out: yes</code>. You run it and say that it works, or describe the problem.</p></li>
-          <li class="phase rep"><span class="pn">9</span><b>Done</b><span class="who auto">agent</span><p>Merges the trunk, marks the work packet done, and goes to the next one.</p></li>
+          <li class="phase rep"><span class="pn">9</span><b>Done</b><span class="who auto">agent</span><p>Merges the trunk, moves the end branch <code>packets/&lt;slug&gt;--&lt;key&gt;</code>, pushes, and goes to the next work packet.</p></li>
           <li class="phase"><span class="pn">10</span><b>Ship</b><span class="who you">you</span><p>One PR for the list: <code class="hp">/wf ship packets/&lt;slug&gt;</code>, then retro.</p></li>
         </ol>
       </div>
@@ -815,13 +974,30 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       </ul>
       <p class="aside static">The state of each work packet is the <code>state</code> field of its file, and the campaign keeps no other state. Only the campaign script writes that field. The brainstorm owns the board and the packet files, so you can reopen the brainstorm while the campaign runs.</p>
 
+      <h3 class="group" id="cg-resume">Where a call resumes <em>the walk reads the state on disk each time</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>The current work packet needs</th><th>The walk</th></tr></thead>
+          <tbody>
+            <tr data-s><td>a route</td><td>Stops and prints the command of a work packet that is not a build packet.</td></tr>
+            <tr data-s><td>open</td><td>Opens each written build packet, then lists the work packets whose design is not settled.</td></tr>
+            <tr data-s><td>design</td><td>Stops and tells you to type <code><span class="hp">/wf</span> design &lt;packet-slug&gt;</code>.</td></tr>
+            <tr data-s><td>slice · yolo</td><td>Lands on the list branch, starts the work packet, slices it when no slice exists, and runs the driver.</td></tr>
+            <tr data-s><td>fidelity</td><td>Asks you about each decision row that the review did not mark honored.</td></tr>
+            <tr data-s><td>try-out</td><td>Tells you how to run the work packet, and asks whether it works.</td></tr>
+            <tr data-s><td>done</td><td>Closes the work packet and goes to the next one.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>The question of step 2 counts only the work packets that reach <code>done</code> in this call. When the count is reached, or the list is finished, the walk reports what it did, names the next work packet with its step, and ends with <code><span class="hp">/wf</span> campaign &lt;slug&gt;</code>.</p>
+
       <h3 class="group" id="cg-before">Before you start</h3>
       <ul class="rules">
         <li data-s><b>A list</b><span>A brainstorm that reached <code>done</code>, or an ideate pick, wrote <code>work/index.md</code> and one <code>work/&lt;packet&gt;.md</code> per work packet. With no slug, the campaign lists the folders that hold a list and asks which.</span></li>
         <li data-s><b>A confirmed scope</b><span>You confirmed the goal, the scope, the acceptance criteria, <code>ux-impact</code>, <code>try-out</code> and the stack at done. The campaign does not ask about them again.</span></li>
         <li data-s><b>One branch</b><span>Every work packet lands on <code>packets/&lt;slug&gt;</code>. The campaign never stashes and never forces. When git refuses the switch, it shows the files in the way and asks.</span></li>
         <li data-s><b>Design in this checkout</b><span>You can design a later work packet between two work packets, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the campaign.</span></li>
-        <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before ship. Ship stops without a plan.</span></li>
+        <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before ship. At the start, the walk lists each ship gap as a task for you. It stops on a gap only at ship.</span></li>
       </ul>
 
       <h3 class="group" id="cg-forms">Each form <em>the campaign builds only the build forms</em></h3>
@@ -835,6 +1011,17 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           </tbody>
         </table>
       </div>
+
+      <h3 class="group" id="cg-slice">How the walk slices a work packet <em>one slice per capability</em></h3>
+      <ul class="rules">
+        <li data-s><b>A slice is one capability</b><span>A capability is a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". The small outcomes of the capability become the steps of its plan.</span></li>
+        <li data-s><b>The size</b><span>A slice has fewer than 40 plan steps. A larger capability becomes two slices. Lines of code do not set the size.</span></li>
+        <li data-s><b>About 10 slices</b><span>The walk aims for 10 slices per work packet. Above 14, it writes them and tells you the count. You can split the work packet later.</span></li>
+        <li data-s><b>One review</b><span>The review covers the whole work packet, once. A fix slice runs that review again.</span></li>
+        <li data-s><b>Screens</b><span>When the work packet has approved screens, each slice names its screen keys and its own <code>ux-impact</code>.</span></li>
+        <li data-s><b>Your scope stays</b><span>The walk does not ask about the scope, the criteria or the stack again. A slice that drops or narrows an acceptance criterion is a question to you.</span></li>
+        <li data-s><b>Your own slices</b><span>When you ran <code><span class="hp">/wf</span> slice &lt;packet-slug&gt;</code> yourself, the walk keeps your slices and skips this step.</span></li>
+      </ul>
 
       <h3 class="group" id="cg-stops">Each stop <em>the campaign asks; it never guesses past a stop</em></h3>
       <div class="tbl-wrap">
@@ -859,7 +1046,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <li data-s><b>When the list is done</b><span>Each work packet is done or dropped, and no fidelity row waits for your approval. Type <code><span class="hp">/wf</span> ship packets/&lt;slug&gt;</code>. The PR lists each work packet with its acceptance results and its decision fidelity table.</span></li>
         <li data-s><b>Then ship and retro</b><span><code><span class="hp">/wf</span> ship packets/&lt;slug&gt;</code> ships the PR as usual. <code><span class="hp">/wf</span> retro packets/&lt;slug&gt;</code> runs one retro over every work packet on the list branch.</span></li>
         <li data-s><b>An early PR</b><span>You can ship between work packets. The PR then holds the done work packets only. After it merges, the campaign asks whether to delete the list branch and the end branches, and starts the next PR from the trunk.</span></li>
-        <li data-s><b>No stacked PRs</b><span>Every list hands off as one PR.</span></li>
+        <li data-s><b>A draft PR from the first build</b><span>The first work packet that reaches <code>built</code> opens the PR of the list as a draft. Each later build pushes to it, so CI runs at the end of each work packet. Ship writes the real title and body, and marks the PR ready.</span></li>
+        <li data-s><b>Stacked PRs</b><span>When <code>.ai/ship-plan.md</code> has <code>pr-shape: stacked</code>, each build packet is one layer of a gh-stack stack, with one PR per layer. Ship each layer bottom first, or merge the whole stack at once.</span></li>
+        <li data-s class="warn"><b>A stack is rewritten</b><span>CAUTION: do not commit to a layer from another checkout while the walk runs. Each sync rebases the layers, so that commit diverges from the rewritten layer.</span></li>
         <li data-s class="warn"><b>Deletes wait for you</b><span>WARNING: the campaign deletes no remote branch, tag or release without your yes. These deletions cannot be undone.</span></li>
       </ul>
 
@@ -873,7 +1062,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <tbody>
             <tr data-s><td><code>work/index.md</code></td><td>The list: every work packet in order, with its form and state.</td></tr>
             <tr data-s><td><code>work/&lt;packet&gt;.md</code></td><td>One work packet: the decisions word for word, the write-up, <code>try-out</code>, and its <code>state</code>.</td></tr>
-            <tr data-s><td><code>.ai/workflows/&lt;packet-slug&gt;/</code></td><td>The normal workflow of one work packet, from <code>01-intake.md</code> to <code>07-review.md</code>.</td></tr>
+            <tr data-s><td><code>.ai/workflows/&lt;packet-slug&gt;/</code></td><td>The normal workflow of one work packet: its records, from <code>intake.yaml</code> to <code>review.yaml</code>.</td></tr>
             <tr data-s><td><code>decisions.yaml</code></td><td>In each packet's workflow: your fidelity approvals and your try-out result.</td></tr>
             <tr data-s><td><code>work/migration.md</code></td><td>The report of a migrated old campaign.</td></tr>
           </tbody>
@@ -1125,7 +1314,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { g: "stage", id: "design", st: "02", name: "design", b: ["gate"],
       syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
       d: "The person approves every changed screen before any driver runs. The screens live on the design surface of the repo, .ai/design/, and the canvas shows them in each viewport and state, from the phone too. The agent asks which form to make, takes the design through rounds of three to five decisions, and runs the checks: contrast, target size, viewport fit and worst-case content. A script records the approval from your answer. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens an approved design; import turns a canvas, a folder, a zip or images into screens; explore sketches ideas and settles nothing. A move without a slug starts a new workflow through intake.",
-      w: ["02c-craft.md", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
+      more: "design-guide", w: ["02c-craft.md", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
     { g: "stage", id: "slice", st: "03", name: "slice", syn: ["slice <slug>"],
       d: "Splits the spec into thin vertical slices that can each be verified alone. Slice also asks one time whether review runs per slice or once over the whole workflow.",
       w: ["03-slice.md", "03-slice-<slice>.md"], n: "plan <slug>", t: "split decompose break down" },
