@@ -6,11 +6,24 @@
 
 The step record is `.ai/workflows/<slug>/steps.jsonl`. Only `wf.mjs step` writes it. Use it in place of a host task list. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
 
-1. Before the first step, run `<wf> step where "<projectRoot>" <slug> <slice-slug>`. It names the done steps, the step that ran last, and the next open step. A step is done only when its commit is in the history of HEAD. Start at the next open step. Do not do a done step again.
+1. Before the first step, run `<wf> step where "<projectRoot>" <slug> <slice-slug>`. It names the done steps, the step that ran last, and the next open step. Start at the next open step that it names. Do not do a done step again.
+   - A step is done while its commit is in the history of the slice branch. The answer is the same in the main checkout and in a worktree.
+   - A step whose commit a rebase replaced is `moved`, and stays done. A step whose commit left the branch is `dropped`, and is open again.
+   - When `step where` says that the plan changed since the last complete run, the run starts at the next step that it names.
+   - When `step where` says that the plan has no steps that the step record can read, stop. The plan must number its steps from 1, as numbered lines or as `### Step <n>` headings.
 2. Before each step, run `<wf> step start "<projectRoot>" <slug> <slice-slug> <n> --title "<the step title of the plan>"`.
-3. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`. Then run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --sha HEAD`. For a step that changed no file, omit `--sha`.
-4. When you hard-stop, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --reason "<one line>"`. After 2 hard-stops of one slice, `step where` says to ask the person to split the slice instead of a third run. `step retry` clears the count.
-5. After the final commit of the slice (step 12), run `<wf> step complete "<projectRoot>" <slug> <slice-slug> --sha HEAD`.
+3. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`. Then run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --sha HEAD`.
+   - The commit must move HEAD. When the commit fails, for example in a commit hook, `step done` refuses, because HEAD is still the commit before the step. Fix the cause and commit again.
+   - For a step that changed no file, run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --no-change`.
+4. When you stop before the slice is done, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --kind <kind> --reason "<one line>"`. The kind is:
+   - `fail`: the step failed, for example its tests do not pass. This is the default.
+   - `gate`: a gate of the plan stops the run, as the plan says.
+   - `question`: the step needs an answer of the person.
+
+   Only `fail` stops count. After 2 `fail` stops of one slice, `step where` says to ask the person to split the slice instead of a third run. `step retry` clears the count.
+5. After the final commit of the slice (step 12), run `<wf> step complete "<projectRoot>" <slug> <slice-slug> --sha HEAD`. It refuses while a plan step is open. When a step must stay undone, name it: `--skip <n>,<n> --reason "<why>"`. The steps table shows it as `skipped`.
+
+A slice that is complete starts again at step 1 when a later stage sends it back with the same plan. A slice whose plan changed starts at the next step that `step where` names.
 
 ## The steps table
 
@@ -18,11 +31,12 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 
 | Step | Title | Result | Commit |
 |---|---|---|---|
-| `<n>` | `<the step title of the plan>` | `done` or `deviated` | `<the short sha of its step commit>` |
+| `<n>` | `<the step title of the plan>` | `done`, `deviated` or `skipped` | `<the short sha of its step commit>` |
 
-- Take each sha from `<wf> step where "<projectRoot>" <slug> <slice-slug> --json` (its `done` list). A step that an earlier run committed keeps the sha of that run.
+- Take each sha from `<wf> step where "<projectRoot>" <slug> <slice-slug> --json`: its `done` list, or its `lastRun` after `complete`. A step that an earlier run committed keeps the sha of that run. A `moved` step takes its new sha.
 - `deviated` means the step was done in a different way than the plan says. Give the reason in `## Deviations from Plan`.
-- A step with no commit, for example a step that changed no file, gets `—` in Commit.
+- `skipped` is a step that `complete --skip` named. Give its reason in `## Deviations from Plan`.
+- A step with no commit gets `—` in Commit.
 
 ## The test receipt
 

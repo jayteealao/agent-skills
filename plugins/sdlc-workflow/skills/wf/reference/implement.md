@@ -155,7 +155,7 @@ After writing files, return per [_chat-return.md](_chat-return.md). Lead with th
 
 Do this in order:
 1. **Ensure the correct branch** (the Step 0.11 branch check is complete).
-2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful; a blocked step records its reason.
+2. **Track the plan steps in the step record.** Run `step where` for the slice, and record each plan step of `04-plan-<slice-slug>.md` → `## Step-by-Step Plan` with `step start` and `step done`, per [implement/_steps.md](implement/_steps.md). The step record replaces a host checklist. A blocked step gets `step stop` with its reason.
 3. Re-check the current code before editing, including files that sibling slices changed.
 4. When the slice depends on evolving external APIs or libraries, run a freshness pass first.
 5. **Implement the selected slice**, step by step. Commit and record each plan step per [implement/_steps.md](implement/_steps.md).

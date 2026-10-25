@@ -721,10 +721,17 @@ function answeredFor(answered, stage, sliceArg) {
 
 // An answered stage runs again with the answer. A verify can accept the slice on the answer;
 // a verify, review or implement whose answer needs a new plan or new code routes back.
-function answeredClause(a, stage) {
+function answeredClause(a, stage, sliceArg = null) {
   if (!a) return ''
   const by = a.by || 'person'
   const quote = (s) => JSON.stringify(String(s || '').slice(0, 600))
+  // A slice that the slug-wide review sent back on a residual item, with no question behind it.
+  if (a.residual) {
+    return `\n\nRESIDUAL OF THE SLUG-WIDE REVIEW (MANDATORY). The slug-wide review sent this slice back to ` +
+      `${a.routedBack || 'plan'} with this residual item: ${quote(a.answer)}. Settle it in this stage: the plan ` +
+      `covers it, the code does it, the verify checks it. Record what you changed for it as a decision with class ` +
+      `'implementation-detail'. Do not route back again: settle the stage on the work as it is.`
+  }
   const head = a.all
     ? `\n\nANSWERED QUESTIONS (MANDATORY). The last run of this stage stopped on ${a.all.length} questions. The ` +
       `answers are in the decision store: ` +
@@ -750,7 +757,12 @@ function answeredClause(a, stage) {
         `route-back: plan in the ${stage} frontmatter, and return routeBack: 'plan'. When the answer needs new ` +
         `code that the current plan already describes, and more than a fix round, change no code: write ` +
         `route-back: implement and return routeBack: 'implement'. The driver then runs that stage and every later ` +
-        `stage of the slice again, with this answer.`
+        `stage of the slice again, with this answer.` +
+        (stage === 'review' && !sliceArg
+          ? ` This review is slug-wide: with routeBack, return routeBackSlices, one entry for each slice that the ` +
+            `answer or a residual item sends back: { slice, key } for an answer (its key), or { slice, note } for a ` +
+            `residual item (one line that says what the slice must do). Name only slices of the roster.`
+          : '')
       : '') +
     (stage === 'implement'
       ? ` When the answer changes the slice's design, its acceptance criteria or its plan, do not revise or undo ` +
@@ -1154,6 +1166,9 @@ const STAGE_RESULT = {
     acceptedByPerson: { type: 'boolean' },
     // An answered implement, verify or review that needs a new plan or new code.
     routeBack: { enum: ['plan', 'implement'] },
+    // A slug-wide review that routes back names each slice that goes back, with the answer
+    // key or the residual note that sends it.
+    routeBackSlices: { type: 'array', items: { type: 'object', required: ['slice'], properties: { slice: { type: 'string' }, key: { type: 'string' }, note: { type: 'string' } } } },
     // E4: the slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
     stopReason: { type: 'string' },
@@ -1374,8 +1389,8 @@ async function orient() {
     `single-scope workflow; a roster of one is complete.\n` +
     `2b. IMPLEMENT PROGRESS. For each slice whose implement is not done, run ` +
     `\`${WF_CMD} step where "${projectRoot}" ${slug} <slice> --json\`: planSteps = its total, stepsCommitted = the ` +
-    `highest n of its done list (0 when empty), and implementStops = its hardStops. The command checks each step ` +
-    `commit against HEAD itself.\n` +
+    `number of entries of its done list (0 when empty), and implementStops = its hardStops (the fail stops only). ` +
+    `The command checks each step commit against the slice branch itself.\n` +
     `3. Resolve fileConvention: 'suffixed' for a multi-slice standard workflow that has per-slice ` +
     `03-slice-<slice>.md files (so stage files are 04-plan-<slice>.md, 06-verify-<slice>.md, 07-review-<slice>.md); ` +
     `'unsuffixed' for a change-mode (workflow-type fix|hotfix|refactor), a forwarded rca driven single-scope, or any ` +
@@ -1669,7 +1684,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `3. Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write ` +
     `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
     `${referenceRoot}/_records.md.` +
-    questionContract(stage) + (DELEGATE ? delegateClause(WF_CMD) : '') + answeredClause(extra.answered, stage) +
+    questionContract(stage) + (DELEGATE ? delegateClause(WF_CMD) : '') + answeredClause(extra.answered, stage, sliceArg) +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
@@ -2260,9 +2275,14 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   let refresh = null
   let freshChecked = false
   // A route back forces stages that are done on disk, and carries the answer to each of them.
+  // A caller that routes back (the slug-wide review) gives the first forced stage and the answer.
   const forced = new Set()
   let carried = null
   let routeBacks = 0
+  if (opts.forceFrom && CHAIN_ORDER.includes(opts.forceFrom)) {
+    CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(opts.forceFrom)).filter(s => stages.includes(s)).forEach(s => forced.add(s))
+    carried = opts.carried ? { ...opts.carried, routedBack: opts.forceFrom } : null
+  }
   while (queue.length) {
     const stage = queue.shift()
     if (done[stage] === 'done' && !forced.has(stage) && !(stage === 'plan' && refresh)) { log(`skip ${stage}:${sliceArg} (already terminal-clean)`); continue }
@@ -2387,6 +2407,63 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
   }
   return { stopped: false, slice: sliceArg, ran }
+}
+
+// The slug-wide review, the run's target after every slice verified. An answer or a residual
+// item that needs a new plan or new code sends its slices back through plan → implement →
+// verify (driveChain with forceFrom), then the review runs again. Returns the slug outcome.
+async function slugWideReview(idx, results) {
+  log(`yolo → review ${slug} (slug-wide)`)
+  const reviewAnswer = answeredFor(ANSWERED, 'review', null)
+  let rev = await driveReview(null, idx, { answered: reviewAnswer })
+  // An answer or a residual item of the slug-wide review that needs a new plan or new code
+  // sends its slices back through plan → implement → verify, then the review runs again.
+  let reviewBacks = 0
+  let backStop = null
+  while (rev && rev.status !== 'questions' && rev.status !== 'stopped' && (rev.routeBack === 'plan' || rev.routeBack === 'implement')) {
+    if (reviewBacks >= MAX_ROUTE_BACKS) {
+      backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: `the slug-wide review routed back to ${rev.routeBack} ${reviewBacks + 1} times — the answer does not settle; ask the person again`, results, slugWide: rev, route: `ask the person again, then re-run /wf yolo ${slug}` }
+      break
+    }
+    reviewBacks++
+    const roster = idx.slices.map(s => s.slice)
+    const named = Array.isArray(rev.routeBackSlices) ? rev.routeBackSlices.filter(t => t && t.slice) : []
+    for (const t of named.filter(t => !roster.includes(t.slice))) log(`the slug-wide review sent back '${t.slice}', which is not in the roster — skipped`)
+    const targets = named.filter(t => roster.includes(t.slice))
+    if (!targets.length) {
+      backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: `the slug-wide review routed back to ${rev.routeBack} but named no slice of the roster`, results, slugWide: rev, route: `re-run /wf yolo ${slug}; the review must name the slices that go back` }
+      break
+    }
+    log(`slug-wide review routes back to ${rev.routeBack}: ${targets.map(t => t.slice).join(', ')}`)
+    for (const t of targets) {
+      const hits = reviewAnswer ? (reviewAnswer.all || [reviewAnswer]) : []
+      const carried = t.key
+        ? hits.find(a => a && a.key === t.key) || { key: t.key, question: 'an answer of the slug-wide review', answer: t.note || t.key, by: (reviewAnswer && reviewAnswer.by) || 'person' }
+        : { key: null, residual: true, answer: t.note || 'a residual item of the slug-wide review' }
+      const chain = await driveChain(['plan', 'implement', 'verify'], t.slice, idx, { forceFrom: rev.routeBack, carried })
+      results.push(chain)
+      if (chain.stopped) {
+        backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: chain.at, stoppedSlice: t.slice, reason: chain.reason, results, slugWide: rev, route: chain.route || `address the gate at '${chain.at}' on slice '${t.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) }
+        break
+      }
+    }
+    if (backStop) break
+    log(`yolo → review ${slug} (slug-wide, after the route back)`)
+    rev = await driveReview(null, idx, { answered: reviewAnswer ? { ...reviewAnswer, routedBack: rev.routeBack } : null })
+  }
+  const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
+  return backStop
+    ? backStop
+    : !rev
+    // A null return = the review subagent was skipped or died on a transient error: a re-run retries it.
+    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', transient: true, reason: 'the slug-wide review did not return (subagent skipped or hit a transient API error) — re-run to retry it; resume skips completed stages', results, route: `/wf yolo ${slug}` }
+    : rev.status === 'stopped'
+    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'stop-request', reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
+    : rev.status === 'questions'
+    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
+    : stopped
+    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: rev.hardStopReason || 'slug-wide review did not clear the gate', results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
+    : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}`, ...(reviewBacks ? { routedBack: reviewBacks } : {}) }
 }
 
 // CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).
@@ -2643,16 +2720,7 @@ if (idx.workflowType === 'update-deps') {
     } else {
       // slug-wide: every slice verified → ONE slug-wide review over the branch diff.
       // This is the run's TARGET, so it runs before the re-challenge sweep.
-      log(`yolo → review ${slug} (slug-wide)`)
-      const rev = await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })
-      const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
-      outcome = rev && rev.status === 'stopped'
-        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'stop-request', reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
-        : rev.status === 'questions'
-        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
-        : stopped
-        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-        : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
+      outcome = await slugWideReview(idx, results)
     }
   }
   // The bounded re-challenge sweep, last — after the target, in the same run. A

@@ -228,7 +228,7 @@ test('the slice and slug outcomes carry the chain route and the questions; the s
   assert.ok(src.includes("route = chain.route || `address the gate at '${chain.at}'"), 'slice mode');
   assert.ok(src.includes("route: chain.route || `address the gate at '${chain.at}' on slice"), 'slug mode');
   assert.ok(src.includes("...(chain.questions ? { questions: chain.questions } : {})"), 'both modes carry the questions');
-  assert.ok(src.includes("const rev = await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })"), 'the slug-wide review carries its answer');
+  assert.ok(src.includes("const reviewAnswer = answeredFor(ANSWERED, 'review', null)\n  let rev = await driveReview(null, idx, { answered: reviewAnswer })"), 'the slug-wide review carries its answer');
   assert.ok(src.includes("? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }"), 'slug-wide review');
   assert.doesNotMatch(src, /amendFindings|amendStopReason/);
 });
@@ -238,4 +238,78 @@ test('a run that waits on questions ends as waiting, with the resume command and
   assert.match(extractFn('runEnd'), /progress set "\$\{projectRoot\}" \$\{slug\} --run/);
   assert.ok(src.includes('re-run ${resumeCmd} with args.answered'));
   assert.ok(src.includes('if (DELEGATE) outcome.delegate = { digest: `${WF_CMD} decide list "${projectRoot}" ${slug} --by delegate` }'));
+});
+
+// The slug-wide review with its dispatches stubbed: `reviews` is the list of the review results
+// in order, and `chains` maps a slice to the result of its driveChain.
+function slugWideHarness(reviews, chains = {}, answered = []) {
+  const calls = { review: [], chain: [] };
+  const build = new Function('stubs', `
+    const { driveReview, driveChain, log, slug, ANSWERED } = stubs
+    const MAX_ROUTE_BACKS = 2
+    ${extractFn('verifyClean')}
+    ${extractFn('evaluateGate')}
+    ${extractFn('sliceOf')}
+    ${extractFn('questionsOf')}
+    ${extractFn('questionsText')}
+    ${extractFn('questionStop')}
+    ${extractFn('answeredFor')}
+    ${extractFn('slugWideReview')}
+    return slugWideReview
+  `);
+  let n = 0;
+  const fn = build({
+    slug: 'demo',
+    ANSWERED: answered,
+    log: () => {},
+    driveReview: async (slice, idx, extra) => { calls.review.push(extra); const r = reviews[n]; n += 1; return r === undefined ? CLEAN_REVIEW : r; },
+    driveChain: async (stages, slice, idx, opts) => { calls.chain.push({ stages, slice, opts }); return chains[slice] || { stopped: false, slice, ran: [] }; },
+  });
+  return { slugWideReview: fn, calls };
+}
+const CLEAN_REVIEW = { stage: 'review', status: 'complete', artifactPath: '', terminal: { verdict: 'ship', blockerCount: 0 } };
+const ROSTER = { slices: [{ slice: 'auth', stages: {} }, { slice: 'feed', stages: {} }], priorDeferrals: [] };
+
+test('a slug-wide review that routes back runs plan, implement and verify of each named slice, then reviews again', async () => {
+  const answer = { key: 'review:empty', stage: 'review', answer: 'show a sign-up link', by: 'person' };
+  const back = { ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'auth', key: 'review:empty' }, { slice: 'feed', note: 'the feed misses its empty state' }] };
+  const h = slugWideHarness([back, CLEAN_REVIEW], {}, [answer]);
+  const out = await h.slugWideReview(ROSTER, []);
+  assert.deepEqual([out.ok, out.route, out.routedBack], [true, '/wf ship demo', 1]);
+  assert.deepEqual(h.calls.chain.map((c) => [c.slice, c.stages.join(','), c.opts.forceFrom]), [['auth', 'plan,implement,verify', 'plan'], ['feed', 'plan,implement,verify', 'plan']]);
+  assert.equal(h.calls.chain[0].opts.carried.key, 'review:empty', 'the answer goes to its slice');
+  assert.deepEqual([h.calls.chain[1].opts.carried.residual, h.calls.chain[1].opts.carried.answer], [true, 'the feed misses its empty state'], 'a residual item carries its note');
+  assert.equal(h.calls.review.length, 2);
+  assert.equal(h.calls.review[1].answered.routedBack, 'plan', 'the second review knows the walk routed back');
+});
+
+test('a slug-wide route back stops at a stopped chain, at the limit, and at a slice that is not in the roster', async () => {
+  const back = { ...CLEAN_REVIEW, routeBack: 'implement', routeBackSlices: [{ slice: 'auth', note: 'x' }] };
+  const stop = slugWideHarness([back], { auth: { stopped: true, at: 'verify', slice: 'auth', ran: [], reason: 'verify did not clear' } });
+  const s = await stop.slugWideReview(ROSTER, []);
+  assert.deepEqual([s.ok, s.stopped, s.stoppedAt, s.stoppedSlice], [false, true, 'verify', 'auth']);
+  assert.doesNotMatch(s.route, /\/wf ship/);
+  const loop = slugWideHarness([back, back, back]);
+  const l = await loop.slugWideReview(ROSTER, []);
+  assert.equal(l.stopped, true);
+  assert.match(l.reason, /routed back to implement 3 times — the answer does not settle; ask the person again/);
+  const none = slugWideHarness([{ ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'ghost', note: 'x' }] }]);
+  const g = await none.slugWideReview(ROSTER, []);
+  assert.deepEqual([g.stopped, none.calls.chain.length], [true, 0]);
+  assert.match(g.reason, /named no slice of the roster/);
+});
+
+test('a slug-wide review that returns nothing stops as a transient stop that a re-run retries', async () => {
+  const h = slugWideHarness([null]);
+  const out = await h.slugWideReview(ROSTER, []);
+  assert.deepEqual([out.ok, out.stopped, out.transient, out.route], [false, true, true, '/wf yolo demo']);
+});
+
+test('driveChain with forceFrom runs the done stages from that stage, with the carried answer', async () => {
+  const done = { slices: [{ slice: 'auth', stages: { plan: 'done', implement: 'done', verify: 'done' } }], priorDeferrals: [] };
+  const h = chainHarness({});
+  const chain = await h.driveChain(['plan', 'implement', 'verify'], 'auth', done, { forceFrom: 'implement', carried: { key: 'k', answer: 'a' } });
+  assert.equal(chain.stopped, false);
+  assert.deepEqual(h.calls.map((c) => c.stage), ['implement', 'verify']);
+  for (const c of h.calls) assert.deepEqual([c.extra.answered.key, c.extra.answered.routedBack], ['k', 'implement']);
 });

@@ -32,7 +32,7 @@ test('help lists the commands and prints the forms of one command; --help works 
   assert.match(all.stdout, /Commands: .*\bdecide\b.*\brecord\b/);
   const step = run(['help', 'step']);
   assert.equal(step.status, 0);
-  assert.match(step.stdout, /step {5}done <root> <slug> <slice> <n> \[--sha s\|HEAD\]/);
+  assert.match(step.stdout, /step {5}done <root> <slug> <slice> <n> \(--sha s\|HEAD \| --no-change\)/);
   assert.match(run(['profile', '--help']).stdout, /profile {2}run <root> <suite>/);
   assert.equal(run(['--help']).status, 0);
   const none = run(['help', 'nope']);

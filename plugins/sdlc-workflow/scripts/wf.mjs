@@ -61,10 +61,13 @@
  *   decide   import <root> <slug>
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
  *   step     start <root> <slug> <slice> <n> [--title t]
- *   step     done <root> <slug> <slice> <n> [--sha s|HEAD]
- *   step     stop|retry <root> <slug> <slice> [--reason r]
- *   step     complete <root> <slug> <slice> [--sha s|HEAD]
- *             record a plan step in steps.jsonl
+ *   step     done <root> <slug> <slice> <n> (--sha s|HEAD | --no-change)
+ *   step     stop <root> <slug> <slice> [--reason r] [--kind fail|gate|question]
+ *   step     retry <root> <slug> <slice>
+ *   step     complete <root> <slug> <slice> [--sha s|HEAD] [--skip n,... --reason r]
+ *             record a plan step in steps.jsonl: done needs the step commit or --no-change; a
+ *             gate of the plan or a question to the person is a stop of its own kind, and only a
+ *             fail counts toward the split question; complete refuses an open step unless --skip
  *   step     where <root> <slug> [<slice>] [--json]
  *             the done steps of the slice, the step that runs, the next open step, the hard-stops
  *   profile  show <root> [--json]
@@ -152,6 +155,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
+import { putChecked } from '../lib/record-put.mjs';
 import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
@@ -170,11 +174,11 @@ import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, impor
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
-import { progressLine, progressOf, writeProgress } from '../lib/progress.mjs';
+import { progressLine, progressOf, readProgress, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
-import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
+import { appendStep, branchOf, commitIdentity, gitRevParse, gitSteps, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
@@ -200,7 +204,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change'].includes(name)) opt[name] = true;
       else {
         const { value, repaired } = undoGitBashPath(argv[(i += 1)]);
         if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
@@ -624,42 +628,81 @@ export function runDecide(pos, opt) {
 
 // ---------------------------------------------------------------- step
 
+/** The git answers of the step record for a workflow: the branch of each row, its base for the patch search. */
+const stepGit = (projectRoot, dir) => gitSteps(projectRoot, { base: frontmatterOfDoc(dir, INDEX_NAME)?.['base-branch'] ?? null });
+
 export function runStep(pos, opt) {
   const [verb, root, slug, slice, n] = pos;
   if (!verb || !root || !slug) throw new Error('step: <start|done|stop|retry|complete|where> <root> <slug> are required');
   const projectRoot = resolve(root);
   const dir = join(wfRoot(projectRoot), slug);
   if (!existsSync(dir)) throw new Error(`step: no workflow folder ${dir}`);
+  // A step commit in a worktree of the project is resolved there; its branch decides, not the checkout.
+  const checkout = stepCheckout(projectRoot);
+  const branch = branchOf(checkout);
+  const head = () => gitRevParse(checkout, 'HEAD');
   const sha = () => {
     if (!opt.sha) return null;
-    const s = gitRevParse(projectRoot, opt.sha);
-    if (!s) throw new Error(`step: ${opt.sha} is not a commit of ${projectRoot}`);
+    const s = gitRevParse(checkout, opt.sha);
+    if (!s) throw new Error(`step: ${opt.sha} is not a commit of ${checkout}`);
     return s;
   };
   if (verb === 'where') {
     const target = slice ?? lastSlice(dir);
     if (!target) { out(opt.json ? { slice: null } : 'no steps recorded'); return 0; }
-    const w = whereOf(dir, target, { isAncestor: gitIsAncestor(projectRoot) });
+    const w = whereOf(dir, target, stepGit(projectRoot, dir));
     out(opt.json ? w : whereLine(w));
     return 0;
   }
   if (!slice) throw new Error(`step ${verb}: <slice> is required`);
+  if (['start', 'done', 'complete'].includes(verb)) {
+    const refused = sliceRefusal(dir, slug, slice);
+    if (refused) throw new Error(`step ${verb}: ${refused}`);
+  }
   const step = n == null ? null : Number(n);
+  const where = () => whereOf(dir, slice, stepGit(projectRoot, dir));
+  const done = () => {
+    if (opt['no-change']) {
+      if (opt.sha) throw new Error('step done: give --sha or --no-change, not both');
+      return { slice, event: 'done', step, noChange: true, head: head(), branch };
+    }
+    if (!opt.sha) throw new Error('step done: --sha <commit> is required, or --no-change for a step that changed no file');
+    const s = sha();
+    // A step commit moves HEAD: the sha of the start, or of another done step, is not this step's commit.
+    const run = readSteps(dir).filter((r) => r.slice === slice);
+    let from = 0;
+    run.forEach((r, i) => { if (r.event === 'complete') from = i + 1; });
+    const current = run.slice(from);
+    const start = [...current].reverse().find((r) => r.event === 'start' && r.step === step);
+    if (start?.head && start.head === s) throw new Error(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change`);
+    const owner = current.find((r) => r.event === 'done' && r.step !== step && r.sha === s);
+    if (owner) throw new Error(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`);
+    return { slice, event: 'done', step, sha: s, ...commitIdentity(checkout, s), branch };
+  };
+  const complete = () => {
+    const w = where();
+    const skip = opt.skip ? String(opt.skip).split(',').map((x) => Number(x.trim())).filter(Number.isInteger) : [];
+    if (skip.length && !opt.reason) throw new Error('step complete: --skip needs --reason');
+    const open = w.steps.filter((s) => !w.done.some((d) => d.n === s.n) && !skip.includes(s.n)).map((s) => s.n);
+    if (open.length) throw new Error(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip ${open.join(',')} --reason "<why>"`);
+    const plan = readPlan(readDoc(dir, `04-plan-${slice}.md`)?.body ?? '');
+    return { slice, event: 'complete', sha: sha(), planHash: plan.hash, ...(skip.length ? { skipped: skip.map((x) => ({ n: x, reason: opt.reason })) } : {}), branch };
+  };
   const rows = {
-    start: () => ({ slice, event: 'start', step, title: opt.title ?? null }),
-    done: () => ({ slice, event: 'done', step, sha: sha() }),
-    stop: () => ({ slice, event: 'hard-stop', reason: opt.reason ?? null }),
+    start: () => ({ slice, event: 'start', step, title: opt.title ?? null, head: head(), branch }),
+    done,
+    stop: () => ({ slice, event: 'hard-stop', reason: opt.reason ?? null, kind: opt.kind ?? 'fail' }),
     retry: () => ({ slice, event: 'retry' }),
-    complete: () => ({ slice, event: 'complete', sha: sha() }),
+    complete,
   };
   if (!rows[verb]) throw new Error(`step: unknown verb ${verb}`);
   const line = appendStep(dir, rows[verb]());
   // The progress record follows the step of the slice.
   if (verb === 'start') {
     const total = whereOf(dir, slice).total;
-    writeProgress(dir, { stage: 'implement', slice, step: { n: step, of: total || null, title: opt.title ?? null } });
+    writeProgress(dir, { stage: 'implement', slice, step: { n: step, of: total || null, title: opt.title ?? null }, ...(readProgress(dir)?.status ? {} : { status: 'running' }) });
   } else if (verb === 'complete') writeProgress(dir, { slice, step: null });
-  out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}`);
+  out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}${line.noChange ? ' (no change)' : ''}${line.kind && line.kind !== 'fail' ? ` (${line.kind})` : ''}`);
   return 0;
 }
 
@@ -799,7 +842,7 @@ function runRecord(pos, opt) {
         ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
         : homes.flatMap(draftsOf);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
-      const results = drafts.map((p) => putDraft(dir, p));
+      const results = drafts.map((p) => putChecked(dir, p));
       const ev = pruneEvidence(dir);
       out(opt.json ? { results, pruned: ev.pruned } : results.map((r) => (r.errors.length
         ? `refused ${r.name}: ${r.errors.join('; ')}`

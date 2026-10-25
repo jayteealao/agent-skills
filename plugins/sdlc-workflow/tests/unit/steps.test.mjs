@@ -89,8 +89,10 @@ test('wf.mjs step: start, done with HEAD, and where on a real git history', () =
     writeFileSync(path.join(f.root, 'a.js'), '1\n');
     git('add', 'a.js');
     git('commit', '-qm', 'one');
-    const head = git('rev-parse', 'HEAD');
     assert.equal(cli('start', f.root, 'demo', 'api', '1', '--title', 'Route').status, 0);
+    writeFileSync(path.join(f.root, 'a.js'), '2\n');
+    git('commit', '-qam', 'step 1');
+    const head = git('rev-parse', 'HEAD');
     const done = cli('done', f.root, 'demo', 'api', '1', '--sha', 'HEAD');
     assert.equal(done.status, 0, done.stderr);
     assert.match(done.stdout, new RegExp(`^done api step 1 ${head.slice(0, 8)}`));
