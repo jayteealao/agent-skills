@@ -17,9 +17,10 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
-import { DRAFT_DIR } from './records.mjs';
+import { DRAFT_DIR, INDEX_NAME, frontmatterOfDoc } from './records.mjs';
+import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { otherLease } from './leases.mjs';
 
@@ -312,8 +313,77 @@ export function ensureCloneIgnore(home) {
 // ---------------------------------------------------------------- link
 
 /**
- * Link a project to the records repo: `records.project` in .ai/sdlc-config.json, and the local
- * records moved into <home>/<project>/. The drafts and the local files of a run stay.
+ * The record files that the product repo of a project tracks, and the `.gitignore` line that it
+ * lacks. A linked project keeps its records in the clone: a tracked record file reaches every PR
+ * of the product repo, and a record folder that git neither tracks nor ignores is one
+ * `git add -A` away from a commit. Returns `{ tracked, ignoreLine }`; both are empty outside git.
+ */
+export function productRepoGaps(root) {
+  const tracked = gitIn(root, ['ls-files', '--', `.ai/workflows`]);
+  if (tracked.status !== 0) return { tracked: [], ignoreLine: null };
+  const files = tracked.stdout ? tracked.stdout.split('\n').filter(Boolean) : [];
+  const ignored = gitIn(root, ['check-ignore', '-q', '--no-index', '--', `.ai/workflows/x`]).status === 0;
+  return { tracked: files, ignoreLine: ignored ? null : `.ai/workflows/` };
+}
+
+/** The lines that tell the person how to close the gaps of `productRepoGaps`. */
+export function productRepoGapLines(gaps) {
+  const lines = [];
+  if (gaps?.tracked?.length) {
+    lines.push(`records-warning: the product repo tracks ${gaps.tracked.length} record file(s) under .ai/workflows/, which reach every PR. ` +
+      `Run \`git rm -r --cached -- .ai/workflows\` and commit it on a branch of its own.`);
+  }
+  if (gaps?.ignoreLine) lines.push(`records-warning: git neither tracks nor ignores .ai/workflows/. Add the line \`${gaps.ignoreLine}\` to .gitignore.`);
+  return lines;
+}
+
+/**
+ * The workflow files that a git worktree of the project holds and the main checkout lacks or
+ * holds with other content. The main copy is the local file, else the clone copy. The link waits
+ * for these files: a worktree that a session left at a later stage would lose them.
+ */
+export function worktreeRecords(root, project) {
+  const list = gitIn(root, ['worktree', 'list', '--porcelain']);
+  if (list.status !== 0) return [];
+  const self = resolve(root);
+  const home = recordsHome();
+  const local = localWorkflowsRoot(root);
+  const out = [];
+  for (const m of list.stdout.matchAll(/^worktree (.+)$/gm)) {
+    const wt = resolve(m[1]);
+    if (wt.toLowerCase() === self.toLowerCase()) continue;
+    const dir = localWorkflowsRoot(wt);
+    if (!existsSync(dir)) continue;
+    const walk = (d, rel) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const r = rel ? `${rel}/${e.name}` : e.name;
+        if (isLocalOnly(r) || (!rel && (e.name.startsWith('_') && e.name !== '_design'))) continue;
+        const src = join(d, e.name);
+        if (e.isDirectory()) { walk(src, r); continue; }
+        if (!e.isFile() || !rel) continue;
+        const mine = readFileSync(src);
+        const main = [join(local, r), join(home, project, r)].find((p) => existsSync(p));
+        if (!main || !sameContent(mine, readFileSync(main))) out.push({ worktree: wt, file: r });
+      }
+    };
+    walk(dir, '');
+  }
+  return out;
+}
+
+/**
+ * Link a project to the records repo: name it in `.ai/sdlc-config.json`, and move its workflow
+ * folders into `<records home>/<project>/`. The drafts stay where the agents write them.
+ * - Each file moves by a rename, with the rule of `adoptLocal`, so a folder that the clone holds
+ *   already is merged. A local file whose content differs from the clone copy moves to
+ *   `.ai/workflows/.conflicts/<slug>/`, and the link reports it. The config is written in that
+ *   case too, because the clone copy is complete.
+ * - A file that a session writes during the link stays local, and the next adopt moves it.
+ * - A closed workflow is squashed onto the main branch.
+ * - The link refuses while a worktree of the project holds workflow files that the main checkout
+ *   lacks or holds with other content.
+ * - The link commits nothing in the product repo. It reports the record files that the product
+ *   repo tracks, and the `.gitignore` line that it lacks.
  */
 export function linkProject(root, project) {
   if (!PROJECT_NAME_RE.test(String(project ?? ''))) return { ok: false, reason: `the project name ${project} must match ${PROJECT_NAME_RE}` };
@@ -324,38 +394,46 @@ export function linkProject(root, project) {
   if (config.records?.project && config.records.project !== project && linkedProject(root)) {
     return { ok: false, reason: `the project is linked as ${config.records.project}` };
   }
+  const waiting = worktreeRecords(root, project);
+  if (waiting.length) {
+    const shown = waiting.slice(0, 20).map((w) => `${w.worktree}: ${w.file}`).join('\n  ');
+    return { ok: false, worktreeFiles: waiting, reason: `${waiting.length} workflow file(s) in a worktree of the project are not in the main checkout. Copy them home or remove the worktree, then link again:\n  ${shown}` };
+  }
   const target = join(home, project);
   mkdirSync(target, { recursive: true });
   ensureCloneIgnore(home);
   const local = localWorkflowsRoot(root);
-  const moved = [];
-  if (existsSync(local)) {
-    for (const e of readdirSync(local, { withFileTypes: true })) {
-      // The project's design records (`_design`) move too; another `_` or `.` folder stays.
-      if (!e.isDirectory() || e.name.startsWith('.') || (e.name.startsWith('_') && e.name !== '_design')) continue;
-      const from = join(local, e.name);
-      const to = join(target, e.name);
-      if (existsSync(to)) continue;
-      cpSync(from, to, { recursive: true, filter: (src) => !src.replace(/\\/g, '/').split('/').includes(DRAFT_DIR) });
-      // The drafts stay where the agents write them; everything else moved.
-      for (const f of readdirSync(from)) if (f !== DRAFT_DIR) rmSync(join(from, f), { recursive: true, force: true });
-      moved.push(e.name);
-    }
-  }
   mkdirSync(local, { recursive: true });
   config.records = { ...(config.records ?? {}), project };
   mkdirSync(join(root, '.ai'), { recursive: true });
   writeFileSync(configFile, `${JSON.stringify(config, null, 2)}\n`);
   // The global registry (INDEX.md) moves too: the scripts read it in the records home.
   adoptLocal(root, null);
-  for (const slug of moved) {
-    if (slug === '_design') {
+  const moved = [];
+  const conflicts = [];
+  for (const e of readdirSync(local, { withFileTypes: true })) {
+    // The project's design records (`_design`) move too; another `_` or `.` folder stays.
+    if (!e.isDirectory() || e.name.startsWith('.') || (e.name.startsWith('_') && e.name !== '_design')) continue;
+    const a = adoptLocal(root, e.name, { strict: true });
+    if (!a) continue;
+    if (a.moved.length || a.conflicts.length || existsSync(join(target, e.name))) moved.push(e.name);
+    for (const f of a.conflicts) conflicts.push(`${e.name}/${f}`);
+    if (e.name === '_design') {
       const c = commitPaths(home, { ref: `refs/heads/${mainBranch(home)}`, paths: [`${project}/_design`], message: `${project}: move the design records into the records repo` });
       if (c) gitIn(home, ['read-tree', c]);
-    } else commitWorkflow(root, slug, `${project}/${slug}: move the records into the records repo`);
+    } else commitWorkflow(root, e.name, `${project}/${e.name}: move the records into the records repo`);
+  }
+  const squashed = [];
+  for (const slug of moved) {
+    if (slug === '_design') continue;
+    const status = String(frontmatterOfDoc(join(target, slug), INDEX_NAME)?.status ?? '');
+    if (!TERMINAL_WORKFLOW_STATUSES.has(status)) continue;
+    const s = squashWorkflow(root, slug);
+    if (s?.ok !== false) squashed.push(slug);
   }
   writeMachineFacts(root);
-  return { ok: true, home, project, moved };
+  const gaps = productRepoGaps(root);
+  return { ok: true, home, project, moved, conflicts, squashed, tracked: gaps.tracked, ignoreLine: gaps.ignoreLine };
 }
 
 // ---------------------------------------------------------------- adopt local files
@@ -385,9 +463,10 @@ function parkConflict(localRoot, slug, rel, src) {
  * - Otherwise the clone copy has its own change. It stays, and the local copy moves to
  *   `.ai/workflows/.conflicts/<slug>/` and is reported.
  * `slug` null adopts the top-level files of the local workflows folder (INDEX.md, which the
- * clone rebuilds). Returns `{ moved, stale, conflicts }`, or null when the project is not linked.
+ * clone rebuilds). With `strict` (the link), every clone copy with other content stays, and the
+ * local copy moves aside. Returns `{ moved, stale, conflicts }`, or null when the project is not linked.
  */
-export function adoptLocal(root, slug) {
+export function adoptLocal(root, slug, { strict = false } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
   const out = { moved: [], stale: [], conflicts: [] };
@@ -427,7 +506,7 @@ export function adoptLocal(root, slug) {
       const inHome = `${toRel}/${r}`;
       if (tip && inHistory(home, tipRef, inHome, mine)) { rmSync(src, { force: true }); out.stale.push(r); continue; }
       const committed = tip ? blobAt(home, tip, inHome) : null;
-      if (!existsSync(dst) || (committed && sameContent(readFileSync(dst), committed))) { move(src, dst); out.moved.push(r); continue; }
+      if (!existsSync(dst) || (!strict && committed && sameContent(readFileSync(dst), committed))) { move(src, dst); out.moved.push(r); continue; }
       parkConflict(localRoot, slug, r, src);
       out.conflicts.push(r);
     }

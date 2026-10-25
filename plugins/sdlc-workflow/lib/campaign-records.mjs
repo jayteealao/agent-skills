@@ -15,6 +15,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { recordPathOf } from './records-root.mjs';
 
 export const MANIFEST_VERSION = 1;
 /** The workflow registry: a both-sides change merges its rows (status.md, INDEX.md). */
@@ -242,6 +243,8 @@ export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = (
  * The worktree files that exist nowhere else: their content is neither in the
  * main checkout at the same path, nor in the conflict store, nor the base copy
  * the worktree received. Removing the worktree with any of them would lose it.
+ * For a linked project the main copy of a workflow file is the clone copy, which
+ * `recordPathOf` names; the local copy counts until the next adopt moves it.
  */
 export function recordsPending({ main, worktree, manifest, exclude = () => false }) {
   const src = walk(join(worktree, '.ai'));
@@ -249,8 +252,8 @@ export function recordsPending({ main, worktree, manifest, exclude = () => false
   for (const [rel, abs] of src.files) {
     if (isSkipped(rel) || exclude(rel)) continue;
     const wh = hashFile(abs);
-    const target = join(main, '.ai', ...rel.split('/'));
-    if (existsSync(target) && hashFile(target) === wh) continue;
+    const local = join(main, '.ai', ...rel.split('/'));
+    if ([recordPathOf(main, local), local].some((t) => existsSync(t) && hashFile(t) === wh)) continue;
     const e = manifest.files[rel];
     if (e && (e.base === wh || e.kept.includes(wh))) continue;
     pending.push({ rel, reason: 'not in the main checkout' });

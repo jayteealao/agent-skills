@@ -5,7 +5,8 @@
 //   shipFacts     the merge rules of the repo: the methods it allows, the rulesets and the classic
 //                 protection of the base, the merge queue, and the method that ship uses.
 //   readyGaps     the gaps that a script can see before ship: no plan, a plan method the repo does
-//                 not allow, a stacked plan with no gh-stack, no gh login.
+//                 not allow, a stacked plan with no gh-stack, no gh login, and a branch of a
+//                 linked project that adds record files.
 //   finishShip    after the merge: fast-forward the local base, switch to it, delete the branch.
 //
 // Every git and gh call goes through `run(cmd, args, opts)`, so a test passes a fake.
@@ -13,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { safeParseFrontmatter } from './frontmatter.mjs';
+import { linkedProject } from './records-root.mjs';
 
 export const MERGE_METHODS = Object.freeze(['squash', 'rebase', 'merge']);
 export const SHIP_PLAN = join('.ai', 'ship-plan.md');
@@ -130,6 +132,15 @@ export function mergeCommand(facts, pr) {
 // ---------------------------------------------------------------- readiness gaps
 
 /** The gaps that a script can see, each `{ code, task }`. An empty list is ready. */
+/** The files under `.ai/workflows/` that the branch adds against its base, `origin/<base>` first. */
+function addedRecordFiles(root, base, run) {
+  for (const b of [`origin/${base}`, base]) {
+    const r = git(run, root, ['diff', '--name-only', '--diff-filter=A', `${b}...HEAD`, '--', '.ai/workflows']);
+    if (ok(r)) return String(r.stdout ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 export function readyGaps(root, { run = defaultRun, base = null } = {}) {
   const plan = readShipPlan(root);
   const gaps = [];
@@ -146,6 +157,12 @@ export function readyGaps(root, { run = defaultRun, base = null } = {}) {
   }
   if (plan && prShapeOf(plan) === 'stacked' && !ok(run('gh', ['stack', '--help'], { cwd: root }))) {
     gaps.push({ code: 'no-gh-stack', task: 'The ship plan asks for stacked PRs: gh extension install github/gh-stack' });
+  }
+  // A linked project keeps its records in the records repo: a PR that adds record files would
+  // publish them in the product repo.
+  const records = base && linkedProject(root) ? addedRecordFiles(root, base, run) : [];
+  if (records.length) {
+    gaps.push({ code: 'records-in-diff', task: `The branch adds ${records.length} record file(s) under .ai/workflows/ (${records.slice(0, 3).join(', ')}${records.length > 3 ? ', ...' : ''}). Remove them from the branch: git rm -r --cached -- .ai/workflows, then commit` });
   }
   return gaps;
 }

@@ -12,8 +12,9 @@
 // store already exists (a sub-project of a monorepo).
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
+import { fromGitBashPath } from './msys.mjs';
 
 export const AI_DIR = '.ai';
 export const WORKFLOWS_DIR = 'workflows';
@@ -26,19 +27,43 @@ export const PROJECT_NAME_RE = /^[a-z0-9][a-z0-9._-]*$/;
 /** The clone of the records repo on this machine: `records.home` of ~/.sdlc/config.json, else ~/.sdlc/records. */
 export function recordsHome() {
   const h = readMachineConfig().records?.home;
-  return h && String(h).trim() ? resolve(String(h).trim().replace(/^~(?=$|[\\/])/, homedir())) : join(sdlcHomeDir(), 'records');
+  return h && String(h).trim() ? resolve(fromGitBashPath(String(h).trim()).replace(/^~(?=$|[\\/])/, homedir())) : join(fromGitBashPath(sdlcHomeDir()), 'records');
 }
 
 const linkCache = new Map();
+
+/**
+ * The main worktree of a linked git worktree, or null. A worktree has a `.git` file that names
+ * its git dir; the `commondir` file of that dir names the git dir of the main worktree, as
+ * `git rev-parse --git-common-dir` reads it. No git process runs.
+ */
+export function mainWorktreeOf(projectRoot) {
+  try {
+    const dotGit = join(projectRoot, '.git');
+    if (!statSync(dotGit).isFile()) return null;
+    const m = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(dotGit, 'utf8'));
+    if (!m) return null;
+    const gitDir = resolve(projectRoot, m[1]);
+    const common = resolve(gitDir, readFileSync(join(gitDir, 'commondir'), 'utf8').trim());
+    const main = dirname(common);
+    return basename(common) === '.git' && resolve(main) !== resolve(projectRoot) ? main : null;
+  } catch { return null; }
+}
 
 /**
  * The project name when the project is linked: `records.project` in .ai/sdlc-config.json, a
  * records clone, and the project folder in it. Else null, and the records stay local.
  */
 export function linkedProject(projectRoot) {
-  const file = join(projectRoot, AI_DIR, 'sdlc-config.json');
+  let file = join(projectRoot, AI_DIR, 'sdlc-config.json');
   let mtime;
-  try { mtime = statSync(file).mtimeMs; } catch { return null; }
+  try { mtime = statSync(file).mtimeMs; } catch {
+    // A worktree with no config of its own uses the config of the main worktree.
+    const main = mainWorktreeOf(projectRoot);
+    if (!main) return null;
+    file = join(main, AI_DIR, 'sdlc-config.json');
+    try { mtime = statSync(file).mtimeMs; } catch { return null; }
+  }
   const key = resolve(projectRoot);
   let hit = linkCache.get(key);
   if (!hit || hit.mtime !== mtime) {
@@ -143,7 +168,8 @@ export function recordsRel(filePath) {
  */
 export function parseWorkflowPath(filePath) {
   const n = slash(filePath);
-  const m = /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/.exec(n);
+  // Windows paths ignore case: `.AI\Workflows\x\a.md` is a record path too.
+  const m = (process.platform === 'win32' ? /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/i : /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/).exec(n);
   if (m) {
     return {
       root: m[1] ? `${m[1]}/${WORKFLOWS_REL}` : WORKFLOWS_REL,

@@ -149,7 +149,7 @@
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { undoGitBashPath } from '../lib/msys.mjs';
+import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,7 +162,7 @@ import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, noteMessage, readOutbox } from '../lib/github-layer.mjs';
-import { commitWorkflow, healthLine, linkProject, liveRef, logRecordsFailure, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
+import { commitWorkflow, healthLine, linkProject, liveRef, logRecordsFailure, machineName, productRepoGapLines, productRepoGaps, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
 import { claimLease, heldBefore, leaseLostLine, otherLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
@@ -210,7 +210,7 @@ function flags(argv) {
         if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
         opt[name] = value;
       }
-    } else pos.push(a);
+    } else pos.push(fromGitBashPath(a));
   }
   return { pos, opt };
 }
@@ -258,6 +258,8 @@ async function runDispatch(pos, opt) {
   // The registry is generated in the clone: a pull that moved a folder rebuilds it.
   if (sync && (sync.pulled.length || sync.folded.length)) await reconcileIndex(projectRoot);
   r.health = target ? healthLine(workflowHealth(projectRoot, target)) : null;
+  // A linked project whose product repo tracks or does not ignore the record folder is warned.
+  r.repoGaps = sync ? productRepoGapLines(productRepoGaps(projectRoot)) : [];
   // The open workflows whose branch is merged: the person is asked whether to close each one.
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
@@ -281,6 +283,7 @@ async function runDispatch(pos, opt) {
   for (const c of r.sync?.fileConflicts ?? []) lines.push(`records-conflict: ${c} has a change of this machine; the pull did not overwrite it`);
   for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-warning: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
   if (r.health) lines.push(r.health);
+  lines.push(...r.repoGaps);
   if (r.lease) lines.push(r.lease);
   out(lines.join('\n'));
   return 0;
@@ -1045,8 +1048,16 @@ async function runRecords(pos, opt) {
   if (verb === 'link') {
     if (!arg) throw new Error('records link: <project> is required');
     const r = linkProject(projectRoot, arg);
-    out(opt.json ? r : r.ok ? `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}` : r.reason);
-    return r.ok ? 0 : 1;
+    if (opt.json) { out(r); return r.ok && !r.conflicts.length ? 0 : 1; }
+    if (!r.ok) { out(r.reason); return 1; }
+    out([
+      `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}`,
+      ...(r.squashed.length ? [`squashed the closed workflows onto the main branch: ${r.squashed.join(', ')}`] : []),
+      ...r.conflicts.map((f) => `records-conflict: ${f}: the clone copy stays; the local copy is in .ai/workflows/.conflicts/${f}. Compare them, then delete the kept copy.`),
+      ...(r.tracked.length ? [`tracked: ${r.tracked.slice(0, 10).join(', ')}${r.tracked.length > 10 ? ` and ${r.tracked.length - 10} more` : ''}`] : []),
+      ...productRepoGapLines(r),
+    ].join('\n'));
+    return r.conflicts.length ? 1 : 0;
   }
   if (verb === 'status') {
     const s = recordsStatus(projectRoot);

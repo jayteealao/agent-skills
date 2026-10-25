@@ -34,4 +34,9 @@ When the setup prints `.ai/ in git: tracked`, ask the person: "Add `.ai/` to .gi
 
 Run `node "<skill-dir>/scripts/wf.mjs" records status "<projectRoot>"`. When it prints that a clone is there, ask the person: "Keep the records of this repo in the records repo, so that the work continues on any computer?" On yes, run `node "<skill-dir>/scripts/wf.mjs" records link "<projectRoot>" <name>`, where `<name>` is the folder name of the repo in lower case. On no, change nothing.
 
+The link prints what the person must do in the product repo:
+- A `records-conflict:` line names a file whose local copy differs from the clone copy. The clone copy stays, and the local copy is in `.ai/workflows/.conflicts/`. Show each line to the person.
+- A `records-warning:` line names tracked record files or a missing `.gitignore` line. Show the command of the line to the person. Do not commit in the product repo yourself, because the commit lands on the branch that is checked out.
+- When the link refuses because a worktree holds workflow files, show the list. Do not copy the files yourself.
+
 Then run the key that the person typed.
