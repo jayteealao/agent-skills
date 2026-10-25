@@ -106,6 +106,41 @@ test('migrate writes one commit per revision, the legacy frame, the contract and
   } finally { done(); }
 });
 
+test('the boards of one surface in several viewports become one screen that opens the nearest viewport page', async () => {
+  const { root, design, wf, done } = project();
+  try {
+    writeFileSync(join(design, 'r2', 'boards', 'home--default--phone.html'), '<html><head></head><body>narrow</body></html>');
+    writeFileSync(join(design, 'r2', 'boards.json'), JSON.stringify({ schema: 'sdlc/design-boards/v1', slug: 'w1', revision: 2, method: 'html', viewports: { desktop: '1280x800', phone: '390x844' }, boards: [
+      { key: 'home--default--desktop', surface: 'home', state: 'default', viewport: 'desktop', html: 'boards/home--default.html' },
+      { key: 'home--default--phone', surface: 'home', state: 'default', viewport: 'phone', html: 'boards/home--default--phone.html' },
+    ], confirmed: [{ revision: 2, at: '2026-09-05T00:00:00Z', by: 'in-session' }] }));
+    const r = migrateDesign(root).results[0];
+    assert.equal(r.migrated, true);
+    assert.deepEqual(r.screens, ['home'], 'two viewport boards, one screen');
+    const page = readFileSync(screenFile(root, 'home'), 'utf8');
+    assert.match(page, /"href":"home\/desktop\.html"/);
+    assert.match(page, /"href":"home\/phone\.html"/);
+    assert.match(readFileSync(join(surfaceDir(root), 'screens', 'home', 'phone.html'), 'utf8'), /narrow/);
+    assert.match(readFileSync(join(surfaceDir(root), 'screens', 'home', 'desktop.html'), 'utf8'), /second/);
+    assert.equal(readManifest(root).viewports.phone, '375x812', 'a viewport the surface has keeps its size');
+    assert.deepEqual(frontmatterOfDoc(wf, '02c-craft.md').screens, ['home']);
+    // In a browser, the screen page shows the board of the nearest viewport.
+    const { checkBrowser, openBrowser } = await import('../../lib/design-check.mjs');
+    const browser = checkBrowser(root);
+    if (!browser) return;
+    const b = await openBrowser(root, { browser });
+    try {
+      const url = (await import('node:url')).pathToFileURL(screenFile(root, 'home')).href;
+      await b.open(url, { width: 390, height: 844 });
+      await new Promise((ok) => setTimeout(ok, 300));
+      assert.equal(await b.evaluate('document.body.textContent.trim()'), 'narrow');
+      await b.open(url, { width: 1280, height: 800 });
+      await new Promise((ok) => setTimeout(ok, 300));
+      assert.equal(await b.evaluate('document.body.textContent.trim()'), 'second');
+    } finally { await b.close(); }
+  } finally { done(); }
+});
+
 test('a board that lives only on claude.ai stops the workflow until it is exported', () => {
   const { root, wf, design, done } = project();
   try {

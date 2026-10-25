@@ -6,6 +6,9 @@
 //   - an HTML board becomes a screen page;
 //   - a PNG-only board becomes a legacy frame: a screen page that shows the picture, which is
 //     copied to `.ai/design/legacy/<key>.png`;
+//   - the boards of one surface and state in several viewports become one screen: each board
+//     stays a page of its own, `screens/<key>/<viewport>.html`, and the screen page opens the
+//     page whose viewport is nearest to its own width;
 //   - each revision becomes one commit of the product repo, in order, and the working boards one
 //     more commit when they changed after the last revision;
 //   - the contract `02c-craft.md` gets `screens:` and the commit of the revision it confirmed;
@@ -44,39 +47,45 @@ export function readMigrated(root) {
 }
 
 /**
- * The screen key of a board key: the parts joined by one dash, with the state `default` left
- * out. `home--default` → `home`, `home--error--phone` → `home-error-phone`.
+ * The screen key of a board key: the surface and the state joined by one dash, with the state
+ * `default` and the viewport left out. `home--default` → `home`, `home--error--phone` → `home-error`.
  */
 export function screenKeyOf(boardKey) {
   const p = parseBoardKey(boardKey);
   if (!p) return null;
-  return [p.surface, ...(p.state === 'default' ? [] : [p.state]), ...(p.viewport ? [p.viewport] : [])].join('-');
+  return [p.surface, ...(p.state === 'default' ? [] : [p.state])].join('-');
 }
 
+/** The surface and state of a board key, without the viewport: the boards of one screen share it. */
+const groupOf = (boardKey) => {
+  const p = parseBoardKey(boardKey);
+  return p ? `${p.surface}--${p.state}` : boardKey;
+};
+
 /**
- * The screen keys of all board keys of one workflow. Two board keys that give one screen key,
- * or a screen key that a screen of another workflow already holds, get the full board key
- * (`--` made `-`), and then the slug in front.
+ * The screen keys of all board keys of one workflow. The boards of one surface and state share
+ * one screen key. Two groups that give one screen key, or a screen key that a screen of another
+ * workflow already holds, get the surface and state in full, and then the slug in front.
  */
 export function keyMap(boardKeys, slug, taken = new Map()) {
-  const map = {};
-  const keys = [...new Set(boardKeys)].sort();
+  const groups = [...new Set(boardKeys.map(groupOf))].sort();
   const short = new Map();
-  for (const k of keys) short.set(screenKeyOf(k), [...(short.get(screenKeyOf(k)) ?? []), k]);
+  for (const g of groups) short.set(screenKeyOf(g), [...(short.get(screenKeyOf(g)) ?? []), g]);
   const used = new Set();
-  for (const k of keys) {
+  const byGroup = {};
+  for (const g of groups) {
     const free = (key) => key && KEY_RE.test(key) && !used.has(key) && (!taken.has(key) || taken.get(key).includes(slug));
-    const candidates = [short.get(screenKeyOf(k)).length === 1 ? screenKeyOf(k) : null, k.replace(/--/g, '-'), `${slug}-${k.replace(/--/g, '-')}`];
+    const candidates = [short.get(screenKeyOf(g)).length === 1 ? screenKeyOf(g) : null, g.replace(/--/g, '-'), `${slug}-${g.replace(/--/g, '-')}`];
     const key = candidates.find(free);
-    if (!key) throw new Error(`no free screen key for the board ${k} of ${slug}`);
+    if (!key) throw new Error(`no free screen key for the board ${g} of ${slug}`);
     used.add(key);
-    map[k] = key;
+    byGroup[g] = key;
   }
-  return map;
+  return Object.fromEntries([...new Set(boardKeys)].sort().map((k) => [k, byGroup[groupOf(k)]]));
 }
 
 /** The page of a legacy frame: the picture of a PNG-only board, at its own size. */
-export function legacyPage(key, title, from) {
+export function legacyPage(key, title, from, src = `../${LEGACY_DIR}/${key}.png`) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -88,7 +97,7 @@ export function legacyPage(key, title, from) {
 <style>body { margin: 0; } img { display: block; max-width: 100%; height: auto; }</style>
 </head>
 <body>
-<main><img src="../${LEGACY_DIR}/${key}.png" alt="${esc(title)}"></main>
+<main><img src="${esc(src)}" alt="${esc(title)}"></main>
 </body>
 </html>
 `;
@@ -100,6 +109,37 @@ export function screenFromBoard(html, key, from) {
   const text = String(html).replace(/<meta\s+name=["']wf:(?:screen|migrated-from)["'][^>]*>\s*/gi, '');
   const head = /<head[^>]*>/i.exec(text);
   return head ? `${text.slice(0, head.index + head[0].length)}\n${tags}${text.slice(head.index + head[0].length)}` : `${tags}${text}`;
+}
+
+/**
+ * The screen page of a surface and state that has a board for each of several viewports: it opens
+ * the page whose viewport width is nearest to its own width, with the same query string. The canvas
+ * and the checks give the page the width of the viewport, so each viewport shows its own board.
+ */
+export function viewportPage(key, title, from, variants) {
+  const list = JSON.stringify(variants.map((v) => ({ w: v.width, href: `${key}/${v.name}.html` })));
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="wf:screen" content="${key}">
+<meta name="wf:migrated-from" content="${esc(from)}">
+<title>${esc(title)}</title>
+<script>
+  // A migrated board had one page per viewport. Open the page nearest to this width.
+  (function () {
+    var pages = ${list};
+    var w = window.innerWidth || 1280;
+    var best = pages[0];
+    for (var i = 1; i < pages.length; i += 1) if (Math.abs(pages[i].w - w) < Math.abs(best.w - w)) best = pages[i];
+    location.replace(best.href + location.search);
+  })();
+</script>
+</head>
+<body></body>
+</html>
+`;
 }
 
 /** The relative links of a page that point outside it: they break when the page moves. */
@@ -169,31 +209,62 @@ function writeRevision(root, slug, rev, map, now) {
   const m = readManifest(root);
   const paths = [];
   const warnings = [];
-  for (const b of rev.manifest.boards) {
-    const key = map[b.key];
-    const src = boardSource(rev.dir, b);
-    const from = `${slug}/${rev.rel.replace(/boards\.json$/, '')}${src.rel}`;
-    mkdirSync(join(surfaceDir(root), SCREENS_DIR), { recursive: true });
-    if (src.kind === 'html') {
-      const html = readFileSync(src.abs, 'utf8');
-      writeFileSync(screenFile(root, key), screenFromBoard(html, key, from));
-      const links = relativeLinks(html);
-      if (links.length) warnings.push(`${key}: the board links to ${links.slice(0, 3).join(', ')}${links.length > 3 ? ` and ${links.length - 3} more` : ''}; copy these files and fix the links`);
+  const fromOf = (src) => `${slug}/${rev.rel.replace(/boards\.json$/, '')}${src.rel}`;
+  const warn = (key, html) => {
+    const links = relativeLinks(html);
+    if (links.length) warnings.push(`${key}: the board links to ${links.slice(0, 3).join(', ')}${links.length > 3 ? ` and ${links.length - 3} more` : ''}; copy these files and fix the links`);
+  };
+  const groups = new Map();
+  for (const b of rev.manifest.boards) groups.set(map[b.key], [...(groups.get(map[b.key]) ?? []), b]);
+  mkdirSync(join(surfaceDir(root), SCREENS_DIR), { recursive: true });
+  for (const [key, boards] of groups) {
+    const first = boards[0];
+    const title = first.caption ?? first.key;
+    const legacy = boards.every((b) => boardSource(rev.dir, b).kind === 'png');
+    if (boards.length === 1) {
+      const src = boardSource(rev.dir, first);
+      if (src.kind === 'html') {
+        const html = readFileSync(src.abs, 'utf8');
+        writeFileSync(screenFile(root, key), screenFromBoard(html, key, fromOf(src)));
+        warn(key, html);
+      } else {
+        mkdirSync(join(surfaceDir(root), LEGACY_DIR), { recursive: true });
+        copyFileSync(src.abs, join(surfaceDir(root), LEGACY_DIR, `${key}.png`));
+        writeFileSync(screenFile(root, key), legacyPage(key, title, fromOf(src)));
+        paths.push(legacyRel(key));
+      }
     } else {
-      mkdirSync(join(surfaceDir(root), LEGACY_DIR), { recursive: true });
-      copyFileSync(src.abs, join(surfaceDir(root), LEGACY_DIR, `${key}.png`));
-      writeFileSync(screenFile(root, key), legacyPage(key, b.caption ?? b.key, from));
-      paths.push(legacyRel(key));
+      // One page per viewport, and a screen page that opens the nearest one.
+      const variants = [];
+      for (const b of boards) {
+        const src = boardSource(rev.dir, b);
+        const name = b.viewport || parseBoardKey(b.key)?.viewport || `v${variants.length + 1}`;
+        const width = Number(String(rev.manifest.viewports?.[name] ?? '').split('x')[0]) || 1280;
+        const pageRel = `${SURFACE_REL}/${SCREENS_DIR}/${key}/${name}.html`;
+        mkdirSync(join(surfaceDir(root), SCREENS_DIR, key), { recursive: true });
+        if (src.kind === 'html') {
+          const html = readFileSync(src.abs, 'utf8');
+          writeFileSync(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), screenFromBoard(html, key, fromOf(src)));
+          warn(`${key} (${name})`, html);
+        } else {
+          mkdirSync(join(surfaceDir(root), LEGACY_DIR, key), { recursive: true });
+          copyFileSync(src.abs, join(surfaceDir(root), LEGACY_DIR, key, `${name}.png`));
+          writeFileSync(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), legacyPage(key, title, fromOf(src), `../../${LEGACY_DIR}/${key}/${name}.png`));
+          paths.push(`${SURFACE_REL}/${LEGACY_DIR}/${key}/${name}.png`);
+        }
+        paths.push(pageRel);
+        variants.push({ name, width });
+      }
+      writeFileSync(screenFile(root, key), viewportPage(key, title, `${slug}/${rev.rel}`, variants));
     }
     const was = m.screens[key];
-    const parts = parseBoardKey(b.key);
     m.screens[key] = {
-      title: b.caption ?? was?.title ?? b.key, area: was?.area ?? null, flow: was?.flow ?? parts.surface, order: was?.order ?? null,
+      title: was?.title ?? title, area: was?.area ?? null, flow: was?.flow ?? parseBoardKey(first.key).surface, order: was?.order ?? null,
       workflows: [...new Set([...(was?.workflows ?? []), slug])], slices: was?.slices ?? [],
       'created-at': was?.['created-at'] ?? nowIso(now), 'updated-at': nowIso(now), approvals: was?.approvals ?? [],
-      ...(src.kind === 'png' ? { legacy: true } : {}),
+      ...(legacy ? { legacy: true } : {}),
     };
-    if (b.viewport && rev.manifest.viewports?.[b.viewport] && !m.viewports[b.viewport]) m.viewports[b.viewport] = rev.manifest.viewports[b.viewport];
+    for (const b of boards) if (b.viewport && rev.manifest.viewports?.[b.viewport] && !m.viewports[b.viewport]) m.viewports[b.viewport] = rev.manifest.viewports[b.viewport];
     paths.push(screenRel(key));
   }
   writeManifest(root, m);
@@ -208,9 +279,12 @@ function copyCaptures(root, slug, map) {
   for (const slice of readdirSync(dir)) {
     if (!statSync(join(dir, slice)).isDirectory()) continue;
     for (const f of readdirSync(join(dir, slice))) {
-      const key = map[f.replace(/\.png$/i, '')];
+      const board = f.replace(/\.png$/i, '');
+      const key = map[board];
       if (!key || !/\.png$/i.test(f)) continue;
-      const to = capturePicture(root, slug, slice, key);
+      // A capture of one viewport of a screen keeps its viewport in the name.
+      const vp = parseBoardKey(board)?.viewport;
+      const to = capturePicture(root, slug, slice, vp ? `${key}--${vp}` : key);
       mkdirSync(dirname(to), { recursive: true });
       copyFileSync(join(dir, slice, f), to);
       n += 1;

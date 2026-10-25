@@ -76,6 +76,7 @@ A workflow from before the surface keeps its drawings as boards in `.ai/workflow
 
 The command makes these changes:
 - An HTML board becomes a screen page. A PNG-only board becomes a legacy frame: a screen page that shows the picture from `.ai/design/legacy/<key>.png`.
+- The boards of one surface and state in several viewports become one screen. Each board stays a page of its own, `screens/<key>/<viewport>.html`, and the screen page opens the page whose viewport is nearest to its own width.
 - Each revision `r<N>/` becomes one commit of the product repo, in order. The working boards become one more commit when they changed after the last revision.
 - The contract of a confirmed revision gets `screens`, `approval-commit` (the commit of that revision), `direction-confirmed-by: migrated` and `migrated-from`. The settled rule accepts it as an approval.
 - The verify captures are copied to the records under the screen keys.

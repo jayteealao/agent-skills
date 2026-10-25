@@ -4,22 +4,32 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { keyMap, legacyPage, relativeLinks, screenFromBoard, screenKeyOf } from '../../../lib/design-migrate.mjs';
+import { keyMap, legacyPage, relativeLinks, screenFromBoard, screenKeyOf, viewportPage } from '../../../lib/design-migrate.mjs';
 import { approvedByAnswer } from '../../../lib/design-lane.mjs';
 
-test('a board key becomes a screen key: one dash, and the default state left out', () => {
+test('a board key becomes a screen key: one dash, the default state and the viewport left out', () => {
   assert.equal(screenKeyOf('home--default'), 'home');
   assert.equal(screenKeyOf('home--error'), 'home-error');
-  assert.equal(screenKeyOf('home--default--phone'), 'home-phone');
+  assert.equal(screenKeyOf('home--default--phone'), 'home');
+  assert.equal(screenKeyOf('chat--live-dark--tablet'), 'chat-live-dark');
   assert.equal(screenKeyOf('not a key'), null);
 });
 
-test('two boards that give one screen key, and a key of another workflow, get longer keys', () => {
+test('the boards of one surface and state share a screen; a clash or a key of another workflow gets a longer key', () => {
   assert.deepEqual(keyMap(['home--default', 'home--error', 'home--default'], 'w1'), { 'home--default': 'home', 'home--error': 'home-error' });
-  // home--default--phone and home-phone--default both give home-phone.
-  assert.deepEqual(keyMap(['home--default--phone', 'home-phone--default'], 'w1'), { 'home--default--phone': 'home-default-phone', 'home-phone--default': 'home-phone-default' });
+  assert.deepEqual(keyMap(['chat--live--desktop', 'chat--live--phone', 'chat--queued--phone'], 'w1'),
+    { 'chat--live--desktop': 'chat-live', 'chat--live--phone': 'chat-live', 'chat--queued--phone': 'chat-queued' });
+  // home-error--default and home--error both give home-error.
+  assert.deepEqual(keyMap(['home--error', 'home-error--default'], 'w1'), { 'home--error': 'home-error', 'home-error--default': 'home-error-default' });
   const taken = new Map([['home', ['w0']], ['cart', ['w1']]]);
   assert.deepEqual(keyMap(['home--default', 'cart--default'], 'w1', taken), { 'cart--default': 'cart', 'home--default': 'home-default' });
+});
+
+test('the screen page of several viewports opens the page nearest to its width, with the query string', () => {
+  const page = viewportPage('chat-live', 'Chat', 'w1/design/r1/boards.json', [{ name: 'phone', width: 390 }, { name: 'desktop', width: 1440 }]);
+  assert.match(page, /<meta name="wf:screen" content="chat-live">/);
+  assert.match(page, /"href":"chat-live\/phone\.html"/);
+  assert.match(page, /location\.replace\(best\.href \+ location\.search\)/);
 });
 
 test('an HTML board gets the screen meta tags in its head, once', () => {
