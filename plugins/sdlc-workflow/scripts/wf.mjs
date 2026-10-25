@@ -163,7 +163,7 @@ import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { commitWorkflow, healthLine, linkProject, liveRef, logRecordsFailure, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
-import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { claimLease, heldBefore, leaseLostLine, otherLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
@@ -279,7 +279,7 @@ async function runDispatch(pos, opt) {
   if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
   for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
   for (const c of r.sync?.fileConflicts ?? []) lines.push(`records-conflict: ${c} has a change of this machine; the pull did not overwrite it`);
-  for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-conflict: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
+  for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-warning: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
   if (r.health) lines.push(r.health);
   if (r.lease) lines.push(r.lease);
   out(lines.join('\n'));
@@ -1019,8 +1019,11 @@ function slugAtDispatch(projectRoot, r, tokens) {
 
 // The lease of the workflow that a call acts on.
 function leaseAtDispatch(projectRoot, slug, host) {
+  const before = heldBefore(projectRoot, slug);
   const c = claimLease(projectRoot, slug, { host });
   if (c.ok) return null;
+  // This machine held the lease, and another machine took it: the session stops writing.
+  if (c.held && before) return leaseLostLine(slug, c.lease);
   if (c.held) return `lease-held: ${slug} by ${c.lease.machine}${c.lease.host ? ` (${c.lease.host})` : ''} until ${c.lease.expires}`;
   if (c.expired) return `lease-expired: ${slug} by ${c.lease.machine} since ${c.lease.expires}`;
   if (c.offline) return `lease-offline: ${slug}`;
@@ -1069,7 +1072,7 @@ async function runRecords(pos, opt) {
   if (!arg) throw new Error(`records ${verb}: <slug> is required`);
   if (verb === 'push') {
     const r = opt.to ? pushRef(recordsHome(), liveRef(opt.to, arg), { folder: `${opt.to}/${arg}` }) : pushWorkflow(projectRoot, arg);
-    if (!opt.to) renewIfMine(projectRoot, arg);
+    if (!opt.to && !r?.leaseLost) renewIfMine(projectRoot, arg);
     // This step runs in the background with no output: a failure goes into the records log.
     if (r && !r.pushed && !r.offline) logRecordsFailure({ project: opt.to ?? linkedProject(projectRoot), slug: arg, step: 'push', error: r.reason ?? (r.conflict ? 'the branches conflict' : 'not pushed') });
     out(opt.json ? r : !r ? 'records: local' : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
@@ -1239,7 +1242,10 @@ export async function main(argv = process.argv.slice(2)) {
     // the background. A closed workflow is squashed onto the main branch.
     try {
       const c = commitWorkflow(root, slug, `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim());
-      for (const f of c?.conflicts ?? []) process.stderr.write(`wf.mjs: records-conflict: the local copy of ${slug}/${f} differs from the clone copy; it is kept in .ai/workflows/.conflicts/${slug}/\n`);
+      for (const f of c?.conflicts ?? []) process.stderr.write(`wf.mjs: records-warning: the local copy of ${slug}/${f} differs from the clone copy; it is kept in .ai/workflows/.conflicts/${slug}/\n`);
+      // The lease ref of the last sync names another machine: this session must stop writing.
+      const other = c ? otherLease(root, slug) : null;
+      if (other) process.stderr.write(`wf.mjs: ${leaseLostLine(slug, other)}. Stop the stage: another computer writes this workflow now.\n`);
       if (c) {
         const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
         inBackground(['records', TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', root, slug]);

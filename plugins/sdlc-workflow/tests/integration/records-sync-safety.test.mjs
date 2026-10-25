@@ -300,3 +300,52 @@ test('commitPaths with an unchanged tree makes no commit and no new ref', () => 
     assert.equal(spawnSync('git', ['-C', a.clone, 'rev-parse', '--verify', '--quiet', 'refs/heads/live/notes/none']).status, 1);
   } finally { w.done(); }
 });
+
+test('two machines that claim one lease at once: exactly one wins', async () => {
+  const w = world();
+  try {
+    const { a, b } = twoMachines(w);
+    const lib = new URL('../../lib/leases.mjs', import.meta.url).href;
+    const claim = (m) => new Promise((resolve) => {
+      const code = `const l = await import(${JSON.stringify(lib)}); process.stdout.write(JSON.stringify(l.claimLease(${JSON.stringify(m.root)}, 'w1')));`;
+      const p = spawn(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, SDLC_HOME: m.home } });
+      let text = '';
+      p.stdout.on('data', (d) => { text += d; });
+      p.on('close', () => resolve(JSON.parse(text || '{}')));
+    });
+    const [x, y] = await Promise.all([claim(a), claim(b)]);
+    assert.equal([x.ok, y.ok].filter(Boolean).length, 1, JSON.stringify([x, y]));
+  } finally { w.done(); }
+});
+
+test('a push after another machine took the lease is not sent; the commit stays local; the hook refuses a write', async () => {
+  const w = world();
+  try {
+    const { a, b } = twoMachines(w);
+    const { claimLease, renewIfMine } = await import('../../lib/leases.mjs');
+    w.as(a);
+    assert.equal(claimLease(a.root, 'w1').ok, true);
+    // beta takes the lease (alpha's lease expired, and the person said yes on beta).
+    w.as(b);
+    const later = new Date(Date.now() + 3 * 3600_000);
+    assert.equal(claimLease(b.root, 'w1', { take: true, now: later }).ok, true);
+    // alpha writes on: the commit stays local, and nothing is pushed.
+    w.as(a);
+    writeFileSync(join(workflowDir(a.root, 'w1'), 'late.md'), 'alpha after the take\n');
+    commitWorkflow(a.root, 'w1', 'w1: late');
+    const p = pushWorkflow(a.root, 'w1');
+    assert.deepEqual([p.pushed, p.leaseLost, p.lease.machine], [false, true, 'beta']);
+    assert.doesNotMatch(git(w.bare, 'ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1'), /late\.md/);
+    assert.match(git(a.clone, 'ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1'), /late\.md/);
+    assert.equal(renewIfMine(a.root, 'w1', { now: later }).lost, true);
+    // The sync fetched the lease ref: the pre-write check refuses a write into the folder.
+    syncRecords(a.root);
+    const hook = join(import.meta.dirname, '..', '..', 'hooks', 'pre-tool-use-all.mjs');
+    const h = spawnSync(process.execPath, [hook], { input: JSON.stringify({ cwd: a.root, tool_input: { file_path: join(workflowDir(a.root, 'w1'), 'verify-evidence', 'x.md'), content: 'x' } }), encoding: 'utf8', env: process.env });
+    assert.equal(h.status, 2, h.stderr);
+    assert.match(h.stderr, /The lease of 'w1' belongs to beta/);
+    // A changing command prints lease-lost on stderr.
+    const cli = spawnSync(process.execPath, [WF, 'record', 'set', a.root, 'w1', 'index', 'current-stage=verify'], { encoding: 'utf8', env: { ...process.env, SDLC_RECORDS_FOREGROUND: '1' } });
+    assert.match(cli.stderr, /lease-lost: w1 by beta/);
+  } finally { w.done(); }
+});

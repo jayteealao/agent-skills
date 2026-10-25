@@ -21,6 +21,7 @@ import { dirname, join } from 'node:path';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { DRAFT_DIR } from './records.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
+import { otherLease } from './leases.mjs';
 
 const NET_TIMEOUT_MS = 20_000;
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -74,6 +75,14 @@ function updateState(fn) {
   fn(s);
   writeState(s);
   return s;
+}
+
+/** Note that this machine holds (or no longer holds) the lease of a workflow, so a lost lease can be told apart. */
+export function markHeld(key, on) {
+  updateState((s) => {
+    s.held = { ...(s.held ?? {}) };
+    if (on) s.held[key] = nowIso(); else delete s.held[key];
+  });
 }
 
 /** The log of the records steps that failed: one JSON line each, in ~/.sdlc/records-log.jsonl. */
@@ -512,11 +521,17 @@ export function pushRef(home, ref, { folder = null } = {}) {
   return { pushed: false, reason: 'the push was rejected three times' };
 }
 
-/** Push the live branch of one workflow. */
-export function pushWorkflow(root, slug) {
+/**
+ * Push the live branch of one workflow. While another machine holds the lease, nothing is
+ * pushed (`leaseLost`): the commit stays on the local live branch, and the next sync after a
+ * claim pushes it. `lease: 'local'` reads the lease ref that a sync just fetched, with no call.
+ */
+export function pushWorkflow(root, slug, { lease = 'remote' } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
+  const other = lease === 'none' ? null : otherLease(root, slug, { remote: lease === 'remote' });
+  if (other) return { pushed: false, leaseLost: true, lease: other, reason: `the lease belongs to ${other.machine} until ${other.expires}` };
   const r = pushRef(home, liveRef(project, slug), { folder: `${project}/${slug}` });
   const key = `${project}/${slug}`;
   updateState((state) => {
@@ -563,7 +578,7 @@ export function squashWorkflow(root, slug) {
     remoteTip = sha(home, remoteLiveRef(project, slug));
     const ours = sha(home, ref);
     if (remoteTip && remoteTip !== ours && !(ours && isAncestor(home, remoteTip, ours))) {
-      const p = pushWorkflow(root, slug);
+      const p = pushWorkflow(root, slug, { lease: 'local' });
       if (!p?.pushed) {
         logRecordsFailure({ project, slug, step: 'close', error: p?.reason ?? 'the live branch did not merge' });
         return { ok: false, reason: `the live branch of another machine did not merge: ${p?.reason ?? 'unknown'}` };
@@ -730,7 +745,7 @@ export function syncRecords(root, { holds = () => false } = {}) {
     const ours = sha(home, liveRef(project, slug));
     if (theirs === ours) continue;
     if (holds(slug) || (ours && isAncestor(home, theirs, ours))) {
-      const r = pushWorkflow(root, slug);
+      const r = pushWorkflow(root, slug, { lease: 'local' });
       if (r?.pushed) out.pushed.push(slug); else if (r?.conflict) out.conflicts.push(`${slug}: ${r.reason}`);
       continue;
     }
@@ -742,7 +757,7 @@ export function syncRecords(root, { holds = () => false } = {}) {
       for (const c of a.conflicts) out.fileConflicts.push(c);
       out.pulled.push(slug);
     } else {
-      const r = pushWorkflow(root, slug);
+      const r = pushWorkflow(root, slug, { lease: 'local' });
       if (r?.pushed) out.pulled.push(slug); else out.conflicts.push(`${slug}: ${r?.reason ?? 'the branches diverged'}`);
     }
   }
@@ -761,7 +776,7 @@ export function syncRecords(root, { holds = () => false } = {}) {
       continue;
     }
     if (seen.has(slug)) continue;
-    const r = pushWorkflow(root, slug);
+    const r = pushWorkflow(root, slug, { lease: 'local' });
     if (r?.pushed) out.pushed.push(slug);
   }
   writeMachineFacts(root);
