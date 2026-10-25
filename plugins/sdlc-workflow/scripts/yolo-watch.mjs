@@ -66,7 +66,8 @@ import {
 } from '../lib/live-events.mjs';
 import { decisionsOf, liveDecisions } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
-import { workflowDir } from '../lib/records-root.mjs';
+import { undoGitBashPath } from '../lib/msys.mjs';
+import { realPathOf, workflowDir } from '../lib/records-root.mjs';
 import { stringify } from '../lib/yaml.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
@@ -695,6 +696,30 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
   return value;
 }
 
+/**
+ * The stop-request check of a driver agent. A request stops the agent when "after" is
+ * "current", or when "after" names a stage and the journal has an agent-end of that stage
+ * later than the request. A control file that does not parse is a stop after the current agent.
+ * Returns `{ stop, reason?, request? }`.
+ */
+export function stopCheck(root, slug) {
+  const file = controlPath(root, slug);
+  if (!existsSync(file)) return { stop: false };
+  let request = readJson(file);
+  if (!request || typeof request !== 'object') {
+    pause(200);
+    request = readJson(file);
+    if (!request || typeof request !== 'object') return { stop: true, reason: 'the stop-request file does not parse', request: { action: 'stop', after: 'current' } };
+  }
+  if (request.action !== 'stop') return { stop: false, request };
+  const after = request.after || 'current';
+  if (after === 'current') return { stop: true, reason: 'stop after the current agent', request };
+  const asked = Date.parse(request.requestedAt || '') || 0;
+  const ended = readJournalFrom(journalPath(root, slug), 0).lines.some((l) => l && l.event === 'agent-end' &&
+    (l.stage || String(l.agent || '').split(':')[0]) === after && (Date.parse(l.at || '') || 0) > asked);
+  return ended ? { stop: true, reason: `stop after ${after}: the ${after} stage ended`, request } : { stop: false, request };
+}
+
 export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), opts = {}) {
   const file = journalPath(root, slug);
   let run = null;
@@ -752,7 +777,8 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--once') flags.once = true;
-    else if (a.startsWith('--')) { flags[a.slice(2)] = argv[i + 1]; i++; } else pos.push(a);
+    // Git Bash puts its install path in front of a value that starts with /wf; lib/msys.mjs undoes it.
+    else if (a.startsWith('--')) { flags[a.slice(2)] = undoGitBashPath(argv[i + 1]).value; i++; } else pos.push(a);
   }
   return { pos, flags };
 }
@@ -852,14 +878,24 @@ export async function main(argv = process.argv.slice(2)) {
     appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), { reason: flags.reason || null, run: flags.run || null, agent: flags.agent || null });
     return 0;
   }
+  if (first === 'stop-check') {
+    const [, root, slug] = pos;
+    if (!root || !slug) { process.stderr.write('usage: yolo-watch.mjs stop-check <projectRoot> <slug>\n'); return 2; }
+    process.stdout.write(`${JSON.stringify(stopCheck(path.resolve(root), slug))}\n`);
+    return 0;
+  }
   if (first === 'line') {
-    const [, file, json] = pos;
+    // `line <projectRoot> <slug> '<json>'` names the journal of the workflow; `line <file> '<json>'`
+    // names a file, and a local path of a linked project goes to the records home.
+    const [, a, b, c] = pos;
+    const file = c !== undefined ? journalPath(path.resolve(a), b) : a ? realPathOf(path.resolve(a)) : null;
+    const json = c !== undefined ? c : b;
     if (!file || json === undefined) {
-      process.stderr.write("usage: yolo-watch.mjs line <journalFile> '<json>' [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
+      process.stderr.write("usage: yolo-watch.mjs line <projectRoot> <slug> '<json>' [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
       return 2;
     }
     try {
-      appendJournalLine(path.resolve(file), json, flags);
+      appendJournalLine(file, json, flags);
     } catch (e) {
       // Diagnostic, never a gate: a bad line never fails the agent that writes it.
       process.stderr.write(`yolo-watch: line not appended: ${e.message}\n`);

@@ -34,8 +34,6 @@ const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 
 const SCRIPT = `${referenceRoot}/../scripts/optimize.mjs`
-const WF = `${projectRoot}/.ai/workflows/${slug}`
-const JOURNAL = `${WF}/.driver-journal.jsonl`
 const DECIDE = `node "${referenceRoot}/../scripts/wf.mjs" decide`
 const HYP_DIR = `${projectRoot}/.scratch/optimize/${slug}`
 const RUN = OPT.runId || `${slug}-optimize`
@@ -51,13 +49,14 @@ let SEQ = 0
 // yolo-watch, which writes it with JSON.stringify and stamps `at`.
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
 const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
-const lineCmd = (file, o) => `node "${WATCH}" line "${file}" ${jsonArg(o)}`
+// The command names the workflow, not a file, so the line reaches the journal wherever the records live.
+const lineCmd = (o) => `node "${WATCH}" line "${projectRoot}" ${slug} ${jsonArg(o)}`
 function heartbeat(label, phaseName) {
   const seq = ++SEQ
   const start = { run: RUN, seq, event: 'agent-start', agent: label, phase: phaseName, stage: 'optimize', driver: 'optimize' }
-  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). Append each line to ${JOURNAL} with the command below, never ` +
-    `by hand: before any other work, run \`${lineCmd(JOURNAL, start)}\`; immediately before you return, run ` +
-    `\`${lineCmd(JOURNAL, { ...start, event: 'agent-end' })} --status <your status> --errors <the errors you ` +
+  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). Append each line to the journal of the workflow with the command below, never ` +
+    `by hand: before any other work, run \`${lineCmd(start)}\`; immediately before you return, run ` +
+    `\`${lineCmd({ ...start, event: 'agent-end' })} --status <your status> --errors <the errors you ` +
     `recovered from>\`, adding --reason "<one line: why you stopped>" when your status is not complete. A failed ` +
     `append never changes what you do.`
 }

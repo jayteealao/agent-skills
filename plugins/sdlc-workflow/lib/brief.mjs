@@ -15,7 +15,7 @@ import { basename, join } from 'node:path';
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
 import { STAGE_SUITES, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
-import { workflowDir, workflowRel } from './records-root.mjs';
+import { linkedProject, workflowDir, workflowRel } from './records-root.mjs';
 
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
@@ -141,7 +141,12 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const decisionsText = live.length ? live.map((e) => `- ${decisionLine(e)}`).join('\n') : null;
 
   const cli = wfCli ? `\n\nThe decision commands are \`node "${String(wfCli).replace(/\\/g, '/')}" decide <verb> "${String(projectRoot).replace(/\\/g, '/')}" ${slug} ...\`.` : '';
-  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}`;
+  // A linked project keeps the files of the workflow in the records home; the drafts stay local.
+  const where = linkedProject(projectRoot)
+    ? `\n\nThe files of this workflow are in \`${dir.replace(/\\/g, '/')}/\`: read and write evidence and notes there. ` +
+      `Only the drafts stay in \`.ai/workflows/${slug}/.draft/\`.`
+    : '';
+  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}`;
   const parts = { card, slice: sliceText, plan: planText, tests: testsText, decisions: decisionsText };
   const text = [
     head,

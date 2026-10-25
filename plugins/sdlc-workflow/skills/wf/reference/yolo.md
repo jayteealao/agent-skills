@@ -129,7 +129,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
    ```
 
-   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`. A `CAUTION` on stderr means a hot-patched copy was overwritten.
+   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`, `models` and `recordsRoot`. Pass `models` and `recordsRoot` on in the args of Step 1. A `CAUTION` on stderr means a hot-patched copy was overwritten.
 
 # Step 1 — Start the driver
 
@@ -144,6 +144,7 @@ Workflow({
     slug:          "<slug>",
     slice:         "<slice>",       // slice mode only — omit for slug mode
     models:        { … },           // the `models` block of .ai/sdlc-config.json
+    recordsRoot:   "<recordsRoot>",  // from Step 0.4: the folder of the records
     answered:      [ … ],           // a relaunch after questions only — see Questions
     delegate:      true             // delegate mode only — omit otherwise
     // reviewFanout (on): omit unless the person asks
@@ -175,7 +176,7 @@ A stage agent never asks the person. It returns each intent-bearing decision as 
 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
 2. Ask the questions with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call. Put the `recommended` option first.
-3. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. Keep the id that the command prints.
+3. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf.mjs decide add "<projectRoot>" <slug> --file <file>` once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is the one record of them.
 4. Repeat Step 0.4.
 5. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
 

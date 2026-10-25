@@ -29,6 +29,8 @@ export function readProgress(slugDir) {
 
 /** Merge a change into the record and write it. A new run id starts a new record. */
 export function writeProgress(slugDir, change, { now = nowIso() } = {}) {
+  // `complete` is the word of the stage records; the run record says `done`.
+  if (change.status === 'complete' || change.status === 'completed') change = { ...change, status: 'done' };
   if (change.status && !STATUSES.includes(change.status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
   const old = readProgress(slugDir) ?? {};
   const fresh = change.run && change.run !== old.run;

@@ -10,12 +10,12 @@
 // files (a message in `inbox/`, say) merge cleanly. A real conflict stops and is reported.
 // Offline work stays in the local refs, and the next sync pushes it.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { DRAFT_DIR } from './records.mjs';
-import { PROJECT_NAME_RE, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
+import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 
 const NET_TIMEOUT_MS = 20_000;
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -140,6 +140,8 @@ export function linkProject(root, project) {
   config.records = { ...(config.records ?? {}), project };
   mkdirSync(join(root, '.ai'), { recursive: true });
   writeFileSync(configFile, `${JSON.stringify(config, null, 2)}\n`);
+  // The global registry (INDEX.md) moves too: the scripts read it in the records home.
+  adoptLocal(root, null);
   for (const slug of moved) {
     if (slug === '_design') {
       const c = commitPaths(home, { ref: `refs/heads/${mainBranch(home)}`, paths: [`${project}/_design`], message: `${project}: move the design records into the records repo` });
@@ -150,12 +152,73 @@ export function linkProject(root, project) {
   return { ok: true, home, project, moved };
 }
 
+// ---------------------------------------------------------------- adopt local files
+
+const sameBytes = (a, b) => {
+  const x = readFileSync(a);
+  const y = readFileSync(b);
+  return x.length === y.length && x.equals(y);
+};
+
+/**
+ * Move the files that a writer put in the local folder of a linked workflow into the records
+ * home: an agent that writes by the local path, a test runner, a shell redirect. The drafts
+ * stay. A file of the same bytes is only deleted. When both places hold the file with other
+ * bytes, the newer one wins, and an older local file stays where it is and is reported.
+ * `slug` null adopts the top-level files of the local workflows folder (INDEX.md).
+ * Returns `{ moved, conflicts }`, or null when the project is not linked.
+ */
+export function adoptLocal(root, slug) {
+  const project = linkedProject(root);
+  if (!project) return null;
+  const out = { moved: [], conflicts: [] };
+  const localRoot = localWorkflowsRoot(root);
+  const from = slug ? join(localRoot, slug) : localRoot;
+  const to = slug ? join(recordsHome(), project, slug) : join(recordsHome(), project);
+  if (!existsSync(from)) return out;
+  const walk = (dir, rel) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (isLocalOnly(slug ? `${slug}/${r}` : r)) continue;
+      const src = join(dir, e.name);
+      if (e.isDirectory()) {
+        // Without a slug only the top-level files move; each workflow folder adopts on its own.
+        if (!slug) continue;
+        walk(src, r);
+        if (!readdirSync(src).length) rmSync(src, { recursive: true, force: true });
+        continue;
+      }
+      if (!e.isFile()) continue;
+      const dst = join(to, r);
+      if (existsSync(dst)) {
+        if (sameBytes(src, dst)) { rmSync(src, { force: true }); continue; }
+        if (statSync(src).mtimeMs <= statSync(dst).mtimeMs) { out.conflicts.push(r); continue; }
+      }
+      mkdirSync(join(dst, '..'), { recursive: true });
+      try { renameSync(src, dst); } catch { cpSync(src, dst); rmSync(src, { force: true }); }
+      out.moved.push(r);
+    }
+  };
+  walk(from, '');
+  return out;
+}
+
+/** The workflows of a linked project with files in the local folder that belong in the records home. */
+function localStrays(root) {
+  const localRoot = localWorkflowsRoot(root);
+  if (!existsSync(localRoot)) return [];
+  return readdirSync(localRoot, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !isLocalOnly(e.name) && readdirSync(join(localRoot, e.name)).some((f) => f !== DRAFT_DIR))
+    .map((e) => e.name);
+}
+
 // ---------------------------------------------------------------- commit and push
 
 /** Commit one workflow's folder to its live branch. Returns `{ commit, project }`, or null when unlinked. */
 export function commitWorkflow(root, slug, message) {
   const project = linkedProject(root);
   if (!project) return null;
+  adoptLocal(root, slug);
   const home = recordsHome();
   const commit = commitPaths(home, { ref: liveRef(project, slug), base: `refs/heads/${mainBranch(home)}`, paths: [`${project}/${slug}`], message });
   return { commit, project, home };
@@ -280,6 +343,9 @@ export function writeMachineFacts(root, change = {}) {
 export function syncRecords(root, { holds = () => false } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
+  // The files that writers put in the local folder go home first, so the push carries them.
+  adoptLocal(root, null);
+  for (const slug of localStrays(root)) commitWorkflow(root, slug, `${slug}: adopt the local files`);
   const home = recordsHome();
   const out = { project, pulled: [], pushed: [], conflicts: [], offline: false };
   if (!hasRemote(home)) { out.offline = true; return out; }

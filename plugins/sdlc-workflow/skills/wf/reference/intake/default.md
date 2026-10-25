@@ -97,7 +97,7 @@ Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it pr
 | `full` | every automated suite of the repo |
 | `heavy` | the device, browser or end-to-end suites, when the repo has them |
 
-For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile record`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
+For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
 
 # Step 0.7 — Bounded research pass (ground the questions in the code — conditional)
 

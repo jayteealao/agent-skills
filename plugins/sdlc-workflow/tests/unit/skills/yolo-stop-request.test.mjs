@@ -117,15 +117,24 @@ test('plan and implement dispatch with the stop check; a chain with no request r
   assert.equal(h.writeBacks.length, 1);
 });
 
-test('the stop check reads the control file by path, fresh, and never edits it', () => {
-  const clause = new Function('READ_TOOL', `${extractFn('stopCheckClause')}; return stopCheckClause`)('the file-read tool')('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
-  assert.match(clause, /Read \/r\/\.ai\/workflows\/s\/\.control\.json now, fresh/);
-  assert.match(clause, /"after" is "current"/);
-  assert.match(clause, /agent-end" line for that stage .* later than the request's "requestedAt"/s);
-  assert.doesNotMatch(clause, /"pause"/);
+test('the stop check runs the stop-check command, which finds the request wherever the records live', () => {
+  const clause = new Function(`${extractFn('stopCheckClause')}; return stopCheckClause`)()('node "/p/scripts/yolo-watch.mjs" stop-check "/r" s');
+  assert.match(clause, /Run `node "\/p\/scripts\/yolo-watch\.mjs" stop-check "\/r" s` now/);
+  assert.match(clause, /When it prints "stop": false, continue normally/);
+  assert.match(clause, /When it prints "stop": true, stop: do no stage work/);
+  assert.doesNotMatch(clause, /\.control\.json/, 'the agent reads no control file by path');
   assert.match(clause, /status 'stopped', stopReason/);
-  assert.match(clause, /Never edit or delete a control\s+file/);
-  assert.match(clause, /treat it as \{"action":"stop","after":"current"\}/, 'an unparseable file is a stop');
+  assert.match(clause, /Never edit or\s+delete the control file/);
+  assert.match(src, /const stopCheck = \(\) => stopCheckClause\(`node "\$\{WATCH\}" stop-check "\$\{projectRoot\}" \$\{slug\}`\)/);
+});
+
+test('the driver journals by root and slug, keeps found.json in the drafts, and takes the records folder from args', () => {
+  assert.match(src, /const lineCmd = \(o\) => `node "\$\{WATCH\}" line "\$\{projectRoot\}" \$\{slug\} \$\{jsonArg\(o\)\}`/);
+  assert.doesNotMatch(src, /lineCmd\(JOURNAL_PATH/);
+  assert.match(src, /`\$\{DRAFT_DIR\}\/found\.json --source review/);
+  assert.doesNotMatch(src, /\.found\.json/);
+  assert.match(src, /const RECORDS_ROOT = typeof OPT\.recordsRoot === 'string'/);
+  assert.match(src, /const CONTROL_PATH = `\$\{WF_DIR\}\/\.control\.json`/);
 });
 
 test('every stage boundary carries the stop check, and no fix round does', () => {

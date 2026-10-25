@@ -76,6 +76,42 @@ export const ownsRecords = (dir) => existsSync(localWorkflowsRoot(dir));
 const slash = (p) => String(p ?? '').replace(/\\/g, '/');
 const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 
+/**
+ * True for a path, relative to the local workflows folder, that stays on this machine when the
+ * project is linked: the drafts of the agents, the answer log, a top-level dot entry, and a
+ * top-level `_` entry other than the design records (`_design`).
+ */
+export function isLocalOnly(rel) {
+  const parts = slash(rel).split('/').filter(Boolean);
+  return !parts.length || parts.includes('.draft') || parts[0].startsWith('.') || parts[0] === 'answers.jsonl' ||
+    (parts[0].startsWith('_') && parts[0] !== '_design');
+}
+
+/** The path of `filePath` relative to the local workflows folder of the project, or null. */
+export function localRelOf(projectRoot, filePath) {
+  const local = slash(localWorkflowsRoot(resolve(projectRoot))).replace(/\/+$/, '');
+  const n = slash(resolve(projectRoot, String(filePath)));
+  return fold(n).startsWith(`${fold(local)}/`) ? n.slice(local.length + 1) : null;
+}
+
+/**
+ * The real place of a file. In a linked project, a path in the local workflows folder names a
+ * file of the records home, except a local-only path. Every other path is its own place.
+ */
+export function recordPathOf(projectRoot, filePath) {
+  const rel = localRelOf(projectRoot, filePath);
+  if (rel === null || isLocalOnly(rel)) return filePath;
+  const project = linkedProject(resolve(projectRoot));
+  return project ? join(recordsHome(), project, rel) : filePath;
+}
+
+/** recordPathOf for an absolute path: the project root is the folder above its `.ai/workflows/`. */
+export function realPathOf(filePath) {
+  const n = slash(resolve(String(filePath)));
+  const at = fold(n).lastIndexOf(`/${WORKFLOWS_REL}/`);
+  return at < 0 ? filePath : recordPathOf(n.slice(0, at), n);
+}
+
 /** The path of `filePath` inside the records home, with forward slashes, or null. */
 export function recordsRel(filePath) {
   const home = slash(recordsHome()).replace(/\/+$/, '');

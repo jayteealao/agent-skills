@@ -157,8 +157,8 @@ Every finding gets a refuter before it enters the ledger. Group the findings of 
 
 # Step 4: Merge into the ledger
 
-1. **Write `found.json`** to `.ai/workflows/<slug>/.found.json`: every finding of every scout, with the refuter's reason on each refuted finding, and `dimensions` = every command of this run, also the clean ones.
-2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
+1. **Write `found.json`** to `.ai/workflows/<slug>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, and `dimensions` = every command of this run, also the clean ones.
+2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.draft/found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
 3. **Read the ledger.** Run `wf.mjs findings table` and `wf.mjs findings metrics` with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
 
 Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).

@@ -7,6 +7,11 @@
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
  *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
  *             no .ai/ folder, so the setup runs before the key.
+ *   help     [<command>]
+ *             the commands, or the forms and the flags of one command (also <command> --help)
+ *   path     <root> [<slug> [<file>]]
+ *             the real place of the records folder, a workflow folder or a file in it: a linked
+ *             project keeps them in the records repo clone, and only the drafts stay local
  *   records  <link|status|sync|push|close> <root> [<project>|<slug>] [--json]
  *             the records repo: link a project (its records move into the clone), show the
  *             clone, pull the work of other machines, push a workflow, squash a closed one
@@ -44,6 +49,7 @@
  *             the frontmatter template of an artifact type, with every required field
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--json]
+ *   decide   add <root> <slug> --file <answers.json> [--by b] [--stage s] [--json]
  *             record a decision; a live entry with the same key and scope is superseded, and
  *             each record that names it gets superseded-decisions.<old id>: <new id>
  *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
@@ -67,6 +73,8 @@
  *             the command of a suite and the estimate of intake, with no run
  *   profile  record <root> <suite> <seconds>
  *             a real run of a suite: its time replaces the estimate
+ *   profile  run <root> <suite> [--json]
+ *             run the command of a suite in the root and record its time; exit 1 when it fails
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
  *   progress set <root> <slug> [--stage s] [--slice x] [--status running|waiting|stopped|done]
@@ -97,6 +105,9 @@
  *             section of the record files; a draft with errors stays, and exit 1
  *   record   get <root> <slug> <name|index> [--json]
  *             one record, by its old file name, as Markdown with frontmatter (either layout)
+ *   record   draft <root> <slug> <name|index> [--json]
+ *             write one record as its draft (.draft/<old name>.md) to change its body: edit the
+ *             draft, then run record put
  *   record   set <root> <slug> <name|index> <key=value>...
  *             merge fields into one record; a value reads as YAML, null deletes the field
  *   record   list|where|migrate <root> <slug> [<old path>]
@@ -129,6 +140,7 @@
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
  */
 import { spawn, spawnSync } from 'node:child_process';
+import { undoGitBashPath } from '../lib/msys.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -160,7 +172,7 @@ import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox }
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
-import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -182,7 +194,11 @@ function flags(argv) {
     if (a.startsWith('--')) {
       const name = a.slice(2);
       if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve'].includes(name)) opt[name] = true;
-      else opt[name] = argv[(i += 1)];
+      else {
+        const { value, repaired } = undoGitBashPath(argv[(i += 1)]);
+        if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
+        opt[name] = value;
+      }
     } else pos.push(a);
   }
   return { pos, opt };
@@ -202,7 +218,7 @@ async function runDrive(pos, opt) {
   const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
   if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
   const args = {
-    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', models: staged.models,
+    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', models: staged.models, recordsRoot: staged.recordsRoot,
     ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate ? { delegate: true } : {}),
   };
   const r = await driveScript({
@@ -243,6 +259,8 @@ async function runDispatch(pos, opt) {
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   for (const c of r.closeAsk) lines.push(`close-ask: ${c.slug} (${c.reason})`);
   if (r.firstRun) lines.push('first-run: reference/setup.md');
+  // A linked project keeps its workflow files in the records home: the reference paths point there.
+  if (r.sync) lines.push(`records-dir: ${wfRoot(projectRoot)}`);
   if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
   for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
   if (r.lease) lines.push(r.lease);
@@ -532,6 +550,23 @@ export function runDecide(pos, opt) {
   if (!existsSync(dir)) throw new Error(`decide: no workflow folder ${dir}`);
   switch (verb) {
     case 'add': {
+      if (opt.file) {
+        // Every answer of a file in one call: [{ key, question, answer, by, kind, stage, slice, files }].
+        const doc = JSON.parse(readFileSync(resolve(opt.file), 'utf8'));
+        const list = Array.isArray(doc) ? doc : doc.answers ?? doc.decisions ?? [];
+        if (!list.length) throw new Error(`decide add: ${opt.file} holds no answers`);
+        const rows = list.map((a) => {
+          const r = addDecision(dir, {
+            kind: a.kind, key: a.key, question: a.question, answer: a.answer, by: a.by ?? opt.by,
+            scope: { packet: a.packet, slice: a.slice && a.slice !== 'slug-wide' ? a.slice : undefined, files: a.files },
+            stage: a.stage ?? opt.stage, source: a.source, rewrote: Array.isArray(a.rewrote) ? a.rewrote : [],
+          });
+          const marked = markSuperseded(dir, r.superseded, r.entry.id);
+          return { ...r, marked, settled: r.entry.kind !== 'steer' && settleQuestion(dir, r.entry.key) };
+        });
+        out(opt.json ? rows : rows.flatMap((r) => [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...(r.settled ? [`settled ${r.entry.key}`] : [])]).join('\n'));
+        return 0;
+      }
       const r = addDecision(dir, {
         kind: opt.kind, key: opt.key, question: opt.question, answer: opt.answer, by: opt.by,
         scope: scopeOf(opt), stage: opt.stage, source: opt.source,
@@ -618,7 +653,7 @@ export function runStep(pos, opt) {
 
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
-  if (!verb || !root) throw new Error('profile: <show|set|record|timebox> <root> are required');
+  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'show') {
     const p = readProfile(projectRoot);
@@ -637,6 +672,19 @@ export function runProfile(pos, opt) {
     const s = recordRun(projectRoot, a, Number(b));
     out(opt.json ? s : `${a}: ${s.measuredSeconds}s measured`);
     return 0;
+  }
+  if (verb === 'run') {
+    // Run the command of a suite in the project root, and record its time: no timer by hand.
+    if (!a) throw new Error('profile run: <suite> is required');
+    const suite = readProfile(projectRoot)[a];
+    if (!suite?.command) throw new Error(`profile run: the test profile has no command for the ${a} suite; set it with profile set first`);
+    const t0 = Date.now();
+    const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
+    const seconds = Math.round((Date.now() - t0) / 100) / 10;
+    const pass = r.status === 0;
+    if (!r.error) recordRun(projectRoot, a, seconds);
+    out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status } : `${a}: ${pass ? 'pass' : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
+    return pass ? 0 : 1;
   }
   if (verb === 'timebox') {
     if (!a) throw new Error('profile timebox: <stage> is required');
@@ -705,21 +753,17 @@ export function runFindings(pos, opt) {
 
 // The short names of a record for `record get` and `record set`.
 const RECORD_ALIASES = { index: INDEX_NAME, state: INDEX_NAME, meta: INDEX_NAME };
-const recordName = (n) => RECORD_ALIASES[n] ?? n;
-
-// Git Bash turns an argument `key=/wf ...` into `key=C:/Program Files/Git/wf ...` (its path
-// conversion). No record value is a path into the Git install, so the conversion is undone.
-const MSYS_WF = /^[A-Za-z]:[\\/](?:[^\\/=]+[\\/])*?Git[\\/](?=wf(?:\s|$))/i;
+// A name without `.md` (`05-implement-api`) names the same record.
+const recordName = (n) => RECORD_ALIASES[n] ?? (/^\d{2}[a-z]?-[^.]+$/.test(n) ? `${n}.md` : n);
+const noRecord = (name, slug, dir) => `no record ${name} in ${slug}; its records are: ${listDocs(dir).join(', ') || 'none'}`;
 
 /** `key=value` → [key, value], the value read as a YAML scalar or flow collection. */
 export function fieldOf(arg) {
   const at = arg.indexOf('=');
   if (at < 1) throw new Error(`record set: ${arg} is not key=value`);
-  let raw = arg.slice(at + 1);
-  if (MSYS_WF.test(raw)) {
-    raw = raw.replace(MSYS_WF, '/');
-    process.stderr.write(`wf.mjs: ${arg.slice(0, at)} began with the Git install path, which Git Bash put in front of /wf; it is set to ${raw}\n`);
-  }
+  // Git Bash turns `key=/wf ...` into `key=C:/Program Files/Git/wf ...`; lib/msys.mjs undoes it.
+  const { value: raw, repaired } = undoGitBashPath(arg.slice(at + 1));
+  if (repaired) process.stderr.write(`wf.mjs: ${arg.slice(0, at)} began with the Git install path, which Git Bash put in front of /wf; it is set to ${raw}\n`);
   let value;
   try { value = raw === '' ? '' : parseYaml(raw); } catch { value = raw; }
   return [arg.slice(0, at), value];
@@ -727,8 +771,8 @@ export function fieldOf(arg) {
 
 function runRecord(pos, opt) {
   const [verb, root, slug, ...rest] = pos;
-  if (!['put', 'get', 'set', 'list', 'where', 'migrate', 'evidence'].includes(verb) || !root || !slug) {
-    throw new Error('record: <put|get|set|list|where|migrate|evidence> <root> <slug> are required');
+  if (!['put', 'get', 'draft', 'set', 'list', 'where', 'migrate', 'evidence'].includes(verb) || !root || !slug) {
+    throw new Error('record: <put|get|draft|set|list|where|migrate|evidence> <root> <slug> are required');
   }
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
@@ -752,9 +796,22 @@ function runRecord(pos, opt) {
       const [name] = rest;
       if (!name) throw new Error('record get: <name> is required');
       const doc = readDoc(dir, recordName(name));
-      if (!doc) { process.stderr.write(`wf.mjs: no record ${name} in ${slug}\n`); return 1; }
+      if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
       if (opt.json) out(doc);
       else process.stdout.write(`---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
+      return 0;
+    }
+    case 'draft': {
+      // The record as a draft, ready for an edit and a put: the change of a body in three steps.
+      const [name] = rest;
+      if (!name) throw new Error('record draft: <name> is required');
+      const n = recordName(name);
+      const doc = readDoc(dir, n);
+      if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
+      const path = draftPath(join(localWorkflowsRoot(resolve(root)), slug), n);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
+      out(opt.json ? { name: n, draft: path } : `draft ${n} → ${path}; edit it, then run record put`);
       return 0;
     }
     case 'set': {
@@ -1036,7 +1093,45 @@ function runGh(pos, opt) {
   throw new Error('gh: <flush|status> is required');
 }
 
+// The forms of each command, from the header of this file, so the help never drifts from it.
+export function helpText(cmd) {
+  const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+  const head = src.slice(src.indexOf('/**'), src.indexOf('*/'));
+  const blocks = [];
+  for (const line of head.split(/\r?\n/)) {
+    const m = /^ \* {3}(\S+)(.*)$/.exec(line);
+    if (m) blocks.push({ name: m[1], lines: [`${m[1]}${m[2]}`] });
+    else if (blocks.length && /^ \* {4,}\S/.test(line)) blocks.at(-1).lines.push(line.replace(/^ \* {3}/, ''));
+  }
+  if (!cmd) {
+    const names = [...new Set(blocks.map((b) => b.name))];
+    return `Usage: wf.mjs <command> ...\nCommands: ${names.join(', ')}\nRun wf.mjs help <command> for its forms and flags.`;
+  }
+  const hits = blocks.filter((b) => b.name === cmd);
+  return hits.length ? hits.map((b) => b.lines.join('\n')).join('\n') : null;
+}
+
+// A reader that closes the pipe early (`record get ... | head`) is not an error of the command.
+let pipeGuard = false;
+function guardPipe() {
+  if (pipeGuard) return;
+  pipeGuard = true;
+  process.stdout.on('error', (e) => {
+    if (e.code !== 'EPIPE') throw e;
+    process.exit(process.exitCode ?? 0);
+  });
+}
+
 export async function main(argv = process.argv.slice(2)) {
+  guardPipe();
+  // `help [cmd]`, `--help` and `<cmd> --help` print the forms and exit 0.
+  if (argv[0] === 'help' || argv[0] === '--help' || argv[0] === '-h' || argv.includes('--help')) {
+    const want = argv[0] === 'help' ? argv[1] : argv[0]?.startsWith('-') ? undefined : argv[0];
+    const text = helpText(want);
+    if (text === null) { process.stderr.write(`wf.mjs: no command ${want}\n${helpText()}\n`); return 2; }
+    out(text);
+    return 0;
+  }
   const [cmd, ...rest] = argv;
   const { pos, opt } = flags(rest);
   const code = await runMain(cmd, pos, opt);
@@ -1165,6 +1260,15 @@ async function runMain(cmd, pos, opt) {
         out(opt.json ? r : r.entries.length ? r.entries.map(deferralLine).join('\n') : 'no open deferrals');
         return r.stop.length ? 1 : 0;
       }
+      case 'path': {
+        const [root, slug, file] = pos;
+        if (!root) throw new Error('path: <root> is required');
+        const projectRoot = resolve(root);
+        // A draft stays in the local folder; every other file of a workflow is in its records folder.
+        const local = slug && file ? join(localWorkflowsRoot(projectRoot), slug, file) : null;
+        out(!slug ? wfRoot(projectRoot) : !file ? workflowDir(projectRoot, slug) : recordPathOf(projectRoot, local));
+        return 0;
+      }
       case 'brief': {
         const [root, slug, stage, slice] = pos;
         if (!root || !slug || !stage) throw new Error('brief: <root> <slug> <stage> are required');
@@ -1177,9 +1281,20 @@ async function runMain(cmd, pos, opt) {
         return 2;
     }
   } catch (e) {
-    process.stderr.write(`wf.mjs: ${e.message}\n`);
+    process.stderr.write(`wf.mjs: ${e.message}\n${hintOf(cmd, pos, e.message)}`);
     return 1;
   }
+}
+
+// The hint after an error: a slug in the place of the root, or the forms of the command.
+function hintOf(cmd, pos, message) {
+  const roots = { decide: 1, step: 1, record: 1, findings: 1, progress: 1, profile: 1, defer: 1, consent: 1, lease: 1, msg: 1 };
+  const at = Object.hasOwn(roots, cmd) ? 1 : 0;
+  const root = pos[at];
+  if (/no workflow folder/.test(message) && root && !existsSync(join(resolve(root), '.ai')) && existsSync(join(process.cwd(), '.ai'))) {
+    return `wf.mjs: ${root} is not a project root. The project root comes first: wf.mjs ${cmd} ${at ? `${pos[0]} ` : ''}"<project root>" <slug> ...\n`;
+  }
+  return /are required|is required|unknown verb|must be one of/.test(message) && cmd ? `wf.mjs: run wf.mjs help ${cmd} for its forms and flags\n` : '';
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

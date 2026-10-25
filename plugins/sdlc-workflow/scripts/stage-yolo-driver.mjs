@@ -66,7 +66,7 @@ function pluginVersion() {
  * @param {{ source?: string, version?: string, log?: (line: string) => void }} [opts]
  *   test seams: `source` overrides the driver file, `version` the stamp,
  *   `log` receives the CAUTION line (default: console.error).
- * @returns {{ scriptPath: string, version: string|null, sha256: string, overwroteHotPatch: boolean }}
+ * @returns {{ scriptPath: string, version: string|null, sha256: string, overwroteHotPatch: boolean, models: object, recordsRoot: string }}
  */
 export function stageYoloDriver(projectRoot, opts = {}) {
   if (typeof projectRoot !== 'string' || !path.isAbsolute(projectRoot)) {
@@ -107,7 +107,8 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   // WF-SYSTEM-REVIEW C1: the session passes `models` on as `args.models`.
   let models = {};
   try { models = modelsOf(JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'))); } catch { /* no config: every stage on Opus */ }
-  return { scriptPath, version, sha256: digest, overwroteHotPatch, models };
+  // The session passes `recordsRoot` on too: a linked project keeps its records in the records home.
+  return { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot) };
 }
 
 function main() {

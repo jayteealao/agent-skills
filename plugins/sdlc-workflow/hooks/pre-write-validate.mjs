@@ -46,7 +46,7 @@ import {
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
 import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
-import { nestedAiDir, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
+import { nestedAiDir, recordPathOf, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
 
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
@@ -92,7 +92,7 @@ export async function run(input) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
     return;
   }
-  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) : null;
+  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) : null;
   if (refusal) {
     refuseWrite(checksModeOf(config), refusal);
     return;
@@ -228,6 +228,19 @@ function recordWriteRefusal(filePath, projectRoot) {
       `Write the record as the draft ${DRAFT_DIR}/${info.filename} in the same folder, then run \`${cli} record put <root> ${info.slug}\`.\n`;
   }
   return null;
+}
+
+// A linked project keeps its records in the records home, and only the drafts stay in the local
+// folder. A file written by its local path would never reach the records repo, and a later reader
+// would look for it in the records home. So the write is refused, and the refusal names the place.
+function linkedWriteRefusal(filePath, projectRoot) {
+  const abs = resolveProjectPath(projectRoot, filePath);
+  const real = recordPathOf(projectRoot, abs);
+  if (real === abs) return null;
+  return `wf-validate: blocked a write to ${abs}. This project keeps its workflow files in the records repo clone, ` +
+    `so the file belongs at ${real}. Write it there, and read it there later. Only the drafts stay in ` +
+    `.ai/workflows/<slug>/${DRAFT_DIR}/.
+`;
 }
 
 // Design lane human rule: read the slug's index, 02b-design.md presence, and the

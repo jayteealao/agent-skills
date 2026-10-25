@@ -167,5 +167,62 @@ test('the pre-write check refuses an agent write to an inbox or to a record in t
     const rec = write(join(a.home, 'records', 'notes', 'w1', 'state.yaml'));
     assert.equal(rec.status, 2);
     assert.match(rec.stderr, /Scripts write the record files/);
+    // A file of the workflow by its local path: refused, with the real place.
+    const evidence = write('.ai/workflows/w1/verify-evidence/s1/checks.md');
+    assert.equal(evidence.status, 2);
+    assert.ok(evidence.stderr.includes(join(a.home, 'records', 'notes', 'w1', 'verify-evidence', 's1', 'checks.md')), evidence.stderr);
+    assert.match(evidence.stderr, /records repo clone/);
+    // A draft stays local, and a write in the records home passes.
+    assert.doesNotMatch(write('.ai/workflows/w1/.draft/04-plan.md').stderr, /records repo clone/);
+    assert.notEqual(write(join(a.home, 'records', 'notes', 'w1', 'verify-evidence', 's1', 'checks.md')).status, 2);
+  } finally { w.done(); }
+});
+
+test('a linked project: a local path maps to the records home, and a local file moves home at the commit', async () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    workflow(a.root, 'w1');
+    writeFileSync(join(a.root, '.ai', 'workflows', 'INDEX.md'), '# registry\n');
+    linkProject(a.root, 'notes');
+    const { recordPathOf, realPathOf } = await import('../../lib/records-root.mjs');
+    const { adoptLocal } = await import('../../lib/records-sync.mjs');
+    const local = join(localWorkflowsRoot(a.root), 'w1');
+    const home = workflowDir(a.root, 'w1');
+    // The link moved the registry; the drafts stayed.
+    assert.equal(readFileSync(join(a.home, 'records', 'notes', 'INDEX.md'), 'utf8'), '# registry\n');
+    assert.equal(existsSync(join(localWorkflowsRoot(a.root), 'INDEX.md')), false);
+    assert.equal(existsSync(join(local, '.draft', '04-plan.md')), true);
+    // The paths.
+    assert.equal(recordPathOf(a.root, join(local, 'verify-evidence', 'checks.md')), join(home, 'verify-evidence', 'checks.md'));
+    assert.equal(recordPathOf(a.root, join(local, '.draft', '04-plan.md')), join(local, '.draft', '04-plan.md'));
+    assert.equal(recordPathOf(a.root, join(a.root, 'src', 'x.js')), join(a.root, 'src', 'x.js'));
+    assert.equal(realPathOf(join(local, '.driver-journal.jsonl')), join(home, '.driver-journal.jsonl'));
+    // A test runner writes evidence by the local path; the next commit takes it home.
+    mkdirSync(join(local, 'verify-evidence', 's1'), { recursive: true });
+    writeFileSync(join(local, 'verify-evidence', 's1', 'checks.md'), 'green\n');
+    commitWorkflow(a.root, 'w1', 'w1: verify');
+    assert.equal(readFileSync(join(home, 'verify-evidence', 's1', 'checks.md'), 'utf8'), 'green\n');
+    assert.equal(existsSync(join(local, 'verify-evidence')), false);
+    assert.equal(existsSync(join(local, '.draft', '04-plan.md')), true, 'the drafts stay');
+    assert.match(git(join(a.home, 'records'), 'ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1'), /notes\/w1\/verify-evidence\/s1\/checks\.md/);
+    // The same bytes in both places: the local copy goes. Other bytes: the newer one wins.
+    writeFileSync(join(local, 'notes.md'), 'same\n');
+    writeFileSync(join(home, 'notes.md'), 'same\n');
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], conflicts: [] });
+    assert.equal(existsSync(join(local, 'notes.md')), false);
+    writeFileSync(join(home, 'notes.md'), 'home\n');
+    writeFileSync(join(local, 'notes.md'), 'local, older\n');
+    const { utimesSync } = await import('node:fs');
+    utimesSync(join(local, 'notes.md'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], conflicts: ['notes.md'] });
+    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'home\n');
+    utimesSync(join(local, 'notes.md'), new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: ['notes.md'], conflicts: [] });
+    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'local, older\n');
+    // The sync takes home the files of a workflow that no command touched.
+    writeFileSync(join(local, 'late.md'), 'late\n');
+    syncRecords(a.root);
+    assert.equal(readFileSync(join(home, 'late.md'), 'utf8'), 'late\n');
   } finally { w.done(); }
 });

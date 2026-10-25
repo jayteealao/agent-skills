@@ -119,7 +119,7 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
   if (!KINDS.includes(kind)) throw new Error(`kind must be one of ${KINDS.join(', ')}`);
   if (!BY.includes(by)) throw new Error(`by must be one of ${BY.join(', ')}`);
   if (input.answer == null || String(input.answer).trim() === '') throw new Error('an answer is required');
-  if (kind !== 'steer' && !input.key) throw new Error(`a ${kind} needs a key`);
+  if (kind !== 'steer' && !input.key) throw new Error(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`);
   const max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
   const entry = {
     id: idOf(max + 1),

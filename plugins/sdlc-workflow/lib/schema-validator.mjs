@@ -178,7 +178,8 @@ export async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_S
 
 export function formatValidationErrors(errors = []) {
   return errors
-    .map((err) => `${err.path || '/'}: ${err.message}`)
+    // An enum or a const error names the values that would pass, so the writer need not read the schema.
+    .map((err) => `${err.path || '/'}: ${err.message}${Array.isArray(err.params?.allowedValues) ? ` (${err.params.allowedValues.join(', ')})` : Object.hasOwn(err.params ?? {}, 'allowedValue') ? ` (${err.params.allowedValue})` : ''}`)
     .join('\n');
 }
 

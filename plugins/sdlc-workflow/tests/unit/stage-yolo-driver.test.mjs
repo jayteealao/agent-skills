@@ -40,6 +40,7 @@ test('stages a byte-identical copy under .scratch/wf with a self-ignoring direct
     assert.equal(sidecar.sha256, r.sha256);
     assert.equal(sidecar.source, DRIVER_SOURCE);
     assert.match(String(r.version), /^\d+\.\d+\.\d+/);
+    assert.equal(r.recordsRoot, join(root, '.ai', 'workflows'), 'an unlinked project keeps its records in place');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

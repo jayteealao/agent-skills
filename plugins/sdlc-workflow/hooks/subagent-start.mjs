@@ -69,7 +69,7 @@ function main() {
   emitAdditionalContext(
     'SubagentStart',
     `SDLC workflow context — active workflow(s): ${listed}${more}. ` +
-      'You are a subagent: read artifacts under `.ai/workflows/<slug>/` for context, but do NOT ' +
+      `You are a subagent: read artifacts under \`${workflowsRootOf(projectRoot).replace(/\\/g, '/')}/<slug>/\` for context, but do NOT ` +
       'write workflow artifacts, acquire leases, or ask the user gate questions — the coordinating ' +
       'parent owns writes and gates; return findings as text. External Output Boundary: never leak ' +
       'workflow-internal paths, stage names, slice slugs, or artifact contents into external-facing ' +

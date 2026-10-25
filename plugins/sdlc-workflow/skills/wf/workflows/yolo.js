@@ -807,7 +807,13 @@ const EOB =
 //
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
-const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl`
+// The folder of the workflow records. A linked project keeps them in the records home: the
+// staging step prints that folder as recordsRoot. The drafts always stay in the local folder.
+const RECORDS_ROOT = typeof OPT.recordsRoot === 'string' && OPT.recordsRoot.trim()
+  ? OPT.recordsRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  : `${projectRoot}/.ai/workflows`
+const WF_DIR = `${RECORDS_ROOT}/${slug}`
+const JOURNAL_PATH = `${WF_DIR}/.driver-journal.jsonl`
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
 const WF_CMD = `node "${referenceRoot}/../scripts/wf.mjs"`
 // The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
@@ -827,7 +833,8 @@ let AGENT_SEQ = 0
 // single quotes, `'` goes out as \u0027.
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
 const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
-const lineCmd = (file, o) => `node "${WATCH}" line "${file}" ${jsonArg(o)}`
+// The command names the workflow, not a file, so the line reaches the journal wherever the records live.
+const lineCmd = (o) => `node "${WATCH}" line "${projectRoot}" ${slug} ${jsonArg(o)}`
 // A3: the agent-end line says why the agent stopped.
 const END_FLAGS = `--status <the status you return> --errors <the number of tool errors, rejected writes and schema ` +
   `retries you RECOVERED from, 0 if none>. When your status is not complete, add --reason "<one line: why you ` +
@@ -840,8 +847,8 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
   return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). A background driver that dies leaves no ` +
     `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
     `Append each line with the command below, never by hand (it appends to ${JOURNAL_PATH} and stamps the time):\n` +
-    `  • BEFORE any other work, run: \`${lineCmd(JOURNAL_PATH, start)}\`\n` +
-    `  • IMMEDIATELY BEFORE you return, run: \`${lineCmd(JOURNAL_PATH, { ...start, event: 'agent-end' })} ${END_FLAGS}\`.\n` +
+    `  • BEFORE any other work, run: \`${lineCmd(start)}\`\n` +
+    `  • IMMEDIATELY BEFORE you return, run: \`${lineCmd({ ...start, event: 'agent-end' })} ${END_FLAGS}\`.\n` +
     `Never read the journal back into your answer, and never let an append failure change what you do — the ` +
     `heartbeat is diagnostic, never a gate.`
 }
@@ -854,7 +861,7 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
 // one step, and re-read INDEX.md immediately before an edit of it.
 const CONTROL_FILE_RULE =
   `\n\nCONTROL-FILE DISCIPLINE. The index of this workflow (00-index.md) and ` +
-  `${projectRoot}/.ai/workflows/INDEX.md are shared control files that another session may also be editing. ` +
+  `${RECORDS_ROOT}/INDEX.md are shared control files that another session may also be editing. ` +
   `Change an index field with \`${REC('set')} index key=value ...\` (a dotted key names one field of a map): it ` +
   `merges the change in one step, so it loses no field of another writer. Write a draft of the whole index only ` +
   `for a list change with text entries: get the index with \`${REC('get')} index\` IMMEDIATELY before you write ` +
@@ -882,25 +889,19 @@ const steer = (role) => steeringClause(STEER_CMD, role, `${referenceRoot}/_decis
 // A stop request is a control signal, not steering: it says WHEN the driver ends,
 // never HOW a stage works.
 // ---------------------------------------------------------------------------
-const CONTROL_PATH = `${projectRoot}/.ai/workflows/${slug}/.control.json`
+const CONTROL_PATH = `${WF_DIR}/.control.json`
 
-function stopCheckClause(controlPath, journalPath) {
+// The command reads the stop request and the journal, so the rule lives in code (yolo-watch stopCheck),
+// and the check finds the request wherever the records live.
+function stopCheckClause(cmd) {
   return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
-    `one). Read ` +
-    `${controlPath} now, fresh, with ${READ_TOOL}. When the file is absent, continue normally. When it does ` +
-    `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"stop","after":"current"}. A request in ` +
-    `that file always applies. ` +
-    `Stop when one of these holds for a request that applies:\n` +
-    `  (a) "action" is "stop" and "after" is "current";\n` +
-    `  (b) "action" is "stop", "after" names a stage (plan, implement, verify, review), and ${journalPath} holds ` +
-    `an "agent-end" line for that stage (its "stage" field, or its "agent" label before the first ':') whose "at" ` +
-    `is later than the request's "requestedAt".\n` +
-    `To stop: do no stage work, write no artifact, and edit no file except your heartbeat lines. Return ` +
-    `status 'stopped', stopReason quoting the request, ` +
-    `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete a control ` +
-    `file: the main session owns it. When no condition holds, continue normally and do not mention the file.`
+    `one). Run \`${cmd}\` now. It prints one JSON line. When it prints "stop": false, continue normally and do ` +
+    `not mention the check. When it prints "stop": true, stop: do no stage work, write no artifact, and edit no ` +
+    `file except your heartbeat lines. Return status 'stopped', stopReason quoting the "reason" of the line, ` +
+    `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete the ` +
+    `control file: the main session owns it.`
 }
-const stopCheck = () => stopCheckClause(CONTROL_PATH, JOURNAL_PATH)
+const stopCheck = () => stopCheckClause(`node "${WATCH}" stop-check "${projectRoot}" ${slug}`)
 
 
 
@@ -1497,9 +1498,9 @@ async function orient() {
     // orient mints RUN_ID, so it writes its own heartbeat with the id it just made.
     `\n\nDRIVER HEARTBEAT. Using the runId you minted in step 1c, append two lines with the command ` +
     `below, never by hand: one BEFORE you start reading — ` +
-    `\`${lineCmd(JOURNAL_PATH, { seq: 0, event: 'agent-start', agent: 'orient', phase: 'Orient' })} --run <runId>\` ` +
+    `\`${lineCmd({ seq: 0, event: 'agent-start', agent: 'orient', phase: 'Orient' })} --run <runId>\` ` +
     `— and one immediately before you return — ` +
-    `\`${lineCmd(JOURNAL_PATH, { seq: 0, event: 'agent-end', agent: 'orient', phase: 'Orient' })} --run <runId> ` +
+    `\`${lineCmd({ seq: 0, event: 'agent-end', agent: 'orient', phase: 'Orient' })} --run <runId> ` +
     `--status <ok|blocked> --errors <count of errors you recovered from>\`, adding --reason "<blockReason>" when ` +
     `blocked. This journal is how a human tells a live driver from a dead one; an append failure never changes ` +
     `what you do.`,
@@ -1647,9 +1648,9 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
   const scanClause = scan
     ? `\n\nREVIEW SCAN GIVEN. A parallel scan per rubric has ALREADY run (${scan.dimensions.join(', ')}), and a ` +
       `refuter checked every finding. Skip Steps 2, 3 and 3b of review/_stage.md. At Step 4, write ` +
-      `${projectRoot}/.ai/workflows/${slug}/.found.json as { "dimensions": ${JSON.stringify(scan.dimensions)}, ` +
+      `${DRAFT_DIR}/found.json as { "dimensions": ${JSON.stringify(scan.dimensions)}, ` +
       `"findings": <the list below, unchanged> } and run \`${WF_CMD} findings add "${projectRoot}" ${slug} ` +
-      `${projectRoot}/.ai/workflows/${slug}/.found.json --source review --run ${RUN_ID}` +
+      `${DRAFT_DIR}/found.json --source review --run ${RUN_ID}` +
       `${sliceArg ? ` --slice ${sliceArg}` : ''}\`. A finding with \`refuted\` stays refuted; re-check a ` +
       `survivor you doubt, but do not drop it. Findings: ${JSON.stringify(scan.findings)}` +
       promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run \`${REC('put')}\` after you write it)`)

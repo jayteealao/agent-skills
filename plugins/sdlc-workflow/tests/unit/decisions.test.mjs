@@ -47,7 +47,7 @@ test('add refuses an unknown kind or by, an empty answer, and a keyless answer',
     assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', kind: 'vote' }), /kind must be one of/);
     assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', by: 'robot' }), /by must be one of/);
     assert.throws(() => addDecision(f.dir, { key: 'k', answer: ' ' }), /an answer is required/);
-    assert.throws(() => addDecision(f.dir, { answer: 'x' }), /a answer needs a key/);
+    assert.throws(() => addDecision(f.dir, { answer: 'x' }), /an answer needs --key/);
     assert.equal(addDecision(f.dir, { kind: 'steer', answer: 'no new runtime deps' }).entry.key, null);
   } finally { f.done(); }
 });

@@ -36,6 +36,7 @@ An entry is live until a later entry supersedes it. A new entry with the same ke
 | Whether a key has a live answer | `<wf> decide answered "<projectRoot>" <slug> --key k [--slice s]` (exit 0 and the entry, or exit 1) |
 | The questions that are still open | `<wf> decide drop "<projectRoot>" <slug> <questions.json> [--slice s]` |
 | Record an answer | `<wf> decide add "<projectRoot>" <slug> --key k --question "<q>" --answer "<a>" --stage <stage> [--slice s] [--files f,g] [--rewrote f,g]` |
+| Record several answers in one call | `<wf> decide add "<projectRoot>" <slug> --file <answers.json>`: a JSON list of `{ key, question, answer, by, stage, slice }` |
 | Record standing steer | `<wf> decide add "<projectRoot>" <slug> --kind steer --answer "<exact words>"` |
 | Record an approval | `<wf> decide add "<projectRoot>" <slug> --kind approval --key <decision key> --answer approved` |
 | Record a try-out | `<wf> decide add "<projectRoot>" <slug> --kind try-out --key try-out --answer works\|fails` |

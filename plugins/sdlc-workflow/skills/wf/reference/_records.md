@@ -2,7 +2,7 @@
 
 The records of a workflow are YAML files in `.ai/workflows/<slug>/`, and scripts write them. An agent never writes a record file. It writes a draft, and `wf.mjs record put` checks the draft and writes the record.
 
-In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>` is the project root.
+In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>` is the project root. Run `<wf> help <command>` for the forms and the flags of a command. Do not read the source of `wf.mjs` to learn them.
 
 ## Record names
 
@@ -37,7 +37,7 @@ You may also read a record file with the file-read tool. Each section has `name`
 3. Run `<wf> record put <root> <slug>`. Each draft must print `put <name> → <file>#<section>`, and the command deletes the draft.
 4. When the command prints `refused <name>: <errors>`, nothing was written for that draft. Correct the draft and run step 3 again.
 
-To change a record, get it, change the text, write the draft and put it. A draft replaces the whole section.
+To change the body of a record, run `<wf> record draft <root> <slug> <name>`: it writes the record as its draft and prints the path. Edit the draft with the file-edit tool, then run `<wf> record put <root> <slug>`. A draft replaces the whole section. A record name can leave out `.md`.
 
 ## Change a field
 
@@ -55,7 +55,7 @@ The command reads the file, merges the change and writes the file in one step. S
 
 ## The records repo
 
-A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. The drafts stay in `.ai/workflows/<slug>/.draft/`, so the steps above do not change. `wf.mjs` commits the records at each step and stage boundary, pushes them when the network is there, and pulls the work of other computers at each `/wf` call.
+A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. The drafts stay in `.ai/workflows/<slug>/.draft/`, so the steps above do not change. Every other file of the workflow (evidence, notes, `INDEX.md`) is in the clone too: the dispatch prints the folder as `records-dir:`, the brief names it, and `<wf> path <root> <slug> <file>` prints the real place of one file. The pre-write check refuses a write of such a file by its local path and names the real place. A file that a command writes by the local path (a test runner, a shell redirect) moves into the clone at the next records commit. `wf.mjs` commits the records at each step and stage boundary, pushes them when the network is there, and pulls the work of other computers at each `/wf` call.
 
 - One computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first.
 - Read the records of another project, but do not change them. To ask that project for something, post a message to it.
