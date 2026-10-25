@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.4] - 2026-10-25
+
+- fix(sdlc-workflow): a linked project keeps every workflow file in the records repo, and wf.mjs is easier for agents
+- fix(sdlc-workflow): a smoke run that times out stops its host CLI, and a locked fixture does not hide the result
+- fix(sdlc-workflow): answers clear the open questions, and the review run shows in the journal
+
 ## [10.0.0-next.3] - 2026-10-25
 
 - fix(sdlc-workflow): the campaign migration passes commit hooks and regroups by one rule
