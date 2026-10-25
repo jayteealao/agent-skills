@@ -1064,7 +1064,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <thead><tr><th>Where</th><th>Scope</th><th>Notes</th></tr></thead>
           <tbody>
             <tr data-s><td><code>.ai/sdlc-config.json</code></td><td>One repo. Commit it.</td><td>Write checks, leak guards, policy, driver models and the yolo watch. A JSON schema rejects an unknown key. A setting that no release reads now is ignored, with one warning.</td></tr>
-            <tr data-s><td><code>~/.sdlc/config.json</code></td><td>One machine. Never commit it.</td><td>The consent for imagery and uiproto to call outside AI services.</td></tr>
+            <tr data-s><td><code>~/.sdlc/config.json</code></td><td>One machine. Never commit it.</td><td>The records repo of this machine and the port of the design server.</td></tr>
             <tr data-s><td>Environment variables</td><td>One process or shell</td><td>Switches, folders, model names and credentials.</td></tr>
             <tr data-s><td>Workflow files and markers</td><td>One workflow or one artifact</td><td><code>decisions.yaml</code>, <code>amend</code>, and frontmatter escapes.</td></tr>
           </tbody>
@@ -1082,7 +1082,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <div>
           <h4>Machine file · ~/.sdlc/config.json</h4>
           <pre class="code" data-s><code>{
-  "externalDispatch": { "enabled": false }
+  "records": { "repo": "you/wf-records" },
+  "design": { "port": 4711 }
 }</code></pre>
         </div>
       </div>
@@ -1324,7 +1325,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["00-index.md", "intake", "The workflow's state: stage, slices, branch, review scope."],
     ["01-<mode>.md", "intake", "The brief: 01-intake.md, 01-fix.md, 01-rca.md, 01-brainstorm.md and so on."],
     ["02-shape.md", "intake", "The mini-spec with acceptance criteria, from the shape phase. 02b-design.md is the design brief."],
-    ["02c-craft.md", "design", "The confirmed visual contract. Frozen boards go in design/r<N>/."],
+    ["02c-craft.md", "design", "The approved visual contract. It names the approved screens of .ai/design/ and the approval commit."],
     ["03-slice.md", "slice", "The slice index, plus one 03-slice-<slice>.md per slice."],
     ["04-plan-<slice>.md", "plan", "The implementation plan of one slice."],
     ["05-implement-<slice>.md", "implement", "What was built, linked to the slice and the plan."],
@@ -1381,8 +1382,11 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { id: "cfg-yolo", title: "Per repo · yolo watch", rows: [
       ["yolo.protectedFiles", "[]", "Repo paths the watch hashes every 20 seconds. A change raises an event and a push notification. PRODUCT.md, DESIGN.md and every file with uncommitted edits at the start are always protected."]
     ] },
-    { id: "cfg-machine", title: "Machine · consent", em: "~/.sdlc/config.json", rows: [
-      ["externalDispatch.enabled", "false", "The consent gate for imagery and uiproto, which send prompts to outside AI services. Their scripts check it themselves. /consult is not behind it."]
+    { id: "cfg-machine", title: "Machine", em: "~/.sdlc/config.json", rows: [
+      ["records.repo", "unset", "The private records repo on GitHub, as owner/name. Unset turns the GitHub layer off."],
+      ["records.home", "~/.sdlc/records", "The local clone of the records repo."],
+      ["records.machine", "the host name", "The name of this machine in the records."],
+      ["design.port", "4711", "The port of the design server, on 127.0.0.1 and the tailnet address."]
     ] },
     { id: "cfg-env-switch", title: "Environment · switches", em: "set to 1", rows: [
       ["SDLC_DISABLE_MEMORY_SEED", "unset", "Skips the AGENTS.md rules seeding. Per repo: memory.seedRules: false."],
@@ -1395,15 +1399,11 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["SDLC_WATCH_MAX_MINUTES", "31", "How long one watch lives. 110 with --once."],
       ["SDLC_WATCH_LOOK_IN_MINUTES", "15", "Minutes with no full note before the watch asks the session to look in. 0 turns it off."],
       ["SDLC_WATCH_JOURNAL_MS · SDLC_WATCH_GIT_MS", "5000 · 20000", "How often the watch reads the driver journal and git."],
-      ["SDLC_BROWSER", "auto", "The Chromium that renders design boards. none keeps boards as HTML."],
-      ["SDLC_BROWSER_TIMEOUT_MS", "30000", "Time limit for one board render."]
+      ["SDLC_BROWSER", "auto", "The Chromium that checks the screens and takes the approval pictures. none turns the checks off."]
     ] },
     { id: "cfg-env-models", title: "Environment · models and credentials", rows: [
       ["SDLC_CONSULT_OPENAI_MODEL", "\"gpt-5.5\"", "The OpenAI model /consult asks."],
-      ["SDLC_CONSULT_GEMINI_MODEL", "\"gemini-3-pro\"", "The Gemini model /consult asks."],
-      ["SDLC_UIPROTO_OPENAI_MODEL", "\"gpt-5.5\"", "The OpenAI model for uiproto."],
-      ["SDLC_UIPROTO_GEMINI_MODEL", "\"gemini-3-pro\"", "The Gemini model for uiproto."],
-      ["STITCH_API_KEY · STITCH_PROJECT_ID", "unset", "Google Stitch for uiproto. Create the project in the Stitch UI first. Without them, uiproto uses its LLM engine."]
+      ["SDLC_CONSULT_GEMINI_MODEL", "\"gemini-3-pro\"", "The Gemini model /consult asks."]
     ] },
     { id: "cfg-env-internal", title: "Environment · set by the plugin", em: "do not set these yourself", rows: [
       ["SDLC_HOST", "set by hooks", "Which host runs the hook: claude or codex."],

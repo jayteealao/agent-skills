@@ -106,7 +106,7 @@ After pushing to overdrive:
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> overdrive` focuses the design stage and its contract `02c-craft.md` on the one extraordinary moment.
-- **Design confirmed:** `/wf design <slug> overdrive` runs the Validate checks and the cost list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> overdrive` runs the Validate checks and the cost list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/overdrive-<timestamp>.md` per [_output.md](_output.md) with: the directions proposed, the pick, the cost on the target device, the fallback, and the checks that code alone cannot settle.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

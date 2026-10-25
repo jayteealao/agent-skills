@@ -4,7 +4,7 @@ This plugin runs under three hosts from one tree: Claude Code, Codex, and pi. Sk
 
 ## Invocation spelling
 
-Prose writes every skill invocation with a leading slash: `/wf <key> …`, `/consult …`, `/imagery …`, `/uiproto …`, `/diataxis …`, `/study-sources …`. Substitute only the sigil for your host, never the name, the key, or the arguments.
+Prose writes every skill invocation with a leading slash: `/wf <key> …`, `/consult …`, `/diataxis …`, `/study-sources …`. Substitute only the sigil for your host, never the name, the key, or the arguments.
 
 | Host | The user types | Example |
 |---|---|---|

@@ -245,7 +245,7 @@ Motion bugs hide at full speed. Before you call an animation done:
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> animate` focuses the design stage and its contract `02c-craft.md` on motion.
-- **Design confirmed:** `/wf design <slug> animate` runs the gates and the opportunity sweep against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> animate` runs the gates and the opportunity sweep against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/animate-<timestamp>.md` per [_output.md](_output.md) with: the motion thesis, the gate result for each animation (frequency tier and named purpose), the ingredients (tool, properties, curve token, duration or spring), the rejected candidates and the gate that rejected each, and the feel checks that code alone cannot settle.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

@@ -56,7 +56,7 @@ Platforms: the web; iOS (SwiftUI and UIKit); Android with Jetpack Compose; deskt
 
 | Term | Web | iOS | Android (Compose) | Desktop |
 |---|---|---|---|---|
-| **minimum hit area** | 44×44 CSS px; a small control extends its hit area with padding or a pseudo-element | 44×44 pt | 48×48 dp; `Modifier.minimumInteractiveComponentSize()` (Material 3 controls apply it) | macOS: 28×28 pt. Windows: 40×40 epx for touch. Electron: the web column |
+| **minimum hit area** | 24×24 CSS px, the one rule of the web; `wf.mjs design check` enforces it. A small control extends its hit area with padding or a pseudo-element | 44×44 pt | 48×48 dp; `Modifier.minimumInteractiveComponentSize()` (Material 3 controls apply it) | macOS: 28×28 pt. Windows: 40×40 epx for touch. Electron: the web column |
 | **window size class** | Width breakpoints in media or container queries: `@media (width >= 600px)`, `@container` | `horizontalSizeClass` and `verticalSizeClass` (compact or regular): SwiftUI `@Environment(\.horizontalSizeClass)`; UIKit `traitCollection.horizontalSizeClass` | `currentWindowAdaptiveInfo().windowSizeClass`: compact below 600 dp, medium below 840 dp, expanded and wider from 840 dp | The window's own width. macOS: SwiftUI `ViewThatFits`, `GeometryReader`. Windows: `AdaptiveTrigger` (`MinWindowWidth`) in a `VisualStateManager` state |
 | **coarse pointer** | `@media (pointer: coarse)`; `@media (any-pointer: coarse)` when touch is one input of several | Touch is the primary input; an iPad with a trackpad adds a **hover pointer** | `PointerType.Touch` on `PointerInputChange.type`; a mouse or stylus reports `PointerType.Mouse` or `PointerType.Stylus` | Windows: `PointerDeviceType.Touch` on the event's `Pointer.PointerDeviceType`. macOS: no touch screen; the trackpad is a fine pointer |
 | **interrupted gesture** | `pointercancel` and `lostpointercapture`; the window's `blur`; capture with `setPointerCapture` | UIKit `touchesCancelled(_:with:)` and a recognizer state of `.cancelled`; SwiftUI `@GestureState` resets on cancel, and `onEnded` does not run | `detectDragGestures(onDragCancel = …)`; `tryAwaitRelease()` returns false when a press is cancelled | Windows: `PointerCanceled`, `PointerCaptureLost`. macOS: reset drag state on `NSWindow.didResignKeyNotification`; `mouseUp(with:)` may never arrive |
@@ -129,14 +129,14 @@ Use the native font stack unless the brand face is essential to the direction.
 
 A terminal surface has no motion form (Rule 4). Draw and check it with these rules.
 
-1. Draw a light board and a dark board. Use a real, named color scheme for each, and state the scheme on the board.
+1. Draw the screen in a light scheme and in a dark scheme. Use a real, named color scheme for each, and state the scheme on the screen.
 2. Check the contrast of ANSI yellow (SGR 33) and bright black (SGR 90) on the ground of each scheme. In Campbell, yellow is about 7.5:1 and bright black about 4.3:1. In Solarized Light, yellow is about 3.0:1 and bright black is above 12:1.
 3. Do not set text in a color below 4.5:1 on its ground. Never make yellow or bright black the only signal of a state: the person's own scheme can differ.
-4. Draw one board at 80 columns by 24 rows. It sets the height budget: the result and the next command fit in 24 rows.
+4. Draw the screen at 80 columns by 24 rows. It sets the height budget: the result and the next command fit in 24 rows.
 5. Print each path in a form that pastes into every target shell: an absolute path, in double quotes when it has a space. Do not print `~`. Not every shell expands it.
 6. Print a "done" line only after an end-to-end check of the path it reports.
 
-Capture each terminal board through the ANSI render, with `campbell` for the dark board and `solarized-light` for the light board:
+Capture each terminal screen through the ANSI render, with `campbell` for the dark scheme and `solarized-light` for the light scheme:
 
 ```
 node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>

@@ -13,7 +13,7 @@ An explore run may link to a workflow: a brainstorm, an intake, or a feature. It
 
 ## Step 1 — The form
 
-1. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`.
+1. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`. Run `<wf> design refs check <root>`. When it exits 1, show the person each unreadable reference before you sketch from it.
 2. Ask the first question per [_gate-question.md](../_gate-question.md): which form to make. Offer the forms that fit the instructions, for example:
    1. one screen in two or three directions;
    2. a flow of three to five steps;

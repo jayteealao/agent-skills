@@ -7,10 +7,8 @@
 //      name — only after their command line confirms them, so a reused pid is
 //      never stopped;
 //   2. deletes the tray's login launcher, when it is the tray's own file;
-//   3. copies the external-dispatch consent (`externalDispatch`) from
-//      hub-config.json to ~/.sdlc/config.json, so the consent survives;
-//   4. removes the hub, registry, runtime and tray state from ~/.sdlc;
-//   5. returns one warning when the Claude Code settings file still sets an old
+//   3. removes the hub, registry, runtime and tray state from ~/.sdlc;
+//   4. returns one warning when the Claude Code settings file still sets an old
 //      mod setting. It only reads that file.
 // It keeps errors.log, lifecycle.log and every other file. When nothing is left to
 // remove it writes `.v10-cleanup.json`, and later calls return at once. A step that
@@ -21,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { logLifecycle, machineConfigPath, sdlcHomeDir } from './home.mjs';
+import { logLifecycle, sdlcHomeDir } from './home.mjs';
 
 export const MARKER = '.v10-cleanup.json';
 
@@ -80,27 +78,6 @@ function readPid(path) {
   }
 }
 
-/**
- * Copy `externalDispatch` from the old hub-config.json to config.json. A value
- * already in config.json wins. Returns false when the copy failed, so the
- * caller keeps hub-config.json for the next try.
- */
-export function carryConsent(home) {
-  let old;
-  try { old = JSON.parse(readFileSync(join(home, 'hub-config.json'), 'utf-8')); } catch { return true; }
-  if (!old || typeof old.externalDispatch !== 'object' || old.externalDispatch === null) return true;
-  const target = machineConfigPath(home);
-  let cfg = {};
-  try { cfg = JSON.parse(readFileSync(target, 'utf-8')) ?? {}; } catch { /* absent: start empty */ }
-  if (cfg.externalDispatch !== undefined) return true;
-  try {
-    writeFileSync(target, `${JSON.stringify({ ...cfg, externalDispatch: old.externalDispatch }, null, 2)}\n`, 'utf-8');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** The command line of a live process, or null when it is gone or unreadable. */
 export function commandLineOf(pid, { platform = process.platform, exec = spawnSync } = {}) {
   const r = platform === 'win32'
@@ -156,12 +133,9 @@ export function runMachineCleanup({
   } catch {
     left.push(launcher);
   }
-  const consentKept = carryConsent(home);
-  if (!consentKept) left.push(join(home, 'hub-config.json'));
   for (const entry of STATE_ENTRIES) {
     const path = join(home, entry);
     if (!existsSync(path)) continue;
-    if (entry === 'hub-config.json' && !consentKept) continue;
     try {
       rmSync(path, { recursive: true, force: true });
       removed.push(path);

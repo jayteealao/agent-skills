@@ -121,7 +121,7 @@ Use the project's color space. For a new palette, prefer a perceptual space such
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> colorize` focuses the design stage and its contract `02c-craft.md` on color.
-- **Design confirmed:** `/wf design <slug> colorize` runs the audit, the Accessibility checks and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> colorize` runs the audit, the Accessibility checks and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/colorize-<timestamp>.md` per [_output.md](_output.md) with: the strategy and its dosage, the role map, each contrast check in both themes, and each signal that used color only.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

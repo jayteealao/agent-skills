@@ -72,7 +72,7 @@ export const PRODUCERS = [
   { match: /^01-\*\.md$/, templates: ['intake/default/_artifact.md', 'intake/rca/_artifact.md', 'intake/rca.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'intake/task.md', 'intake/small.md'] },
   // Shape: the standard template, then each producer that synthesizes a shape.
   { match: /^02-shape\.md$/, templates: ['shape.md', 'intake/rca/_artifact.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md'] },
-  { match: /^02b-design\.md$/, templates: ['design/shape.md'] },
+  { match: /^02b-design\.md$/, templates: ['design/brief.md'] },
   { match: /^02c-craft\.md$/, templates: ['design/contract.md'] },
   // Slices: the master index and the per-slice files (standard, extension, probe, simplify).
   { match: /^03-slice\.md$/, templates: ['slice.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/adopt/_artifacts.md', 'intake/extend/_artifacts.md'] },

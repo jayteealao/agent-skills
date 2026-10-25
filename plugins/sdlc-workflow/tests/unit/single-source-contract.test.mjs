@@ -123,9 +123,9 @@ test('codex.hooks.json wires the full event roster and its Windows commands reso
   }
 });
 
-test('the six skills: openai.yaml parses with the expected shape; SKILL.md name is its directory', () => {
+test('the four skills: openai.yaml parses with the expected shape; SKILL.md name is its directory', () => {
   const skills = readdirSync(path.join(pluginRoot, 'skills')).filter((d) => existsSync(path.join(pluginRoot, 'skills', d, 'SKILL.md')));
-  assert.equal(skills.length, 6);
+  assert.equal(skills.length, 4);
   for (const dir of skills) {
     const doc = parseYaml(read('skills', dir, 'agents', 'openai.yaml'));
     assert.ok(doc?.interface?.display_name && doc.interface.short_description && doc.interface.default_prompt, `${dir}: openai.yaml interface incomplete`);

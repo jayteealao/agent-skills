@@ -49,7 +49,7 @@ For missing goals or direction:
 For stale content:
 > "Has anything changed about the product's direction, audience, or design principles since this was written?"
 
-Do not ask for an aesthetic direction, brand words, tone or references. `shape` asks them per surface ([shape.md](shape.md)).
+Do not ask for an aesthetic direction, brand words, tone or references. `shape` asks them per surface ([brief.md](brief.md)).
 
 ## Step 3: Update the files
 

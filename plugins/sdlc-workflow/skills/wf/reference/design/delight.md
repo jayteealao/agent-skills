@@ -112,7 +112,7 @@ Stagger a group entrance per [animate.md](animate.md) → Choreography.
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> delight` focuses the design stage and its contract `02c-craft.md` on the target moments.
-- **Design confirmed:** `/wf design <slug> delight` runs the opportunity list and the Validate list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> delight` runs the opportunity list and the Validate list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/delight-<timestamp>.md` per [_output.md](_output.md) with: the delight thesis, each moment with its frequency tier, the reduced-motion form of each, and the moments rejected.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

@@ -329,9 +329,10 @@ function referenceLink(ref) {
 }
 
 /**
- * The carried sketches of a packet: each key with its file under the board's
- * `design/sketches/`, its canvas link, and its caption. A board path that does not
- * start with `.ai/` is relative to the board folder. The `#<artboard>` anchor stays in `path`.
+ * The carried sketches of a packet: each key with its file (an explore sketch in
+ * `.ai/design/explore/`, or a file under the board's `design/sketches/` on an older
+ * board), its link, and its caption. A path that does not start with `.ai/` is
+ * relative to the board folder. The `#<artboard>` anchor stays in `path`.
  */
 export function packetSketches(board, packet) {
   const sketches = byKey(board.sketches);

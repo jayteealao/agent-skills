@@ -37,7 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `01-intake.md` | artifact | always | |
 | `decisions.yaml` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | UX impact; The human rule; The design record |
-| `design/shape.md` | procedure | mode:design | |
+| `design/brief.md` | procedure | mode:design | |
 | `02-shape.md` | writes | | |
 | `02b-design.md` | writes | | |
 
@@ -108,7 +108,7 @@ Harvest every ambiguity, unstated assumption, and unclear-context item from `01-
 - **Round 1 — What does the feature do?** Core interaction: the action the user takes, the input they provide, what they get back, what triggers use.
 - **Round 2 — How does the feature behave?** Dynamics: what happens after the main action, reversibility, timing model (sync/async/real-time), connections to other parts of the product.
 - **Round 3 — What does the feature look like?** Surface area: where it lives (page, modal, inline, CLI), data volume, the distinct states the user sees (empty, loading, error, success), whether it follows or breaks existing patterns.
-- **Round 3b — Visual direction (only when design is needed per [design/_lane.md](design/_lane.md)).** 4 questions (carried sketches and records per [design/shape.md](design/shape.md) Round 3): **design mode** per surface (Persuade, Operate, Read, Experience), **color strategy** (inherit the palette, or a distinct treatment?), **reference points and anti-goals** (what is it like, and not like?), and **state inventory** (which of empty / loading / error / first-run carry design weight?). These are the inputs `02b-design.md` needs (Step 5a); they ride on top of the 20-question floor, outside its budget. Skip non-UI work.
+- **Round 3b — The design brief (only when design is needed per [design/_lane.md](design/_lane.md)).** Ask every question of [design/brief.md](design/brief.md) Rounds 1–3 that no source answers, in this round: this is the one round of the design brief. Pre-fill each answer from the sources that procedure names (carried sketches, `PRODUCT.md`, `DESIGN.md`, `.ai/design/`). The questions always include the **design mode** per surface (Persuade, Operate, Read, Experience), the **color strategy**, the **reference points and anti-goals**, and the **state inventory**, unless a source answers them. These are the inputs `02b-design.md` needs (Step 5a); they ride on top of the 20-question floor, outside its budget. Skip non-UI work.
 - **Round 4 — What can go wrong?** Failure modes: worst-case impact of bugs, invalid-input handling, dependency failures, access and permissions.
 - **Round 5 — Where are the boundaries?** Lead with scope restraint: which parts of the brief v1 *actually* needs versus speculative generality, gold-plating, or "while we're here" scope. Present these as trim options the PO chooses, never a unilateral cut ("do you actually need X, or does Y cover it?"). Then: explicit out-of-scope, the transition from old to new behavior, existing code and data touched. Never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
@@ -133,7 +133,7 @@ An inventory item in none of those states is ILLEGAL; the interview may not end 
 Synthesize the discovery answers into a behavior-focused mini-spec (the artifact body sections below).
 
 # Step 5a — Author the design brief (when design is needed)
-When design is needed ([design/_lane.md](design/_lane.md)), author `02b-design.md` per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers; ask only what they did not cover. The design stage, not shape, draws the surfaces with the person, runs the confirm gate, and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index progress.design=skipped design-skip-reason="<one line>"` instead.
+When design is needed ([design/_lane.md](design/_lane.md)), author `02b-design.md` per [design/brief.md](design/brief.md), including `## UX intent`. Fold in the Round 3b answers. Ask no second round: an answer that Round 3b did not get stays an open question in the brief, for the design stage. The design stage, not shape, draws the surfaces with the person, runs the confirm gate, and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index progress.design=skipped design-skip-reason="<one line>"` instead.
 
 # Step 5b — Author the Charter Scenario (when the work has a core interaction loop)
 If the work has a **core interaction loop** — numbered in the intake's Restated Request, **or derivable from its prose** (an unnumbered loop does not exempt shape: derive it) — author `## Charter Scenario`: the loop as ONE scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could confirm ("goal entered → probe question shown that references the stated goal → answer captured → …").
@@ -176,7 +176,7 @@ from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood
 One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the id of the new decision-store entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried decision, its key and text word for word, from the origin work packet's `carried-decisions` or the origin board; list work packets have them already.
 
 # Step 10 — Write the artifacts
-Write the draft `.ai/workflows/<slug>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `.ai/workflows/<slug>/.draft/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the draft `.ai/workflows/<slug>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `.ai/workflows/<slug>/.draft/02b-design.md`; its structure is defined in [design/brief.md](design/brief.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **The ship gaps at the start.** When `branch-strategy` is `dedicated`, run Step R0 of [_ship-plan-readiness.md](_ship-plan-readiness.md) in its listing form: `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. Name each gap in the chat return as a person task. A gap does not stop intake; ship stops on it.
 

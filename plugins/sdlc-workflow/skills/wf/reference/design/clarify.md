@@ -111,7 +111,7 @@ The final copy is as short as it can be without losing meaning or recovery.
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> clarify` focuses the design stage and its contract `02c-craft.md` on interface text.
-- **Design confirmed:** `/wf design <slug> clarify` runs the audit and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> clarify` runs the audit and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/clarify-<timestamp>.md` per [_output.md](_output.md) with: each changed string (old and new, with its screen and state), the terminology list, and the claims and terms that wait for the person.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

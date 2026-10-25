@@ -65,9 +65,8 @@ alt="" (decorative); aria-hidden="true" on a decorative icon; <title> in an info
 
 ### 7. Touch targets
 
-- Minimum 44×44 px (CSS pixels) for all interactive elements.
+- Every interactive element has the minimum hit area of [_platforms.md](_platforms.md) → minimum hit area. This is the one rule; `wf.mjs design check` enforces it on the web.
 - Minimum 8 px between adjacent touch targets.
-- A control that only a desktop pointer uses may be 32×32 px.
 - When the visible control is smaller than the target (a 20 px checkbox, a small icon button), extend the hit area with a centered invisible layer, not with layout padding. Never let the hit areas of two interactive elements overlap. Shrink the layer to the largest size that does not collide.
 
 ### 8. Text and readability
@@ -133,7 +132,7 @@ Load each surface with the worst data a real person or system can produce, and r
 
 **Report.** One table, one row per break: the surface and field, the worst value, what broke (`file:line` when code exists), and the fix. Then list the decisions that belong to the person (for example, truncate or wrap a name), and what held up.
 
-**In the design stage.** A worst-case board `<surface>--worst` draws the surface with these values. The stage draws one for every surface the person asks for, and otherwise for every new surface that shows data ([stage.md](stage.md) Step 4).
+**In the design stage.** The `worst` state of each screen draws the surface with these values ([stage.md](stage.md) Step 4). The check of worst-case content runs in that state (`wf.mjs design check`).
 
 ### 12. Language and locale
 
@@ -203,7 +202,7 @@ A custom slider, drag surface or scrolling control strip survives an interrupted
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> harden` focuses the design stage and its contract `02c-craft.md` on accessibility and robustness.
-- **Design confirmed:** `/wf design <slug> harden` runs the checks above, including the worst-case pass, against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> harden` runs the checks above, including the worst-case pass, against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/harden-<timestamp>.md` per [_output.md](_output.md) with the report above.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

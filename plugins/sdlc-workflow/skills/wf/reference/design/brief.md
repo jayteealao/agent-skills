@@ -2,7 +2,7 @@
 
 Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **shape phase** of `intake` runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
 
-**Scope**: Design planning only. This procedure does NOT write code, does NOT draw boards, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (the boards and the confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
+**Scope**: Design planning only. This procedure does NOT write code, does NOT draw screens, and does NOT approve visual direction. It produces the thinking that makes code good. The screens, the approval and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
 
 ## Philosophy
 
@@ -18,7 +18,7 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 
 1. For each question in the rounds below, search the user prompt, the carried design thoughts ([_carried.md](_carried.md) → In the brief), PRODUCT.md, DESIGN.md, `.ai/design/current.md`, `.ai/design/direction.md`, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source in the brief. Do not ask that question.
-3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
+3. Ask the unanswered questions in ONE batched round. When the shape phase of intake runs this procedure, that round is Round 3b of `../shape.md`: intake asks every design-brief question there, with its own questions, and this procedure asks no second round. When the design stage runs this procedure, ask the round here. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Phase 2.
 
 ### Round 1 — Purpose and context
@@ -45,9 +45,9 @@ The aesthetic questions are asked here, per surface. `setup` and `teach` do not 
 - **First five seconds**: the most important thing a visitor feels or understands in the first five seconds.
 - **Color strategy for this surface**: Restrained / Committed / Full palette / Drenched — can override the project default if the surface earns it
 - **Scene sentence**: One sentence of physical context — who uses this, where, under what ambient light, in what mood. The sentence forces dark vs light. If it doesn't, add detail until it does.
-- **Two or three named anchor references**: Specific products, brands, objects — not adjectives
+- **Two or three named anchor references**: Specific products, brands, objects — not adjectives. Add each one that has a file to the surface with `<wf> design refs add` ([_surface.md](_surface.md)), and cite it by its key.
 - **One or two anti-references**: named products or sites that this surface is not like
-- **Viewports**: the sizes to draw, each as `<name>=<width>x<height>`. Take them from a carried item, from `DESIGN.md`, or from the platform. Ask only when no source gives them.
+- **Viewports**: the sizes to draw. They live in `.ai/design/screens.json` (`<wf> design viewports <root>`). Ask only when the person wants other sizes than the surface has, and set them with `<wf> design viewports <root> <name>=<W>x<H> ...`.
 - **Scope**: sketch quality vs. shipped quality — don't guess between them
 
 ## Phase 2: Design Brief
@@ -74,8 +74,7 @@ List of content elements, edge cases, and state variants (empty, error, loading,
 - Scene sentence (confirmed by user or inferred)
 - The design mode of each surface, with the reason for each choice
 - The three brand words, the tone, and the first-five-seconds goal of each surface
-- Two or three named anchor references with brief rationale, and the anti-references
-- The viewports, with the source of each
+- Two or three named anchor references with brief rationale, each with its reference key when it has a file, and the anti-references
 - Anti-goals: what this should NOT look like
 
 ### 5. Scope and fidelity
@@ -95,11 +94,10 @@ Which reference docs from `skills/wf/reference/design/` should be loaded for imp
 
 ```yaml
 recommended-references: [typeset, animate, colorize, harden]
-surfaces: [squad-list, squad-detail]          # every surface in the content inventory
-viewports: [phone=390x844, desktop=1440x900]  # the sizes the design stage draws
+surfaces: [squad-list, squad-detail]          # every surface in the content inventory, as screen keys
 ```
 
-The design stage reads `surfaces:` to decide which carried items it asks about, and `viewports:` to size the boards ([_boards.md](_boards.md)).
+Name each surface by its screen key: the key of the existing screen on the surface, or the kebab-case key that the design stage gives the new screen. The design stage reads `surfaces:` to decide which carried items it asks about. The viewports are not in the brief: they are in `.ai/design/screens.json` ([_surface.md](_surface.md)).
 
 Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/reference/design/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
 
@@ -107,14 +105,14 @@ Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/referen
 
 The design brief records the **intended** visual direction — color strategy, scene
 sentence, named anchor references, anti-goals — from the discovery interview. It does
-**NOT** draw surfaces or boards, and does **NOT** run a confirm gate. Those two moves belong
+**NOT** draw screens, and does **NOT** run the approval. Those two moves belong
 to the design stage, which a person runs:
 
-- **Boards** — the design stage draws one board per changed surface and state when it authors
+- **Screens** — the design stage draws each changed screen on the design surface when it authors
   the visual contract (see [contract.md](contract.md) → *Land the visual direction*, and
-  [_boards.md](_boards.md)). Do not draw boards, open the design canvas, or run `imagery` here.
-- **Confirm gate** — the design stage presents the resolved direction and gets the person's approval
-  (`shape=pass`) before writing `02c-craft.md`. The brief is revisable discovery output, not
+  [_surface.md](_surface.md)). Do not draw screens or explore sketches here.
+- **Approval** — the design stage runs the checks and gets the person's approval from the answer
+  event before it writes `02c-craft.md`. The brief is revisable discovery output, not
   a locked contract.
 
 Do **not** write a resolved `image-gate` to `02b-design.md` — its *absence* is the unresolved

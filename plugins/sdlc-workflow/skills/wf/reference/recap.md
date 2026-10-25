@@ -85,7 +85,7 @@ Read what actually exists — do not infer from filenames.
 3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
 3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list the `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` records with `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` to build the slice-by-slice progress picture.
-5. When `design/index.html` exists in the workflow folder, give its path in `## Where it stands now`. It is the contact sheet of the design boards.
+5. When `02c-craft.md` names `screens:`, give the canvas URL `/r/<repo>/?workflow=<slug>` in `## Where it stands now` (`wf.mjs design server url`).
 
 **Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist; read each with `record get`, which exits 1 for an absent record). Read the live entries of the decision store for this slice (`decide list --slice <slice>`). Ignore the other slices except where this slice depends on them.
 

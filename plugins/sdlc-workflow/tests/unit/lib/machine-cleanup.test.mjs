@@ -87,7 +87,7 @@ test('a launcher that is not the tray file stays', () => {
   }
 });
 
-test('the external-dispatch consent moves to config.json before hub-config.json goes', () => {
+test('hub-config.json goes with the rest of the old state', () => {
   const { home, userHome, cleanup } = setup();
   try {
     writeFileSync(join(home, 'hub-config.json'), JSON.stringify({ version: 1, port: 4173, externalDispatch: { enabled: true } }));
@@ -95,20 +95,7 @@ test('the external-dispatch consent moves to config.json before hub-config.json 
     const r = runMachineCleanup({ home, platform: 'linux', env: {}, userHome, exec });
     assert.equal(r.done, true);
     assert.ok(!existsSync(join(home, 'hub-config.json')));
-    assert.deepEqual(JSON.parse(readFileSync(join(home, 'config.json'), 'utf-8')), { externalDispatch: { enabled: true } });
-  } finally {
-    cleanup();
-  }
-});
-
-test('a consent already in config.json is kept as it is', () => {
-  const { home, userHome, cleanup } = setup();
-  try {
-    writeFileSync(join(home, 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: true } }));
-    writeFileSync(join(home, 'config.json'), JSON.stringify({ externalDispatch: { enabled: false } }));
-    const { exec } = fakeExec({});
-    runMachineCleanup({ home, platform: 'linux', env: {}, userHome, exec });
-    assert.deepEqual(JSON.parse(readFileSync(join(home, 'config.json'), 'utf-8')), { externalDispatch: { enabled: false } });
+    assert.ok(!existsSync(join(home, 'config.json')), 'no consent is copied: no skill reads it');
   } finally {
     cleanup();
   }

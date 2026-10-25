@@ -841,8 +841,8 @@
         },
         "evidence-dir": { "type": "string" },
         "design-comparison": {
-          "enum": ["pairs", "no-boards", "not-applicable"],
-          "description": "DESIGN-BOARDS-PLAN W5: pairs = ## Design Comparison lists board and capture pairs by key; no-boards = the slice has drawn surfaces but no board files, so verify reports no visual pass; not-applicable = no drawn surface."
+          "enum": ["pairs", "no-screens", "no-boards", "not-applicable"],
+          "description": "pairs = ## Design Comparison lists the approval picture and the capture of each screen by key; no-screens = the slice builds a drawn surface but no screen is approved, so verify reports no visual pass; no-boards = the same, for a contract from before the design surface; not-applicable = no drawn surface."
         },
         "convergence": {
           "enum": ["not-needed", "converged", "escalated"],
@@ -2022,7 +2022,7 @@
               "thread": { "type": "string" },
               "items": { "$ref": "#/$defs/stringArray" },
               "link": { "type": ["string", "null"] },
-              "path": { "type": ["string", "null"], "description": "The sketch file, .ai/workflows/<slug>/design/sketches/<key>.<ext> (DESIGN-BOARDS-PLAN W5b). One file may hold several sketches: <file>#<artboard> (WF-DESIGN-PLAN A6)." },
+              "path": { "type": ["string", "null"], "description": "The sketch file: an explore sketch, .ai/design/explore/<key>.html, or on an older board .ai/workflows/<slug>/design/sketches/<key>.<ext>. One file may hold several sketches: <file>#<artboard>." },
               "caption": { "type": "string" },
               "canvas": { "$ref": "#/$defs/sketchCanvas" },
               "state": { "enum": ["idea", "carried", "dropped", "reference"], "description": "reference: a link to outside design work kept as a reference only, with no file; never a board (WF-DESIGN-PLAN A5b)." }
@@ -2267,7 +2267,7 @@
         "try-out": { "enum": ["yes", "no"] },
         "estimated-slices": { "type": "integer", "minimum": 1 },
         "design-form": { "enum": ["none", "design", "design-direction"] },
-        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
+        "sketches": { "type": "array", "description": "The carried sketches, each with its file: an explore sketch in .ai/design/explore/, or on an older board a file under its design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
         "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: the in-flight unit of the old campaign that this packet finishes." },
         "generated-at": { "$ref": "#/$defs/iso8601" }
       }

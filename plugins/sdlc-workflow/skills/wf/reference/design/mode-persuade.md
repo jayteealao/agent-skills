@@ -8,7 +8,7 @@ The design mode reference for two kinds of surface ([_design-context.md](_design
 
 On these surfaces the design is what the visitor judges, so the world of the direction may own and structure the page. The surfaces span every genre: tech, luxury, consumer products, creative studios. They share the stance (communicate, not transact) and diverge in aesthetic. Do not collapse them into one visual lane.
 
-Design stage Step 3b reads `## Directions`. Step 4 reads `## Boards`.
+Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 
 ## Directions
 
@@ -36,7 +36,7 @@ Committed, Full palette and Drenched exceed the 10% rule on purpose. An unexpect
 
 **Motion.** Orchestrated entrances, staggered reveals and scroll-driven motion are available when they serve the page. One rehearsed entrance beats scattered micro-interactions. Match motion to the personality: a playful brand may carry a spring with bounce 0.1–0.3; an austere brand stays restrained and slow. Motion stays interruptible and inside the frame budget ([animate.md](animate.md)).
 
-## Boards
+## Screens
 
 Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
@@ -55,4 +55,4 @@ Fix a poster by making its parts work where the world put them. Do not move them
 
 **An object stays one object.** When the world is an object, the page shows that one object once, at one scale, from one point of view, in its real form. A book opens to two pages on one gutter, never a third panel. More content goes on the object's own surfaces or on the next spread below, never on extra copies.
 
-**Later boards go further.** The second and third boards of a direction each go further than the first, never cleaner: more of the page's structure in the world's material, a larger or stranger focal move, or a composition the category would not attempt.
+**Later screens go further.** The second and third screens of a direction each go further than the first, never cleaner: more of the page's structure in the world's material, a larger or stranger focal move, or a composition the category would not attempt.

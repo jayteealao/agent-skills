@@ -110,7 +110,7 @@ When verification spans multiple concerns, launch parallel sub-agents per [_suba
 - **Sub-agent 1, Static Analysis & Build** (every slice): lint, types, build, the default performance gate, security scanning, `sdlc-debt:` marker hygiene.
 - **Sub-agent 2, Test Execution** (every slice): unit, integration, coverage, the skipped-gating-spec mapping (`skipped-gating-specs`), the cross-slice regression check.
 - **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC on the runtime adapters and the constraint-resolution ladder; records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, first-light status, and incidental `_surface-defects.md` defects.
-- **Sub-agent 4, Augmentation Re-verification** (`mode:augment`). It gets board PNG paths, never a canvas link.
+- **Sub-agent 4, Augmentation Re-verification** (`mode:augment`). It gets the paths of the screen pages and the approval pictures, never a canvas URL.
 - **Sub-agent 5, Freshness** (when any test failed, the plan is older than 14 days, or the slice touches an external API or schema).
 Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/checks.md`. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate partitions issues.
 

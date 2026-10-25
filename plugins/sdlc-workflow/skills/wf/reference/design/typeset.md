@@ -167,7 +167,7 @@ Next: the `polish` move.
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> typeset` focuses the design stage and its contract `02c-craft.md` on typography.
-- **Design confirmed:** `/wf design <slug> typeset` runs the Assess questions and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> typeset` runs the Assess questions and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/typeset-<timestamp>.md` per [_output.md](_output.md) with: the role system, each finding with its evidence, the fix, and the checks that code alone cannot settle.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

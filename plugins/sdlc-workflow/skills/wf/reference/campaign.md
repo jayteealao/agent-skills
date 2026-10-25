@@ -52,7 +52,7 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
    - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has fewer than 40 steps. Do not size a slice by lines.
    - Aim for 10 slices. When the work packet needs more than 14, write them and return a warning.
    - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
-   - When `02c-craft.md` exists, map each slice to its surfaces and board keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
+   - When `02c-craft.md` exists, map each slice to its screen keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
    - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
 
    When the subagent returns the warning, tell the person the slice count, and continue. The person can split the work packet later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer. When the person already ran `/wf slice <packet-slug>`, skip this step.

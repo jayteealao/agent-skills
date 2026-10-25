@@ -10,7 +10,7 @@ Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache
 **DESIGN.md** (optional, strongly recommended): Overview, colors and token roles, typography, layout, elevation and depth, shapes, components, do's and don'ts.
 **`.ai/design/current.md` and `.ai/design/direction.md`**: the current design and the design goals, per [record.md](record.md).
 
-PRODUCT.md holds product facts only. The aesthetic questions (brand words, tone, references) belong to the design brief, per surface: `shape` asks them ([shape.md](shape.md)). Do not ask for an aesthetic direction, colors, type or style here. When the person gives a binding visual constraint, record it under `## Brand Commitments` as given.
+PRODUCT.md holds product facts only. The aesthetic questions (brand words, tone, references) belong to the design brief, per surface: `shape` asks them ([brief.md](brief.md)). Do not ask for an aesthetic direction, colors, type or style here. When the person gives a binding visual constraint, record it under `## Brand Commitments` as given.
 
 ## Step 1: Discovery interview
 

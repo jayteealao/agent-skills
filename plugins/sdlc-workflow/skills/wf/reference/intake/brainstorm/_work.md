@@ -20,7 +20,7 @@ Agree these with the person, in plain words, and give your view with its reason.
 | `items` | The kept items the work packet carries. Each kept decision is in exactly one work packet. |
 | `research`, `references` | The research notes (`R<NN>`) and references (`F<NN>`, or a repo path) the work packet draws on. |
 | `design-form` | `design` or `design-direction` when a design focus adds the design stage to the work packet ([_design.md](_design.md)); otherwise `none`. |
-| `sketches` | With a design focus: the carried sketches, by key. The work packet file carries each key with its path under this board's `design/sketches/`. |
+| `sketches` | With a design focus: the carried sketches, by key. The work packet file carries each key with its path: `.ai/design/explore/<key>.html`, or a path under this board's `design/sketches/` on an older board. |
 
 Propose the order and each `why-here` note yourself, with the reason. Put first the smallest work packet that shows the thinking is right. The person confirms them or changes them. Do not ask for `depends-on`, `needs`, `provides` or `expects`: the walk builds the work packets in list order, one at a time.
 

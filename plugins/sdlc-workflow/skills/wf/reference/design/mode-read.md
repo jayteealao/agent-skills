@@ -4,7 +4,7 @@ Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache
 
 The design mode reference for a surface where the person comes to understand something: docs, articles, guides, help, changelogs, long-form content ([_design-context.md](_design-context.md) → Design modes). The page is first a document of its kind, framed by the world.
 
-Design stage Step 3b reads `## Directions`. Step 4 reads `## Boards`. The typography and consistency rules of [mode-operate.md](mode-operate.md) also apply.
+Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`. The typography and consistency rules of [mode-operate.md](mode-operate.md) also apply.
 
 ## Directions
 
@@ -25,11 +25,11 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Boards`. The typogr
 
 **Motion.** Motion helps wayfinding only: a contents highlight, an anchor jump, a disclosure. Nothing moves behind the text.
 
-## Boards
+## Screens
 
 Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
-**The board is the document as the reader meets it:** a frame the world owns, in the direction's committed palette and type, around a calm reading column.
+**The screen is the document as the reader meets it:** a frame the world owns, in the direction's committed palette and type, around a calm reading column.
 - Set the column at a real measure: about 65–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).
 - Give the headings a clear hierarchy, and the wayfinding that carries the reader through.
 - Set body text in a reading face with real contrast against its ground.
@@ -39,6 +39,6 @@ Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the r
 
 **Real content.** Draw with the real title, a real opening paragraph, real section names, and one example of the hardest content the surface holds: a code sample, a reference table, a diagram. Never draw filler text.
 
-**Later boards vary the reading structure and the frame, never the column:** the navigation model (sidebar tree, top tabs, inline contents), the column and margin system, how densely the reference material sits, and where the signature move appears. Each board differs from the first at thumbnail size. A board that pushes world material into the reading column makes reading harder and goes the wrong way.
+**Later directions vary the reading structure and the frame, never the column:** the navigation model (sidebar tree, top tabs, inline contents), the column and margin system, how densely the reference material sits, and where the signature move appears. Each direction differs from the first at thumbnail size. A screen that pushes world material into the reading column makes reading harder and goes the wrong way.
 
-**Self-check every board.** Can a reader tell where they are and where to go next, and read the body comfortably? Then cover the name: could this be any other product's documentation? If so, the frame has not taken the world; push the masthead, rail, ground and openers further into it. When the board reads as an artifact of the world before it reads as a document, the world has reached the column; pull it back to the frame.
+**Self-check every screen.** Can a reader tell where they are and where to go next, and read the body comfortably? Then cover the name: could this be any other product's documentation? If so, the frame has not taken the world; push the masthead, rail, ground and openers further into it. When the screen reads as an artifact of the world before it reads as a document, the world has reached the column; pull it back to the frame.

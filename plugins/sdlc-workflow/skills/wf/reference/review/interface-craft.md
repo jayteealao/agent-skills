@@ -13,7 +13,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Mismatched nested radius is MED**: equal `border-radius` on a parent and a padded child is the single most common thing that makes a UI feel "off." Fix concentrically.
 - **Tinted image outline / near-black border on an image is MED**: an outline that is not pure black or pure white picks up the surface color and reads as dirt on the image edge.
 - **Dynamic number without `tabular-nums` is MED**: counters, prices, timers, and table columns shift layout as digits change width.
-- **Interactive target below ~40×40px with no extended hit area is HIGH** (accessibility-adjacent): small controls are hard to hit, especially on touch.
+- **Interactive target below the minimum hit area of `design/_platforms.md` with no extended hit area is HIGH** (accessibility-adjacent): small controls are hard to hit, especially on touch.
 - **`transition: all` is MED**: it forces the browser to watch every property and animates ones you did not intend.
 - **What is the styling system?** (Tailwind, CSS modules, styled-components, plain CSS — affects how radii, spacing, and outlines are expressed.)
 - **Is there a design-token system?** (Spacing scale, radius scale, shadow tiers — one-off values that break the scale are the symptom to hunt.)

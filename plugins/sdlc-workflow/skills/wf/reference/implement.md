@@ -43,7 +43,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `01-rca.md` | artifact | mode:rca | |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
-| `design/boards.json` | artifact | if-present | |
 | `04b-instrument.md` | artifact | if-present | |
 | `04c-experiment.md` | artifact | if-present | |
 | `05c-benchmark.md` | artifact | if-present | |
@@ -114,7 +113,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
    - `02b-design.md`, the design brief: carry forward the design mode of each surface, color strategy, and anti-goals.
    - **Baseline design canon** (the slice builds UI and neither `02b` nor `02c` exists): `design/_design-context.md` gives the design modes, design laws, and motion summary. When code touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Skip the preflight, image, and mutation sections; they govern `/wf design`.
    - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating, then read `design/<name>.md` for each unique name. Loaded references are **read-only judgment context**: they disambiguate the visual contract but never expand scope. If an entry does not resolve to a file, log a one-line warning and continue.
-   - `02c-craft.md`, the **visual contract**. The `## Mock fidelity inventory` items are **additional acceptance criteria**; honor every item in code. The `## Implementation contract` names the token choices, component decisions, and motion specs to follow. With `boards:`, also read the board PNGs of the slice's surfaces (`design/_boards.md`).
+   - `02c-craft.md`, the **visual contract**. The `## Mock fidelity inventory` items are **additional acceptance criteria**; honor every item in code. The `## Implementation contract` names the token choices, component decisions, and motion specs to follow. With `screens:`, also read the screen pages of the slice at the approval commit, and make the content of each `worst` state loadable in development (`design/_surface.md` → Use the screens in a later stage).
    - **Applying design moves**: for each move the plan cites, read its playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in the index (get the index, add the entry, write the draft of `00-index.md` and put it) and write `design-notes/<sub>-<timestamp>.md` (contract in `design/_output.md`, "Registration and the transformation artifact"). When the contract cannot be built as drawn, STOP per [design/_lane.md](design/_lane.md) and route to `/wf design <slug> amend`.
 9. **Check sibling implementations.** Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the sibling implementation records. Compare the plan's files with the `files-modified` key of each one. Read a sibling record in full with `record get` when a file overlaps.
 10. **Carry forward** `open-questions` from the index.

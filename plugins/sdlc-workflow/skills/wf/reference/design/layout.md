@@ -151,7 +151,7 @@ Answer each item with rendered or source evidence. A bare "yes" is not evidence.
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> layout` focuses the design stage and its contract `02c-craft.md` on spatial structure.
-- **Design confirmed:** `/wf design <slug> layout` runs the assessment and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> layout` runs the assessment and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/layout-<timestamp>.md` per [_output.md](_output.md) with: the spatial thesis, the assessment answers and their evidence, and each structural change.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

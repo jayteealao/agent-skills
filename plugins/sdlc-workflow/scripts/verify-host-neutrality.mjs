@@ -14,7 +14,7 @@
 //
 // Two lists, deliberately separate:
 //   PERMANENT — the design. The ≤5 host-contract files plus the enumerated data
-//               exceptions (availability annotations, the imagery provider table).
+//               exceptions (availability annotations).
 //   BURNDOWN  — scripts/host-neutrality-allowlist.json, the temporary per-file list
 //               seeded at the W3 baseline. It may only SHRINK: this gate compares it
 //               against the merge base and fails on any added path, on any entry
@@ -56,9 +56,6 @@ export const DATA_EXCEPTIONS = {
   // The dispatch table's availability line + the Hosts paragraph that points at
   // the contract. Availability is data ("where a key runs"), not mechanics.
   'skills/wf/SKILL.md': ['host-names'],
-  // The imagery provider table names Codex's built-in `image_gen` provider in a
-  // Hosts column — availability data for a provider, not an explanation of it.
-  'skills/imagery/SKILL.md': ['codex-tools', 'host-names'],
   // consult dispatches EXTERNAL CLIs named codex / claude / gemini as oracle
   // providers. Product names in the provider role are not host mechanics.
   'skills/consult/SKILL.md': ['host-names', 'claude-model-pins'],
@@ -92,7 +89,7 @@ export const FAMILIES = [
   {
     // One canonical spelling: `/wf`. The `$` sigil maps ONLY in _host-invocation.md.
     name: 'invocation-sigil',
-    pattern: /\$(wf|consult|imagery|uiproto|diataxis|study-sources|review)\b/,
+    pattern: /\$(wf|consult|diataxis|study-sources|review)\b/,
   },
   {
     // Plugin-root variables live only in the hook wiring. Executables use <skill-dir>.

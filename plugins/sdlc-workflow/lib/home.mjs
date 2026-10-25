@@ -28,9 +28,8 @@ export const MAX_LOG_BYTES = 1024 * 1024;   // 1 MB
 export const KEEP_GENERATIONS = 2;           // <file>.1 and <file>.2
 
 /**
- * The machine-wide settings file. It holds `externalDispatch.enabled`, the one
- * consent gate of the imagery and uiproto skills (their scripts read the file
- * themselves).
+ * The machine-wide settings file: the records repo (`records`), the design server
+ * (`design.port`) and the other settings of this machine.
  */
 export const machineConfigPath = (home = sdlcHomeDir()) => join(home, 'config.json');
 /** The machine-wide settings, or {} when the file is missing or not JSON. */

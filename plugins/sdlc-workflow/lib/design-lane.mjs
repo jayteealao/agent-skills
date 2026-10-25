@@ -132,7 +132,7 @@ export function designGateRefusal({ index, hasBrief, contract, slug, slice = nul
       : boardsMissing(index, contract, missingBoards)
         ? namesScreens(contract)
           ? `the approved screens are not on the design surface: ${shown}${more}`
-          : `the confirmed boards are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug})`
+          : `the confirmed boards of this older contract are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug}), or wf.mjs design migrate`
         : namesScreens(contract) && !approvedByAnswer(contract)
           ? '02c-craft.md names screens, but no approval is recorded from the answer of the person (wf.mjs design approve)'
           : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by';

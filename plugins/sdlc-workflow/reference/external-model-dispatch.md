@@ -1,48 +1,22 @@
 # External-Model Dispatch — operator reference
 
-Three skills send prompts to external AI models and embed the results into your
-work. `consult` is model-invocable and runs on demand (no consent flag); `imagery`
-and `uiproto` remain opt-in behind the machine-wide consent flag below. Full design:
-`docs/internal/EXTERNAL-MODEL-DISPATCH-PLAN.md`.
+`consult` sends prompts to external AI models and returns their opinions. It is
+model-invocable and runs on demand, with no consent flag.
 
 | Skill | Invoke | Providers (bare = fan out to all available) | Role |
 |-------|--------|---------------------------------------------|------|
-| `consult` | `/consult [provider] <question>` (model-invocable; no `/wf` stage runs it as a step) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Auto-runs at plan/design/review/diagnosis (pins a free CLI); never edits. |
-| `imagery` | internal to `/wf design` — the design stage's fallback when the host has no design canvas | `image_gen` (built-in, no egress), `openai` (gpt-image-2), `gemini` (nano-banana), `openai-sub` (gpt-image-2 via codex subscription, explicit-only) | Image generation → variant set. Supersedes `imagegen` (D14). |
-| `uiproto` | internal to `/wf design` — the design stage's interactive-prototype fallback when the host has no design canvas | `stitch` (Google Stitch), `llm` (self-contained HTML) | UI component/screen prototype → sandboxed `<iframe srcdoc>`. |
+| `consult` | `/consult [provider] <question>` (model-invocable; no `/wf` stage runs it as a step) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Never edits. |
 
-## Consent — one machine-wide flag (`imagery` / `uiproto`)
-
-Image/prototype dispatch is a privacy/egress boundary. `imagery` and `uiproto` send
-nothing until you opt THIS machine in (`consult` is exempt — see below):
-
-```json
-// ~/.sdlc/config.json
-{ "externalDispatch": { "enabled": true } }
-```
-
-The imagery/uiproto runners re-check this flag themselves (the script, not just the
-SKILL.md, is the trust boundary): imagery's `gen-openai`/`gen-gemini` and uiproto's
-`gen-stitch`/`gen-llm` each exit early when it is off, so a direct `node …` invocation
-cannot bypass consent. **`consult` no longer checks the flag** — as of 2026-07 it is
-model-invocable and ungated; its cost is bounded instead by pinning a free CLI on any
-model-initiated run (see Cost model). The built-in `image_gen` path and the text
-fallback never egress and work with the flag off; the `openai-sub` (gpt-image-2 via
-the codex subscription) path is explicit-keyword-only and SKILL.md-gated. Egress
-consent for imagery/uiproto is this one flag — there is no per-run `.ai/` marker (D7).
+Its cost is bounded by pinning a free CLI on any model-initiated run (see Cost model).
 
 ## Secrets — env only (never config, never argv)
 
 | Provider | Env | Billing |
 |----------|-----|---------|
 | `codex`, `claude` (CLIs) | none (cached `codex login` / `claude` OAuth) | **subscription** (free per call) |
-| `openai`, `openai-sub` (gpt-image-2) | `OPENAI_API_KEY` / codex subscription | per-token / subscription |
-| `gemini` (nano-banana) | `GEMINI_API_KEY` or `GOOGLE_API_KEY` (+ `npm i @google/genai` for images) | per-token |
+| `openai` | `OPENAI_API_KEY` | per-token |
+| `gemini` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | per-token |
 | `<provider>/<model>` (gateway) | `AI_GATEWAY_API_KEY` | per-token |
-| `stitch` | `STITCH_API_KEY` + `STITCH_PROJECT_ID` (project pre-created in the Stitch UI) + `npm i @google/stitch-sdk` | per-token |
-
-The optional SDKs (`@google/genai`, `@google/stitch-sdk`) are lazy-imported — a
-missing dep degrades that one provider, it does not crash the skill.
 
 ## Read-only & isolation guarantees (`consult`)
 
@@ -70,20 +44,17 @@ true dissent.
 
 ## Cost model
 
-Bare invocations **fan out to every available provider** (D16): a consult opinion
-panel, an imagery variant set (one image per distinct model — `openai-sub` excluded
-to avoid double-billing gpt-image-2), or both uiproto engines. Subscription CLIs are
-free per call; the REST/API backends bill per-token on **every** call. Pin a single
-provider to control spend: `/consult codex …`, `imagery gemini …`, `uiproto llm …`.
+Bare invocations **fan out to every available provider**: a consult opinion panel.
+Subscription CLIs are free per call; the REST/API backends bill per-token on
+**every** call. Pin a single provider to control spend: `/consult codex …`.
 When the model self-initiates a `consult` it always pins a
 free CLI (`codex`/`claude`) — the paid REST oracles are never fanned out unattended.
 
 ## Build/parity notes
 
-The skills are pure `SKILL.md` + `scripts/*.mjs` invoked directly by `node`, so
-they need no build or version bump. The only hook change for this feature is
-the `externalDispatch` flag + the hook sentinel early-exit (landed in v9.93.0).
-One tree serves both hosts: each skill carries
+The skill is pure `SKILL.md` + `scripts/*.mjs` invoked directly by `node`, so
+it needs no build or version bump. The only hook change for this feature is
+the hook sentinel early-exit. One tree serves every host: the skill carries
 its `agents/openai.yaml` interface metadata beside the shared `SKILL.md`, and the
 prose spells script invocations as `node "<skill-dir>/scripts/…"` per
 `skills/wf/reference/_host-invocation.md`.

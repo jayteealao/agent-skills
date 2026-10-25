@@ -18,17 +18,11 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 |---|---|---|---|
 | Session transcripts (deep retro) | `~/.claude/projects/<repo-path-slug>/*.jsonl` — the repo's absolute path with separators replaced | None. Deep retro falls back to the artifact-only reading | None verified. Deep retro falls back to the artifact-only reading |
 
-## Built-in image generation
-
-| Concern | Claude Code | Codex | pi |
-|---|---|---|---|
-| Built-in image generation (imagery) | None; use the scripted providers | The built-in `image_gen` tool | None; use the scripted providers |
-
 ## Design canvas
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| Design canvas (design stage) | The canvas is a mirror of the boards, for comments; the board files stay the contract (`design/_boards.md`). When the session lists the Artifact tool: call it with `action: quickstart` and `intent: design`, create the Design artifact from the type it names, follow the type's own instructions, draw one artboard per board, and record the link with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 02c-craft.md canvas=<link>`. Otherwise use the Codex column | No canvas. Build HTML boards and render them to PNG with the board tool (`design/_boards.md`). Offer `/uiproto` for an interactive prototype when `externalDispatch.enabled` | Same as Codex |
+| Design canvas (design stage) | The design server serves the canvas of the repo, with comments (`design/_surface.md`). Give the person the canvas URL on the tailnet address. When the person cannot reach the server, run `wf.mjs design publish` and publish the page with the Artifact tool | The same canvas from the design server. When the person cannot reach it, give the path of the page of `wf.mjs design publish` | Same as Codex |
 
 ## Design system sync
 

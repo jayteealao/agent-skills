@@ -110,7 +110,7 @@ test('hooks/hooks.json (Claude Code): every command runs a hook source that exis
 
 test('every skill carries agents/openai.yaml with interface metadata, and only wf is implicit', () => {
   const skills = readdirSync(path.join(pluginRoot, 'skills')).filter((s) => existsSync(path.join(pluginRoot, 'skills', s, 'SKILL.md')));
-  assert.equal(skills.length, 6, `expected 6 skills, found ${skills.join(', ')}`);
+  assert.equal(skills.length, 4, `expected 4 skills, found ${skills.join(', ')}`);
   for (const s of skills) {
     const p = path.join(pluginRoot, 'skills', s, 'agents', 'openai.yaml');
     assert.ok(existsSync(p), `${s}: missing agents/openai.yaml`);

@@ -39,7 +39,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `04-plan.md` | artifact | if-present | Sibling Plans |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
-| `design/boards.json` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | UX impact; The human rule |
 | `design/_design-context.md` | procedure | mode:design | Design modes; Shared design laws |
 | `runtime-adapters/_ladder.md` | procedure | mode:user-observable | |
@@ -75,7 +74,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
    - **Review scope (skip-to-plan path only).** When the index shows `review-scope-confirmed: false`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index review-scope-confirmed=true`. Also set `review-scope=slug-wide` in the same call, unless `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` names a `07-review*` record. Ask nothing: one review per work packet.
 4. **Use the design context when design is needed.** Use `design/_design-context.md` for its design modes, laws, and motion summary. When the feature touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Its preflight, image, and mutation sections govern `/wf design`. Then:
    - `02b-design.md` — design mode per surface, recommended references, anti-goals.
-   - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. When `boards:` is set, read the board PNG files of each surface. Each step that builds a surface cites its board key (`design/r<N>/boards/<key>.png`, `design/_boards.md`). The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
+   - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. When `screens:` is set, read the screen pages of the slice on the design surface. Each step that builds a screen cites its screen key (`.ai/design/screens/<key>.html`, `design/_surface.md`). The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
    - **Design references — union of both files.** Build the reference set from `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating. Every UI plan step cites its reference as a pointer ("follow `design/typeset.md` for type scale"); each resolves to `design/<name>.md`.
 5. **Design gate.** Apply the human rule in [design/_lane.md](design/_lane.md): when design is needed and not settled, STOP with `status: awaiting-input` and route to `/wf design <slug>`. Plan never authors `02c-craft.md`. Write `## Design Components` per the lane's `plan` duty.
 6. **Determine planning mode** (check top to bottom). Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` to see which plan records exist.

@@ -14,7 +14,7 @@ One source tree serves three hosts. The skill prose is written once and is host-
 | Codex | `.codex-plugin/plugin.json`, `hooks/codex.hooks.json` | `$wf …` |
 | pi (`pi-code` extension) | the Claude Code plugin cache and hook wiring | `/skill:wf …` |
 
-All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`, `$imagery`, `$uiproto`) only when you name them. The command page names each host difference.
+All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`) only when you name them. The command page names each host difference.
 
 ## Install
 

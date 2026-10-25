@@ -47,7 +47,7 @@ Score: 0=No theming, 1=Minimal tokens, 2=Partial, 3=Good (minor hard-coded value
 ### 4. Responsive Design
 
 - **Fixed widths**: Hard-coded widths that break on mobile
-- **Touch targets**: Interactive elements < 44×44 px (a pointer-only desktop control < 32×32 px)
+- **Touch targets**: an interactive element under the minimum hit area of [_platforms.md](_platforms.md)
 - **Broken touch interaction**: a custom slider, drag surface, or scrolling control strip whose main gesture fails under touch, takes the page scroll, or stays stuck after an interrupted gesture. Code signs: mouse-only handlers, no touch handling on a drag surface, drag state that nothing clears on cancel or blur. Run the gesture when a tool can make touch input. Name the source of the evidence: an emulated viewport, a made touch, which engine, or a real device
 - **Horizontal scroll**: Content overflow on narrow viewports
 - **Text scaling**: Layouts that break when text size increases
@@ -109,7 +109,7 @@ Format as a structured report:
 ## Findings
 | ID | Severity | Rule | Where | Observation | Recommendation | Status |
 |---|---|---|---|---|---|---|
-| A1 | blocker/high/medium/low | token name or audit rule | file, component, or board key | specific problem | specific fix | open/in-progress/fixed/deferred |
+| A1 | blocker/high/medium/low | token name or audit rule | file, component, or screen key | specific problem | specific fix | open/in-progress/fixed/deferred |
 
 ## Recommended fixes
 [Ordered by impact. Name the move for each fix:
@@ -123,7 +123,7 @@ Format as a structured report:
 When invoked as `/wf design <slug> audit`:
 - Write the report as the draft `.ai/workflows/<slug>/.draft/07-design-audit.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
-- When `02c-craft.md` names `boards:`, compare each board PNG with its capture in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` column of `## Findings`. A board without a capture is a gap; do not score it as a pass.
+- When `02c-craft.md` names `screens:`, compare each approval picture with its capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` column of `## Findings`. A screen without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:
 
 ```yaml
@@ -136,7 +136,7 @@ status: ready
 created-at: <timestamp>
 updated-at: <timestamp>
 verdict: <pass|fail|conditional>
-audited-against: [02b-design.md, 02c-craft.md, design/r<N>/boards.json]   # boards.json only when 02c-craft.md names boards:
+audited-against: [02b-design.md, 02c-craft.md]
 violations-count: <number>
 severity-distribution:
   blocker: <number>

@@ -26,8 +26,8 @@ in the diff above. Lines untouched by the diff → `preExisting: true` (the defe
 the base branch); lines the diff added or modified → `preExisting: false`. For moved or renamed
 code where the diff test is ambiguous, use `git blame` as the tiebreaker.
 
-ACCEPTANCE CHECKS: when the fix of a finding changes an acceptance check above, or a confirmed
-design board (`design/r<N>/`) or a `02c-craft.md` line, set `changesAcceptance: true`. Do not
+ACCEPTANCE CHECKS: when the fix of a finding changes an acceptance check above, or an approved
+screen (`.ai/design/screens/`) or a `02c-craft.md` line, set `changesAcceptance: true`. Do not
 soften the finding to avoid the question.
 
 Write no file. Return only this JSON object:

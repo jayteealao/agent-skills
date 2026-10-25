@@ -32,15 +32,14 @@ person when it authors the visual contract (`02c-craft.md`, following `design/st
 resolved `image-gate`. No driven stage resolves it.
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
-- `image_gate=pass` — the person saw the boards of every changed surface and confirmed them, and
-  `freeze` wrote them to `design/r<N>/` ([_boards.md](_boards.md)). When the design is settled
-  is owned by [_lane.md](_lane.md) → "The human rule".
+- `image_gate=pass` — the person saw the screens of every changed surface on the canvas and
+  approved them, and `wf.mjs design approve` recorded the approval ([_surface.md](_surface.md)).
+  When the design is settled is owned by [_lane.md](_lane.md) → "The human rule".
 - `image_gate=skipped:<reason>` — direction confirmed without a picture, with a recorded reason.
   Only a `flow` change with no visual change may skip. An empty or generic reason is **INVALID** —
   name *why* no picture was needed (for example, "flow-only change: the error text moves, no surface changes").
 
-A generated image from the `imagery` skill (`../../../imagery/SKILL.md`) is a mood image. It never
-resolves the gate and is never a board.
+A picture that is not a screen (a mood image, a reference, an explore sketch) never resolves the gate.
 
 ## Preflight gates (run before any design work that edits files)
 
@@ -51,8 +50,8 @@ Skipping these produces generic output that ignores the project.
 | Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise run `/wf design setup` with the person, then continue. |
 | Design mode | A design mode (`persuade`, `operate`, `read`, `experience`) is chosen for each changed surface | Choose it per [_design-context.md](_design-context.md) → Design modes. Ask the person when the task cue and the surface leave it open. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
-| Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the shape phase of `intake`; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
-| Image gate | Surfaces drawn as boards, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
+| Brief | Design brief `02b-design.md` authored (at `shape`, following `design/brief.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the shape phase of `intake`; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
+| Image gate | Surfaces drawn as screens and approved, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
 | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
 
 **Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach`, `direction`, `sync` — these are read-only or record-authoring.

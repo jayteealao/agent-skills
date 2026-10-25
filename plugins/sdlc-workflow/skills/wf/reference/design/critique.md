@@ -25,7 +25,7 @@ Be direct. Don't soften findings. The goal is to surface the real problems, not 
 Judge the design before you read the evidence, so that the evidence does not anchor the judgment.
 
 1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
-2. In a freestanding `/wf design critique`, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the board paths, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
+2. In a freestanding `/wf design critique`, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
 3. Read the `06-verify-*.md` evidence (`wf.mjs record get`) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
 4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
 
@@ -112,7 +112,7 @@ Judge the work against the design record:
 
 ### 10. Personas
 
-Walk the primary task as two or three personas, chosen per [_heuristics.md](_heuristics.md) → Personas. Report each red flag with its surface. Riley walks the worst-case boards.
+Walk the primary task as two or three personas, chosen per [_heuristics.md](_heuristics.md) → Personas. Report each red flag with its surface. Riley walks the `worst` state of each screen.
 
 ## Severity
 
@@ -172,8 +172,8 @@ When the report lists fewer than three issues, you can skip the questions. Then 
 
 When invoked as `/wf design <slug> critique`:
 - Write the draft `.ai/workflows/<slug>/.draft/07-design-critique.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
-- When `02c-craft.md` names `boards:`, judge the board and capture pairs in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` line of the issue.
-- Do not reopen a board that the person confirmed. Write a finding against a confirmed board as a question for `/wf design <slug> amend`. Do not redraw the board.
+- When `02c-craft.md` names `screens:`, judge the pairs of approval picture and capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` line of the issue.
+- Do not reopen a screen that the person approved. Write a finding against an approved screen as a question for `/wf design <slug> amend`. Do not redraw the screen.
 - Use this frontmatter:
 
 ```yaml

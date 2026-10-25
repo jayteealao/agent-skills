@@ -35,7 +35,7 @@ Body sections: (1) **What changed** — bullets per file; (2) **Why** — design
 none of the refusals in [_craft-floor.md](_craft-floor.md) were introduced (and, for transforms, the `design-mode:` field). This
 artifact lets `/wf review` and `/wf ship` see exactly what design augmentations were applied.
 
-**Move-pass note** (`/wf design <slug> <move>` on a confirmed design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, board key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
+**Move-pass note** (`/wf design <slug> <move>` on an approved design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, screen key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
 
 ## Final-summary rules
 
@@ -44,18 +44,18 @@ artifact lets `/wf review` and `/wf ship` see exactly what design augmentations 
   slug; truly standalone runs use `"freestanding"`.
 - **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
   Lead with the narrative per [_chat-return.md](../_chat-return.md) (section *The narrative*). Write a short
-  **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person confirmed and how many boards
-  were frozen; for `audit`/`critique`, the verdict and top findings; for `extract`, what
+  **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person approved and how many screens
+  the approval holds; for `audit`/`critique`, the verdict and top findings; for `extract`, what
   was reverse-engineered; for the other upkeep commands, what the design record now says. Weave in the
   load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
   filling a form. Omit only for genuinely read-only runs with nothing to narrate.
 - **Design modes** — the design mode of each surface the run touched (`persuade`, `operate`, `read`, `experience`), or `n/a`. Always emit it; it is the load-bearing design-mode signal.
-- **Image gate** records whether the person confirmed the boards (`pass`) or why a flow skipped
+- **Image gate** records whether the person approved the screens (`pass`) or why a flow skipped
   them; `n/a` for commands that don't run it.
-- **Boards** — for the design stage, the frozen revision (`design/r<N>/`), its board count, and the
-  contact-sheet path `design/r<N>/index.html`.
+- **Screens** — for the design stage, the approved screen keys, the approval commit, and the
+  canvas URL.
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
-  whole span; the design stage lists `design/r<N>/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
+  whole span; the design stage lists `.ai/design/screens/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
 - **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes per the Next row of `stage.md` (`/wf slice <slug>`, or `/wf plan <slug>` for an `rca` workflow), or, for a campaign
   work packet, to `/wf campaign <source-slug>` per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
 - If the command reference defines its own "Chat return contract", treat that as the *content*

@@ -86,7 +86,7 @@ cross-browser-delta: <"none" | "findings">     # HIGH if findings
 web-vitals-lcp-ms: <N | null>                  # null if non-web; WARN if > 2500 ms
 web-vitals-cls: <N | null>                     # WARN if > 0.1
 web-vitals-inp-ms: <N | null>                  # HIGH if > 200 ms
-design-comparison: <pairs | no-boards | not-applicable>  # no-boards: no visual pass, no mock-fidelity pass
+design-comparison: <pairs | no-screens | not-applicable>  # no-screens: no visual pass, no mock-fidelity pass
 tags: []
 refs:
   index: 00-index.md
@@ -117,7 +117,7 @@ recommended-routes:            # Adaptive routing options A–G, when applicable
 - `## Issues Found` — `severity: issue` per line.
 - `## Verify-Owned Fixes` — present when `fix-rounds-run > 0`. Table `| ID | Type | Triage | Sub-agent outcome | Regression test | Re-check result |` with values Fix / Skip / Escalate; Patched / Could not fix / N/A; `<path>` / `exempt: <reason>` / `n-a`; Pass / Still failing / Not re-run. Then `Commit: <SHA | "(no commit — branch-strategy: none)" | "(no files changed)">` and `Regression tests added: <N>`.
 - `## Augmentation Verification` — only when `02c-craft.md` or `augmentations:` is non-empty: mock fidelity items (honored / deviations / unhonored, each with `file:line` and evidence), one row per augmentation re-check, outstanding design findings from `07-design-audit.md` / `07-design-critique.md`, instrumentation signal coverage from `04b-instrument.md`, experiment wiring from `04c-experiment.md` (flag, cohort, metrics, rollback), benchmark compare-mode delta from `05c-benchmark.md`.
-- `## Design Comparison` — only when the slice builds a surface that `02c-craft.md` `surfaces:` names. With board files, write one row per board key: `| Key | Board | Capture | Differences |`. The board is `design/r<N>/boards/<key>.png`. The capture is the path that `capture-name` gives (`design/_boards.md`), or `none — <reason>` when the stack cannot capture the surface. Set `design-comparison: pairs`. With no board file on disk, write "No boards" and set `design-comparison: no-boards`; then report no visual pass and no mock-fidelity pass. With no drawn surface, omit the section and set `design-comparison: not-applicable`.
+- `## Design Comparison` — only when the slice builds a surface that `02c-craft.md` `surfaces:` names. With approved screens, write one row per screen key: `| Key | Approval picture | Capture | Differences |`. The approval picture is the picture of the screen at `approval-commit` (`design/_surface.md`). The capture is the path that `wf.mjs design capture-path` prints, or `none — <reason>` when the stack cannot capture the surface. Set `design-comparison: pairs`. With no approved screen, write "No screens" and set `design-comparison: no-screens`; then report no visual pass and no mock-fidelity pass. With no drawn surface, omit the section and set `design-comparison: not-applicable`.
 - `## Accessibility Gate` — tool used, new WCAG AA violations, per violation `rule-id: element — description`.
 - `## Performance Gate` — bundle size delta (HIGH at ≥ +20%), build time delta, cold-start delta (service/CLI only), and the web vitals (web only: INP above 200 ms is HIGH; LCP above 2500 ms and CLS above 0.1 are WARN, per `runtime-adapters/web.md`).
 - `## Friction Notes` — perceptual and product-convention observations; informational unless escalated.

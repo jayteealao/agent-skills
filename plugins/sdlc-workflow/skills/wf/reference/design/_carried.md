@@ -17,19 +17,13 @@ From each work packet, the carried set is:
 
 An item with `scope: cut` or `scope: later` is not carried. When no source exists, or the carried set is empty, there is nothing to present: continue without this file.
 
-When a carried sketch file is not in this slug's `design/sketches/`, copy it there. Keep its key as the file name (`design/_boards.md`). A sketch path can be `<file>#<artboard>`: copy the file once, and keep the `#<artboard>` anchor in the record of each key. Do not copy one file under several names.
-
 ## The file is the source
 
-The tracked sketch file is the design. A canvas link is a published view of that file. Every stage reads the file, never the canvas.
+The sketch file is the design. Every stage reads the file. The person sees it on the canvas, in the Explore panel ([_surface.md](_surface.md)).
 
-1. **Give the file first.** Each time you name a sketch, give its local path first and its canvas link second.
-2. **Check the published views at carry.** On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), run `node "<skill-dir>/scripts/design-boards.mjs" canvas-stale "<projectRoot>" <slug> --account <session account>`. It lists each sketch whose recorded `canvas.account` is not the session's account, or whose recorded `canvas.sha256` differs from the file.
-3. **Republish each listed sketch** from its file under the session's account. Record the new `canvas: { link, account, published-at, sha256 }` on the sketch entry. Move the old link to `canvas.previous[]`. The file is the source, so this republish loses nothing.
-4. **Read the old comments once.** Before you stop using an old link, read its comments when the session's account can read them. Treat each comment as a change request (step 5).
-5. **Read the comments before each question.** Read the canvas comments of each carried sketch with the host's comment tool. Turn each comment into a change to the file, or answer it. Then republish the file to the same link.
-6. **No canvas.** On a host with no design canvas, give the file path only, and record no `canvas:`.
-7. **A link with no file.** When a carried sketch has a link and no local file, run the import at the door of [import.md](import.md) → Import at the door before you present it.
+1. **Give the file and the canvas.** Each time you name a sketch, give its path and the canvas URL.
+2. **A sketch from before the design surface.** When a carried sketch is a file in `.ai/workflows/<slug>/design/sketches/`, make it an explore sketch: run `node "<skill-dir>/scripts/wf.mjs" design explore add "<root>" <key> --title "<caption>" --link <slug>`, and copy an HTML file to `.ai/design/explore/<key>.html`. Add a PNG sketch as a reference with `wf.mjs design refs add`. A sketch path can be `<file>#<artboard>`: copy the file once, and keep the `#<artboard>` anchor in the record of each key.
+3. **A link with no file.** When a carried sketch has a link and no local file, run the import at the door of [import.md](import.md) → Import at the door before you present it.
 
 ## In the brief (`shape` Step 5a)
 

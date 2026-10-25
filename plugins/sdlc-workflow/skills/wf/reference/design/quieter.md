@@ -118,7 +118,7 @@ Next: the `polish` move.
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> quieter` focuses the design stage and its contract `02c-craft.md` on reducing noise.
-- **Design confirmed:** `/wf design <slug> quieter` runs the noise diagnosis and the Validate list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- **Design confirmed:** `/wf design <slug> quieter` runs the noise diagnosis and the Validate list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
 - Every run writes `design-notes/quieter-<timestamp>.md` per [_output.md](_output.md) with: each noise source found, what was removed, what was reduced, and what kept the point of view.
 - Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.

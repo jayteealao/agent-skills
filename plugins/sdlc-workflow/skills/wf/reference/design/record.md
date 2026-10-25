@@ -11,9 +11,9 @@ The project-level design memory. Every workflow that needs design reads it, and 
 | Current design | `.ai/design/current.md` | `/wf design setup`, `/wf design extract`, `retro`; the design stage creates it when it is missing |
 | Direction | `.ai/design/direction.md` | `/wf design setup`, `/wf design direction`, `retro` (only after the person answers); the design stage creates it when it is missing and adds the open decisions the person keeps |
 
-Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, keep them tracked per [_boards.md](_boards.md) → Tracking.
+Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, `wf.mjs design init` keeps `.ai/design/` tracked ([_surface.md](_surface.md)).
 
-**Token roles at freeze.** At freeze (design stage Step 6), the design stage writes the token roles that `02c-craft.md` settles into `DESIGN.md` → `## Colors` → `### Token roles` ([setup.md](setup.md) gives the template). Show the person the change before the write. Keep every other row and section of `DESIGN.md`.
+**Token roles at approval.** At approval (design stage Step 6), the design stage writes the token roles that `02c-craft.md` settles into `DESIGN.md` → `## Colors` → `### Token roles` ([setup.md](setup.md) gives the template). Show the person the change before the write. Keep every other row and section of `DESIGN.md`.
 
 ## `.ai/design/current.md`
 
@@ -27,7 +27,7 @@ design-system: "<link to the canvas design system, or none>"
 ```
 
 Body sections, in order:
-- `## Surfaces` — one row per screen, page, view, or reusable component: `| Surface | Path | Last changed by (slug) | Newest board | Drift from the system |`. The newest board is the path of its PNG in the frozen revision: `workflows/<slug>/design/r<N>/boards/<key>.png`.
+- `## Surfaces` — one row per screen, page, view, or reusable component: `| Surface | Path | Last changed by (slug) | Screen | Drift from the system |`. The screen is the key of the surface on the design surface: `.ai/design/screens/<key>.html`.
 - `## System in code` — the tokens and component patterns the code uses, from `/wf design extract`.
 - `## Design debt` — one entry per known gap between a surface and the system or the direction: what, where, the slug that created it, and the slug that paid it (empty while open).
 
@@ -82,6 +82,6 @@ Every write to the design record follows the Record guard. It covers `setup`, `t
 ## Retro write-back
 
 `retro` updates the record at the end of every workflow that needed design:
-1. In `current.md`, add or update one `## Surfaces` row per surface the workflow changed. Link the newest board of the surface from the workflow's last frozen revision. Record the drift that review found.
+1. In `current.md`, add or update one `## Surfaces` row per surface the workflow changed. Name the screen key of the surface. Record the drift that review found.
 2. Add each design debt the workflow created. Fill the paying slug on each debt it fixed.
 3. For each finding that questions a goal or suggests a new direction, write one question for the person in the retro. Change `direction.md` only after the person answers.
