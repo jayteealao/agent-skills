@@ -509,7 +509,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="lifecycle" data-title="The lifecycle">
       <h2><span class="n">03</span>The lifecycle</h2>
-      <p class="intro">Ten stages in order. The number of each stage is also the number of the file it writes. Run each one yourself, or let a driver run the middle stretch.</p>
+      <p class="intro">Nine stages in order. Each stage writes its section of the workflow's records, named under each command. Run each one yourself, or let a driver run the middle stretch.</p>
       <div class="rail-wrap static">
         <div class="rail" id="rail"></div>
         <div class="spans">
@@ -810,7 +810,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>File</th><th>What it is</th></tr></thead>
           <tbody>
-            <tr data-s><td><code>01-brainstorm.md</code></td><td>Your document in plain prose: a short front (summary, area briefs, what is open now), then decisions with reasons, open ideas, findings, assumptions, tensions and questions for the plan.</td></tr>
+            <tr data-s><td><code>intake.yaml#brainstorm</code></td><td>Your document in plain prose: a short front (summary, area briefs, what is open now), then decisions with reasons, open ideas, findings, assumptions, tensions and questions for the plan.</td></tr>
             <tr data-s><td><code>brainstorm-board.json</code></td><td>The agent's working board. A hook checks it on every write.</td></tr>
             <tr data-s><td><code>research/</code> · <code>references/</code></td><td>A note for every research act, and a copy of every outside source (a pointer when it is over 5 MB).</td></tr>
             <tr data-s><td><code>work/&lt;packet&gt;.md</code> · <code>work/index.md</code></td><td>The work packets and their list, written at done.</td></tr>
@@ -1197,7 +1197,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li data-s class="warn"><b>No drivers</b><span>yolo, loop goal and campaign refuse a prototype. Only your words start a round.</span></li>
         </ul>
       </div>
-      <p class="aside" data-s>Files live in the worktree: <code>prototype-ledger.json</code> (the memory: proofs, rounds, decisions, pipeline, rejected paths), <code>01-prototype.md</code> (the accepted pipeline in plain words) and <code>report.html</code>. Run output goes to <code>.scratch/prototype/</code>, which git ignores. <code>cleanup</code> removes a closed prototype's worktree, refuses while it holds a link, and keeps the branch.</p>
+      <p class="aside" data-s>Files live in the worktree: <code>prototype-ledger.json</code> (the memory: proofs, rounds, decisions, pipeline, rejected paths), <code>intake.yaml#prototype</code> (the accepted pipeline in plain words) and <code>report.html</code>. Run output goes to <code>.scratch/prototype/</code>, which git ignores. <code>cleanup</code> removes a closed prototype's worktree, refuses while it holds a link, and keeps the branch.</p>
     </section>
 
     <section id="nav" data-title="Status and project">
@@ -1230,7 +1230,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="artifacts" data-title="Artifacts">
       <h2><span class="n">09</span>What gets written where</h2>
-      <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. Its records are YAML files that scripts write: <code>state.yaml</code> and <code>meta.yaml</code> hold the index, <code>intake.yaml</code> the brief and the shape, one <code>slice-&lt;slice&gt;.yaml</code> the slice, plan, implement and verify of each slice, and <code>design.yaml</code>, <code>review-&lt;slice&gt;.yaml</code>, <code>ship.yaml</code> and <code>retro.yaml</code> the rest. A record keeps the name of its old Markdown file, the name in the table. Print one with <code>wf.mjs record get &lt;root&gt; &lt;slug&gt; &lt;name&gt;</code>. A workflow of the old layout moves file by file at its first write, and <code>redirects.yaml</code> names the new place of each old path.</p>
+      <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. Its records are YAML files that scripts write: <code>state.yaml</code> and <code>meta.yaml</code> hold the index, <code>intake.yaml</code> the brief and the shape, one <code>slice-&lt;slice&gt;.yaml</code> the slice, plan, implement and verify of each slice, and <code>design.yaml</code>, <code>review-&lt;slice&gt;.yaml</code>, <code>ship.yaml</code> and <code>retro.yaml</code> the rest. A record file holds sections, and each section keeps the name of its old Markdown file: <code>02-shape.md</code> is the <code>shape</code> section of <code>intake.yaml</code>. The command entries write a section as <code>intake.yaml#shape</code>. Print a section with <code>wf.mjs record get &lt;root&gt; &lt;slug&gt; &lt;name&gt;</code>, where the name is the old file name. A workflow of the old layout moves file by file at its first write, and <code>redirects.yaml</code> names the new place of each old path.</p>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Record</th><th>Written by</th><th>Holds</th></tr></thead>
@@ -1307,108 +1307,108 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
   var C = [
     { g: "stage", id: "intake", st: "01", name: "intake", syn: ["intake <description>", "intake \"<description that starts with a mode word>\""],
       d: "Starts a new workflow. A product-owner interview turns a rough request into a brief, fingerprints the stack and picks the slug. In the same run, the shape phase turns the brief into a mini-spec: acceptance criteria, edge cases, the documentation plan and any add-ons (benchmark, experiment, instrument), and a design brief when the work changes what a person sees. When the description clearly matches one mode, intake proposes that mode and asks first. Intake also asks which path to take: the full lifecycle, or the small path, which implements and verifies the change in the same run, as one commit on the branch that is checked out, and keeps one note. On the small path, review and ship run only when you want a PR.",
-      w: ["00-index.md", "01-intake.md", "02-shape.md", "02b-design.md", "01-small.md"], n: "design <slug> · or · slice <slug>", t: "new feature start begin build create default" },
+      w: ["state.yaml", "meta.yaml", "intake.yaml#intake", "intake.yaml#shape", "design.yaml#design", "intake.yaml#small"], n: "design <slug> · or · slice <slug>", t: "new feature start begin build create default" },
     { g: "stage", id: "shape", name: "shape", syn: ["shape <slug> [focus area]"],
       d: "An old name that stays for this release only. On a workflow whose brief is written, it runs the shape phase of intake. Type intake <slug> instead.",
-      w: ["02-shape.md", "02b-design.md"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
+      w: ["intake.yaml#shape", "design.yaml#design"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
     { g: "stage", id: "design", st: "02", name: "design", b: ["gate"],
       syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
       d: "The person approves every changed screen before any driver runs. The screens live on the design surface of the repo, .ai/design/, and the canvas shows them in each viewport and state, from the phone too. The agent asks which form to make, takes the design through rounds of three to five decisions, and runs the checks: contrast, target size, viewport fit and worst-case content. A script records the approval from your answer. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens an approved design; import turns a canvas, a folder, a zip or images into screens; explore sketches ideas and settles nothing. A move without a slug starts a new workflow through intake.",
-      more: "design-guide", w: ["02c-craft.md", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
+      more: "design-guide", w: ["design.yaml#craft", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
     { g: "stage", id: "slice", st: "03", name: "slice", syn: ["slice <slug>"],
       d: "Splits the spec into thin vertical slices that can each be verified alone. Slice also asks one time whether review runs per slice or once over the whole workflow.",
-      w: ["03-slice.md", "03-slice-<slice>.md"], n: "plan <slug>", t: "split decompose break down" },
+      w: ["slices.yaml#slice", "slice-<slice>.yaml#slice"], n: "plan <slug>", t: "split decompose break down" },
     { g: "stage", id: "plan", st: "04", name: "plan", syn: ["plan <slug> [<slice>|all] [feedback]"],
       d: "Writes the implementation plan for one slice, with a parallel scan for code to reuse. Run plan again on an existing plan to review it against the current code; add feedback to fix it in one direction; all reviews every plan at once.",
-      w: ["04-plan.md", "04-plan-<slice>.md"], n: "implement <slug> <slice>", t: "design approach steps reuse" },
+      w: ["slices.yaml#plan", "slice-<slice>.yaml#plan"], n: "implement <slug> <slice>", t: "design approach steps reuse" },
     { g: "stage", id: "implement", st: "05", name: "implement", syn: ["implement <slug> [<slice>|reviews]"],
       d: "Codes one planned slice and records what was built. The word reviews runs fix-blockers mode instead: it works through the open blocker findings from review.",
-      w: ["05-implement-<slice>.md"], n: "verify <slug> <slice>", t: "code write build blockers fix findings" },
+      w: ["slice-<slice>.yaml#implement"], n: "verify <slug> <slice>", t: "code write build blockers fix findings" },
     { g: "stage", id: "verify", st: "06", name: "verify", syn: ["verify <slug> [<slice>]"],
       d: "Runs the tests, lints and typecheck, then checks each acceptance criterion against behavior a user can observe, with captured evidence. One fix round runs, and you decide each fix. Earlier evidence is kept, not overwritten.",
-      w: ["06-verify-<slice>.md", "verify-evidence/<slice>/"], n: "review <slug>", t: "test lint typecheck evidence acceptance" },
+      w: ["slice-<slice>.yaml#verify", "verify-evidence/<slice>/"], n: "review <slug>", t: "test lint typecheck evidence acceptance" },
     { g: "stage", id: "review", st: "07", name: "review",
       syn: ["review <slug> [<slice>|triage]   # the workflow stage", "review <rubric> [scope]   # ad-hoc, one rubric", "review sweep <aggregate>   # ad-hoc, in parallel"],
       d: "With a slug, one reviewer runs per selected dimension, the findings merge into an accumulating ledger, and the verdict is ship, ship-with-caveats or dont-ship. triage sorts the open findings again. Without a slug, it is an ad-hoc review and the findings come back in chat. The rubrics are under Review dimensions.",
-      w: ["07-review[-<slice>].md", "07-review-<dimension>.md"], n: "ship <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
+      w: ["review.yaml", "review-<slice>.yaml", "findings.yaml"], n: "ship <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
     { g: "stage", id: "handoff", name: "handoff", syn: ["handoff <slug|pr#N|branch> [<slice>]"],
       d: "An old name that stays for this release only. It runs ship, which opens the pull request first. Type ship <slug> instead.",
-      w: ["08-handoff.md"], n: "ship <slug>", t: "pr pull request open package" },
+      w: ["ship.yaml#handoff"], n: "ship <slug>", t: "pr pull request open package" },
     { g: "stage", id: "ship", st: "08", name: "ship", syn: ["ship <slug|pr#N|branch> [<env>]", "ship <slug> announce", "ship <slug> rollback [<run-id>]"],
       d: "The last mile. First it packages the finished slices into a pull request with reviewer and QA context and watches CI; it refuses while a required review has open blockers or an intent risk is open. Then it stops at the go/no-go gate. On your go, it runs the release that .ai/ship-plan.md describes: 13 replayable steps under a fresh run-id, from pre-flight to merge, tag and post-release bookkeeping. Ship reads the merge rules of the repo first: it merges by the method they allow, or prints the one command when a review or a merge queue is in the way. After the merge it fast-forwards your local base, switches to it, and deletes the branch. A PR number or a branch runs batch mode over every slug on that branch. After a failure, a re-run resumes at the failed step. announce re-runs only the stakeholder messages; rollback runs a Go/No-Go reversal of a finished run.",
-      w: ["08-handoff.md", "09-ship-run-<run-id>.md", "09-ship-runs.md", "09-rollback-<run-id>.md"], n: "retro <slug>", t: "release deploy publish tag merge undo revert" },
+      w: ["ship.yaml#handoff", "ship.yaml#ship-run-<run-id>", "ship.yaml#ship-runs", "ship.yaml#rollback-<run-id>"], n: "retro <slug>", t: "release deploy publish tag merge undo revert" },
     { g: "stage", id: "retro", st: "09", name: "retro", syn: ["retro <slug|pr#N|branch>"],
       d: "The post-mortem. It turns lessons into concrete changes to prompts, hooks, repo instructions, tests and automation. Batch mode retros every slug on the branch and adds the lessons that span all of them.",
-      w: ["10-retro.md"], n: "Done", t: "post-mortem lessons learn" },
+      w: ["retro.yaml#retro"], n: "Done", t: "post-mortem lessons learn" },
 
     { g: "build", id: "intake-fix", name: "intake fix", b: ["lane"], syn: ["intake fix <description>", "intake <slug> fix <description>"],
       d: "For a small change with an obvious correction. One run writes the brief, shape, slice and plan on a fix/<slug> branch, then stops at a gate before implement. The same quality gates follow as for any workflow.",
-      w: ["01-fix.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "bug typo small broken" },
+      w: ["intake.yaml#fix", "intake.yaml#shape", "slices.yaml#slice", "slices.yaml#plan"], n: "implement <slug>", t: "bug typo small broken" },
     { g: "build", id: "intake-hotfix", name: "intake hotfix", b: ["lane"], syn: ["intake hotfix <description>", "intake <slug> hotfix <description>"],
       d: "For a production emergency. The same single-pass planning as fix, with a hard scope lock, a branch off the production branch and up to two acceptance criteria. Review defaults to the security dimension, and the full tail runs through retro.",
-      w: ["01-hotfix.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "incident outage production down emergency urgent" },
+      w: ["intake.yaml#hotfix", "intake.yaml#shape", "slices.yaml#slice", "slices.yaml#plan"], n: "implement <slug>", t: "incident outage production down emergency urgent" },
     { g: "build", id: "intake-refactor", name: "intake refactor", b: ["lane"], syn: ["intake refactor <description>", "intake <slug> refactor <description>"],
       d: "Changes structure, not behavior. It captures a behavior baseline before any code moves, plans steps that each keep the build green, and review defaults to the refactor-safety dimension.",
-      w: ["01-refactor.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "restructure clean untangle" },
+      w: ["intake.yaml#refactor", "intake.yaml#shape", "slices.yaml#slice", "slices.yaml#plan"], n: "implement <slug>", t: "restructure clean untangle" },
     { g: "build", id: "intake-update-deps", name: "intake update-deps", b: ["lane"], syn: ["intake update-deps [<package>|--security-only|--audit-only]", "intake <slug> update-deps [description]"],
       d: "Scans every manifest, reads each package's changelog and sorts the updates into risk tiers: security fixes first, then major versions one at a time, then minor and patch updates as one batch. It implements and verifies itself, then goes straight to review. --audit-only stops after the plan.",
-      w: ["01-update-deps.md", "04-plan.md", "05-implement.md", "06-verify.md"], n: "review <slug>", t: "dependencies upgrade packages npm cve bump" },
+      w: ["intake.yaml#update-deps", "slices.yaml#plan", "slices.yaml#implement", "slices.yaml#verify"], n: "review <slug>", t: "dependencies upgrade packages npm cve bump" },
     { g: "build", id: "intake-task", name: "intake task", b: ["gate"], syn: ["intake task <description>", "intake task <task-slug>   # resume", "intake <slug> task <description>"],
       d: "For work whose result is not a code change: a chore, an environment operation such as rotating a key, a document, or coordination with someone outside. Each criterion says how its outcome is observed. Shared, external or irreversible actions always stop for your authorization, and an outcome the agent only claims cannot close a criterion.",
-      w: ["01-task.md", "05-implement.md", "06-verify.md"], n: "Done", t: "chore ops rotate key dns rfc document non-code" },
+      w: ["intake.yaml#task", "slices.yaml#implement", "slices.yaml#verify"], n: "Done", t: "chore ops rotate key dns rfc document non-code" },
     { g: "build", id: "intake-adopt", name: "intake adopt", b: ["solo"], syn: ["intake adopt"],
       d: "The reverse entry. It reads the change already in your working tree and rebuilds the brief, shape, slice, plan and implementation record from it, marked as adopted. You confirm before anything is written, and the workflow lands at verify.",
-      w: ["01-adopt.md", "…", "05-implement.md"], n: "verify <slug>", t: "already done uncommitted existing diff reconstruct" },
+      w: ["intake.yaml#adopt", "…", "slices.yaml#implement"], n: "verify <slug>", t: "already done uncommitted existing diff reconstruct" },
     { g: "build", id: "intake-optimize", name: "intake optimize", b: ["solo"], syn: ["intake optimize <description>", "intake optimize <optimize-slug>   # resume the spec"],
       d: "Sets up a metric loop. You confirm the metric command and its direction, a guard command that must pass after every change, the paths a trial may change, and the budget. Intake runs the metric and the guard once to prove that both work.",
-      more: "lp-optimize", w: ["01-optimize.md", "02-optimize-spec.md"], n: "loop optimize <slug>", t: "faster smaller metric performance benchmark" },
+      more: "lp-optimize", w: ["intake.yaml#optimize", "intake.yaml#optimize-spec"], n: "loop optimize <slug>", t: "faster smaller metric performance benchmark" },
 
     { g: "think", id: "intake-rca", name: "intake rca", b: ["ro", "term"], syn: ["intake rca <symptom>", "intake <slug> rca <symptom>"],
       d: "Root-cause analysis when the cause is unknown. Parallel diagnosis agents return the cause with confidence, blast radius and a suggested fix shape. rca never writes the fix. You record the route (plan, fix or hotfix), and the diagnosis travels with the next workflow.",
-      w: ["01-rca.md", "02-shape.md"], n: "intake rca <slug> <route>", t: "why broken root cause regression diagnose" },
+      w: ["intake.yaml#rca", "intake.yaml#shape"], n: "intake rca <slug> <route>", t: "why broken root cause regression diagnose" },
     { g: "think", id: "intake-investigate", name: "intake investigate", b: ["ro", "term"], syn: ["intake investigate <problem>", "intake investigate <slug> <option>   # record your pick"],
       d: "Sketches every distinct way to solve an open design question, up to three as full cards with scope, risk, effort, reversibility and the unknown that could kill each one. It never picks the winner: you do, and the pick closes the workflow.",
-      w: ["01-investigate.md"], n: "intake … from <slug>", t: "options approaches how should we choose compare" },
+      w: ["intake.yaml#investigate"], n: "intake … from <slug>", t: "options approaches how should we choose compare" },
     { g: "think", id: "intake-discover", name: "intake discover", b: ["ro", "term"], syn: ["intake discover <hypothesis>", "intake <slug> discover <hypothesis>"],
       d: "Tests one claim against the code: is X actually the case? Agents argue for it, argue against it and propose counter-hypotheses. The verdict is holds, partial, fails or inconclusive, with cited evidence.",
-      w: ["01-discover.md"], n: "the route the verdict names", t: "is it true feasible hypothesis question check" },
+      w: ["intake.yaml#discover"], n: "the route the verdict names", t: "is it true feasible hypothesis question check" },
     { g: "think", id: "intake-audit", name: "intake audit", b: ["ro", "term"], syn: ["intake audit <concern> [paths…]", "intake audit <audit-slug>   # re-run, same ledger", "intake <slug> audit <concern>"],
       d: "Hunts unknown defects in a named subsystem when there is no symptom, no hypothesis and no diff. You confirm the file surface first. Review rubrics serve as lenses, and every candidate finding must survive refutation. Each accepted finding routes to its own command.",
-      w: ["01-audit.md", "07-review.md", "07-review-<lens>.md"], n: "each finding routes · close <slug> retires it", t: "bugs defects hunt subsystem assumptions" },
+      w: ["intake.yaml#audit", "findings.yaml", "review.yaml"], n: "each finding routes · close <slug> retires it", t: "bugs defects hunt subsystem assumptions" },
     { g: "think", id: "intake-ideate", name: "intake ideate", b: ["ro", "term"], syn: ["intake ideate [sources] [research] [issues] [lens] [count] [topic]", "intake ideate <ideate-slug> <idea-id> [<idea-id>…]", "intake ideate <ideate-slug> refresh", "intake <slug> ideate [area]"],
       d: "Surfaces work nobody asked for. Agents scan six lenses (quality, performance, security, DX, feature gaps, architecture), cull weak ideas and rank the rest by impact, effort and confidence. Sources such as a URL, a file, react@19.0.0, an issue link, issues or research add a seventh lens. Pick ideas by id to write work packets.",
-      more: "ideate-guide", w: ["01-ideate.md", "ideate-work.json", "work/index.md", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "ideas suggestions improve what next roadmap github issues" },
+      more: "ideate-guide", w: ["intake.yaml#ideate", "ideate-work.json", "work/index.md", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "ideas suggestions improve what next roadmap github issues" },
     { g: "think", id: "intake-brainstorm", name: "intake brainstorm", b: ["you"],
       syn: ["intake brainstorm <idea>", "intake brainstorm design <idea>", "intake brainstorm <brainstorm-slug> [design]   # resume", "intake brainstorm <brainstorm-slug> add <text>", "intake <slug> brainstorm design [idea]", "intake <slug> brainstorm <topic>"],
       d: "A thinking partner for a half-formed idea. Each turn is a batch of one to four plain questions, and the board stays open until you say done. In a reply, steer with park, pull, drop, board, look it up, second opinion, cohere, pause or done. design focuses on how the idea looks and behaves, with rough sketches. At done you keep or cut each item and agree the work packets.",
-      more: "brainstorm-guide", w: ["01-brainstorm.md", "brainstorm-board.json", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "think idea explore discuss rubber duck sketch" },
+      more: "brainstorm-guide", w: ["intake.yaml#brainstorm", "brainstorm-board.json", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "think idea explore discuss rubber duck sketch" },
     { g: "think", id: "intake-simplify", name: "intake simplify", b: ["nocode"], syn: ["intake simplify [branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]", "intake <slug> simplify [scope]"],
       d: "Three reviewers (reuse, quality, efficiency) sweep one scope, the branch diff by default, and route each finding to the command that should fix it. Simplify also collects sdlc-debt: markers from the whole repo.",
-      w: ["01-simplify.md"], n: "the routed commands", t: "cleanup duplication tidy debt" },
+      w: ["intake.yaml#simplify"], n: "the routed commands", t: "cleanup duplication tidy debt" },
 
     { g: "grow", id: "intake-extend", name: "intake <slug> <scope>", b: ["slug"], syn: ["intake <slug> <new scope>", "intake <slug> from-review", "intake <slug> from-retro"],
       d: "An existing slug plus free text adds full new slices to that workflow. Built work is never re-specified in place: a correction is always a new slice. from-review, from-retro, from-probe and from-simplify take the scope from findings. Extending a closed workflow revives it.",
-      w: ["03-slice-<new>.md"], n: "plan <slug> <new-slice>", t: "extension extend add more scope follow-on" },
+      w: ["slice-<new>.yaml#slice"], n: "plan <slug> <new-slice>", t: "extension extend add more scope follow-on" },
     { g: "grow", id: "intake-attach", name: "intake <slug> <mode>", b: ["slug"], syn: ["intake <slug> <mode> <description>"],
       d: "An existing slug plus a mode word runs that mode as one compressed slice on the workflow: no new workflow and no new branch. Every mode can attach this way except adopt and optimize.",
-      w: ["03-slice-<mode>-<descriptor>.md"], n: "per mode", t: "compressed slice attach mid-flight" },
+      w: ["slice-<mode>-<descriptor>.yaml#slice"], n: "per mode", t: "compressed slice attach mid-flight" },
     { g: "grow", id: "intake-packet", name: "intake <mode> <packet-slug>", syn: ["intake investigate|discover|rca|task <packet-slug>"],
       d: "Runs an investigate, discover, rca or task work packet that a brainstorm or an ideate pick wrote. The new workflow takes the packet slug and starts from the packet. A build packet is refused: /wf campaign <source-slug> opens and builds it.",
       w: ["per the packet's form"], n: "per mode", t: "work packet brainstorm ideate list" },
 
     { g: "maint", id: "intake-amend", name: "intake <slug> amend", b: ["slug"], syn: ["intake <slug> amend <what to change>"],
       d: "Edits the recorded configuration of a workflow against a strict list: branch strategy, branch, base branch, review scope, title and tags. Nothing else. New scope is an extension; wrong behavior is a fix slice.",
-      w: ["00-index.md", "INDEX.md row"], n: "unchanged", t: "change config rename branch title tags" },
+      w: ["state.yaml", "meta.yaml", "INDEX.md row"], n: "unchanged", t: "change config rename branch title tags" },
     { g: "maint", id: "intake-modernize", name: "intake <slug> modernize", b: ["slug"], syn: ["intake <slug> modernize"],
       d: "Backfills an older workflow's artifacts to the schema the installed plugin expects. Strictly additive: it never rewrites a decision, a verdict or an acceptance criterion. Intake also offers it when you extend an old workflow.",
       w: ["fields in existing files"], n: "the largest remaining gap", t: "upgrade old schema backfill migrate" },
     { g: "maint", id: "intake-close", name: "intake <slug> close", b: ["slug"], syn: ["intake <slug> close [reason]", "intake <slug> close <slice> [reason]"],
       d: "Ends the whole workflow at the stage it reached, or ends one slice so the slices after it are unblocked. Reasons: cancelled, superseded, deferred, completed-externally, merged-into. Close deletes nothing and edits no code.",
-      w: ["99-close.md", "skip-slice-<slice>.md"], n: "Done · or · the next slice", t: "stop cancel abandon end skip finish archive" },
+      w: ["retro.yaml#close", "skip-slice-<slice>.md"], n: "Done · or · the next slice", t: "stop cancel abandon end skip finish archive" },
 
     { g: "drive", id: "probe", name: "probe", b: ["nocode"], syn: ["probe <slug> [<target>|sweep]", "probe sweep [<path>]"],
       d: "Drives the running app, not the code, and compares what it observes with the acceptance criteria. sweep checks the whole user surface against the criteria, the charter and nine classes of surface defect. As the first word, sweep runs on any repo with no workflow at all.",
-      w: ["03-slice-probe-<descriptor>.md", ".ai/surface-sweep-<date>.md"], n: "the routed fixes", t: "runtime check app works manual qa smoke" },
+      w: ["slice-probe-<descriptor>.yaml#slice", ".ai/surface-sweep-<date>.md"], n: "the routed fixes", t: "runtime check app works manual qa smoke" },
     { g: "drive", id: "yolo", name: "yolo", b: ["stop"], syn: ["yolo <slug> [<slice>]"],
       d: "Runs the stages of a started workflow one after another: per slice, plan, implement, verify and review. It settles each implementation detail by a written decision policy and records every decision. A decision that touches intent stops the run as a question to you, and the next run carries your answer. With a slice, it drives that slice only. It never opens a PR. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes.",
       w: [".driver-journal.jsonl"], n: "ship <slug>", t: "autonomous unattended driver run all stages automatic" },
@@ -1420,17 +1420,17 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       more: "lp-goal", w: ["goal.md", "goal/checks.jsonl"], n: "loop goal <slug> resume", t: "keep going long running many turns objective" },
     { g: "drive", id: "loop-optimize", name: "loop optimize", syn: ["loop optimize <slug>", "loop optimize <description>"],
       d: "Change the code, measure one number, keep or revert. A script makes every git write and measurement, and trials run in a separate worktree, so your tree is never reset. A change is kept only when its gain beats twice the noise and a confirm run agrees. The kept trials become one slice for verify and review. The driver runs on Claude Code; elsewhere, loop goal carries it.",
-      more: "lp-optimize", w: ["optimize/results.jsonl", "05-implement-optimize.md"], n: "verify <slug> optimize", t: "faster smaller metric performance tune" },
+      more: "lp-optimize", w: ["optimize/results.jsonl", "slice-optimize.yaml#implement"], n: "verify <slug> optimize", t: "faster smaller metric performance tune" },
     { g: "drive", id: "loop-prototype", name: "loop prototype", syn: ["loop prototype <idea>", "loop prototype <slug> [request]", "loop prototype <slug> exit park|graduate|close"],
       d: "Proves an idea by running code in its own worktree on a poc/<slug> branch. Each request of yours runs one round: research, prove, compare, diagnose, decide, generalize, document or talk. Every proof gets a card with its evidence and a repeat run. Only a decide round commits. graduate prints the intake command for a real workflow.",
-      more: "lp-prototype", w: ["prototype-ledger.json", "01-prototype.md", "report.html"], n: "loop prototype <slug> <request>", t: "poc spike experiment proof of concept try" },
+      more: "lp-prototype", w: ["prototype-ledger.json", "intake.yaml#prototype", "report.html"], n: "loop prototype <slug> <request>", t: "poc spike experiment proof of concept try" },
 
     { g: "nav", id: "status", name: "status", b: ["ro"], syn: ["status", "status <slug|pr#N|branch> [deep]", "status advise [<branch>|pr#N|fast]"],
       d: "With no argument, the table of every workflow. With a slug, where it stands and the exact next command. deep checks for drift against code, git and dependencies. advise ranks what to do next across every open workflow. Every run first reconciles INDEX.md with the disk.",
-      w: ["INDEX.md", "00-sync.md (deep)"], n: "the command it prints", t: "where am i dashboard list next lost overview" },
+      w: ["INDEX.md", "augment.yaml#sync (deep)"], n: "the command it prints", t: "where am i dashboard list next lost overview" },
     { g: "nav", id: "status-recap", name: "status recap", b: ["ro"], syn: ["status recap <slug|pr#N|branch> [<slice>|plan|shape|slice|review|findings]"],
       d: "A plain-language catch-up: what was decided, built and checked, and where the workflow stands. Name a slice to recap one slice, or a focus word to have one artifact explained. A branch tells the combined story. Recap never moves the workflow forward.",
-      w: ["90-recap.md"], n: "the command it names", t: "catch up summary story explain what happened resume" },
+      w: ["retro.yaml#recap"], n: "the command it names", t: "catch up summary story explain what happened resume" },
     { g: "nav", id: "project-ship-plan", name: "project ship-plan", syn: ["project ship-plan init [--from-template <kind>]", "project ship-plan build [--dry-run]", "project ship-plan edit", "project ship-plan audit [<lens>|triage]"],
       d: "The release-pipeline contract that ship reads. init writes .ai/ship-plan.md, optionally from a template: npm-public, pypi, container-image, server-deploy, kotlin-maven-central, library-internal. build brings the repo and CI into line. edit amends one block. audit reviews soundness across seven lenses and fixes nothing.",
       w: [".ai/ship-plan.md", ".ai/ship-plan-audit.md"], n: "ship <slug>", t: "release pipeline ci cd setup publish" },
@@ -1511,20 +1511,18 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
   var FILES = [
     ["INDEX.md", "every run", "The registry of all workflows, one row each. Lives in .ai/workflows/."],
-    ["00-index.md", "intake", "The workflow's state: stage, slices, branch, review scope."],
-    ["01-<mode>.md", "intake", "The brief: 01-intake.md, 01-fix.md, 01-rca.md, 01-brainstorm.md and so on."],
-    ["02-shape.md", "intake", "The mini-spec with acceptance criteria, from the shape phase. 02b-design.md is the design brief."],
-    ["02c-craft.md", "design", "The approved visual contract. It names the approved screens of .ai/design/ and the approval commit."],
-    ["03-slice.md", "slice", "The slice index, plus one 03-slice-<slice>.md per slice."],
-    ["04-plan-<slice>.md", "plan", "The implementation plan of one slice."],
-    ["05-implement-<slice>.md", "implement", "What was built, linked to the slice and the plan."],
-    ["06-verify-<slice>.md", "verify", "Checks and acceptance evidence. Raw output in verify-evidence/<slice>/."],
-    ["07-review.md", "review", "The accumulating findings ledger, plus one file per dimension."],
-    ["08-handoff.md", "ship", "The PR package and branch readiness, from the PR phase."],
-    ["09-ship-run-<run-id>.md", "ship", "One release run. 09-ship-runs.md lists them all."],
-    ["10-retro.md", "retro", "Lessons and the changes they caused."],
-    ["90-recap.md", "status recap", "The plain-language story of the workflow."],
-    ["99-close.md", "intake close", "Why and where the workflow ended."],
+    ["state.yaml", "every stage", "The index, part 1: stage, slice, branch, status, open questions, person tasks, the next command and progress. Record name: 00-index.md (index in commands)."],
+    ["meta.yaml", "intake", "The index, part 2: title, type, dates, branch strategy, base branch, PR and tags."],
+    ["intake.yaml", "intake and its modes", "The brief of intake or of the mode (section intake, fix, rca, brainstorm and so on), and the shape with its acceptance criteria. Record names: 01-<mode>.md, 02-shape.md, 02-optimize-spec.md."],
+    ["design.yaml", "design", "The design brief, the approved visual contract with its screen keys and approval commit, and the design audit and critique. Record names: 02b-design.md, 02c-craft.md, 07-design-audit.md, 07-design-critique.md."],
+    ["slices.yaml", "slice", "The roster of slices, and the plan, implement and verify summaries. Record names: 03-slice.md, 04-plan.md, 05-implement.md, 06-verify.md."],
+    ["slice-<slice>.yaml", "slice, plan, implement, verify", "One slice: its slice, plan, implement and verify sections. Raw verify output is in verify-evidence/<slice>/. Record names: 03-slice-<slice>.md to 06-verify-<slice>.md."],
+    ["review.yaml · review-<slice>.yaml", "review", "The review of the whole workflow, or of one slice, written from the findings ledger, with one section per review command. Record names: 07-review.md, 07-review-<slice>.md."],
+    ["findings.yaml", "review, intake audit", "The accumulating findings ledger. Each review run merges into it."],
+    ["augment.yaml", "the add-ons, status deep", "The add-ons, for example a benchmark, an experiment or instrumentation, and the drift sync of status deep. Record names: 04b-…, 04c-…, 05b-… to 05z-…, 08b-…, 00-sync.md."],
+    ["ship.yaml", "ship", "The PR phase, each release run, the run list and the rollbacks. Record names: 08-handoff.md, 09-ship-run-<run-id>.md, 09-ship-runs.md, 09-rollback-<run-id>.md."],
+    ["retro.yaml", "retro, status recap, intake close", "The lessons and the changes they caused, the plain-language recap, and why the workflow ended. Record names: 10-retro.md, 90-recap.md, 99-close.md."],
+    ["decisions.yaml", "wf.mjs decide", "Your answers, approvals, try-out results and standing instructions."],
     ["work/<packet>.md", "brainstorm, ideate", "A work packet: decisions word for word, findings, and its state in the campaign."],
     [".ai/ship-plan.md", "project ship-plan", "The project's release contract. Ship reads it."],
     [".ai/observability.md", "project observability", "The project's telemetry contract."]
@@ -1603,7 +1601,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["decisions.yaml", "absent", "Your answers and standing instructions for one workflow (\"no new runtime deps\"). Only wf.mjs decide writes it. Every stage and sub-agent reads the live entries. Chat outranks a steer entry, and a steer entry never overrides a mandatory gate. Say \"add to steering: …\" to have one recorded."],
       ["intake <slug> amend", "none", "Changes branch strategy, branch, base branch, review scope, title and tags. Nothing else."],
       ["sdlc-debt: <note>", "none", "A code comment that records accepted debt. The suppression check looks for it; simplify and ideate collect it."],
-      ["02-optimize-spec.md", "see Loops", "The metric, guard, budget and branch rounds of one optimize slug."],
+      ["intake.yaml#optimize-spec", "see Loops", "The metric, guard, budget and branch rounds of one optimize slug."],
       ["goal.md max-checks", "30", "How many checks a goal runs before it blocks. Set with --max-checks at arm."]
     ] }
   ];
