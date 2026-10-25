@@ -21,11 +21,17 @@
     return el;
   };
   const params = new URLSearchParams(location.search);
-  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null };
+  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false };
   let data = null;
-  // On a phone the card is the width of the page less its gutters (canvas.css).
-  const CARD_W = () => (phone() ? window.innerWidth - 32 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 280);
   const phone = () => matchMedia('(max-width: 720px)').matches;
+  // On a phone the card is the width of the page less its gutters (canvas.css).
+  const CARD_W = () => (phone() ? window.innerWidth - 32 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 300);
+  const GAP_X = 64;
+  const LABEL_H = 56;
+  const CAPTION_H = 64;
+  const cap = (s) => (s ? `${String(s)[0].toUpperCase()}${String(s).slice(1)}` : '');
+  const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  const CHECK_NAMES = { contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states' };
 
   function say(text) {
     const s = $('#status');
@@ -38,28 +44,45 @@
     const m = /^(\d+)x(\d+)$/.exec(data.viewports[name] || '1280x800');
     return { width: Number(m[1]), height: Number(m[2]) };
   };
+  /** The second line of a screen: its key, its flow and its workflows. */
+  const metaOf = (s) => [s.key, s.flow ? `${s.flow} flow` : null, (s.workflows || []).length ? `from ${s.workflows.join(', ')}` : null].filter(Boolean).join(', ');
 
   // ------------------------------------------------------------ data
 
   async function load() {
     data = window.WF_STATE || await (await fetch(`${BASE}state.json`, { cache: 'no-store' })).json();
-    $('#repo').textContent = `${data.repo || 'Design'} — canvas`;
-    document.title = `${data.repo || 'Design'} — canvas`;
+    $('#repo').textContent = data.repo || 'Design canvas';
+    document.title = `${data.repo || 'Design'} canvas`;
     const names = Object.keys(data.viewports);
-    ui.viewport = ui.viewport || (names.includes('desktop') ? 'desktop' : names[0]);
-    fill($('#viewport'), names.map((n) => [n, `${n} (${data.viewports[n]})`]), ui.viewport);
-    fill($('#state'), data.states.map((s) => [s, s]), ui.state);
-    fill($('#area'), [['', 'All'], ...data.areas.map((a) => [a, a])], ui.area);
-    fill($('#workflow'), [['', 'All'], ...data.workflows.map((w) => [w, w])], ui.workflow);
+    ui.viewport = ui.viewport || (phone() && names.includes('phone') ? 'phone' : names.includes('desktop') ? 'desktop' : names[0]);
+    // A phone has no room for the size in the dock; the focus sheet shows it.
+    fill($('#viewport'), names.map((n) => [n, phone() ? cap(n) : `${cap(n)} ${data.viewports[n].replace('x', '×')}`]), ui.viewport);
+    fill($('#area'), [['', 'All areas'], ...data.areas.map((a) => [a, cap(a)])], ui.area);
+    fill($('#workflow'), [['', 'All workflows'], ...data.workflows.map((w) => [w, w])], ui.workflow);
+    drawStates();
+    filterCount();
+    barHeight();
     render();
-    if (ui.panel) panel(ui.panel);
+    if (ui.panel) panel(ui.panel, true);
   }
   function fill(sel, rows, value) {
     sel.replaceChildren(...rows.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
   }
+  function drawStates() {
+    $('#states').replaceChildren(...data.states.map((s) => h('button', { type: 'button', class: s === ui.state ? 'on' : null, 'aria-pressed': String(s === ui.state), onclick: () => { ui.state = s; drawStates(); render(); } }, cap(s))));
+  }
+  function filterCount() {
+    const n = [ui.area, ui.workflow, ui.open, ui.failing].filter(Boolean).length;
+    const c = $('#fcount');
+    c.textContent = String(n);
+    c.hidden = n === 0;
+  }
+  function barHeight() {
+    document.documentElement.style.setProperty('--bar-h', `${$('.bar').offsetHeight}px`);
+  }
   const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}at/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
   function frameFor(key, state, at = null) {
-    const f = h('iframe', { title: key, loading: 'lazy', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
+    const f = h('iframe', { title: key, loading: 'lazy', tabindex: '-1', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
     // A snapshot screen has no query string, so the state is set after the page's own script.
     if (SNAP) f.srcdoc = (SNAP.screens[key] || '').replace('</head>', `<style>${SNAP.tokens || ''}</style><script>document.documentElement.dataset.state=${JSON.stringify(state)}<\/script></head>`);
     else f.src = screenUrl(key, state, at);
@@ -78,23 +101,25 @@
     return true;
   }
 
+  const frameH = () => Math.round(CARD_W() * vp().height / vp().width);
+
   /** The automatic place of each screen: columns by area (or rows by flow), in flow order. */
   function autoLayout(list) {
-    const w = CARD_W() + 40;
-    const v = vp();
-    const cardH = Math.round(CARD_W() * v.height / v.width) + 64;
+    const w = CARD_W() + GAP_X;
+    const cardH = frameH() + CAPTION_H;
     const pos = {};
     const labels = [];
-    const groupKey = ui.view === 'flow' ? (s) => s.flow || '(no flow)' : (s) => s.area || '(no area)';
+    const groupKey = ui.view === 'flow' ? (s) => s.flow || 'No flow' : (s) => s.area || 'No area';
     const groups = [...new Set(list.map(groupKey))];
     groups.forEach((g, gi) => {
       const members = list.filter((s) => groupKey(s) === g).sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.key.localeCompare(b.key));
       if (ui.view === 'flow') {
-        labels.push({ text: g, x: 0, y: gi * (cardH + 60) });
-        members.forEach((s, i) => { pos[s.key] = { x: i * w, y: gi * (cardH + 60) + 26 }; });
+        const y = gi * (cardH + LABEL_H + 48);
+        labels.push({ text: g, n: members.length, x: 0, y });
+        members.forEach((s, i) => { pos[s.key] = { x: i * w, y: y + LABEL_H }; });
       } else {
-        labels.push({ text: g, x: gi * w, y: 0 });
-        members.forEach((s, i) => { pos[s.key] = { x: gi * w, y: 26 + i * (cardH + 20) }; });
+        labels.push({ text: g, n: members.length, x: gi * w, y: 0 });
+        members.forEach((s, i) => { pos[s.key] = { x: gi * w, y: LABEL_H + i * (cardH + 32) }; });
       }
     });
     return { pos, labels };
@@ -106,49 +131,65 @@
     board.replaceChildren(edges);
     edges.replaceChildren();
     const list = data.screens;
+    if (!list.length) {
+      board.append(h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Run wf.mjs design screen add to add the first one.'));
+      place();
+      return;
+    }
     const { pos, labels } = autoLayout(list);
     const at = (s) => (ui.view === 'grid' && s.position ? s.position : pos[s.key]);
-    if (!phone()) for (const l of labels) board.append(h('div', { class: 'area-label', style: `left:${l.x}px;top:${l.y}px` }, l.text));
+    if (!phone()) for (const l of labels) board.append(h('h2', { class: 'area-label', style: `left:${l.x}px;top:${l.y}px` }, cap(l.text), h('small', {}, plural(l.n, 'screen'))));
     const v = vp();
     const scale = CARD_W() / v.width;
     for (const s of list) {
       const p = at(s);
       const failures = (s.failures || []).filter((f) => f.viewport === ui.viewport && f.state === ui.state);
       const approved = (s.approvals || []).at(-1);
-      const frame = h('div', { class: 'frame', style: `height:${Math.round(v.height * scale)}px`, onclick: () => focus(s.key) }, frameFor(s.key, ui.state));
+      const open = () => focus(s.key);
+      const frame = h('div', { class: 'frame', role: 'button', tabindex: '0', 'aria-label': `Open ${s.title}`, style: `height:${Math.round(v.height * scale)}px`, onclick: open,
+        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } }, frameFor(s.key, ui.state));
       const iframe = frame.firstChild;
       iframe.style.width = `${v.width}px`;
       iframe.style.height = `${v.height}px`;
       iframe.style.transform = `scale(${scale})`;
       const card = h('article', { class: `card${matches(s) ? '' : ' dim'}`, 'data-key': s.key, style: phone() ? '' : `left:${p.x}px;top:${p.y}px` },
-        h('header', {}, h('b', { title: s.title }, s.title),
-          s.openComments ? h('span', { class: 'badge pin', title: 'Open comments' }, `${s.openComments} open`) : null,
-          failures.length ? h('span', { class: 'badge warn', title: 'Checks that fail in this viewport and state' }, `${failures.length} check${failures.length > 1 ? 's' : ''}`) : null,
-          approved ? h('span', { class: 'badge ok', title: `Approved in ${approved.commit}` }, 'approved') : null),
-        h('div', { class: 'key' }, `${s.key}${s.flow ? ` · ${s.flow}` : ''}${(s.workflows || []).length ? ` · ${s.workflows.join(', ')}` : ''}`),
-        frame);
-      if (!phone() && data.writable && ui.view === 'grid') dragCard(card.querySelector('header'), card, s);
+        frame,
+        h('header', { class: 'cap' },
+          h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
+            s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
+            failures.length ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures.length, 'issue')) : null,
+            approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
+          h('div', { class: 'meta', title: metaOf(s) }, metaOf(s))));
+      if (!phone() && data.writable && ui.view === 'grid') dragCard(card.querySelector('.cap'), card, s);
       board.append(card);
     }
     if (ui.view === 'flow' && !phone()) drawEdges(list, at);
-    place();
+    // Arrange shows only while a dragged screen is out of its column.
+    const moved = list.some((s) => s.position && (s.position.x !== pos[s.key].x || s.position.y !== pos[s.key].y));
+    $('#arrange').hidden = !(data.writable && ui.view === 'grid' && !phone() && moved);
+    if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
   }
 
   function drawEdges(list, at) {
     const edges = $('#edges');
-    const v = vp();
-    const cardH = Math.round(CARD_W() * v.height / v.width) + 64;
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+    const marker = el('marker', { id: 'arrow', viewBox: '0 0 8 8', refX: '7', refY: '4', markerWidth: '8', markerHeight: '8', orient: 'auto' });
+    marker.append(el('path', { d: 'M0,0 L8,4 L0,8 z', class: 'head' }));
+    const defs = el('defs', {});
+    defs.append(marker);
+    edges.append(defs);
+    const mid = frameH() / 2;
     const byKey = Object.fromEntries(list.map((s) => [s.key, s]));
     for (const s of list) {
       for (const to of s.links || []) {
         if (!byKey[to] || to === s.key) continue;
         const a = at(s);
         const b = at(byKey[to]);
-        const x1 = a.x + CARD_W(); const y1 = a.y + cardH / 2;
-        const x2 = b.x; const y2 = b.y + cardH / 2;
-        const mid = (x1 + x2) / 2;
-        edges.append(Object.assign(document.createElementNS('http://www.w3.org/2000/svg', 'path'), {}));
-        edges.lastChild.setAttribute('d', `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`);
+        const x1 = a.x + CARD_W() + 6; const y1 = a.y + mid;
+        const x2 = b.x - 8; const y2 = b.y + mid;
+        const c = Math.max(40, Math.abs(x2 - x1) / 2);
+        edges.append(el('path', { d: `M${x1},${y1} C${x1 + c},${y1} ${x2 - c},${y2} ${x2},${y2}`, 'marker-end': 'url(#arrow)' }));
       }
     }
   }
@@ -156,7 +197,47 @@
   // ------------------------------------------------------------ pan, zoom, drag
 
   function place() {
-    $('#board').style.transform = phone() ? 'none' : `translate(${ui.x}px, ${ui.y}px) scale(${ui.zoom})`;
+    const stage = $('#stage');
+    if (phone()) {
+      $('#board').style.transform = 'none';
+      stage.style.backgroundSize = '';
+      stage.style.backgroundPosition = '';
+      return;
+    }
+    $('#board').style.transform = `translate(${ui.x}px, ${ui.y}px) scale(${ui.zoom})`;
+    // The dots move with the board, so the grid reads as the surface the screens lie on.
+    const g = 24 * ui.zoom;
+    stage.style.backgroundSize = `${g}px ${g}px`;
+    stage.style.backgroundPosition = `${ui.x}px ${ui.y}px`;
+    $('#zval').textContent = `${Math.round(ui.zoom * 100)}%`;
+  }
+  function zoomTo(next, mx, my) {
+    const z = Math.min(3, Math.max(0.15, next));
+    ui.x = mx - (mx - ui.x) * z / ui.zoom;
+    ui.y = my - (my - ui.y) * z / ui.zoom;
+    ui.zoom = z;
+    place();
+  }
+  function zoomBy(factor) {
+    const r = $('#stage').getBoundingClientRect();
+    zoomTo(ui.zoom * factor, r.width / 2, r.height / 2);
+  }
+  /** Show every screen: the board at the zoom that fits the stage, never above 100 %. */
+  function fit() {
+    const items = [...document.querySelectorAll('#board > .card, #board > .area-label')];
+    if (!items.length) { place(); return; }
+    let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+    for (const c of items) {
+      x0 = Math.min(x0, c.offsetLeft); y0 = Math.min(y0, c.offsetTop);
+      x1 = Math.max(x1, c.offsetLeft + c.offsetWidth); y1 = Math.max(y1, c.offsetTop + c.offsetHeight);
+    }
+    const r = $('#stage').getBoundingClientRect();
+    const pad = 48;
+    const dock = 80;
+    ui.zoom = Math.min(1, Math.max(0.15, Math.min((r.width - pad * 2) / (x1 - x0), (r.height - pad - dock) / (y1 - y0))));
+    ui.x = Math.max(pad, (r.width - (x1 - x0) * ui.zoom) / 2) - x0 * ui.zoom;
+    ui.y = pad - y0 * ui.zoom;
+    place();
   }
   function panZoom() {
     const stage = $('#stage');
@@ -193,12 +274,7 @@
       if (phone()) return;
       e.preventDefault();
       const r = stage.getBoundingClientRect();
-      const mx = e.clientX - r.left; const my = e.clientY - r.top;
-      const next = Math.min(3, Math.max(0.15, ui.zoom * Math.exp(-e.deltaY * 0.0015)));
-      ui.x = mx - (mx - ui.x) * next / ui.zoom;
-      ui.y = my - (my - ui.y) * next / ui.zoom;
-      ui.zoom = next;
-      place();
+      zoomTo(ui.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
     }, { passive: false });
   }
 
@@ -224,6 +300,14 @@
       handle.addEventListener('pointerup', up);
     });
   }
+  /** Put every screen back in its column, and save those places. */
+  function arrange() {
+    const { pos } = autoLayout(data.screens);
+    for (const s of data.screens) s.position = pos[s.key];
+    ui.fitted = false;
+    render();
+    saveLayout();
+  }
   async function saveLayout() {
     const positions = Object.fromEntries(data.screens.filter((s) => s.position).map((s) => [s.key, s.position]));
     const r = await fetch(`${BASE}layout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ positions }) });
@@ -233,14 +317,21 @@
   // ------------------------------------------------------------ one screen
 
   let focusState = null;
+  let focusFrom = null;
   function focus(key, opts = {}) {
     const s = data.screens.find((x) => x.key === key);
     if (!s) return;
+    focusFrom = document.activeElement;
     focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, commenting: false, compare: '', capture: false, all: false };
     drawFocus();
     $('#focus').hidden = false;
+    $('#focus .close')?.focus();
   }
-  function closeFocus() { $('#focus').hidden = true; focusState = null; }
+  function closeFocus() {
+    $('#focus').hidden = true;
+    focusState = null;
+    focusFrom?.focus?.();
+  }
 
   function selectorOf(el) {
     if (!el || el.nodeType !== 1) return null;
@@ -261,22 +352,27 @@
     content.style.transform = `scale(${scale})`;
     return box;
   }
+  function segOf(values, value, on, label) {
+    return h('div', { class: 'seg', role: 'group', 'aria-label': label },
+      ...values.map((v) => h('button', { type: 'button', class: v === value ? 'on' : null, 'aria-pressed': String(v === value), onclick: () => on(v) }, cap(v))));
+  }
+  const toggle = (text, on, fn) => h('button', { type: 'button', class: 'btn', 'aria-pressed': String(Boolean(on)), onclick: fn }, text);
 
   function drawFocus() {
     const f = focusState;
     const s = data.screens.find((x) => x.key === f.key);
     const size = vp(f.viewport);
-    const pane = phone() ? window.innerWidth - 32 : Math.min(window.innerWidth - 420, window.innerWidth * 0.62);
     const panes = f.compare || f.capture ? 2 : 1;
-    const scale = Math.min(1, (pane / panes - 16) / size.width, phone() ? 1 : (window.innerHeight - 140) / size.height);
+    const room = phone() ? window.innerWidth - 32 : window.innerWidth - 32 - 340 - 48;
+    const scale = Math.min(1, (room - (panes - 1) * 24) / panes / size.width, phone() ? 1 : (window.innerHeight - 240) / size.height);
     const view = h('div', { class: 'view' });
-    const live = shot('Now', frameFor(s.key, f.state), size, scale);
+    const live = shot(f.compare || f.capture ? 'Now' : `${cap(f.viewport)}, ${f.state} state`, frameFor(s.key, f.state), size, scale);
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` });
     live.append(overlay);
     if (f.checks) {
       for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
         if (!x.rect) continue;
-        overlay.append(h('div', { class: 'box', title: x.message, style: `left:${x.rect.x * scale}px;top:${x.rect.y * scale}px;width:${x.rect.width * scale}px;height:${x.rect.height * scale}px` }, h('span', {}, x.check)));
+        overlay.append(h('div', { class: 'box', title: x.message, style: `left:${x.rect.x * scale}px;top:${x.rect.y * scale}px;width:${x.rect.width * scale}px;height:${x.rect.height * scale}px` }, h('span', {}, CHECK_NAMES[x.check] || x.check)));
       }
     }
     s.threads.forEach((t, i) => {
@@ -296,38 +392,56 @@
     if (f.compare) view.append(shot(`At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
     if (f.capture) {
       const approval = (s.approvals || []).at(-1);
-      const cap = (s.captures || [])[0];
-      view.append(shot(cap ? `Capture ${cap.slice}` : 'No capture yet', h('img', { alt: 'capture', src: cap ? `${BASE}${cap.url}` : (approval ? `${BASE}approvals/${approval.commit}/${s.key}.png` : '') }), size, scale));
+      const shotOf = (s.captures || [])[0];
+      const src = shotOf ? `${BASE}${shotOf.url}` : (approval ? `${BASE}approvals/${approval.commit}/${s.key}.png` : '');
+      view.append(shot(shotOf ? `Built, slice ${shotOf.slice}` : approval ? 'Approval picture' : 'No capture yet', h('img', { alt: shotOf ? 'The built screen' : 'The approved screen', src }), size, scale));
     }
-    const versions = [...(s.approvals || []).map((a) => [a.commit, `approved ${String(a.at).slice(0, 10)} (${a.commit.slice(0, 8)})`]),
-      ...(s.history || []).filter((c) => !(s.approvals || []).some((a) => a.commit === c.commit)).map((c) => [c.commit, `${String(c.at).slice(0, 10)} ${c.subject}`])];
+    const versions = [...(s.approvals || []).map((a) => [a.commit, `Approved ${String(a.at).slice(0, 10)}`]),
+      ...(s.history || []).filter((c) => !(s.approvals || []).some((a) => a.commit === c.commit)).map((c) => [c.commit, `${String(c.at).slice(0, 10)}: ${c.subject}`])];
     const header = h('header', {},
-      h('h2', {}, `${s.title} `, h('small', { style: 'color:var(--mute)' }, s.key)),
-      h('label', {}, 'Viewport ', sel(Object.keys(data.viewports), f.viewport, (v) => { f.viewport = v; drawFocus(); })),
-      h('label', {}, 'State ', sel(data.states, f.state, (v) => { f.state = v; drawFocus(); })),
-      h('button', { type: 'button', class: `btn${f.checks ? ' on' : ''}`, onclick: () => { f.checks = !f.checks; drawFocus(); } }, 'Checks'),
-      data.writable ? h('button', { type: 'button', class: `btn${f.commenting ? ' on' : ''}`, onclick: () => { f.commenting = !f.commenting; drawFocus(); } }, f.commenting ? 'Tap the screen…' : 'Comment') : null,
-      SNAP ? null : h('label', {}, 'Compare ', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'none'], ...versions])))
-      , h('button', { type: 'button', class: `btn${f.capture ? ' on' : ''}`, onclick: () => { f.capture = !f.capture; drawFocus(); } }, 'Capture'),
-      h('button', { type: 'button', class: 'btn', onclick: closeFocus, 'aria-label': 'Close' }, 'Close'));
-    const threads = h('section', { class: 'threads' },
-      h('div', { class: 'row' }, h('b', { style: 'flex:1' }, `${s.threads.filter((t) => t.open).length} open thread(s)`),
-        h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), ' Show resolved')),
-      ...s.threads.filter((t) => f.all || t.open).map((t) => threadView(s, t)),
-      (s.failures || []).length ? h('div', {}, h('h3', {}, 'Checks'), h('ul', {}, ...(s.failures || []).map((x) => h('li', {}, `${x.check} (${x.viewport}, ${x.state}): ${x.message}${x.move ? ` — move: ${x.move}` : ''}`)))) : null);
-    $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, view, threads));
+      h('h2', {}, s.title, h('small', {}, metaOf(s))),
+      h('button', { type: 'button', class: 'close', onclick: closeFocus, 'aria-label': 'Close' }, '×'));
+    const tools = h('div', { class: 'tools' },
+      segOf(Object.keys(data.viewports), f.viewport, (v) => { f.viewport = v; drawFocus(); }, 'Viewport'),
+      segOf(data.states, f.state, (v) => { f.state = v; drawFocus(); }, 'State'),
+      h('span', { class: 'gap' }),
+      toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
+      data.writable ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; drawFocus(); }) : null,
+      toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
+      SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
+    const openN = s.threads.filter((t) => t.open).length;
+    const shown = s.threads.filter((t) => f.all || t.open);
+    // One entry for each failure, with every viewport where it fails.
+    const failures = Object.values((s.failures || []).reduce((acc, x) => {
+      const k = `${x.check}|${x.state}|${x.message}`;
+      (acc[k] ||= { ...x, viewports: [] }).viewports.push(cap(x.viewport));
+      return acc;
+    }, {}));
+    const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
+    const side = h('section', { class: 'side' },
+      h('h3', {}, 'Comments', openN ? h('span', { class: 'count' }, String(openN)) : null,
+        s.threads.length > openN ? h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), 'Show resolved') : null),
+      shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then tap a point of the screen.' : 'No open comment.'),
+      h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
+      failures.length ? failures.map((x) => h('div', { class: 'check' },
+        h('b', {}, CHECK_NAMES[x.check] || x.check),
+        h('p', {}, x.message),
+        h('small', {}, `${list(x.viewports)}, ${x.state} state.${x.move ? ` The ${x.move} move fixes it.` : ''}`)))
+        : h('p', { class: 'none' }, 'No check fails.'));
+    $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
   }
   function sel(values, value, on, labels = {}) {
     return h('select', { onchange: (e) => on(e.target.value) }, ...values.map((v) => h('option', { value: v, selected: v === value }, labels[v] ?? v)));
   }
   function threadView(s, t) {
     const reply = h('textarea', { placeholder: 'Reply', 'aria-label': 'Reply' });
+    const where = `${cap(t.anchor?.state || 'default')} state${t.anchor?.selector ? `, at ${t.anchor.selector}` : ''}`;
     return h('div', { class: `thread${t.open ? '' : ' closed'}`, id: `t-${t.id}` },
-      ...t.comments.map((c) => h('div', { class: 'c' }, h('b', {}, c.author), ` ${c.text}`)),
-      h('small', { style: 'color:var(--mute)' }, `${t.anchor?.state || 'default'}${t.anchor?.selector ? ` · ${t.anchor.selector}` : ''}`),
+      ...t.comments.map((c) => h('p', { class: 'c' }, h('b', {}, c.author), h('span', {}, c.text))),
+      h('small', {}, where),
       data.writable ? h('div', {}, reply, h('div', { class: 'row' },
         h('button', { type: 'button', class: 'btn primary', onclick: () => post(s.key, { thread: t.id, text: reply.value }) }, 'Reply'),
-        h('button', { type: 'button', class: 'btn', onclick: () => post(s.key, { thread: t.id, text: reply.value, resolve: t.open, reopen: !t.open }) }, t.open ? 'Resolve' : 'Reopen'))) : null);
+        h('button', { type: 'button', class: 'btn quiet', onclick: () => post(s.key, { thread: t.id, text: reply.value, resolve: t.open, reopen: !t.open }) }, t.open ? 'Resolve' : 'Reopen'))) : null);
   }
   function newThread(anchor) {
     const text = window.prompt('Comment on this point of the screen');
@@ -353,26 +467,40 @@
 
   // ------------------------------------------------------------ panels
 
-  function panel(name) {
+  function closePanel() {
+    $('#panel').hidden = true;
+    ui.panel = null;
+    document.querySelectorAll('[data-panel]').forEach((b) => b.classList.remove('on'));
+  }
+  function panel(name, redraw = false) {
     const p = $('#panel');
-    document.querySelectorAll('[data-panel]').forEach((b) => b.classList.toggle('on', b.dataset.panel === name && !(ui.panel === name && !p.hidden && name === panel.last)));
-    if (ui.panel === name && !p.hidden && panel.last === name) { p.hidden = true; ui.panel = null; return; }
+    if (!redraw && ui.panel === name && !p.hidden) { closePanel(); return; }
     ui.panel = name;
-    panel.last = name;
-    const close = h('button', { type: 'button', class: 'close', 'aria-label': 'Close', onclick: () => { p.hidden = true; ui.panel = null; } }, '×');
+    document.querySelectorAll('[data-panel]').forEach((b) => b.classList.toggle('on', b.dataset.panel === name));
+    const close = h('button', { type: 'button', class: 'close', 'aria-label': 'Close', onclick: closePanel }, '×');
+    const approvalText = (c) => (c.approval ? `Approved on ${String(c.approval.at).slice(0, 10)} in ${c.approval.commit.slice(0, 8)}.` : 'Not approved yet.');
+    const checksText = (c) => (c.checks ? (c.checks.passed ? 'All checks pass.' : `${plural(c.checks.failures, 'check')} fail.`) : 'No check has run.');
     const body = {
-      cards: () => [h('h2', {}, 'Design cards'), ...(data.cards.length ? data.cards : [null]).map((c) => (c ? h('div', { class: 'cardbox' },
-        h('b', {}, `${c.workflow} · ${c.slice}`),
-        h('h3', {}, 'Screens'), h('ul', {}, ...c.screens.map((s) => h('li', {}, h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key) }, s.title), ' ', ...s.states.map((st) => h('button', { type: 'button', class: 'linkish', style: 'margin-left:6px', onclick: () => focus(s.key, { state: st }) }, st))))),
-        h('h3', {}, 'Tokens'), h('div', { class: 'chips' }, ...(c.tokens.length ? c.tokens.map((t) => h('span', {}, t)) : ['none'])),
-        h('h3', {}, 'Rules'), c.rules.length ? h('ul', {}, ...c.rules.map((r) => h('li', {}, r))) : h('p', {}, 'No rule of the visual contract names these screens.'),
-        h('h3', {}, 'Approval and checks'), h('p', {}, c.approval ? `Approved ${String(c.approval.at).slice(0, 10)} in ${c.approval.commit.slice(0, 8)}` : 'Not approved yet', ' · ', c.checks ? (c.checks.passed ? 'checks pass' : `${c.checks.failures} check(s) fail`) : 'no check run'),
-        h('h3', {}, 'Open comments'), h('p', {}, c.openComments ? h('button', { type: 'button', class: 'linkish', onclick: () => { ui.open = true; ui.workflow = c.workflow; $('#open').checked = true; $('#workflow').value = c.workflow; render(); } }, `${c.openComments} open — show them`) : 'None'))
-        : h('p', {}, 'No screen belongs to a slice yet.')))],
-      decisions: () => [h('h2', {}, 'Design decisions'), data.decisions.length ? h('ul', {}, ...data.decisions.map((d) => h('li', {}, h('b', {}, d.workflow), ` ${d.question || d.id}: ${d.answer ?? ''}`))) : h('p', {}, 'No design decision is recorded.')],
-      tokens: () => [h('h2', {}, 'Tokens'), h('p', { style: 'color:var(--mute)' }, 'From DESIGN.md. Change them there.'), h('ul', { style: 'list-style:none;padding:0' }, ...data.tokens.map((t) => h('li', {}, h('span', { class: 'swatch', style: `background:${t.value.startsWith('var(') ? '' : t.value}` }), `${t.name}: ${t.value}`)))],
-      references: () => [h('h2', {}, 'References'), data.references.length ? h('ul', {}, ...data.references.map((r) => h('li', {}, SNAP ? r.key : h('a', { href: `${BASE}ref/${r.key}`, target: '_blank', rel: 'noopener' }, r.key), ` (${r.kind || 'other'})${r.note ? `: ${r.note}` : ''} `, r.readable ? h('span', { class: 'badge ok' }, 'readable') : h('span', { class: 'badge warn', title: r.problem }, r.problem)))) : h('p', {}, 'No reference yet.')],
-      explore: () => [h('h2', {}, 'Explore'), data.explore.length ? h('ul', {}, ...data.explore.map((x) => h('li', {}, SNAP ? x.title || x.key : h('a', { href: `${BASE}s/explore/${x.key}.html`, target: '_blank', rel: 'noopener' }, x.title || x.key), x.link ? ` — for ${x.link}` : ''))) : h('p', {}, 'No explore sketch yet.')],
+      cards: () => [h('h2', {}, 'Design cards'), h('p', { class: 'lede' }, 'One card for each slice that changes screens.'),
+        ...(data.cards.length ? data.cards.map((c) => h('div', { class: 'dcard' },
+          h('b', {}, c.workflow, h('span', { class: 'sub' }, c.slice && !String(c.slice).startsWith('(') ? `, slice ${c.slice}` : ', the whole workflow')),
+          h('h3', {}, 'Screens and states'),
+          h('ul', {}, ...c.screens.map((s) => h('li', {}, h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key) }, s.title),
+            h('span', { class: 'states-inline' }, ...s.states.map((st) => h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key, { state: st }) }, st)))))),
+          h('h3', {}, 'Tokens'), h('div', { class: 'chips' }, ...(c.tokens.length ? c.tokens.map((t) => h('span', {}, t)) : ['None'])),
+          h('h3', {}, 'Rules'), c.rules.length ? h('ul', {}, ...c.rules.map((r) => h('li', {}, r))) : h('p', {}, 'No rule of the visual contract names these screens.'),
+          h('h3', {}, 'Approval and checks'), h('p', {}, approvalText(c), ' ', checksText(c)),
+          h('h3', {}, 'Open comments'), h('p', {}, c.openComments ? h('button', { type: 'button', class: 'linkish', onclick: () => { ui.open = true; ui.workflow = c.workflow; $('#open').checked = true; $('#workflow').value = c.workflow; filterCount(); render(); } }, `Show the ${plural(c.openComments, 'open comment')}`) : 'None.')))
+          : [h('p', {}, 'No screen belongs to a slice yet.')])],
+      decisions: () => [h('h2', {}, 'Design decisions'), h('p', { class: 'lede' }, 'The answers that shaped these screens.'),
+        data.decisions.length ? h('ul', {}, ...data.decisions.map((d) => h('li', {}, h('b', {}, d.question || d.id), h('br'), d.answer ?? '', h('span', { class: 'sub' }, ` (${d.workflow})`)))) : h('p', {}, 'No design decision is recorded.')],
+      tokens: () => [h('h2', {}, 'Tokens'), h('p', { class: 'lede' }, 'From DESIGN.md. Change them there.'),
+        h('ul', { class: 'tokens' }, ...data.tokens.map((t) => h('li', {}, h('span', { class: 'swatch', style: `background:${t.value.startsWith('var(') ? 'transparent' : t.value}` }), h('span', {}, t.name, h('br'), h('code', {}, t.value)))))],
+      references: () => [h('h2', {}, 'References'), h('p', { class: 'lede' }, 'The files the screens draw on.'),
+        data.references.length ? h('ul', {}, ...data.references.map((r) => h('li', {}, SNAP ? r.key : h('a', { href: `${BASE}ref/${r.key}`, target: '_blank', rel: 'noopener' }, r.key),
+          ` (${r.kind || 'other'})${r.note ? `: ${r.note}` : ''} `, r.readable ? h('span', { class: 'mark ok' }, 'Readable') : h('span', { class: 'mark issue', title: r.problem }, r.problem)))) : h('p', {}, 'No reference yet.')],
+      explore: () => [h('h2', {}, 'Explore'), h('p', { class: 'lede' }, 'Sketches from brainstorms and intakes, before any screen.'),
+        data.explore.length ? h('ul', {}, ...data.explore.map((x) => h('li', {}, SNAP ? x.title || x.key : h('a', { href: `${BASE}s/explore/${x.key}.html`, target: '_blank', rel: 'noopener' }, x.title || x.key), x.link ? `, for ${x.link}` : ''))) : h('p', {}, 'No explore sketch yet.')],
     }[name];
     p.replaceChildren(close, ...body());
     p.hidden = false;
@@ -383,23 +511,38 @@
   function wire() {
     document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
       ui.view = b.dataset.view;
-      document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('on', x === b));
+      ui.fitted = false;
+      document.querySelectorAll('[data-view]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
       render();
     }));
     document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => panel(b.dataset.panel)));
+    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); render(); });
+    filter('#area', 'area', (t) => t.value);
+    filter('#workflow', 'workflow', (t) => t.value);
+    filter('#open', 'open', (t) => t.checked);
+    filter('#failing', 'failing', (t) => t.checked);
     $('#viewport').addEventListener('change', (e) => { ui.viewport = e.target.value; render(); });
-    $('#state').addEventListener('change', (e) => { ui.state = e.target.value; render(); });
-    $('#area').addEventListener('change', (e) => { ui.area = e.target.value; render(); });
-    $('#workflow').addEventListener('change', (e) => { ui.workflow = e.target.value; render(); });
-    $('#open').addEventListener('change', (e) => { ui.open = e.target.checked; render(); });
-    $('#failing').addEventListener('change', (e) => { ui.failing = e.target.checked; render(); });
     $('#q').addEventListener('input', (e) => { ui.q = e.target.value; render(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && focusState) closeFocus(); });
+    $('#zin').addEventListener('click', () => zoomBy(1.25));
+    $('#zout').addEventListener('click', () => zoomBy(0.8));
+    $('#zfit').addEventListener('click', fit);
+    $('#arrange').addEventListener('click', arrange);
+    document.addEventListener('click', (e) => { if (!e.target.closest('#filters')) $('#filters').open = false; });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (focusState) closeFocus();
+      else if ($('#filters').open) $('#filters').open = false;
+      else if (ui.panel) closePanel();
+    });
     let last = phone();
-    addEventListener('resize', () => { if (phone() !== last) { last = phone(); render(); } if (focusState) drawFocus(); });
+    addEventListener('resize', () => {
+      barHeight();
+      if (phone() !== last) { last = phone(); ui.fitted = false; render(); }
+      if (focusState) drawFocus();
+    });
     panZoom();
   }
 
   wire();
-  load().catch((e) => { $('#board').replaceChildren(h('p', { style: 'padding:16px' }, `The canvas could not load its data: ${e.message}`)); });
+  load().catch((e) => { $('#board').replaceChildren(h('p', { class: 'empty' }, `The canvas could not load its data: ${e.message}`)); });
 })();

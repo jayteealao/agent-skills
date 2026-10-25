@@ -8,34 +8,43 @@
 </head>
 <body>
 <header class="bar">
-  <div class="bar-row">
-    <h1 id="repo">Design canvas</h1>
-    <input id="q" type="search" placeholder="Search screens" aria-label="Search screens">
-    <div class="seg" role="group" aria-label="Layout">
-      <button type="button" data-view="grid" class="on">Areas</button>
-      <button type="button" data-view="flow">Flows</button>
-    </div>
+  <h1 id="repo">Design canvas</h1>
+  <div class="seg" role="group" aria-label="Layout">
+    <button type="button" data-view="grid" class="on" aria-pressed="true">Areas</button>
+    <button type="button" data-view="flow" aria-pressed="false">Flows</button>
   </div>
-  <div class="bar-row filters">
-    <label>Viewport <select id="viewport"></select></label>
-    <label>State <select id="state"></select></label>
-    <label>Area <select id="area"><option value="">All</option></select></label>
-    <label>Workflow <select id="workflow"><option value="">All</option></select></label>
-    <label class="chk"><input type="checkbox" id="open"> Open comments</label>
-    <label class="chk"><input type="checkbox" id="failing"> Failing checks</label>
-    <div class="spacer"></div>
-    <div class="seg" role="group" aria-label="Panels">
-      <button type="button" data-panel="cards">Cards</button>
-      <button type="button" data-panel="decisions">Decisions</button>
-      <button type="button" data-panel="tokens">Tokens</button>
-      <button type="button" data-panel="references">References</button>
-      <button type="button" data-panel="explore">Explore</button>
+  <label class="search"><span class="sr">Search screens</span><input id="q" type="search" placeholder="Search screens"></label>
+  <details class="filters" id="filters">
+    <summary>Filter <span id="fcount" class="count" hidden></span></summary>
+    <div class="pop">
+      <label>Area <select id="area"><option value="">All</option></select></label>
+      <label>Workflow <select id="workflow"><option value="">All</option></select></label>
+      <label class="chk"><input type="checkbox" id="open"> Only screens with open comments</label>
+      <label class="chk"><input type="checkbox" id="failing"> Only screens with failing checks</label>
     </div>
-  </div>
+  </details>
+  <nav class="tabs" aria-label="Panels">
+    <button type="button" data-panel="cards">Cards</button>
+    <button type="button" data-panel="decisions">Decisions</button>
+    <button type="button" data-panel="tokens">Tokens</button>
+    <button type="button" data-panel="references">References</button>
+    <button type="button" data-panel="explore">Explore</button>
+  </nav>
 </header>
 <main id="stage" aria-label="Screens">
   <div id="board"><svg id="edges" aria-hidden="true"></svg></div>
 </main>
+<div class="dock" role="toolbar" aria-label="View">
+  <label class="pick"><span class="sr">Viewport</span><select id="viewport"></select></label>
+  <div class="seg states" id="states" role="group" aria-label="State"></div>
+  <button type="button" id="arrange" class="btn quiet" hidden>Arrange</button>
+  <div class="zoom" role="group" aria-label="Zoom">
+    <button type="button" id="zout" aria-label="Zoom out">−</button>
+    <output id="zval">100%</output>
+    <button type="button" id="zin" aria-label="Zoom in">+</button>
+    <button type="button" id="zfit">Fit</button>
+  </div>
+</div>
 <aside id="panel" hidden aria-live="polite"></aside>
 <div id="focus" hidden role="dialog" aria-modal="true" aria-label="Screen"></div>
 <div id="status" role="status"></div>
