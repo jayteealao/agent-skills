@@ -119,7 +119,7 @@ export function screenTemplate(key, title) {
 <link rel="stylesheet" href="../${TOKENS_FILE}">
 <style>
   body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--ground, #fff); color: var(--text, #111); }
-  [data-state] { display: none; }
+  body [data-state] { display: none; }
   html[data-state="default"] [data-state~="default"], html[data-state="empty"] [data-state~="empty"],
   html[data-state="loading"] [data-state~="loading"], html[data-state="error"] [data-state~="error"],
   html[data-state="worst"] [data-state~="worst"] { display: block; }

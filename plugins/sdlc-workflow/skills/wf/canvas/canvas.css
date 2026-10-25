@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f3ef; --panel: #ffffff; --ink: #1c1d1f; --mute: #61646b; --rule: #d9d8d2;
+  --accent: #2f5bd3; --warn: #b4232a; --ok: #1f7a4a; --pin: #e2572b; --shadow: 0 1px 2px rgb(0 0 0 / 8%), 0 6px 18px rgb(0 0 0 / 6%);
+  --card-w: 280px;
+  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16171a; --panel: #1f2125; --ink: #ececea; --mute: #a3a6ad; --rule: #34363c; --accent: #7c9bff; --warn: #ff7b80; --ok: #59c98d; --shadow: 0 1px 2px rgb(0 0 0 / 40%); }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--rule); padding: 8px 12px; display: grid; gap: 6px; }
+.bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.bar h1 { font-size: 15px; margin: 0 8px 0 0; font-weight: 650; }
+.bar input[type=search] { flex: 1 1 180px; min-width: 0; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); min-height: 32px; }
+.filters label { display: inline-flex; align-items: center; gap: 6px; color: var(--mute); }
+.filters select { padding: 4px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); min-height: 32px; }
+.chk input { width: 18px; height: 18px; }
+.spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 10px; min-height: 32px; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent); color: #fff; }
+
+#stage { position: relative; overflow: hidden; height: calc(100% - 92px); touch-action: none; cursor: grab; }
+#stage.panning { cursor: grabbing; }
+#board { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+#edges path { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .7; }
+.area-label { position: absolute; font-size: 13px; font-weight: 650; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; }
+
+.card { position: absolute; width: var(--card-w); background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.card.dim { opacity: .25; }
+.card header { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--rule); cursor: move; user-select: none; }
+.card header b { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .key { color: var(--mute); font-size: 12px; padding: 0 10px 8px; }
+.badge { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--rule); white-space: nowrap; }
+.badge.warn { color: var(--warn); border-color: currentColor; }
+.badge.ok { color: var(--ok); border-color: currentColor; }
+.badge.pin { color: var(--pin); border-color: currentColor; }
+.frame { position: relative; overflow: hidden; background: #fff; cursor: zoom-in; }
+.frame iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
+
+#panel { position: fixed; right: 0; top: 92px; bottom: 0; width: min(420px, 100%); background: var(--panel); border-left: 1px solid var(--rule); overflow: auto; padding: 14px 16px 40px; z-index: 6; box-shadow: var(--shadow); }
+#panel h2 { font-size: 15px; margin: 0 0 10px; }
+#panel h3 { font-size: 13px; margin: 14px 0 6px; }
+#panel ul { padding-left: 18px; margin: 4px 0; }
+.close { float: right; border: 1px solid var(--rule); background: transparent; border-radius: 8px; min-width: 32px; min-height: 32px; }
+.swatch { display: inline-block; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--rule); vertical-align: middle; margin-right: 6px; }
+.chips span { display: inline-block; margin: 2px 4px 2px 0; padding: 1px 6px; border: 1px solid var(--rule); border-radius: 6px; font-size: 12px; }
+.cardbox { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; min-height: 24px; }
+
+#focus { position: fixed; inset: 0; z-index: 10; background: rgb(0 0 0 / 55%); display: grid; place-items: stretch; }
+.sheet { margin: 2vh 2vw; background: var(--panel); border-radius: 14px; display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; overflow: hidden; }
+.sheet > header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+.sheet > header h2 { margin: 0; font-size: 16px; flex: 1 1 auto; }
+.view { position: relative; overflow: auto; padding: 16px; display: flex; gap: 16px; align-items: flex-start; justify-content: center; background: var(--bg); }
+.shot { position: relative; flex: 0 0 auto; box-shadow: var(--shadow); background: #fff; }
+.shot iframe, .shot img { display: block; border: 0; transform-origin: 0 0; }
+.shot .cap { position: absolute; left: 0; top: -20px; font-size: 12px; color: var(--mute); white-space: nowrap; }
+.overlay { position: absolute; inset: 0; }
+.overlay.commenting { cursor: crosshair; }
+.box { position: absolute; border: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.box span { position: absolute; left: 0; top: -18px; font-size: 11px; background: var(--warn); color: #fff; padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.pinmark { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; cursor: pointer; }
+.pinmark.closed { background: var(--mute); }
+.threads { border-left: 1px solid var(--rule); overflow: auto; padding: 12px 14px; }
+.thread { border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+.thread.closed { opacity: .65; }
+.thread .c { margin: 4px 0; }
+.thread .c b { font-weight: 600; }
+.thread textarea, .newc textarea { width: 100%; min-height: 56px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); padding: 6px 8px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.btn { border: 1px solid var(--rule); background: var(--bg); border-radius: 8px; padding: 4px 10px; min-height: 32px; }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.on { outline: 2px solid var(--accent); }
+#status { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+#status.show { opacity: .92; }
+
+/* A phone: a list of screens, a full-screen sheet with the threads under the screen. */
+@media (max-width: 720px) {
+  :root { --card-w: calc(100vw - 32px); }
+  .filters label { flex: 1 1 45%; }
+  .filters .spacer { display: none; }
+  #stage { height: auto; overflow: visible; touch-action: auto; cursor: default; }
+  #board { position: static; transform: none !important; padding: 16px; display: grid; gap: 14px; }
+  #edges, .area-label { display: none; }
+  .card { position: static; }
+  .card header { cursor: default; }
+  #panel { top: auto; height: 70vh; width: 100%; border-left: 0; border-top: 1px solid var(--rule); border-radius: 14px 14px 0 0; }
+  .sheet { margin: 0; border-radius: 0; grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow: auto; }
+  .view { overflow: visible; flex-direction: column; align-items: center; }
+  .threads { border-left: 0; border-top: 1px solid var(--rule); }
+}

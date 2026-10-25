@@ -15,7 +15,7 @@ The surface is `.ai/design/` in the product repo, and git tracks it.
 | `tokens.css` | The token sheet, from the token roles of `DESIGN.md` | `<wf> design tokens` |
 | `screens.json` | The manifest: each screen with its area, flow and order, its workflows and slices, and its approvals | `<wf> design` only |
 | `layout.json` | The positions that the person dragged on the canvas | the canvas only |
-| `references.json` | The references of the design, each with its path or link | the design agent |
+| `references.json` | The references of the design. Each names a file in the repo that an agent can read; a link also names its exported file | the design agent |
 | `current.md`, `direction.md` | The design record ([record.md](record.md)) | the design stage, retro, upkeep |
 
 The comments, the approval pictures and the check results are in the records, not here, because a product repo can be public.
@@ -35,6 +35,18 @@ The comments, the approval pictures and the check results are in the records, no
 3. Run `<wf> design screen add <root> <key> --workflow <slug>` for each existing screen that a workflow changes. Change the page in place: git keeps its history.
 4. Run `<wf> design tokens <root>` after each change to the token roles of `DESIGN.md`.
 5. Run `<wf> design list <root> [--workflow <slug>]` to see the screens, their states and their links. The command exits 1 and prints each problem when the manifest names a missing page.
+
+## The canvas and the design server
+
+The canvas is one page per repo that shows every screen of the repo on one board. The person reviews the screens there: in each viewport and state, with the check failures, the comment threads, the flows, the history and a design card for each slice. The canvas is the index of all design work.
+
+The design server serves the canvas of every repo on the list `~/.sdlc/design-repos.json`, and the brainstorm pages of those repos. It is one server for the computer. It listens on `127.0.0.1` and on the tailnet address, so the person can review from the phone. It writes two things only: a comment on a screen that exists, and the layout positions.
+
+- `<wf> design server start` starts the server in the background. `<wf> design server url` prints its addresses. Give the person the tailnet address for a review from the phone.
+- `<wf> design server status` tells whether the server runs and whether the scheduled task is installed.
+- `<wf> design server install` makes one Windows scheduled task that starts the server at logon. `<wf> design server uninstall` removes the task. After a plugin update, run `install` again, because the task does not change itself. Ask the person before you run either command.
+- `<wf> design state <root>` prints the data of the canvas as JSON.
+- `<wf> design publish <root> [--out <file>]` writes one self-contained canvas page. The page has no comments and no layout saves. Publish it with the host's page tool when the person cannot reach the server. On a canvas URL, `?workflow=<slug>` shows one workflow.
 
 Prohibitions:
 - Do not write `screens.json` or `layout.json`. The pre-write check refuses it.

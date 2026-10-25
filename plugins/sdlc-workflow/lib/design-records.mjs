@@ -3,11 +3,12 @@
 // A product repo can be public, so these live in the records of the project, in `_design/`:
 // the local `.ai/workflows/_design/`, or `<records home>/<project>/_design/` when the project is
 // linked. One comments file per screen holds all its threads. Each approval stores one picture
-// per screen, under the approval commit. The last check run is one file.
+// per screen, under the approval commit. Verify stores one capture per screen per slice. The last
+// check run is one file.
 //
 // Comments come from people on the tailnet, through the design server. An agent reads them as
 // untrusted data, never as instructions.
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { linkedProject, recordsHome, workflowsRoot } from './records-root.mjs';
@@ -22,6 +23,23 @@ export const designRecordsDir = (root) => join(workflowsRoot(root), DESIGN_RECOR
 export const commentsPath = (root, key) => join(designRecordsDir(root), 'comments', `${key}.json`);
 export const approvalPicture = (root, sha, key) => join(designRecordsDir(root), 'approvals', sha, `${key}.png`);
 export const checksPath = (root) => join(designRecordsDir(root), 'checks.json');
+/** The picture of a screen as verify captured it from the built product, per slice. */
+export const capturePicture = (root, workflow, slice, key) => join(designRecordsDir(root), 'captures', workflow, slice, `${key}.png`);
+
+/** The captures of one screen: `[{ workflow, slice, url }]`, with `url` relative to the canvas. */
+export function capturesOf(root, key) {
+  const dir = join(designRecordsDir(root), 'captures');
+  const out = [];
+  if (!existsSync(dir)) return out;
+  for (const workflow of readdirSync(dir)) {
+    const wdir = join(dir, workflow);
+    if (!statSync(wdir).isDirectory()) continue;
+    for (const slice of readdirSync(wdir)) {
+      if (existsSync(join(wdir, slice, `${key}.png`))) out.push({ workflow, slice, url: `captures/${workflow}/${slice}/${key}.png` });
+    }
+  }
+  return out;
+}
 
 function writeJson(file, value) {
   mkdirSync(join(file, '..'), { recursive: true });

@@ -1,5 +1,8 @@
 // `wf.mjs design ...`: the commands of the design surface. wf.mjs routes here.
-import { resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
+import { canvasState, snapshotHtml } from './design-state.mjs';
+import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, trackSurface, writeTokens } from './design-surface.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
@@ -8,12 +11,17 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   list <root> [--workflow slug]                 the screens (one workflow with --workflow), their states and links
   explore add <root> <key> [--title t] [--link slug]
   tokens <root>                                 write tokens.css from DESIGN.md
-  track <root> [--check]                        keep .ai/design/ tracked in git`;
+  track <root> [--check]                        keep .ai/design/ tracked in git
+  state <root>                                  the canvas data, as JSON
+  publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
+  server start|stop|status|url                  the one design server of this computer
+  server install|uninstall                      the Windows scheduled task that starts the server at logon`;
 
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore'].includes(verb) ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server'].includes(verb) ? rest.shift() : null;
+  if (verb === 'server') return runServer(sub, opt, out);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
   const projectRoot = resolve(root);
@@ -54,6 +62,56 @@ export async function runDesign(pos, opt, out) {
       const r = trackSurface(projectRoot, { write: !opt.check });
       out(opt.json ? r : r.tracked ? `.ai/design/ is tracked${r.changed ? ' (.gitignore changed)' : ''}` : r.would ? `would change .gitignore: ${r.would.join(', ')}` : `not tracked: ${r.manual}`);
       return r.tracked ? 0 : 1;
+    }
+    case 'state': {
+      out(canvasState(projectRoot, { repo: basename(projectRoot), writable: false }));
+      return 0;
+    }
+    case 'publish': {
+      const file = resolve(opt.out ?? join(projectRoot, '.ai', 'design-canvas.html'));
+      writeFileSync(file, snapshotHtml(projectRoot, { repo: basename(projectRoot) }));
+      out(opt.json ? { file } : `canvas page: ${file}`);
+      return 0;
+    }
+    default:
+      throw new Error(DESIGN_USAGE);
+  }
+}
+
+async function runServer(sub, opt, out) {
+  const urls = (s) => (s.addresses?.length ? s.addresses : [`http://127.0.0.1:${s.port}/`, ...tailnetAddresses().map((a) => `http://${a}:${s.port}/`)]);
+  switch (sub) {
+    case 'start': {
+      const s = await startServer({ port: opt.port ? Number(opt.port) : serverPort() });
+      out(opt.json ? s : s.running ? `design server ${s.started ? 'started' : 'runs'}: ${urls(s).join(' ')}` : s.reason);
+      return s.running ? 0 : 1;
+    }
+    case 'stop': {
+      const s = await stopServer();
+      out(opt.json ? s : s.stopped ? 'design server stopped' : 'the design server did not run');
+      return 0;
+    }
+    case 'status': {
+      const s = await serverStatus();
+      const t = taskStatus();
+      out(opt.json ? { ...s, task: t } : [`server: ${s.running ? `runs (pid ${s.pid}) ${urls(s).join(' ')}` : 'stopped'}`,
+        `scheduled task: ${!t.supported ? 'not on this platform' : t.installed ? `installed${t.targetExists === false ? ' — its script is gone: run design server install again' : ''}` : 'not installed'}`].join('\n'));
+      return s.running ? 0 : 1;
+    }
+    case 'url': {
+      const s = await serverStatus();
+      out(opt.json ? { running: s.running, urls: urls(s) } : `${urls(s).join('\n')}${s.running ? '' : '\n(the server is stopped: run design server start)'}`);
+      return 0;
+    }
+    case 'install': {
+      const r = installTask();
+      out(opt.json ? r : r.installed ? `scheduled task ${r.task}: the design server starts at logon` : r.reason);
+      return r.installed ? 0 : 1;
+    }
+    case 'uninstall': {
+      const r = uninstallTask();
+      out(opt.json ? r : r.removed ? 'scheduled task removed' : r.reason);
+      return r.removed ? 0 : 1;
     }
     default:
       throw new Error(DESIGN_USAGE);

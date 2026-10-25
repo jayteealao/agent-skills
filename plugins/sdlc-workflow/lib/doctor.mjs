@@ -23,6 +23,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 
 import { sdlcHomeDir } from './home.mjs';
 import { MARKER, STATE_ENTRIES } from './machine-cleanup.mjs';
+import { taskStatus } from './design-server.mjs';
 
 export const PLUGIN_NAME = 'sdlc-workflow';
 export const MARKETPLACE = 'agent-skills-marketplace';
@@ -215,6 +216,7 @@ export async function runDoctor({
   piDir = piAgentDir(),
   sdlcHome = sdlcHomeDir(),
   runCheck = spawnSync,
+  designTask = taskStatus,
   now = () => new Date(),
 } = {}) {
   const shipped = shippedVersion(pluginRoot);
@@ -244,6 +246,7 @@ export async function runDoctor({
     buildId: buildId(pluginRoot),
     hosts: { claude, codex, codexConfig: codexRead.config, pi, piReplaced },
     cleanup: cleanupStatus(sdlcHome),
+    designTask: designTask(),
     verdicts: hostVerdicts,
     ok,
   };
@@ -268,6 +271,8 @@ export function formatDoctorTable(r) {
   }
   if (r.hosts.piReplaced?.length) push('older pi packages', r.hosts.piReplaced.join(', '), 'remove with pi remove');
   push('old hub and tray state', r.cleanup.done ? 'removed' : (r.cleanup.left.length ? r.cleanup.left.join(', ') : 'none'), r.cleanup.left.length ? 'start a session' : '');
+  const t = r.designTask;
+  if (t?.supported) push('design server task', t.installed ? (t.targetExists === false ? 'installed, its script is gone' : 'installed') : 'not installed', t.targetExists === false ? 'run design server install' : '');
   push('verdict', `claude ${r.verdicts.claude} · codex ${r.verdicts.codex} · pi ${r.verdicts.pi ?? 'absent'}`, r.ok ? 'OK' : 'ACTION');
   const w0 = Math.max(...rows.map((x) => x[0].length));
   const w1 = Math.min(96, Math.max(...rows.map((x) => x[1].length)));

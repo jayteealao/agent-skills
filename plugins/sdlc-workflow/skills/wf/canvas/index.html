@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design canvas</title>
+<link rel="stylesheet" href="/canvas/canvas.css">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-row">
+    <h1 id="repo">Design canvas</h1>
+    <input id="q" type="search" placeholder="Search screens" aria-label="Search screens">
+    <div class="seg" role="group" aria-label="Layout">
+      <button type="button" data-view="grid" class="on">Areas</button>
+      <button type="button" data-view="flow">Flows</button>
+    </div>
+  </div>
+  <div class="bar-row filters">
+    <label>Viewport <select id="viewport"></select></label>
+    <label>State <select id="state"></select></label>
+    <label>Area <select id="area"><option value="">All</option></select></label>
+    <label>Workflow <select id="workflow"><option value="">All</option></select></label>
+    <label class="chk"><input type="checkbox" id="open"> Open comments</label>
+    <label class="chk"><input type="checkbox" id="failing"> Failing checks</label>
+    <div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Panels">
+      <button type="button" data-panel="cards">Cards</button>
+      <button type="button" data-panel="decisions">Decisions</button>
+      <button type="button" data-panel="tokens">Tokens</button>
+      <button type="button" data-panel="references">References</button>
+      <button type="button" data-panel="explore">Explore</button>
+    </div>
+  </div>
+</header>
+<main id="stage" aria-label="Screens">
+  <div id="board"><svg id="edges" aria-hidden="true"></svg></div>
+</main>
+<aside id="panel" hidden aria-live="polite"></aside>
+<div id="focus" hidden role="dialog" aria-modal="true" aria-label="Screen"></div>
+<div id="status" role="status"></div>
+<script src="/canvas/canvas.js"></script>
+</body>
+</html>
