@@ -53,6 +53,8 @@ test('stringify writes a value that parses back to the same value', () => {
     tags: ['a', 'b: c', '- dash', '#hash', 'true', '12', '2026-10-24', ''],
     nested: { list: [{ x: 1, y: [] }, { z: {} }], none: null, yes: false },
     text: 'line one\nline two\n',
+    // A line of white space inside a block keeps its spaces.
+    code: 'a = 1;\n \n    b = 2;\n\t\nend\n',
     quote: 'say "hi" \\ back',
   };
   assert.deepEqual(parse(stringify(value)), value);

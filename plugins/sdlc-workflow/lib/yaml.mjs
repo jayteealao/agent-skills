@@ -453,7 +453,8 @@ class BlockParser {
     let blockIndent = explicit ? indent + explicit : 0;
     while (end < this.lines.length) {
       const l = this.lines[end];
-      if (l.trim() === '') { raw.push(''); end += 1; continue; }
+      // A blank line is empty; the white space past the indent of the block is content.
+      if (l.trim() === '') { raw.push(blockIndent && l.length > blockIndent ? l.slice(blockIndent) : ''); end += 1; continue; }
       const ind = /^( *)/.exec(l)[1].length;
       if (!blockIndent) blockIndent = ind;
       if (ind < blockIndent || ind <= indent) break;

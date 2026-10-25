@@ -63,6 +63,16 @@
  *             (the source defaults to review, the scope to the whole packet)
  *   findings questions <root> <slug> [--json]
  *             the open findings whose fix changes an acceptance check, as questions
+ *   record   put <root> <slug> [<draft>...] [--json]
+ *             check each draft (.draft/<old name>.md, or every draft) and write it into its
+ *             section of the record files; a draft with errors stays, and exit 1
+ *   record   get <root> <slug> <name|index> [--json]
+ *             one record, by its old file name, as Markdown with frontmatter (either layout)
+ *   record   set <root> <slug> <name|index> <key=value>...
+ *             merge fields into one record; a value reads as YAML, null deletes the field
+ *   record   list|where|migrate <root> <slug> [<old path>]
+ *             the records of a workflow; the new place of an old path; move a workflow of
+ *             the old layout into the record files, with redirects.yaml
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
@@ -82,6 +92,8 @@ import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { progressLine, progressOf, writeProgress } from '../lib/progress.mjs';
+import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, listDocs, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
+import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -91,7 +103,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -590,6 +602,76 @@ export function runFindings(pos, opt) {
   }
 }
 
+// ---------------------------------------------------------------- record
+
+// The short names of a record for `record get` and `record set`.
+const RECORD_ALIASES = { index: INDEX_NAME, state: INDEX_NAME, meta: INDEX_NAME };
+const recordName = (n) => RECORD_ALIASES[n] ?? n;
+
+/** `key=value` → [key, value], the value read as a YAML scalar or flow collection. */
+function fieldOf(arg) {
+  const at = arg.indexOf('=');
+  if (at < 1) throw new Error(`record set: ${arg} is not key=value`);
+  const raw = arg.slice(at + 1);
+  let value;
+  try { value = raw === '' ? '' : parseYaml(raw); } catch { value = raw; }
+  return [arg.slice(0, at), value];
+}
+
+function runRecord(pos, opt) {
+  const [verb, root, slug, ...rest] = pos;
+  if (!['put', 'get', 'set', 'list', 'where', 'migrate'].includes(verb) || !root || !slug) {
+    throw new Error('record: <put|get|set|list|where|migrate> <root> <slug> are required');
+  }
+  const dir = join(wfRoot(resolve(root)), slug);
+  if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
+  switch (verb) {
+    case 'put': {
+      const drafts = rest.length ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : draftPath(dir, p))) : draftsOf(dir);
+      if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
+      const results = drafts.map((p) => putDraft(dir, p));
+      out(opt.json ? results : results.map((r) => (r.errors.length
+        ? `refused ${r.name}: ${r.errors.join('; ')}`
+        : `put ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`)).join('\n'));
+      return results.some((r) => r.errors.length) ? 1 : 0;
+    }
+    case 'get': {
+      const [name] = rest;
+      if (!name) throw new Error('record get: <name> is required');
+      const doc = readDoc(dir, recordName(name));
+      if (!doc) { process.stderr.write(`wf.mjs: no record ${name} in ${slug}\n`); return 1; }
+      if (opt.json) out(doc);
+      else process.stdout.write(`---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
+      return 0;
+    }
+    case 'set': {
+      const [name, ...fields] = rest;
+      if (!name || !fields.length) throw new Error('record set: <name> <key=value>... are required');
+      const fm = setFields(dir, recordName(name), Object.fromEntries(fields.map(fieldOf)));
+      out(opt.json ? fm : `set ${fields.map((f) => f.split('=')[0]).join(', ')} in ${recordName(name)}`);
+      return 0;
+    }
+    case 'list': {
+      const names = listDocs(dir);
+      out(opt.json ? names : names.join('\n'));
+      return 0;
+    }
+    case 'where': {
+      const [name] = rest;
+      if (!name) throw new Error('record where: <old path> is required');
+      const to = redirectOf(name);
+      out(to ?? `${name} keeps its place`);
+      return 0;
+    }
+    case 'migrate': {
+      const r = migrateWorkflow(dir);
+      out(opt.json ? r : [...r.moved.map((m) => `moved ${m.from} → ${m.to}`), ...r.kept.map((k) => `kept ${k}`)].join('\n') || 'nothing to move');
+      return 0;
+    }
+    default: return 2;
+  }
+}
+
 // ---------------------------------------------------------------- main
 
 export async function main(argv = process.argv.slice(2)) {
@@ -629,6 +711,7 @@ export async function main(argv = process.argv.slice(2)) {
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
       case 'findings': return runFindings(pos, opt);
+      case 'record': return runRecord(pos, opt);
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;
