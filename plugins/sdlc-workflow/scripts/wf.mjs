@@ -4,7 +4,11 @@
  *
  *   dispatch <root> [--host claude|codex|pi] [--json] [--] <token>...
  *             Step 0 of SKILL.md: the key, the reference and where the key's arguments start.
- *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @.
+ *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
+ *             each open workflow whose branch is merged.
+ *   close    <root> <slug> [--reason r] [--note n] [--decline]
+ *             close a workflow: the close record and the index fields (--decline: record the
+ *             person's no to the close question, so it is not asked again)
  *   status   <root> [<slug>] [--json]
  *             every workflow with its group and next command; with a slug, its stage files,
  *             slices, cost and next routes
@@ -109,6 +113,7 @@ import { buildBrief } from '../lib/brief.mjs';
 import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
+import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -127,7 +132,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -144,7 +149,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -180,11 +185,14 @@ async function runDrive(pos, opt) {
 
 // ---------------------------------------------------------------- dispatch
 
-function runDispatch(pos, opt) {
+async function runDispatch(pos, opt) {
   const [root, ...tokens] = pos;
   if (!root) throw new Error('dispatch: <root> is required');
   const safe = tokens.map((t) => (t === UNSAFE || SAFE_TOKEN.test(t) ? t : UNSAFE));
-  const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(resolve(root)), { host: opt.host ?? null });
+  const projectRoot = resolve(root);
+  const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
+  // The open workflows whose branch is merged: the person is asked whether to close each one.
+  r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];
   if (r.reason) lines.push(`reason: ${r.reason}`);
@@ -193,6 +201,7 @@ function runDispatch(pos, opt) {
   if (r.aliasOf) lines.push(`alias-of: ${r.aliasOf}`);
   if (r.nextOf) lines.push(`next-of: ${r.nextOf} → /wf ${r.tokens.join(' ')}${r.nextReason ? ` (${r.nextReason})` : ''}`);
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
+  for (const c of r.closeAsk) lines.push(`close-ask: ${c.slug} (${c.reason})`);
   out(lines.join('\n'));
   return 0;
 }
@@ -799,7 +808,14 @@ export async function main(argv = process.argv.slice(2)) {
   const { pos, opt } = flags(rest);
   try {
     switch (cmd) {
-      case 'dispatch': return runDispatch(pos, opt);
+      case 'dispatch': return await runDispatch(pos, opt);
+      case 'close': {
+        const [root, slug] = pos;
+        if (!root || !slug) throw new Error('close: <root> <slug> are required');
+        const r = closeWorkflow(resolve(root), slug, { reason: opt.reason ?? 'merged', note: opt.note ?? null, decline: Boolean(opt.decline) });
+        out(opt.json ? r : !r.ok ? r.reason : r.declined ? `${slug} stays open; the close question is not asked again` : r.closed ? `${slug} is closed` : r.reason);
+        return r.ok ? 0 : 1;
+      }
       case 'status': {
         const [root, slug] = pos;
         if (!root) throw new Error('status: <root> is required');

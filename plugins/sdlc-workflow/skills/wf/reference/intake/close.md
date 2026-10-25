@@ -71,6 +71,7 @@ files remain for audit or revival.
 | `deferred` | Work is valid but not now. May be reopened later. |
 | `completed-externally` | The change was made outside this workflow (hotfix, manual edit, another PR). |
 | `merged-into` | This workflow's scope was absorbed into a larger workflow or PR. |
+| `merged` | The workflow's branch merged, and the person agreed to close it when the next `/wf` call asked. `wf.mjs close` writes the close record. |
 
 ## Step W0 — Orient
 - Parse the index (`record get "<root>" <slug> index`): `title`, `slug`, `status`, `current-stage`, `stage-number`, `progress`,

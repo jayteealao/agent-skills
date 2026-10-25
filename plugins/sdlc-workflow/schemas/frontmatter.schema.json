@@ -400,6 +400,10 @@
           "type": "boolean",
           "description": "true on every new workflow: review-scope is slug-wide, one review per work packet, and nobody is asked. false only on an older workflow whose provisional per-slice default was never confirmed; slice (or plan on the skip-to-plan path) sets slug-wide and flips this to true. Absent on older workflows (treated as confirmed)."
         },
+        "close-declined-at": {
+          "type": "string",
+          "description": "When the person said no to the close question that a merged branch raises. `wf.mjs close --decline` writes it, and the question is not asked again."
+        },
         "person-tasks": {
           "type": "array",
           "description": "Tasks that only the person can do, each with the step that needs it. `wf.mjs ship ready` writes the ship gaps here (id `ship-ready:<code>`).",
