@@ -349,3 +349,20 @@ test('a push after another machine took the lease is not sent; the commit stays 
     assert.match(cli.stderr, /lease-lost: w1 by beta/);
   } finally { w.done(); }
 });
+
+test('a pull that brings a workflow rebuilds INDEX.md in the clone, and INDEX.md stays out of git', () => {
+  const w = world();
+  try {
+    const { a, b } = twoMachines(w);
+    w.as(a);
+    workflow(a.root, 'w2');
+    commitWorkflow(a.root, 'w2', 'w2: new');
+    pushWorkflow(a.root, 'w2');
+    const env = { ...process.env, SDLC_HOME: b.home };
+    const s = spawnSync(process.execPath, [WF, 'records', 'sync', b.root], { encoding: 'utf8', env });
+    assert.equal(s.status, 0, s.stdout + s.stderr);
+    assert.match(read(join(b.clone, 'notes', 'INDEX.md')), /^w2\t/m);
+    assert.doesNotMatch(git(w.bare, 'ls-tree', '-r', '--name-only', 'main'), /INDEX\.md/);
+    assert.match(git(w.bare, 'show', 'main:.gitignore'), /\*\/INDEX\.md/);
+  } finally { w.done(); }
+});

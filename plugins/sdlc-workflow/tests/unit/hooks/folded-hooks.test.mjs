@@ -33,7 +33,7 @@ function runHook(script, input, cwd, extraEnv = {}) {
 test('hooks.json wires one command per tool event at the folded entries', () => {
   const wiring = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'hooks', 'hooks.json'), 'utf-8')).hooks;
   equal(wiring.PreToolUse.length, 1, 'one PreToolUse group');
-  equal(wiring.PreToolUse[0].matcher, 'Write|Edit|MultiEdit|Bash');
+  equal(wiring.PreToolUse[0].matcher, 'Write|Edit|MultiEdit|Bash|PowerShell');
   equal(wiring.PreToolUse[0].hooks.length, 1);
   match(wiring.PreToolUse[0].hooks[0].command, /hooks\/pre-tool-use-all\.mjs/);
   equal(wiring.PostToolUse.length, 2, 'one PostToolUse group for the writes, one for the answers');

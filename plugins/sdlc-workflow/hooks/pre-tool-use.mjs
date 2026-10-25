@@ -21,6 +21,7 @@ import {
   touchedFromEvent,
   findProjectRoot,
   isManagedArtifactPath,
+  isLinkedLocalPath,
   isRecordsHomePath,
 } from './_adapter.mjs';
 
@@ -35,9 +36,16 @@ function main() {
 
   // Only files whose full new content is visible pre-write can be validated. A record file
   // (a .yaml beside the records of a workflow) goes to the check too: scripts write those.
-  const candidates = touchedFromEvent(event).filter(
+  const touched = touchedFromEvent(event);
+  const candidates = touched.filter(
     (t) => typeof t.content === 'string' && ((t.path.endsWith('.md') && isManagedArtifactPath(t.path)) || RECORD_YAML.test(t.path.replace(/\\/g, '/')) || isRecordsHomePath(t.path)),
   );
+  // An Update or a Move of a patch has no full content, but its path is known: a local
+  // workflow path of a linked project goes to the check with no content, so the refusal
+  // that names the real place applies to a patch write too.
+  for (const t of touched) {
+    if (typeof t.content !== 'string' && t.path && isLinkedLocalPath(cwd, t.path)) candidates.push({ path: t.path, content: '' });
+  }
   if (!candidates.length) return 0;
 
   for (const t of candidates) {
