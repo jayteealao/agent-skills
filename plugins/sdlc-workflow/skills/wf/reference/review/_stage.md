@@ -23,10 +23,10 @@ You are a **review dispatch orchestrator that owns the findings ledger of the wo
 When the second argument is `triage` (for example `/wf review my-feature triage`), read [_triage.md](_triage.md) and follow it instead of this file.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug given, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask. Resolve the second argument, if present, in this order:
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug given, infer from `.ai/workflows/INDEX.md`. If ambiguous, ask. Resolve the second argument, if present, in this order:
    - a slice of the roster → the **slice selector** (per-slice mode only; ignored in slug-wide mode);
    - a rubric or alias key from [_ad-hoc.md](_ad-hoc.md) → the **user focus override** of Step 2, in either review scope.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
+2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` ([_records.md](../_records.md)). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
 3. **Resolve `review-scope`** from `00-index.md`. Default: `slug-wide`, one review per work packet.
    - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect all code on the branch; the verdict is "ship this branch", not "ship this slice".
    - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
@@ -43,7 +43,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - **Optimize** (`workflow-type: optimize`): the loop's finish wrote one suffixed slice, `optimize`: `03-slice-optimize.md` (the acceptance criteria), `05-implement-optimize.md` (the squash and the table of kept trials), and verify wrote `06-verify-optimize.md`. There is no plan file: the confirmed `02-optimize-spec.md` replaces shape and plan, so review against it. Always add `correctness` with `focus: metric-gaming` (see the core set below).
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
-   In all modes, an implement record (slice or master) must exist. If missing → STOP: "Run `/wf implement <slug>` first."
+   In all modes, an implement record (slice or master) must exist. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the names of the records. If missing → STOP: "Run `/wf implement <slug>` first."
 
    **Per-slice mode** (`review-scope: per-slice`):
    - `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not required.
@@ -51,11 +51,11 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 
    **Slug-wide mode** (`review-scope: slug-wide`):
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
-   - Any `06-verify-*.md` files are read for context but never block.
+   - Any `06-verify-*.md` records that `record list` names are read for context but never block.
    - **Adoption-matrix reconciliation (mechanical pass over shape).** If `02-shape.md` carries an adoption matrix (the table of dependencies/libraries with a `USE`/`AVOID`/etc. decision per row), reconcile every `USE` row against the branch diff: each must cite at least one production usage site — a real import/call in shipped code. A `USE` row with zero usage (installed, never wired in) becomes a finding, severity **MED**, titled "committed and abandoned" (installed, zero usage) and routed through the normal ledger. This is a mechanical check, not a judgment call: no production import/call for a `USE` dependency ⇒ finding.
    - **Success-Criteria re-basing (mandatory, slug-wide milestone check).** The slug-wide review must answer the intake's **Success Criteria exactly** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same exact Success-Criteria check also runs once at that slice's per-slice review.
    - Prior per-slice `07-review-<slice>.md` files are left untouched.
-6. **Read the context.** Read every Requires row for the current `review-scope`.
+6. **Read the context.** Read every Requires row for the current `review-scope`. Read each record with `record get`.
 7. **Apply the augmentation and verify inputs** per *Augmentation and verify inputs* below. Verify values can auto-promote to BLOCKER or HIGH findings.
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm you are on the correct branch. Use `git diff <base-branch>...<branch>` for the full change set.
@@ -63,7 +63,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 
 # Augmentation and verify inputs
 
-**Augmentation inputs.** Read the `augmentations:` list in `00-index.md` if present, plus the artifacts each entry references. Per-type guidance:
+**Augmentation inputs.** Read the `augmentations:` list in `00-index.md` if present, plus the artifacts each entry references. Read an artifact that is a record with `record get`. Per-type guidance:
 
 | Type | What review must do |
 |---|---|
@@ -76,7 +76,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 
 Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). Route a finding against a confirmed board to `/wf design <slug> amend` as a question; do not redraw the board.
 
-**Verify inputs.** Use these values from each `06-verify-*.md` file in scope:
+**Verify inputs.** Use these values from each `06-verify-*.md` record in scope (`record list` names them):
 - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
 - `stability-check-flaky-count` (frontmatter) — any value > 0 is a HIGH finding; flaky criteria indicate race conditions or state leakage that review sub-agents should investigate in the diff.
 - `adversarial-tests-failed` (frontmatter) — any value > 0 means `## Adversarial Tests` contains BLOCKER or HIGH findings; surface them in the aggregated finding list.
@@ -213,15 +213,15 @@ If at least one `Fix` sub-agent successfully modified files: follow the shared c
 
 # Step 5: Write the review file whole
 
-Write the review file. Filename depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix loop. Load [_artifact.md](_artifact.md) and write the file from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix loop. Load [_artifact.md](_artifact.md) and write the draft `.ai/workflows/<slug>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
-Write the whole file on every run, also when it exists. Keep only `created-at` from the old file. Do not merge into the old body: the ledger holds the history.
+Write the whole draft on every run, also when the record exists. Keep only `created-at` from the old record (`record get`). Do not merge into the old body: the ledger holds the history. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 # Step 6: Update Index and Return
 
-1. Update `00-index.md` frontmatter:
-   - `current-stage: review`, `status: active`, `progress.review: complete` (stays `complete` on every accumulating re-run)
-   - Add review artifacts to `workflow-files` (idempotent — do not duplicate entries a prior run already added):
+1. Update the index with one `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...` call:
+   - `current-stage=review`, `status=active`, `progress.review=complete` (stays `complete` on every accumulating re-run)
+   - Add review artifacts to `workflow-files` (idempotent — do not duplicate entries a prior run already added). Set the whole list: the entries of the index plus the new ones.
      - **Slug-wide**: add `07-review.md` and `findings.yaml`. Leave any prior per-slice review files in `workflow-files`.
      - **Per-slice**: add `07-review-<slice-slug>.md` and `findings.yaml` (do NOT remove sibling slices' review files).
    - Set `next-command` and `next-invocation` from the default route.

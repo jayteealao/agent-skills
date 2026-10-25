@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { readdir, realpath, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
-import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import { EVIDENCE_DIRS, SOURCE_DIRS, WORK_DIR } from './hook-utils.mjs';
+import { DRAFT_DIR, INDEX_NAME, OLD_DIR, STATE_FILE, readDoc } from './records.mjs';
 import { workflowsRoot } from './records-root.mjs';
 
 // Wider than the schema's `status` enum (active/complete/closed) on purpose —
@@ -46,8 +46,9 @@ export async function discoverWorkflowIndexFiles({
   }
   return entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => join(workflowsRoot, entry.name, '00-index.md'))
-    .filter((path) => existsSync(path))
+    // A workflow of the old layout has 00-index.md; one of the record layout has state.yaml.
+    .map((entry) => [INDEX_NAME, STATE_FILE].map((f) => join(workflowsRoot, entry.name, f)).find((path) => existsSync(path)))
+    .filter(Boolean)
     .sort();
 }
 
@@ -121,7 +122,8 @@ export async function loadWorkflowIndex(indexPath, {
 } = {}) {
   const workflowDir = await realpath(join(indexPath, '..')).catch(() => join(indexPath, '..'));
   const slug = basename(workflowDir);
-  const loaded = await safeLoadFrontmatterFile(indexPath);
+  const doc = readDoc(workflowDir, INDEX_NAME);
+  const loaded = { data: doc?.frontmatter ?? null, parseError: doc?.parseError ?? null };
   const artifactFiles = await listWorkflowArtifactFiles(workflowDir);
   const latestArtifactMtime = await latestMtimeMs(artifactFiles);
   const indexMtime = await mtimeMs(indexPath);
@@ -178,7 +180,8 @@ export function activeWorkflowIndexes(workflows) {
 // cost.jsonl) are ignored by the extension filter below.
 // A brainstorm's research/, references/ and work/ get no page, so they never
 // mark a workflow stale either (WF-PIECES-PLAN).
-const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);
+// A draft waits for `wf.mjs record put`, and .old/ keeps the files that a migration moved.
+const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR, DRAFT_DIR, OLD_DIR]);
 // The yolo commentary is appended after every watch event, long after the index
 // was written, so it never marks a workflow stale (YOLO-COMMENTARY-PLAN C4).
 const STALE_EXEMPT_FILES = new Set(['commentary.md']);

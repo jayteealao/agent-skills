@@ -10,7 +10,7 @@ Every stage reference that writes a stage artifact has one `## Requires` section
 | `implement/_artifact.md` | procedure | always | |
 | `05-implement-<slice>.md` | writes | | |
 
-- **Input.** One path in backticks. For `artifact` and `writes`, the path is relative to `.ai/workflows/<slug>/`. For `procedure`, the path is relative to `skills/wf/reference/`. `<slice>` is the slice of the artifact you write, and `<mode>` is the intake mode. A glob `*` matches every file it names. A project-level file starts with `/.ai/`. A free-text input that is not a file has no backticks.
+- **Input.** One path in backticks. For `artifact` and `writes`, the path is a record name per [_records.md](_records.md), or a file relative to `.ai/workflows/<slug>/`. For `procedure`, the path is relative to `skills/wf/reference/`. `<slice>` is the slice of the artifact you write, and `<mode>` is the intake mode. A glob `*` matches every file it names. A project-level file starts with `/.ai/`. A free-text input that is not a file has no backticks.
 - **Kind.** `artifact`, `procedure`, or `writes`. A `writes` row names the stage artifact that the table is for. Its When and Sections cells are empty.
 - **When.** `always`, `if-present`, `on-resume`, or `mode:<name>`. Read the `always` and `if-present` rows, and each `mode:<name>` row whose mode applies (see Modes). An `on-resume` row applies when you resume a stage run.
 - **Sections.** Empty means the whole file. Otherwise the cell is a `; `-separated list of exact `##` heading texts, without the `## `.
@@ -41,7 +41,7 @@ The table is a checklist. Before you write the stage artifact, read every row wh
 1. Read each whole-file input from its first line to its last line.
 2. For an input with named sections, read each named section in full.
 3. Read each input yourself. A read by a research sub-agent does not count for you, because its reads do not reach your context.
-4. Use the host's file-read tool. A search hit does not count. A shell read counts only on a host that has no file-read tool: there, one shell command that prints the whole file (`Get-Content -Raw <path>`, or `cat <path>`) is the file read.
+4. Read a record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`, or from the stage brief when the brief gives its content. Read any other file with the host's file-read tool. A search hit does not count. A shell read counts only on a host that has no file-read tool: there, one shell command that prints the whole file (`Get-Content -Raw <path>`, or `cat <path>`) is the file read.
 
 A partial read does not count. The line ranges you read must cover the whole file, or each named section.
 

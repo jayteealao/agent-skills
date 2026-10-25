@@ -12,13 +12,16 @@ import path from 'node:path';
 import { migrateApply, migrationReport, removeWorktree, run } from '../../scripts/campaign.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
-import { setFrontmatterValue } from '../../lib/roster-edit.mjs';
+import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
 
 const SRC = 'brainstorm-demo';
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const fm = (file) => safeParseFrontmatter(readFileSync(file, 'utf8')).data;
 const wf = (root, slug) => path.join(root, '.ai', 'workflows', slug);
+/** One workflow record, in either layout. */
+const rec = (root, slug, name) => frontmatterOfDoc(wf(root, slug), name);
+const body = (root, slug, name) => readDoc(wf(root, slug), name)?.body ?? '';
 const tmp = (label) => realpathSync(mkdtempSync(path.join(os.tmpdir(), label)));
 
 function makeRepo(label = 'packets ') {
@@ -70,17 +73,23 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each packet;
 
     const opened = run(['open', root, SRC, 'engine']);
     assert.equal(opened.ok, true, JSON.stringify(opened));
-    const index = fm(path.join(wf(root, 'demo-engine'), '00-index.md'));
+    // open writes the record layout: the index is state.yaml and meta.yaml, intake and shape are intake.yaml.
+    for (const f of ['state.yaml', 'meta.yaml', 'intake.yaml', 'decisions.yaml']) assert.ok(existsSync(path.join(wf(root, 'demo-engine'), f)), f);
+    for (const f of ['00-index.md', '01-intake.md', '02-shape.md']) assert.ok(!existsSync(path.join(wf(root, 'demo-engine'), f)), f);
+    assert.deepEqual(opened.wrote.map((w) => path.posix.basename(w)).sort(), ['decisions.yaml', 'intake.yaml', 'meta.yaml', 'state.yaml']);
+    const index = rec(root, 'demo-engine', '00-index.md');
     assert.equal(index['workflow-type'], 'feature');
     assert.equal(index.branch, `packets/${SRC}`);
     assert.equal(index['origin-packet'], `.ai/workflows/${SRC}/work/demo-engine.md`);
     assert.equal(index['review-scope'], 'slug-wide');
     assert.equal(index.stack['user-confirmed'], true);
-    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '01-intake.md'), 'utf8'), /The engine runs\./);
-    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '02-shape.md'), 'utf8'), /\| \*\*d-one\*\* — Decision d-one\. \| honored \|/);
+    assert.equal(rec(root, 'demo-engine', '01-intake.md').type, 'intake');
+    assert.match(body(root, 'demo-engine', '01-intake.md'), /The engine runs\./);
+    assert.equal(rec(root, 'demo-engine', '02-shape.md').type, 'shape');
+    assert.match(body(root, 'demo-engine', '02-shape.md'), /\| \*\*d-one\*\* — Decision d-one\. \| honored \|/);
     // A risk the person confirmed at brainstorm done is carried, never open: handoff.md refuses an open risk.
     assert.deepEqual(index['intent-risks'].map((r) => [r.id, r.status, r['po-ratified']]), [['RIM-1', 'carried', true]]);
-    assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '02-shape.md'), 'utf8'), /## Unknowns \/ Open Questions\n\n- \*\*RIM-1\*\* \(carried to the slug-wide review\) — The engine is slow\./);
+    assert.match(body(root, 'demo-engine', '02-shape.md'), /## Unknowns \/ Open Questions\n\n- \*\*RIM-1\*\* \(carried to the slug-wide review\) — The engine is slow\./);
     assert.match(readFileSync(path.join(root, '.ai', 'workflows', 'INDEX.md'), 'utf8'), /demo-engine\tactive\tfeature\tpackets\/brainstorm-demo/);
     assert.equal(run(['open', root, SRC, 'engine']).opened, false, 'a second open changes nothing');
     assert.equal(run(['status', root, SRC]).current.step, 'slice');
@@ -119,12 +128,12 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each packet;
     assert.equal(done.trunkMerged, true);
     assert.equal(done.endBranch, `packets/${SRC}--engine`);
     assert.equal(git(root, 'rev-parse', `packets/${SRC}--engine`), git(root, 'rev-parse', 'HEAD'));
-    assert.equal(fm(path.join(wf(root, 'demo-engine'), '00-index.md'))['base-branch'], 'main', 'done puts base-branch back to the trunk');
+    assert.equal(rec(root, 'demo-engine', '00-index.md')['base-branch'], 'main', 'done puts base-branch back to the trunk');
     assert.equal(fm(path.join(dir, 'work', 'demo-engine.md')).state, 'done');
 
     // The second packet: design first, then its review base is the end branch of the first.
     assert.equal(run(['open', root, SRC, 'screen']).ok, true);
-    const screenIndex = fm(path.join(wf(root, 'demo-screen'), '00-index.md'));
+    const screenIndex = rec(root, 'demo-screen', '00-index.md');
     assert.equal(screenIndex['next-command'], 'wf-design');
     st = run(['status', root, SRC]);
     assert.deepEqual([st.current.key, st.current.step], ['screen', 'design']);
@@ -193,8 +202,7 @@ test('6.1 step 13: a fix slice sends a built packet back to the driver, also in 
     review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     // /wf intake extend adds a fix slice to the roster.
-    const idx = path.join(wf(root, 'demo-engine'), '00-index.md');
-    writeFileSync(idx, setFrontmatterValue(readFileSync(idx, 'utf8'), 'slices', [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'defined' }]));
+    setRecordFields(wf(root, 'demo-engine'), '00-index.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'defined' }] });
     const st = run(['status', root, SRC]);
     assert.deepEqual([st.current.step, st.current.state], ['yolo', 'built']);
     assert.match(st.current.reason, /fix-1/);
@@ -202,7 +210,7 @@ test('6.1 step 13: a fix slice sends a built packet back to the driver, also in 
     assert.deepEqual([run(['reopen', root, SRC, 'engine']).changed, fm(path.join(wf(root, SRC), 'work', 'demo-engine.md')).state], [true, 'open']);
     assert.equal(run(['reopen', root, SRC, 'engine']).changed, false);
     // The driver builds the slice.
-    writeFileSync(idx, setFrontmatterValue(readFileSync(idx, 'utf8'), 'slices', [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'complete' }]));
+    setRecordFields(wf(root, 'demo-engine'), '00-index.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'complete' }] });
     assert.equal(run(['built', root, SRC, 'engine']).ok, true);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     assert.equal(run(['done', root, SRC, 'engine']).ok, true);
@@ -248,15 +256,19 @@ test('slice-order add writes the edge into the roster and the slice file, and re
   try {
     const dir = wf(root, 'engine');
     mkdirSync(dir, { recursive: true });
+    // The records of the old layout: slice-order reads them and writes the record layout.
     writeFileSync(path.join(dir, '03-slice.md'), '---\nslug: engine\nslices:\n  - {slug: s1, status: defined}\n  - {slug: s2, status: defined}\n  - {slug: s3, status: defined}\n---\n\n# Slices\n');
     writeFileSync(path.join(dir, '03-slice-s1.md'), '---\nslice: s1\ndepends-on: []\n---\n');
     writeFileSync(path.join(dir, '04-plan.md'), '---\nslug: engine\nimplementation-order:\n  - s1\n  - s2\n  - s3\n---\n');
     const r = run(['slice-order', root, 'engine', 'add', '--slice', 's1', '--after', 's3', '--why', 'the plan of s3 makes the table']);
     assert.equal(r.added, true, JSON.stringify(r));
     assert.deepEqual(r.walkOrder, ['s2', 's3', 's1']);
-    assert.match(readFileSync(path.join(dir, '03-slice.md'), 'utf8'), /- \{slug: s1, status: defined, depends-on: \[s3\]\}/);
-    assert.match(readFileSync(path.join(dir, '03-slice-s1.md'), 'utf8'), /depends-on: \[s3\]/);
-    assert.match(readFileSync(path.join(dir, '04-plan.md'), 'utf8'), /implementation-order: \[s2, s3, s1\]/);
+    assert.deepEqual(rec(root, 'engine', '03-slice.md').slices, [{ slug: 's1', status: 'defined', 'depends-on': ['s3'] }, { slug: 's2', status: 'defined' }, { slug: 's3', status: 'defined' }]);
+    assert.equal(readDoc(dir, '03-slice.md').layout, 'yaml');
+    assert.match(readDoc(dir, '03-slice.md').body, /# Slices/, 'the body of the roster stays');
+    assert.deepEqual(rec(root, 'engine', '03-slice-s1.md')['depends-on'], ['s3']);
+    assert.deepEqual(rec(root, 'engine', '04-plan.md')['implementation-order'], ['s2', 's3', 's1']);
+    assert.ok(existsSync(path.join(dir, 'slices.yaml')) && existsSync(path.join(dir, 'slice-s1.yaml')));
     assert.match(readFileSync(path.join(dir, 'index-history.jsonl'), 'utf8'), /slice-order: 's1' after 's3': the plan of s3 makes the table/);
     assert.equal(run(['slice-order', root, 'engine', 'add', '--slice', 's1', '--after', 's3']).added, false, 'the same edge again adds nothing');
     const cyc = run(['slice-order', root, 'engine', 'add', '--slice', 's3', '--after', 's1']);
@@ -376,7 +388,7 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     assert.deepEqual(ap.absorbed, ['eng-ext']);
     assert.ok(ap.records[0].copied >= 2, JSON.stringify(ap.records));
     assert.ok(existsSync(path.join(wf(root, 'eng'), '05-implement-s1.md')), 'the records sync brings the worktree records home');
-    const idx = fm(path.join(wf(root, 'eng'), '00-index.md'));
+    const idx = rec(root, 'eng', '00-index.md');
     assert.equal(idx['current-stage'], 'implement', 'the newer worktree index wins');
     assert.deepEqual([idx.branch, idx['migrated-from'], idx['wave-base'], idx.land], [`packets/${SRC}`, m.UNIT, m.W2, 'squashed']);
     assert.deepEqual(idx['origin-items'].sort(), ['d-eng', 'd-ext']);

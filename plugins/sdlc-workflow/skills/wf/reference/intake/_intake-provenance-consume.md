@@ -4,7 +4,7 @@ Read this file only when a source attached in Detect ([_intake-provenance.md](_i
 
 ## Consume
 
-With provenance attached, read the source's lead artifact and seed the new workflow from
+With provenance attached, read the source's lead artifact with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <source-slug> <name>` (per [_records.md](../_records.md)) and seed the new workflow from
 the row that matches the source's `workflow-type`. In every row the rule is the same:
 **re-verify, do not copy** — the source may be stale against the current tree; its evidence
 targets the research, it does not replace it. One exception: a brainstorm **decision** is the
@@ -27,16 +27,17 @@ entry itself (id, files, rationale, severity) travels in the invocation text per
 
 ## Link back
 
-1. Record `origin-<source-type>: <source-slug>` in the new workflow's `00-index.md`
-   frontmatter (`origin-investigate`, `origin-rca`, `origin-discover`, `origin-ideate`,
-   `origin-brainstorm` — optional field; omit when there is no provenance).
+1. Record `origin-<source-type>: <source-slug>` in the frontmatter of the new workflow's index
+   (`origin-investigate`, `origin-rca`, `origin-discover`, `origin-ideate`,
+   `origin-brainstorm` — optional field; omit when there is no provenance). Write it into the draft of
+   `00-index.md`, or run `record set "<root>" <slug> index origin-<source-type>=<source-slug>` when the index exists.
 2. When the source is a **decision-shaped** workflow whose decision this new workflow
    executes (`investigate` pick, `ideate` pick, `rca` route to a fix), update the source's
-   `00-index.md`: set `superseded-by: <new-slug>`. Updating this one field on a closed
+   index: `record set "<root>" <source-slug> index superseded-by=<new-slug>`. Updating this one field on a closed
    index is additive and safe. A `discover` source is not superseded — its verdict stands
    on its own; the `origin-discover` key alone records the lineage. A `brainstorm`
    source, and an `ideate` source with a list, is never superseded. When the successor starts from a
-   work packet file, record `origin-packet: <packet path>` and `origin-items` (every carried key) in `00-index.md`.
+   work packet file, record `origin-packet: <packet path>` and `origin-items` (every carried key) in the index, the same way as step 1.
    Set `state: open` in the work packet file and on the work packet in the board file, and change no other field of
    the work packet file. The campaign walk sets `done` when the workflow completes (`campaign.md`, step 5).
    Set each thread of the work packet to `routed` when no other work packet draws on the thread. Updating those

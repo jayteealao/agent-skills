@@ -1,4 +1,4 @@
-// The deferral record of a workflow: `runtime-evidence-deferrals` in its 00-index.md.
+// The deferral record of a workflow: `runtime-evidence-deferrals` in its index.
 //
 // Each open deferral names its clearing event and one side-effect-free `clearing-probe` that
 // answers "has the event happened yet?". The check runs that probe only:
@@ -8,19 +8,15 @@
 // A deferral is a person task. A run stops for it only when the next slice needs it now: the
 // entry names that slice in `needed-by`, and the check is not `changed`.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
-import { safeParseFrontmatter } from './frontmatter.mjs';
+import { frontmatterOfDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 export const PROBE_TIMEOUT_MS = 30000;
 
 /** The open deferrals of a workflow (cleared-by is empty). */
 export function openDeferrals(slugDir) {
-  const file = join(slugDir, '00-index.md');
-  if (!existsSync(file)) return [];
-  const fm = safeParseFrontmatter(readFileSync(file, 'utf8'))?.data ?? {};
+  const fm = frontmatterOfDoc(slugDir, '00-index.md') ?? {};
   const list = Array.isArray(fm['runtime-evidence-deferrals']) ? fm['runtime-evidence-deferrals'] : [];
   return list.filter((d) => d && typeof d === 'object' && (d['cleared-by'] == null || d['cleared-by'] === ''));
 }

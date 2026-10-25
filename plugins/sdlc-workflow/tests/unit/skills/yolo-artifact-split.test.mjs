@@ -85,7 +85,7 @@ test('S6: the fan-out review writer names the rubrics it was fed and its output 
   const { calls } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
   const writer = calls.find((c) => c.label === 'review');
   assert.match(writer.prompt, /REQUIRED READS\. The/);
-  assert.match(writer.prompt, /Prompt-fed inputs: review\/correctness\.md\nOutput artifact: \/repo\/\.ai\/workflows\/demo\/07-review\.md/);
+  assert.match(writer.prompt, /Prompt-fed inputs: review\/correctness\.md\nOutput artifact: \/repo\/\.ai\/workflows\/demo\/\.draft\/07-review\.md \(the draft: run `node "[^"]*wf\.mjs" record put "\/repo" demo` after you write it\)/);
 });
 
 // ---- the stage prompt -------------------------------------------------------

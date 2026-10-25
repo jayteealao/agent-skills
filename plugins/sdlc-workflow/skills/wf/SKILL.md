@@ -13,6 +13,7 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 - Write chat narratives per [_chat-return.md](reference/_chat-return.md).
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
+- Read and write every record per [_records.md](reference/_records.md): scripts write the record files, an agent writes a draft and puts it.
 
 # Step 0 — Dispatch check
 

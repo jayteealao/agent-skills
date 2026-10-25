@@ -11,10 +11,10 @@
 //   a|b|c                                 one of the choices
 //   [ ... ]                               an optional group
 // A token that the caller could not pass safely arrives as `@`; it fits only `text`.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { safeParseFrontmatter } from './frontmatter.mjs';
+import { INDEX_NAME, frontmatterOfDoc, hasDoc } from './records.mjs';
 import { workflowsRoot } from './records-root.mjs';
 
 export const UNSAFE = '@';
@@ -101,12 +101,10 @@ export function fitForms(forms, tokens, check) {
 export function diskFacts(projectRoot, { git = defaultGit } = {}) {
   const wf = workflowsRoot(projectRoot);
   return {
-    hasWorkflow: (slug) => SAFE_TOKEN.test(slug) && !slug.includes('/') && existsSync(join(wf, slug, '00-index.md')),
+    hasWorkflow: (slug) => SAFE_TOKEN.test(slug) && !slug.includes('/') && hasDoc(join(wf, slug), INDEX_NAME),
     hasWorkflowDir: (slug) => SAFE_TOKEN.test(slug) && !slug.includes('/') && existsSync(join(wf, slug)),
     slicesOf: (slug) => {
-      const file = join(wf, slug, '03-slice.md');
-      if (!existsSync(file)) return [];
-      const { data } = safeParseFrontmatter(readFileSync(file, 'utf8'));
+      const data = frontmatterOfDoc(join(wf, slug), '03-slice.md');
       return (Array.isArray(data?.slices) ? data.slices : []).map((x) => (typeof x === 'string' ? x : x?.slug)).filter(Boolean);
     },
     hasBranch: (name) => SAFE_TOKEN.test(name) && !name.startsWith('-') && git(projectRoot, ['branch', '--list', name]).trim() !== '',

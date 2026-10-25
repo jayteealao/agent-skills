@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
+import { frontmatterOfDoc, readDoc } from '../../lib/records.mjs';
 import { validateFrontmatter } from '../../lib/schema-validator.mjs';
 import { lifecycleDone } from '../../lib/lifecycle-done.mjs';
 
@@ -80,13 +80,17 @@ test('start makes the poc branch, a worktree beside the checkout, the records, a
     assert.ok(!out.worktree.startsWith(root + path.sep), 'the worktree is not inside the main checkout');
     assert.equal(git(out.worktree, 'rev-parse', '--abbrev-ref', 'HEAD'), 'poc/faces');
     const dir = path.join(out.worktree, '.ai', 'workflows', S);
-    for (const f of ['00-index.md', 'prototype-ledger.json', '01-prototype.md']) assert.ok(existsSync(path.join(dir, f)), f);
+    // The records are YAML record files: the index is state.yaml and meta.yaml, the pipeline is intake.yaml.
+    for (const f of ['state.yaml', 'meta.yaml', 'prototype-ledger.json', 'intake.yaml']) assert.ok(existsSync(path.join(dir, f)), f);
+    for (const f of ['00-index.md', '01-prototype.md']) assert.ok(!existsSync(path.join(dir, f)), f);
     assert.equal(existsSync(path.join(root, '.ai', 'workflows', S)), false, 'the main checkout holds no prototype folder');
     for (const f of ['00-index.md', '01-prototype.md']) {
-      const fm = safeParseFrontmatter(readFileSync(path.join(dir, f), 'utf8')).data;
+      const fm = frontmatterOfDoc(dir, f);
       const v = validateFrontmatter(fm);
       assert.equal(v.valid, true, `${f}: ${JSON.stringify(v.errors)}`);
     }
+    assert.deepEqual([frontmatterOfDoc(dir, '00-index.md')['workflow-type'], frontmatterOfDoc(dir, '00-index.md').progress], ['prototype', { prototype: 'in-progress' }]);
+    assert.match(readDoc(dir, '01-prototype.md').body, /## The accepted pipeline/);
     const row = readFileSync(path.join(root, '.ai', 'workflows', 'INDEX.md'), 'utf8').split('\n').find((l) => l.startsWith(`${S}\t`));
     assert.equal(row.split('\t').slice(0, 4).join('|'), 'faces|open|prototype|poc/faces');
     assert.equal(git(out.worktree, 'check-ignore', '-q', '.scratch/prototype/x.log') === '', true, 'scratch is ignored in the worktree');
@@ -160,8 +164,8 @@ test('decide commits explicit paths only: no weights, no scratch, no staged stra
     assert.equal(git(wt, 'log', '-1', '--format=%s'), 'poc(faces): accept the fit');
     const files = git(wt, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort();
     assert.deepEqual(files, [
-      '.ai/workflows/faces/00-index.md', '.ai/workflows/faces/01-prototype.md', '.ai/workflows/faces/prototype-ledger.json',
-      '.ai/workflows/faces/report.html', 'poc/config.json', 'poc/fit.py',
+      '.ai/workflows/faces/intake.yaml', '.ai/workflows/faces/meta.yaml', '.ai/workflows/faces/prototype-ledger.json',
+      '.ai/workflows/faces/report.html', '.ai/workflows/faces/state.yaml', 'poc/config.json', 'poc/fit.py',
     ]);
     assert.match(d.warning, /without a generalize check/);
     assert.deepEqual(d.skipped, ['.scratch/prototype/run.log']);
@@ -178,8 +182,11 @@ test('exit records the person\'s choice; cleanup refuses until close, and while 
     const { worktree: wt } = run(root, 'start', '--idea', 'faces');
     const park = run(root, 'exit', 'park');
     assert.equal(park.status, 'parked');
+    const index = frontmatterOfDoc(path.join(wt, '.ai', 'workflows', S), '00-index.md');
+    assert.deepEqual([index.status, index.progress.prototype, index['next-invocation']], ['parked', 'parked', '/wf loop prototype faces <request>']);
     const grad = run(root, 'exit', 'graduate');
     assert.equal(grad.next, '/wf intake faces from faces');
+    assert.equal(path.basename(grad.brief), 'intake.yaml', 'the brief is the pipeline record');
     assert.equal(run(root, 'cleanup').ok, false, 'cleanup refuses until the person closes the prototype');
     run(root, 'exit', 'close');
     const target = path.join(base, 'shared-modules');

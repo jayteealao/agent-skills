@@ -55,6 +55,6 @@ A `gap` is a part that does not run on that host; `differs` is a part that runs 
 | Workflow runtime (`yolo`, `campaign`) | The Workflow tool runs `workflows/yolo.js` | `wf.mjs drive` runs `workflows/yolo.js` under Node; each agent is one `codex exec` call | pi-subagents' SubagentWorkflow tool runs `workflows/yolo.js` |
 | Progress surface | None required | The built-in plan tool, for nontrivial work, when available | None required |
 | Durable repo guidance | `CLAUDE.md` and `AGENTS.md` | `AGENTS.md` | `CLAUDE.md` and `AGENTS.md` |
-| Context compaction | No hook re-reads the control files. Re-read `00-index.md` and the stage artifacts before you continue | No hook re-reads the control files: the SessionStart adapter returns at once on a compaction. Re-read them yourself | Same as Claude Code |
+| Context compaction | No hook re-reads the control files. Re-read the index and the stage records with `record get` before you continue | No hook re-reads the control files: the SessionStart adapter returns at once on a compaction. Re-read them yourself | Same as Claude Code |
 
 The enforcement timing differs by design. The verification outcome does not: the same bundled runtime validates the artifact under every host.

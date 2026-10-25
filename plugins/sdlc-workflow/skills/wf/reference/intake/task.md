@@ -14,7 +14,7 @@ You are running `/wf intake task`, the **minimal lifecycle** for a unit of work 
 
 # Slug-mode (read before proceeding)
 
-If `intake.md` selected **slug-mode** (`/wf intake <slug> task <description>`, branch 1) and the `workflow-type` of `<slug>` is NOT `task`, follow [_compressed-slice.md](../_compressed-slice.md) — it OVERRIDES the standalone flow below. Write one `.ai/workflows/<slug>/03-slice-task-<descriptor>.md` (`type: slice`, `slice-type: task`, `compressed: true`, `origin: wf/task`); no new workflow, no branch, additive index updates only. Per the contract's inline-records rule, the slice records its per-AC evidence rows (with `evidence-rung`) **inline in a body table** — it writes no `06-verify.md`. The blast-radius classification and the Step-1.5 gate still apply in full — the slice body records both. Chat return: `task → compressed slice <slice-slug> on <slug>`. The idiomatic use: "I'm mid-feature and need to rotate a key first."
+If `intake.md` selected **slug-mode** (`/wf intake <slug> task <description>`, branch 1) and the `workflow-type` of `<slug>` is NOT `task`, follow [_compressed-slice.md](../_compressed-slice.md) — it OVERRIDES the standalone flow below. Write one draft `.ai/workflows/<slug>/.draft/03-slice-task-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: task`, `compressed: true`, `origin: wf/task`); no new workflow, no branch, additive index updates only. Per the contract's inline-records rule, the slice records its per-AC evidence rows (with `evidence-rung`) **inline in a body table** — it writes no `06-verify.md`. The blast-radius classification and the Step-1.5 gate still apply in full — the slice body records both. Chat return: `task → compressed slice <slice-slug> on <slug>`. The idiomatic use: "I'm mid-feature and need to rotate a key first."
 
 If that slug's `workflow-type` IS `task`, or the first token after `task` names a slug whose `workflow-type` IS `task`, that is a **resume** of the standalone flow below.
 
@@ -54,7 +54,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 0 — Orient
 1. **Resolve slug and mode:**
-   - The slug that intake consumed, or the first token after `task`, has an `.ai/workflows/<slug>/00-index.md` with `workflow-type: task` → **resume**. Pick up at the first incomplete step.
+   - The slug that intake consumed, or the first token after `task`, has an index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) with `workflow-type: task` → **resume**. Pick up at the first incomplete step.
    - Intake consumed a non-closed slug of another `workflow-type` → **slug-mode** (see above).
    - Otherwise → **new task**. Derive a slug: `task-<short-description>` (kebab-case, max 5 words, e.g. `task-rotate-stripe-key`). Collision → WARN and stop, as the intake modes do.
 2. **Branch decision:** default `branch-strategy: none` — most tasks do not warrant a branch (this inverts the `fix` default deliberately). Create one only when the task will produce a repo diff the user wants isolated; record the decision either way.
@@ -62,7 +62,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 1 — Brief (`00-index.md` + `01-task.md`)
 
-Author the brief. Ask at most **2 questions** in chat; record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
+Author the brief. Write `01-task.md` and `00-index.md` as drafts `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Ask at most **2 questions** in chat; record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 
 `01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](../_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes`) carries these fixed `##` headings:
 
@@ -87,11 +87,11 @@ Author the brief. Ask at most **2 questions** in chat; record each answer with `
 
 # Step 2 — Execute
 
-Do the work, step by step, per the brief. Then write `05-implement.md` (`type: implement`) with `## Steps Performed`: **what actually happened per step, including deviations** — the brief is the plan; this file is the history. A step that failed or was skipped is recorded as such, never smoothed over.
+Do the work, step by step, per the brief. Then write the draft of `05-implement.md` (`type: implement`) and put it, with `## Steps Performed`: **what actually happened per step, including deviations** — the brief is the plan; this file is the history. A step that failed or was skipped is recorded as such, never smoothed over.
 
 # Step 3 — Evidence (`06-verify.md`)
 
-Write `06-verify.md` (`type: verify`) with `## Acceptance Criteria Status`: per-AC evidence rows carrying `evidence-rung`. Close with `## Caveats`, `## Issues Found`, and `## Recommendation`. Write raw read-back output to `verify-evidence/<slug>/checks.md`. Use the frontmatter keys of the verify template (`verify/_artifact.md`), including `stack-source`, `skipped-gating-specs: []`, the `debt-markers-*` counts, `next-command`, `next-invocation`, and `recommended-routes`. **Re-observe; never assert:**
+Write the draft of `06-verify.md` (`type: verify`) and put it, with `## Acceptance Criteria Status`: per-AC evidence rows carrying `evidence-rung`. Close with `## Caveats`, `## Issues Found`, and `## Recommendation`. Write raw read-back output to `verify-evidence/<slug>/checks.md`. Use the frontmatter keys of the verify template (`verify/_artifact.md`), including `stack-source`, `skipped-gating-specs: []`, the `debt-markers-*` counts, `next-command`, `next-invocation`, and `recommended-routes`. **Re-observe; never assert:**
 
 - **`live`** — you re-read the real system of record after acting. For a task, non-runtime systems of record count as live observation: `ls` the directory, `curl` the DNS record, query the API, read the file back (the §7 gloss).
 - **`attested`** — a named external party or human confirmed the outcome; record the citation (vendor email, signoff comment, ticket URL). The only rung available for the coordination class. Weaker than `live`, but honest.
@@ -101,8 +101,8 @@ Set `result: pass` only when every AC closes at `live` or `attested`; otherwise 
 
 # Step 4 — Hand off
 
-1. Update `00-index.md`: `current-stage: verify` → close the loop honestly — a task whose ACs all closed sets `status: closed`, `close-reason: completed`, `closed-at` (a completed task has nothing left to drive; `/wf intake <slug> close` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
-2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`ship` from `skipped` to `not-started` and recommend ad-hoc `/wf review <dimension>` or `/wf ship <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
+1. Update the index with one `record set "<root>" <slug> index` call: `current-stage=verify` → close the loop honestly — a task whose ACs all closed sets `status=closed`, `close-reason=completed`, `closed-at=<timestamp>` (a completed task has nothing left to drive; `/wf intake <slug> close` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
+2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`ship` from `skipped` to `not-started` (`progress.review=not-started progress.ship=not-started`, in the same call) and recommend ad-hoc `/wf review <dimension>` or `/wf ship <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
 3. `10-retro.md` on request only.
 4. Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then:
 

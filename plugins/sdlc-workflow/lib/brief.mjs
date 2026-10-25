@@ -10,10 +10,11 @@
 // The stage agent still reads its stage reference. The brief replaces the policy prose that a
 // driver used to copy into each prompt, and the records that each agent used to read whole.
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
 import { STAGE_SUITES, profileLines, readProfile, timeBox } from './test-profile.mjs';
+import { readDoc, redirectOf } from './records.mjs';
 import { workflowDir, workflowRel } from './records-root.mjs';
 
 export const CARD_HEADING = 'Card';
@@ -79,7 +80,13 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const dir = workflowDir(projectRoot, slug);
   if (!existsSync(dir)) throw new Error(`no workflow folder ${dir}`);
   const missing = [];
-  const rel = (name) => `${workflowRel(slug)}/${name}`;
+  // A record of either layout; a citation names its place in the record files.
+  const doc = (name) => readDoc(dir, name)?.body ?? null;
+  const rel = (name) => {
+    const at = readDoc(dir, name);
+    const place = at?.layout === 'md' ? name : at?.section ? `${basename(at.path)}#${at.section}` : redirectOf(name) ?? name;
+    return `${workflowRel(slug)}/${place}`;
+  };
 
   const rawCard = cardOf(referenceRoot, stage);
   const card = rawCard == null ? null : absoluteLinks(rawCard, referenceRoot);
@@ -88,7 +95,7 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   let sliceText = null;
   if (slice) {
     const name = `03-slice-${slice}.md`;
-    const text = read(join(dir, name));
+    const text = doc(name);
     if (!text) missing.push(rel(name));
     else {
       sliceText = SLICE_SECTIONS.map((h) => {
@@ -98,7 +105,7 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     }
   } else {
     for (const name of ['02-shape.md', '01-intake.md']) {
-      const s = sectionOf(read(join(dir, name)), name === '02-shape.md' ? 'Acceptance Criteria' : 'Success Criteria');
+      const s = sectionOf(doc(name), name === '02-shape.md' ? 'Acceptance Criteria' : 'Success Criteria');
       if (s) { sliceText = `### Acceptance Criteria (${name})\n\n${capped(s, rel(name))}`; break; }
     }
   }
@@ -107,7 +114,7 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const want = PLAN_SECTIONS[stage];
   if (want && slice) {
     const name = `04-plan-${slice}.md`;
-    const text = read(join(dir, name));
+    const text = doc(name);
     if (!text) missing.push(rel(name));
     else {
       planText = want.map((h) => {

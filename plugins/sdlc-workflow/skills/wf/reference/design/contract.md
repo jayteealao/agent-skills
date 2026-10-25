@@ -28,7 +28,7 @@ Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", 
 
 ## Step 1: Load the direction source
 
-Read `02b-design.md` and the design record (`.ai/design/current.md`, `.ai/design/direction.md`), and extract:
+Read `02b-design.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02b-design.md`, and the design record (`.ai/design/current.md`, `.ai/design/direction.md`), and extract:
 - Feature summary and user context
 - Color strategy and scene sentence
 - The design mode of each surface (Persuade, Operate, Read, or Experience), from the brief's content inventory
@@ -81,7 +81,7 @@ Present the drawings. The approval question is asked by `stage.md` Step 5 (appro
 
 When no board can be shown (no browser renders the HTML and the person cannot open it), state in one line why. For `flow`, proceed with a text direction and `image-gate: skipped:<reason>`. For `visual` and `new-surface`, stop: the design is not settled without boards ([_lane.md](_lane.md) → "The human rule").
 
-Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
+Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too with `wf.mjs record set "<root>" <slug> 02b-design.md image-gate=<value>`, but it is not required.)
 
 **Confirm gate.** `shape=pass` is satisfied by the approve answer at [stage.md](stage.md) Step 5, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
 
@@ -101,7 +101,7 @@ These are the implementation contract. Code that loses them has regressed.
 
 ## Step 5: Write the visual contract
 
-Write the visual contract artifact at `.ai/workflows/<slug>/02c-craft.md`. This is the spec the implement step applies — writing it does not itself mutate product code.
+Write the visual contract as the draft `.ai/workflows/<slug>/.draft/02c-craft.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). This is the spec the implement step applies — writing it does not itself mutate product code.
 
 ```yaml
 ---

@@ -210,7 +210,11 @@ export function writeDoc(dir, name, { frontmatter, body = '' }, opts = {}) {
   // A body ends with one newline: trailing blank lines carry nothing, and the YAML of the
   // last block of a file would not keep them.
   const text = String(body ?? '').replace(/\r\n/g, '\n').replace(/\n{2,}$/, '\n');
-  if (n === INDEX_NAME) { writeIndex(dir, frontmatter ?? {}, text); return { file: STATE_FILE, section: null }; }
+  if (n === INDEX_NAME) {
+    writeIndex(dir, frontmatter ?? {}, text);
+    retire(dir, n, opts);
+    return { file: STATE_FILE, section: null };
+  }
   const loc = locate(n, { slices: opts.slices ?? (/^07-review-/.test(n) ? slicesOfDir(dir) : []) });
   if (!loc) throw new Error(`${n} has no place in the record layout`);
   const file = join(dir, loc.file);
@@ -224,18 +228,73 @@ export function writeDoc(dir, name, { frontmatter, body = '' }, opts = {}) {
     ...(loc.slice ? { slice: loc.slice } : {}),
     sections: sectionOrder(loc.file, sections),
   });
+  retire(dir, n, opts);
   return loc;
 }
 
-/** Merge field changes into one record, in the new layout. A null value deletes the field. */
+/**
+ * Move the old Markdown file of a record, when there is one, to .old/ and add its line to
+ * redirects.yaml. A record is written in one layout only, so no reader sees a stale copy.
+ */
+function retire(dir, name, { slices, now = nowIso() } = {}) {
+  if (!existsSync(join(dir, name))) return null;
+  mkdirSync(join(dir, OLD_DIR), { recursive: true });
+  renameSync(join(dir, name), join(dir, OLD_DIR, name));
+  const entry = { from: name, to: redirectOf(name, { slices: slices ?? slicesOfDir(dir) }) };
+  const prior = readYaml(join(dir, REDIRECTS_FILE))?.redirects ?? [];
+  writeYaml(join(dir, REDIRECTS_FILE), {
+    schema: RECORD_SCHEMA, type: 'redirects', slug: basename(dir), 'updated-at': now,
+    redirects: [...prior.filter((r) => r.from !== name), entry],
+  });
+  return entry;
+}
+
+/** Set or delete (null) the field at a dotted path, making the maps on the way. */
+function setPath(obj, key, value) {
+  const parts = key.split('.');
+  let at = obj;
+  for (const p of parts.slice(0, -1)) {
+    at[p] = at[p] && typeof at[p] === 'object' && !Array.isArray(at[p]) ? { ...at[p] } : {};
+    at = at[p];
+  }
+  if (value === null) delete at[parts.at(-1)];
+  else at[parts.at(-1)] = value;
+}
+
+/**
+ * Merge field changes into one record, in the new layout. A key with dots names a field in
+ * a map (`progress.plan`). A null value deletes the field.
+ */
 export function setFields(dir, name, changes, { now = nowIso(), opts } = {}) {
   const doc = readDoc(dir, name, opts);
   if (!doc || !doc.frontmatter) throw new Error(`no record ${name} in ${dir}`);
   const fm = { ...doc.frontmatter };
-  for (const [k, v] of Object.entries(changes)) { if (v === null) delete fm[k]; else fm[k] = v; }
+  for (const [k, v] of Object.entries(changes)) setPath(fm, k, v);
   if (!Object.hasOwn(changes, 'updated-at') && Object.hasOwn(fm, 'updated-at')) fm['updated-at'] = now;
   writeDoc(dir, name, { frontmatter: fm, body: doc.body }, opts);
   return fm;
+}
+
+// ---------------------------------------------------------------- decisions
+
+/**
+ * Mark every record that names a superseded decision. `superseded` lists the old ids and
+ * `by` is the id of the new entry. A marked record gets `superseded-decisions.<old>: <new>`,
+ * so a stage that reads it knows which of its decisions changed. Returns the marked names.
+ */
+export function markSuperseded(dir, superseded, by) {
+  if (!superseded?.length) return [];
+  const marked = [];
+  for (const name of listDocs(dir)) {
+    const doc = readDoc(dir, name);
+    if (!doc?.frontmatter) continue;
+    const text = `${JSON.stringify(doc.frontmatter)}\n${doc.body ?? ''}`;
+    const hits = superseded.filter((id) => new RegExp(`\\b${id}\\b`).test(text));
+    if (!hits.length) continue;
+    setFields(dir, name, Object.fromEntries(hits.map((id) => [`superseded-decisions.${id}`, by])));
+    marked.push(name);
+  }
+  return marked;
 }
 
 // ---------------------------------------------------------------- drafts
@@ -296,18 +355,10 @@ export function migrateWorkflow(dir, { now = nowIso() } = {}) {
     if (!doc?.frontmatter) { kept.push(name); continue; }
     const sec = loc.section ? readYaml(join(dir, loc.file))?.sections?.[loc.section] : null;
     const hasNew = loc.section ? !!sec : existsSync(join(dir, STATE_FILE));
-    if (!hasNew) writeDoc(dir, name, doc, { slices });
-    mkdirSync(join(dir, OLD_DIR), { recursive: true });
-    renameSync(join(dir, name), join(dir, OLD_DIR, name));
+    // writeDoc retires the old file; a record whose section exists already is only retired.
+    if (!hasNew) writeDoc(dir, name, doc, { slices, now });
+    else retire(dir, name, { slices, now });
     moved.push({ from: name, to: redirectOf(name, { slices }) });
-  }
-  if (moved.length) {
-    const prior = readYaml(join(dir, REDIRECTS_FILE))?.redirects ?? [];
-    const seen = new Set(moved.map((m) => m.from));
-    writeYaml(join(dir, REDIRECTS_FILE), {
-      schema: RECORD_SCHEMA, type: 'redirects', slug: basename(dir), 'migrated-at': now,
-      redirects: [...prior.filter((r) => !seen.has(r.from)), ...moved],
-    });
   }
   return { moved, kept };
 }

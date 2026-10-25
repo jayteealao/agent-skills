@@ -28,6 +28,7 @@ import {
 import { lifecycleDone } from '../lib/lifecycle-done.mjs';
 import { optimizeStatus } from './optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
+import { INDEX_NAME, frontmatterOfDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: goal.mjs <arm|check|park|status|clear|lifecycle> <projectRoot> <slug> ...';
 // scripts/ sits one level under the plugin root.
@@ -71,8 +72,7 @@ function readChecks(root, slug) {
 const countOf = (checks, arming) => checks.filter((c) => c.arming === arming).length;
 
 function indexOf(root, slug) {
-  const f = join(wfDir(root, slug), '00-index.md');
-  return existsSync(f) ? safeParseFrontmatter(readFileSync(f, 'utf8')).data : null;
+  return frontmatterOfDoc(wfDir(root, slug), INDEX_NAME);
 }
 
 function arm(root, slug, f) {

@@ -10,7 +10,7 @@ You are running `/wf intake investigate`, a **solution-options sketcher** that p
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-investigate-<descriptor>.md` (`type: slice`, `slice-type: investigate`, `compressed: true`, `origin: intake/investigate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `investigate → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-investigate-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: investigate`, `compressed: true`, `origin: intake/investigate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `investigate → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -69,12 +69,12 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the first token matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: investigate` → the workflow exists. Read that index, then split on three sub-cases:
+   - If the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: investigate` → the workflow exists. Read that index, then split on three sub-cases:
      - **A token after the slug matches an option id (`A`, `B`, …) or an option label** from `01-investigate.md` → **pick mode**. Jump to `# Pick — decision closure` below; any trailing prose after the option token is the decision note. If the token matches more than one label, ask one question to disambiguate. If the index is already `status: closed`, WARN: "Workflow `<slug>` is closed (chosen-option: `<value>`)." and stop.
      - **`01-investigate.md` is complete and no pick token is present** → tell the user the option set is ready and how to record a pick — `/wf intake investigate <slug> <option-id-or-label> [one-line reason]` — and stop.
      - **`01-investigate.md` is incomplete** → **resume mode**: pick up from the missing section.
    - Otherwise → **new investigate**. Derive a slug: `investigate-<short-problem>` (kebab-case, max 5 words, e.g., `investigate-checkout-latency`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
+2. **Collision check:** If the index of `<slug>` exists (`record get` exits 0) and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -127,11 +127,11 @@ recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reas
 ---
 ```
 
-Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`.
+Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`. Write the record to the draft `.ai/workflows/<slug>/.draft/01-investigate.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 # Step 4 — Write `00-index.md`
 
-Write `00-index.md` from [_light-index.md](_light-index.md), the `investigate` row. Add these keys:
+Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `investigate` row, and put it. Add these keys:
 
 ```yaml
 branch: <current-branch>
@@ -186,15 +186,16 @@ Runs only from Step 0 pick mode (`/wf intake investigate <slug> <option-id-or-la
 The pick is the workflow's terminus: it records the decision and closes the workflow. It never
 starts the successor — it prints the invocation and stops.
 
-1. **Stamp the artifact.** Add to `01-investigate.md` frontmatter: `chosen-option: <id> — <label>`;
+1. **Stamp the artifact.** Add to `01-investigate.md` frontmatter, with one
+   `record set "<root>" <slug> 01-investigate.md` call: `chosen-option: <id> — <label>`;
    `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
    `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body: which option was picked; why (the
+2. **Append a `## Decision` section** to the artifact body (get `01-investigate.md`, add the section, write the draft and put it): which option was picked; why (the
    user's reason exactly, else "user picked without a stated reason"); which tripwires were live
    at pick time (from `## Tripwire warnings`, or "none").
-3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: option-picked`,
-   `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
-   `next-invocation: "none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
+3. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=option-picked
+   superseded-by=pending closed-at=<timestamp> next-command=none
+   "next-invocation=none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
    to `closed`. `superseded-by: pending` is corrected to the successor slug by the downstream
    mode's link-back (`_intake-provenance-consume.md`); updating that one field on a closed index is
    additive and safe.

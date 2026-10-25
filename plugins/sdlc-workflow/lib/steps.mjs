@@ -15,6 +15,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { sectionOf } from './brief.mjs';
+import { readDoc } from './records.mjs';
 
 export const STEPS_FILE = 'steps.jsonl';
 export const LEGACY_PROGRESS = '.implement-progress.jsonl';
@@ -54,9 +55,9 @@ export function appendStep(slugDir, row, { now = nowIso() } = {}) {
 
 /** The numbered steps of the plan of a slice: [{ n, title }]. */
 export function planSteps(slugDir, slice) {
-  const file = join(slugDir, `04-plan-${slice}.md`);
-  if (!existsSync(file)) return [];
-  const section = sectionOf(readFileSync(file, 'utf8'), 'Step-by-Step Plan') ?? '';
+  const plan = readDoc(slugDir, `04-plan-${slice}.md`);
+  if (!plan) return [];
+  const section = sectionOf(plan.body, 'Step-by-Step Plan') ?? '';
   const steps = [];
   for (const line of section.split(/\r?\n/)) {
     const m = /^(\d+)\.\s+(.*)$/.exec(line);

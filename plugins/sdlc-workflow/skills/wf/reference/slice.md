@@ -21,7 +21,7 @@ You are running `/wf slice`, **stage 3 of 9**: 1·intake → 2·design → `3·s
 
 - Cut the shaped spec into vertical slices, one capability each.
 - Write each acceptance criterion with its verification path: `observable: true|false`, and a `verify:` stub for an observable criterion.
-- Write the per-slice files first, then `03-slice.md`, then `00-index.md` last.
+- Write the per-slice drafts first, then the draft of `03-slice.md`, and put them. Update the index last.
 - Do not plan, design or code.
 
 ## Requires
@@ -49,7 +49,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 You are a **workflow orchestrator**, not a problem solver.
 - Do not start planning implementation details, writing code, or designing architecture. Your job is to **decompose the shaped spec into vertical slices, one capability each**, not to build anything.
-- Write the per-slice files before the master `03-slice.md`, and update `00-index.md` last.
+- Write the per-slice drafts before the draft of the master `03-slice.md`, and update the index last.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 
 # Workflow rules
@@ -57,10 +57,10 @@ You are a **workflow orchestrator**, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key slice-focus --stage slice` per [_decisions.md](_decisions.md), and apply it when you choose the slices.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`: `current-stage`, `status`, `selected-slice`, `open-questions`.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key slice-focus --stage slice` per [_decisions.md](_decisions.md), and apply it when you choose the slices.
+2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` per [_records.md](_records.md): `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - `01-intake.md` and `02-shape.md` exist. If missing → STOP. Tell the user which command to run first ("Run `/wf intake <slug>` first.").
+   - `01-intake.md` and `02-shape.md` exist: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` exits 0 for each. If one exits 1 → STOP. Tell the user which command to run first ("Run `/wf intake <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - **Stack gate (do not silently re-detect).** Inspect the `stack:` block in `00-index.md`.
      - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it."
@@ -101,11 +101,11 @@ Do this in order:
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user sees the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion, `charter scenario executes through step N`: the milestone slice proves the steps built so far, the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, on the same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario.
-6c. **Review scope is not a question.** One review per work packet: keep `review-scope` as `00-index.md` has it. When an older workflow has `review-scope-confirmed: false`, set `review-scope-confirmed: true` (step 10 carries it), and ask nothing. Also set `review-scope: slug-wide`, unless a `07-review*` file exists: a change of scope then orphans that file.
-7. **Write one `03-slice-<slice-slug>.md` per slice** (template below).
-8. **Write the master `03-slice.md`** (template below) with links to every per-slice file.
+6c. **Review scope is not a question.** One review per work packet: keep `review-scope` as `00-index.md` has it. When an older workflow has `review-scope-confirmed: false`, set `review-scope-confirmed: true` (step 10 carries it), and ask nothing. Also set `review-scope: slug-wide`, unless `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` names a `07-review*` record: a change of scope then orphans that record.
+7. **Write one draft `.ai/workflows/<slug>/.draft/03-slice-<slice-slug>.md` per slice** (template below).
+8. **Write the draft of the master `03-slice.md`** (template below) with links to every per-slice record. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
-10. Update `00-index.md` with the recommended default option and add all slice files to `workflow-files`.
+10. Update the index with the recommended default option in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`. Set `workflow-files` to the whole list, with every slice record added.
 
 # Adaptive routing
 
@@ -221,7 +221,7 @@ Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 # Additive-write contract
 
 Both `03-slice.md` and each per-slice `03-slice-<slice-slug>.md` are revisable. When `/wf slice` is re-invoked on an existing slug, follow [_additive-write.md](_additive-write.md) for every file that will be rewritten: snapshot, **rewrite the body to current truth**, add one ledger entry.
-- Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
+- Snapshots in `.ai/workflows/<slug>/history/`, each the `record get` output of the record: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
 - **Ledger entry** per rewritten file: `trigger: scope-change` (default) or `new-slice` when slices were added; `because:` names why the slicing changed; `changed:` names what moved.
 - **New slices added in this run** start fresh: no prior revision, no history snapshot, `revision-count` 1.
-- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Do not delete a slice file from disk.
+- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section: get the record, change it, write its draft and put it. Do not delete a slice record.

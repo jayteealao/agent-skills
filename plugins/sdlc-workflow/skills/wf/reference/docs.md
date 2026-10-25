@@ -44,13 +44,13 @@ Parse `$ARGUMENTS`.
 2. **Otherwise** → **Orchestrator mode**. Parse the args as the orchestrator inputs:
    - No argument → `mode: project`, scope is entire project.
    - Argument is `--audit-only` → `mode: project`, `audit-only: true`.
-   - Argument matches an existing `.ai/workflows/<slug>/00-index.md` → `mode: workflow`, `target-slug: <slug>`.
+   - `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <argument> index` exits 0 → `mode: workflow`, `target-slug: <slug>`.
    - Argument is a path (resolves to an existing directory or file) → `mode: path`, `scope-path: <path>`.
    - Argument is none of the above → load [route.md](route.md) with every token of `/wf docs`, reason `<token> does not fit <primitive>|<slug>|<path>`.
 
 3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (real current UTC time per [_timestamp.md](_timestamp.md)).
 
-4. **For `mode: workflow`**: use `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape) and the `08-handoff.md` frontmatter (`has-docs-changes`, `docs-generated`: the docs that handoff already wrote).
+4. **For `mode: workflow`**: use `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape) and the `08-handoff.md` frontmatter (`has-docs-changes`, `docs-generated`: the docs that handoff already wrote). Read each record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <target-slug> <name>`.
 
 # Role
 You are a **documentation orchestrator**, not a writer operating in isolation; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
@@ -144,7 +144,7 @@ Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md
 
 Write a `## Review Notes` section to `generate.md` with any issues found. For any accuracy issue found at review: fix it immediately before completing this step.
 
-**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
+**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` as the draft `.ai/workflows/<target-slug>/.draft/08b-docs-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <target-slug>` per [_records.md](_records.md); otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
 
 **Commit all documentation changes:**
 `docs: <one line that names the documents changed, in product language>`

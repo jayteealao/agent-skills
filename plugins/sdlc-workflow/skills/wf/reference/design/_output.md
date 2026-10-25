@@ -5,7 +5,7 @@ Load this file from `design.md` Step 1 (registration and the transformation arti
 ## Registration and the transformation artifact
 
 **Augmentation registration** (a move that `implement` applies, audit, critique) — create `augmentations:` in
-`00-index.md` if absent:
+`00-index.md` if absent. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus the new one ([_records.md](../_records.md)):
 
 ```yaml
 augmentations:

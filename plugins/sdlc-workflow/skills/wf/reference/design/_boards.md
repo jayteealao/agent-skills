@@ -80,7 +80,7 @@ On **adjust**, change only the boards the person named, run `render` for those k
 ## Freeze (design stage Step 6)
 
 1. Run `freeze` with `--by` (the source that confirmed the direction) and the canvas link when a mirror exists.
-2. Write `02c-craft.md` with `boards:` and `north-star-mock:` from the freeze result, and `design-revision: <N>`.
+2. Write the draft of `02c-craft.md` with `boards:` and `north-star-mock:` from the freeze result, and `design-revision: <N>`. Put it with `wf.mjs record put` ([_records.md](../_records.md)).
 3. When the result has a warning, tell the person.
 
 On **amend**, change only the named boards in the working set, render them, show them, and freeze again. The new revision is `r<N+1>/`, and the new `02c-craft.md` names it.

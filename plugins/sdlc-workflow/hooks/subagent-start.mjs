@@ -41,14 +41,18 @@ function activeWorkflows(projectRoot) {
   return rows;
 }
 
+// The stage is in state.yaml (the record layout) or in the head of 00-index.md (the old one).
 function currentStage(projectRoot, slug) {
-  try {
-    const head = readFileSync(join(projectRoot, '.ai', 'workflows', slug, '00-index.md'), 'utf-8').slice(0, 4000);
-    const stage = /^current-stage:\s*(.+)$/m.exec(head)?.[1]?.trim() ?? null;
-    return stage && STAGE.test(stage) ? stage : null;
-  } catch {
-    return null;
+  for (const name of ['state.yaml', '00-index.md']) {
+    try {
+      const head = readFileSync(join(projectRoot, '.ai', 'workflows', slug, name), 'utf-8').slice(0, 4000);
+      const stage = /^current-stage:\s*["']?([^"'\s]+)/m.exec(head)?.[1] ?? null;
+      return stage && STAGE.test(stage) ? stage : null;
+    } catch {
+      // the next layout
+    }
   }
+  return null;
 }
 
 function main() {

@@ -53,6 +53,6 @@ The person meets the carried thoughts again, with time and the brief behind them
    For each item in the ask set, ask: keep, change (free text says how), or drop. Ask about up to four items per batch, per [_gate-question.md](../_gate-question.md). When you have a view, give it and its reason in the question text. The person decides. When the ask set is empty, ask one question: "Keep the carried direction, or name a change". A free-text answer can change any item of the summary.
 4. **Ask the open questions.** Put each carried open question and open tension to the person in the same batches.
 5. **Hand over.** The kept and changed items, and the carried sketches they point to, are the starting direction for Step 4. An item that you did not ask about is kept. Draw from them first. A drawing that departs from a kept item says why in its caption.
-6. **Record.** In `02c-craft.md`, write `carried-from:` (each source as `<board path>#<packet-of-work key>`) and a `## Carried design thoughts` section: each item with what the person decided (kept, changed, or dropped) and why. Mark each item that was not asked as "kept from the summary".
+6. **Record.** In the draft of `02c-craft.md`, write `carried-from:` (each source as `<board path>#<packet-of-work key>`) and a `## Carried design thoughts` section: each item with what the person decided (kept, changed, or dropped) and why. Mark each item that was not asked as "kept from the summary".
 
 On `amend`, present only the carried items that touch the surfaces the amend changes.

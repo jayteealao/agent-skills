@@ -230,7 +230,7 @@ Read `archive/` only when the person asks about an archived item or area, or whe
 ## Converting a legacy board
 
 A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and `claims:` and which has no `brainstorm-board.json`. Convert it once, at the start of the first resume:
-1. Copy the legacy `01-brainstorm.md` to `history/` unchanged.
+1. Copy the legacy `01-brainstorm.md` to `history/` unchanged: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-brainstorm.md` there (per [_records.md](../../_records.md)).
 2. Give every thread, claim, assumption, contradiction, and candidate a readable key, and keep its old id in `was`.
 3. Map the kinds:
    - A claim with `evidence: verified …`, `contradicted …`, or `consult` becomes a finding. Its `check` comes from the evidence.
@@ -239,5 +239,5 @@ A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and 
    - A candidate becomes a work packet, with its `state` and `routed-to` kept.
 4. Make each thread an area unless the board has a `## Map`.
 5. Write `brainstorm-board.json`. Rewrite the body of `01-brainstorm.md` per the template above: the summary first, then every section in plain words. Keep the legacy turn log in the JSON `log`.
-6. Remove `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected` from the frontmatter, and add `board: brainstorm-board.json`.
+6. Remove `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected` from the frontmatter, and add `board: brainstorm-board.json`. Write the draft of `01-brainstorm.md` with the changes of steps 5 and 6, and put it.
 7. Show the new summary to the person at the first check-in, and ask whether it is right.

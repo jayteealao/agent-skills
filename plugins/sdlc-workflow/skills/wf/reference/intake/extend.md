@@ -57,20 +57,20 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 
 # Step 0 — Orient
 
-1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from `.ai/workflows/*/00-index.md`; if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
+1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
    - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is read; missing capability typically spans slices).
    - `from-retro` — extract new scope from `10-retro.md` findings.
    - `from-probe` — extract new scope from the workflow's probe slices (`03-slice-probe-*.md`): findings whose remediation is net-new capability rather than a fix of built work.
    - `from-simplify` — extract new scope from `/wf intake simplify` findings routed here (the finding entry — id, files, rationale, severity — travels in the invocation text).
    - **Free scope text** (or nothing) — general extension; the user describes the new scope (the free text after the slug is your starting description; if empty, the Step 2 interview elicits it).
-3. **Parse `00-index.md`** — `title`, `slug`, `current-stage`, `status`, `selected-slice`, `workflow-files`, `workflow-type`.
+3. **Parse the index** (`record get "<root>" <slug> index`) — `title`, `slug`, `current-stage`, `status`, `selected-slice`, `workflow-files`, `workflow-type`.
 3b. **Shape pre-flight (entry guard).** Extension requires a slice roster, and the dispatcher's branch 2 routes ANY on-disk slug here — including workflows that cannot have one. Check before reading further:
    - **Terminal analysis parent** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) — there is no roster and never will be. STOP: *"`<slug>` is a `<type>` analysis workflow — it has no slice roster to extend. Route its decision instead: record the pick/route (`/wf intake <type> <slug> …`) or start the follow-on work with `/wf intake "<scope>" from <slug>`."*
-   - **Pre-slice standard parent** (no `03-slice.md` on disk yet) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf intake <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
-4. **Parse the `03-slice.md`** `slices:` array. For each entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
-5. **Check every `03-slice-<slug>.md` file** that `workflow-files` lists. Note which are `status: complete`, `status: in-progress`, `status: defined`.
-6. **Use the seed source** that the Requires table names for the seed: every `07-review-*.md` for `from-review` (extension candidates often emerge from sibling reviews), `10-retro.md` for `from-retro`, and `02-shape.md` with the live entries of the decision store (`decide list`, per [_decisions.md](../_decisions.md)) for the general seed.
+   - **Pre-slice standard parent** (no `03-slice.md` record yet: `record get "<root>" <slug> 03-slice.md` exits 1) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf intake <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
+4. **Parse the `03-slice.md`** `slices:` array (`record get "<root>" <slug> 03-slice.md`). For each entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
+5. **Check every `03-slice-<slug>.md` record** that `workflow-files` lists (`record get` each). Note which are `status: complete`, `status: in-progress`, `status: defined`.
+6. **Use the seed source** that the Requires table names for the seed (`record list "<root>" <slug>` gives the names, `record get` reads each): every `07-review-*.md` for `from-review` (extension candidates often emerge from sibling reviews), `10-retro.md` for `from-retro`, and `02-shape.md` with the live entries of the decision store (`decide list`, per [_decisions.md](../_decisions.md)) for the general seed.
 7. **Summarise current state to chat:**
    ```
    Workflow: <title> (<slug>)
@@ -87,7 +87,7 @@ Depending on the seed:
 
 ## `from-review` seed
 
-Read `## Recommendations` of every review file (`07-review.md`, and each `07-review-<slice-slug>.md`), and the open findings of the ledger (`wf.mjs findings list "<root>" <slug> --source review --open`). Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
+Read `## Recommendations` of every review record (`07-review.md`, and each `07-review-<slice-slug>.md`; `record get` each), and the open findings of the ledger (`wf.mjs findings list "<root>" <slug> --source review --open`). Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
 
 Signs that a finding warrants a new slice (not a bug fix):
 - Finding says "this feature should also do X, but X was never scoped"
@@ -161,11 +161,11 @@ Classify the UX impact of the new scope per `design/_lane.md`, and record each n
 
 # Step 4 — Write New Slice Files
 
-For each confirmed new slice, write `03-slice-<new-slug>.md` per the template in `intake/extend/_artifacts.md`: frontmatter (`status: defined`, `source`, `source-ref`, `extension-round`, refs to `04-plan-<new-slug>.md` and `05-implement-<new-slug>.md`) and body (Goal, Why This Slice Exists, Scope, Acceptance Criteria, Dependencies on Other Slices, Risks).
+For each confirmed new slice, write the draft of `03-slice-<new-slug>.md` and put it, per the template in `intake/extend/_artifacts.md`: frontmatter (`status: defined`, `source`, `source-ref`, `extension-round`, refs to `04-plan-<new-slug>.md` and `05-implement-<new-slug>.md`) and body (Goal, Why This Slice Exists, Scope, Acceptance Criteria, Dependencies on Other Slices, Risks).
 
 # Step 5 — Update Master Slice Index (non-destructive)
 
-Read the current `03-slice.md`. Update it by:
+Get the current `03-slice.md` (`record get "<root>" <slug> 03-slice.md`). Change it by:
 
 1. **Incrementing `total-slices`** by the number of new slices added.
 2. **Appending new entries** to the `slices:` YAML array, per the roster entry in `intake/extend/_artifacts.md`; do NOT modify existing entries.
@@ -176,13 +176,13 @@ Read the current `03-slice.md`. Update it by:
    - **Any summary sentence stating a slice total** (e.g. "These 5 slices cover…") — update the number to the new total so the prose agrees with the header, figure, and metric row (which are all roster-derived and already correct).
    - **The `## Recommended Order` list** — append the new slices as *additional* numbered entries (continue the numbering; do NOT renumber, reorder, or remove existing lines), each with a one-line reason, so the order reflects the full set. This is the only edit you make to existing body text, and it is purely clerical — correcting a stale count and extending a list. It is NOT a change to existing slice entries, slice files, or `status: complete` rows.
 
-Do not modify any existing slice entries in the `slices:` array. Do not change `status: complete` on done slices. (Item 5 above touches only author-written prose, never the roster.)
+Do not modify any existing slice entries in the `slices:` array. Do not change `status: complete` on done slices. (Item 5 above touches only author-written prose, never the roster.) Then write the draft of `03-slice.md` and put it.
 
 ---
 
 # Step 6 — Update Index (the single authoritative index write)
 
-This is the ONE step that writes `00-index.md` — everything earlier only computed. Read the frontmatter and apply, additively:
+This is the ONE step that writes `00-index.md` — everything earlier only computed. Get the index (`record get "<root>" <slug> index`) and apply, additively:
 
 1. `updated-at` → current ISO 8601 timestamp.
 2. Append all new `03-slice-<new-slug>.md` files to `workflow-files`.
@@ -191,7 +191,7 @@ This is the ONE step that writes `00-index.md` — everything earlier only compu
 5. **Revive a complete/closed parent:** extension means the workflow has live work again. If `status` is `complete` or `closed`, set `status: active` and `current-stage: slice` (leave `close-reason`/`closed-at` in place as history — the revival is visible, not erased).
 6. **Registry row:** update the slug's row in `.ai/workflows/INDEX.md` (`status`, `updated-at`) to match.
 
-Do not change `selected-slice` or any field not listed above.
+Do not change `selected-slice` or any field not listed above. Write the draft of `00-index.md` and put it at once, per [_control-file-ownership.md](../_control-file-ownership.md).
 
 ---
 

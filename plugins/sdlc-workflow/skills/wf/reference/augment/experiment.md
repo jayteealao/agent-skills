@@ -53,11 +53,11 @@ You are an **experiment designer**, not an implementer.
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
-   - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
+   - If `04c-experiment.md` already exists (`record get` exits 0) → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
 3. **Check for instrumentation:**
-   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
+   - If `04b-instrument.md` does NOT exist (`record get` exits 1) → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do not block. Proceed regardless.
 4. **Use the workflow context.** `02-shape.md` holds the hypothesis. `04b-instrument.md` names the available metrics. The index shows `current-stage`, `status`, existing `augmentations:`, and `tags`.
 
@@ -67,12 +67,12 @@ Launch the sub-agent to design the experiment. Do not skip to writing the artifa
 ### research sub-agent — Experiment design
 
 Prompt with ALL of the following:
-- Read `02-shape.md` in full. Extract:
+- Read `02-shape.md` in full with `wf.mjs record get`. Extract:
   - The implicit or explicit hypothesis: "We believe that [change] will [outcome] for [users]."
   - The change being made (treatment).
   - What the existing behavior is (control).
   - Any acceptance criteria — these become candidate success metrics.
-- If `04b-instrument.md` is present, read it and note the signals that could serve as experiment metrics (prefer already-planned signals over net-new ones).
+- If `04b-instrument.md` is present, read it with `wf.mjs record get` and note the signals that could serve as experiment metrics (prefer already-planned signals over net-new ones).
 - Check the codebase for existing feature flag infrastructure:
   - Search for: `LaunchDarkly`, `Unleash`, `Growthbook`, `Flagsmith`, `Split.io`, custom flag files (`featureFlags.ts`, `flags.go`, `flags.py`)
   - If found: note the framework, the existing flag structure, and the naming conventions used for existing flags
@@ -103,11 +103,11 @@ Return as structured text: full experiment design covering all 6 elements above,
 
 # Step 2 — Write `04c-experiment.md`
 
-Write `04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md).
+Write the draft `.ai/workflows/<slug>/.draft/04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
 
 # Step 3 — Update `00-index.md` augmentations registry
 
-Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:
+Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, then add or update the `augmentations:` list. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`:
 
 ```yaml
 augmentations:
@@ -118,8 +118,6 @@ augmentations:
 ```
 
 If `augmentations:` already exists (from a prior augmentation), append to the list. Do not overwrite existing entries.
-
-Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 

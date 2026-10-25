@@ -10,7 +10,7 @@ You are running `/wf intake fix`, a **compressed standard lifecycle** for small 
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-fix-<descriptor>.md` (`type: slice`, `slice-type: fix`, `compressed: true`, `origin: intake/fix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `fix → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-fix-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: fix`, `compressed: true`, `origin: intake/fix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `fix → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -56,7 +56,7 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: fix` (new) OR `workflow-type: quick` (legacy) → **resume mode**. Read that index and the lead (`01-fix.md` new, or legacy `01-quick.md` / `01-fix.md` `type: fix-plan` pre-migration — check both). Pick up from the first unwritten planning artifact. If planning is complete, the user likely meant `/wf implement` — tell them and stop.
+   - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: fix` (new) OR `workflow-type: quick` (legacy) → **resume mode**. Read that index and the lead with `record get` (`01-fix.md` new, or legacy `01-quick.md` / `01-fix.md` `type: fix-plan` pre-migration — check both). Pick up from the first unwritten planning artifact. If planning is complete, the user likely meant `/wf implement` — tell them and stop.
    - Otherwise → **new `/wf intake fix` workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for fix: `quick`).
 3. **Provenance check:** apply `_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token, or an exact label match for an `investigate`, `ideate`, or `brainstorm` source), consume the matching Consume-table row (an `investigate` option card, an `rca` diagnosis, or an `ideate` idea card seeds `01-fix.md` and the Step 1 sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on the source index, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
@@ -88,7 +88,7 @@ Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candid
 #### research sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
-### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md).
+### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `record put "<root>" <slug>`.
 
 **`01-fix.md` — `type: intake` (the compressed brief, replaces standalone intake):**
 ```yaml
@@ -196,7 +196,7 @@ The fix tripwires are: >3 files touched · >5 implementation steps · new extern
 
 # Step 2 — Write `00-index.md` (conformant `type: index`)
 
-Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
+Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Put it. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 3 — Gate before implement (mandatory unless auto-proceeding)
 
@@ -218,7 +218,7 @@ Next: /wf implement <slug>
 If escalated, replace `Next:` with `Restart bigger: /wf intake <description>`.
 
 # Workflow rules
-Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md) (artifact home, frontmatter + real timestamps, atomic writes, resume-from-first-unwritten). Resume mode (Step 0) picks up from the first unwritten planning artifact: if interrupted after `02-shape.md` but before `03-slice.md`, it writes slice + plan + index and gates.
+Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md) (artifact home, frontmatter + real timestamps, drafts and puts, resume-from-first-unwritten). Resume mode (Step 0) picks up from the first unwritten planning artifact: if interrupted after `02-shape.md` but before `03-slice.md`, it writes slice + plan + index and gates.
 
 # What this command is NOT
 - **Not a hotfix** — `/wf intake hotfix` exists for production incidents (production-branch base, diagnosis sub-agents, security-default review). Use it if there is an active incident.

@@ -50,7 +50,7 @@ Nothing else. In particular:
    free text (`"base should be develop, not main"`, `"switch to slug-wide review"`). A trailing
    `dry-run` token (same grammar as modernize) means: resolve and present the Step 1 diff, then
    STOP without writing.
-2. Read `.ai/workflows/<slug>/00-index.md`. If `status: closed`, WARN and confirm before
+2. Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)). If `status: closed`, WARN and confirm before
    proceeding: *"`<slug>` is closed (close-reason: `<reason>`). Amend its recorded config anyway?"*
    — amending a closed record is legitimate (fixing history's metadata) but never silent. Map the
    request onto the whitelist above. Record, for each field you intend to change: current value →
@@ -77,11 +77,11 @@ and "quietly repoint a workflow at the wrong trunk."
 
 # Step 2 — Write
 
-1. Apply the confirmed changes to `.ai/workflows/<slug>/00-index.md` and refresh `updated-at`.
+1. Apply the confirmed changes to the index: get it, change the fields, refresh `updated-at`, write the draft `.ai/workflows/<slug>/.draft/00-index.md` and put it with `record put "<root>" <slug>`. The changes of items 4 and 5 go into the same draft.
 2. Mirror any changed `branch` into the workflow's row in `.ai/workflows/INDEX.md`, and refresh that
    row's `updated-at`.
-3. Follow [_control-file-ownership.md](../_control-file-ownership.md): re-read immediately before
-   the edit, and on a modified-since-read rejection re-read, re-derive, retry once. A driver may be
+3. Follow [_control-file-ownership.md](../_control-file-ownership.md): get the index immediately before
+   you write the draft, and put the draft at once. A driver may be
    running on this slug.
 4. Record the amendment in the index's `revisions:` ledger with `trigger: manual` and a one-phrase
    `because` — the *why* is the whole value of a config change ("PR target moved to the release

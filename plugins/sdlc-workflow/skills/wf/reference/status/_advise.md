@@ -20,7 +20,7 @@ and a WIP pass surfaces what to stop. Run the steps in order.
 
 ## Step A1 — Gather the portfolio (Tier 0, always)
 
-From the just-reconciled `INDEX.md` and each `00-index.md`, collect per slug: `status`,
+From the just-reconciled `INDEX.md` and the index of each slug (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)), collect per slug: `status`,
 `current-stage`/`stage-number`, `branch`, `updated-at` (+ staleness, >7d), `open-questions`,
 `progress` (slices-implemented/total), `runtime-evidence-deferrals`, probe compressed-slices with
 `findings-count > 0`, and `intent-risks`. This is the same read the dashboard already does — no new
@@ -34,7 +34,7 @@ via `gh pr view <N> --json headRefName -q .headRefName`, then filter the `branch
 ## Step A2 — Build the constraint graph (Tier 1, skipped under `fast`)
 
 For each non-terminal slug, read its `02-shape.md` and its **current** `04-plan-*.md` (latest by stage
-number) to extract two things:
+number) with `record get "<root>" <slug> <name>` (`record list "<root>" <slug>` gives the names) to extract two things:
 - **Stated dependencies** — "assumes X", "after Y ships", "needs the Z schema/module/endpoint" → a
   directed edge `producer → consumer` whenever *another* slug in the set produces that X/Y/Z.
 - **Scope footprint** — the modules/paths/features it touches (the plan's files-to-change list + the

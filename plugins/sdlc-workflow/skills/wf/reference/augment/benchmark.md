@@ -68,11 +68,11 @@ You are a **performance analyst**, not an optimizer.
 # Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
-   - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
 2. **Resolve mode:**
    - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
    - If no mode is named → auto-detect:
-     - No `05c-benchmark.md` → baseline mode.
+     - No `05c-benchmark.md` (`record get` exits 1) → baseline mode.
      - `05c-benchmark.md` exists with `mode: baseline` and no `comparison:` block → compare mode.
      - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline AND comparison data; the calling stage must name `baseline` or `compare`. Stopping." Stop.
 3. **Use the workflow context.** `02-shape.md` names the performance-sensitive areas. The plan files name the files and functions that change. In compare mode, `05c-benchmark.md` names the exact targets to run again.
@@ -86,7 +86,7 @@ You are a **performance analyst**, not an optimizer.
 ### research sub-agent — Benchmark target discovery
 
 Prompt with ALL of the following:
-- Read `02-shape.md` and any `04-plan-*.md` files. Identify the functions, endpoints, operations, or modules that:
+- Read `02-shape.md` and any `04-plan-*.md` records with `wf.mjs record get` (`wf.mjs record list` names them). Identify the functions, endpoints, operations, or modules that:
   - Are explicitly named in the shape's `## Affected Areas` section
   - Are performance-sensitive (called frequently, latency-critical, or processing-heavy)
   - Will be modified by this workflow (from the plan)
@@ -119,11 +119,11 @@ If benchmarks fail to run (missing dependency, build error, missing test fixture
 
 ## Baseline Step 3 — Write `05c-benchmark.md` (baseline)
 
-Write `05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*.
+Write the draft `.ai/workflows/<slug>/.draft/05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
 
 ## Baseline Step 4 — Update `00-index.md` augmentations registry
 
-Add to `augmentations:` list:
+Add this entry to the `augmentations:` list of the index. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus this one.
 ```yaml
 augmentations:
   - type: benchmark
@@ -141,7 +141,7 @@ If `augmentations:` already has a benchmark entry (e.g., from a prior run), upda
 
 ## Compare Step 1 — Read baseline
 
-Read `05c-benchmark.md` in full. Extract:
+Read `05c-benchmark.md` in full with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05c-benchmark.md`. Extract:
 - All targets from "## Benchmark Targets" — these are the ONLY targets to measure.
 - All commands from "## Measurement Commands" — run these EXACTLY as recorded.
 - All baseline numbers from "## Baseline Results".
@@ -165,7 +165,7 @@ For each measured target, calculate:
 
 ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
 
-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data. Then set this benchmark entry's `mode: complete` in `00-index.md` `augmentations:` and refresh `updated-at`.
+Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*: get the record, add them, write the draft of `05c-benchmark.md` and put it. Do not overwrite baseline data. Then set this benchmark entry's `mode: complete` in the `augmentations:` list of the index with `record set`.
 
 # Step 5 — Hand off to user
 

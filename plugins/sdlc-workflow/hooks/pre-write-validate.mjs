@@ -2,6 +2,8 @@
 /**
  * PreToolUse(Write) validator for .ai/workflows/ artifacts:
  * - Refuse a Write or Edit into a nested .ai/ folder (lib/records-root.mjs nestedAiDir).
+ * - Refuse a Write or Edit of a record file (state.yaml, slice-<s>.yaml, ...) or of an old
+ *   record name beside the records: scripts write the records from drafts (lib/records.mjs).
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -20,7 +22,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, join } from 'node:path';
 import { checksModeOf, loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingBoardFiles } from '../lib/design-boards.mjs';
@@ -43,7 +45,8 @@ import {
   resolveProjectPath,
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
-import { nestedAiDir, workflowsRoot } from '../lib/records-root.mjs';
+import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
+import { nestedAiDir, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
 
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
@@ -87,6 +90,11 @@ export async function run(input) {
   const nested = filePath ? nestedAiDir(filePath, projectRoot) : null;
   if (nested) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
+    return;
+  }
+  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) : null;
+  if (refusal) {
+    refuseWrite(checksModeOf(config), refusal);
     return;
   }
   if (!filePath || (!isWorkflowMarkdownPath(filePath) && !isProjectContextMarkdownPath(filePath))) return;
@@ -161,8 +169,9 @@ export async function run(input) {
     if (refusal) errors.push(refusal);
   }
 
-  if (errors.length === 0 && isPlanArtifact(info.storageRel)) {
-    const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: info.storageRel });
+  const recordRel = info.storageRel.startsWith(`${DRAFT_DIR}/`) ? info.storageRel.slice(DRAFT_DIR.length + 1) : info.storageRel;
+  if (errors.length === 0 && isPlanArtifact(recordRel)) {
+    const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: recordRel });
     if (refusal) errors.push(refusal);
   }
 
@@ -182,27 +191,38 @@ export async function run(input) {
   }
 }
 
-// Design lane human rule: read the slug's 00-index.md, 02b-design.md presence, and
-// 02c-craft.md frontmatter beside the plan being written, and the board files that
+// Scripts write the records. An agent writes a draft, .draft/<old name>.md, and
+// `wf.mjs record put` checks it and writes its section; `wf.mjs record set` changes a field.
+// So a Write or Edit of a record file, or of an old record name beside the records, is refused.
+function recordWriteRefusal(filePath, projectRoot) {
+  const info = workflowPathInfo(resolveProjectPath(projectRoot, filePath));
+  if (!info || info.storageRel.includes('/')) return null;
+  const cli = 'node <plugin root>/skills/wf/scripts/wf.mjs';
+  if (RECORD_FILE_RE.test(info.filename)) {
+    return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. Scripts write the record files.\n` +
+      `Change a field with \`${cli} record set <root> ${info.slug} <old name> key=value\`, or write a draft and put it.\n`;
+  }
+  if (locate(info.filename)) {
+    return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. The records are YAML files that scripts write.\n` +
+      `Write the record as the draft ${DRAFT_DIR}/${info.filename} in the same folder, then run \`${cli} record put <root> ${info.slug}\`.\n`;
+  }
+  return null;
+}
+
+// Design lane human rule: read the slug's index, 02b-design.md presence, and the
+// 02c-craft.md frontmatter of the workflow of the plan being written, and the board files that
 // 02c-craft.md `boards:` lists. A per-slice plan also
 // reads 03-slice-<slice>.md: a slice with `ux-impact: none` needs no design. Fail
 // open on any read or parse problem — this gate guards a decision, not the file format.
 async function designGate({ projectRoot, filePath, slug, storageRel }) {
   try {
-    const dir = dirname(resolveProjectPath(projectRoot, filePath));
-    const indexText = await readTextIfExists(join(dir, '00-index.md'));
-    if (indexText === null) return null;
-    const index = safeParseFrontmatter(indexText, { filePath: join(dir, '00-index.md') }).data ?? null;
-    const contractText = await readTextIfExists(join(dir, '02c-craft.md'));
-    const contract = contractText === null
-      ? null
-      : (safeParseFrontmatter(contractText, { filePath: join(dir, '02c-craft.md') }).data ?? {});
-    const hasBrief = existsSync(join(dir, '02b-design.md'));
+    const dir = workflowDirOf(resolveProjectPath(projectRoot, filePath));
+    const index = frontmatterOfDoc(dir, '00-index.md');
+    if (!index) return null;
+    const contract = frontmatterOfDoc(dir, '02c-craft.md');
+    const hasBrief = hasDoc(dir, '02b-design.md');
     const sliceSlug = planSliceOf(storageRel);
-    const sliceText = sliceSlug === null ? null : await readTextIfExists(join(dir, `03-slice-${sliceSlug}.md`));
-    const slice = sliceText === null
-      ? null
-      : (safeParseFrontmatter(sliceText, { filePath: join(dir, `03-slice-${sliceSlug}.md`) }).data ?? null);
+    const slice = sliceSlug === null ? null : frontmatterOfDoc(dir, `03-slice-${sliceSlug}.md`);
     // A contract that names its boards (`boards:`) is settled only when the board
     // files exist (DESIGN-BOARDS-PLAN D5).
     const missingBoards = contract ? missingBoardFiles(dir, contract) : null;

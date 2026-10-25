@@ -32,6 +32,7 @@ import {
 } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { workflowDir, workflowRel } from '../lib/records-root.mjs';
+import { INDEX_NAME, readDoc } from '../lib/records.mjs';
 
 const USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import|canvas-stale> <projectRoot> <slug> [args]
        design-boards.mjs track <projectRoot> [--write]
@@ -444,11 +445,17 @@ function readFm(file) {
   return safeParseFrontmatter(readFileSync(file, 'utf8'), { filePath: file }).data ?? {};
 }
 
+/** The frontmatter of one workflow record, in either layout: {} when it does not parse, null when it is absent. */
+function recordFm(dir, name) {
+  const doc = readDoc(dir, name);
+  return doc ? (doc.frontmatter ?? {}) : null;
+}
+
 function check(root, slug) {
   requireWorkflow(root, slug);
   const wdir = workflowDir(root, slug);
-  const index = readFm(join(wdir, '00-index.md')) ?? {};
-  const contract = readFm(join(wdir, '02c-craft.md'));
+  const index = recordFm(wdir, INDEX_NAME) ?? {};
+  const contract = recordFm(wdir, '02c-craft.md');
   const pictures = needsPictures(index);
   if (!contract) {
     const working = existsSync(manifestPath(root, slug)) ? missingBoardFiles(wdir, { boards: `${DESIGN_DIR}/${MANIFEST}` }) : null;
@@ -577,7 +584,7 @@ function canvasEntries(root, slug) {
   const packets = [];
   const workDir = join(wdir, 'work');
   if (existsSync(workDir)) for (const name of readdirSync(workDir).filter((n) => n.endsWith('.md')).sort()) packets.push(join(workDir, name));
-  const idx = readFm(join(wdir, '00-index.md'));
+  const idx = recordFm(wdir, INDEX_NAME);
   const origin = idx?.['origin-packet'];
   if (typeof origin === 'string' && origin.trim()) {
     const abs = resolve(root, origin.trim());

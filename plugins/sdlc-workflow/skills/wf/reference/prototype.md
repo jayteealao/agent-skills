@@ -44,7 +44,7 @@ CAUTION: do not stage with `git add -A` in the worktree. A proof writes model we
    - When `prototype.mjs status` finds a prototype with that slug, **resume** it. The other tokens are the person's request.
    - When the first token is a branch that exists (local or `origin/`), the other tokens are the idea. **Start** on that branch: pass `--branch <token>`.
    - Otherwise all the tokens are the idea. **Start** on a new `poc/<slug>` branch.
-   - When `.ai/workflows/<token>/00-index.md` exists with another `workflow-type`, end the run: *"`<token>` is a `<type>` workflow. Start a prototype with `/wf loop prototype <idea>`."*
+   - When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 and shows another `workflow-type`, end the run: *"`<token>` is a `<type>` workflow. Start a prototype with `/wf loop prototype <idea>`."*
    - With no token, end the run and show the invocation forms below.
 3. **Start:** derive the slug from the idea (lower-case words joined by dashes, at most 5 words). Run `start <slug> --idea "<idea>" [--branch <b>]`. Show the branch, the worktree, and the scratch folder. Then go to Step 1 with the idea as the first request.
 4. **Resume with no request:** show the accepted pipeline, the open proofs, the last round, and the report link from `status`. End the run.
@@ -101,6 +101,8 @@ A decide round accepts a component only from the person's words.
 ## Step 4 — Write the person's document
 
 `01-prototype.md` is the accepted pipeline in plain words: the stages, their settings, the measured speed and cost, and the known limits. Rewrite its body after a decide round and in a document round. Exclude the rejected paths; the report keeps them.
+
+The record is in the worktree, so `<worktree>` is the root of each command. Get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`. Write the whole record to the draft `.ai/workflows/<slug>/.draft/01-prototype.md` in the worktree, then run `node "<skill-dir>/scripts/wf.mjs" record put "<worktree>" <slug>` per [_records.md](_records.md).
 
 ## Step 5 — Update the report
 

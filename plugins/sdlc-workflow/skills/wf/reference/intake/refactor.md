@@ -10,7 +10,7 @@ You are running `/wf intake refactor`, a **behavior-preserving refactoring stand
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-refactor-<descriptor>.md` (`type: slice`, `slice-type: refactor`, `compressed: true`, `origin: intake/refactor`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `refactor → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-refactor-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: refactor`, `compressed: true`, `origin: intake/refactor`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `refactor → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -58,7 +58,7 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
+   - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for refactor: `rf-*` artifacts).
 3. **Provenance check:** apply `_intake-provenance.md`. The common source is a `/wf intake simplify` finding routed here — its entry (id, files, rationale, severity) travels in the invocation text and seeds `## Target` / `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change-mode) consumes its Consume-table row. No match → continue.
@@ -75,7 +75,7 @@ Ask 3–6 targeted questions (not the 5-round PO interview):
 5. **Target structure?** — what the code should look like after (extract service; strategy pattern; early returns).
 6. **Stack confirm** — the one-line confirm from Step 0's fingerprint (per the `_change-mode-tail.md` stack policy).
 
-Write `01-refactor.md`:
+Write the draft `.ai/workflows/<slug>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way:
 ```yaml
 ---
 schema: sdlc/v1
@@ -108,7 +108,7 @@ Prompt with ALL of: read every target file (line count, exported names, implicit
 ### research sub-agent 2 — Test Coverage Snapshot
 Prompt with ALL of: find all test files covering the target (grep target imports in test dirs); per test file, what behavior + key assertions + inputs/outputs; identify **coverage gaps** (exported functions/paths with NO coverage); run the existing tests for the area and capture pass/fail/skip counts + flakiness.
 
-Wait for both. Write `02-shape.md` carrying the baseline:
+Wait for both. Write the draft of `02-shape.md` carrying the baseline, and put it:
 ```yaml
 ---
 schema: sdlc/v1
@@ -193,7 +193,7 @@ recommended-routes: <routes>
 Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
+Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Put it. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `/wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance-consume.md` (escalated change-mode row) instead of discarding two sub-agents of work.

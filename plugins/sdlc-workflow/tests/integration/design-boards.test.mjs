@@ -16,6 +16,7 @@ import {
 } from '../../lib/design-boards.mjs';
 import { createHash } from 'node:crypto';
 import { validateFrontmatter, validateBrainstormBoard } from '../../lib/schema-validator.mjs';
+import { writeDoc } from '../../lib/records.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..');
@@ -229,6 +230,26 @@ test('tool: check reads 02c-craft.md boards: and lists missing files', () => {
     const bad = run(root, ['check', 'demo']);
     equal(bad.status, 1);
     deepEqual(bad.json.missing, ['design/r1/boards/cart--empty.png']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('tool: check reads the index and the contract of the record layout', () => {
+  const root = project();
+  try {
+    const dir = join(root, '.ai', 'workflows', 'demo');
+    rmSync(join(dir, '00-index.md'));
+    writeDoc(dir, '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: 'demo', 'ux-impact': 'new-surface' } });
+    board(root, 'cart--empty');
+    run(root, ['render', 'demo']);
+    run(root, ['freeze', 'demo']);
+    const none = run(root, ['check', 'demo']).json;
+    deepEqual([none.contract, none['ux-impact']], [false, 'new-surface']);
+    writeDoc(dir, '02c-craft.md', { frontmatter: { schema: 'sdlc/v1', type: 'design-contract', 'image-gate': 'pass', 'direction-confirmed-by': 'in-session', boards: 'design/r1/boards.json', 'design-revision': 1 } });
+    const good = run(root, ['check', 'demo']);
+    equal(good.status, 0, good.stdout);
+    deepEqual([good.json.contract, good.json.revision, good.json.missing], [true, 1, []]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

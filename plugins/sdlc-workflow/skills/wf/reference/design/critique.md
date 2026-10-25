@@ -6,7 +6,7 @@ Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache
 
 ## Design mode
 
-Read the design mode of each surface from `02c-craft.md` `surface-modes:`, or from the brief's content inventory. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
+Read the design mode of each surface from `02c-craft.md` `surface-modes:` (`wf.mjs record get`), or from the brief's content inventory. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
 
 Persuade and Experience: critique against distinctiveness. Would someone ask "how was this made?" If the answer is "no — it looks like every other AI landing page," the design has failed. Critique for POV, specific aesthetic lane, and committed visual choices.
 
@@ -26,7 +26,7 @@ Judge the design before you read the evidence, so that the evidence does not anc
 
 1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
 2. In a freestanding `/wf design critique`, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the board paths, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
-3. Read the `06-verify-*.md` evidence only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
+3. Read the `06-verify-*.md` evidence (`wf.mjs record get`) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
 4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
 
 ## Design specificity verdict
@@ -171,7 +171,7 @@ When the report lists fewer than three issues, you can skip the questions. Then 
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> critique`:
-- Write to `.ai/workflows/<slug>/07-design-critique.md`
+- Write the draft `.ai/workflows/<slug>/.draft/07-design-critique.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
 - When `02c-craft.md` names `boards:`, judge the board and capture pairs in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` line of the issue.
 - Do not reopen a board that the person confirmed. Write a finding against a confirmed board as a question for `/wf design <slug> amend`. Do not redraw the board.
 - Use this frontmatter:

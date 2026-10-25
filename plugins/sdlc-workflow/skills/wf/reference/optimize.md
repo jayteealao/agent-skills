@@ -24,7 +24,7 @@ CAUTION: do not delete the optimize worktree with a recursive delete. A `node_mo
 ## Step 0 — Resolve
 
 1. Read the first token:
-   - When `.ai/workflows/<token>/00-index.md` exists with `workflow-type: optimize`, the token is the slug. Continue.
+   - When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 and shows `workflow-type: optimize`, the token is the slug. Continue.
    - When that index exists with another `workflow-type`, end the run: *"`<token>` is a `<type>` workflow. Start an optimize slug with `/wf intake optimize <description>`."*
    - Otherwise the arguments are a description. Load [intake/optimize.md](intake/optimize.md) and follow it with the whole description. Then end the run.
 2. Resolve `projectRoot` (the repo root that owns `.ai/workflows`), `<skill-dir>`, `pluginRoot` and `referenceRoot` as [yolo.md](yolo.md) Step 0 does.
@@ -35,7 +35,7 @@ CAUTION: do not delete the optimize worktree with a recursive delete. A `node_mo
    ```
 
    Do not edit `optimize/state.json` or `optimize/results.jsonl` by hand.
-4. When `02-optimize-spec.md` has no `confirmed-by`, end the run: the person confirms the spec with `/wf intake optimize <slug>`.
+4. When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-optimize-spec.md` shows no `confirmed-by`, end the run: the person confirms the spec with `/wf intake optimize <slug>`.
 5. Run `status`. Its `state` and `next.action` say what this invocation does:
 
 | `state` · `next.action` | Do |

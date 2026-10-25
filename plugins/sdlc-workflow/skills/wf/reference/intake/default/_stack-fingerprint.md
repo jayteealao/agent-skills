@@ -13,7 +13,7 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
 
 2. **Session catalog (what is available to *this* agent run).** Enumerate skills, commands, and MCP servers visible in the current session. Record names + a one-line description each; these become the matching surface in shape. Do not invent entries; only record what the session actually exposes.
 
-3. **Write into `00-index.md` frontmatter** as a `stack:` block (sibling to `tags:`). Every key is optional; omit rather than guess. Example shape (Android case):
+3. **Write into the index frontmatter** as a `stack:` block (sibling to `tags:`): in the draft of `00-index.md`, or, when the index exists, with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "stack={...}"` (per [_records.md](../../_records.md)). Every key is optional; omit rather than guess. Example shape (Android case):
    ```yaml
    stack:
      detected-at: "<iso-8601>"

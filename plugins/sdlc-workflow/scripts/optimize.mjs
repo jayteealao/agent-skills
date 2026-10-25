@@ -33,6 +33,7 @@ import {
   nextAction, parseMetricLine, parseSpec, pathViolations, pickWinner, branchNameOf,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
+import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|checkpoint|finish|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -83,8 +84,15 @@ function readFm(file) {
   return { data: p.data, content: p.content ?? '', error: p.parseError };
 }
 
+/** One workflow record, in either layout, as readFm gives a file: { data, content, error }, or null. */
+function readRecord(dir, name) {
+  const doc = readDoc(dir, name);
+  if (!doc) return null;
+  return { data: doc.frontmatter, content: doc.body ?? '', error: doc.parseError };
+}
+
 function loadSpec(root, slug) {
-  const f = readFm(join(wfDir(root, slug), SPEC_FILE));
+  const f = readRecord(wfDir(root, slug), SPEC_FILE);
   if (!f) throw new Error(`no ${SPEC_FILE}: write the spec with /wf intake optimize first`);
   if (f.error) throw new Error(`${SPEC_FILE} does not parse: ${f.error}`);
   const { spec, errors } = parseSpec(f.data);
@@ -127,7 +135,7 @@ function tokensSince(root, slug, startedAt) {
   return sum;
 }
 
-const indexOf = (root, slug) => readFm(join(wfDir(root, slug), '00-index.md'))?.data ?? null;
+const indexOf = (root, slug) => readRecord(wfDir(root, slug), INDEX_NAME)?.data ?? null;
 const samePath = (a, b) => {
   const n = (p) => { try { return realpathSync(p); } catch { return resolve(p); } };
   return n(a).replace(/\\/g, '/').toLowerCase() === n(b).replace(/\\/g, '/').toLowerCase();
@@ -463,7 +471,6 @@ function checkpoint(root, slug) {
 // ---------------------------------------------------------------------------
 // finish and cleanup
 // ---------------------------------------------------------------------------
-const yamlList = (xs) => `[${xs.map((x) => JSON.stringify(x)).join(', ')}]`;
 
 function finish(root, slug, f) {
   const state = readState(root, slug);
@@ -504,36 +511,47 @@ function finish(root, slug, f) {
   const added = stat.reduce((s, x) => s + (Number(x[0]) || 0), 0);
   const removed = stat.reduce((s, x) => s + (Number(x[1]) || 0), 0);
   const dir = wfDir(root, slug);
-  if (!existsSync(join(dir, '03-slice.md'))) {
-    writeAtomic(join(dir, '03-slice.md'), [
-      '---', 'schema: sdlc/v1', 'type: slice-index', `slug: ${slug}`, 'status: complete', 'stage-number: 3', `created-at: "${at}"`, `updated-at: "${at}"`,
-      'total-slices: 1', `best-first-slice: ${SLICE}`, 'tags: [optimize]', 'slices:', `  - slug: ${SLICE}`, '    status: complete', '    complexity: m', '    depends-on: []',
-      'refs:', '  index: 00-index.md', `  spec: ${SPEC_FILE}`, 'next-command: wf-verify', `next-invocation: "/wf verify ${slug} ${SLICE}"`, '---', '',
-      '# Slice Index', '', `One slice, \`${SLICE}\`: the kept trials of the optimize loop, squashed into one commit.`, '',
-    ].join('\n'));
+  const next = { 'next-command': 'wf-verify', 'next-invocation': `/wf verify ${slug} ${SLICE}` };
+  if (!hasDoc(dir, '03-slice.md')) {
+    writeDoc(dir, '03-slice.md', {
+      frontmatter: {
+        schema: 'sdlc/v1', type: 'slice-index', slug, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
+        'total-slices': 1, 'best-first-slice': SLICE, tags: ['optimize'], slices: [{ slug: SLICE, status: 'complete', complexity: 'm', 'depends-on': [] }],
+        refs: { index: '00-index.md', spec: SPEC_FILE }, ...next,
+      },
+      body: ['# Slice Index', '', `One slice, \`${SLICE}\`: the kept trials of the optimize loop, squashed into one commit.`, ''].join('\n'),
+    });
   }
   const holdoutAc = spec.holdout ? `\n3. When the holdout runs, \`${spec.holdout.command}\` is within ${spec.holdout.tolerance.percent !== undefined ? `${spec.holdout.tolerance.percent}%` : spec.holdout.tolerance.absolute} of the baseline holdout ${state.baseline.holdout}.` : '';
-  writeAtomic(join(dir, `03-slice-${SLICE}.md`), [
-    '---', 'schema: sdlc/v1', 'type: slice', `slug: ${slug}`, `slice-slug: ${SLICE}`, 'status: complete', 'stage-number: 3', `created-at: "${at}"`, `updated-at: "${at}"`,
-    'complexity: m', 'depends-on: []', 'tags: [optimize]', 'ux-impact: none',
-    'refs:', '  index: 00-index.md', '  slice-index: 03-slice.md', `  implement: 05-implement-${SLICE}.md`, 'next-command: wf-verify', `next-invocation: "/wf verify ${slug} ${SLICE}"`, '---', '',
-    `# Slice: ${SLICE}`, '', `The kept trials of the loop toward: ${spec.objective}`, '',
-    '## Acceptance Criteria', '',
-    `1. \`${spec.metric.command}\`, ${spec.metric.repeat} runs, reaches ${state.best.value}${unit} within the noise floor ${state.baseline.noise}${unit} (median; direction ${spec.metric.direction}).`,
-    `2. \`${spec.guard.command}\` exits 0.${holdoutAc}`, '',
-  ].join('\n'));
-  writeAtomic(join(dir, `05-implement-${SLICE}.md`), [
-    '---', 'schema: sdlc/v1', 'type: implement', `slug: ${slug}`, `slice-slug: ${SLICE}`, 'status: complete', 'stage-number: 5', `created-at: "${at}"`, `updated-at: "${at}"`,
-    `metric-files-changed: ${files.length}`, `metric-lines-added: ${added}`, `metric-lines-removed: ${removed}`, 'metric-deviations-from-plan: 0', 'metric-review-fixes-applied: 0',
-    `commit-sha: "${sha}"`, `files-modified: ${yamlList(files)}`, 'tags: [optimize]',
-    `optimize-baseline: ${state.baseline.median}`, `optimize-kept-value: ${state.best.value}`, `optimize-noise: ${state.baseline.noise}`, `optimize-trials: ${state.counters.trials}`, `optimize-kept: ${kept.length}`, `optimize-rounds: ${state.rounds.length}`,
-    'refs:', '  index: 00-index.md', `  slice-def: 03-slice-${SLICE}.md`, `  verify: 06-verify-${SLICE}.md`, '  results: optimize/results.jsonl',
-    'next-command: wf-verify', `next-invocation: "/wf verify ${slug} ${SLICE}"`, '---', '',
+  writeDoc(dir, `03-slice-${SLICE}.md`, {
+    frontmatter: {
+      schema: 'sdlc/v1', type: 'slice', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
+      complexity: 'm', 'depends-on': [], tags: ['optimize'], 'ux-impact': 'none',
+      refs: { index: '00-index.md', 'slice-index': '03-slice.md', implement: `05-implement-${SLICE}.md` }, ...next,
+    },
+    body: [
+      `# Slice: ${SLICE}`, '', `The kept trials of the loop toward: ${spec.objective}`, '',
+      '## Acceptance Criteria', '',
+      `1. \`${spec.metric.command}\`, ${spec.metric.repeat} runs, reaches ${state.best.value}${unit} within the noise floor ${state.baseline.noise}${unit} (median; direction ${spec.metric.direction}).`,
+      `2. \`${spec.guard.command}\` exits 0.${holdoutAc}`, '',
+    ].join('\n'),
+  });
+  writeDoc(dir, `05-implement-${SLICE}.md`, {
+    frontmatter: {
+      schema: 'sdlc/v1', type: 'implement', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 5, 'created-at': at, 'updated-at': at,
+      'metric-files-changed': files.length, 'metric-lines-added': added, 'metric-lines-removed': removed, 'metric-deviations-from-plan': 0, 'metric-review-fixes-applied': 0,
+      'commit-sha': sha, 'files-modified': files, tags: ['optimize'],
+      'optimize-baseline': state.baseline.median, 'optimize-kept-value': state.best.value, 'optimize-noise': state.baseline.noise,
+      'optimize-trials': state.counters.trials, 'optimize-kept': kept.length, 'optimize-rounds': state.rounds.length,
+      refs: { index: '00-index.md', 'slice-def': `03-slice-${SLICE}.md`, verify: `06-verify-${SLICE}.md`, results: 'optimize/results.jsonl' }, ...next,
+    },
+    body: [
     `# Implement: ${SLICE}`, '', '## Summary of Changes', '',
     `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
     `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
     `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '', '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
-  ].join('\n'));
+    ].join('\n'),
+  });
   state.finished = { commit: sha, at, gain, kept: kept.length };
   appendResult(root, slug, { event: 'finish', commit: sha, gain, kept: kept.length });
   saveState(root, slug, state);

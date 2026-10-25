@@ -6,11 +6,11 @@ Append no `## Revision N` sections to the body: a document that stacks diffs for
 
 ## On re-invocation of a stage whose artifact already exists
 
-**0. No-op guard (skip everything below when nothing changed).** If the stage computes an *input fingerprint* (see each stage's reference) and it matches the value stored in frontmatter, the re-run changed nothing: take no snapshot, leave the ledger alone, bump nothing. Leave the file byte-for-byte as-is and say so in the chat return. Only the steps below run when the inputs actually moved.
+**0. No-op guard (skip everything below when nothing changed).** If the stage computes an *input fingerprint* (see each stage's reference) and it matches the value stored in frontmatter, the re-run changed nothing: take no snapshot, leave the ledger alone, bump nothing. Write no draft, so the record stays as it is, and say so in the chat return. Only the steps below run when the inputs actually moved.
 
-1. **Snapshot the current file** to `.ai/workflows/<slug>/history/<stem>-<rev>.md`, where `<rev>` is the current `revision-count` (before this run's increment). Use an exact **byte-copy**; do not re-emit, do not reformat. This is the immutable forensic record; the renderer links it, and history view paths are stable forever.
+1. **Snapshot the current record** to `.ai/workflows/<slug>/history/<stem>-<rev>.md`, where `<rev>` is the current `revision-count` (before this run's increment). Write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <stem>.md` to that path unchanged; do not re-emit, do not reformat. This is the immutable forensic record; the renderer links it, and history view paths are stable forever.
 
-2. **Rewrite the body to current truth.** Edit in place so a reader who opens the file sees the present state in present tense: no archaeology, no "previously X, now Y" scaffolding in the structured sections. The *narrative* of change belongs in the chat return ("review found a race in the retry path, so the rollback notes changed") and in the `revisions:` ledger. Brainstorm retells the change in `## The Brainstorm`.
+2. **Rewrite the body to current truth.** Change the body that `record get` printed, write the draft and put it, per [_records.md](_records.md). A reader who opens the record then sees the present state in present tense: no archaeology, no "previously X, now Y" scaffolding in the structured sections. The *narrative* of change belongs in the chat return ("review found a race in the retry path, so the rollback notes changed") and in the `revisions:` ledger. Brainstorm retells the change in `## The Brainstorm`.
 
 3. **Append one entry to the `revisions:` ledger** in frontmatter, reason-centric, never diff-centric (git and the history snapshot already hold the line diff; the ledger answers *why*):
 
@@ -37,7 +37,7 @@ The ledger says *why each revision happened* in one line; the snapshots hold *th
 
 ## Control files are a different question
 
-This contract governs how a **revisable artifact** is rewritten. It says nothing about *who may write* the shared **control files** (`00-index.md`, the global `INDEX.md`) or what to do when two writers collide there. That rule lives in [_control-file-ownership.md](_control-file-ownership.md): re-read immediately before every edit, treat a rejection as "the other writer moved" (re-read, re-derive, retry once), and treat a presumed-dead driver's writes as suspect until reconciled. Apply both: this file for the artifact body, that one for the index.
+This contract governs how a **revisable artifact** is rewritten. It says nothing about *who may write* the shared **control files** (`00-index.md`, the global `INDEX.md`) or what to do when two writers collide there. That rule lives in [_control-file-ownership.md](_control-file-ownership.md): change an index field with `record set`, get the index immediately before you write a draft of it, and treat a presumed-dead driver's writes as suspect until reconciled. Apply both: this file for the artifact body, that one for the index.
 
 ## cost.jsonl is hook-owned
 

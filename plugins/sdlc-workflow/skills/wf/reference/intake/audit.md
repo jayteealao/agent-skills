@@ -10,7 +10,7 @@ You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for t
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-audit-<descriptor>.md` (`type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no ledger entries and no `07-review.md`, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one draft `.ai/workflows/<slug>/.draft/03-slice-audit-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no ledger entries and no `07-review.md`, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
 
 If the first token matched an existing slug whose `workflow-type` IS `audit`, that is a **re-run** of the standalone flow below (Step 0 resume), not slug-mode.
 
@@ -56,9 +56,9 @@ You are a **read-only defect hunter that owns an accumulating findings ledger**.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from the instructions:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: audit` → **re-run mode**. This run MERGES into the existing ledger `findings.yaml`. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
+   - If the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: audit` → **re-run mode**. This run MERGES into the existing ledger `findings.yaml`. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
    - Otherwise → **new audit**. Derive a slug: `audit-<short-concern>` (kebab-case, max 5 words, e.g. `audit-paint-ordering`).
-2. **Collision check:** if `.ai/workflows/<slug>/00-index.md` exists with a different `workflow-type` → WARN and stop, as `discover` does.
+2. **Collision check:** if the index of `<slug>` exists (`record get` exits 0) with a different `workflow-type` → WARN and stop, as `discover` does.
 3. **Branch posture:** read-only — do not create or switch branches. Record the current branch in the index.
 4. **Lens override:** a `lenses=<a>,<b>` token overrides Step 2's inference entirely. Record that the selection was user-forced.
 5. **Project context (lightweight):** read `README.md` (top 100 lines) so the concern can be grounded in the codebase's own vocabulary.
@@ -86,7 +86,7 @@ Lenses are the existing review rubrics at `../review/<lens>.md`, or one alias se
 1. **Infer the lens set from the concern and the surface.** "Wrong assumptions between two paths" → `correctness` (focus testing), `architecture`. "Is this leaking memory" → `performance`, `correctness` (focus reliability). Concurrency vocabulary in the surface → `correctness` (focus backend-concurrency). Auth/credentials in the surface → `security` (focus privacy). Select 2–6 lenses; more only when the surface genuinely spans domains.
 2. **State the selection** — each lens with a one-line reason — in `01-audit.md` AND in chat, before dispatch. Inference that cannot be inspected is an opaque router.
 3. **`lenses=` override** (Step 0.4) replaces inference; still record one line per lens: "user-forced".
-4. **No rubric fits** → say so honestly: write `01-audit.md` with the resolved surface and "no lens applies — <why>", and ask the user to force a set or accept the null result. Do not run a token lens to look busy.
+4. **No rubric fits** → say so honestly: write the draft of `01-audit.md` with the resolved surface, put it, and "no lens applies — <why>", and ask the user to force a set or accept the null result. Do not run a token lens to look busy.
 
 # Step 3 — Hunt (parallel lens sub-agents)
 
@@ -110,11 +110,11 @@ A plausible-but-wrong finding costs more here than in the review stage — nobod
 
 # Step 5 — Merge into the ledger
 
-Timestamps per [_timestamp.md](../_timestamp.md).
+Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step (`07-review.md`, `01-audit.md`, `00-index.md`) as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 1. **Merge.** Write every candidate (survivors and refuted) to `.ai/workflows/<slug>/.found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.found.json --source audit --run <now>`.
 2. **Review file** — write `07-review.md` (`type: review`, `review-scope: slug-wide`) whole, from the ledger: the frontmatter metrics from `wf.mjs findings metrics --source audit`, `## Findings` from `wf.mjs findings table --source audit` (refuted rows included, with the killing refutation), `## Triage Decisions` (the routes of Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`.
-3. **`01-audit.md` edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
+3. **`01-audit.md` edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run gets the record, appends to it, writes the draft and puts it; it never rewrites history.
 4. **`01-audit.md` content** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
 5. **`00-index.md`** (`type: workflow-index`) — `workflow-type: audit`, `status: active` (an audit stays open for accumulating re-runs), `current-stage: audit`, `review-scope: slug-wide`, `branch-strategy: none`, progress map `{audit: complete}`, `recommended-routes` from Step 6. Register the row in `.ai/workflows/INDEX.md` per `_intake-context.md`.
 

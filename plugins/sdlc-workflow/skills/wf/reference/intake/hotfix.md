@@ -10,7 +10,7 @@ You are running `/wf intake hotfix`, an **accelerated incident-response standard
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-hotfix-<descriptor>.md` (`type: slice`, `slice-type: hotfix`, `compressed: true`, `origin: intake/hotfix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `hotfix → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-hotfix-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: hotfix`, `compressed: true`, `origin: intake/hotfix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `hotfix → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -57,7 +57,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
+   - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
 3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `02-shape.md` `## Root Cause`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
@@ -74,7 +74,7 @@ Ask at most **3 questions** — stop as soon as you have enough:
 2. **What is the impact?** — outage / degraded / data issue? how many users? data at risk?
 3. **What changed recently?** — deployments, migrations, config, dependency updates in the last 24–72h?
 
-Write `01-hotfix.md` immediately:
+Write the draft `.ai/workflows/<slug>/.draft/01-hotfix.md` immediately, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way:
 ```yaml
 ---
 schema: sdlc/v1
@@ -188,7 +188,7 @@ recommended-routes: <routes>
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
+Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Put it. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).

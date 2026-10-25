@@ -65,7 +65,9 @@ import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
 import { decisionsOf, liveDecisions } from '../lib/decisions.mjs';
+import { readDoc } from '../lib/records.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
+import { stringify } from '../lib/yaml.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
@@ -263,26 +265,23 @@ export function readJournalFrom(file, offset) {
   }
 }
 
-// The artifact a stage wrote: 04-plan-<slice>.md first, then 04-plan.md.
+// The record a stage wrote, in either layout: 04-plan-<slice>.md first, then 04-plan.md.
+// Returns { name, doc } or null.
 export function stageArtifact(root, slug, stage, slice) {
   const prefix = STAGE_FILE[stage];
   if (!prefix) return null;
   const dir = workflowDir(root, slug);
   const names = slice ? [`${prefix}-${slice}.md`, `${prefix}.md`] : [`${prefix}.md`];
-  for (const n of names) {
-    const file = path.join(dir, n);
-    if (existsSync(file)) return file;
+  for (const name of names) {
+    const doc = readDoc(dir, name);
+    if (doc?.frontmatter) return { name, doc };
   }
   return null;
 }
 
-// A decision that needs the person (3.2): the rule is decisionSignalOf; this reads the files.
-export function decisionSignal(file) {
-  let text = '';
-  try { text = readFileSync(file, 'utf8'); } catch { return null; }
-  let yaml = '';
-  try { yaml = readFileSync(file.replace(/\.md$/, '.yaml'), 'utf8'); } catch { /* no sibling */ }
-  return decisionSignalOf(text, yaml);
+// A decision that needs the person (3.2): the rule is decisionSignalOf; this gives it the record.
+export function decisionSignal(doc) {
+  return doc ? decisionSignalOf(`---\n${stringify(doc.frontmatter)}\n---\n${doc.body ?? ''}`) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -367,13 +366,13 @@ export function loadState(root, slug) {
 // ---------------------------------------------------------------------------
 export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {}) {
   const artifactOf = (stage, slice) => {
-    const file = stageArtifact(root, slug, stage, slice);
-    if (!file) return null;
-    let status = null;
-    try { status = frontmatterField(readFileSync(file, 'utf8'), 'status'); } catch { /* unreadable */ }
+    const at = stageArtifact(root, slug, stage, slice);
+    if (!at) return null;
+    const { doc } = at;
     let mtime = 0;
-    try { mtime = statSync(file).mtimeMs; } catch { /* gone */ }
-    return { rel: path.relative(root, file).split(path.sep).join('/'), status, signal: decisionSignal(file), mtime };
+    try { mtime = statSync(doc.path).mtimeMs; } catch { /* gone */ }
+    const rel = path.relative(root, doc.path).split(path.sep).join('/') + (doc.section ? `#${doc.section}` : '');
+    return { rel, status: doc.frontmatter.status ?? null, signal: decisionSignal(doc), mtime };
   };
   return applyLines(slug, st, lines, { emitFrom, artifactOf });
 }

@@ -34,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 With a slug, `probe` writes a compressed slice. `_compressed-slice.md` gives the slice frontmatter and the index bookkeeping.
 
-- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed).
+- **One artifact, in the existing workflow.** Write the draft `.ai/workflows/<slug>/.draft/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
 
 # Role
@@ -60,9 +60,9 @@ No flags — probe takes a slug and an optional target string. It always surface
 
 # Step 0 — Orient
 
-1. **Parse `00-index.md`:** `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
-2. **From `03-slice.md`** (or the lead `01-<mode>.md`), note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes write a standard one-slice `03-slice.md`.
-3. **Take the AC from every per-slice file** that the slice index names. For compressed and forwarded modes, AC lives in the lead artifact (`01-<mode>.md`, for example `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
+1. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, and parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
+2. **From `03-slice.md`** (or the lead `01-<mode>.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`), note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes write a standard one-slice `03-slice.md`.
+3. **Take the AC from every per-slice record** that the slice index names. Read each with `record get`. For compressed and forwarded modes, AC lives in the lead artifact (`01-<mode>.md`, for example `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
 4. **Use the adapter registry** `runtime-adapters.md`, the ladder and the protocols. Read `runtime-adapters/<key>.md` for each adapter that Step 3 matches.
 5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but must be honest about provenance:
    - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
@@ -149,21 +149,21 @@ For each adapter in `adapters-used` whose bootstrap completed:
 
 # Step 6 — Synthesize and write the compressed probe slice
 
-Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` from the frontmatter and body-section templates in [probe/_artifact.md](probe/_artifact.md).
+Write the draft `.ai/workflows/<slug>/.draft/03-slice-probe-<descriptor>.md` from the frontmatter and body-section templates in [probe/_artifact.md](probe/_artifact.md), and put it.
 
-**Descriptor derivation:** if `target` is a single short string (≤5 words after slugification), `<descriptor>` is the slugified target; if `target == slug-wide`, `<descriptor>` is `slug-wide-<utc-date>` (e.g., `slug-wide-2026-05-16`); on collision append `-2`, `-3`, … until unique.
+**Descriptor derivation:** if `target` is a single short string (≤5 words after slugification), `<descriptor>` is the slugified target; if `target == slug-wide`, `<descriptor>` is `slug-wide-<utc-date>` (e.g., `slug-wide-2026-05-16`); on collision append `-2`, `-3`, … until unique. `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` names the records that exist.
 
 A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep template in the same file.
 
 # Step 7 — Clear deferrals (when applicable)
 
-If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
+If `runtime-evidence-deferrals` in the index contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
 
 - For each matched deferral, check whether the probe produced evidence that satisfies the deferred user-observable AC.
 - **Direction check first:** if the deferred AC is a prove-fail-closed criterion (a gate/guard/health-check catching a failure — shape.md's direction rule), the probe evidence must show the *failure branch firing* (induced fault caught, bad input rejected). A green happy-path observation does NOT clear it. On a direction mismatch, leave `cleared-by: null` and record in `## Tripwires` what evidence would qualify (the fault to inject).
 - **Climb the env-remediation rung before leaving one uncleared.** Rebind a harness-owned service to a free port and record it (never leave a deferral standing over a port the run itself binds), boot the documented headless mode, start an existing AVD, run a provisioning script the repo ships — per the env-remediation rung in runtime-adapters/_ladder.md, including its denylist: do not kill a process the run did not start, mutate host configuration, or patch product code.
 - **Re-run the ownership triage on every wall that survives.** A deferral recorded `external` by an earlier run is a claim, not a fact. If the wall is `code-owned` (the repo's own hard-coded port/host/endpoint or fixture pins it), say so in `## Tripwires` and name the change that would dissolve it.
-- If yes, set `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`.
+- If yes, set `cleared-by: probe-<descriptor>` on the entry. Get the index, change the entry of `runtime-evidence-deferrals`, write the draft of `00-index.md` and put it.
 - If no, leave `cleared-by: null` and surface this in the slice's `## Tripwires` section — with the wall's current `wall-ownership` verdict and, when the recorded `clearing-event` turned out to be a passive wait ("once the port frees"), the provisionable event that should replace it.
 - **Leave a `clearing-probe` behind on every deferral that survives.** Before writing the entry back, make sure it carries a one-line, side-effect-free command that answers "has the clearing event happened yet?" (verify.md's `clearing-probe` field): record the check you would run next time.
 
@@ -175,8 +175,8 @@ Per `_compressed-slice.md`:
 
 1. Append `03-slice-probe-<descriptor>.md` to `00-index.md.workflow-files`.
 2. Append `{slug: probe-<descriptor>, slice-type: probe, created-at: "<iso>"}` to `00-index.md.compressed-slices`.
-3. Update `00-index.md.updated-at`.
-4. If `03-slice.md` exists, append `{slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}` to `slices`, bump `total-slices`, update `updated-at`.
+3. Make changes 1 and 2 in one draft: get the index, change both lists, write the draft of `00-index.md` and put it.
+4. If `03-slice.md` exists, append `{slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}` to `slices` and bump `total-slices`. Get the record, change it, write the draft of `03-slice.md` and put it.
 5. Rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md`.
 
 Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. Probe slices are additive and do not advance the main lifecycle.
@@ -194,12 +194,12 @@ Findings: <findings-count> (critical: <N>, high: <N>, medium: <N>, low: <N>)
 Tripwires: <none | comma-separated list>
 Deferrals cleared: <N>
 Recommended next: <next-invocation> — <reason of the default route>
-Probe slice: .ai/workflows/<slug>/03-slice-probe-<descriptor>.md
+Probe slice: 03-slice-probe-<descriptor>.md
 ```
 
 In `sweep` mode the chat return **leads with the coverage claim**, not the finding count — and when `enumeration-method: traversal`, it states that the denominator is a floor. When a primary correctness class is not observable (Step 0.9), that statement comes before both. Slug-less sweeps replace the artifact line with `.ai/surface-sweep-<utc-date>.md` and recommend `/wf intake fix <description>` or `/wf intake rca <description>` — a slug-less sweep creates no slug of its own.
 
-If `status: awaiting-environment`, replace the body with `wf probe blocked: <slug>`, then `Bootstrap failed at: <adapter>/<step>`, `Remediation: <hint>`, the probe slice path, and `Re-run after applying the remediation.`
+If `status: awaiting-environment`, replace the body with `wf probe blocked: <slug>`, then `Bootstrap failed at: <adapter>/<step>`, `Remediation: <hint>`, the probe slice name, and `Re-run after applying the remediation.`
 
 # Routing notes
 

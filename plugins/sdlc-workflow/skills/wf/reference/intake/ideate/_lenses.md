@@ -41,7 +41,7 @@ Goal: find friction. Name who each friction affects. Hunt:
 Goal: find what users hit that the happy path hides. Name the user impact of each gap. Hunt:
 - state coverage: missing loading/error/empty states, forms with no validation feedback, silent failures
 - accessibility: unlabeled interactive elements, missing alt text, inputs with no label, color-only signals
-- edge cases: acceptance criteria in `.ai/workflows/*/02-shape.md` with no covering test, features that break on empty or large collections
+- edge cases: acceptance criteria in the `02-shape.md` record of each workflow (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md`, per [_records.md](../../_records.md)) with no covering test, features that break on empty or large collections
 - stubs: "TODO: implement" placeholders, documented configuration with no implementation
 
 ## Lens 6 — Architecture & Design Patterns

@@ -2,7 +2,7 @@ Run systematic **technical** quality checks and generate a comprehensive report.
 
 This is a code-level audit, not a design critique. Check what is measurable and verifiable in the implementation.
 
-**Reuse verify measurements.** When `06-verify-*.md` exists, consume its measured accessibility, performance, and web-vitals results. Do not re-run axe-core or Lighthouse. Measure these yourself only when no verify ran.
+**Reuse verify measurements.** When a `06-verify-*.md` record exists (`wf.mjs record list` names it), read it with `wf.mjs record get` and consume its measured accessibility, performance, and web-vitals results. Do not re-run axe-core or Lighthouse. Measure these yourself only when no verify ran.
 
 **Load the floor as a checklist.** Load [_craft-floor.md](_craft-floor.md). Score accessibility against its Verify list, and dimension 5 against its Refuse list. The audit edits nothing.
 
@@ -121,7 +121,7 @@ Format as a structured report:
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> audit`:
-- Write report to `.ai/workflows/<slug>/07-design-audit.md`
+- Write the report as the draft `.ai/workflows/<slug>/.draft/07-design-audit.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
 - When `02c-craft.md` names `boards:`, compare each board PNG with its capture in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` column of `## Findings`. A board without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:

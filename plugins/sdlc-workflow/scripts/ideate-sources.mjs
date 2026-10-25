@@ -20,9 +20,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { MAX_ISSUES, classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems } from '../lib/ideate.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
+import { INDEX_NAME, readDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: ideate-sources.mjs <args|issues|reference|check> <projectRoot> ...';
 const ISSUE_FIELDS = 'number,title,body,labels,comments,reactionGroups,state,createdAt,updatedAt,url';
@@ -48,15 +48,16 @@ function run(cmd, args, cwd) {
   return { ok: r.status === 0 && !r.error, out: r.stdout || '', err: (r.stderr || r.error?.message || '').trim() };
 }
 
-function readFm(file) {
-  if (!existsSync(file)) return null;
-  const p = safeParseFrontmatter(readFileSync(file, 'utf8'));
-  return { data: p.data ?? {}, error: p.parseError };
+/** One workflow record, in either layout: { data, error }, or null when it is absent. */
+function readRecord(dir, name) {
+  const doc = readDoc(dir, name);
+  if (!doc) return null;
+  return { data: doc.frontmatter ?? {}, error: doc.parseError ?? null };
 }
 
 const isIdeateSlug = (root) => (token) => {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(token)) return false;
-  return readFm(join(wfDir(root, token), '00-index.md'))?.data?.['workflow-type'] === 'ideate';
+  return readRecord(wfDir(root, token), INDEX_NAME)?.data?.['workflow-type'] === 'ideate';
 };
 const isFile = (root) => (token) => {
   try { return statSync(resolve(root, token)).isFile(); } catch { return false; }
@@ -167,7 +168,7 @@ function issueCopyProblems(dir) {
 
 function check(root, slug) {
   const dir = wfDir(root, slug);
-  const fm = readFm(join(dir, '01-ideate.md'));
+  const fm = readRecord(dir, '01-ideate.md');
   if (!fm) throw new Error(`no 01-ideate.md in ${slug}`);
   if (fm.error) throw new Error(`01-ideate.md does not parse: ${fm.error}`);
   const problems = [...sourceItemProblems(fm.data), ...issueCopyProblems(dir)];

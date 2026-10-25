@@ -1,6 +1,6 @@
 # Verify: augmentation re-verification (sub-agent 4)
 
-This file belongs to [../verify.md](../verify.md), Step 4. Load it when `02c-craft.md` exists or the `00-index.md` `augmentations:` list is not empty (`mode:augment`). Otherwise do not dispatch sub-agent 4. Dispatch it per [../_subagents.md](../_subagents.md), with the rules of [_sub-agents.md](_sub-agents.md). The measurable design checks (a11y, performance, responsive, web vitals) and the craft floor checklist are in sub-agent 3 ([_runtime-evidence.md](_runtime-evidence.md)). The re-checks below confirm that each applied transform hit its goal.
+This file belongs to [../verify.md](../verify.md), Step 4. Load it when `02c-craft.md` exists or the `00-index.md` `augmentations:` list is not empty (`mode:augment`). `wf.mjs record list "<root>" <slug>` names the records that exist; read a record with `wf.mjs record get` ([_records.md](../_records.md)). Otherwise do not dispatch sub-agent 4. Dispatch it per [../_subagents.md](../_subagents.md), with the rules of [_sub-agents.md](_sub-agents.md). The measurable design checks (a11y, performance, responsive, web vitals) and the craft floor checklist are in sub-agent 3 ([_runtime-evidence.md](_runtime-evidence.md)). The re-checks below confirm that each applied transform hit its goal.
 
 ## Functional sub-agent 4 — Augmentation Re-verification (only if `02c-craft.md` or `00-index.md` `augmentations:` list is non-empty)
 

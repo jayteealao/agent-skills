@@ -15,10 +15,10 @@ You are running `/wf intake simplify`, a **review-and-route triage utility**. Th
 
 If `intake.md` selected **slug-mode** (`/wf intake <slug> simplify [scope]`, branch 1), follow `_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
 
-- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. The compressed slice is the single output.
+- **One artifact, in the existing workflow.** Write the draft `.ai/workflows/<slug>/.draft/03-slice-simplify-<descriptor>.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md) (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. The compressed slice is the single output.
 - **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do not carry over — they belong to the standalone type. Report the same numbers in the body instead.
 - **No new workflow, no new branch, no `01-simplify.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
-- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see `_compressed-slice.md` step 6).
+- **Index updates:** get the index and set both lists in one call: `record set "<root>" <slug> index "workflow-files=[<current entries>, 03-slice-simplify-<descriptor>.md]" "compressed-slices=[<current entries>, {slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}]"` (an absent `compressed-slices` starts empty). If the `03-slice.md` record exists (`record get "<root>" <slug> 03-slice.md` exits 0), also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices` and bump `total-slices`, with one `record set "<root>" <slug> 03-slice.md` call. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see `_compressed-slice.md` step 6).
 - **Chat return:** one line — `wf intake simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake <slug> refactor <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
 
 If slug-mode was not selected, ignore this section and proceed standalone.
@@ -73,7 +73,7 @@ Parse `$ARGUMENTS`. The first token names the scope; default `branch`.
 Validation:
 - `branch` — confirm on a branch (`git symbolic-ref --short HEAD`), not detached HEAD.
 - `commit` — confirm sha resolves (`git rev-parse --verify <sha>`).
-- `plan` — confirm the plan file exists. If missing, STOP: *"No plan found at `<path>`. Run `/wf plan <slug> <slice>` first or check the slug/slice arguments."*
+- `plan` — confirm the plan record exists (`record get "<root>" <slug> 04-plan-<slice>.md` exits 0; a single-slice workflow uses `04-plan.md`). If missing, STOP: *"No plan found at `<path>`. Run `/wf plan <slug> <slice>` first or check the slug/slice arguments."*
 - `codebase` — confirm path exists.
 
 Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](../_timestamp.md)), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
@@ -86,7 +86,7 @@ Per scope:
 
 - **branch** — capture `git diff "$BASE...HEAD"` as `INPUT_DIFF`, where `BASE` is the given base or `git merge-base HEAD origin/<default-branch>`. Three-dot (`A...B`) = only what is new on HEAD relative to base.
 - **commit** — capture `git show <sha>` (single sha) or `git diff <range>` (range) as `INPUT_DIFF`.
-- **plan** — read the plan file in full. Agents review the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
+- **plan** — read the plan record in full (`record get "<root>" <slug> <name>`). Agents review the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
 - **codebase** — walk the path subtree. Exclude `.git/`, `node_modules/`, `dist/`, `build/`, `.venv/`, and other generator output. Cap at ~500 files; if larger, ask the user to narrow. Agents read by-need rather than from a single blob.
 
 ---
@@ -155,7 +155,7 @@ For each `accept` finding, assign a `route` based on what shape of follow-up wor
 | `route-verify` | `/wf verify <slug> <slice>` | Missing or inadequate test coverage. Verify re-runs acceptance criteria and may surface deeper gaps. |
 | `route-add-test` | `/wf intake fix "add test for <X>"` | Specific missing test addable as a one-file fix. |
 | `route-docs` | `/wf docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis handling usually picks this up; explicit route for standalone doc gaps. |
-| `route-handoff-config` | Edit `00-index.md` `public-surface:` / `docs-mirror:` / `review-bots:` keys | Finding flags drift in surfaces handoff's T3.6/T3.7/T5.1 cares about — fix is project-level config, not code. |
+| `route-handoff-config` | Set the `public-surface:` / `docs-mirror:` / `review-bots:` index keys with `record set` | Finding flags drift in surfaces handoff's T3.6/T3.7/T5.1 cares about — fix is project-level config, not code. |
 | `route-noop` | — | Informational; recorded but no action. |
 
 ## Classification rules
@@ -184,10 +184,10 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** records as drafts under `.ai/workflows/<slug>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`, and register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
-1. Write `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
-2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.
+1. Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
+2. Write the draft of `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.
 3. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
 
 After writing, print the `recommended-routes` invocations to chat.

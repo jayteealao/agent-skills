@@ -50,7 +50,7 @@ Scout, classifier, and bookkeeping agents give no event.
 
 ## The commentary rules
 
-- **C1.** For `stage-end`, read the stage artifact that the event names. Then say:
+- **C1.** For `stage-end`, read the stage artifact that the event names with `node "<pluginRoot>/skills/wf/scripts/wf.mjs" record get "<projectRoot>" <slug> <name>` ([_records.md](../_records.md)). Then say:
   - what the stage built or found;
   - what it decided, with the class of each decision;
   - how many errors it recovered from (`errors`), and whether an error stopped it;

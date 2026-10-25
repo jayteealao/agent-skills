@@ -60,7 +60,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 Resolve the first token by an exact existence check. Never fuzzy-match: a wrong guess sends the work down the wrong path.
 
-1. **When `.ai/workflows/<token0>/00-index.md` exists**, `token0` is the slug. Read `token1`:
+1. **When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token0> index` exits 0**, `token0` is the slug. Read `token1`:
    - absent → **stage**;
    - one of the 15 moves → **stage** focused on that move;
    - `amend` → **amend**;
@@ -116,7 +116,7 @@ Follow the command's section in [design/record.md](design/record.md). `setup` an
 ## Review
 
 Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). Check against its Refuse and Verify lists.
-- With a slug, write `07-design-audit.md` or `07-design-critique.md`, and register the augmentation per [design/_output.md](design/_output.md). `audit` consumes the accessibility, performance, and web-vitals results in `06-verify-*.md`; it measures them itself only when no verify ran.
+- With a slug, write the draft `.ai/workflows/<slug>/.draft/07-design-audit.md` or `.ai/workflows/<slug>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` consumes the accessibility, performance, and web-vitals results in `06-verify-*.md`; it measures them itself only when no verify ran.
 - Without a slug, write no workflow artifact. Report in chat.
 
 # Step 2 — Final summary

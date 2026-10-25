@@ -42,13 +42,13 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 1. **Read the slug and the rest:** `intake.md` branch 0 consumed the **slug** and the word `close`.
    The optional first token of the rest is either a **slice-slug** or a **close reason**.
-2. **Validate the slug:** if `.ai/workflows/<slug>/00-index.md` does not exist → STOP: "No workflow
+2. **Validate the slug:** if the index of `<slug>` does not exist (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 1, per [_records.md](../_records.md)) → STOP: "No workflow
    `<slug>` found." A `prototype` row of `INDEX.md` is the exception: its folder is in its POC
    worktree, which `prototype.mjs status` names. Run `prototype.mjs exit <slug> close` first, then
    close the workflow in that worktree.
 3. **Resolve that token** (resolution mirrors `/wf status recap`; slice match is checked FIRST so a
    slice literally named like a reason still resolves to the slice):
-   - **Exact slice match** — `.ai/workflows/<slug>/03-slice-<token>.md` exists, OR `<token>` is a
+   - **Exact slice match** — the `03-slice-<token>.md` record exists (`record get` exits 0), OR `<token>` is a
      `slug` in `03-slice.md`'s roster → **slice close/skip** (go to the *Slice close* section).
    - **A close reason** — `<token>` ∈ `{cancelled, superseded, deferred, completed-externally,
      merged-into}` (and no slice matched) → **workflow close** with that reason.
@@ -73,7 +73,7 @@ files remain for audit or revival.
 | `merged-into` | This workflow's scope was absorbed into a larger workflow or PR. |
 
 ## Step W0 — Orient
-- Parse `00-index.md`: `title`, `slug`, `status`, `current-stage`, `stage-number`, `progress`,
+- Parse the index (`record get "<root>" <slug> index`): `title`, `slug`, `status`, `current-stage`, `stage-number`, `progress`,
   `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `open-questions`, `workflow-type`.
 - If `status: closed` already → WARN: "Workflow `<slug>` is already closed (closed-at: `<closed-at>`).
   Running again overwrites the close record. Proceed? (yes to continue)"
@@ -90,6 +90,8 @@ If no reason was given, ask (present the five options above). If `superseded`/`m
 These checks are **informational** — surface them, do not act automatically.
 
 ## Step W3 — Write `99-close.md`
+
+Write the draft `.ai/workflows/<slug>/.draft/99-close.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 ```yaml
 ---
@@ -118,13 +120,14 @@ Body sections, as fixed `##` headings: `## Work Completed` (one
 bullet per completed/skipped stage), `## Work Not Completed` (last known state of each incomplete
 stage), `## Reason & Context` (expanded; name what superseded/absorbed it; revival triggers if
 deferred), `## Branch & PR Status` (a resource/state/action table), `## Revival Instructions` (only
-if `deferred`/`superseded`: *"To resume, restore `status: in-progress` in `00-index.md` and run
+if `deferred`/`superseded`: *"To resume, run `wf.mjs record set "<root>" <slug> index status=in-progress` and run
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
 are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed permanently").
 
 ## Step W4 — Update `00-index.md`
-Update `status: closed`, `close-reason`, `superseded-by`, `closed-at`, `next-command: none`,
-`next-invocation: none`, `updated-at`. Append `99-close.md` to `workflow-files`. Do not change `current-stage` — it reflects the last stage reached.
+Run one `record set "<root>" <slug> index` call: `status=closed`, `close-reason=<reason>`, `superseded-by=<value>`,
+`closed-at=<timestamp>`, `next-command=none`, `next-invocation=none`, and
+`"workflow-files=[<current entries>, 99-close.md]"`. `updated-at` moves by itself. Do not change `current-stage` — it reflects the last stage reached.
 
 ## Step W5 — Hand off
 Lead with the narrative per [_chat-return.md](../_chat-return.md) (section *The narrative*), then a compact receipt (reason, last
@@ -142,8 +145,8 @@ ordering) treat it as resolved rather than pending. The **slice** is the unit th
 matters (see *What this is NOT*).
 
 ## Step S0 — Orient
-1. Parse `00-index.md` (`current-stage`, `progress`, `branch-strategy`, `branch`, `selected-slice`)
-   and the `03-slice.md` roster. Locate the slice `<slice>` in the roster.
+1. Parse the index (`record get "<root>" <slug> index`: `current-stage`, `progress`, `branch-strategy`, `branch`, `selected-slice`)
+   and the `03-slice.md` roster (`record get "<root>" <slug> 03-slice.md`). Locate the slice `<slice>` in the roster.
 2. If the slice is already `status: complete` → WARN: "Slice `<slice>` is already complete — closing it
    discards nothing built, but marks it terminated. Proceed? (yes)". If already `skipped`/`closed` →
    WARN it will overwrite the skip record.
@@ -173,20 +176,23 @@ Body: `# Slice skipped: <slice>` — **Reason**, **What was bypassed** (what thi
 (whether a slice stub was written).
 
 ## Step S3 — Mark the slice terminated (so downstream prereqs pass)
-1. In `03-slice.md`'s `slices:` roster, set the entry for `<slice>` to `status: skipped` and add
+1. Get `03-slice.md`. In its `slices:` roster, set the entry for `<slice>` to `status: skipped` and add
    `skip-record: skip-slice-<slice>.md`. Do not touch other slices' entries; do NOT renumber.
-2. If `03-slice-<slice>.md` exists → set its frontmatter `status: skipped`, add `skipped: true` and
-   `skip-record: skip-slice-<slice>.md`; leave its body intact. If it does **not** exist → write a
-   minimal stub `03-slice-<slice>.md` (`type: slice`, `status: skipped`, `skipped: true`,
+2. If the `03-slice-<slice>.md` record exists → set its frontmatter with
+   `record set "<root>" <slug> 03-slice-<slice>.md status=skipped skipped=true skip-record=skip-slice-<slice>.md`;
+   leave its body intact. If it does **not** exist → write the draft of a
+   minimal stub `03-slice-<slice>.md` and put it (`type: slice`, `status: skipped`, `skipped: true`,
    `skip-record: skip-slice-<slice>.md`) whose body says the slice was skipped before definition, so
    downstream commands find the file and do not error on a missing prerequisite.
 3. Recompute any author-written slice **count** in `03-slice.md`'s body only if it stated an
    *active/remaining* total; the roster-derived figures (header, figure, metric row) recompute
    themselves. This is clerical, not a roster change.
+4. Write the draft of `03-slice.md` with the changes of items 1 and 3, and put it.
 
 ## Step S4 — Update `00-index.md`
-Update `updated-at`; add `skip-slice-<slice>.md` (and any stub) to `workflow-files`. If `<slice>` was
-the `selected-slice`, advance it to the next unresolved slice. Do not change `status` or
+Run one `record set "<root>" <slug> index` call: add `skip-slice-<slice>.md` (and any stub) to `workflow-files`
+(`"workflow-files=[<current entries>, skip-slice-<slice>.md]"`). If `<slice>` was
+the `selected-slice`, advance it to the next unresolved slice in the same call (`selected-slice=<next>`). Do not change `status` or
 `current-stage` — the workflow continues; only this slice is done.
 
 ## Step S5 — Hand off

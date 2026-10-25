@@ -43,7 +43,7 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
     - { label: "Cancel",                      description: "Abort the handoff; leave everything unchanged." }
   multiSelect: false
   ```
-  - "Create it now" → STOP; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `00-index.md` `recommended-next-*` at `/wf project ship-plan init` and resume ship after the plan exists.
+  - "Create it now" → STOP; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `recommended-next-*` index fields at `/wf project ship-plan init` with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "recommended-next-invocation=/wf project ship-plan init" ...` (per [_records.md](../_records.md)) and resume ship after the plan exists.
   - "Shipping is external" → set `ship-plan-readiness: not-applicable`; note the reason in the handoff's `## Risks / Caveats`; return to the caller and continue.
   - "Cancel" → STOP.
 
@@ -108,7 +108,7 @@ Drop the middle option when no finding is `clears-on: repo`: a two-option gate i
 
 Every STOP path above throws away work the run already did correctly. This gate fires **after** the caller has resolved its roster, run every prerequisite check, and computed its commit range, and a resumed run re-derives all of it from scratch, sometimes in a later session across a context compaction.
 
-Before returning a STOP verdict, write into the slug's `00-index.md` (or, for `ship`, the run's own scratch state):
+Before returning a STOP verdict, set this block in the slug's index with `record set "<root>" <slug> index "resume-orientation={...}"` (or, for `ship`, write it into the run's own scratch state):
 
 ```yaml
 resume-orientation:
@@ -124,4 +124,4 @@ resume-orientation:
 
 Do not write YAML comments into `00-index.md`. The block is cheap re-entry state: a run can ignore it or delete it. `roster` is the resolved roster (batch) or the single slug. `prereq-results` records, for each slug, what the prerequisite pass decided.
 
-A resumed run **may trust these only while the inputs have not moved**: if `HEAD` still matches the recorded range's head and no roster slug's `00-index.md` has a newer `updated-at`, skip re-deriving the roster and prereqs and go straight to the gate. Anything moved → discard the block and re-derive. Stale re-entry state that is silently trusted is worse than none; the head-SHA check is what makes it safe to keep.
+A resumed run **may trust these only while the inputs have not moved**: if `HEAD` still matches the recorded range's head and no roster slug's index (`record get "<root>" <slug> index`) has a newer `updated-at`, skip re-deriving the roster and prereqs and go straight to the gate. Anything moved → discard the block and re-derive. Stale re-entry state that is silently trusted is worse than none; the head-SHA check is what makes it safe to keep.

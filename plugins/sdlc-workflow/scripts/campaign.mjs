@@ -31,13 +31,14 @@ import { DECISIONS_FILE, appendEntry, decisionsOf, storeText } from '../lib/deci
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
-import { closesCycle, editRosterEntry, frontmatterValue, rosterEntries, rosterWalkOrder, setFrontmatterValue } from '../lib/roster-edit.mjs';
+import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 import { workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
+import { INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 
@@ -56,6 +57,12 @@ function readJson(file) {
 function readFm(file) {
   if (!existsSync(file)) return null;
   return safeParseFrontmatter(readFileSync(file, 'utf8')).data ?? {};
+}
+
+/** The frontmatter of one workflow record, in either layout: {} when it does not parse, null when it is absent. */
+function recordFm(dir, name) {
+  const doc = readDoc(dir, name);
+  return doc ? (doc.frontmatter ?? {}) : null;
 }
 
 function dump(data) {
@@ -109,7 +116,7 @@ function appendHistory(dir, text, stage = 'campaign') {
   appendFileSync(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text, stage })}\n`);
 }
 
-/** Set top-level frontmatter keys of a file; returns false when the file has no frontmatter. */
+/** Set top-level frontmatter keys of a packet file; returns false when the file has no frontmatter. */
 function setFields(file, fields) {
   let text = readFileSync(file, 'utf8');
   for (const [k, v] of Object.entries(fields)) {
@@ -169,8 +176,8 @@ export function archiveCommand(dir, boardFile, { dryRun = false, now = null } = 
   const boardPath = join(dir, boardFile);
   const board = JSON.parse(readFileSync(boardPath, 'utf8'));
   const { board: kept, archived, count } = archiveBoard(board);
-  const docPath = join(dir, '01-brainstorm.md');
-  const warnings = existsSync(docPath) ? docCheck(readFileSync(docPath, 'utf8')) : [];
+  const lead = readDoc(dir, DEFAULT_FILES.lead);
+  const warnings = lead ? docCheck(lead.body ?? '') : [];
   const result = { ok: true, moved: { items: archived.items.length, log: archived.log.length, stories: archived.stories.length }, warnings, dryRun };
   if (!count || dryRun) return result;
   const archiveDir = join(dir, 'archive');
@@ -210,10 +217,10 @@ function setPacketState(packet, state) {
 /** The reason the design of a workflow is not settled, or null (design/_lane.md, "Design is settled"). */
 export function designBlock(root, slug) {
   const dir = wfDir(root, slug);
-  const index = readFm(join(dir, '00-index.md'));
+  const index = recordFm(dir, INDEX_NAME);
   if (!index) return null;
-  if (!designNeeded(index, existsSync(join(dir, '02b-design.md')))) return null;
-  const contract = readFm(join(dir, '02c-craft.md'));
+  if (!designNeeded(index, hasDoc(dir, '02b-design.md'))) return null;
+  const contract = recordFm(dir, '02c-craft.md');
   const missing = contract ? missingBoardFiles(dir, contract) : null;
   if (!designSettled(index, contract, missing)) {
     if (missing?.length) return `the confirmed boards are missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
@@ -237,10 +244,10 @@ const plainCell = (s) => String(s ?? '').replace(/[`*_]/g, '').trim();
  */
 export function decisionFidelity(root, slug, carriedKeys = []) {
   const dir = wfDir(root, slug);
-  const review = join(dir, '07-review.md');
+  const review = readDoc(dir, '07-review.md');
   const none = { table: false, missing: [], rows: [] };
-  if (!existsSync(review)) return none;
-  const text = readFileSync(review, 'utf8');
+  if (!review) return none;
+  const text = review.body ?? '';
   const at = text.search(/^## Decision Fidelity\s*$/m);
   if (at < 0) return carriedKeys.length ? none : { table: true, missing: [], rows: [] };
   const section = text.slice(at).split(/\n## /)[0];
@@ -263,7 +270,7 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
 
 /** The roster slices of a workflow that are not finished, from 00-index.md `slices[]`. */
 function openSlices(root, slug) {
-  const slices = readFm(join(wfDir(root, slug), '00-index.md'))?.slices;
+  const slices = recordFm(wfDir(root, slug), INDEX_NAME)?.slices;
   if (!Array.isArray(slices)) return [];
   return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));
 }
@@ -280,7 +287,7 @@ function nextStep(root, src, packet) {
   const block = designBlock(root, slug);
   if (block) return { step: 'design', reason: block, route: `/wf design ${slug}` };
   if (packet.state === 'open') {
-    if (!existsSync(join(wfDir(root, slug), '03-slice.md'))) return { step: 'slice' };
+    if (!hasDoc(wfDir(root, slug), ROSTER_DOC)) return { step: 'slice' };
     return { step: 'yolo' };
   }
   // built. A fix slice that is not built yet sends the packet back to the driver (6.1 step 13).
@@ -324,7 +331,7 @@ function statusCmd(root, src) {
   const needDesign = packets
     .filter((p) => BUILD_FORMS.includes(p.form) && !['done', 'dropped'].includes(p.state))
     .map((p) => {
-      const opened = existsSync(join(wfDir(root, p['packet-slug']), '00-index.md'));
+      const opened = hasDoc(wfDir(root, p['packet-slug']), INDEX_NAME);
       const why = opened ? designBlock(root, p['packet-slug']) : ((p['ux-impact'] ?? 'none') !== 'none' ? 'not opened yet; the design stage runs after open' : null);
       return why ? { key: p.key, slug: p['packet-slug'], reason: why } : null;
     })
@@ -371,8 +378,11 @@ function sectionText(text, heading) {
   return body === '- None.' ? '' : body;
 }
 
-/** The files of a fresh packet folder (section 5), from the packet file and the list index. */
-export function packetFolderFiles({ src, packet, packetText, list, trunk, now }) {
+/**
+ * The records of a fresh packet folder (section 5), from the packet file and the list index:
+ * { '00-index.md', '01-intake.md', '02-shape.md': { frontmatter, body }, 'decisions.yaml': text }.
+ */
+export function packetFolderRecords({ src, packet, packetText, list, trunk, now }) {
   const slug = packet['packet-slug'];
   const originPacket = `${workflowRel(src)}/work/${packet.file}`;
   const decisions = packet['carried-decisions'] ?? [];
@@ -432,14 +442,12 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     },
   };
   const cite = (d) => `source: ${workflowRel(src)}/${boardFile}#${d.key}`;
-  const intake = [
-    '---',
-    dump({
-      schema: 'sdlc/v1', type: 'intake', slug, status: 'complete', 'stage-number': 1, 'created-at': now, 'updated-at': now, tags: [],
-      refs: { index: '00-index.md', next: '02-shape.md' }, 'next-command': 'wf-slice', 'next-invocation': `/wf campaign ${src}`,
-      'recommended-routes': [{ invocation: `/wf campaign ${src}`, reason: 'the campaign walk slices and builds this packet', default: true }],
-    }),
-    '---', '',
+  const intake = {
+    schema: 'sdlc/v1', type: 'intake', slug, status: 'complete', 'stage-number': 1, 'created-at': now, 'updated-at': now, tags: [],
+    refs: { index: '00-index.md', next: '02-shape.md' }, 'next-command': 'wf-slice', 'next-invocation': `/wf campaign ${src}`,
+    'recommended-routes': [{ invocation: `/wf campaign ${src}`, reason: 'the campaign walk slices and builds this packet', default: true }],
+  };
+  const intakeBody = [
     '# Intake', '',
     `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}). The brainstorm wrote the scope with the person; nobody re-words it.`, '',
     '## Restated Request', '', goal || packet.title || slug, '',
@@ -459,16 +467,14 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     ...(outScope.length ? outScope.map((o) => `- ${o}`) : ['- None.']),
     '',
   ].join('\n');
-  const shape = [
-    '---',
-    dump({
-      schema: 'sdlc/v1', type: 'shape', slug, status: 'complete', 'stage-number': 2, 'created-at': now, 'updated-at': now,
-      'docs-needed': false, 'docs-types': [], 'augmentations-needed': [], 'charter-scenario': 'none — a campaign packet; the acceptance criteria carry the scenario',
-      'files-in-scope': [], tags: [], refs: { index: '00-index.md', intake: '01-intake.md', next: '03-slice.md' },
-      'next-command': ux === 'none' ? 'wf-slice' : 'wf-design', 'next-invocation': ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`,
-      'recommended-routes': [{ invocation: ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === 'none' ? 'the walk slices the packet' : 'the packet needs the design stage first', default: true }],
-    }),
-    '---', '',
+  const shape = {
+    schema: 'sdlc/v1', type: 'shape', slug, status: 'complete', 'stage-number': 2, 'created-at': now, 'updated-at': now,
+    'docs-needed': false, 'docs-types': [], 'augmentations-needed': [], 'charter-scenario': 'none — a campaign packet; the acceptance criteria carry the scenario',
+    'files-in-scope': [], tags: [], refs: { index: '00-index.md', intake: '01-intake.md', next: '03-slice.md' },
+    'next-command': ux === 'none' ? 'wf-slice' : 'wf-design', 'next-invocation': ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`,
+    'recommended-routes': [{ invocation: ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === 'none' ? 'the walk slices the packet' : 'the packet needs the design stage first', default: true }],
+  };
+  const shapeBody = [
     '# Shape', '',
     `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}).`, '',
     '## Problem Statement', '', goal || packet.title || slug, '',
@@ -491,7 +497,19 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
   for (const d of decisions) {
     appendEntry(store, { kind: 'answer', key: d.key, answer: d.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${d.key}` }, { now });
   }
-  return { '00-index.md': `---\n${dump(index)}\n---\n`, '01-intake.md': intake, '02-shape.md': shape, [DECISIONS_FILE]: storeText(store) };
+  return {
+    [INDEX_NAME]: { frontmatter: index, body: '' },
+    '01-intake.md': { frontmatter: intake, body: intakeBody },
+    '02-shape.md': { frontmatter: shape, body: shapeBody },
+    [DECISIONS_FILE]: storeText(store),
+  };
+}
+
+/** The files of a fresh packet folder as Markdown text: packetFolderRecords, with each record rendered. */
+export function packetFolderFiles(args) {
+  return Object.fromEntries(Object.entries(packetFolderRecords(args)).map(([name, r]) => [
+    name, typeof r === 'string' ? r : `---\n${dump(r.frontmatter)}\n---\n${r.body ? `\n${r.body}` : ''}`,
+  ]));
 }
 
 function openCmd(root, src, [key], f) {
@@ -502,9 +520,9 @@ function openCmd(root, src, [key], f) {
   const dir = wfDir(root, slug);
   const trunk = trunkOf(root, f);
   const originPacket = `${workflowRel(src)}/work/${packet.file}`;
-  if (existsSync(join(dir, '00-index.md'))) {
+  if (hasDoc(dir, INDEX_NAME)) {
     // A prepared unit of the old campaign (Secbot): its intake and shape stay; the packet adopts the folder (12.4).
-    setFields(join(dir, '00-index.md'), {
+    setRecordFields(dir, INDEX_NAME, {
       'origin-packet': originPacket, branch: listBranch(src), 'base-branch': trunk, 'branch-strategy': 'dedicated',
       'workflow-type': 'feature', 'review-scope': 'slug-wide', 'review-scope-confirmed': true, 'updated-at': nowIso(),
     });
@@ -514,13 +532,18 @@ function openCmd(root, src, [key], f) {
     return { ok: true, opened: true, adopted: true, key: packet.key, slug };
   }
   const boardFile = boardFileOf(sourceDir(root, src));
-  const files = packetFolderFiles({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
+  const records = packetFolderRecords({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
   mkdirSync(dir, { recursive: true });
-  for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+  const wrote = new Set();
+  for (const [name, r] of Object.entries(records)) {
+    if (typeof r === 'string') { writeFileSync(join(dir, name), r); wrote.add(name); continue; }
+    wrote.add(writeDoc(dir, name, r).file);
+    if (name === INDEX_NAME) wrote.add(META_FILE);
+  }
   appendHistory(dir, `campaign: opened from the packet ${packet.key} of ${src}`, 'intake');
   setPacketState(packet, 'open');
   indexRow(root, slug, listBranch(src));
-  return { ok: true, opened: true, key: packet.key, slug, wrote: Object.keys(files).map((n) => posix(relative(root, join(dir, n)))) };
+  return { ok: true, opened: true, key: packet.key, slug, wrote: [...wrote].map((n) => posix(relative(root, join(dir, n)))) };
 }
 
 // ---------------------------------------------------------------- land, start, built, done (6.1, 6.2)
@@ -626,9 +649,9 @@ function startCmd(root, src, [key], f) {
     const end = endBranch(src, before.key);
     if (commitOf(root, `refs/heads/${end}`) && isAncestor(root, end, 'HEAD')) base = end;
   }
-  const idx = join(wfDir(root, packet['packet-slug']), '00-index.md');
-  if (!existsSync(idx)) return { ok: false, error: `${posix(relative(root, idx))} does not exist: run campaign.mjs open` };
-  setFields(idx, { 'base-branch': base, branch: listBranch(src), 'updated-at': nowIso() });
+  const wdir = wfDir(root, packet['packet-slug']);
+  if (!hasDoc(wdir, INDEX_NAME)) return { ok: false, error: `${posix(relative(root, join(wdir, INDEX_NAME)))} does not exist: run campaign.mjs open` };
+  setRecordFields(wdir, INDEX_NAME, { 'base-branch': base, branch: listBranch(src), 'updated-at': nowIso() });
   return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}) };
 }
 
@@ -674,7 +697,7 @@ function doneCmd(root, src, [key], f) {
   const end = endBranch(src, packet.key);
   const b = git(root, ['branch', '-f', end, 'HEAD']);
   if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
-  setFields(join(wfDir(root, slug), '00-index.md'), { 'base-branch': trunk, 'updated-at': nowIso() });
+  if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'base-branch': trunk, 'updated-at': nowIso() });
   setPacketState(packet, 'done');
   let removed = null;
   if (packet.migrated?.worktree && existsSync(packet.migrated.worktree)) removed = removeWorktree(root, src, packet.migrated.worktree, { unitKey: packet.migrated['unit-key'] ?? packet.key });
@@ -710,31 +733,27 @@ function sliceOrder(root, slug, [action], f) {
   const t = String(f.after ?? '').trim();
   if (!s || !t || s === t) throw new Error('slice-order add: give --slice <slice> --after <another slice>');
   const dir = workflowDir(root, slug);
-  const rosterFile = join(dir, '03-slice.md');
-  if (!existsSync(rosterFile)) return { ok: false, error: `slice-order: ${relative(root, rosterFile)} does not exist` };
-  const text = readFileSync(rosterFile, 'utf8');
-  const roster = rosterEntries(text);
+  if (!hasDoc(dir, ROSTER_DOC)) return { ok: false, error: `slice-order: ${relative(root, join(dir, ROSTER_DOC))} does not exist` };
+  const roster = rosterOf(dir);
   const entry = roster.find((e) => e.slug === s);
   if (!entry || !roster.some((e) => e.slug === t)) return { ok: false, error: `slice-order: ${!entry ? s : t} is not a slice of the roster of ${slug}` };
   if (entry.dependsOn.includes(t)) return { ok: true, slug, slice: s, after: t, added: false, walkOrder: rosterWalkOrder(roster).map((e) => e.slug) };
   if (closesCycle(roster, s, t)) return { ok: false, cycle: true, error: `slice-order: ${s} after ${t} closes a cycle, because ${t} already depends on ${s}` };
   const deps = [...entry.dependsOn, t];
-  writeFileSync(rosterFile, editRosterEntry(text, s, { 'depends-on': deps }));
-  const sliceFile = join(dir, `03-slice-${s}.md`);
-  if (existsSync(sliceFile)) {
-    const st = readFileSync(sliceFile, 'utf8');
-    const have = frontmatterValue(st, 'depends-on');
+  const edited = setRosterEntry(dir, s, { 'depends-on': deps });
+  const sliceName = `03-slice-${s}.md`;
+  const sliceDoc = readDoc(dir, sliceName);
+  if (sliceDoc?.frontmatter) {
+    const have = sliceDoc.frontmatter['depends-on'];
     const l = Array.isArray(have) ? have.map(String) : [];
-    if (!l.includes(t)) writeFileSync(sliceFile, setFrontmatterValue(st, 'depends-on', [...l, t]) ?? st);
+    if (!l.includes(t)) setRecordFields(dir, sliceName, { 'depends-on': [...l, t] });
   }
   const why = String(f.why ?? '').trim();
   appendFileSync(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text: `slice-order: '${s}' after '${t}'${why ? `: ${why}` : ''}`, stage: 'plan' })}\n`);
-  const order = rosterWalkOrder(rosterEntries(readFileSync(rosterFile, 'utf8'))).map((e) => e.slug);
-  const planFile = join(dir, '04-plan.md');
-  if (existsSync(planFile)) {
-    const pt = readFileSync(planFile, 'utf8');
-    const next = setFrontmatterValue(pt, 'implementation-order', order);
-    if (next && next !== pt) writeFileSync(planFile, next);
+  const order = rosterWalkOrder(edited ?? rosterOf(dir)).map((e) => e.slug);
+  const plan = readDoc(dir, '04-plan.md');
+  if (plan?.frontmatter && JSON.stringify(plan.frontmatter['implementation-order']) !== JSON.stringify(order)) {
+    setRecordFields(dir, '04-plan.md', { 'implementation-order': order });
   }
   return { ok: true, slug, slice: s, after: t, added: true, dependsOn: deps, walkOrder: order };
 }
@@ -944,7 +963,7 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
     shipped: shipped.map((u) => ({ key: u.key, slug: u.slug, wave: u.wave })),
     dropped: dropped.map((u) => u.key),
     inflight: packets,
-    notStarted: notStarted.map((u) => ({ key: u.key, slug: u.slug, state: u.state, prepared: existsSync(join(wfDir(root, u.slug ?? u.key), '01-intake.md')), designSettled: u.slug ? !designBlock(root, u.slug) && existsSync(join(wfDir(root, u.slug), '02c-craft.md')) : false })),
+    notStarted: notStarted.map((u) => ({ key: u.key, slug: u.slug, state: u.state, prepared: hasDoc(wfDir(root, u.slug ?? u.key), '01-intake.md'), designSettled: u.slug ? !designBlock(root, u.slug) && hasDoc(wfDir(root, u.slug), '02c-craft.md') : false })),
     worktrees,
     strays,
     blocked: packets.filter((p) => p.land === 'blocked'),
@@ -1048,10 +1067,9 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   // Step 5: the index of each in-flight packet, in the main checkout.
   const indexes = [];
   for (const p of rep.inflight) {
-    const idx = join(wfDir(root, p.slug), '00-index.md');
-    if (!existsSync(idx)) { indexes.push({ slug: p.slug, error: 'no 00-index.md in the main checkout after the records sync' }); continue; }
+    if (!hasDoc(wfDir(root, p.slug), INDEX_NAME)) { indexes.push({ slug: p.slug, error: 'no 00-index.md in the main checkout after the records sync' }); continue; }
     const lead = order.find((w) => w.slug === p.slug);
-    setFields(idx, {
+    setRecordFields(wfDir(root, p.slug), INDEX_NAME, {
       'origin-packet': `${workflowRel(src)}/work/${p.slug}.md`, branch: listBranch(src), 'base-branch': rep.trunk, 'branch-strategy': 'dedicated',
       'workflow-type': 'feature', 'review-scope': 'slug-wide', 'review-scope-confirmed': true,
       'migrated-from': p.branch, ...(p.waveBase ? { 'wave-base': p.waveBase } : {}), land: p.land, 'updated-at': nowIso(),

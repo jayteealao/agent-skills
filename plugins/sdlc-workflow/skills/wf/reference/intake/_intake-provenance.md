@@ -13,8 +13,8 @@ This file holds Detect, which every run applies. [_intake-provenance-consume.md]
 Provenance is explicit or inferred — explicit always wins:
 
 1. **Explicit:** `$ARGUMENTS` ends with `from <source-slug>`. Strip those two tokens from
-   the description before deriving the new slug. Resolve the named slug against
-   `.ai/workflows/<source-slug>/00-index.md` and read its `workflow-type`. If the type has
+   the description before deriving the new slug. Read the index of the named slug with
+   `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <source-slug> index` (per [_records.md](../_records.md)) and read its `workflow-type`. If the type has
    no row in the Consume table of
    [_intake-provenance-consume.md](_intake-provenance-consume.md), WARN ("`<slug>` has workflow-type `<type>` — no
    provenance contract for it; proceeding without inherited context") and continue.
@@ -25,7 +25,7 @@ Provenance is explicit or inferred — explicit always wins:
    rows whose `updated-at` is within the last **30 days** (older sources require the
    explicit `from <slug>` token). For each candidate, read the option labels
    (investigate), the idea labels (ideate), or the packet-of-work titles (brainstorm,
-   `work[].title` in `brainstorm-board.json`) from its lead artifact. Attach only on an
+   `work[].title` in `brainstorm-board.json`) from its lead artifact (`record get "<root>" <slug> 01-<type>.md`). Attach only on an
    **exact label match** — the description contains a label exactly (case-insensitive).
    A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
    confirmation question ("This description matches `<id> — <label>` from `<type>` workflow

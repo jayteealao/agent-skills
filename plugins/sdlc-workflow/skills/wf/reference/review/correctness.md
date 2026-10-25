@@ -42,7 +42,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Error tests check the error type, message, and context, including a failure partway through a multi-step operation.
 - Check coverage of changed behavior, test level, brittleness, determinism, fixtures, assertions, error paths, and resource tests.
 ### metric-gaming
-Always-on for an optimize slice (`workflow-type: optimize`). Read the squashed diff against `02-optimize-spec.md`: the metric command, the guard, and the holdout.
+Always-on for an optimize slice (`workflow-type: optimize`). Get `02-optimize-spec.md` with `wf.mjs record get`. Read the squashed diff against it: the metric command, the guard, and the holdout.
 - **A constant that matches an evaluator input is BLOCKER**: a hard-coded answer, size, or fixture value that the metric or the guard reads
 - **A branch on a test, benchmark, or fixture name is BLOCKER**: code that behaves differently when the metric runs
 - **Removed work that the metric does not see is HIGH**: a skipped validation, a dropped output, a cache that returns stale data, or an assertion the guard no longer reaches

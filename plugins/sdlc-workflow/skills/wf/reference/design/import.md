@@ -25,7 +25,7 @@ When the session's account can read only a summary of a link (the account can vi
 ## Step 0 — Orient
 
 1. Run [stage.md](stage.md) Step 0. The same stop rules apply: closed workflow, driver, missing shape.
-2. Read `02c-craft.md` when it exists. An import into a confirmed design is an amend: the freeze writes `r<N+1>/`, and Amend steps 3 and 4 of [stage.md](stage.md) apply. A change made on a canvas to a frozen board comes here too. It becomes a new board revision, never an edit inside `r<N>/`.
+2. Read `02c-craft.md` with `wf.mjs record get` when it exists. An import into a confirmed design is an amend: the freeze writes `r<N+1>/`, and Amend steps 3 and 4 of [stage.md](stage.md) apply. A change made on a canvas to a frozen board comes here too. It becomes a new board revision, never an edit inside `r<N>/`.
 3. Load [_boards.md](_boards.md) in full.
 4. Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists. Import skips stage Step 4, so this is the load point of the floor.
 

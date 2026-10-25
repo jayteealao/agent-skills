@@ -66,14 +66,14 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the first argument — it is polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name), first match wins so a slug is never mistaken for a branch:
-   - **Exact slug**: `.ai/workflows/<arg>/00-index.md` exists → **single-slug retro** (`retro-scope: slug`). The classic path — continue with items 2–5 for that one slug.
+   - **Exact slug**: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <arg> index` exits 0 → **single-slug retro** (`retro-scope: slug`). The classic path — continue with items 2–5 for that one slug.
    - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
-   - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
-   - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
+   - **Branch name**: matches a `branch` in the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
+   - **Absent**: infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` → single-slug. If ambiguous, ask the user.
    - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone.
-2. **Parse `00-index.md`** frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
+2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - At least one implement record (`05-implement-<slice>.md`, or `05-implement.md` in change mode) must exist. If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
+   - Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`. At least one implement record (`05-implement-<slice>.md`, or `05-implement.md` in change mode) must be listed. If nothing is listed beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - A ship run (`09-ship-run-*.md`, or a legacy `09-ship.md`) is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
 4. **Use the full workflow trail** (every Requires row). Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`. In `current.md` `## Surfaces`, set the Newest board of each surface the workflow changed to its PNG in the last frozen revision (`workflows/<slug>/design/r<N>/boards/<key>.png`).
@@ -83,8 +83,8 @@ You are a **workflow orchestrator**, not a problem solver.
 
 Runs when Step 0 resolved a branch: the slugs that shipped together on one branch are retrospected together.
 
-1. **Build the roster.** Scan every `.ai/workflows/*/00-index.md`; the roster is every slug whose `branch:` equals the resolved branch. If none → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
-2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped. Mark each retrospected slug complete in its `00-index.md`.
+1. **Build the roster.** Run `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`; the roster is every slug whose `branch` equals the resolved branch. If none → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped. Mark each retrospected slug complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <roster-slug> index status=complete`.
 3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Zero cross-slug learnings is a legitimate outcome; do not pad.
 4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).
 
@@ -115,13 +115,13 @@ When the workflow trail is large or spans multiple domains, launch parallel sub-
 Charter: read the plan, implement, and verify artifacts plus the git log, and report where the build fought its plan — plan-to-implementation drift with a cause per deviation (stale assumption, thin exploration, scope creep, or legitimate discovery), verification effectiveness (what the checks caught, what should have been caught earlier, what could not be verified and why), and rework signals in the commit history. Every count names the artifact or tool result it came from. The harvest below is CONTRACT — pass it unchanged:
 
 **Deferred-debt harvest (this workflow only):**
-- Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
+- Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
 - For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf intake simplify codebase`'s sweep).
 - Classify each as **act-now** (worth its own follow-up workflow this sprint) or **accept** (a deliberate, acceptable ceiling that just needs to stay visible). The act-now items drive `## Deferred Debt` and Option B routing below.
 
 ### Analysis sub-agent 2 — Review & Handoff Quality
 
-Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, the live entries of the decision store (`decide list`), and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it unchanged:
+Charter: read every `07-review-*.md` record (master per slice plus per-command sub-reviews; the names come from `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`, the content from `record get`), `08-handoff.md`, the live entries of the decision store (`decide list`), and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it unchanged:
 
 **Intent drift (transitive fidelity — code vs. intake):**
 - Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped.
@@ -200,8 +200,8 @@ Do this in order:
 1. Prioritize the improvements by impact and effort.
 2. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
 3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
-4. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
-5. Write `.ai/workflows/<slug>/10-retro.md`.
+4. Mark the workflow as complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete`, unless follow-up work is being opened.
+5. Write the draft `.ai/workflows/<slug>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:
@@ -220,4 +220,4 @@ Use when: The retro identified quick-win improvements to repo instructions, hook
 
 Write ALL viable options into `recommended-routes` so the user can choose.
 
-Write `10-retro.md` with the frontmatter and body sections in [retro/_artifact.md](retro/_artifact.md). On a re-run over an existing `10-retro.md`, follow the additive-write contract in the same file.
+Write the draft of `10-retro.md` with the frontmatter and body sections in [retro/_artifact.md](retro/_artifact.md), and put it. On a re-run over an existing `10-retro.md`, follow the additive-write contract in the same file.

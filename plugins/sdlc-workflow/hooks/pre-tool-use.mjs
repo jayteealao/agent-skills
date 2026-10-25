@@ -23,6 +23,8 @@ import {
   isManagedArtifactPath,
 } from './_adapter.mjs';
 
+const RECORD_YAML = /(?:^|\/)\.ai\/workflows\/[^/]+\/[^/]+\.yaml$/;
+
 function main() {
   const args = parseHookArgs();
   const layout = resolveLayout(args);
@@ -30,9 +32,10 @@ function main() {
   if (!event) return 0;
   const cwd = findProjectRoot(event.cwd);
 
-  // Only files whose full new content is visible pre-write can be validated.
+  // Only files whose full new content is visible pre-write can be validated. A record file
+  // (a .yaml beside the records of a workflow) goes to the check too: scripts write those.
   const candidates = touchedFromEvent(event).filter(
-    (t) => typeof t.content === 'string' && t.path.endsWith('.md') && isManagedArtifactPath(t.path),
+    (t) => typeof t.content === 'string' && ((t.path.endsWith('.md') && isManagedArtifactPath(t.path)) || RECORD_YAML.test(t.path.replace(/\\/g, '/'))),
   );
   if (!candidates.length) return 0;
 

@@ -84,3 +84,16 @@ test('a check with no contract is BLOCKED and still ends with the GOAL: line', (
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('arm reads the index of the record layout: an optimize workflow arms kind optimize', async () => {
+  const { writeDoc } = await import('../../lib/records.mjs');
+  const root = makeRoot();
+  try {
+    const dir = path.join(root, '.ai', 'workflows', S);
+    rmSync(path.join(dir, '00-index.md'));
+    writeDoc(dir, '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: S, 'workflow-type': 'optimize' } });
+    assert.equal(json(root, 'arm').kind, 'optimize');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

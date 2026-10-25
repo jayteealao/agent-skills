@@ -50,12 +50,12 @@ You are a workflow orchestrator, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key shape-focus --stage shape` per [_decisions.md](_decisions.md), and start discovery with it.
-2. **Parse `00-index.md`** frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key shape-focus --stage shape` per [_decisions.md](_decisions.md), and start discovery with it.
+2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` per [_records.md](_records.md). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
-   - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
+   - `01-intake.md` must exist: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-intake.md` exits 0. If it exits 1 → STOP: "Run `/wf intake` first."
    - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve open intake questions first.
-   - If `02-shape.md` already exists with `status: complete`, note the re-run in chat and proceed per the Additive-write contract below.
+   - If `record get` of `02-shape.md` shows `status: complete`, note the re-run in chat and proceed per the Additive-write contract below.
 4. Carry forward `selected-slice` and `open-questions` from the index.
 
 # Step 1 — Launch research agents (launch before the interview so results are back by Step 3)
@@ -72,7 +72,7 @@ Charter (a goal, not a script): map the codebase surface this work touches — m
 **Start from intake's map — do not re-derive.** If `01-intake.md` carries `## Affected Areas (preliminary)`, open the sub-agent prompt with it unchanged and the instruction: *"Start from this preliminary map; verify and deepen it — do not re-derive what it already establishes."*
 
 **Interactive & visual verification tooling (REPORTING ONLY — the PO question belongs to the orchestrator, Step 3).** Drive this block from the `stack:` fingerprint in `00-index.md` and [runtime-adapters.md](runtime-adapters.md). The sub-agent reports adapters, drivers, and candidates with fit rationale; it does not pick a tool and it does not ask the PO anything.
-1. **Re-read `stack:`** from `00-index.md`. If missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do not silently re-detect.
+1. **Re-read `stack:`** from the index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`). If missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do not silently re-detect.
 2. **Match `stack.platforms` to runtime adapters.** Report each matched adapter and detected drivers, installed ones first, additions-to-install last. The adapter registry is the source of truth; for example `[web]` → in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser`. Cross-reference `stack.available-skills` for companion skills.
 3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything mapping to this task as **candidates** with a one-line "why this fits", not selections.
 4. **What is already wired in.** Note dev servers, emulator AVDs, simulator configs, screenshot/regression tools, and manual smoke scripts under `docs/`, `scripts/`, `testing/`, `QA/`.
@@ -133,7 +133,7 @@ An inventory item in none of those states is ILLEGAL; the interview may not end 
 Synthesize the discovery answers into a behavior-focused mini-spec (the artifact body sections below).
 
 # Step 5a — Author the design brief (when design is needed)
-When design is needed ([design/_lane.md](design/_lane.md)), author `02b-design.md` per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers; ask only what they did not cover. The design stage, not shape, draws the surfaces with the person, runs the confirm gate, and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:` in `00-index.md` instead.
+When design is needed ([design/_lane.md](design/_lane.md)), author `02b-design.md` per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers; ask only what they did not cover. The design stage, not shape, draws the surfaces with the person, runs the confirm gate, and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index progress.design=skipped design-skip-reason="<one line>"` instead.
 
 # Step 5b — Author the Charter Scenario (when the work has a core interaction loop)
 If the work has a **core interaction loop** — numbered in the intake's Restated Request, **or derivable from its prose** (an unnumbered loop does not exempt shape: derive it) — author `## Charter Scenario`: the loop as ONE scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could confirm ("goal entered → probe question shown that references the stated goal → answer captured → …").
@@ -154,29 +154,29 @@ Classify whether this work needs any of the five and record the decision so `pla
 - Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. REQUIRED even when the answer is none: write `augmentations-needed: []` and a one-line reason.
 
 # Step 7 — Route and update the index
-Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update `00-index.md`: `current-stage: intake`, `stage-number: 1`, `progress.intake: complete` (`in-progress` while `status: awaiting-input`), `updated-at`, `next-command`, `next-invocation`. An older index can still hold a `progress.shape` key: set it to `complete` too, and add none. Append `02-shape.md` to `workflow-files`.
+Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update the index in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=intake stage-number=1 progress.intake=complete next-command=<command> next-invocation="<invocation>"`. Set `progress.intake=in-progress` while `status: awaiting-input`. An older index can still hold a `progress.shape` key: set `progress.shape=complete` in the same call, and add none. Set `workflow-files` to the whole list, with `02-shape.md` appended.
 
 # Step 9 — Adversarial pre-mortem (the RIM generator — a BLIND sub-agent, run BEFORE 9a)
 Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + the live entries of the decision store (`decide list`) ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
 
-**Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft already handles is dismissed *with the citation* (the artifact section that handles it); a risk it does not handle **converts to a RIM entry** on `00-index.md` `intent-risks` (`status: open`, `severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk confirms it. Step 9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
+**Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft already handles is dismissed *with the citation* (the artifact section that handles it); a risk it does not handle **converts to a RIM entry** on the index `intent-risks` (`status: open`, `severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk confirms it. Step 9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
 
 # Step 9a — Adjudicate the intent-risk (RIM) ledger (gate — mirrors the force-scope rule)
-Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood", extended by Step 9). For EVERY entry with `status: open`, set exactly one of:
+Read `intent-risks` from the index (authored by intake from "Risks if Misunderstood", extended by Step 9). For EVERY entry with `status: open`, set exactly one of:
 - `status: adjudicated` — with `decision:` (the named choice AND its tradeoff, not a restatement) and `adjudicated-by: 02-shape.md#<section>`. If the risk touches a **PO directive** (anything in intake's Known Constraints or a recorded PO answer), `po-ratified` is `true`: a PO question was asked THIS stage; cite the id of its decision-store entry. `false` is legal only with an explicit PO-declined note; `not-required` only when the decision alters no PO directive.
 - `status: carried` — the risk genuinely cannot be resolved at shape; it then appears in `## Unknowns / Open Questions` with the receiving stage named.
 
-A shape that leaves ANY RIM `open` may NOT write `status: complete`. Adjudication prose that merely restates the risk without a decision ("we will keep this in mind") is ILLEGAL. Write the updated `intent-risks` entries back into `00-index.md`.
+A shape that leaves ANY RIM `open` may NOT write `status: complete`. Adjudication prose that merely restates the risk without a decision ("we will keep this in mind") is ILLEGAL. Get the index with `record get`, change its `intent-risks` entries, write the draft of `00-index.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **Missing-ledger branch (the no-op is for compressed modes ONLY).** A compressed intake mode may carry no RIMs; then this step is a no-op. A **standard-lifecycle** slug whose index has neither `intent-risks` entries nor `intent-risks: none-declared` means intake under-delivered its ledger. STOP, **backfill**: re-derive candidate RIMs
-from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood), write them into `00-index.md` `intent-risks` (`status: open`), then adjudicate each.
+from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood), write them into the index `intent-risks` (`status: open`) through the draft of `00-index.md` and a put, then adjudicate each.
 
 # Step 9b — Author the `## Intake Fidelity` table (required section)
 
 One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the id of the new decision-store entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried decision, its key and text word for word, from the origin work packet's `carried-decisions` or the origin board; list work packets have them already.
 
 # Step 10 — Write the artifacts
-Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md).
+Write the draft `.ai/workflows/<slug>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `.ai/workflows/<slug>/.draft/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 # Chat return contract
 After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative (section *The narrative*). Name the highest-severity RIM from intake and how shape disposed of it. Then give this receipt:
 - `slug: <slug>`
@@ -246,6 +246,6 @@ Body sections, in order:
 
 # Additive-write contract
 `02-shape.md` is a revisable artifact. When `/wf shape` re-runs on a slug that already has one, follow [_additive-write.md](_additive-write.md): snapshot, rewrite the body to current truth (do not stack `## Revision N` sections), and add one ledger entry.
-- Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (snapshot a sibling `02-shape.yaml` only when one exists from an older run).
+- Snapshot: write the `record get` output of `02-shape.md` to `.ai/workflows/<slug>/history/02-shape-<rev>.md` (snapshot a sibling `02-shape.yaml` only when one exists from an older run).
 - Ledger entry: `trigger: scope-change` (or `answers-returned` when the reshape resolves open questions), `because:` naming what prompted the reshape, `changed:` naming what moved in the spec.
 - `regenerable: true` applies only when `/wf shape` wraps an auto-derived shape (post-amendment regeneration); then there is no ledger entry. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).

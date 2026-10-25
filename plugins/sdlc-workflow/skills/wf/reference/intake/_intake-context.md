@@ -43,7 +43,7 @@ rule. An existing slug keeps its name, and `/wf status` flags it.
 
 # Register the workflow in INDEX.md
 
-This is the additive bootstrap. Every mode that creates a new workflow registers it in `.ai/workflows/INDEX.md`. Do this after `00-index.md` is final. Read the frontmatter of the `00-index.md` you wrote again, so the row has the final values. Branch, status, and workflow-type can change between Step 0 and the end of the run.
+This is the additive bootstrap. Every mode that creates a new workflow registers it in `.ai/workflows/INDEX.md`. Do this after `00-index.md` is final. Read the index again with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)), so the row has the final values. Branch, status, and workflow-type can change between Step 0 and the end of the run.
 
 - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
   ```

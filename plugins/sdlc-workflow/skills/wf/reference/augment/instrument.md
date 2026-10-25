@@ -62,9 +62,9 @@ You are an **observability architect**, not an implementer.
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. This must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing augmentation:**
-   - If `04b-instrument.md` already exists → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
+   - If `04b-instrument.md` already exists (`record get` exits 0) → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
    - If confirmed to proceed, note this is a re-instrumentation run.
 3. **Use the workflow context.** `02-shape.md` defines the scope. The plan files name specific files and steps. The index shows `current-stage`, `status`, and existing `augmentations:` entries.
    - When `.ai/observability.md` exists, use its **Block A** schema field vocabulary and its **Block E** pipeline. Do not invent a new convention. When it does not exist, design against the shared doctrine. Note that `/wf project observability init` establishes the project-wide contract.
@@ -125,11 +125,11 @@ Return as structured text:
 
 Merge findings from both sub-agents into the instrumentation plan artifact.
 
-Write `04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). The body is direction, not a plan.
+Write the draft `.ai/workflows/<slug>/.draft/04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). The body is direction, not a plan.
 
 # Step 3 — Update `00-index.md` augmentations registry
 
-Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:
+Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, then add or update the `augmentations:` list. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`:
 
 ```yaml
 augmentations:
@@ -140,8 +140,6 @@ augmentations:
 ```
 
 If `augmentations:` already exists (from a prior augmentation on this workflow), append to the list. Do not overwrite existing entries.
-
-Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 

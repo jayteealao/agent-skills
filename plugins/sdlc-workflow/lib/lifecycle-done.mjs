@@ -14,12 +14,9 @@
 // `judgeLifecycle` is pure: it takes the frontmatter that the caller read. The
 // reader `lifecycleDone` reads the disk.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { missingBoardFiles } from './design-boards.mjs';
 import { designNeeded, designSettled } from './design-lane.mjs';
-import { safeParseFrontmatter } from './frontmatter.mjs';
+import { frontmatterOfDoc, hasDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 /** The change modes: one slice, un-suffixed stage files. */
@@ -143,9 +140,8 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
 
 /** The `slices:` roster of 03-slice.md, or null when the file is absent. */
 export function readRoster(workflowDir) {
-  const file = join(workflowDir, '03-slice.md');
-  if (!existsSync(file)) return null;
-  const fm = safeParseFrontmatter(readFileSync(file, 'utf8')).data;
+  const fm = frontmatterOfDoc(workflowDir, '03-slice.md');
+  if (!fm) return null;
   const list = Array.isArray(fm?.slices) ? fm.slices : [];
   return list.map((s) => (typeof s === 'string' ? { slug: s } : { slug: str(s?.slug), status: str(s?.status) }));
 }
@@ -153,16 +149,12 @@ export function readRoster(workflowDir) {
 /** Read the disk and judge. `root` is the project root; `slug` the workflow. */
 export function lifecycleDone(root, slug) {
   const dir = workflowDir(root, slug);
-  const read = (name) => {
-    const f = join(dir, name);
-    if (!existsSync(f)) return null;
-    return safeParseFrontmatter(readFileSync(f, 'utf8')).data ?? {};
-  };
+  const read = (name) => frontmatterOfDoc(dir, name);
   const index = read('00-index.md');
   const contract = read('02c-craft.md');
   let design = { needed: false, settled: true };
   if (index) {
-    const needed = designNeeded(index, existsSync(join(dir, '02b-design.md')));
+    const needed = designNeeded(index, hasDoc(dir, '02b-design.md'));
     design = { needed, settled: !needed || designSettled(index, contract, contract ? missingBoardFiles(dir, contract) : null) };
   }
   return judgeLifecycle({ index, roster: readRoster(dir), artifact: read, design });

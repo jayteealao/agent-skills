@@ -36,7 +36,7 @@ It is diagnostic, never a gate: a failed append never changes what a stage does.
 
 **Judging it.** Apply the staleness rule in [_liveness.md](_liveness.md) at every read site, `/wf status <slug>` included. Never infer liveness from a file, a task id, or a "running independently" chip.
 
-**Reconciling a dead driver.** A presumed-dead driver's last writes are suspect. Re-read every control file from disk immediately before editing it. Where an artifact on disk contradicts `00-index.md`, trust the artifact and correct the index. Report what the journal shows the run completed versus abandoned.
+**Reconciling a dead driver.** A presumed-dead driver's last writes are suspect. Re-read every control file immediately before you change it; read a record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`. Where an artifact contradicts `00-index.md`, trust the artifact and correct the index with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`. Report what the journal shows the run completed versus abandoned.
 
 # Slug-mode contract
 
@@ -66,7 +66,7 @@ The target itself — the slug-wide review in slug mode, the named slice in slic
 
 While a driver is running for a slug — or is presumed-dead and not yet reconciled — that slug's `00-index.md` and the global `.ai/workflows/INDEX.md` are driver-owned. Any writer, foreground or delegated:
 
-1. **Re-reads immediately before every edit.** Never edit from a copy read earlier in the same agent.
+1. **Changes an index field with `record set`**, per [_control-file-ownership.md](_control-file-ownership.md). The command merges the change in one step. **Re-reads `.ai/workflows/INDEX.md` immediately before every edit.** Never edit from a copy read earlier in the same agent.
 2. **Treats an edit rejection as "the other writer moved"** — re-read, re-derive the change, retry once. Never force a stale string through; never rewrite the whole file to dodge the conflict.
 3. **Never runs a second driver** (another `yolo`) for the same slug while one is live.
 
@@ -118,7 +118,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 # Step 0 — Resolve arguments
 
 1. **Slug + mode.** First positional after `yolo` = slug. Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. `yolo` owns its own slug resolution (the dispatcher excludes it from fuzzy-suggest). If the slug is empty, infer it from `.ai/workflows/INDEX.md`: exactly one `status: active` workflow → use it (slug mode); otherwise STOP with: *"`/wf yolo` needs a slug. Active workflows: `<list>`. Run `/wf yolo <slug>`."*
-2. **Existence check.** Confirm `.ai/workflows/<slug>/00-index.md` exists. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
+2. **Existence check.** Confirm that `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
 3. **Resolve the absolute paths the Workflow script needs.** The script and its stage subagents inherit no working directory:
    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).

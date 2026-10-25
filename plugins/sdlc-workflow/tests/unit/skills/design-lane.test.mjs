@@ -97,7 +97,7 @@ function runPlanWrite(files, config) {
       encoding: 'utf-8',
       input: JSON.stringify({
         cwd: tmp,
-        tool_input: { file_path: '.ai/workflows/demo/04-plan-checkout.md', content: fm({ schema: 'sdlc/v1', type: 'plan', slug: 'demo' }) },
+        tool_input: { file_path: '.ai/workflows/demo/.draft/04-plan-checkout.md', content: fm({ schema: 'sdlc/v1', type: 'plan', slug: 'demo' }) },
       }),
       env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT },
     });
@@ -175,7 +175,7 @@ test('designSettled: boards decide only for visual and new-surface', () => {
 });
 
 // A slice that changes nothing a person sees is planned without the design stage.
-// The plan file in runPlanWrite is 04-plan-checkout.md, so the slice is `checkout`.
+// The plan draft in runPlanWrite is .draft/04-plan-checkout.md, so the slice is `checkout`.
 const SLICE = (extra = {}) => fm({ schema: 'sdlc/v1', type: 'slice', slug: 'demo', 'slice-slug': 'checkout', ...extra });
 
 test('hook: allows a slice plan when the slice carries ux-impact none', () => {

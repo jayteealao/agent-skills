@@ -79,7 +79,7 @@ test('buildBrief: a stage with no plan sections, no slice, and the missing parts
     assert.deepEqual(b.missing, ['the ## Card section of reference/plan.md']);
     assert.match(b.text, /No live decisions in this scope\./);
     const v = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'verify', slice: 'gone' });
-    assert.deepEqual(v.missing, ['the ## Card section of reference/verify.md', '.ai/workflows/demo/03-slice-gone.md', '.ai/workflows/demo/04-plan-gone.md']);
+    assert.deepEqual(v.missing, ['the ## Card section of reference/verify.md', '.ai/workflows/demo/slice-gone.yaml#slice', '.ai/workflows/demo/slice-gone.yaml#plan']);
     assert.throws(() => buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'nope', stage: 'plan' }), /no workflow folder/);
   } finally { f.done(); }
 });

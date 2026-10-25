@@ -71,7 +71,7 @@ such a fix. `wf.mjs findings questions` returns it as a question with the key
 ## The review file
 
 A review file (`07-review.md`, or `07-review-<slice>.md` for a per-slice run) is written
-**whole** on every run, from the ledger. Take the table from `wf.mjs findings table` and the
+**whole** on every run, from the ledger, as a draft that you put per [_records.md](_records.md). Take the table from `wf.mjs findings table` and the
 frontmatter metrics from `wf.mjs findings metrics`. Do not merge into the old file and do not
 edit rows in place: the ledger, not the file, keeps the history.
 

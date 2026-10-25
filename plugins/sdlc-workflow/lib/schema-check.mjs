@@ -9,8 +9,7 @@
 // The errors have the shape and the messages of ajv with allErrors:
 // { instancePath, schemaPath, keyword, params, message }.
 
-// siblingYamlSchemas holds the schemas of the sibling records; each one compiles on its own.
-const ANNOTATIONS = new Set(['$schema', '$id', 'title', 'description', 'default', '$comment', 'examples', 'deprecated', '$defs', 'definitions', 'siblingYamlSchemas']);
+const ANNOTATIONS = new Set(['$schema', '$id', 'title', 'description', 'default', '$comment', 'examples', 'deprecated', '$defs', 'definitions']);
 const KNOWN = new Set([
   'type', 'enum', 'const', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
   'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'items', 'required',

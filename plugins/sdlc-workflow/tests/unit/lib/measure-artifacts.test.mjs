@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  activeSlugs,
   classifyPath,
   compareHeadlines,
   isRefused,
@@ -61,6 +62,24 @@ describe('pure helpers', () => {
     assert.deepEqual(classifyPath('_fix-loop.md'), { kind: 'reference', ref: '_fix-loop.md' });
     assert.equal(classifyPath('README.md'), null);
     assert.equal(classifyPath('docs/01-intro.md'), null);
+  });
+
+  test('classifyPath names the family of each record file', () => {
+    const stem = (f) => classifyPath(`.ai/workflows/demo/${f}`).stem;
+    assert.deepEqual(
+      ['state.yaml', 'meta.yaml', 'intake.yaml', 'design.yaml', 'slices.yaml', 'slice-auth.yaml', 'review.yaml', 'review-auth.yaml', 'augment.yaml', 'ship.yaml', 'retro.yaml', 'redirects.yaml'].map(stem),
+      ['index', 'index', 'intake', 'design', 'slice', 'slice', 'review', 'review', 'augment', 'ship', 'retro', 'other'],
+    );
+  });
+
+  test('activeSlugs sees a workflow of the record layout', () => {
+    const dev = mkdtempSync(join(tmpdir(), 'meter-records-'));
+    try {
+      const dir = join(dev, 'app', '.ai', 'workflows', 'demo');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'state.yaml'), 'schema: sdlc/v2\ntype: state\nslug: demo\n');
+      assert.deepEqual(activeSlugs(dev, 0).map((s) => s.slug), ['demo']);
+    } finally { rmSync(dev, { recursive: true, force: true }); }
   });
 
   test('readsOf counts Read, shell reads with a read verb, and drops writes', () => {

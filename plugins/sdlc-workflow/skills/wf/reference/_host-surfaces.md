@@ -28,7 +28,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| Design canvas (design stage) | The canvas is a mirror of the boards, for comments; the board files stay the contract (`design/_boards.md`). When the session lists the Artifact tool: call it with `action: quickstart` and `intent: design`, create the Design artifact from the type it names, follow the type's own instructions, draw one artboard per board, and record the link as `canvas:` in `02c-craft.md`. Otherwise use the Codex column | No canvas. Build HTML boards and render them to PNG with the board tool (`design/_boards.md`). Offer `/uiproto` for an interactive prototype when `externalDispatch.enabled` | Same as Codex |
+| Design canvas (design stage) | The canvas is a mirror of the boards, for comments; the board files stay the contract (`design/_boards.md`). When the session lists the Artifact tool: call it with `action: quickstart` and `intent: design`, create the Design artifact from the type it names, follow the type's own instructions, draw one artboard per board, and record the link with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 02c-craft.md canvas=<link>`. Otherwise use the Codex column | No canvas. Build HTML boards and render them to PNG with the board tool (`design/_boards.md`). Offer `/uiproto` for an interactive prototype when `externalDispatch.enabled` | Same as Codex |
 
 ## Design system sync
 

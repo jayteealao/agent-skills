@@ -1035,10 +1035,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="artifacts" data-title="Artifacts">
       <h2><span class="n">09</span>What gets written where</h2>
-      <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. The file numbers follow the stage numbers, so the folder reads in lifecycle order. Nothing is overwritten: re-runs merge or add a new file.</p>
+      <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. Its records are YAML files that scripts write: <code>state.yaml</code> and <code>meta.yaml</code> hold the index, <code>intake.yaml</code> the brief and the shape, one <code>slice-&lt;slice&gt;.yaml</code> the slice, plan, implement and verify of each slice, and <code>design.yaml</code>, <code>review-&lt;slice&gt;.yaml</code>, <code>ship.yaml</code> and <code>retro.yaml</code> the rest. A record keeps the name of its old Markdown file, the name in the table. Print one with <code>wf.mjs record get &lt;root&gt; &lt;slug&gt; &lt;name&gt;</code>. A workflow of the old layout moves file by file at its first write, and <code>redirects.yaml</code> names the new place of each old path.</p>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>File</th><th>Written by</th><th>Holds</th></tr></thead>
+          <thead><tr><th>Record</th><th>Written by</th><th>Holds</th></tr></thead>
           <tbody id="files"></tbody>
         </table>
       </div>
@@ -1407,7 +1407,6 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { id: "cfg-workflow", title: "Per workflow", em: "files and markers", rows: [
       ["decisions.yaml", "absent", "Your answers and standing instructions for one workflow (\"no new runtime deps\"). Only wf.mjs decide writes it. Every stage and sub-agent reads the live entries. Chat outranks a steer entry, and a steer entry never overrides a mandatory gate. Say \"add to steering: …\" to have one recorded."],
       ["intake <slug> amend", "none", "Changes branch strategy, branch, base branch, review scope, title and tags. Nothing else."],
-      ["fragment: none", "none", "Frontmatter that opts one artifact out of the sibling .yaml rule."],
       ["sdlc-debt: <note>", "none", "A code comment that records accepted debt. The suppression check looks for it; simplify and ideate collect it."],
       ["02-optimize-spec.md", "see Loops", "The metric, guard, budget and branch rounds of one optimize slug."],
       ["goal.md max-checks", "30", "How many checks a goal runs before it blocks. Set with --max-checks at arm."]

@@ -45,14 +45,14 @@ You are a **storyteller of the work done**, not a problem solver.
 `$ARGUMENTS`: the first token is **polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name); an optional second token is a **slice-slug** or **focus keyword** (single-slug only).
 
 1. **Resolve the first token (polymorphic, first match wins)** — so a slug is never mistaken for a branch:
-   - **Exact slug**: `.ai/workflows/<token>/00-index.md` exists → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` and `01-prototype.md` there.
+   - **Exact slug**: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`.
    - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
-   - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
+   - **Branch name**: matches a `branch` in the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
    - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one as a gate question per [_gate-question.md](_gate-question.md) (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
 
 2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
-   - **Exact slice-slug match** — `.ai/workflows/<slug>/03-slice-<token>.md` exists → **slice recap**
+   - **Exact slice-slug match** — `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice-<token>.md` exits 0 → **slice recap**
      (Steps 1–3, slice-scoped). Slice match is checked FIRST so a slice literally named `plan`/`review`
      still recaps.
    - **Focus keyword** — `token` ∈ `{plan, shape, slice, review, findings}` and no slice matched →
@@ -66,7 +66,7 @@ You are a **storyteller of the work done**, not a problem solver.
 
 Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
 
-1. **Build the roster.** From `.ai/workflows/INDEX.md` (or a glob of `.ai/workflows/*/00-index.md`), collect every slug whose `branch:` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+1. **Build the roster.** From `.ai/workflows/INDEX.md` (or the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`), collect every slug whose `branch` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
 2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do not recap individual slices in batch mode — whole-workflow scope only.
 3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. Tell the story that ties the slugs together:
    - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).
@@ -80,14 +80,14 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
 Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
-1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
-2. For every stage file in `workflow-files`, use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (the ledger `findings.yaml`), what shipped (handoff/ship), and lessons (retro).
+1. The index — read it with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` and parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
+2. For every stage record in `workflow-files`, read it with `record get` and use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (the ledger `findings.yaml`), what shipped (handoff/ship), and lessons (retro).
 3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
 3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
-4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
+4. If slices exist, list the `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` records with `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` to build the slice-by-slice progress picture.
 5. When `design/index.html` exists in the workflow folder, give its path in `## Where it stands now`. It is the contact sheet of the design boards.
 
-**Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read the live entries of the decision store for this slice (`decide list --slice <slice>`). Ignore the other slices except where this slice depends on them.
+**Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist; read each with `record get`, which exits 1 for an absent record). Read the live entries of the decision store for this slice (`decide list --slice <slice>`). Ignore the other slices except where this slice depends on them.
 
 **Branch state** (if `branch-strategy: dedicated`): run `git branch --show-current`; note if the user is on the wrong branch.
 
@@ -156,7 +156,7 @@ to the person who created it — they know their project; they want to understan
 captures, what it locks in, and what it implies. Same understandable voice as recap; no code changes,
 no advancing the workflow.
 
-1. **Read the target** (and just enough context to explain it):
+1. **Read the target** (and just enough context to explain it). Read each record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`:
 
    | Focus | Read |
    |---|---|
@@ -196,7 +196,7 @@ no advancing the workflow.
 # Step 3 — Save and return
 
 1. **Timestamp:** get the current UTC time per [_timestamp.md](_timestamp.md).
-2. **Write `.ai/workflows/<slug>/90-recap.md`** with this frontmatter, followed by the recap body:
+2. **Write the draft `.ai/workflows/<slug>/.draft/90-recap.md`** with this frontmatter, followed by the recap body. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md):
 
 ```yaml
 ---

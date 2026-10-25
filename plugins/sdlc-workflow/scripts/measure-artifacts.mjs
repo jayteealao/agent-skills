@@ -29,6 +29,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { collectRequires } from '../lib/requires-tables.mjs';
+import { INDEX_NAME, META_FILE, RECORD_FILE_RE, REDIRECTS_FILE, STATE_FILE, frontmatterOfDoc, listDocs } from '../lib/records.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(HERE, '..');
@@ -102,12 +103,21 @@ export function normalizePath(p) {
   return String(p).replace(/\\+/g, '/').replace(/\/{2,}/g, '/').replace(/^\.\//, '');
 }
 
+/** The artifact family of a record file: the index for state and meta, the slice for each slice file. */
+function recordStem(name) {
+  if (name === STATE_FILE || name === META_FILE) return 'index';
+  if (name === REDIRECTS_FILE) return 'other';
+  const stem = name.replace(/\.yaml$/, '').replace(/-.*$/, '');
+  return stem === 'slices' ? 'slice' : stem;
+}
+
 /** The artifact family of a workflow file basename. */
 export function stemOf(name) {
   if (name === 'po-answers.md') return 'po-answers';
   if (name === 'decisions.yaml') return 'decisions';
   if (/\.explainer\.html\.fragment$/.test(name)) return 'explainer';
   if (/\.(fragment|html)$/.test(name)) return 'view';
+  if (RECORD_FILE_RE.test(name)) return recordStem(name);
   if (/\.ya?ml$/.test(name)) return 'sibling-yaml';
   const m = name.match(/^\d+[a-z]?-([a-z]+)/i);
   return m ? m[1].toLowerCase() : 'other';
@@ -334,7 +344,8 @@ export function createSessionAnalyzer({ subagent = false } = {}) {
           if (x.partial) s.partialRefs.add(x.cls.ref);
         } else {
           s.readArtifacts.add(x.cls.name);
-          const plan = x.cls.name.match(/^04-plan-(.+)\.md$/);
+          // A slice record holds the plan of its slice.
+          const plan = x.cls.name.match(/^04-plan-(.+)\.md$/) || x.cls.name.match(/^slice-(.+)\.yaml$/);
           if (plan) s.siblingPlansRead.add(plan[1]);
         }
       }
@@ -421,12 +432,13 @@ function siblingPlansAvailable(yolo, startAt) {
   if (!yolo.root || !yolo.slice || !existsSync(yolo.root)) return null;
   const start = Date.parse(startAt || '');
   let n = 0;
-  for (const f of readdirSync(yolo.root)) {
+  // The plans of either layout: 04-plan-<slice>.md, or the plan section of slice-<slice>.yaml.
+  for (const f of listDocs(yolo.root)) {
     const m = f.match(/^04-plan-(.+)\.md$/);
     if (!m || m[1] === yolo.slice) continue;
     let created = NaN;
     try {
-      created = Date.parse((readFileSync(join(yolo.root, f), 'utf8').match(/created-at:\s*"?([^"\n]+)/) || [])[1]);
+      created = Date.parse(String(frontmatterOfDoc(yolo.root, f)?.['created-at'] ?? ''));
     } catch {
       /* unreadable */
     }
@@ -537,7 +549,7 @@ async function transcriptSections({ projects, codex, sinceMs }) {
   return { yolo: yoloSummary, reads, writes: writeSummary };
 }
 
-/** Slug folders under `<dev>/*\/.ai/workflows` with a top-level `.md` changed since `sinceMs`. */
+/** Slug folders under `<dev>/*\/.ai/workflows` with a top-level `.md` or record file changed since `sinceMs`. */
 export function activeSlugs(dev, sinceMs) {
   const out = [];
   if (!dev || !existsSync(dev)) return out;
@@ -554,7 +566,7 @@ export function activeSlugs(dev, sinceMs) {
     for (const e of entries) {
       if (!e.isDirectory() || e.name.startsWith('_') || e.name.startsWith('.')) continue;
       const dir = join(wf, e.name);
-      const top = readdirSync(dir).filter((f) => f.endsWith('.md'));
+      const top = readdirSync(dir).filter((f) => f.endsWith('.md') || RECORD_FILE_RE.test(f));
       if (!top.some((f) => statSync(join(dir, f)).mtimeMs >= sinceMs)) continue;
       out.push({ proj, slug: e.name, dir });
     }
@@ -573,12 +585,22 @@ export function indexFacts(text) {
   return { bytes: Buffer.byteLength(text), fmChars: fm.length, commentChars: comment, chars: text.length };
 }
 
+/** Size facts for the index of one workflow folder: 00-index.md, or state.yaml with meta.yaml, where every line is a field. */
+function indexFactsOfDir(dir) {
+  const old = join(dir, INDEX_NAME);
+  if (existsSync(old)) return indexFacts(readFileSync(old, 'utf8'));
+  const files = [STATE_FILE, META_FILE].map((f) => join(dir, f)).filter((f) => existsSync(f));
+  if (!files.length) return null;
+  const text = files.map((f) => readFileSync(f, 'utf8')).join('');
+  const comment = text.split('\n').filter((l) => /^\s*#/.test(l)).reduce((a, l) => a + l.length + 1, 0);
+  return { bytes: Buffer.byteLength(text), fmChars: text.length, commentChars: comment, chars: text.length };
+}
+
 function indexSection(slugs) {
   const rows = [];
   for (const s of slugs) {
-    const f = join(s.dir, '00-index.md');
-    if (!existsSync(f)) continue;
-    rows.push({ where: `${s.proj}/${s.slug}`, ...indexFacts(readFileSync(f, 'utf8')) });
+    const facts = indexFactsOfDir(s.dir);
+    if (facts) rows.push({ where: `${s.proj}/${s.slug}`, ...facts });
   }
   const bytes = rows.map((r) => r.bytes);
   const chars = rows.reduce((a, r) => a + r.chars, 0);

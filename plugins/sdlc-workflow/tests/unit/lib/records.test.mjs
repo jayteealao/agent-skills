@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  DRAFT_DIR, draftPath, listDocs, locate, migrateWorkflow, putDraft, readDoc, redirectOf, setFields, writeDoc,
+  DRAFT_DIR, draftPath, listDocs, locate, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields, writeDoc,
 } from '../../../lib/records.mjs';
 import { parse } from '../../../lib/yaml.mjs';
 import { stampOf } from '../../../scripts/wf.mjs';
@@ -53,6 +53,8 @@ test('a reader reads the old file until its section exists, then the section', (
     writeDoc(dir, '04-plan-a.md', { frontmatter: { type: 'plan', status: 'complete' }, body: '1. two\n' });
     const doc = readDoc(dir, '04-plan-a.md');
     assert.equal(doc.layout, 'yaml');
+    assert.ok(!existsSync(join(dir, '04-plan-a.md')) && existsSync(join(dir, '.old', '04-plan-a.md')), 'the first write retires the old file');
+    assert.deepEqual(parse(readFileSync(join(dir, 'redirects.yaml'), 'utf8')).redirects, [{ from: '04-plan-a.md', to: 'slice-a.yaml#plan' }]);
     assert.equal(doc.frontmatter.status, 'complete');
     assert.equal(doc.body, '1. two\n');
     const file = parse(readFileSync(join(dir, 'slice-a.yaml'), 'utf8'));
@@ -84,10 +86,23 @@ test('setFields merges into a record and deletes a null field', () => {
   const { root, dir } = folder();
   try {
     writeDoc(dir, '00-index.md', { frontmatter: { slug: 'demo', status: 'active', 'updated-at': 'old', 'pr-url': 'x' } });
-    const fm = setFields(dir, '00-index.md', { 'current-stage': 'verify', 'pr-url': null }, { now: 'T' });
+    const fm = setFields(dir, '00-index.md', { 'current-stage': 'verify', 'pr-url': null, 'progress.plan': 'complete' }, { now: 'T' });
     assert.equal(fm['current-stage'], 'verify');
+    assert.deepEqual(fm.progress, { plan: 'complete' });
+    assert.deepEqual(setFields(dir, '00-index.md', { 'progress.verify': 'in-progress' }).progress, { plan: 'complete', verify: 'in-progress' });
     assert.equal(fm['updated-at'], 'T');
     assert.equal(readDoc(dir, '00-index.md').frontmatter['pr-url'], undefined);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a superseded decision marks every record that names it', () => {
+  const { root, dir } = folder();
+  try {
+    writeDoc(dir, '04-plan-a.md', { frontmatter: { type: 'plan' }, body: 'Per D-003, use the queue.\n' });
+    writeDoc(dir, '04-plan-b.md', { frontmatter: { type: 'plan', refs: { decision: 'D-0031' } }, body: 'none\n' });
+    assert.deepEqual(markSuperseded(dir, ['D-003'], 'D-007'), ['04-plan-a.md']);
+    assert.deepEqual(readDoc(dir, '04-plan-a.md').frontmatter['superseded-decisions'], { 'D-003': 'D-007' });
+    assert.equal(readDoc(dir, '04-plan-b.md').frontmatter['superseded-decisions'], undefined);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

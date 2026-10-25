@@ -2,28 +2,28 @@
 
 Two files are written by nearly every `/wf` stage and by every driver:
 
-- `.ai/workflows/<slug>/00-index.md` — the workflow's own control file (status, roster, progress, deferral ledger, RIM ledger, charter).
-- `.ai/workflows/INDEX.md` — the global registry.
+- the index of the workflow (`00-index.md`, held in `state.yaml` and `meta.yaml`) — status, stage, progress, deferral ledger, RIM ledger, charter;
+- `.ai/workflows/INDEX.md` — the global registry, which `wf.mjs index` and `wf.mjs status` rebuild.
 
-They are the only files in the system with **many concurrent writers**, Two writers that read minutes apart collide: the second edit fails with *"File has been modified since read"*. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
+They are the only records in the system with **many concurrent writers**. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
 
 This file is the shared rule. `yolo.md` and the write-bearing stage references cite it rather than restating it.
 
 ## The rule
 
-**1. Re-read immediately before every edit.** Never edit a control file from a copy read earlier in the same agent or session. The gap between read and write is exactly where the other writer lives.
+**1. Change an index field with `wf.mjs record set`.** The command reads the index, merges the change and writes it in one step, so it loses no field of another writer. See [_records.md](_records.md).
 
-**2. An edit rejection means the other writer moved — not that your string is wrong.** Re-read, re-derive your change against the *new* content, and retry **once**. Do not hunt for a stale string to force through, and do not rewrite the whole file to dodge the conflict. Both of those turn a benign race into lost work.
+**2. A draft of the whole index replaces the whole index.** Write one only when a stage makes the index (intake) or rewrites most of it. Get the index with `record get` immediately before you write the draft, and put the draft at once. The gap between the read and the put is where the other writer lives.
 
-**3. While a driver is live for a slug, that slug's control files are driver-owned.** A foreground session may still write them — the driver holds no lock — but it writes under rules 1 and 2 and expects to lose a race sometimes. What it must **not** do is start a second driver (another `yolo`) for the same slug.
+**3. While a driver is live for a slug, that slug's control files are driver-owned.** A foreground session may still write them — the driver holds no lock — but it writes under rules 1 and 2. What it must **not** do is start a second driver (another `yolo`) for the same slug.
 
-**4. A presumed-dead driver's writes are suspect until reconciled.** Judge liveness by the staleness rule in `_liveness.md` — never by a file existing. Once a driver is presumed dead, treat its last writes as possibly half-finished: re-read fresh from disk, and where an artifact on disk contradicts what `00-index.md` claims, **trust the artifact and correct the index**. The artifact is written by the stage that did the work; the index is a summary of it.
+**4. A presumed-dead driver's writes are suspect until reconciled.** Judge liveness by the staleness rule in `_liveness.md` — never by a file existing. Once a driver is presumed dead, treat its last writes as possibly half-finished: re-read fresh from disk, and where a stage record contradicts what the index claims, **trust the stage record and correct the index**. The artifact is written by the stage that did the work; the index is a summary of it.
 
 **5. One writer per fact.** Where two places could record the same thing, exactly one of them is the record and the other cites it. This is the same principle that governs deferrals (recorded once in `terminal.deferrals[]`, never duplicated into `residual[]`) and slice status (written back at drive time, not re-derived by every later reader).
 
 ## Append-only files beside the index
 
-Three JSONL files sit next to `00-index.md`. Each has one kind of writer and one kind of row. A `.jsonl` file triggers no render and no stale flag.
+Two JSONL files sit next to the index. Each has one kind of writer and one kind of row. A `.jsonl` file triggers no render and no stale flag.
 
 | File | Writer | Row |
 |---|---|---|

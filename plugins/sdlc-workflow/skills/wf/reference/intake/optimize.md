@@ -41,7 +41,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Step 0 — Orient
 
 1. Resolve the slug:
-   - When the argument names an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: optimize`, this is a resume. Read `00-index.md`, `01-optimize.md` and `02-optimize-spec.md`, then continue at the first step whose artifact is absent or not confirmed.
+   - When the argument names an existing workflow whose index has `workflow-type: optimize`, this is a resume. Read `00-index.md`, `01-optimize.md` and `02-optimize-spec.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` (per [_records.md](../_records.md); `index` names the index), then continue at the first step whose artifact is absent or not confirmed.
    - Otherwise, this is a new optimize slug. Derive the slug `optimize-<short-description>` (kebab-case, at most 5 words).
 2. Apply the collision check of `_change-mode-tail.md`.
 3. Apply `_intake-provenance.md`. A `from <source-slug>` token seeds the objective from the source.
@@ -58,7 +58,7 @@ Ask per [_gate-question.md](../_gate-question.md), in one round:
 4. **The guard.** Which command must exit 0 after every change? It is usually the test suite.
 5. **The stack confirm**, from Step 0.
 
-Write `01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`:
+Write the draft `.ai/workflows/<slug>/.draft/01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`:
 
 ```yaml
 ---
@@ -91,7 +91,7 @@ next-invocation: "/wf loop optimize <slug>"
 2. Propose the budget and the branch rounds. The defaults follow the table below.
 3. Ask whether a holdout exists. Recommend one when the metric is a score over a fixed data set. The proposer never sees the holdout's output.
 4. Ask the person to confirm or edit the spec, per [_gate-question.md](../_gate-question.md). Show the whole frontmatter.
-5. Write `02-optimize-spec.md`. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
+5. Write the draft of `02-optimize-spec.md` and put it. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -160,7 +160,7 @@ The body is the prose that every proposer reads: what the code does, where the t
 
 # Step 4 — Index and registry
 
-Write `00-index.md` from the index template of `_change-mode-tail.md`, with these values:
+Write the draft of `00-index.md` from the index template of `_change-mode-tail.md`, with these values, and put it:
 
 - `title: "Optimize: <objective>"`, `workflow-type: optimize`, `tags: [optimize]`, `current-stage: implement`, `stage-number: 5`. The loop is the implement stage of this lifecycle.
 - `selected-slice: optimize` and one slice, `optimize`, with `status: defined` and `complexity: m`.

@@ -137,6 +137,18 @@ test('the sources script: args reads the disk for slugs and files; reference add
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('the sources script reads the index and the ideate record of the record layout', async () => {
+  const { writeDoc } = await import('../../lib/records.mjs');
+  const { root, dir } = workflow();
+  try {
+    rmSync(path.join(dir, '00-index.md'));
+    writeDoc(dir, '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'workflow-index', slug: SLUG, 'workflow-type': 'ideate', status: 'ready' } });
+    assert.equal(cli(SOURCES, ['args', root, `${SLUG} refresh`]).mode, 'refresh', 'the ideate slug is found in state.yaml and meta.yaml');
+    writeDoc(dir, '01-ideate.md', { frontmatter: fm(), body: '# Ideation\n' });
+    assert.equal(cli(SOURCES, ['check', root, SLUG]).ok, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 function ideateBoard() {
   return {
     schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: SLUG, topic: 'sources', areas: [],

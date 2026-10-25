@@ -80,7 +80,7 @@ Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-comman
 
 ## Collision check (Step 0)
 
-If `.ai/workflows/<slug>/00-index.md` already exists and its `workflow-type` is not this
+If the index of `<slug>` already exists (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0, per [_records.md](../_records.md)) and its `workflow-type` is not this
 mode (or its documented legacy alias) → WARN: "Workflow `<slug>` already exists with type
 `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue
 the existing workflow." Stop. (An exact slug match in the *first positional* is the
@@ -110,7 +110,8 @@ When design is needed, the person is present, so run the design stage (`design/s
 ## Index template (`00-index.md`, `type: index`)
 
 Every change-mode writes the **full `type: index`** overview — the same heavy index a
-standard feature workflow uses, per the required set in `intake/default.md`. One template,
+standard feature workflow uses, per the required set in `intake/default.md`. Write it to the draft
+`.ai/workflows/<slug>/.draft/00-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. One template,
 slots from the value table:
 
 ```yaml
@@ -188,8 +189,9 @@ mechanism is uniform and **warn-and-continue — never refuse**:
 
 1. While planning, when a tripwire fires, record it in `04-plan.md` under
    `## Tripwire breaches`, one line each: `[tripwire-name]: <what specifically tripped>`.
-2. Mirror each breach as an `intent-risks` entry on `00-index.md`
-   (`id: RIM-<n>`, `risk:` the breach line, `severity: medium`, `status: open`) so the
+2. Mirror each breach as an `intent-risks` entry in the index
+   (`id: RIM-<n>`, `risk:` the breach line, `severity: medium`, `status: open`): add it to the draft of
+   `00-index.md`, or, when the index exists, get it, add the entry, write the draft and put it. So the
    RIM gate of ship adjudicates it instead of a hardcoded-empty list hiding it.
 3. Close with: "One or more <mode> tripwires fired. The plan is valid but has grown beyond
    the <mode> envelope — the gate's *Escalate* option restarts this as a full `/wf intake`
@@ -204,15 +206,15 @@ Apply the gate in "Compressed-lifecycle change-modes" above (Proceed / Adjust /
 Escalate). Family rules, all branches:
 
 - **Record the decision unconditionally** — proceeded / adjusted / escalated /
-  auto-proceeded-low-risk — in the `01-<mode>.md` body, on every branch including
-  auto-proceed.
-- **Adjust** → revise the contested planning artifact, bump its `updated-at`, and
+  auto-proceeded-low-risk — in the `01-<mode>.md` body (get the record, add the decision, write the
+  draft and put it), on every branch including auto-proceed.
+- **Adjust** → revise the contested planning record (get it, change it, write the draft and put it), bump its `updated-at`, and
   **re-gate**. A second Adjust falls back to targeted questions on the still-contested
   part only.
 - **Escalate** → the change outgrew the mode. Close this slug so it never parks in
-  `/wf status` Active pointing at abandoned work: set `00-index.md` `status: closed`,
-  `close-reason: superseded`, `superseded-by: pending`, `closed-at`, `next-command: none`,
-  `next-invocation: "none — escalated"`; write a brief `99-close.md` per `close.md`; update
+  `/wf status` Active pointing at abandoned work: run `record set "<root>" <slug> index status=closed
+  close-reason=superseded superseded-by=pending closed-at=<iso-8601> next-command=none
+  "next-invocation=none — escalated"`; write the draft of a brief `99-close.md` per `close.md` and put it; update
   the registry row. Then print the successor invocation —
   `/wf intake "<description>" from <slug>` — and stop. The successor consumes the planning
   evidence per `_intake-provenance-consume.md` (escalated change-mode row) and its link-back
@@ -225,7 +227,7 @@ Escalate). Family rules, all branches:
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
 - Every artifact must have YAML frontmatter with `schema: sdlc/v1`. Timestamps must be
   real — get the current UTC time per [_timestamp.md](../_timestamp.md).
-- Write each artifact atomically (temp path → rename) so a crash never leaves a
+- Write each record as a draft and put it, per [_records.md](../_records.md). The put writes the record in one step, so a crash never leaves a
   half-written workflow.
 - Review is not skipped — the mode reference names its default rubric.
 - Resume picks up from the first unwritten planning artifact.

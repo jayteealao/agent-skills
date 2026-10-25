@@ -75,7 +75,7 @@ You are a **workflow orchestrator**, not a problem solver.
        ```
        Do not proceed past Step 0. STOP.
      - **No row**: no collision; continue to sub-step 3.
-3. **Check if the workflow already exists** at `.ai/workflows/<slug>/00-index.md` (disk-level fallback; catches the case where INDEX.md is missing or stale).
+3. **Check if the workflow already exists**: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0 (per [_records.md](../_records.md); disk-level fallback; catches the case where INDEX.md is missing or stale).
    - If it exists and `stage-status` is `Awaiting input` on this stage, this is a **resume**. Pick up from where the previous run left off instead of starting fresh.
    - If it exists and `current-stage` is past intake, note the re-run in chat and proceed. [_additive-write.md](../_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - If it does not exist, this is a fresh start. Proceed normally.
@@ -84,7 +84,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0.5 — Repo stack fingerprint (observation only)
 
-Run the probes in `intake/default/_stack-fingerprint.md`: repo signals (manifests, platforms, UI framework, build, testing, observability, integration markers) and the session catalog (skills, commands, MCP servers visible to this run). Write the result into `00-index.md` as the `stack:` block with `user-confirmed: false`. Record only what is detected; omit rather than guess. Recommend nothing here; that conversation belongs in shape, after Batch B confirms or corrects the fingerprint.
+Run the probes in `intake/default/_stack-fingerprint.md`: repo signals (manifests, platforms, UI framework, build, testing, observability, integration markers) and the session catalog (skills, commands, MCP servers visible to this run). Write the result into the index (the draft of `00-index.md`) as the `stack:` block with `user-confirmed: false`. Record only what is detected; omit rather than guess. Recommend nothing here; that conversation belongs in shape, after Batch B confirms or corrects the fingerprint.
 
 # Step 0.6 — Test profile estimate (no run)
 
@@ -136,7 +136,7 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 
 Do this in order:
 1. Parse the request and derive the workflow slug.
-2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template in `intake/default/_artifact.md`. The first `decide add` creates `decisions.yaml`.
+2. Create `.ai/workflows/<slug>/` directory. Write the draft `.ai/workflows/<slug>/.draft/00-index.md` using the index template in `intake/default/_artifact.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The first `decide add` creates `decisions.yaml`.
 3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: **substance first (Batch B), process second (Batch A)**. Batch B is freeform (outcome, success criteria, non-goals, constraints, stack confirmation). Batch A asks the branch-strategy and appetite gate questions; review scope is not asked at intake.
 4. Record ALL answers (structured + freeform) with `decide add` per [_decisions.md](../_decisions.md).
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
@@ -144,8 +144,8 @@ Do this in order:
 6a. **Misreading pass (the RIM quality floor).** Before the brief is final, run one short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate either becomes a RIM entry in `## Risks if Misunderstood` (stable id `RIM-1..n`, with severity) or is dismissed in that section with a stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents; this is the floor, and shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood` and `## Charter` sections may never be silently absent in default mode: zero entries is legal only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no interpretive surface"). Silence is illegal; shape's Step 9a backfills a missing ledger instead of waving it through.
 6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification with `decide add` per [_decisions.md](../_decisions.md); ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
 7. Write `next-invocation: "/wf intake <slug>"`, and the same invocation as the one entry of the `01-intake.md` `recommended-routes`. A stop before the shape phase resumes there; the shape phase writes the routes that follow intake.
-8. Update `00-index.md`: `current-stage: intake`, `progress.intake: in-progress`. The shape phase sets `progress.intake: complete`.
-9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.
+8. Update the index: `current-stage: intake`, `progress.intake: in-progress`, and the `next-invocation` of item 7. Run `record set "<root>" <slug> index current-stage=intake progress.intake=in-progress "next-invocation=/wf intake <slug>"`. The `intent-risks` and `charter` ledgers of Steps 6a–6b hold text entries: get the index, add them, write the draft of `00-index.md` and put it. The shape phase sets `progress.intake: complete`.
+9. Write the draft `.ai/workflows/<slug>/.draft/01-intake.md` per the template in `intake/default/_artifact.md`, and put it.
 10. **Register this workflow in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
 # Continue into the shape phase
@@ -160,7 +160,7 @@ After Step 10, do not stop and do not ask the person to type a new command:
 
 ## Additive-write contract
 
-`01-intake.md` is a revisable artifact. Re-invocation happens when the user returns with answers to open questions, when scope changes, or when a related intake informs the current one. Follow the shared additive-write contract in [_additive-write.md](../_additive-write.md): snapshot to `.ai/workflows/<slug>/history/01-intake-<rev>.md`, **rewrite the body to current truth**, add one ledger entry (`trigger: answers-returned`, `scope-change`, or `manual`; `because:` and `changed:` naming the prompt and the effect).
+`01-intake.md` is a revisable artifact. Re-invocation happens when the user returns with answers to open questions, when scope changes, or when a related intake informs the current one. Follow the shared additive-write contract in [_additive-write.md](../_additive-write.md): snapshot (write the output of `record get "<root>" <slug> 01-intake.md`) to `.ai/workflows/<slug>/history/01-intake-<rev>.md`, **rewrite the body to current truth**, add one ledger entry (`trigger: answers-returned`, `scope-change`, or `manual`; `because:` and `changed:` naming the prompt and the effect).
 
 Stage-specific additions:
 

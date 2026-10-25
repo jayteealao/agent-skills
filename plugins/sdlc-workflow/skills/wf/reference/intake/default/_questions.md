@@ -38,7 +38,7 @@ Question 2:
       description: "Multiple days. Definitely needs slicing and incremental delivery."
   multiSelect: false
 ```
-Record the appetite answer as `appetite:` in `00-index.md` frontmatter; it is machine-read downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations).
+Record the appetite answer as `appetite:` in the index with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index appetite=<answer>` (per [_records.md](../../_records.md)); it is machine-read downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations).
 
 **Review scope is not a question:** one review per work packet. `00-index.md` carries `review-scope: slug-wide` with `review-scope-confirmed: true`. Only `/wf intake <slug> amend` changes it.
 

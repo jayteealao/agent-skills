@@ -33,7 +33,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 
 ## Step 0 — Resolve
 
-1. The first token is the slug. When it is empty, list the active workflows from `.ai/workflows/INDEX.md` and ask which one. When `.ai/workflows/<slug>/00-index.md` does not exist, end the run: *"No workflow `<slug>`. Start it with `/wf intake <description>`."*
+1. The first token is the slug. When it is empty, list the active workflows from `.ai/workflows/INDEX.md` and ask which one. When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 1, end the run: *"No workflow `<slug>`. Start it with `/wf intake <description>`."*
 2. Resolve `projectRoot` (the repo root that owns `.ai/workflows`) and `<skill-dir>` per [_host-invocation.md](_host-invocation.md).
 3. Every contract change goes through the goal script. Every command except `check` prints one JSON object:
 

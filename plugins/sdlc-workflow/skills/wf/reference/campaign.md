@@ -42,16 +42,16 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
    | `try-out` | Step 7, then step 12. |
    | `done` | Step 7, then step 14. |
 
-5. **A work packet that is not a build work packet.** The form is `investigate`, `discover`, `rca` or `task`. Stop. Tell the person to type `current.route`, as "Type `<route>`". The mode starts the workflow `<packet-slug>` from the work packet file (`intake.md`, "List work packet"). When the `00-index.md` of that workflow has `status: complete` or `status: closed`, run `<cmd> close "<root>" <source-slug> <packet-key> done`. When the person drops a work packet, of any form, run `<cmd> close "<root>" <source-slug> <packet-key> dropped`. The command sets the state in the work packet file and on the work packet in the board. Then go to step 1.
+5. **A work packet that is not a build work packet.** The form is `investigate`, `discover`, `rca` or `task`. Stop. Tell the person to type `current.route`, as "Type `<route>`". The mode starts the workflow `<packet-slug>` from the work packet file (`intake.md`, "List work packet"). When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <packet-slug> index` shows `status: complete` or `status: closed`, run `<cmd> close "<root>" <source-slug> <packet-key> done`. When the person drops a work packet, of any form, run `<cmd> close "<root>" <source-slug> <packet-key> dropped`. The command sets the state in the work packet file and on the work packet in the board. Then go to step 1.
 6. **The design is not settled.** Stop. Show `current.reason` in plain words. Tell the person to type `/wf design <packet-slug>`. When the work packet file has `design-form: design-direction`, tell the person to type `/wf design direction from <source-slug>` first. The design stage reads the carried design thoughts of the work packet ([design/_carried.md](design/_carried.md)). When the person returns, go to step 1.
 7. **Land on the list branch.** Run `<cmd> land "<root>" <source-slug>`. It switches the checkout to `packets/<source-slug>`, or creates the branch from the trunk. It never stashes and never forces. When git refuses the switch, show the person the files in the way, and ask.
 8. **Start the work packet.** Run `<cmd> start "<root>" <source-slug> <packet-key>`. It sets `base-branch` of the work packet to the end branch of the build work packet before, or to the trunk for the first build work packet. For a migrated work packet, it first commits, rebases and merges the work of the unit branch into the list branch. When the result has `conflict`, stop. Ask the person to resolve the conflict by hand, then run `start` again.
-9. **Slice the work packet.** When `03-slice.md` is absent, dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to run the stage in `slice.md`, with these policy answers:
+9. **Slice the work packet.** When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <packet-slug> 03-slice.md` exits 1, dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to run the stage in `slice.md`, with these policy answers:
    - The scope, the acceptance criteria, `ux-impact` and the stack are confirmed. Do not ask about them again.
    - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has fewer than 40 steps. Do not size a slice by lines.
    - Aim for 10 slices. When the work packet needs more than 14, write them and return a warning.
    - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
-   - When `02c-craft.md` exists, map each slice to its surfaces and board keys, and write `ux-impact` into each slice file ([design/_lane.md](design/_lane.md), "One duty per stage").
+   - When `02c-craft.md` exists, map each slice to its surfaces and board keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
    - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
 
    When the subagent returns the warning, tell the person the slice count, and continue. The person can split the work packet later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer. When the person already ran `/wf slice <packet-slug>`, skip this step.
@@ -78,7 +78,7 @@ The PR phase of ship needs all of these:
 - no work packet has an unapproved fidelity row;
 - the open-RIM gate of the PR phase passes for each work packet. `/wf ship` runs that gate.
 
-At `done`, the `base-branch` of each work packet is the trunk again, so ship works as on any workflow. Before ship, set `handoff-lead: <the slug of the last done packet>` in the `00-index.md` of each done work packet.
+At `done`, the `base-branch` of each work packet is the trunk again, so ship works as on any workflow. Before ship, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <packet-slug> index handoff-lead=<the slug of the last done packet>` for each done work packet.
 
 **One PR for the list.** This is the default. Tell the person to type `/wf ship packets/<source-slug>`. The batch mode of its PR phase packages every slug on the list branch in one PR. In the PR body, list each work packet with its title, the result of its acceptance criteria, and its decision fidelity table. Then ship stops at its go/no-go gate and ships the PR as usual.
 

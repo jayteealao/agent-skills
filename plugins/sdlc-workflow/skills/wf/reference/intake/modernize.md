@@ -35,7 +35,7 @@ confabulated record is not.
 
 # Step 0 — Detect the era
 
-Read `.ai/workflows/<slug>/00-index.md` and the stage artifacts it lists, and check each marker
+Read the index and the stage artifacts it lists with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` (per [_records.md](../_records.md); `index` names the index), and check each marker
 below. Detection is by **feature presence**, not by a version number — workflows do not record which
 plugin wrote them, and marker presence is what the consuming references actually test.
 
@@ -69,21 +69,21 @@ gate question per [_gate-question.md](../_gate-question.md) and proceed. Offer t
 
 # Step 2 — Write
 
-1. Apply only the confirmed backfills. Refresh `updated-at` on every file touched.
+1. Apply only the confirmed backfills: a frontmatter field with `record set "<root>" <slug> <name> key=value`, a body change by a get, a change, a draft and a put. Refresh `updated-at` on every record touched.
 2. Follow [_control-file-ownership.md](../_control-file-ownership.md) for `00-index.md` and the
-   registry — re-read immediately before each edit, retry once on a modified-since-read rejection.
-3. Per [_additive-write.md](../_additive-write.md), snapshot each revisable artifact you change and
+   registry — change an index field with `record set`; get the index immediately before you write a draft of it, and put the draft at once.
+3. Per [_additive-write.md](../_additive-write.md), snapshot each revisable artifact you change (write the output of `record get` to the `history/` path) and
    append one `revisions:` entry with `trigger: manual` and `because: "schema modernization"`.
 4. Leave every non-backfillable field **absent**. Do not write a placeholder, an empty string, or an
    `n-a` — a junk value is indistinguishable from a real one to the gates that read it, and that
    ambiguity is exactly what the evidence-schema contract exists to eliminate.
-5. **Stamp the run** on `00-index.md`: `schema-modernized-at: <timestamp>` and
-   `schema-absent-fields: [<the fields left absent on purpose>]`. The stamp makes the run
+5. **Stamp the run** on the index: `record set "<root>" <slug> index schema-modernized-at=<timestamp>
+   "schema-absent-fields=[<the fields left absent on purpose>]"`. The stamp makes the run
    idempotent: the schema-era check in `intake.md` suppresses its nag for any listed field. A later
    era's new markers still fire.
 6. **Index history (opt-in).** For each confirmed item, append one line to `index-history.jsonl`:
    `{"at":"<timestamp>","kind":"migrated","text":"<the moved text>","stage":"<stage or null>"}`.
-   Then delete the moved text from `00-index.md`. Keep `current-stage` near the top of the index.
+   Then delete the moved text from the index: get it, remove the text, write the draft of `00-index.md` and put it. Keep `current-stage` near the top of the index.
    Keep the deferral list (cleared entries too), `intent-risks`, `charter`, and `revisions:` in the index.
 
 # Step 3 — Chat return

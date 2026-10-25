@@ -24,6 +24,8 @@ import { checksModeOf, loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { frontmatterOfDoc } from '../lib/records.mjs';
+import { workflowDirOf } from '../lib/records-root.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { ledgerProblems } from '../lib/prototype.mjs';
 import { designModesOf } from '../lib/design-boards.mjs';
@@ -211,12 +213,11 @@ async function enforceIntakeLedgerLint(paths, config) {
     if (base !== '01-intake.md') continue;
     const text = await readTextIfExists(path.absolute);
     if (artifactType(text) !== 'intake') continue;
-    const indexPath = path.absolute.replace(/01-intake\.md$/, '00-index.md');
-    const indexText = await readTextIfExists(indexPath);
-    // No sibling 00-index.md → not a default-mode intake in flight (Step 2 creates
-    // the index before Step 9 writes the brief). Skip rather than guess.
-    if (!indexText) continue;
-    const { data: idx } = safeParseFrontmatter(indexText, { filePath: indexPath });
+    // No index → not a default-mode intake in flight (Step 2 creates the index before
+    // Step 9 writes the brief). Skip rather than guess. The brief may be a draft.
+    const dir = workflowDirOf(path.absolute);
+    const idx = dir ? frontmatterOfDoc(dir, '00-index.md') : null;
+    if (!idx) continue;
     const missing = [];
     const bodyHasRims = /(^|\n)\s*-\s*\*\*RIM-\d+/.test(text || '');
     const idxRisks = idx?.['intent-risks'];

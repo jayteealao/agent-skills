@@ -4,7 +4,6 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import { compile, plainErrors } from './schema-check.mjs';
-import { parse as parseYaml } from './yaml.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'schemas', 'frontmatter.schema.json');
@@ -77,9 +76,6 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatte
   if (kind === 'frontmatter' && name) {
     const branch = findFrontmatterBranch(rootSchema, name);
     schema = branch ? schemaWithDefs(rootSchema, branch) : rootSchema;
-  } else if (kind === 'sibling-yaml') {
-    const branch = rootSchema.siblingYamlSchemas?.[name];
-    schema = branch ? schemaWithDefs(rootSchema, branch) : null;
   } else if (kind === 'def') {
     const branch = rootSchema.$defs?.[name];
     schema = branch ? schemaWithDefs(rootSchema, branch) : null;
@@ -110,52 +106,6 @@ export function validateFrontmatter(data, { schemaPath = DEFAULT_SCHEMA_PATH } =
     type,
     errors: valid ? [] : plainErrors(validate.errors),
   };
-}
-
-export function validateSiblingYaml(data, { artifact = data?.artifact, schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return {
-      valid: false,
-      artifact: artifact ?? null,
-      errors: [{ path: '/', message: 'sibling YAML is not a mapping', keyword: 'type' }],
-    };
-  }
-
-  const validate = compileValidator({ schemaPath, kind: 'sibling-yaml', name: artifact });
-  if (!validate) {
-    return {
-      valid: false,
-      artifact: artifact ?? null,
-      errors: [{ path: '/artifact', message: `no sibling YAML schema for artifact: ${artifact ?? '<missing>'}`, keyword: 'required' }],
-    };
-  }
-  const valid = validate(data);
-  return {
-    valid,
-    artifact,
-    errors: valid ? [] : plainErrors(validate.errors),
-  };
-}
-
-/**
- * Read a sibling `.yaml` file and validate it against siblingYamlSchemas[artifact].
- * `artifact` defaults to the YAML's own `artifact:` field. A parse error or a
- * schema violation surfaces as { valid:false, errors }.
- */
-export async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH, artifact } = {}) {
-  let data;
-  try {
-    data = parseYaml(await readFile(filePath, 'utf-8'));
-  } catch (err) {
-    return {
-      path: filePath,
-      valid: false,
-      artifact: artifact ?? null,
-      errors: [{ path: '/', message: err.message ?? 'YAML parse error', keyword: 'parse' }],
-    };
-  }
-  const result = validateSiblingYaml(data, { artifact: artifact ?? data?.artifact, schemaPath });
-  return { path: filePath, ...result };
 }
 
 /**

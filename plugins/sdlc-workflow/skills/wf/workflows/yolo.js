@@ -240,7 +240,8 @@ function requiresClause(refPath) {
   return `\n\nREQUIRED READS. The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
-    `with ${READ_TOOL}. A search hit, ${SHELL_READ}a partial read, or a sub-agent's read does not count. ` +
+    `with ${READ_TOOL}. Read a record row with \`${REC('get')} <name>\` (its whole output), or from your brief when ` +
+    `the brief gives its content. A search hit, ${SHELL_READ}a partial read, or a sub-agent's read does not count. ` +
     `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
     `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). A mode also applies when its disk fact ` +
     `holds (section "Modes" of ${referenceRoot}/_requires.md lists them), even when \`modes:\` leaves it out. ` +
@@ -298,9 +299,9 @@ function deadDriverClause(priorRun) {
   return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
     `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
     `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
-    `write it may have made as SUSPECT and possibly half-finished: re-read each file you touch fresh from disk ` +
-    `before editing it, and if what you find contradicts what the index claims, trust the artifact on disk and ` +
-    `correct the index. Do not assume the previous run left a consistent state.`
+    `write it may have made as SUSPECT and possibly half-finished: re-read each record you touch with ` +
+    `\`${REC('get')} <name>\` before you change it, and if what you find contradicts what the index claims, trust ` +
+    `the stage record and correct the index with \`${REC('set')} index key=value ...\`. Do not assume the previous run left a consistent state.`
 }
 
 // verifyClean() — the SINGLE source of truth for "verify cleared the gate so the
@@ -791,6 +792,10 @@ const EOB =
 const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl`
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
 const WF_CMD = `node "${referenceRoot}/../scripts/wf.mjs"`
+// The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
+// `record set`, and writes a whole record as a draft that `record put` checks and writes.
+const REC = (verb, rest) => `${WF_CMD} record ${verb} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
+const DRAFT_DIR = `${projectRoot}/.ai/workflows/${slug}/.draft`
 
 // runId is minted by orient (the first subagent — it has the clock this script
 // lacks) and threaded into every later heartbeat so one run's entries are
@@ -827,12 +832,16 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
 // 00-index.md and the global INDEX.md are DRIVER-OWNED. Two writers mutating them
 // blind produced repeated "File has been modified since read" clusters — and once,
 // a DEAD driver's last write ambushed a foreground read two hours later. The rule
-// is the same in both directions: re-read immediately before writing, and treat a
-// rejection as "the other writer moved", not as a stale-string puzzle to force.
+// is the same in both directions: change an index field with `record set`, which merges in
+// one step, and re-read INDEX.md immediately before an edit of it.
 const CONTROL_FILE_RULE =
-  `\n\nCONTROL-FILE DISCIPLINE. ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
+  `\n\nCONTROL-FILE DISCIPLINE. The index of this workflow (00-index.md) and ` +
   `${projectRoot}/.ai/workflows/INDEX.md are shared control files that another session may also be editing. ` +
-  `Re-read the file IMMEDIATELY before every edit — never edit from a copy you read earlier in this agent. If an ` +
+  `Change an index field with \`${REC('set')} index key=value ...\` (a dotted key names one field of a map): it ` +
+  `merges the change in one step, so it loses no field of another writer. Write a draft of the whole index only ` +
+  `for a list change with text entries: get the index with \`${REC('get')} index\` IMMEDIATELY before you write ` +
+  `the draft ${DRAFT_DIR}/00-index.md, and run \`${REC('put')} 00-index.md\` at once. ` +
+  `Re-read INDEX.md IMMEDIATELY before every edit of it — never edit from a copy you read earlier in this agent. If an ` +
   `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
   `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
   `to dodge the conflict.`
@@ -1302,8 +1311,10 @@ async function orient() {
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
     `0. Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` first. It reads the records in code: the stage ` +
     `files of each slice, the run record and the next command. Use its values where a step below names the same ` +
-    `fact, and read a file only for a fact that the output lacks.\n` +
-    `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. It is CURRENT STATE only: parse the keys this step ` +
+    `fact, and read a record only for a fact that the output lacks. Read a record with \`${REC('get')} <name>\` ` +
+    `(exit 1 = the record is absent), and list the records with \`${REC('list')}\`. A record name such as ` +
+    `03-slice.md is not a file path.\n` +
+    `1. Read the index: run \`${REC('get')} index\`. It is CURRENT STATE only: parse the keys this step ` +
     `names and nothing else. Do NOT read index-history.jsonl or history/ — finished history (old next-step ` +
     `commentary, finished sub-pass telemetry) is not state, and must not be mixed into the open deferrals or the ` +
     `charter you report. Parse: status, current-stage, review-scope ` +
@@ -1333,7 +1344,7 @@ async function orient() {
 ` +
     `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
     `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n` +
-    `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
+    `2. Read the roster: run \`${REC('get')} 03-slice.md\`. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
     `skipped) as slices[].status — capture 'skipped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
@@ -1376,7 +1387,7 @@ async function orient() {
     `recommended-next from 01-rca.md frontmatter (fallback: the 00-index.md recommended-routes entry with default: true — old slugs: recommended-routes.primary — / next-invocation):\n` +
     `      • human-triage — OR 01-rca.md shows root-cause-confidence: low AND blast-radius: high — is a genuine ` +
     `product STOP: set ok=false, blockReason='RCA recommends human triage (low confidence + high blast radius)', ` +
-    `route='read .ai/workflows/${slug}/01-rca.md and choose the build route by hand, then /wf yolo ${slug}'.\n` +
+    `route='read the record 01-rca.md of ${slug} and choose the build route by hand, then /wf yolo ${slug}'.\n` +
     `      • otherwise (recommended-next ∈ {/wf plan, /wf intake fix, /wf intake hotfix}) → DRIVABLE single-scope ` +
     `build. Readiness passes when 01-rca.md (type: rca — the intake lead) and 02-shape.md both exist; 03-slice.md is ` +
     `NOT required (single-scope roster was synthesized in step 2, singleScope=true). HONOR the recommendation via ` +
@@ -1431,7 +1442,8 @@ async function orient() {
     `person (design stage pending)', route='/wf design ${slug}' ('/wf design ${slug} amend' when the design is ` +
     `reopened). When every such slice carries ux-impact: none, the run proceeds.\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
-    `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
+    `slice-mode can route to the next slice), check with \`${REC('list')}\` and \`${REC('get')} <name>\` which of ` +
+    `plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
     `   - plan: artifact present AND frontmatter status: complete\n` +
     `   - implement: artifact present AND status: complete\n` +
@@ -1621,7 +1633,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `${projectRoot}/.ai/workflows/${slug}/.found.json --source review --run ${RUN_ID}` +
       `${sliceArg ? ` --slice ${sliceArg}` : ''}\`. A finding with \`refuted\` stays refuted; re-check a ` +
       `survivor you doubt, but do not drop it. Findings: ${JSON.stringify(scan.findings)}` +
-      promptFedLine(scan.files, `${projectRoot}/.ai/workflows/${slug}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'}`)
+      promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run \`${REC('put')}\` after you write it)`)
     : ''
   const label = `${stage}${sliceArg ? ':' + sliceArg : ''}`
   const briefCmd = `${WF_CMD} brief "${projectRoot}" ${slug} ${stage}${sliceArg ? ` ${sliceArg}` : ''}`
@@ -1635,7 +1647,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `the test suites with the time box, and the live decisions in scope. A live decision in the brief is an ` +
     `answer: do not ask it again.\n` +
     `3. Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write ` +
-    `its artifact(s) under ${projectRoot}/.ai/workflows/${slug}/.` +
+    `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
+    `${referenceRoot}/_records.md.` +
     questionContract(stage) + (DELEGATE ? delegateClause(WF_CMD) : '') + answeredClause(extra.answered, stage) +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
@@ -1691,12 +1704,14 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // This agent runs only as the fallback, when no verify agent of the chain confirmed it.
 function sliceStatusClause(sliceArg) {
   return `\n\nLAST STEP — SLICE STATUS MIRROR (only for slice '${sliceArg}'). After you write the verify artifact, ` +
-    `when it records \`result: pass\`: (1) in ${projectRoot}/.ai/workflows/${slug}/00-index.md, set this slice's entry ` +
+    `when it records \`result: pass\`: (1) get the index with \`${REC('get')} index\`, set this slice's entry ` +
     `in \`slices[]\` to status: complete, refresh the \`progress\` block (completed/total counts) to match the roster, ` +
-    `and refresh \`updated-at\`; (2) in the roster file (03-slice.md, or 03-slice-${sliceArg}.md), set this slice's ` +
-    `\`status:\` to complete when it is not already. Never change an entry that close set to \`skipped\`, another ` +
+    `write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`; (2) in the roster record, set ` +
+    `this slice's \`status:\` to complete when it is not already: for 03-slice.md, get it, change the entry, write ` +
+    `its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
+    `\`${REC('set')} 03-slice-${sliceArg}.md status=complete\`. Never change an entry that close set to \`skipped\`, another ` +
     `slice's entry, or \`current-stage\`, and never mark the WORKFLOW complete. For any other result, write nothing ` +
-    `here. Return sliceWriteBack: { ok, wrote: [<the files you changed>], note } (ok: false with a note when the ` +
+    `here. Return sliceWriteBack: { ok, wrote: [<the records you changed>], note } (ok: false with a note when the ` +
     `result is not pass).`
 }
 
@@ -1707,21 +1722,23 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `files so the index tells the truth without anyone re-deriving it from artifacts.\n\n` +
     `${EOB}\n\n` +
     `ONE-WRITER RULE: /wf verify is the one writer of a roster \`status: complete\`. You only MIRROR it. Read ` +
-    `the frontmatter of this slice's verify artifact (06-verify-${sliceArg}.md, or 06-verify.md for an ` +
-    `un-suffixed change-mode workflow). Mirror \`complete\` ONLY when it records \`result: pass\`. Any other ` +
+    `the frontmatter of this slice's verify record with \`${REC('get')} <name>\` (06-verify-${sliceArg}.md, or ` +
+    `06-verify.md for an un-suffixed change-mode workflow). Mirror \`complete\` ONLY when it records \`result: pass\`. Any other ` +
     `result (a deferral-only \`partial\` included) is not complete: write nothing and say so in note.\n` +
-    `1. In ${projectRoot}/.ai/workflows/${slug}/00-index.md, set this slice's entry in \`slices[]\` to ` +
+    `1. Get the index with \`${REC('get')} index\`. Set this slice's entry in \`slices[]\` to ` +
     `status: complete, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
-    `state. Refresh \`updated-at\`.\n` +
-    `2. In the roster file (${projectRoot}/.ai/workflows/${slug}/03-slice.md, or the per-slice ` +
+    `state. Write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`.\n` +
+    `2. In the roster record (03-slice.md, or the per-slice ` +
     `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), when verify did not already set ` +
-    `this slice's \`status:\` to complete, set it to complete. If the roster records no per-slice status field, ` +
+    `this slice's \`status:\` to complete, set it to complete: for 03-slice.md, get it, change the entry, write ` +
+    `its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
+    `\`${REC('set')} 03-slice-${sliceArg}.md status=complete\`. If the roster records no per-slice status field, ` +
     `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
     `the workflow is not done.` +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
-    `Return { ok, wrote: [<the files you actually changed>], note }.` +
+    `Return { ok, wrote: [<the records you actually changed>], note }.` +
     heartbeatClause(`writeback:${sliceArg}`, 'Drive', 'writeback', sliceArg),
     {
       schema: {
@@ -1846,7 +1863,7 @@ async function driveWallProbe(sliceArg, idx) {
     `applicable) reviewed — its ONLY residue is open runtime-evidence deferral(s). Your job is NOT to re-verify ` +
     `the slice. It is to answer one question per wall: **does this wall still stand?**\n\n` +
     `${EOB}\n\n` +
-    `Open deferrals recorded for this slice in ${projectRoot}/.ai/workflows/${slug}/00-index.md:\n${lines || '    (none)'}\n\n` +
+    `Open deferrals recorded for this slice in the index (00-index.md):\n${lines || '    (none)'}\n\n` +
     `1. Run \`${WF_CMD} defer check "${projectRoot}" ${slug} --next ${sliceArg} --json\` once. It runs the ` +
     `recorded clearing-probe of each open deferral in code; exit 1 only means that a deferral is needed now. For ` +
     `each entry of this slice: 'unchanged' → stands: true, with the probe and its output tail as the receipt, ` +
@@ -1882,8 +1899,8 @@ async function classifyDecisions(res, idx) {
     `DECISION CLASSIFICATION (read-only) for slug '${slug}', stage '${res.stage}'` +
     `${res.slice ? `, slice '${res.slice}'` : ''}. The stage recorded these decisions WITHOUT the mandatory ` +
     `\`class\` stamp:\n${listed}\n\n` +
-    `Read ${referenceRoot}/_decision-classes.md IN FULL, then read the stage artifact at ` +
-    `${res.artifactPath || `${projectRoot}/.ai/workflows/${slug}/`} for the context each decision was made in. ` +
+    `Read ${referenceRoot}/_decision-classes.md IN FULL, then read the stage record with \`${REC('get')} <name>\` ` +
+    `(${res.artifactPath || 'the record of that stage'}) for the context each decision was made in. ` +
     `Classify EACH as 'implementation-detail' or 'intent-bearing' by that file's six tests. Write nothing.\n\n` +
     `Two rules that decide this round's worth:\n` +
     `- When a decision could plausibly be intent-bearing, classify it 'intent-bearing'. The cost of a false ` +
@@ -1957,8 +1974,8 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const selection = await agent(
     `SELECT REVIEW RUBRICS for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}. READ-ONLY — write nothing.\n\n` +
     `Read ${referenceRoot}/review/_stage.md "# Step 2: Select Review Commands" and ${referenceRoot}/review/_select.md, ` +
-    `then apply them to this change: read ${projectRoot}/.ai/workflows/${slug}/00-index.md (workflow-type), the ` +
-    `shape and slice artifacts, and \`git -C ${projectRoot} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
+    `then apply them to this change: read the index with \`${REC('get')} index\` (workflow-type), the ` +
+    `shape and slice records with \`${REC('get')} <name>\`, and \`git -C ${projectRoot} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}\n\n` +
@@ -2185,9 +2202,11 @@ async function planFreshness(sliceArg) {
   const r = await agent(
     `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
     `The project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n${EOB}\n\n` +
-    `1. Read ${projectRoot}/.ai/workflows/${slug}/04-plan-${sliceArg}.md and its .yaml IN FULL.\n` +
+    `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
+    `\`files:\` and \`edges:\`.\n` +
     `2. Find the commits since the plan was last written: \`git -C ${projectRoot} log --oneline <the last commit ` +
-    `that changed the plan file>..HEAD\`, or the last 20 commits when the plan file is not committed.\n` +
+    `that changed ${projectRoot}/.ai/workflows/${slug}/slice-${sliceArg}.yaml>..HEAD\`, or the last 20 commits ` +
+    `when that file is not committed.\n` +
     `3. Read the files and interfaces that the plan names, as they are at HEAD.\n` +
     `4. The plan is stale only when the code at HEAD contradicts it, so an implement would follow wrong steps: ` +
     `a file it edits moved or changed shape, an interface it calls changed, or work it plans already exists. ` +
@@ -2389,7 +2408,8 @@ async function charterCheckpoint(idx, throughSlice) {
     `CHARTER FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
     `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n` +
     `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
-    `Read the last few implement artifacts under ${projectRoot}/.ai/workflows/${slug}/ and inspect the built ` +
+    `List the records with \`${REC('list')}\`, read the last few implement records with ` +
+    `\`${REC('get')} <name>\`, and inspect the built ` +
     `code they touched. For EACH commitment, judge whether the build so far is still ADVANCING it: 'honored' ` +
     `(the code visibly serves it), 'at-risk' (drifting — a decision has weakened it), or 'broken' (the code ` +
     `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +

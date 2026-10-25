@@ -40,6 +40,12 @@ export function parseWorkflowPath(filePath) {
   };
 }
 
+/** The folder of the workflow that holds a record path (a draft too), or null. */
+export function workflowDirOf(filePath) {
+  const info = parseWorkflowPath(filePath);
+  return info ? `${info.root}/${info.slug}` : null;
+}
+
 const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
 
 // The entries of `.ai/` that the plugin writes. Another tool may keep its own `.ai/` folder.

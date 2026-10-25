@@ -1,6 +1,6 @@
 # SDLC Workflow
 
-A plugin that runs software work as a disciplined lifecycle. Every feature, fix, or spike moves through the same sequence of stages. Each stage writes a permanent, machine-readable artifact under `.ai/workflows/<slug>/` in your repository, and the next stage reads it. Hooks verify each artifact as it lands.
+A plugin that runs software work as a disciplined lifecycle. Every feature, fix, or spike moves through the same sequence of stages. Each stage writes a permanent, machine-readable record under `.ai/workflows/<slug>/` in your repository, and the next stage reads it. The records are YAML files that scripts write: a stage agent writes a draft, and a script checks it and writes the record.
 
 Every command, mode and setting is on one page: [docs/commands.html](docs/commands.html). Open it in a browser. This file is the map.
 

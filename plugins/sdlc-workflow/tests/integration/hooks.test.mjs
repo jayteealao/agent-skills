@@ -295,17 +295,17 @@ test('pre-write-validate blocks bad filename, missing frontmatter, bad schema, a
         pattern: /Filename 'not-numbered\.md'/,
       },
       {
-        file_path: '.ai/workflows/demo/01-intake.md',
+        file_path: '.ai/workflows/demo/.draft/01-intake.md',
         content: '# no frontmatter\n',
         pattern: /Missing YAML frontmatter/,
       },
       {
-        file_path: '.ai/workflows/demo/01-intake.md',
+        file_path: '.ai/workflows/demo/.draft/01-intake.md',
         content: md({ schema: 'wrong', type: 'intake', slug: 'demo' }),
         pattern: /Invalid schema 'wrong'/,
       },
       {
-        file_path: '.ai/workflows/demo/01-intake.md',
+        file_path: '.ai/workflows/demo/.draft/01-intake.md',
         content: md({ schema: 'sdlc/v1', type: 'intake', slug: 'other' }),
         pattern: /Slug mismatch/,
       },
@@ -354,7 +354,7 @@ test('pre-write-validate allows valid content and warns on missing registry', ()
     const result = runHook(HOOKS.preWriteValidate, {
       cwd: tmp,
       tool_input: {
-        file_path: '.ai/workflows/demo/00-index.md',
+        file_path: '.ai/workflows/demo/.draft/00-index.md',
         content: md({ schema: 'sdlc/v1', type: 'index', slug: 'demo' }),
       },
     }, tmp);
@@ -946,7 +946,7 @@ test('pre+post-write accept registered wf-quick/wf-meta artifact types and prefi
       { file: '90-next.md', type: 'routing' },
     ];
     for (const c of cases) {
-      const rel = `.ai/workflows/demo/${c.file}`;
+      const rel = `.ai/workflows/demo/.draft/${c.file}`;
       const content = md({ schema: 'sdlc/v1', type: c.type, slug: 'demo' });
       writeFile(join(tmp, rel), content);
 

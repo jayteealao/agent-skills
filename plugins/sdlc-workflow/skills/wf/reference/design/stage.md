@@ -10,11 +10,11 @@ The human-only stage between `intake` and `slice`. It turns the brief into a des
 
 ## Step 0 — Orient
 
-1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`. Then run `/wf design <slug>` again."*
+1. Read `00-index.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` ([_records.md](../_records.md)). When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, run `wf.mjs record set "<root>" <slug> index status=in-progress`. Then run `/wf design <slug>` again."*
 2. When a driver (`yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
-3. When `02-shape.md` is missing or not complete, STOP and route to `/wf intake <slug>`.
-4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.
-5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
+3. When `02-shape.md` is missing (`record get` exits 1) or not complete, STOP and route to `/wf intake <slug>`.
+4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index progress.design=skipped design-skip-reason="<reason>"`, then STOP with the next step `/wf slice <slug>`.
+5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` (`record get`) already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
 
 ## Step 1 — Load the design record
 
@@ -29,7 +29,7 @@ When a design brainstorm left thoughts for this workflow, follow [_carried.md](_
 
 ## Step 2 — Make sure the brief exists
 
-When `02b-design.md` is missing, author it now per [shape.md](shape.md). The person is present, so ask the discovery round there. Record `current-stage: design` while you work.
+When `02b-design.md` is missing (`record get` exits 1), author it now per [shape.md](shape.md). The person is present, so ask the discovery round there. Record `current-stage: design` with `record set` while you work.
 
 ## Step 3 — Inspect the code
 
@@ -85,7 +85,7 @@ A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate on
 
 ## Step 6 — Write the contract
 
-Before the freeze, run `canvas-stale` per [_boards.md](_boards.md) → The file is the source, and republish each listed file from the session's account. The board files are the source; the canvas is their published view. Freeze the confirmed boards per [_boards.md](_boards.md) → Freeze. Then write `02c-craft.md` per [contract.md](contract.md) Step 5, with these extra frontmatter fields:
+Before the freeze, run `canvas-stale` per [_boards.md](_boards.md) → The file is the source, and republish each listed file from the session's account. The board files are the source; the canvas is their published view. Freeze the confirmed boards per [_boards.md](_boards.md) → Freeze. Then write the draft of `02c-craft.md` and put it per [contract.md](contract.md) Step 5, with these extra frontmatter fields:
 
 ```yaml
 boards: design/r<N>/boards.json        # from the freeze result
@@ -102,7 +102,7 @@ directions: [<name>: <axis>]                      # omit when Step 3b did not ru
 
 Then write the token roles that `02c-craft.md` settles into `DESIGN.md` under `## Colors`: each role, its token, and its value. Change only the roles that this design settles. Apply the record guard of [_craft-floor.md](_craft-floor.md) → Record guard. Show the change to the person: the lines that you added or changed.
 
-Then update `00-index.md`: `current-stage: design`, `progress.design: complete`, and `next-invocation` per the Next row above. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
+Then update the index with one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=design progress.design=complete next-invocation="<the Next row above>"`. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
 
 ## Amend
 
@@ -110,7 +110,7 @@ Then update `00-index.md`: `current-stage: design`, `progress.design: complete`,
 
 1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add. For a design brainstorm, the reason is the carried thoughts: run Step 1b first.
 2. Change or add only the boards of the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 4 loads the floor. Step 6 freezes `r<N+1>/` and adds new surfaces to `surfaces:`.
-3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md), then write the new one.
+3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md): write the `record get` output of `02c-craft.md` to the `history/` path that file names. Then write the draft of the new one and put it.
 4. Name every plan that cites a changed surface. Route to `/wf plan <slug> <slice>` for each.
 
 When the person wants to reconsider the direction itself, run Step 3b again around the direction they name, then Steps 4–6.
@@ -119,7 +119,7 @@ When the person wants to reconsider the direction itself, run Step 3b again arou
 
 `/wf design <slug> <move>` on a confirmed design runs the move's own checks. It draws nothing and freezes nothing.
 
-1. Read `02c-craft.md`, the frozen boards it names, and `design/<move>.md`. Load [_craft-floor.md](_craft-floor.md) as a checklist: check the boards and the built UI against its Refuse and Verify lists. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
+1. Read `02c-craft.md` (`record get`), the frozen boards it names, and `design/<move>.md`. Load [_craft-floor.md](_craft-floor.md) as a checklist: check the boards and the built UI against its Refuse and Verify lists. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
 2. Run the move's checks against the boards and the built UI:
    - `animate` — the gates and the opportunity sweep ([animate.md](animate.md)): every existing animation through the gates, the opportunities, and the rejected candidates.
    - `harden` — the checks of [harden.md](harden.md), including the worst-case pass.

@@ -10,7 +10,7 @@ You are running `/wf intake discover`, a **hypothesis-test workflow** that adjud
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-discover-<descriptor>.md` (`type: slice`, `slice-type: discover`, `compressed: true`, `origin: intake/discover`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `discover → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-discover-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: discover`, `compressed: true`, `origin: intake/discover`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `discover → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -51,9 +51,9 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
+   - If the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discover**. Derive a slug: `discover-<short-hypothesis>` (kebab-case, max 5 words, e.g., `discover-auth-uses-jwt`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
+2. **Collision check:** If the index of `<slug>` exists (`record get` exits 0) and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -89,6 +89,8 @@ Pick exactly one verdict:
 | `partial` | Hypothesis is correct for some paths/configurations but not others. Be specific about *which* part holds and which doesn't. |
 | `fails` | Direct contradicting evidence exists, OR an alternative hypothesis is clearly more plausible than the original. |
 | `inconclusive` | Static code reading cannot adjudicate — the answer depends on runtime behavior, configuration, or data not visible in the repo. |
+
+Write the record to the draft `.ai/workflows/<slug>/.draft/01-discover.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **`01-discover.md` frontmatter:**
 ```yaml
@@ -176,7 +178,7 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 A verdict is terminal by construction — nothing is left to choose, so the workflow closes the moment its index is written. No re-invocation, no parked Active row.
 
-Write `00-index.md` from [_light-index.md](_light-index.md), the `discover` row. Add these keys:
+Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `discover` row, and put it. Add these keys:
 
 ```yaml
 close-reason: verdict-recorded

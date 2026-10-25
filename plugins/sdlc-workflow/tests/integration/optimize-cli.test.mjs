@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { parseFrontmatter } from '../../lib/frontmatter.mjs';
 import { lifecycleDone } from '../../lib/lifecycle-done.mjs';
+import { frontmatterOfDoc, readDoc } from '../../lib/records.mjs';
 import { validateFrontmatter } from '../../lib/schema-validator.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -154,11 +155,19 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     assert.equal(fin.kept, 2);
     assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '80', 'the squash lands on the slug branch');
     assert.equal(git(root, 'log', '-1', '--format=%s'), 'Cut the value: 100 to 80');
-    assert.match(readFileSync(path.join(root, '.ai', 'workflows', S, '03-slice-optimize.md'), 'utf8'), /`node guard\.js` exits 0/);
+    // finish writes the slice records into the record layout; the spec of the old layout stays where it is.
+    const dir = path.join(root, '.ai', 'workflows', S);
+    for (const f of ['slices.yaml', 'slice-optimize.yaml']) assert.ok(existsSync(path.join(dir, f)), f);
+    for (const f of ['03-slice.md', '03-slice-optimize.md', '05-implement-optimize.md']) assert.ok(!existsSync(path.join(dir, f)), f);
+    assert.match(readDoc(dir, '03-slice-optimize.md').body, /`node guard\.js` exits 0/);
+    assert.deepEqual(frontmatterOfDoc(dir, '05-implement-optimize.md')['files-modified'], fin.files);
+    assert.equal(frontmatterOfDoc(dir, '05-implement-optimize.md')['commit-sha'], fin.commit);
     assert.deepEqual(lifecycleDone(root, S).next, { stage: 'verify', slice: 'optimize' });
-    for (const name of ['02-optimize-spec.md', 'goal.md', '03-slice.md', '03-slice-optimize.md', '05-implement-optimize.md']) {
-      const v = validateFrontmatter(parseFrontmatter(readFileSync(path.join(root, '.ai', 'workflows', S, name), 'utf8')).data);
-      assert.equal(v.valid, true, `${name}: ${JSON.stringify(v.errors)}`);
+    const v = validateFrontmatter(parseFrontmatter(readFileSync(path.join(dir, 'goal.md'), 'utf8')).data);
+    assert.equal(v.valid, true, `goal.md: ${JSON.stringify(v.errors)}`);
+    for (const name of ['02-optimize-spec.md', '03-slice.md', '03-slice-optimize.md', '05-implement-optimize.md']) {
+      const r = validateFrontmatter(frontmatterOfDoc(dir, name));
+      assert.equal(r.valid, true, `${name}: ${JSON.stringify(r.errors)}`);
     }
 
     const results = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));

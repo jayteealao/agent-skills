@@ -4,7 +4,7 @@ The single source for the light `00-index.md` (`type: workflow-index`) that the 
 
 ## The template
 
-Write this frontmatter. Fill each `<slot>` from the row of your mode in the value table.
+Write this frontmatter to the draft `.ai/workflows/<slug>/.draft/00-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md). Fill each `<slot>` from the row of your mode in the value table.
 
 ```yaml
 ---

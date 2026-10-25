@@ -5,7 +5,7 @@
 
 Every artifact carries the terminus `next-command: wf-verify`. `<routes>` is `[{invocation: "/wf verify <slug>", reason: "verify the adopted change", default: true}]`.
 
-Use real timestamps — get the current UTC time per [_timestamp.md](../../_timestamp.md). Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
+Use real timestamps — get the current UTC time per [_timestamp.md](../../_timestamp.md). Write each artifact as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../../_records.md). **Every frontmatter block below includes `provenance: adopted`.**
 
 **`01-adopt.md` — `type: intake` (the adoption record, replaces standalone intake):**
 ```yaml

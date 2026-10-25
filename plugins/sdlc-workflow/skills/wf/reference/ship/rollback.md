@@ -24,16 +24,16 @@ You are a **release reversal operator**, not a developer; each runbook step is i
 
 # Step 0 — Orient
 
-1. **Resolve the slug** (first positional, already consumed by ship Step 0). Read `00-index.md`.
+1. **Resolve the slug** (first positional, already consumed by ship Step 0). Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md).
 2. **Resolve the target run.** Optional third positional = `<run-id>`. Default: the most recent
-   run in `09-ship-runs.md` with `status: complete` and `go-nogo` not `no-go`: a no-go run ends
+   run in `09-ship-runs.md` (`record get "<root>" <slug> 09-ship-runs.md`) with `status: complete` and `go-nogo` not `no-go`: a no-go run ends
    `complete` but shipped nothing, so it is never a target. Refusals:
    - `status: awaiting-input` → STOP: "Run `<run-id>` is paused mid-ship — nothing has fully
      shipped, so there is nothing to roll back. Resume it (`/wf ship <slug>`) or mark it failed."
    - `status: rolled-back` → STOP: "Run `<run-id>` was already rolled back (see its
      `rollback-artifact`)."
    - No completed run at all → STOP: "No completed ship run found for `<slug>`."
-3. **Load the run record** `09-ship-run-<run-id>.md` — capture everything the forward run
+3. **Load the run record** `09-ship-run-<run-id>.md` with `record get "<root>" <slug> 09-ship-run-<run-id>.md` — capture everything the forward run
    published: `merge-sha`, `merge-strategy`, `release-tag`, `release-workflow-run-id`,
    `environment`, `version`, `prior-version`, `post-release-bump-sha`, `announcements-sent`.
 4. **Load `.ai/ship-plan.md` Block E** (rollout + rollback contract): `rollback-mechanism`,
@@ -93,7 +93,7 @@ steps executed — the authored runbook is itself valuable. STOP after writing.
 
 # Step 4 — Write the record
 
-1. **Write `09-rollback-<run-id>.md`** (same directory as the run):
+1. **Write the draft `.ai/workflows/<slug>/.draft/09-rollback-<run-id>.md`**, then run `record put "<root>" <slug>`:
 
 ```yaml
 ---
@@ -120,11 +120,14 @@ refs:
 Body: the executed
 runbook table with per-row evidence, `## Irreversible Steps & Mitigations`, and `## Verification`.
 
-2. **Stamp the original run** `09-ship-run-<run-id>.md`: `rolled-back: true`,
-   `rollback-sha: "<revert commit sha>"`, `rollback-reason`, `rollback-artifact:
-   09-rollback-<run-id>.md`, `status: rolled-back`, refresh `updated-at`.
-3. **Update the `09-ship-runs.md` index row** for the run: status → `rolled-back`.
-4. Update `00-index.md` `workflow-files` with the new artifact.
+2. **Stamp the original run** `09-ship-run-<run-id>.md` in one call:
+   `record set "<root>" <slug> 09-ship-run-<run-id>.md rolled-back=true "rollback-sha=<revert commit sha>"
+   "rollback-reason=<reason>" rollback-artifact=09-rollback-<run-id>.md status=rolled-back`.
+   `updated-at` moves by itself.
+3. **Update the `09-ship-runs.md` index row** for the run: get the record, set the row's status to
+   `rolled-back`, write the draft of `09-ship-runs.md` and put it.
+4. Add the new record to `workflow-files`:
+   `record set "<root>" <slug> index "workflow-files=[<current entries>, 09-rollback-<run-id>.md]"`.
 
 # Step 5 — Comms (offer, don't send)
 

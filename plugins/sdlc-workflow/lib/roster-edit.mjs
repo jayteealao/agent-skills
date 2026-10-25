@@ -1,10 +1,15 @@
-// lib/roster-edit.mjs — line edits of a slice roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4, 4.6).
+// lib/roster-edit.mjs — edits of a slice roster.
 //
-// The slice stage owns 03-slice.md. Two campaign commands add one field to it:
-// `slice-order add` adds a `depends-on` edge, and `unit <ext> defer` names the unit of a
-// slice. Each edit changes the lines of one roster entry or one frontmatter key, so the
-// rest of the file keeps its form, its comments, and its line ends.
+// The slice stage owns the roster (03-slice.md). Two campaign commands add one field to
+// it: `slice-order add` adds a `depends-on` edge, and `unit <ext> defer` names the unit of
+// a slice. The text edits change the lines of one roster entry or one frontmatter key, so
+// the rest of a Markdown file keeps its form, its comments, and its line ends. The record
+// edits (rosterOf, setRosterEntry) read the roster in either layout and write it into the
+// record layout.
+import { readDoc, writeDoc } from './records.mjs';
 import { parse as parseYaml, stringify } from './yaml.mjs';
+
+export const ROSTER_DOC = '03-slice.md';
 
 const FM = /^(﻿?---\r?\n)([\s\S]*?)(\r?\n---)/;
 
@@ -50,18 +55,43 @@ function entries(lines) {
   return out;
 }
 
+/** One roster entry, from its fields. */
+const rosterEntry = (d) => ({
+  slug: String(d.slug ?? d.slice),
+  status: d.status ?? null,
+  dependsOn: (Array.isArray(d['depends-on']) ? d['depends-on'] : []).map(String),
+  unit: d.unit ? String(d.unit) : null,
+  source: d.source ? String(d.source) : null,
+  extensionRound: Number.isFinite(Number(d['extension-round'])) ? Number(d['extension-round']) : null,
+});
+const isEntry = (d) => d && typeof d === 'object' && (d.slug || d.slice);
+
 /** The roster of a 03-slice.md text: [{ slug, status, dependsOn, unit, source, extensionRound }]. */
 export function rosterEntries(text) {
   const s = split(String(text ?? ''));
   if (!s) return [];
-  return (entries(s.lines) ?? []).filter((e) => e.data && (e.data.slug || e.data.slice)).map((e) => ({
-    slug: String(e.data.slug ?? e.data.slice),
-    status: e.data.status ?? null,
-    dependsOn: (Array.isArray(e.data['depends-on']) ? e.data['depends-on'] : []).map(String),
-    unit: e.data.unit ? String(e.data.unit) : null,
-    source: e.data.source ? String(e.data.source) : null,
-    extensionRound: Number.isFinite(Number(e.data['extension-round'])) ? Number(e.data['extension-round']) : null,
-  }));
+  return (entries(s.lines) ?? []).map((e) => e.data).filter(isEntry).map(rosterEntry);
+}
+
+/** The roster of a workflow folder, in either layout, as rosterEntries gives it; [] when it has none. */
+export function rosterOf(dir) {
+  const slices = readDoc(dir, ROSTER_DOC)?.frontmatter?.slices;
+  return (Array.isArray(slices) ? slices : []).filter(isEntry).map(rosterEntry);
+}
+
+/**
+ * Set `fields` on the roster entry `slug` of a workflow folder, and write the roster into
+ * the record layout. Returns the new roster, or null when the roster has no such entry.
+ */
+export function setRosterEntry(dir, slug, fields) {
+  const doc = readDoc(dir, ROSTER_DOC);
+  const slices = doc?.frontmatter?.slices;
+  if (!Array.isArray(slices)) return null;
+  const at = slices.findIndex((d) => isEntry(d) && String(d.slug ?? d.slice) === slug);
+  if (at < 0) return null;
+  const next = slices.map((d, i) => (i === at ? { ...d, ...fields } : d));
+  writeDoc(dir, ROSTER_DOC, { frontmatter: { ...doc.frontmatter, slices: next }, body: doc.body });
+  return next.filter(isEntry).map(rosterEntry);
 }
 
 /**

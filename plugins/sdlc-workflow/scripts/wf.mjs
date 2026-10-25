@@ -16,7 +16,8 @@
  *             the frontmatter template of an artifact type, with every required field
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--json]
- *             record a decision; a live entry with the same key and scope is superseded
+ *             record a decision; a live entry with the same key and scope is superseded, and
+ *             each record that names it gets superseded-decisions.<old id>: <new id>
  *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
  *             the live entries in a scope (--all: every entry)
  *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
@@ -73,6 +74,9 @@
  *   record   list|where|migrate <root> <slug> [<old path>]
  *             the records of a workflow; the new place of an old path; move a workflow of
  *             the old layout into the record files, with redirects.yaml
+ *   record   evidence <root> <slug> [--check] [--json]
+ *             the size of the evidence; delete the oldest runs over the 200 MB cap (put does
+ *             this too), never the newest run (--check: say what it would delete)
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
@@ -90,9 +94,9 @@ import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, impor
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
-import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { progressLine, progressOf, writeProgress } from '../lib/progress.mjs';
-import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, listDocs, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
+import { pruneEvidence } from '../lib/evidence.mjs';
+import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
@@ -191,10 +195,8 @@ const STAGE_FILES = {
 const OLD_STAGE_FILE = { shape: '02-shape.md', handoff: '08-handoff.md' };
 const SLICE_STAGES = [['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']];
 
-function frontmatterOf(file) {
-  if (!existsSync(file)) return null;
-  return safeParseFrontmatter(readFileSync(file, 'utf8')).data ?? {};
-}
+// A record by its old file name, in either layout.
+const frontmatterOf = (dir, name) => frontmatterOfDoc(dir, name);
 
 const count = (v) => (Array.isArray(v) ? v.length : v && typeof v === 'object' ? Object.keys(v).length : 0);
 
@@ -240,22 +242,22 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   const summary = summaryOf(w, now);
   const stages = Object.entries(STAGE_FILES).map(([stage, names]) => {
     const files = names(summary.selectedSlice);
-    const fms = files.map((f) => frontmatterOf(join(dir, f)));
+    const fms = files.map((f) => frontmatterOf(dir, f));
     const at = fms.findLastIndex(Boolean);
     const fm = at < 0 ? null : fms[at];
     // A stage with a file still to write is in progress, whatever its first file says.
     const status = !fm ? null : at === files.length - 1 ? fm.status ?? null : 'in-progress';
     return { stage, file: at < 0 ? files[0] ?? null : files[at], files, present: !!fm, status, updatedAt: fm?.['updated-at'] ?? null };
   });
-  const sliceFm = frontmatterOf(join(dir, '03-slice.md'));
+  const sliceFm = frontmatterOf(dir, '03-slice.md');
   const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
     const name = typeof s === 'string' ? s : s?.slug;
     const row = { slice: name };
-    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(join(dir, `${prefix}-${name}.md`))?.status ?? null;
+    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, `${prefix}-${name}.md`)?.status ?? null;
     return row;
   });
   const current = OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
-  const currentFm = current ? frontmatterOf(join(dir, current)) : null;
+  const currentFm = current ? frontmatterOf(dir, current) : null;
   return {
     workflow: summary,
     stages,
@@ -334,7 +336,7 @@ export async function reconcileIndex(root, { write = true } = {}) {
     if (rows.has(slug)) continue;
     const [, , type, branch] = line.split('\t');
     const tree = type === 'prototype' && branch ? trees.get(branch) : null;
-    const fm = tree ? frontmatterOf(join(workflowDir(tree, slug), '00-index.md')) : null;
+    const fm = tree ? frontmatterOf(workflowDir(tree, slug), INDEX_NAME) : null;
     if (fm) rows.set(slug, rowOf(fm, slug));
   }
   const sorted = [...rows.keys()].sort((a, b) => a.localeCompare(b));
@@ -441,7 +443,9 @@ export function runDecide(pos, opt) {
         scope: scopeOf(opt), stage: opt.stage, source: opt.source,
         rewrote: opt.rewrote ? String(opt.rewrote).split(',').map((s) => s.trim()).filter(Boolean) : [],
       });
-      out(opt.json ? r : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`)].join('\n'));
+      // Each record that names a superseded entry gets a marker that names the new one.
+      const marked = markSuperseded(dir, r.superseded, r.entry.id);
+      out(opt.json ? { ...r, marked } : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...marked.map((n) => `marked ${n}`)].join('\n'));
       return 0;
     }
     case 'list': {
@@ -620,8 +624,8 @@ function fieldOf(arg) {
 
 function runRecord(pos, opt) {
   const [verb, root, slug, ...rest] = pos;
-  if (!['put', 'get', 'set', 'list', 'where', 'migrate'].includes(verb) || !root || !slug) {
-    throw new Error('record: <put|get|set|list|where|migrate> <root> <slug> are required');
+  if (!['put', 'get', 'set', 'list', 'where', 'migrate', 'evidence'].includes(verb) || !root || !slug) {
+    throw new Error('record: <put|get|set|list|where|migrate|evidence> <root> <slug> are required');
   }
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
@@ -630,9 +634,10 @@ function runRecord(pos, opt) {
       const drafts = rest.length ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : draftPath(dir, p))) : draftsOf(dir);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
       const results = drafts.map((p) => putDraft(dir, p));
-      out(opt.json ? results : results.map((r) => (r.errors.length
+      const ev = pruneEvidence(dir);
+      out(opt.json ? { results, pruned: ev.pruned } : results.map((r) => (r.errors.length
         ? `refused ${r.name}: ${r.errors.join('; ')}`
-        : `put ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`)).join('\n'));
+        : `put ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`)).concat(ev.pruned.map((p) => `pruned evidence ${p}`)).join('\n'));
       return results.some((r) => r.errors.length) ? 1 : 0;
     }
     case 'get': {
@@ -661,6 +666,12 @@ function runRecord(pos, opt) {
       if (!name) throw new Error('record where: <old path> is required');
       const to = redirectOf(name);
       out(to ?? `${name} keeps its place`);
+      return 0;
+    }
+    case 'evidence': {
+      const r = pruneEvidence(dir, { dryRun: Boolean(opt.check) });
+      const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
+      out(opt.json ? r : [`evidence ${mb(r.bytes)} of ${mb(r.cap)}, ${r.kept} run(s)`, ...r.pruned.map((p) => `${opt.check ? 'would prune' : 'pruned'} ${p}`)].join('\n'));
       return 0;
     }
     case 'migrate': {

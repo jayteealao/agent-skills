@@ -81,3 +81,29 @@ test('closesCycle: an edge that a path already reverses is a cycle; a new edge i
   assert.equal(R.closesCycle(roster, 's3', 's1'), false);
   assert.equal(R.closesCycle(roster, 's1', 'gone'), false);
 });
+
+test('rosterOf reads the roster of a folder in either layout; setRosterEntry writes the record layout', async () => {
+  const { mkdtempSync, rmSync, writeFileSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { readDoc } = await import('../../../lib/records.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'roster-'));
+  try {
+    assert.deepEqual(R.rosterOf(dir), []);
+    assert.equal(R.setRosterEntry(dir, 's1', { unit: 'W3' }), null, 'no roster, no edit');
+    writeFileSync(join(dir, '03-slice.md'), BLOCK);
+    assert.deepEqual(R.rosterOf(dir), R.rosterEntries(BLOCK), 'the old layout reads as rosterEntries reads its text');
+    assert.equal(R.setRosterEntry(dir, 'nope', { unit: 'W3' }), null);
+    const out = R.setRosterEntry(dir, 's2', { 'depends-on': ['s1', 'x1'] });
+    assert.deepEqual(out.find((e) => e.slug === 's2').dependsOn, ['s1', 'x1']);
+    assert.ok(existsSync(join(dir, 'slices.yaml')));
+    const doc = readDoc(dir, '03-slice.md');
+    assert.equal(doc.layout, 'yaml');
+    assert.equal(doc.frontmatter.updated, '2026-10-21', 'the other fields stay');
+    assert.match(doc.body, /# Slices/, 'the body stays');
+    assert.deepEqual(R.rosterOf(dir), out, 'the record layout wins on the next read');
+    R.setRosterEntry(dir, 'x1', { unit: 'W3' });
+    assert.equal(R.rosterOf(dir).find((e) => e.slug === 'x1').unit, 'W3');
+    assert.deepEqual(R.rosterOf(dir).find((e) => e.slug === 's2').dependsOn, ['s1', 'x1'], 'an edit of the record layout keeps the earlier edit');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

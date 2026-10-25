@@ -26,13 +26,13 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { expand } from '../components/_components.mjs';
-import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   DOC_FILE, LEDGER_FILE, MAX_COMMIT_FILE_BYTES, REPORT_FILE, SCRATCH_DIR,
   branchFor, buildReport, commitPlan, ledgerProblems, mediaKind, newLedger, openProofs, reportProblems,
 } from '../lib/prototype.mjs';
 import { validatePrototypeLedger } from '../lib/schema-validator.mjs';
 import { workflowRel, workflowsRoot } from '../lib/records-root.mjs';
+import { INDEX_NAME, META_FILE, STATE_FILE, hasDoc, locate as recordPlace, readDoc, setFields, writeDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: prototype.mjs <start|status|check|report|decide|exit|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -134,50 +134,55 @@ function upsertIndexRow(main, { slug, status, branch, at }) {
 
 // ---------------------------------------------------------------- the files
 
-function indexFile({ slug, idea, branch, baseBranch, worktree, status, at, next }) {
-  return [
-    '---',
-    'schema: sdlc/v1',
-    'type: workflow-index',
-    `slug: ${slug}`,
-    `title: ${JSON.stringify(`Prototype: ${idea}`)}`,
-    'workflow-type: prototype',
-    'current-stage: prototype',
-    `status: ${status}`,
-    'branch-strategy: dedicated',
-    `branch: ${branch}`,
-    `base-branch: ${baseBranch ?? 'null'}`,
-    `worktree: ${JSON.stringify(toPosix(worktree))}`,
-    'open-questions: []',
-    'next-command: wf-prototype',
-    `next-invocation: ${JSON.stringify(next)}`,
-    'progress:',
-    `  prototype: ${status === 'open' ? 'in-progress' : status}`,
-    `created-at: "${at}"`,
-    `updated-at: "${at}"`,
-    '---',
-    '',
-    `# Prototype: ${idea}`,
-    '',
-    `The person steers this prototype one round at a time. The proof ledger is \`${LEDGER_FILE}\`; the accepted pipeline is \`${DOC_FILE}\`; the rolling report is \`${REPORT_FILE}\`.`,
-    '',
-  ].join('\n');
+function indexRecord({ slug, idea, branch, baseBranch, worktree, status, at, next }) {
+  return {
+    frontmatter: {
+      schema: 'sdlc/v1',
+      type: 'workflow-index',
+      slug,
+      title: `Prototype: ${idea}`,
+      'workflow-type': 'prototype',
+      'current-stage': 'prototype',
+      status,
+      'branch-strategy': 'dedicated',
+      branch,
+      'base-branch': baseBranch ?? null,
+      worktree: toPosix(worktree),
+      'open-questions': [],
+      'next-command': 'wf-prototype',
+      'next-invocation': next,
+      progress: { prototype: status === 'open' ? 'in-progress' : status },
+      'created-at': at,
+      'updated-at': at,
+    },
+    body: [
+      `# Prototype: ${idea}`,
+      '',
+      `The person steers this prototype one round at a time. The proof ledger is \`${LEDGER_FILE}\`; the accepted pipeline is \`${DOC_FILE}\`; the rolling report is \`${REPORT_FILE}\`.`,
+      '',
+    ].join('\n'),
+  };
 }
 
-function docFile({ slug, idea, at }) {
+function docRecord({ slug, idea, at }) {
+  return {
+    frontmatter: {
+      schema: 'sdlc/v1',
+      type: 'prototype',
+      slug,
+      idea,
+      status: 'open',
+      ledger: LEDGER_FILE,
+      report: REPORT_FILE,
+      'created-at': at,
+      'updated-at': at,
+    },
+    body: docBody(idea),
+  };
+}
+
+function docBody(idea) {
   return [
-    '---',
-    'schema: sdlc/v1',
-    'type: prototype',
-    `slug: ${slug}`,
-    `idea: ${JSON.stringify(idea)}`,
-    'status: open',
-    `ledger: ${LEDGER_FILE}`,
-    `report: ${REPORT_FILE}`,
-    `created-at: "${at}"`,
-    `updated-at: "${at}"`,
-    '---',
-    '',
     `# ${idea}`,
     '',
     '## The accepted pipeline',
@@ -192,15 +197,35 @@ function docFile({ slug, idea, at }) {
 }
 
 function setIndexStatus(wt, slug, status, next) {
-  const p = join(wt, wfRel(slug), '00-index.md');
-  if (!existsSync(p)) return;
-  let text = readFileSync(p, 'utf8');
-  const at = nowIso();
-  text = text.replace(/^status: .*$/m, `status: ${status}`)
-    .replace(/^ {2}prototype: .*$/m, `  prototype: ${status === 'open' ? 'in-progress' : status}`)
-    .replace(/^updated-at: .*$/m, `updated-at: "${at}"`);
-  if (next) text = text.replace(/^next-invocation: .*$/m, `next-invocation: ${JSON.stringify(next)}`);
-  writeAtomic(p, text);
+  const dir = join(wt, wfRel(slug));
+  const index = readDoc(dir, INDEX_NAME)?.frontmatter;
+  if (!index) return;
+  const progress = index.progress && typeof index.progress === 'object' ? index.progress : {};
+  setFields(dir, INDEX_NAME, {
+    status,
+    progress: { ...progress, prototype: status === 'open' ? 'in-progress' : status },
+    'updated-at': nowIso(),
+    ...(next ? { 'next-invocation': next } : {}),
+  });
+}
+
+/**
+ * The paths of a commit plan, with each record path of the old layout mapped to the record
+ * file that holds it now: `00-index.md` is state.yaml and meta.yaml, `01-prototype.md` is
+ * intake.yaml. A record still in the old layout keeps its path.
+ */
+function recordPaths(wt, slug, paths) {
+  const rel = wfRel(slug);
+  const dir = join(wt, rel);
+  const out = [];
+  for (const p of paths) {
+    const name = p.startsWith(`${rel}/`) ? p.slice(rel.length + 1) : null;
+    const place = name && !name.includes('/') ? recordPlace(name) : null;
+    if (!place || existsSync(join(dir, name))) { out.push(p); continue; }
+    const files = name === INDEX_NAME ? [STATE_FILE, META_FILE] : [place.file];
+    for (const f of files) if (existsSync(join(dir, f))) out.push(`${rel}/${f}`);
+  }
+  return [...new Set(out)];
 }
 
 // ---------------------------------------------------------------- commands
@@ -212,7 +237,7 @@ function start(root, slug, f) {
   const top = git(root, ['rev-parse', '--show-toplevel']);
   if (!top.ok) throw new Error('not a git repository: a prototype runs in a worktree on its own branch');
   const main = mainCheckout(resolve(top.out));
-  if (existsSync(join(main, wfRel(slug), '00-index.md'))) throw new Error(`${workflowRel(slug)} exists in the main checkout: pick another slug`);
+  if (hasDoc(join(main, wfRel(slug)), INDEX_NAME)) throw new Error(`${workflowRel(slug)} exists in the main checkout: pick another slug`);
   const existing = locate(main, slug);
   if (existing) return { ok: true, resumed: true, slug, worktree: existing, ...summary(existing, slug) };
 
@@ -235,9 +260,9 @@ function start(root, slug, f) {
   mkdirSync(join(wt, SCRATCH_DIR), { recursive: true });
   if (!existsSync(join(wt, '.scratch', '.gitignore'))) writeFileSync(join(wt, '.scratch', '.gitignore'), '*\n');
   const next = `/wf loop prototype ${slug} <request>`;
-  if (!existsSync(join(dir, '00-index.md'))) writeFileSync(join(dir, '00-index.md'), indexFile({ slug, idea, branch, baseBranch, worktree: wt, status: 'open', at, next }));
+  if (!hasDoc(dir, INDEX_NAME)) writeDoc(dir, INDEX_NAME, indexRecord({ slug, idea, branch, baseBranch, worktree: wt, status: 'open', at, next }));
   if (!existsSync(ledgerPath(wt, slug))) saveLedger(wt, slug, newLedger({ slug, idea, branch, baseBranch, worktree: toPosix(wt), at }));
-  if (!existsSync(join(dir, DOC_FILE))) writeFileSync(join(dir, DOC_FILE), docFile({ slug, idea, at }));
+  if (!hasDoc(dir, DOC_FILE)) writeDoc(dir, DOC_FILE, docRecord({ slug, idea, at }));
   upsertIndexRow(main, { slug, status: 'open', branch, at });
   return { ok: true, resumed: false, slug, branch, reusedBranch: local || remote, baseBranch, worktree: wt, workflowDir: dir, scratch: join(wt, SCRATCH_DIR), next };
 }
@@ -299,8 +324,7 @@ function mediaReader(wt) {
 
 function buildAndWrite(wt, slug) {
   const ledger = readLedger(wt, slug);
-  const docPath = join(wt, wfRel(slug), DOC_FILE);
-  const doc = existsSync(docPath) ? (safeParseFrontmatter(readFileSync(docPath, 'utf8')).content ?? '') : '';
+  const doc = readDoc(join(wt, wfRel(slug)), DOC_FILE)?.body ?? '';
   const html = buildReport(ledger, {
     expand: (h) => expand(h, { componentsRoot: join(PLUGIN_ROOT, 'components'), maxDepth: 4 }),
     mediaFor: mediaReader(wt),
@@ -330,6 +354,7 @@ function decide(root, slug, decisionId, f) {
   if (problems.length) return { ok: false, slug, error: 'the ledger has problems: repair them before the commit', problems };
   const plan = commitPlan(ledger, decisionId, wfRel(slug));
   if (plan.error) return { ok: false, slug, error: plan.error };
+  plan.paths = recordPaths(wt, slug, plan.paths);
   const built = buildAndWrite(wt, slug);
 
   const refused = [];
@@ -371,7 +396,7 @@ function exitPrototype(root, slug, how) {
   setIndexStatus(wt, slug, statusOf, next);
   upsertIndexRow(mainCheckout(wt), { slug, status: statusOf, branch: ledger.branch, at: ledger['updated-at'] });
   const out = { ok: true, slug, status: statusOf, worktree: wt, branch: ledger.branch, next };
-  if (how === 'graduate') out.brief = join(wt, wfRel(slug), DOC_FILE);
+  if (how === 'graduate') out.brief = readDoc(join(wt, wfRel(slug)), DOC_FILE)?.path ?? join(wt, wfRel(slug), DOC_FILE);
   if (how === 'close') out.links = linksUnder(wt);
   return out;
 }

@@ -15,7 +15,7 @@ A sketch is an idea the person can drop tomorrow at no cost. The person confirms
 
 ## Step 0 additions
 
-1. **Read the design record**, as cheap reads: `PRODUCT.md`, `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. On a feature workflow, also read `02-shape.md`, `02b-design.md`, and `02c-craft.md` when they exist. A missing file is a gap to name in the first batch, not a stop. Each fact that bears on the idea becomes a finding with its source.
+1. **Read the design record**, as cheap reads: `PRODUCT.md`, `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. On a feature workflow, also read `02-shape.md`, `02b-design.md`, and `02c-craft.md` when they exist, with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` (per [_records.md](../../_records.md); exit 1 = absent). A missing file is a gap to name in the first batch, not a stop. Each fact that bears on the idea becomes a finding with its source.
 2. **Map the design space** as areas: the surfaces the idea touches; what the person does on each, step by step; layout and hierarchy; the design mode of each surface (Persuade, Operate, Read, or Experience), color, and type; motion and feedback; the states (empty, loading, error, first use); content and voice; and the fit with the identity, the current design, and the direction. Keep the problem side: what feels wrong today, where, and for whom.
 3. Write `focus: design` in the board and in the document frontmatter.
 
