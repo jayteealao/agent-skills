@@ -6,7 +6,7 @@
  *   node scripts/smoke-hosts.mjs [--host claude|codex|pi]... [--keep] [--json]
  *
  * A host passes when the status run exits 0 with output, and the intake run writes a
- * 00-index.md under .ai/workflows/. A host whose CLI is not on PATH is skipped. pi runs
+ * workflow index (state.yaml, or the old 00-index.md) under .ai/workflows/. A host whose CLI is not on PATH is skipped. pi runs
  * with no discovered extensions and this plugin's pi package only (the release passes the
  * installed package folder), so the person's pi settings do not change the result. The exit code is 1 when a host fails.
  */
@@ -16,6 +16,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workflowsRoot } from '../lib/records-root.mjs';
+import { INDEX_NAME, META_FILE, STATE_FILE } from '../lib/records.mjs';
+import { setupProject } from '../lib/setup.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const HOSTS = Object.freeze(['claude', 'codex', 'pi']);
@@ -46,6 +48,8 @@ export function makeFixture() {
   git('init', '-q', '-b', 'main');
   git('add', '-A');
   git('-c', 'user.name=smoke', '-c', 'user.email=smoke@example.invalid', 'commit', '-q', '-m', 'init');
+  // A set-up repo: the first /wf call in a new repo asks the setup questions, and a headless run has no one to answer.
+  setupProject(dir, { about: 'A small add module for the smoke flow' });
   return dir;
 }
 
@@ -58,11 +62,13 @@ function run(host, prompt, cwd, exec, piDir) {
   return exec(cmd, shell ? args.map(quote) : args, { cwd, shell, encoding: 'utf8', timeout: TIMEOUT_MS, windowsHide: true });
 }
 
-/** The indexes that the intake wrote. */
+/** The workflows that the intake wrote: an index as state.yaml and meta.yaml, or the old 00-index.md. */
 function indexesOf(dir) {
   const wf = workflowsRoot(dir);
   if (!existsSync(wf)) return [];
-  return readdirSync(wf, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(path.join(wf, e.name, '00-index.md'))).map((e) => e.name);
+  return readdirSync(wf, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && [STATE_FILE, META_FILE, INDEX_NAME].some((f) => existsSync(path.join(wf, e.name, f))))
+    .map((e) => e.name);
 }
 
 /** The smoke flow of one host. */
