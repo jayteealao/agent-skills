@@ -48,7 +48,7 @@ test('every reader reads a workflow of the record layout', async () => {
     const s = await statusOf(root, 'demo', Date.parse('2026-10-25T01:00:00Z'));
     assert.equal(s.workflow.stage, 'review');
     assert.equal(s.stages.find((x) => x.stage === 'intake').status, 'complete');
-    assert.deepEqual(s.slices, [{ slice: 'a', plan: 'complete', implement: 'complete', verify: 'complete', review: null }]);
+    assert.deepEqual(s.slices, [{ slice: 'a', roster: 'ready', plan: 'complete', implement: 'complete', verify: 'complete', review: null, result: 'pass', convergence: 'converged' }]);
     assert.equal(s.next.invocation, '/wf review demo a');
 
     const v = lifecycleDone(root, 'demo');

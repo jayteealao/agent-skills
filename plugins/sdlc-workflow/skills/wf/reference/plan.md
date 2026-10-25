@@ -152,7 +152,7 @@ Do this in order:
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all. Read their plan records. Run the cohesion check. Run the discovery phase once, for cross-cutting decisions. Write the draft of the master `04-plan.md` and put it.
 5. **Review-and-fix mode (any sub-mode):** see below.
 6. Evaluate adaptive routing. Write every viable option into frontmatter `recommended-routes`.
-7. Update the index with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`. Set `workflow-files` to the whole list, with every plan record added. Write the draft of each plan record and put it.
+7. Write the draft of each plan record and put it. Then record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> plan [<slice-slug>]`: with a slice for a plan of one slice, with no slice for a plan of every slice. It writes `current-stage`, `progress.plan`, `next-command`, `next-invocation` (the default route, `/wf implement <slug> <slice-slug>`) and adds the plan records to `workflow-files`. When you chose another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`.
 8. Rebuild the master `## Sibling Plans` table whenever a per-slice plan changes.
 
 # Review-and-fix mode

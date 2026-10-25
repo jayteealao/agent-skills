@@ -16,7 +16,8 @@ import { readStdinJson } from '../lib/stdin.mjs';
 export function runNotice(projectRoot, { now = Date.now() } = {}) {
   const runs = stoppedRuns(projectRoot, { now });
   if (!runs.length) return null;
-  return ['Stopped workflow runs:', ...runs.map((r) => `- ${r.slug}: ${r.line}`)].join('\n');
+  // `status --brief` prints where each one stands: the stage, the step, the questions, the next command.
+  return ['Stopped workflow runs:', ...runs.map((r) => `- ${r.slug}: ${r.line}`), 'Run `wf.mjs status <root> <slug> --brief` for where a workflow stands.'].join('\n');
 }
 
 async function main() {

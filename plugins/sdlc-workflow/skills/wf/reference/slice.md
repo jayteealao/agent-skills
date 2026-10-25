@@ -105,7 +105,7 @@ Do this in order:
 7. **Write one draft `.ai/workflows/<slug>/.draft/03-slice-<slice-slug>.md` per slice** (template below).
 8. **Write the draft of the master `03-slice.md`** (template below) with links to every per-slice record. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
-10. Update the index with the recommended default option in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`. Set `workflow-files` to the whole list, with every slice record added.
+10. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> slice`. It writes `current-stage`, `progress.slice`, `next-command`, `next-invocation` (the default route, `/wf plan <slug> <best-first-slice>`) and adds every slice record to `workflow-files`. When the recommended default option is another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`.
 
 # Adaptive routing
 

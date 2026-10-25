@@ -47,6 +47,8 @@ export const meta = {
 //                 with --by delegate, and the run asks nothing
 //   host          (optional, default 'claude') the host that runs this script: 'claude' (the
 //                 Workflow tool), 'pi' (pi-subagents' workflow runner) or 'codex' (wf.mjs drive)
+//   runId         (optional) the run id of this run, from a caller that has a clock (wf.mjs
+//                 drive); absent, the orient agent mints one
 // args may arrive as a JSON object or — depending on how the caller encodes the
 // Workflow invocation — as a JSON string. Tolerate both so a stringified payload
 // doesn't silently fail the object check (the Workflow runtime can hand a
@@ -60,6 +62,7 @@ const { projectRoot, referenceRoot, slug } = OPT
 const slice = OPT.slice && String(OPT.slice).trim() ? String(OPT.slice).trim() : null
 const DELEGATE = OPT.delegate === true
 const HOST = ['claude', 'pi', 'codex'].includes(OPT.host) ? OPT.host : 'claude'
+const GIVEN_RUN_ID = typeof OPT.runId === 'string' && /^[A-Za-z0-9._-]{1,120}$/.test(OPT.runId.trim()) ? OPT.runId.trim() : null
 // The answers that the main session recorded since the last run. Each reaches the stage that asked it.
 const ANSWERED = (Array.isArray(OPT.answered) ? OPT.answered : []).filter(a => a && typeof a === 'object' && String(a.answer || '').trim())
 for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
@@ -1344,7 +1347,8 @@ async function orient() {
     `git as \`git -C ${projectRoot} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
     `0. Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` first. It reads the records in code: the stage ` +
-    `files of each slice, the run record and the next command. Use its values where a step below names the same ` +
+    `files of each slice, the roster status, the verify result and the convergence of each slice (slices[]), the ` +
+    `run record and the next command. Use its values where a step below names the same ` +
     `fact, and read a record only for a fact that the output lacks. Read a record with \`${REC('get')} <name>\` ` +
     `(exit 1 = the record is absent), and list the records with \`${REC('list')}\`. A record name such as ` +
     `03-slice.md is not a file path.\n` +
@@ -1376,9 +1380,12 @@ async function orient() {
 ` +
     `   Report the entries only. The driver computes the liveness verdict from them in code.
 ` +
-    `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
-    `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n` +
-    `2. Read the roster: run \`${REC('get')} 03-slice.md\`. Capture EVERY slice slug in roster ` +
+    (GIVEN_RUN_ID
+      ? `1c. The runId of THIS run is '${GIVEN_RUN_ID}'. Report it as runId; do not mint another.\n`
+      : `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
+        `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n`) +
+    `2. Read the roster from the slices[] of the status output (slice, roster). Run \`${REC('get')} 03-slice.md\` ` +
+    `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
     `skipped) as slices[].status — capture 'skipped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
@@ -2571,7 +2578,7 @@ if (!idx) {
 }
 // W1 — adopt the runId orient minted (this script has no clock of its own) so every
 // later heartbeat is attributable to THIS run.
-RUN_ID = (idx.runId && String(idx.runId).trim()) || `run-${slug}`
+RUN_ID = GIVEN_RUN_ID || (idx.runId && String(idx.runId).trim()) || `run-${slug}`
 // W1.2/W1.3 — say what the PREVIOUS driver's journal shows, before anything else.
 // Silence is the finding: a driver that died leaves a journal that simply stops, and
 // the whole point is that this is now stated rather than inferred away.

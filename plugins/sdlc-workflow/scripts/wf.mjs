@@ -40,7 +40,10 @@
  *             person's no to the close question, so it is not asked again)
  *   status   <root> [<slug>] [--json]
  *             every workflow with its group and next command; with a slug, its stage files,
- *             slices, cost and next routes
+ *             slices (with the verify result and the convergence), cost and next routes
+ *   status   <root> <slug> --brief [--json]
+ *             where the workflow stands, in one block under 2 KB: the stage and the slice, step
+ *             n of N, the open questions and deferrals, the last driver run, the next command
  *   index    <root> [--check]
  *             rebuild .ai/workflows/INDEX.md from the 00-index.md files
  *   cost     <root> <slug> [--json]
@@ -106,13 +109,19 @@
  *   record   put <root> <slug> [<draft>...] [--json]
  *             check each draft (.draft/<old name>.md, or every draft) and write it into its
  *             section of the record files; a draft with errors stays, and exit 1
- *   record   get <root> <slug> <name|index> [--json]
- *             one record, by its old file name, as Markdown with frontmatter (either layout)
+ *   record   get <root> <slug> <name|index>... [--fields a,b] [--json]
+ *             records by their old file names, as Markdown with frontmatter (either layout);
+ *             several names in one call; --fields prints only those frontmatter fields
  *   record   draft <root> <slug> <name|index> [--json]
  *             write one record as its draft (.draft/<old name>.md) to change its body: edit the
  *             draft, then run record put
- *   record   set <root> <slug> <name|index> <key=value>...
- *             merge fields into one record; a value reads as YAML, null deletes the field
+ *   record   set <root> <slug> <name|index> <path=value>...
+ *             merge fields into one record; a value reads as YAML, null deletes the field.
+ *             Paths: field=v, a.b=v, list[<slug>].field=v, list[0].field=v, list+=v, list-=v.
+ *             A value outside the enum of the schema is refused with the allowed values
+ *   record   stage-done <root> <slug> <stage> [<slice>] [--next "<invocation>"] [--status s]
+ *             the end of a stage in the index: current-stage, progress.<stage>, next-command,
+ *             next-invocation (the default route of the stage, or --next) and workflow-files
  *   record   list|where|migrate <root> <slug> [<old path>]
  *             the records of a workflow; the new place of an old path; move a workflow of
  *             the old layout into the record files, with redirects.yaml
@@ -151,7 +160,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
@@ -161,9 +170,10 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
-import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, noteMessage, readOutbox } from '../lib/github-layer.mjs';
-import { commitWorkflow, healthLine, linkProject, liveRef, logRecordsFailure, machineName, productRepoGapLines, productRepoGaps, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
-import { claimLease, heldBefore, leaseLostLine, otherLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
+import { afterChange, inBackground } from '../lib/after-change.mjs';
+import { healthLine, linkProject, liveRef, logRecordsFailure, machineName, productRepoGapLines, productRepoGaps, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
+import { claimLease, heldBefore, leaseLostLine, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
@@ -172,12 +182,14 @@ import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts }
 import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
-import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
+import { checkDeferrals, deferralLine, openDeferrals } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
-import { progressLine, progressOf, readProgress, writeProgress } from '../lib/progress.mjs';
+import { progressLine, progressOf, readDriverOutcome, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
+import { PATH_FORMS, applySet, enumAt, parseSetArg } from '../lib/record-path.mjs';
+import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, gitSteps, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -204,7 +216,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run'].includes(name)) opt[name] = true;
       else {
         const { value, repaired } = undoGitBashPath(argv[(i += 1)]);
         if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
@@ -229,7 +241,7 @@ async function runDrive(pos, opt) {
   const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
   if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
   const args = {
-    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', models: staged.models, recordsRoot: staged.recordsRoot,
+    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
     ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate ? { delegate: true } : {}),
   };
   const r = await driveScript({
@@ -238,6 +250,11 @@ async function runDrive(pos, opt) {
     timeoutMs: opt['time-box'] ? Number(opt['time-box']) * 60_000 : undefined,
     say: (line) => process.stderr.write(`[drive ${run}] ${line}\n`),
   });
+  // The outcome stays on this machine for `status --brief`.
+  try {
+    const o = r.result ?? {};
+    writeDriverOutcome(join(wfRoot(projectRoot), slug), { run, driver: 'yolo', host: 'codex', ok: Boolean(o.ok), status: o.ok ? 'done' : o.questions?.length ? 'waiting' : 'stopped', stoppedAt: o.stoppedAt ?? null, reason: o.reason ?? null, route: o.route ?? null, questions: Array.isArray(o.questions) ? o.questions.length : 0 });
+  } catch { /* status --brief then shows the progress record only */ }
   out(opt.json ? { run, runDir, ...r } : { run, outcome: r.result, agents: r.totals.agents, failed: r.totals.failed, usage: r.totals.usage });
   return r.result && r.result.ok ? 0 : 3;
 }
@@ -291,28 +308,8 @@ async function runDispatch(pos, opt) {
 
 // ---------------------------------------------------------------- status
 
-// The nine stages and the files each one writes, in order. Intake writes the brief and the
-// shape; ship writes the PR package, then its runs.
-const STAGE_FILES = {
-  intake: () => ['01-intake.md', '02-shape.md'],
-  design: () => ['02c-craft.md'],
-  slice: () => ['03-slice.md'],
-  plan: (s) => (s ? [`04-plan-${s}.md`] : []),
-  implement: (s) => (s ? [`05-implement-${s}.md`] : []),
-  verify: (s) => (s ? [`06-verify-${s}.md`] : []),
-  review: (s) => (s ? [`07-review-${s}.md`] : []),
-  ship: () => ['08-handoff.md', '09-ship-runs.md'],
-  retro: () => ['10-retro.md'],
-};
-// A small-path workflow keeps one note for intake, implement and verify.
-const SMALL_STAGE_FILES = {
-  intake: () => ['01-small.md'],
-  review: () => ['07-review.md'],
-  ship: () => ['08-handoff.md', '09-ship-runs.md'],
-};
 // An index of an older workflow names a stage that is now a phase of another stage.
 const OLD_STAGE_FILE = { shape: '02-shape.md', handoff: '08-handoff.md' };
-const SLICE_STAGES = [['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']];
 
 // A record by its old file name, in either layout.
 const frontmatterOf = (dir, name) => frontmatterOfDoc(dir, name);
@@ -372,8 +369,12 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   const sliceFm = frontmatterOf(dir, '03-slice.md');
   const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
     const name = typeof s === 'string' ? s : s?.slug;
-    const row = { slice: name };
+    const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
     for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, `${prefix}-${name}.md`)?.status ?? null;
+    // The verify result and its convergence, so a reader needs no loop over the verify records.
+    const v = frontmatterOf(dir, `06-verify-${name}.md`);
+    row.result = v?.result ?? null;
+    row.convergence = v?.convergence ?? null;
     return row;
   });
   const current = small ? '01-small.md' : OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
@@ -402,9 +403,60 @@ function statusText(s) {
   const lines = [`${s.workflow.slug}: ${s.workflow.status} at ${s.workflow.stage ?? '-'}`];
   if (s.workflow.progress) lines.push(`run: ${progressLine(s.workflow.progress)}`);
   for (const st of s.stages) if (st.present) lines.push(`  ${st.file}\t${st.status ?? '-'}`);
-  for (const sl of s.slices) lines.push(`  slice ${sl.slice}\t${SLICE_STAGES.map(([k]) => `${k}=${sl[k] ?? '-'}`).join(' ')}`);
+  for (const sl of s.slices) lines.push(`  slice ${sl.slice}\t${SLICE_STAGES.map(([k]) => `${k}=${sl[k] ?? '-'}`).join(' ')}${sl.result ? ` result=${sl.result}${sl.convergence ? ` convergence=${sl.convergence}` : ''}` : ''}`);
   lines.push(`next: ${s.next.invocation ?? '-'}`);
   return lines.join('\n');
+}
+
+const BRIEF_MAX = 2000;
+const clip = (s, n = 200) => (String(s).length > n ? `${String(s).slice(0, n - 1)}…` : String(s));
+const few = (list, n = 5) => `${list.slice(0, n).join(', ')}${list.length > n ? ` and ${list.length - n} more` : ''}`;
+
+/**
+ * Where a workflow stands, in one block: the stage and the slice, step n of N, the open
+ * questions, the open deferrals, the last driver run on this machine, and the next command.
+ * `status --brief` prints it, and `wf.status.summary()` of the library returns it.
+ */
+export async function statusBrief(root, slug) {
+  const s = await statusOf(root, slug);
+  if (s.error) return { error: s.error };
+  const dir = join(wfRoot(root), s.workflow.slug);
+  const index = frontmatterOf(dir, INDEX_NAME) ?? {};
+  const slice = s.workflow.selectedSlice ?? lastSlice(dir);
+  let step = null;
+  if (slice && frontmatterOf(dir, `04-plan-${slice}.md`)) {
+    const w = whereOf(dir, slice, stepGit(root, dir));
+    step = { slice, done: w.done.length, total: w.total, next: w.next?.n ?? null, current: w.current?.n ?? null, complete: w.complete, line: whereLine(w) };
+  }
+  const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key ?? q?.question ?? JSON.stringify(q)));
+  const deferrals = openDeferrals(dir).map((d) => d.id ?? d.ac ?? d.slice ?? 'deferral');
+  const outcome = readDriverOutcome(dir);
+  const progress = s.workflow.progress;
+  return {
+    slug: s.workflow.slug,
+    status: s.workflow.status,
+    stage: s.workflow.stage,
+    slice,
+    step,
+    slices: s.slices.map((x) => ({ slice: x.slice, roster: x.roster, result: x.result, convergence: x.convergence })),
+    openQuestions: questions,
+    openDeferrals: deferrals,
+    lastRun: outcome ?? (progress ? { run: progress.run ?? null, driver: progress.driver ?? null, status: progress.state ?? progress.status ?? null, reason: progress.reason ?? null, resume: progress.resume ?? null } : null),
+    next: s.next.invocation ?? null,
+  };
+}
+
+export function briefText(b) {
+  if (b.error) return b.error;
+  const lines = [`${b.slug}: ${b.status ?? '?'} at ${b.stage ?? '-'}${b.slice ? `, slice ${b.slice}` : ''}`];
+  if (b.step) lines.push(`step: ${b.step.done} of ${b.step.total} done; ${clip(b.step.line)}`);
+  if (b.slices.length) lines.push(`slices: ${few(b.slices.map((x) => `${x.slice}=${x.result ?? x.roster ?? '-'}`), 8)}`);
+  if (b.openQuestions.length) lines.push(clip(`questions: ${b.openQuestions.length} open: ${few(b.openQuestions)}`));
+  if (b.openDeferrals.length) lines.push(clip(`deferrals: ${b.openDeferrals.length} open: ${few(b.openDeferrals)}`));
+  if (b.lastRun) lines.push(clip(`last run: ${b.lastRun.driver ?? 'run'} ${b.lastRun.run ?? ''} ${b.lastRun.status ?? ''}${b.lastRun.stoppedAt ? ` at ${b.lastRun.stoppedAt}` : ''}${b.lastRun.reason ? `: ${b.lastRun.reason}` : ''}${b.lastRun.resume ? `; resume: ${b.lastRun.resume}` : ''}`.replace(/\s+/g, ' ')));
+  lines.push(clip(`next: ${b.next ?? '-'}`));
+  const text = lines.join('\n');
+  return text.length > BRIEF_MAX ? `${text.slice(0, BRIEF_MAX - 1)}…` : text;
 }
 
 // ---------------------------------------------------------------- index
@@ -829,10 +881,40 @@ export function fieldOf(arg) {
   return [arg.slice(0, at), value];
 }
 
+/**
+ * Apply the path forms of `record set` to one record (lib/record-path.mjs). A value outside the
+ * enum of the schema is refused with the allowed values. Returns `{ frontmatter, keys }`.
+ */
+export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
+  const doc = readDoc(dir, name);
+  if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
+  const schema = schemaOf();
+  const def = defOfType(schema, doc.frontmatter.type ?? (name === INDEX_NAME ? 'index' : null));
+  const fm = structuredClone(doc.frontmatter);
+  const changes = args.map((a) => (typeof a === 'string'
+    ? parseSetArg(a, { onRepair: (k, v) => process.stderr.write(`wf.mjs: ${k} began with the Git install path, which Git Bash put in front of /wf; it is set to ${v}\n`) })
+    : a));
+  for (const c of changes) {
+    const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
+    if (allowed && !allowed.includes(c.value)) {
+      throw new Error(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`);
+    }
+    applySet(fm, c);
+  }
+  const top = [...new Set(changes.map((c) => c.path[0].key))];
+  const written = setFields(dir, name, Object.fromEntries(top.map((k) => [k, fm[k] ?? null])));
+  return { frontmatter: written, keys: changes.map((c) => c.key) };
+}
+
+const RECORD_VERBS = ['put', 'get', 'draft', 'set', 'stage-done', 'list', 'where', 'migrate', 'evidence'];
+
+/** The frontmatter fields `keys` of a record; a missing field reads as null. */
+const pick = (fm, keys) => Object.fromEntries(keys.map((k) => [k, k.split('.').reduce((v, p) => (v == null ? undefined : v[p]), fm) ?? null]));
+
 function runRecord(pos, opt) {
   const [verb, root, slug, ...rest] = pos;
-  if (!['put', 'get', 'draft', 'set', 'list', 'where', 'migrate', 'evidence'].includes(verb) || !root || !slug) {
-    throw new Error('record: <put|get|draft|set|list|where|migrate|evidence> <root> <slug> are required');
+  if (!RECORD_VERBS.includes(verb) || !root || !slug) {
+    throw new Error(`record: <${RECORD_VERBS.join('|')}> <root> <slug> are required`);
   }
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
@@ -853,12 +935,31 @@ function runRecord(pos, opt) {
       return results.some((r) => r.errors.length) ? 1 : 0;
     }
     case 'get': {
-      const [name] = rest;
-      if (!name) throw new Error('record get: <name> is required');
-      const doc = readDoc(dir, recordName(name));
-      if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
-      if (opt.json) out(doc);
-      else process.stdout.write(`---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
+      if (!rest.length) throw new Error('record get: <name> is required');
+      // Several names read in one call; --fields a,b prints only those frontmatter fields.
+      const keys = opt.fields ? String(opt.fields).split(',').map((k) => k.trim()).filter(Boolean) : null;
+      const docs = rest.map((name) => ({ name, doc: readDoc(dir, recordName(name)) }));
+      const missing = docs.filter((d) => !d.doc);
+      for (const d of missing) process.stderr.write(`wf.mjs: ${noRecord(d.name, slug, dir)}\n`);
+      const found = docs.filter((d) => d.doc);
+      const view = (d) => (keys ? pick(d.doc.frontmatter ?? {}, keys) : d.doc);
+      const many = rest.length > 1;
+      if (opt.json) out(many ? Object.fromEntries(found.map((d) => [recordName(d.name), view(d)])) : found[0] ? view(found[0]) : null);
+      else {
+        for (const d of found) {
+          if (many) process.stdout.write(`==> ${recordName(d.name)} <==\n`);
+          if (keys) process.stdout.write(stringifyYaml(view(d)));
+          else process.stdout.write(`---\n${stringifyYaml(d.doc.frontmatter ?? {})}\n---\n${d.doc.body ?? ''}`);
+          if (many) process.stdout.write('\n');
+        }
+      }
+      return missing.length ? 1 : 0;
+    }
+    case 'stage-done': {
+      const [stage, slice] = rest;
+      if (!stage) throw new Error(`record stage-done: <stage> is required; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
+      const changes = stageDone(dir, slug, stage, slice ?? null, { next: opt.next ?? null, status: opt.status ?? null });
+      out(opt.json ? changes : `${stage}${slice ? ` ${slice}` : ''} done: progress.${stage}=${changes[`progress.${stage}`]}; next ${changes['next-invocation']}`);
       return 0;
     }
     case 'draft': {
@@ -876,9 +977,9 @@ function runRecord(pos, opt) {
     }
     case 'set': {
       const [name, ...fields] = rest;
-      if (!name || !fields.length) throw new Error('record set: <name> <key=value>... are required');
-      const fm = setFields(dir, recordName(name), Object.fromEntries(fields.map(fieldOf)));
-      out(opt.json ? fm : `set ${fields.map((f) => f.split('=')[0]).join(', ')} in ${recordName(name)}`);
+      if (!name || !fields.length) throw new Error(`record set: <name> <key=value>... are required. The forms are: ${PATH_FORMS}`);
+      const r = setRecordPaths(dir, recordName(name), fields, { slug });
+      out(opt.json ? r.frontmatter : `set ${r.keys.join(', ')} in ${recordName(name)}`);
       return 0;
     }
     case 'list': {
@@ -1033,14 +1134,6 @@ function leaseAtDispatch(projectRoot, slug, host) {
   return `lease-held: ${slug} (${c.reason ?? 'another machine claimed it at the same time'})`;
 }
 
-function inBackground(args) {
-  // SDLC_RECORDS_FOREGROUND=1 runs the step in this process's time, for tests.
-  if (process.env.SDLC_RECORDS_FOREGROUND === '1') { spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { stdio: 'ignore', windowsHide: true }); return; }
-  try {
-    spawn(process.execPath, [fileURLToPath(import.meta.url), ...args], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
-  } catch { /* the next sync pushes it */ }
-}
-
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
   if (!root) throw new Error('records: <link|status|sync|push|close> <root> are required');
@@ -1171,7 +1264,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'stage-done', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -1243,25 +1336,11 @@ export async function main(argv = process.argv.slice(2)) {
   const code = await runMain(cmd, pos, opt);
   const target = code === 0 ? changed(cmd, pos, opt) : null;
   if (target) {
-    // The GitHub layer mirrors the change; a failure here never fails the command.
     const [root, slug] = [resolve(target[0]), target[1]];
-    try {
-      if (cmd === 'decide' && opt.answer) noteAnswer(root, slug, { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null });
-      else noteChange(root, slug);
-    } catch (e) { process.stderr.write(`wf.mjs: the GitHub layer did not queue the change: ${e.message}\n`); }
-    // A linked project commits the records at each step and stage boundary, and pushes them in
-    // the background. A closed workflow is squashed onto the main branch.
-    try {
-      const c = commitWorkflow(root, slug, `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim());
-      for (const f of c?.conflicts ?? []) process.stderr.write(`wf.mjs: records-warning: the local copy of ${slug}/${f} differs from the clone copy; it is kept in .ai/workflows/.conflicts/${slug}/\n`);
-      // The lease ref of the last sync names another machine: this session must stop writing.
-      const other = c ? otherLease(root, slug) : null;
-      if (other) process.stderr.write(`wf.mjs: ${leaseLostLine(slug, other)}. Stop the stage: another computer writes this workflow now.\n`);
-      if (c) {
-        const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
-        inBackground(['records', TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', root, slug]);
-      }
-    } catch (e) { process.stderr.write(`wf.mjs: the records commit failed: ${e.message}\n`); }
+    afterChange(root, slug, {
+      label: `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim(),
+      answer: cmd === 'decide' && opt.answer ? { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null } : null,
+    });
   }
   return code;
 }
@@ -1318,6 +1397,12 @@ async function runMain(cmd, pos, opt) {
       case 'status': {
         const [root, slug] = pos;
         if (!root) throw new Error('status: <root> is required');
+        if (opt.brief) {
+          if (!slug) throw new Error('status --brief: <slug> is required');
+          const b = await statusBrief(resolve(root), slug);
+          out(opt.json ? b : briefText(b));
+          return b.error ? 1 : 0;
+        }
         const s = await statusOf(resolve(root), slug ?? null);
         out(opt.json ? s : statusText(s));
         return s.error ? 1 : 0;

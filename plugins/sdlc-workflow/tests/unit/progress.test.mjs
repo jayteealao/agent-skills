@@ -69,7 +69,7 @@ test('stoppedRuns and the notice: dead and stopped runs of the last 7 days only'
     assert.equal(runNotice(f.root), null);
     writeProgress(f.dir, { run: 'r1', stage: 'verify', slice: 'api', status: 'stopped', reason: 'a question', resume: '/wf yolo demo' }, { now: at(0) });
     assert.deepEqual(stoppedRuns(f.root, { now: T0 + 60000 }), [{ slug: 'demo', line: 'stopped at verify api: a question. Resume with /wf yolo demo' }]);
-    assert.equal(runNotice(f.root, { now: T0 + 60000 }), 'Stopped workflow runs:\n- demo: stopped at verify api: a question. Resume with /wf yolo demo');
+    assert.equal(runNotice(f.root, { now: T0 + 60000 }), 'Stopped workflow runs:\n- demo: stopped at verify api: a question. Resume with /wf yolo demo\nRun `wf.mjs status <root> <slug> --brief` for where a workflow stands.');
     assert.deepEqual(stoppedRuns(f.root, { now: T0 + 8 * 86400000 }), []);
   } finally { f.done(); }
 });

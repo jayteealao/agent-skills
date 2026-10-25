@@ -40,7 +40,29 @@ export function writeProgress(slugDir, change, { now = nowIso() } = {}) {
   const file = join(slugDir, PROGRESS_FILE);
   writeFileSync(`${file}.tmp`, `${JSON.stringify(next, null, 2)}\n`);
   renameSync(`${file}.tmp`, file);
+  // The end of a driver run (its last `progress set`) saves the outcome on this machine.
+  if (next.driver && change.status && change.status !== 'running') {
+    writeDriverOutcome(slugDir, { run: next.run ?? null, driver: next.driver, status: next.status, stage: next.stage ?? null, slice: next.slice ?? null, reason: next.reason ?? null, resume: next.resume ?? null }, { now });
+  }
   return next;
+}
+
+/** The outcome of the last driver run on this machine; it stays local (lib/records-root.mjs). */
+export const OUTCOME_FILE = '.driver-outcome.json';
+
+/** Merge `outcome` into the saved outcome of the run; a new run replaces the old outcome. */
+export function writeDriverOutcome(slugDir, outcome, { now = nowIso() } = {}) {
+  const old = readDriverOutcome(slugDir);
+  const base = old && old.run === (outcome.run ?? old.run) ? old : {};
+  const next = { ...base, ...Object.fromEntries(Object.entries(outcome).filter(([, v]) => v !== undefined)), at: now };
+  const file = join(slugDir, OUTCOME_FILE);
+  writeFileSync(`${file}.tmp`, `${JSON.stringify(next, null, 2)}\n`);
+  renameSync(`${file}.tmp`, file);
+  return next;
+}
+
+export function readDriverOutcome(slugDir) {
+  try { return JSON.parse(readFileSync(join(slugDir, OUTCOME_FILE), 'utf8')); } catch { return null; }
 }
 
 // The newest `at` of the driver journal, or NaN.

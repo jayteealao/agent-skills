@@ -220,12 +220,7 @@ Write the whole draft on every run, also when the record exists. Keep only `crea
 
 # Step 6: Update Index and Return
 
-1. Update the index with one `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...` call:
-   - `current-stage=review`, `status=active`, `progress.review=complete` (stays `complete` on every accumulating re-run)
-   - Add review artifacts to `workflow-files` (idempotent — do not duplicate entries a prior run already added). Set the whole list: the entries of the index plus the new ones.
-     - **Slug-wide**: add `07-review.md` and `findings.yaml`. Leave any prior per-slice review files in `workflow-files`.
-     - **Per-slice**: add `07-review-<slice-slug>.md` and `findings.yaml` (do NOT remove sibling slices' review files).
-   - Set `next-command` and `next-invocation` from the default route.
+1. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> review [<slice-slug>]`: with no slice for a slug-wide review, with the slice for a per-slice review. It writes `current-stage=review`, `progress.review=complete` (also on every accumulating re-run), `next-command` and `next-invocation`, and adds the review record and `findings.yaml` to `workflow-files` once. The default route is the plan of the next open slice, else `/wf ship <slug>`. When the verdict asks for another route (Option B, C, E or F below), add `--next "<invocation>"`. Then set `status=active` with `record set "<root>" <slug> index status=active`.
 2. Return the compact chat summary with verdict and options.
 
 # Adaptive routing — evaluate what's actually next

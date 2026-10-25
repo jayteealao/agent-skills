@@ -74,6 +74,9 @@ Scout, classifier, and bookkeeping agents give no event.
   1. the `look-in` event, as JSON;
   2. the newest note in `commentary.md`, so it knows what the person heard last;
   3. this read list, for each agent in `running`:
+     - where the workflow stands: `node "<pluginRoot>/skills/wf/scripts/wf.mjs" status "<projectRoot>" <slug> --brief`;
+     - the step of the slice: `node "<pluginRoot>/skills/wf/scripts/wf.mjs" step where "<projectRoot>" <slug> <slice>`;
+     - the run record: `node "<pluginRoot>/skills/wf/scripts/wf.mjs" progress show "<projectRoot>" <slug>`;
      - the newest 40 lines of its `journal`;
      - the commits since the newest note (`git -C <root> log --since "<the note's time>" --oneline`);
      - the changed files (`git -C <root> status --short`);
