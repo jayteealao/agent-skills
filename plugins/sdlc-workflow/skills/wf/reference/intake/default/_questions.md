@@ -12,7 +12,19 @@ Ask freeform questions covering the areas below. 2–5 is typical, but the count
 - **stack confirmation** (always include this): summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Record the corrections in the person's exact words with `decide add` per [_decisions.md](../../_decisions.md). After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. In the same question, state the `ux-impact` value in plain words ("This changes how people use `<surface>`, so a design step runs after shape — right?") and set `ux-impact-confirmed: true` after the answer. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage; that conversation belongs in shape.
 
 **Batch A — Structured process questions (gate questions — asked AFTER Batch B):**
-Ask these as gate questions per [_gate-question.md](../../_gate-question.md) (adjust based on what is already known from `$ARGUMENTS` and Batch B):
+Ask these as gate questions per [_gate-question.md](../../_gate-question.md) (adjust based on what is already known from `$ARGUMENTS` and Batch B). Ask Question 0 first and alone. No size check answers it for the person.
+```
+Question 0:
+  question: "Which path should this work take?"
+  header: "Path"
+  options:
+    - label: "Full lifecycle"
+      description: "Shape, slices and a plan, then implement, verify, review and ship."
+    - label: "Small path"
+      description: "Implement and verify now, one commit on <checked-out branch>, one note. Review and ship only if you want a PR."
+  multiSelect: false
+```
+Put "(Recommended)" on the small path only when the Batch B answers name one outcome, at most three files and no open question. Record the answer with `decide add --stage intake --key path`. When the person chose the small path, ask no other Batch A question: load [intake/small.md](../small.md) and run it now. It replaces Steps 6 to 10 of `intake/default.md` and the shape phase.
 ```
 Question 1:
   question: "What branch strategy should this workflow use?"

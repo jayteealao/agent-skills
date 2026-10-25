@@ -137,7 +137,7 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 Do this in order:
 1. Parse the request and derive the workflow slug.
 2. Create `.ai/workflows/<slug>/` directory. Write the draft `.ai/workflows/<slug>/.draft/00-index.md` using the index template in `intake/default/_artifact.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The first `decide add` creates `decisions.yaml`.
-3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: **substance first (Batch B), process second (Batch A)**. Batch B is freeform (outcome, success criteria, non-goals, constraints, stack confirmation). Batch A asks the branch-strategy and appetite gate questions; review scope is not asked at intake.
+3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: **substance first (Batch B), process second (Batch A)**. Batch B is freeform (outcome, success criteria, non-goals, constraints, stack confirmation). Batch A asks the path question first, then the branch-strategy and appetite gate questions; review scope is not asked at intake. When the person takes the small path, [intake/small.md](small.md) runs the rest of this run, and the steps below do not run.
 4. Record ALL answers (structured + freeform) with `decide add` per [_decisions.md](../_decisions.md).
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. **Draft** the intake brief without designing the implementation (steps 6a–6c refine it before it is written to disk in Step 9). When the request implies a core loop, state it as NUMBERED STEPS in `## Restated Request`; shape derives the Charter Scenario from it.

@@ -211,7 +211,7 @@
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
             "docs", "discover", "standard", "adopt", "task", "audit", "brainstorm",
-            "optimize", "prototype"
+            "optimize", "prototype", "small"
           ]
         },
         "public-surface": {},

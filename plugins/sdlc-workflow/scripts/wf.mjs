@@ -191,6 +191,12 @@ const STAGE_FILES = {
   ship: () => ['08-handoff.md', '09-ship-runs.md'],
   retro: () => ['10-retro.md'],
 };
+// A small-path workflow keeps one note for intake, implement and verify.
+const SMALL_STAGE_FILES = {
+  intake: () => ['01-small.md'],
+  review: () => ['07-review.md'],
+  ship: () => ['08-handoff.md', '09-ship-runs.md'],
+};
 // An index of an older workflow names a stage that is now a phase of another stage.
 const OLD_STAGE_FILE = { shape: '02-shape.md', handoff: '08-handoff.md' };
 const SLICE_STAGES = [['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']];
@@ -240,7 +246,8 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   if (!w) return { error: `Workflow ${slug} not found.` };
   const dir = w.workflowDir;
   const summary = summaryOf(w, now);
-  const stages = Object.entries(STAGE_FILES).map(([stage, names]) => {
+  const small = summary.workflowType === 'small';
+  const stages = Object.entries(small ? SMALL_STAGE_FILES : STAGE_FILES).map(([stage, names]) => {
     const files = names(summary.selectedSlice);
     const fms = files.map((f) => frontmatterOf(dir, f));
     const at = fms.findLastIndex(Boolean);
@@ -256,7 +263,7 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, `${prefix}-${name}.md`)?.status ?? null;
     return row;
   });
-  const current = OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
+  const current = small ? '01-small.md' : OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
   const currentFm = current ? frontmatterOf(dir, current) : null;
   return {
     workflow: summary,

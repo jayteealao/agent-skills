@@ -199,3 +199,19 @@ test('status: intake and ship each hold two files; an old stage name finds its f
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('status: a small-path workflow shows its one note, and review and ship only by hand', async () => {
+  const { root, wf } = repo();
+  try {
+    wf('s', 'slug: s\nstatus: active\nworkflow-type: small\ncurrent-stage: verify\nupdated-at: "2026-10-20T00:00:00Z"');
+    const dir = path.join(root, '.ai', 'workflows', 's');
+    writeFileSync(path.join(dir, '01-small.md'), '---\nstatus: in-progress\nsmall-path: true\nnext-invocation: /wf intake s\n---\n');
+    const one = await statusOf(root, 's', Date.parse('2026-10-24T00:00:00Z'));
+    assert.deepEqual(one.stages.map((s) => s.stage), ['intake', 'review', 'ship']);
+    assert.deepEqual([one.stages[0].file, one.stages[0].status], ['01-small.md', 'in-progress']);
+    assert.equal(one.next.file, '01-small.md');
+    assert.equal(one.next.invocation, '/wf intake s');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -64,7 +64,7 @@ test('a change mode uses the un-suffixed files', () => {
 });
 
 test('a workflow type with no build lifecycle is blocked with its route', () => {
-  for (const t of ['task', 'audit', 'brainstorm', 'update-deps', 'investigate', 'discover']) {
+  for (const t of ['task', 'small', 'audit', 'brainstorm', 'update-deps', 'investigate', 'discover']) {
     assert.equal(judge({}, { index: { 'workflow-type': t } }).verdict, 'blocked', t);
   }
 });

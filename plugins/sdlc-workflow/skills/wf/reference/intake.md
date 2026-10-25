@@ -53,6 +53,8 @@ Resolve in this exact order (the order matters — the slug checks come FIRST). 
    - If `token0` matches a **closed** workflow → ASK: *"Workflow `<token0>` is closed. Append a
      compressed slice anyway?"* On yes → slug-mode; on no → STOP.
 
+1a. **Slug alone, small path → the small path.** Else if `token0` names an existing workflow whose index has `workflow-type: small` **AND** no token follows it → load [intake/small.md](intake/small.md) and resume it.
+
 1b. **Slug alone, shape still to write → the shape phase.** Else if `token0` names an existing workflow **AND** no token follows it **AND** `record get` of the workflow's `01-intake.md` exits 0 **AND** `record get` of its `02-shape.md` exits 1 or shows `status: awaiting-input` → the intake of this workflow is not finished. Load [shape.md](shape.md) and run the shape phase for `<slug>`. A change mode (`fix`, `hotfix`, `refactor`, `update-deps`) and `rca` write their own `02-shape.md`, so this branch never fires for them.
 
 2. **Slug + free scope (or nothing) → extension.** Else if `token0` names an existing workflow **AND** `token1` is *not* a mode keyword (it is free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0` as `<slug>`; the rest is the new scope (seed) passed through unchanged. Load `intake/extend.md` and follow it — it adds net-new slice(s) to that workflow and never touches completed work. Correcting already-built **work** is still a *new* slice (this branch) or `/wf intake <slug> fix` — never an in-place re-specification.
@@ -103,7 +105,7 @@ Propose a mode **only when ALL** of these hold — otherwise run `intake/default
 
 Propose **at most one** mode, **once**, as a gate question per [_gate-question.md](_gate-question.md) offering the proposed mode (recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on decline, `intake/default.md`. Nothing routes into a build-committing mode (`fix`, `hotfix`, `refactor`, `update-deps`) without the user's yes.
 
-**Record** the resolved shape (slug-mode | shape phase | extension | explicit | default), slug (if any), mode, and instructions before proceeding.
+**Record** the resolved shape (slug-mode | small path | shape phase | extension | explicit | default), slug (if any), mode, and instructions before proceeding.
 
 # Step 1 — Load shared context
 
@@ -116,6 +118,7 @@ The mode decides how far the flow travels. Run only the stages the mode needs. T
 | Mode | Standalone (no slug) | Slug-mode (`<slug> <mode>`) | Terminus / Next |
 |---|---|---|---|
 | `default` | `00-index.md` + `01-intake.md` + `02-shape.md`; PO interview + stack fingerprint, then the shape phase in the same run | n/a — default is never slug-attached | recommends `/wf design <slug>` or `/wf slice <slug>` (the shape phase routes) |
+| `default`, small path | `00-index.md` (`workflow-type: small`) + the one note `01-small.md`; implement and verify in the same run, one commit on the checked-out branch | n/a | `Done`, or `/wf review <slug>` when the person wants a PR |
 | `fix` | compressed **standard** lifecycle — `01-fix`(`type:intake`) → `02-shape` → `03-slice`(`slice-index`) → `04-plan` → **[gate]**, on a `type:index` overview; branch `fix/<slug>` | compressed slice (branch suppressed) | → `/wf implement <slug>` (standard chain authors `05`→`10`) |
 | `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → route recorded via `rca <slug> <route>` (`plan` continues the slug; `fix`/`hotfix` close it and forward `from <slug>`; `human-triage` after the ladder) |
 | `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks; pick recorded via `investigate <slug> <option>` (closes the workflow) → `fix` / `intake` with `from <slug>` |
@@ -144,7 +147,7 @@ Load the resolved reference in full and follow it exactly. Do not summarize, par
 
 | Mode | Reference file |
 |---|---|
-| `default` | `intake/default.md`, then [shape.md](shape.md) |
+| `default` | `intake/default.md`, then [shape.md](shape.md), or [intake/small.md](intake/small.md) on the small path |
 | `fix` | `intake/fix.md` |
 | `rca` | `intake/rca.md` |
 | `investigate` | `intake/investigate.md` |
