@@ -108,7 +108,7 @@ test('hooks/hooks.json (Claude Code): every command runs a hook source that exis
 
 // ── skills: Codex interface metadata and explicit-only invocation ───────────────
 
-test('every skill carries agents/openai.yaml with interface metadata and implicit invocation disabled', () => {
+test('every skill carries agents/openai.yaml with interface metadata, and only wf is implicit', () => {
   const skills = readdirSync(path.join(pluginRoot, 'skills')).filter((s) => existsSync(path.join(pluginRoot, 'skills', s, 'SKILL.md')));
   assert.equal(skills.length, 6, `expected 6 skills, found ${skills.join(', ')}`);
   for (const s of skills) {
@@ -117,7 +117,7 @@ test('every skill carries agents/openai.yaml with interface metadata and implici
     const y = readFileSync(p, 'utf8');
     assert.match(y, /display_name:\s*"[^"]+"/, `${s}: no display_name`);
     assert.match(y, /short_description:\s*"[^"]+"/, `${s}: no short_description`);
-    assert.match(y, /allow_implicit_invocation:\s*false/, `${s}: implicit invocation must be disabled; users explicitly select the skill`);
+    assert.match(y, s === 'wf' ? /allow_implicit_invocation:\s*true/ : /allow_implicit_invocation:\s*false/, `${s}: only wf is implicit`);
   }
 });
 

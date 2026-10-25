@@ -3,4 +3,4 @@ interface:
   short_description: "Run one SDLC lifecycle key: intake, shape, design, slice, plan, implement, verify, review, handoff, ship, retro, probe, yolo, campaign, loop, status, project, docs"
   default_prompt: "Run `$wf intake <description>` to start a new workflow, or `$wf status` to see every workflow and its next command. The intake modes are `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

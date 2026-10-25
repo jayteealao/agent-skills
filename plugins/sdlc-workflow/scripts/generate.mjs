@@ -140,7 +140,7 @@ function replaceJsonString(text, key, value, file, anchor = null) {
 export function targets(reg) {
   const ctx = context(reg);
   const m = reg.manifest;
-  const hint = `"<${reg.keys.map((k) => k.name).join('|')}> [args...]"`;
+  const hint = `"<slug> | <${reg.keys.map((k) => k.name).join('|')}> [args...]"`;
   const count = (t, f) => replaceOnce(t, /one of the \d+ keys/, `one of the ${ctx.keyCount} keys`, f);
   return [
     ['skills/wf/SKILL.md', (t, f) => replaceBlock(replaceOnce(t, /^argument-hint: .*$/m, `argument-hint: ${hint}`, f), skillBlock(reg), f)],

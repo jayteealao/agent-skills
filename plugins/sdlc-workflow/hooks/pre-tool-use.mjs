@@ -23,7 +23,7 @@ import {
   isManagedArtifactPath,
 } from './_adapter.mjs';
 
-const RECORD_YAML = /(?:^|\/)\.ai\/workflows\/[^/]+\/[^/]+\.yaml$/;
+const RECORD_YAML = /(?:^|\/)\.ai\/workflows\/(?:[^/]+\/[^/]+\.yaml|answers\.jsonl)$/;
 
 function main() {
   const args = parseHookArgs();

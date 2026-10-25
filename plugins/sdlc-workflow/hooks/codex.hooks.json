@@ -67,6 +67,18 @@
             "statusMessage": "Verifying managed artifacts"
           }
         ]
+      },
+      {
+        "matcher": "request_user_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/answer-codex.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\answer-codex.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "timeout": 10,
+            "statusMessage": "Recording the answer"
+          }
+        ]
       }
     ],
     "Stop": [

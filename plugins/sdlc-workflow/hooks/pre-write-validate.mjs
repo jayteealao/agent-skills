@@ -194,8 +194,16 @@ export async function run(input) {
 // Scripts write the records. An agent writes a draft, .draft/<old name>.md, and
 // `wf.mjs record put` checks it and writes its section; `wf.mjs record set` changes a field.
 // So a Write or Edit of a record file, or of an old record name beside the records, is refused.
+// The log of the person's answers (lib/answers.mjs) is refused too: only the question hook
+// appends to it.
+const ANSWER_LOG = /(?:^|\/)\.ai\/workflows\/answers\.jsonl$/;
+
 function recordWriteRefusal(filePath, projectRoot) {
-  const info = workflowPathInfo(resolveProjectPath(projectRoot, filePath));
+  const abs = resolveProjectPath(projectRoot, filePath);
+  if (ANSWER_LOG.test(String(abs).replace(/\\/g, '/'))) {
+    return 'wf-validate: blocked a write to answers.jsonl. The question hook writes each answer event of the person; no agent writes it.\n';
+  }
+  const info = workflowPathInfo(abs);
   if (!info || info.storageRel.includes('/')) return null;
   const cli = 'node <plugin root>/skills/wf/scripts/wf.mjs';
   if (RECORD_FILE_RE.test(info.filename)) {

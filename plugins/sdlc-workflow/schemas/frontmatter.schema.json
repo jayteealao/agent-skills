@@ -399,6 +399,18 @@
         "review-scope-confirmed": {
           "type": "boolean",
           "description": "true on every new workflow: review-scope is slug-wide, one review per work packet, and nobody is asked. false only on an older workflow whose provisional per-slice default was never confirmed; slice (or plan on the skip-to-plan path) sets slug-wide and flips this to true. Absent on older workflows (treated as confirmed)."
+        },
+        "model-invocation": {
+          "type": "object",
+          "description": "The person's consent that the model may start /wf for this workflow, or for the work packets of this list. Only `wf.mjs consent grant` writes it, from the answer event of the question hook.",
+          "properties": {
+            "granted": { "type": "boolean" },
+            "by": { "type": "string" },
+            "at": { "type": "string" },
+            "answer": { "type": "string" },
+            "answered-at": { "type": "string" },
+            "host": { "type": ["string", "null"] }
+          }
         }
       }
     },

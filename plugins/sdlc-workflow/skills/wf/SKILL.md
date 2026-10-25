@@ -1,13 +1,12 @@
 ---
 name: wf
 description: The single entry point for the SDLC lifecycle. Runs one operation per key — the nine stages (intake → design → slice → plan → implement → verify → review → ship → retro), the drivers (probe, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
-disable-model-invocation: true
-argument-hint: "<intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|loop|status|project|docs> [args...]"
+argument-hint: "<slug> | <intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|loop|status|project|docs> [args...]"
 ---
 
 # Role
 
-You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
+You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, `/wf <slug>` runs the next step of that workflow, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
 - Write chat narratives per [_chat-return.md](reference/_chat-return.md).
@@ -28,6 +27,12 @@ Run this check before any read or write. Its result is your first visible output
    - `reason: host gap: …`: tell the person that the key does not run on this host and why. STOP.
    - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
    - `alias-of: <key>`: the key is an old name that stays for this release only. Tell the person in one line to use `/wf <key>` from now on, then run the reference.
+   - `next-of: <slug> → /wf <step>`: the person typed only a slug. Say in one line that the next step of `<slug>` is `/wf <step>`, then run it. The `args=` of the first line are the arguments of that step. When the line ends with a reason in brackets, the workflow has no next step to run: run `/wf status <slug>` and give the reason.
+4. **When you start `/wf` on your own.** The person's last message did not type this `/wf` call: you chose to run it. Run `node "<skill-dir>/scripts/wf.mjs" consent check "<projectRoot>" <slug>` first.
+   - Exit 0: continue.
+   - Exit 1: ask the `ask:` question of the output, word for word, with the host question tool. Offer `Yes — <the step>` first and `No — I type each command` second. Then run the `then:` command. When that command does not print `granted`, STOP: the person did not consent, and the `/wf` call does not run.
+   - When the call names no existing workflow (a new intake, for example), do not run it: give the person the command to type.
+   - Only the answer event of the question tool grants the consent. A hook records it. Do not write `answers.jsonl` or the consent field yourself.
 
 The script reads the forms of the table below from `skills/wf/keys.json` and checks each `<slug>`, `<slice>` and `<branch>` on disk. So `/wf plan the migration` goes to the router, because `the` is not a slug.
 

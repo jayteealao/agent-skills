@@ -36,10 +36,12 @@ test('hooks.json wires one command per tool event at the folded entries', () => 
   equal(wiring.PreToolUse[0].matcher, 'Write|Edit|MultiEdit|Bash');
   equal(wiring.PreToolUse[0].hooks.length, 1);
   match(wiring.PreToolUse[0].hooks[0].command, /hooks\/pre-tool-use-all\.mjs/);
-  equal(wiring.PostToolUse.length, 1, 'one PostToolUse group');
+  equal(wiring.PostToolUse.length, 2, 'one PostToolUse group for the writes, one for the answers');
   equal(wiring.PostToolUse[0].matcher, 'Write|Edit|MultiEdit|NotebookEdit');
   equal(wiring.PostToolUse[0].hooks.length, 1);
   match(wiring.PostToolUse[0].hooks[0].command, /hooks\/post-tool-use-all\.mjs/);
+  equal(wiring.PostToolUse[1].matcher, 'AskUserQuestion');
+  match(wiring.PostToolUse[1].hooks[0].command, /hooks\/answer-event\.mjs/);
   ok(existsSync(PRE) && existsSync(POST), 'both folded entries exist in hooks/');
 });
 

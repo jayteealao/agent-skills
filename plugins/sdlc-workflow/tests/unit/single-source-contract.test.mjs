@@ -26,7 +26,7 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const repoRoot = path.resolve(pluginRoot, '..', '..');
 const read = (...p) => readFileSync(path.join(pluginRoot, ...p), 'utf8');
 
-const CODEX_ADAPTERS = ['_adapter.mjs', 'session-start.mjs', 'subagent-start.mjs', 'pre-tool-use.mjs', 'permission-request.mjs', 'post-tool-use.mjs', 'stop-verify.mjs', 'stop-cost.mjs'];
+const CODEX_ADAPTERS = ['_adapter.mjs', 'session-start.mjs', 'subagent-start.mjs', 'pre-tool-use.mjs', 'permission-request.mjs', 'post-tool-use.mjs', 'stop-verify.mjs', 'stop-cost.mjs', 'answer-codex.mjs'];
 
 test('codex adapters import only ./_adapter.mjs and node builtins (they run from source with no node_modules)', () => {
   for (const name of CODEX_ADAPTERS) {
@@ -129,7 +129,8 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
   for (const dir of skills) {
     const doc = parseYaml(read('skills', dir, 'agents', 'openai.yaml'));
     assert.ok(doc?.interface?.display_name && doc.interface.short_description && doc.interface.default_prompt, `${dir}: openai.yaml interface incomplete`);
-    assert.equal(doc.policy?.allow_implicit_invocation, false, `${dir}: allow_implicit_invocation must be false so only explicit user invocation selects the skill`);
+    // wf is implicit: the model may start it, under the consent rule of its SKILL.md.
+    assert.equal(doc.policy?.allow_implicit_invocation, dir === 'wf', `${dir}: allow_implicit_invocation must be ${dir === 'wf'}`);
     const name = /^name:\s*(\S+)/m.exec(read('skills', dir, 'SKILL.md'))?.[1];
     assert.equal(name, dir, `${dir}: SKILL.md name is ${name}`);
     const desc = /^description:\s*(.*)$/m.exec(read('skills', dir, 'SKILL.md'))?.[1] ?? '';

@@ -20,7 +20,7 @@ Prose writes every skill invocation with a leading slash: `/wf <key> …`, `/con
 
 ## Codex invocation policy
 
-The six plugin skills are explicit-only in Codex (`policy.allow_implicit_invocation: false` in each `agents/openai.yaml`). Start one only when the user selects it with `$<skill>`, or when a requested workflow requires the step. The hooks still run on their registered events.
+The plugin skills other than `wf` are explicit-only in Codex (`policy.allow_implicit_invocation: false` in their `agents/openai.yaml`). Start one only when the user selects it with `$<skill>`, or when a requested workflow requires the step. `wf` is implicit (`true`), as on the other hosts: the model may start it, but only under the consent rule of `SKILL.md` Step 0. The hooks still run on their registered events.
 
 ## Path spelling
 

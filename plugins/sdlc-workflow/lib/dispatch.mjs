@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { INDEX_NAME, frontmatterOfDoc, hasDoc } from './records.mjs';
 import { workflowsRoot } from './records-root.mjs';
+import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 
 export const UNSAFE = '@';
 export const SAFE_TOKEN = /^[A-Za-z0-9#._/-]+$/;
@@ -108,6 +109,15 @@ export function diskFacts(projectRoot, { git = defaultGit } = {}) {
       return (Array.isArray(data?.slices) ? data.slices : []).map((x) => (typeof x === 'string' ? x : x?.slug)).filter(Boolean);
     },
     hasBranch: (name) => SAFE_TOKEN.test(name) && !name.startsWith('-') && git(projectRoot, ['branch', '--list', name]).trim() !== '',
+    nextOf: (slug) => {
+      const fm = frontmatterOfDoc(join(wf, slug), INDEX_NAME);
+      if (!fm) return null;
+      const status = String(fm.status ?? '');
+      return {
+        invocation: fm['next-invocation'] ?? fm['recommended-next-invocation'] ?? null,
+        closed: TERMINAL_WORKFLOW_STATUSES.has(status) || status === 'shipped',
+      };
+    },
   };
 }
 
@@ -142,7 +152,11 @@ const ROUTE = 'reference/route.md';
 export function dispatch(reg, tokens, disk, { host = null } = {}) {
   if (!tokens.length) return { key: null, reference: ROUTE, argsFrom: 0, reason: 'empty' };
   const key = reg.keys.find((k) => k.name === tokens[0]);
-  if (!key) return { key: null, reference: ROUTE, argsFrom: 0, reason: 'not a key' };
+  if (!key) {
+    // A slug alone runs the next step of its workflow. There is no `next` key.
+    if (tokens.length === 1 && disk.hasWorkflow(tokens[0])) return nextStep(reg, tokens[0], disk, { host });
+    return { key: null, reference: ROUTE, argsFrom: 0, reason: 'not a key' };
+  }
   const route = (reason) => ({ key: key.name, reference: ROUTE, argsFrom: 0, reason });
   const hostOf = (row) => (host ? String(row.hosts?.[host] ?? '') : '');
   const gapOf = (row) => {
@@ -191,8 +205,28 @@ export function dispatch(reg, tokens, disk, { host = null } = {}) {
   return { key: key.name, reference: key.reference, argsFrom: 1, reason: null, hostNote: noteOf(key), ...alias };
 }
 
+/**
+ * The next step of a workflow, as the dispatch of its recorded `next-invocation`. The result
+ * carries the tokens of that step (`tokens`) and the slug (`nextOf`). A closed workflow, or one
+ * with no next step that fits a key, gets `/wf status <slug>`, with the reason in `nextReason`.
+ */
+export function nextStep(reg, slug, disk, opts = {}) {
+  const next = disk.nextOf?.(slug) ?? null;
+  const status = (why) => ({ ...dispatch(reg, ['status', slug], disk, opts), tokens: ['status', slug], nextOf: slug, nextReason: why });
+  if (!next) return status('no index');
+  if (next.closed) return status('the workflow is closed');
+  const inv = String(next.invocation ?? '').trim();
+  if (!/^\/wf\s+\S/.test(inv)) return status(inv ? `the next step is ${inv}` : 'no next step recorded');
+  const t = inv.replace(/^\/wf\s+/, '').split(/\s+/).filter(Boolean);
+  if (t.some((x) => !SAFE_TOKEN.test(x))) return status(`the next step ${inv} has a word to fill in`);
+  if (!reg.keys.some((k) => k.name === t[0])) return status(`the next step ${inv} names no key`);
+  const r = dispatch(reg, t, disk, opts);
+  if (r.reference === ROUTE) return status(`the next step ${inv} does not fit: ${r.reason}`);
+  return { ...r, tokens: t, nextOf: slug, nextReason: null };
+}
+
 /** The `wf dispatch:` line of SKILL.md Step 0. */
 export function dispatchLine(result, tokens) {
-  const args = tokens.slice(result.argsFrom);
+  const args = (result.tokens ?? tokens).slice(result.argsFrom);
   return `wf dispatch: key=${result.key ?? '(none)'} · args=${args.length ? args.join(' ') : '(none)'} · reference=${result.reference ?? '(none)'}`;
 }

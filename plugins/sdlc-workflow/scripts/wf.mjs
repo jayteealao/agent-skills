@@ -77,6 +77,10 @@
  *   record   evidence <root> <slug> [--check] [--json]
  *             the size of the evidence; delete the oldest runs over the 200 MB cap (put does
  *             this too), never the newest run (--check: say what it would delete)
+ *   consent  check|grant|revoke <root> <slug> [--json]
+ *             whether the model may start /wf for the workflow (its own consent, or its list's);
+ *             grant records it only from the answer event of the person's yes to the consent
+ *             question, which the question hook wrote; check exits 1 and prints the question
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
@@ -90,6 +94,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBrief } from '../lib/brief.mjs';
 import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
+import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
@@ -107,7 +112,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -171,6 +176,7 @@ function runDispatch(pos, opt) {
   if (r.firstInput) lines.push(`first-input: ${r.firstInput}`);
   if (r.hostNote) lines.push(`host-note: ${r.hostNote}`);
   if (r.aliasOf) lines.push(`alias-of: ${r.aliasOf}`);
+  if (r.nextOf) lines.push(`next-of: ${r.nextOf} → /wf ${r.tokens.join(' ')}${r.nextReason ? ` (${r.nextReason})` : ''}`);
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   out(lines.join('\n'));
   return 0;
@@ -690,6 +696,23 @@ function runRecord(pos, opt) {
   }
 }
 
+// ---------------------------------------------------------------- consent
+
+function runConsent(pos, opt) {
+  const [verb, root, slug] = pos;
+  if (!['check', 'grant', 'revoke'].includes(verb) || !root || !slug) throw new Error('consent: <check|grant|revoke> <root> <slug> are required');
+  const projectRoot = resolve(root);
+  if (verb === 'check') {
+    const r = checkConsent(projectRoot, slug);
+    const ask = r.question ? [`ask: ${r.question}`, `then: wf.mjs consent grant <root> ${r.for}`] : [];
+    out(opt.json ? r : r.ok ? `consent: ${slug} runs under the consent of ${r.via} (${r.consent.at})` : [`no consent for ${slug}`, ...ask].join('\n'));
+    return r.ok ? 0 : 1;
+  }
+  const r = verb === 'grant' ? grantConsent(projectRoot, slug) : revokeConsent(projectRoot, slug);
+  out(opt.json ? r : r.ok ? `${verb === 'grant' ? 'granted' : 'revoked'}: ${slug}` : `not ${verb === 'grant' ? 'granted' : 'revoked'}: ${r.reason}`);
+  return r.ok ? 0 : 1;
+}
+
 // ---------------------------------------------------------------- main
 
 export async function main(argv = process.argv.slice(2)) {
@@ -730,6 +753,7 @@ export async function main(argv = process.argv.slice(2)) {
       case 'profile': return runProfile(pos, opt);
       case 'findings': return runFindings(pos, opt);
       case 'record': return runRecord(pos, opt);
+      case 'consent': return runConsent(pos, opt);
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;

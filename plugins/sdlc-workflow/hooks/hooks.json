@@ -47,6 +47,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/answer-event.mjs\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [

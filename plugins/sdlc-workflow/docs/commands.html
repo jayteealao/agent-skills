@@ -454,7 +454,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 <div class="shell" id="top">
   <nav class="toc" aria-label="Sections">
     <ol id="toc"></ol>
-    <p class="foot">sdlc-workflow<br>19 keys · 6 sub-keys<br>17 intake modes</p>
+    <p class="foot">sdlc-workflow<br>18 keys · 6 sub-keys<br>17 intake modes</p>
   </nav>
 
   <main id="main">
@@ -463,7 +463,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       <h1>Every <code class="hp">/wf</code> command, on one page</h1>
       <p class="lede">One command runs the whole software lifecycle, from a rough idea to a shipped release and its retro. Find your situation below, copy the command, and fill in the parts in <span class="t-ph">&lt;angle brackets&gt;</span>. Each run writes its record into <code>.ai/workflows/&lt;slug&gt;/</code> and ends with the exact next command.</p>
       <ul class="stats">
-        <li><b>19</b> keys</li><li><b>6</b> sub-keys</li><li><b>17</b> intake modes</li><li><b>11</b> review rubrics</li><li><b>3</b> hosts</li>
+        <li><b>18</b> keys</li><li><b>6</b> sub-keys</li><li><b>17</b> intake modes</li><li><b>11</b> review rubrics</li><li><b>3</b> hosts</li>
       </ul>
     </div>
 
@@ -475,7 +475,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="grammar" data-title="How a command reads" class="static">
       <h2><span class="n">02</span>How a command reads</h2>
-      <p class="intro">The first word after the prefix is usually one of the 19 keys. The second word can be a sub-key or an intake mode. Everything else passes to the key unchanged. There are no flags to learn: position carries meaning. Words that do not fit a key go to the router, which turns them into one command.</p>
+      <p class="intro">The first word after the prefix is usually one of the 18 keys. The second word can be a sub-key or an intake mode. Everything else passes to the key unchanged. There are no flags to learn: position carries meaning. Words that do not fit a key go to the router, which turns them into one command.</p>
       <div class="anatomy">
         <div class="anat-line">
           <span class="seg-t c-pre"><code class="hp">/wf</code><small>host prefix</small></span>
@@ -492,7 +492,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         </div>
       </div>
       <ul class="dispatch">
-        <li><b>The slug names one workflow</b><span>Intake picks it from your description. Every later command takes it, and <code class="hp">/wf status</code> lists them all.</span></li>
+        <li><b>The slug names one workflow</b><span>Intake picks it from your description. Every later command takes it, and <code class="hp">/wf status</code> lists them all. A slug alone, <code><span class="hp">/wf</span> &lt;slug&gt;</code>, runs the next step of that workflow.</span></li>
+        <li><b>The model asks once</b><span>The agent may start <code class="hp">/wf</code> on its own only after you said yes once, for that workflow or for its list. Your answer to the question is the record of the consent.</span></li>
         <li><b>Six sub-keys</b><span><code>loop goal · optimize · prototype</code>, <code>status recap</code>, <code>project ship-plan · observability</code>. A bare <code class="hp">/wf loop</code> or <code class="hp">/wf project</code> asks which one.</span></li>
         <li><b>A bare /wf asks</b><span><code class="hp">/wf</code> alone asks what you want to do: continue one of your three newest open workflows, ask a question about /wf, or show all keys.</span></li>
         <li><b>Plain words are routed</b><span>Words that do not fit a key go to the router, for example <code><span class="hp">/wf</span> keep going on export</code> or a misspelled key. It names one command and asks first. A request for new work goes straight to intake. A question such as "how do I ship a hotfix" gets an answer and the command.</span></li>
