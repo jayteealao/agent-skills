@@ -15,6 +15,9 @@
  *             expired lease of another machine, after the person said yes)
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/
+ *   modernize <root> <slug> [--check] [--json]
+ *             convert an old workflow: the record files into the YAML layout, and the stages
+ *             shape and handoff into intake and ship in the index (--check: only report)
  *   page     <brief|put|check> <root> <slug> [--json]
  *             the page of a brainstorm: the brief of the page agent, the check and move of its
  *             draft (.draft/page.html → page/index.html), or the check of the page in place
@@ -138,6 +141,7 @@ import { commitWorkflow, linkProject, liveRef, machineName, pushRef, pushWorkflo
 import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
+import { modernizeWorkflow } from '../lib/modernize.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -156,7 +160,7 @@ import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsR
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -980,8 +984,8 @@ function flushInBackground() {
 const CHANGES = {
   record: ['put', 'set', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'],
 };
-function changed(cmd, pos) {
-  if (cmd === 'close') return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
+function changed(cmd, pos, opt = {}) {
+  if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
   return CHANGES[cmd]?.includes(pos[0]) && pos[1] && pos[2] ? [pos[1], pos[2]] : null;
 }
 
@@ -1010,7 +1014,7 @@ export async function main(argv = process.argv.slice(2)) {
   const [cmd, ...rest] = argv;
   const { pos, opt } = flags(rest);
   const code = await runMain(cmd, pos, opt);
-  const target = code === 0 ? changed(cmd, pos) : null;
+  const target = code === 0 ? changed(cmd, pos, opt) : null;
   if (target) {
     // The GitHub layer mirrors the change; a failure here never fails the command.
     const [root, slug] = [resolve(target[0]), target[1]];
@@ -1039,6 +1043,23 @@ async function runMain(cmd, pos, opt) {
       case 'lease': return runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
       case 'page': return runPage(pos, opt);
+      case 'modernize': {
+        const [root, slug] = pos;
+        if (!root || !slug) throw new Error('modernize: <root> <slug> are required');
+        const dir = join(wfRoot(resolve(root)), slug);
+        if (!existsSync(dir)) throw new Error(`modernize: no workflow folder ${dir}`);
+        const r = modernizeWorkflow(dir, { check: Boolean(opt.check) });
+        if (opt.json) { out(r); return r.ok ? 0 : 1; }
+        if (!r.ok) { out(r.reason); return 1; }
+        const verb = r.check ? 'would move' : 'moved';
+        const lines = [
+          ...r.moved.map((m) => `${verb} ${m.from} → ${m.to}`),
+          ...r.kept.map((k) => `kept ${k}`),
+          ...Object.entries(r.renamed).map(([k, v]) => `${r.check ? 'would set' : 'set'} ${k}=${v === null ? '(removed)' : v}`),
+        ];
+        out(lines.join('\n') || 'nothing to convert');
+        return 0;
+      }
       case 'setup': {
         const [root] = pos;
         if (!root) throw new Error('setup: <root> is required');

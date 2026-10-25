@@ -28,6 +28,8 @@ Modernize **fills absent fields from what the artifacts already say.** It never:
 - invents a charter commitment, a risk, or a wall classification that the artifacts do not support;
 - clears a deferral, or narrows one.
 
+One change is not a backfill: the conversion of an old workflow to the current layout and the nine stages. `wf.mjs modernize` moves the Markdown record files into the YAML records, and renames the stages `shape` and `handoff` to `intake` and `ship` in `current-stage`, in `progress` and in the next commands. A merged progress value is the state of the two old stages together, so it is still the recorded state.
+
 Where the artifacts do not answer a field, the field is **left absent and reported** — never guessed.
 A backfilled `wall-ownership: external` that nobody actually decided is worse than no field at all,
 because every later stage will treat it as a recorded triage verdict. Absence is honest; a
@@ -41,6 +43,7 @@ plugin wrote them, and marker presence is what the consuming references actually
 
 | Marker | Absent means | Backfill source |
 |---|---|---|
+| the current record layout and stage names: no Markdown record file in the folder, and no `shape` or `handoff` in `current-stage`, `progress` or the next commands | the readers of the old files and the aliases `/wf shape` and `/wf handoff` keep the workflow working for this release only | `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug> --check` lists each move and each renamed field; Step 2 item 0 applies them |
 | `charter:` on the index | charter-fidelity checkpoints never run (`/wf yolo` skips them entirely) | the intake artifact's `## Charter` section, unchanged; if the intake has none, leave absent |
 | `intent-risks:` on the index | the RIM ledger is invisible to shape, verify, status deep, and the mid-build discover checkpoint | shape's recorded risks/assumptions; leave absent when shape recorded none |
 | `wall-ownership:` on each open deferral | the ownership triage is skipped — `code-owned` walls get deferred instead of surfaced | the defer-reason's own words when they clearly name the wall; otherwise **leave absent and list it** as needing a re-triage |
@@ -69,6 +72,7 @@ gate question per [_gate-question.md](../_gate-question.md) and proceed. Offer t
 
 # Step 2 — Write
 
+0. When the conversion row was confirmed, run `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug>` first. It must print a `moved` or `set` line for each line of the check, and nothing else.
 1. Apply only the confirmed backfills: a frontmatter field with `record set "<root>" <slug> <name> key=value`, a body change by a get, a change, a draft and a put. Refresh `updated-at` on every record touched.
 2. Follow [_control-file-ownership.md](../_control-file-ownership.md) for `00-index.md` and the
    registry — change an index field with `record set`; get the index immediately before you write a draft of it, and put the draft at once.
