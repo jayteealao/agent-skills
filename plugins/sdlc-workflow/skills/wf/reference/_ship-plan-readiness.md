@@ -27,6 +27,13 @@ This file never hand-edits `.ai/ship-plan.md`, never bumps `plan-version` itself
 | `branch-strategy` | `00-index.md` | not-applicable path (local-only work) |
 | caller | `handoff` or `ship` | which missing-plan gate applies (Step R3) |
 
+# Step R0 — The scripted gaps
+
+Run `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. It finds the gaps that a script can see: no plan, no GitHub login, no GitHub remote, a plan merge method that the repo refuses, and a stacked plan with no gh-stack. With the slug, it records each gap as a person task in the index (`person-tasks`, id `ship-ready:<code>`), and drops a task whose gap closed.
+
+- **At the start of a workflow or a list** (the shape phase of intake, the walk's Step 0): list the gaps to the person in one block, as person tasks, and continue. A gap does not stop the start. The run stops only when the next step needs the task now.
+- **At ship** (this file, called by `ship.md` or `handoff.md`): a gap is a gate. STOP with the gap and its task, before Step R1.
+
 # Step R1 — Plan presence
 
 `test -f .ai/ship-plan.md`. **Present** → parse Blocks A–G (and any inbound H–K) into memory; go to Step R2. **Missing** → skip R2; go to Step R3 with `verdict: missing`.
@@ -67,6 +74,8 @@ The answers map to verdicts: *Create it* / *Amend separately* / *Fix in the repo
 Whatever the path, stamp `ship-plan-readiness: <ok | missing | drift | acknowledged | amended-inline | not-applicable>` into the calling stage's artifact frontmatter (`08-handoff.md` / `09-ship-run-<run-id>.md`) and, on the lead slug in batch mode, once for the branch (the plan is project-level: one check per repo per run, not per slug). Older artifacts without the field predate this pre-check; treat an absent field as `skipped`. On `amended-inline`, the caller also records which blocks were amended and the `plan-version` before→after; the amendment happened inside a stage run, so the artifact is the only place a reader will find it.
 
 # Caller integration
+
+- **The start of a workflow or a list** — run Step R0 only, in its listing form.
 
 - **`/wf ship`** — run this pre-check inside Step 0 immediately after reading `.ai/ship-plan.md`. `missing`/`drift`/`cancel` all STOP before the 13-step sequence. `ok`, `acknowledged`, and `amended-inline` proceed.
 - **The PR phase of `/wf ship`** — run this pre-check once the roster and commit range are known (after the fingerprint/roster report, before packaging). `missing`/`drift` STOP and route via the index fields `recommended-next-*` (`node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index recommended-next-command=<command> recommended-next-invocation=<invocation>`; no partial package written, but `resume-orientation` **is** written per Step R3.5 so the resumed run skips re-deriving the roster and prereqs); `ok`, `acknowledged`, `amended-inline`, and `not-applicable` proceed to packaging. In batch mode the lead owns the single check.

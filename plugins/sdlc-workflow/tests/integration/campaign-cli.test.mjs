@@ -554,3 +554,99 @@ test('12.7: the guarded remove refuses a worktree with uncommitted code and neve
     rmSync(m.outside, { recursive: true, force: true });
   }
 });
+
+const FAKE_GH = path.resolve(import.meta.dirname, '..', 'fixtures', 'fake-gh.mjs');
+
+/** Run `fn` with the fake gh, and return its log of calls. */
+function withFakeGh(fn) {
+  const log = path.join(tmp('fake-gh '), 'calls.jsonl');
+  const saved = { bin: process.env.SDLC_GH_BIN, log: process.env.FAKE_GH_LOG };
+  process.env.SDLC_GH_BIN = FAKE_GH;
+  process.env.FAKE_GH_LOG = log;
+  try {
+    fn();
+  } finally {
+    for (const [k, v] of [['SDLC_GH_BIN', saved.bin], ['FAKE_GH_LOG', saved.log]]) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+  }
+  return existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : [];
+}
+
+function addRemote(root) {
+  const bare = tmp('remote ');
+  git(bare, 'init', '-q', '--bare', '-b', 'main');
+  git(root, 'remote', 'add', 'origin', bare);
+  git(root, 'push', '-q', 'origin', 'main');
+  return bare;
+}
+
+test('a done packet pushes the list branch and opens one draft PR, then only pushes', () => {
+  const root = builtPacket(['d-one']);
+  try {
+    const bare = addRemote(root);
+    review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
+    let r;
+    const calls = withFakeGh(() => { r = run(['done', root, SRC, 'engine']); });
+    assert.equal(r.ok, true, r.error);
+    assert.deepEqual([r.publish.pushed, r.publish.opened, r.publish.pr], [true, true, 7]);
+    assert.ok(calls.some((c) => c[0] === 'pr' && c[1] === 'create' && c.includes('--draft')), 'the PR opens as a draft');
+    assert.equal(git(bare, 'rev-parse', `packets/${SRC}`), git(root, 'rev-parse', `packets/${SRC}`), 'the list branch is pushed');
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'index.md'))['pr-number'], 7);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('land refuses to cut the list branch from a trunk that diverged from its remote', () => {
+  const root = makeRepo();
+  try {
+    const bare = addRemote(root);
+    const other = tmp('other ');
+    git(other, 'clone', '-q', bare, '.');
+    git(other, 'config', 'user.email', 'o@test');
+    git(other, 'config', 'user.name', 'o');
+    writeFileSync(path.join(other, 'b.txt'), 'theirs\n');
+    git(other, 'add', '.');
+    git(other, 'commit', '-q', '-m', 'theirs');
+    git(other, 'push', '-q', 'origin', 'main');
+    writeFileSync(path.join(root, 'a.txt'), 'ours\n');
+    git(root, 'add', 'a.txt');
+    git(root, 'commit', '-q', '-m', 'ours');
+    writeBoard(root, [{ key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP }], ['d-one']);
+    assert.equal(run(['write', wf(root, SRC)]).ok, true);
+    const land = run(['land', root, SRC]);
+    assert.equal(land.ok, false);
+    assert.equal(land.base.state, 'diverged');
+    rmSync(other, { recursive: true, force: true });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the stacked shape: each build packet lands on its own layer, made by gh stack init and add', () => {
+  const root = makeRepo();
+  try {
+    mkdirSync(path.join(root, '.ai'), { recursive: true });
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\nschema: sdlc/v1\ntype: ship-plan\nslug: ship-plan\nproject-name: demo\nplan-version: 1\npr-shape: stacked\n---\n');
+    const packet = (key, order) => ({ key, title: key, shape: 'intake', slug: `demo-${key}`, entry: 'x', state: 'proposed', order, ...(order > 1 ? { 'why-here': 'It needs the engine.' } : {}), items: [`d-${key}`], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP });
+    writeBoard(root, [packet('engine', 1), packet('ui', 2)], ['d-engine', 'd-ui']);
+    const w = run(['write', wf(root, SRC)]);
+    assert.equal(w.ok, true, JSON.stringify(w));
+    let first;
+    const calls = withFakeGh(() => {
+      assert.match(run(['land', root, SRC]).error, /pass the packet key/);
+      assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+      first = run(['land', root, SRC, 'engine']);
+      assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+      writeFileSync(path.join(root, 'app.txt'), 'engine\n');
+      git(root, 'commit', '-q', '-am', 'engine');
+      assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+      review(root, 'demo-engine', [['d-engine', 'honored', 'app.txt:1', '—']]);
+      const done = run(['done', root, SRC, 'engine']);
+      assert.equal(done.ok, true, done.error);
+      assert.equal(done.shape, 'stacked');
+      assert.equal(run(['open', root, SRC, 'ui']).ok, true);
+      const second = run(['land', root, SRC, 'ui']);
+      assert.equal(second.from, `packets/${SRC}--engine`, 'the second layer starts from the first');
+    });
+    assert.deepEqual([first.ok, first.branch, first.from], [true, `packets/${SRC}--engine`, 'main']);
+    assert.deepEqual(calls.filter((c) => c[0] === 'stack').map((c) => c.slice(0, 2)), [['stack', 'init'], ['stack', 'add']]);
+    assert.equal(git(root, 'branch', '--show-current'), `packets/${SRC}--ui`);
+    assert.equal(git(root, 'merge-base', '--is-ancestor', `packets/${SRC}--engine`, 'HEAD') === '', true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

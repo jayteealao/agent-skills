@@ -143,6 +143,7 @@ Hypothesis from `inferred.governance`. The collaboration + protection rules. Con
 - `pr-template` — `<true | false>`. Whether to ship/maintain `.github/PULL_REQUEST_TEMPLATE.md`.
 - `issue-templates` — `<true | false>`. Whether to ship `.github/ISSUE_TEMPLATE/`.
 - `dependency-automation` — `{ tool, ecosystems[], schedule }`. `tool` ∈ {`dependabot`, `renovate`, `none`}. `ecosystems[]` from the project's package managers (e.g. `npm`, `pip`, `gradle`, `github-actions`). When `inferred.repo-topology.monorepo` is true, seed one ecosystem entry per workspace. `schedule` freeform (default `weekly`).
+- `pr-shape` (top level) — `single` (default) or `stacked`. With `stacked`, the walk of `/wf campaign` builds each work packet as one layer of a gh-stack stack, with one PR per work packet ([campaign.md](../../campaign.md), "Ship"). It needs the `gh stack` extension; `wf.mjs ship ready` names its absence as a gap.
 - `merge` — `{ method, auto-merge, merge-queue }`. `method` ∈ {`squash`, `merge`, `rebase`, `any`} (pre-fill from `inferred.governance.merge-current`). `auto-merge` `<true|false>`. `merge-queue` `<true|false>` — note it requires specific GitHub plan tiers; `/wf project ship-plan build` detects and warns if unavailable.
 
 ## Block K — Security & supply-chain gates

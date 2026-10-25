@@ -177,6 +177,9 @@ One row per intake **Known Constraint / directive** and per numbered item of the
 
 # Step 10 — Write the artifacts
 Write the draft `.ai/workflows/<slug>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `.ai/workflows/<slug>/.draft/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+
+**The ship gaps at the start.** When `branch-strategy` is `dedicated`, run Step R0 of [_ship-plan-readiness.md](_ship-plan-readiness.md) in its listing form: `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. Name each gap in the chat return as a person task. A gap does not stop intake; ship stops on it.
+
 # Chat return contract
 After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative (section *The narrative*). Name the highest-severity RIM from intake and how shape disposed of it. Then give this receipt:
 - `slug: <slug>`

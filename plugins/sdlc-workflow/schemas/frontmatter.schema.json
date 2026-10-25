@@ -400,6 +400,19 @@
           "type": "boolean",
           "description": "true on every new workflow: review-scope is slug-wide, one review per work packet, and nobody is asked. false only on an older workflow whose provisional per-slice default was never confirmed; slice (or plan on the skip-to-plan path) sets slug-wide and flips this to true. Absent on older workflows (treated as confirmed)."
         },
+        "person-tasks": {
+          "type": "array",
+          "description": "Tasks that only the person can do, each with the step that needs it. `wf.mjs ship ready` writes the ship gaps here (id `ship-ready:<code>`).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "task": { "type": "string" },
+              "needed": { "type": "string" },
+              "at": { "type": "string" }
+            }
+          }
+        },
         "model-invocation": {
           "type": "object",
           "description": "The person's consent that the model may start /wf for this workflow, or for the work packets of this list. Only `wf.mjs consent grant` writes it, from the answer event of the question hook.",
@@ -1635,6 +1648,10 @@
         "security": {
           "type": "object",
           "description": "Block K — security & supply-chain gates: sast, dependency-audit, secret-scanning, sbom, license-check. Read by build-pipeline (Audit P). Aligns to skills/review/reference/supply-chain.md."
+        },
+        "pr-shape": {
+          "enum": ["single", "stacked"],
+          "description": "How a list of work packets ships: one PR for the list (single, the default), or a gh-stack stack with one PR per work packet (stacked). Read by campaign.mjs and wf.mjs ship ready."
         },
         "repo-topology": {
           "type": "object",

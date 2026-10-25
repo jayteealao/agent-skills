@@ -46,7 +46,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 2. Apply the collision check of `_change-mode-tail.md`.
 3. Apply `_intake-provenance.md`. A `from <source-slug>` token seeds the objective from the source.
 4. Apply the stack policy of `_change-mode-tail.md`. The one-line stack confirm rides the Step 1 question round. Set `ux-impact: none` unless the metric measures a user surface.
-5. Branch: ask per [_gate-question.md](../_gate-question.md), with the options `Create dedicated branch (recommended)` and `Use current branch`. On a dedicated branch, run `git checkout -b optimize-run/<slug>`. Do not name the branch `optimize/<slug>`: the loop uses that name for its trunk.
+5. Branch: ask per [_gate-question.md](../_gate-question.md), with the options `Create dedicated branch (recommended)` and `Use current branch`. On a dedicated branch, run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`, [_workflow-rules.md](../_workflow-rules.md)); then run `git checkout -b optimize-run/<slug>`. Do not name the branch `optimize/<slug>`: the loop uses that name for its trunk.
 
 # Step 1 — Brief → `01-optimize.md` (`type: intake`)
 

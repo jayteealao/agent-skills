@@ -81,6 +81,20 @@
  *             whether the model may start /wf for the workflow (its own consent, or its list's);
  *             grant records it only from the answer event of the person's yes to the consent
  *             question, which the question hook wrote; check exits 1 and prints the question
+ *   base     check <root> [--base b] [--remote r] [--json]
+ *             fetch the base and compare it with the remote one: fast-forward a base that is only
+ *             behind; exit 1 when it has diverged (cut no branch from it)
+ *   ship     facts <root> [--base b] [--json]
+ *             the merge rules of the repo: allowed methods, rulesets, protection, merge queue
+ *   ship     ready <root> [<slug>] [--json]
+ *             the gaps before ship that a script sees; with a slug, each gap is a person task of
+ *             the workflow; exit 1 when there is a gap
+ *   ship     merge <root> <slug> [--pr N] [--print]
+ *             merge the PR by the method of the facts, or print the one command when a review
+ *             or a merge queue is in the way (exit 3)
+ *   ship     finish <root> <slug>
+ *             after the merge: fast-forward and switch to the base, delete the branch, and mark
+ *             the workflow shipped
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
@@ -95,6 +109,7 @@ import { buildBrief } from '../lib/brief.mjs';
 import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
+import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
@@ -112,7 +127,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -129,7 +144,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -713,6 +728,70 @@ function runConsent(pos, opt) {
   return r.ok ? 0 : 1;
 }
 
+// ---------------------------------------------------------------- base, ship
+
+function runBase(pos, opt) {
+  const [verb, root] = pos;
+  if (verb !== 'check' || !root) throw new Error('base: check <root> is required');
+  const projectRoot = resolve(root);
+  const base = opt.base ?? (defaultRun('git', ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'], { cwd: projectRoot }).stdout.replace(/^origin\//, '') || 'main');
+  const r = baseCheck(projectRoot, base, { remote: opt.remote ?? 'origin' });
+  out(opt.json ? r : `${base}: ${r.state}${r.fastForwarded ? ` (fast-forwarded ${r.behind})` : ''}${r.reason ? ` — ${r.reason}` : ''}`);
+  return r.stop ? 1 : 0;
+}
+
+const TASK_PREFIX = 'ship-ready:';
+
+function runShip(pos, opt) {
+  const [verb, root, slug] = pos;
+  if (!['facts', 'ready', 'merge', 'finish'].includes(verb) || !root) throw new Error('ship: <facts|ready|merge|finish> <root> are required');
+  const projectRoot = resolve(root);
+  const index = slug ? frontmatterOf(join(wfRoot(projectRoot), slug), INDEX_NAME) : null;
+  if (slug && !index) throw new Error(`ship: no workflow ${slug}`);
+  const base = opt.base ?? index?.['base-branch'] ?? null;
+  if (verb === 'facts') {
+    const f = shipFacts(projectRoot, base);
+    out(opt.json ? f : f.ok ? `${f.repo} ${f.base}: merge by ${f.method ?? 'nothing allowed'} (allowed ${f.allowed.join(', ') || 'none'}); reviews ${f.requiredReviews}; merge queue ${f.mergeQueue}; ${f.direct ? 'ship merges' : 'ship prints the command'}` : f.reason);
+    return f.ok ? 0 : 1;
+  }
+  if (verb === 'ready') {
+    const gaps = readyGaps(projectRoot, { base });
+    if (slug) {
+      // Each gap is a person task; a gap that closed leaves the list.
+      const kept = (Array.isArray(index['person-tasks']) ? index['person-tasks'] : []).filter((t) => !String(t?.id ?? '').startsWith(TASK_PREFIX));
+      const tasks = gaps.map((g) => ({ id: `${TASK_PREFIX}${g.code}`, task: g.task, needed: 'ship', at: nowIso() }));
+      setFields(join(wfRoot(projectRoot), slug), INDEX_NAME, { 'person-tasks': [...kept, ...tasks] });
+    }
+    out(opt.json ? { ready: !gaps.length, gaps } : gaps.length ? gaps.map((g) => `gap: ${g.task}`).join('\n') : 'ready: no gap that a script sees');
+    return gaps.length ? 1 : 0;
+  }
+  if (!slug) throw new Error(`ship ${verb}: <slug> is required`);
+  const pr = opt.pr ?? index['pr-number'] ?? null;
+  if (verb === 'merge') {
+    if (!pr) throw new Error('ship merge: the workflow has no pr-number; pass --pr N');
+    const f = shipFacts(projectRoot, base);
+    if (!f.ok) throw new Error(f.reason);
+    const cmd = mergeCommand(f, pr);
+    if (!cmd) throw new Error(`ship merge: the repo allows no merge method for ${f.base}`);
+    if (opt.print || !f.direct) {
+      out(opt.json ? { merged: false, command: cmd, facts: f } : `run: ${cmd}${f.direct ? '' : ` (${f.mergeQueue ? 'the merge queue merges it' : `${f.requiredReviews} review(s) are required`})`}`);
+      return 3;
+    }
+    const r = defaultRun('gh', cmd.split(' ').slice(1), { cwd: projectRoot });
+    out(opt.json ? { merged: r.status === 0, command: cmd, stderr: r.stderr } : r.status === 0 ? `merged PR ${pr} by ${f.method}` : `the merge failed: ${r.stderr}\nrun: ${cmd}`);
+    return r.status === 0 ? 0 : 1;
+  }
+  const r = finishShip(projectRoot, { branch: index.branch, base: base ?? 'main', pr });
+  if (r.ok) {
+    setFields(join(wfRoot(projectRoot), slug), INDEX_NAME, {
+      status: 'shipped', 'close-reason': 'shipped', 'closed-at': nowIso(), 'progress.ship': 'complete',
+      'current-stage': 'ship', 'next-invocation': `/wf retro ${slug}`,
+    });
+  }
+  out(opt.json ? r : r.ok ? `on ${r.base}; ${r.steps.map(([k, v]) => `${k} ${v ? 'ok' : 'skipped'}`).join(', ')}; ${slug} is shipped` : `not finished: ${r.reason}`);
+  return r.ok ? 0 : 1;
+}
+
 // ---------------------------------------------------------------- main
 
 export async function main(argv = process.argv.slice(2)) {
@@ -754,6 +833,8 @@ export async function main(argv = process.argv.slice(2)) {
       case 'findings': return runFindings(pos, opt);
       case 'record': return runRecord(pos, opt);
       case 'consent': return runConsent(pos, opt);
+      case 'base': return runBase(pos, opt);
+      case 'ship': return runShip(pos, opt);
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;

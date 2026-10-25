@@ -9,11 +9,13 @@
  *   archive <source-dir|board-file> [--dry-run]     move the closed part of the board to archive/board.json
  *   status  <root> <source>                         the list, the current packet and its next step, the packets that need design
  *   open    <root> <source> <packet-key>             write the workflow folder of a build packet (section 5)
- *   land    <root> <source> [--trunk t]             put the walk's checkout on the list branch packets/<source>
+ *   land    <root> <source> [<packet-key>] [--trunk t]  put the walk's checkout on the list branch packets/<source>
+ *                                                   (stacked PRs: on the layer of the packet, a gh-stack branch)
  *   start   <root> <source> <packet-key> [--trunk t] set base-branch of the packet; a migrated packet commits, rebases and merges first
- *   built   <root> <source> <packet-key>             state built after a clean yolo run
+ *   built   <root> <source> <packet-key> [--no-push] state built after a clean yolo run; push, and open the draft PR once
  *   reopen  <root> <source> <packet-key>             state open again after a fix slice is added to a built packet
- *   done    <root> <source> <packet-key> [--trunk t] close the packet: merge the trunk, move its end branch, base-branch back to the trunk
+ *   done    <root> <source> <packet-key> [--trunk t] [--no-push]  close the packet: merge the trunk, move its end branch,
+ *                                                   base-branch back to the trunk, push (stacked: gh stack sync and submit)
  *   close   <root> <source> <packet-key> done|dropped  close a routed packet, or drop a packet (packet file and board)
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge
  *   migrate <root> <source> report|apply|finish [--trunk t]          the migration of an old campaign (section 12)
@@ -39,6 +41,7 @@ import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 import { workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 import { INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
+import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 
 const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 
@@ -106,6 +109,10 @@ function dirtyOutsideAi(cwd) {
   if (r.status !== 0) return null;
   return r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '')).filter((p) => !posix(p).startsWith('.ai/'));
 }
+
+const gh = (root, args) => defaultRun('gh', args, { cwd: root });
+/** The PR shape of the walk, from the ship plan: `single` (one PR for the list) or `stacked`. */
+const shapeOf = (root) => prShapeOf(readShipPlan(root));
 
 function configOf(root) {
   return readJson(join(root, '.ai', 'sdlc-config.json')) ?? {};
@@ -548,15 +555,92 @@ function openCmd(root, src, [key], f) {
 
 // ---------------------------------------------------------------- land, start, built, done (6.1, 6.2)
 
-function landCmd(root, src, f) {
+function landCmd(root, src, [key], f) {
+  if (shapeOf(root) === 'stacked') return landStacked(root, src, key, f);
   const branch = listBranch(src);
   if (currentBranch(root) === branch) return { ok: true, branch, switched: false };
   const trunk = trunkOf(root, f);
   const exists = commitOf(root, `refs/heads/${branch}`);
+  if (!exists) {
+    // A branch is cut only from a base that matches its remote.
+    const bc = baseCheck(root, trunk);
+    if (bc.stop) return { ok: false, branch, base: bc, error: bc.reason };
+  }
   // Do not stash and do not force: git refuses a switch that would overwrite a change.
   const r = exists ? git(root, ['switch', branch]) : git(root, ['switch', '-c', branch, trunk]);
   if (r.status !== 0) return { ok: false, branch, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.` };
   return { ok: true, branch, switched: true, created: !exists, from: exists ? null : trunk };
+}
+
+/**
+ * The stacked shape: each build packet is one layer of a gh-stack stack, and the layer is its end
+ * branch. The first layer starts from the trunk (`gh stack init`), a later one from the layer of
+ * the build packet before (`gh stack add`).
+ */
+function landStacked(root, src, key, f) {
+  if (!key) return { ok: false, error: 'the stacked shape lands on the layer of a packet: pass the packet key' };
+  const { packets, packet } = packetOf(root, src, key);
+  const layer = endBranch(src, packet.key);
+  if (currentBranch(root) === layer) return { ok: true, branch: layer, switched: false, shape: 'stacked' };
+  if (commitOf(root, `refs/heads/${layer}`)) {
+    const r = git(root, ['switch', layer]);
+    if (r.status !== 0) return { ok: false, branch: layer, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.` };
+    return { ok: true, branch: layer, switched: true, shape: 'stacked' };
+  }
+  const below = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === 'done').pop();
+  const from = below ? endBranch(src, below.key) : trunkOf(root, f);
+  if (!below) {
+    const bc = baseCheck(root, from);
+    if (bc.stop) return { ok: false, branch: layer, base: bc, error: bc.reason };
+  }
+  const sw = git(root, ['switch', from]);
+  if (sw.status !== 0) return { ok: false, branch: layer, error: `git switch ${from} failed: ${sw.stderr}. Ask the person; do not stash and do not force.` };
+  const r = gh(root, below ? ['stack', 'add', layer] : ['stack', 'init', layer]);
+  if (r.status !== 0) return { ok: false, branch: layer, error: `gh stack ${below ? 'add' : 'init'} ${layer} failed: ${r.stderr || r.stdout}` };
+  return { ok: true, branch: layer, switched: true, created: true, from, shape: 'stacked' };
+}
+
+/**
+ * Push the work so that CI runs at the end of each packet, and open the PR as a draft once. The
+ * single shape pushes the list branch and opens one draft PR for it; the stacked shape runs
+ * `gh stack submit`, which opens one draft PR per layer.
+ */
+function publish(root, src, trunk, f) {
+  if (f['no-push']) return { skipped: 'no-push' };
+  if (!hasRemote(root)) return { skipped: 'no remote' };
+  if (shapeOf(root) === 'stacked') {
+    const s = gh(root, ['stack', 'submit', '--auto', '--remote', 'origin']);
+    return s.status === 0 ? { submitted: true } : { submitted: false, error: s.stderr || s.stdout };
+  }
+  const branch = listBranch(src);
+  const push = git(root, ['push', '--quiet', '-u', 'origin', branch]);
+  if (push.status !== 0) return { pushed: false, error: push.stderr };
+  const listFile = join(workDir(root, src), 'index.md');
+  const list = readFm(listFile) ?? {};
+  if (list['pr-number']) return { pushed: true, pr: list['pr-number'] };
+  let pr = null;
+  try { pr = JSON.parse(gh(root, ['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']).stdout || '[]')[0] ?? null; } catch { pr = null; }
+  let opened = false;
+  if (!pr) {
+    const title = String(list.title ?? '').trim() || branch;
+    const body = 'Work in progress. This PR stays a draft until the last part is done; each push runs CI.';
+    const c = gh(root, ['pr', 'create', '--draft', '--base', trunk, '--head', branch, '--title', title, '--body', body]);
+    if (c.status !== 0) return { pushed: true, draft: false, error: c.stderr || c.stdout };
+    const url = c.stdout.split(/\s+/).find((w) => /^https?:\/\//.test(w)) ?? null;
+    pr = { number: Number(/\/pull\/(\d+)/.exec(url ?? '')?.[1]) || null, url };
+    opened = true;
+  }
+  if (pr.number) setFields(listFile, { 'pr-number': pr.number, 'pr-url': pr.url });
+  return { pushed: true, pr: pr.number, url: pr.url, opened };
+}
+
+/** The branch the walk must stand on for a packet: the list branch, or the layer of the packet. */
+function requireWalkBranch(root, src, packet) {
+  if (shapeOf(root) !== 'stacked') return requireListBranch(root, src);
+  const layer = endBranch(src, packet.key);
+  const cur = currentBranch(root);
+  if (cur !== layer) throw new Error(`the walk's checkout is on ${cur ?? 'a detached HEAD'}, not on the layer ${layer}: run campaign.mjs land ${src} ${packet.key} first`);
+  return layer;
 }
 
 function requireListBranch(root, src) {
@@ -635,7 +719,7 @@ function startCmd(root, src, [key], f) {
   if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is not a build packet` };
   if (packet.state === 'written') return { ok: false, error: `${packet.key} is not open: run campaign.mjs open first` };
   if (['done', 'dropped'].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}` };
-  requireListBranch(root, src);
+  requireWalkBranch(root, src, packet);
   const trunk = trunkOf(root, f);
   let migration = null;
   if (packet.migrated) {
@@ -655,11 +739,11 @@ function startCmd(root, src, [key], f) {
   return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}) };
 }
 
-function builtCmd(root, src, [key]) {
+function builtCmd(root, src, [key], f = {}) {
   const { packet } = packetOf(root, src, key);
   if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open` };
   setPacketState(packet, 'built');
-  return { ok: true, key: packet.key, state: 'built' };
+  return { ok: true, key: packet.key, state: 'built', publish: publish(root, src, trunkOf(root, f), f) };
 }
 
 /** 6.1 step 13: a fix slice was added to a built packet, so the packet is open again until the driver builds it. */
@@ -682,8 +766,18 @@ function doneCmd(root, src, [key], f) {
   if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing };
   if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
   if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: run wf.mjs decide add ${root} ${slug} --kind try-out --key try-out --answer works` };
-  requireListBranch(root, src);
+  requireWalkBranch(root, src, packet);
   const trunk = trunkOf(root, f);
+  if (shapeOf(root) === 'stacked') {
+    // The layer is the end branch. gh stack sync rebases the stack onto the trunk and pushes it
+    // with --force-with-lease; no trunk merge enters a layer.
+    const sync = f['no-push'] || !hasRemote(root) ? null : gh(root, ['stack', 'sync', '--remote', 'origin']);
+    if (sync && sync.status === 3) return { ok: false, conflict: 'stack', error: `gh stack sync stopped on a rebase conflict: run gh stack rebase, resolve the files, git add them, and gh stack rebase --continue. Then run done again. ${sync.stderr}` };
+    if (sync && sync.status !== 0) return { ok: false, error: `gh stack sync failed: ${sync.stderr || sync.stdout}` };
+    if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'updated-at': nowIso() });
+    setPacketState(packet, 'done');
+    return { ok: true, key: packet.key, state: 'done', endBranch: endBranch(src, packet.key), shape: 'stacked', synced: Boolean(sync), publish: publish(root, src, trunk, f) };
+  }
   const from = trunkRef(root, trunk);
   let merged = false;
   if (!isAncestor(root, from, 'HEAD')) {
@@ -701,7 +795,7 @@ function doneCmd(root, src, [key], f) {
   setPacketState(packet, 'done');
   let removed = null;
   if (packet.migrated?.worktree && existsSync(packet.migrated.worktree)) removed = removeWorktree(root, src, packet.migrated.worktree, { unitKey: packet.migrated['unit-key'] ?? packet.key });
-  return { ok: true, key: packet.key, state: 'done', endBranch: end, trunkMerged: merged, ...(removed ? { worktree: removed } : {}) };
+  return { ok: true, key: packet.key, state: 'done', endBranch: end, trunkMerged: merged, publish: publish(root, src, trunk, f), ...(removed ? { worktree: removed } : {}) };
 }
 
 /**
@@ -1132,7 +1226,7 @@ function migrateCmd(root, src, [phase], f) {
 // ---------------------------------------------------------------- main
 
 function flags(args) {
-  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored']);
+  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored', 'no-push']);
   const pos = [];
   const f = {};
   for (let i = 0; i < args.length; i++) {
@@ -1160,9 +1254,9 @@ function dispatch(cmd, argv) {
   switch (cmd) {
     case 'status': return statusCmd(root, second);
     case 'open': return openCmd(root, second, rest, f);
-    case 'land': return landCmd(root, second, f);
+    case 'land': return landCmd(root, second, rest, f);
     case 'start': return startCmd(root, second, rest, f);
-    case 'built': return builtCmd(root, second, rest);
+    case 'built': return builtCmd(root, second, rest, f);
     case 'reopen': return reopenCmd(root, second, rest);
     case 'done': return doneCmd(root, second, rest, f);
     case 'close': return closeCmd(root, second, rest);

@@ -126,6 +126,7 @@ governance:
   issue-templates: <true | false>
   dependency-automation: { tool: <dependabot | renovate | none>, ecosystems: ["<ecosystem>", ...], schedule: "<cadence>" }
   merge: { method: <squash | merge | rebase | any>, auto-merge: <true | false>, merge-queue: <true | false> }
+pr-shape: <single | stacked>   # a list of work packets ships as one PR, or as a gh-stack stack with one PR per work packet
 
 # Block K — security & supply-chain gates
 security:

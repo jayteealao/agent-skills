@@ -65,7 +65,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
 5. **Branch check:**
    - Check current branch: `git branch --show-current`.
    - Identify the production/default branch **offline first**: `git symbolic-ref refs/remotes/origin/HEAD` (no network — mid-incident the network may be part of the incident). If unset, fall back to `git remote show origin | grep 'HEAD branch'`, then to `main`/`master` whichever exists locally.
-   - A hotfix ALWAYS branches from the production/default branch: `git checkout -b hotfix/<slug> <production-branch>`.
+   - A hotfix ALWAYS branches from the production/default branch: run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <production-branch>`, [_workflow-rules.md](../_workflow-rules.md)); then `git checkout -b hotfix/<slug> <production-branch>`.
 6. **Single slice.** The whole hotfix is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-hotfix.md` (`type: intake`)
