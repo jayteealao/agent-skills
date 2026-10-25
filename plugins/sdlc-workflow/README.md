@@ -12,13 +12,13 @@ One source tree serves three hosts. The skill prose is written once and is host-
 |---|---|---|
 | Claude Code | `.claude-plugin/plugin.json`, `hooks/hooks.json` | `/wf …` |
 | Codex | `.codex-plugin/plugin.json`, `hooks/codex.hooks.json` | `$wf …` |
-| pi (`pi-code` extension) | the Claude Code plugin cache and hook wiring | `/skill:wf …` |
+| pi | `pi/package.json`, the pi package of this plugin | `/skill:wf …` |
 
-All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`) only when you name them. The command page names each host difference.
+All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs on all three hosts. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`) only when you name them. The command page names each host difference.
 
 ## Install
 
-The plugin needs Node.js 22 or newer and git. It has no dependencies to install.
+The plugin needs Node.js 22 or newer and git. On Claude Code and Codex it has no dependencies to install. The pi package needs one `npm install`.
 
 Claude Code: add the marketplace, then install the plugin, then start a new session.
 
@@ -36,24 +36,44 @@ codex plugin add sdlc-workflow@agent-skills-marketplace
 
 Then open a Codex session and run `/hooks`. Trust all seven events (SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, Stop, SubagentStop). Codex skips an untrusted hook without an error. `npm run verify:deployment`, run from the installed plugin folder, reports the Codex state.
 
+pi: clone this repo, install the dependencies of the pi package, and install the package from the clone. pi loads it where it is.
+
+```bash
+git clone https://github.com/jayteealao/agent-skills
+cd agent-skills/plugins/sdlc-workflow/pi
+npm install
+pi install .
+```
+
+When pi still loads `pi-unified` or `pi-sdlc`, remove it with `pi remove`. These older packages register the same tools. `npm run doctor`, run from `plugins/sdlc-workflow/`, reports each host.
+
 To confirm the install, type `/wf` with no arguments. It asks what you want to do.
 
 ## Your first workflow
 
-The standard lifecycle is:
+The lifecycle has nine stages. Each stage writes its part of the workflow's records:
 
 ```text
-/wf intake <description>   → 01-intake.md, 02-shape.md
-/wf slice <slug>           → 03-slice.md
-/wf plan <slug> [slice]    → 04-plan-<slice>.md
-/wf implement <slug>       → 05-implement-<slice>.md
-/wf verify <slug>          → 06-verify-<slice>.md
-/wf review <slug>          → 07-review-<slice>.md
-/wf ship <slug>            → 08-handoff.md, 09-ship-run-<run-id>.md
-/wf retro <slug>           → 10-retro.md
+/wf intake <description>   → intake.yaml: the brief and the shape
+/wf design <slug>          → design.yaml and the screens (only when the work changes screens)
+/wf slice <slug>           → slices.yaml: the slices
+/wf plan <slug> [slice]    → slice-<slice>.yaml: the plan
+/wf implement <slug>       → slice-<slice>.yaml: the build
+/wf verify <slug>          → slice-<slice>.yaml: the checks
+/wf review <slug>          → review.yaml
+/wf ship <slug>            → ship.yaml: the PR, the go/no-go gate and the merge
+/wf retro <slug>           → retro.yaml
 ```
 
+`state.yaml` and `meta.yaml` hold the index of the workflow.
+
 You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf yolo <slug>` drives the lifecycle on any host and stops before ship. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
+
+## Design
+
+When a workflow changes screens, `/wf design` draws each screen as an HTML page in `.ai/design/` of your repo, with its five states. It checks the screens in a headless browser and records your approval as a commit. The folder is tracked in git.
+
+`scripts/wf.mjs design server start` serves a canvas of every screen of every repo on this computer, on 127.0.0.1 and your tailnet. Open it on a phone to review the screens and comment on them. `scripts/wf.mjs design migrate <repo>` moves the design boards of an older workflow onto the surface, once per repo. [skills/wf/reference/design/_surface.md](skills/wf/reference/design/_surface.md) lists every design command.
 
 ## The 18 keys
 
