@@ -236,3 +236,41 @@ test('a linked project: a local path maps to the records home, and a local file 
     assert.equal(readFileSync(join(home, 'late.md'), 'utf8'), 'late\n');
   } finally { w.done(); }
 });
+
+test('a project that is not linked here is read from git, and a post to it pushes only the message', () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    workflow(a.root, 'w1');
+    workflow(a.root, 'w2');
+    linkProject(a.root, 'notes');
+    postMessage(a.root, 'w1', { kind: 'note', text: 'from alpha', now: new Date('2026-10-25T09:00:00Z') });
+    pushWorkflow(a.root, 'w1');
+    setFields(workflowDir(a.root, 'w2'), INDEX_NAME, { status: 'closed' });
+    postMessage(a.root, 'w2', { kind: 'note', text: 'closed one', now: new Date('2026-10-25T09:00:00Z') });
+    assert.equal(squashWorkflow(a.root, 'w2').ok, true);
+
+    // beta links another project; notes has no live branch and no folder on beta.
+    const b = w.as(w.machine('beta'));
+    workflow(b.root, 'b1');
+    linkProject(b.root, 'api');
+    const list = listMessages(b.root, 'w1', { to: 'notes' });
+    assert.deepEqual(list.map((m) => [m.from, m.read]), [['alpha', false]]);
+    assert.match(readMessage(b.root, 'w1', list[0].id, { to: 'notes' }).text, /from alpha/);
+    assert.equal(listMessages(b.root, 'w1', { to: 'notes' })[0].read, true);
+    assert.equal(listMessages(b.root, 'w2', { to: 'notes' })[0].from, 'alpha', 'a closed workflow is read from the main branch');
+
+    const before = git(w.bare, 'rev-parse', 'refs/heads/live/notes/w1');
+    const m = postMessage(b.root, 'w1', { kind: 'review-request', text: 'from beta', to: 'notes', now: new Date('2026-10-25T10:00:00Z') });
+    assert.deepEqual([m.pushed, m.project], [true, 'notes']);
+    assert.equal(git(w.bare, 'rev-parse', 'refs/heads/live/notes/w1^'), before, 'one commit on the remote tip');
+    assert.equal(git(w.bare, 'diff', '--name-only', before, 'refs/heads/live/notes/w1'), `notes/w1/inbox/${m.id}`);
+    assert.equal(gitIn(join(b.home, 'records'), ['rev-parse', '--verify', '--quiet', 'refs/heads/live/notes/w1']).status, 1, 'no local branch of notes on beta');
+    assert.ok(!existsSync(join(b.home, 'records', 'notes', 'w1')), 'no file of notes in the working tree of beta');
+    assert.throws(() => postMessage(b.root, 'nope', { kind: 'note', text: 'x', to: 'notes' }), /no workflow notes\/nope/);
+
+    w.as(a);
+    syncRecords(a.root);
+    assert.deepEqual(listMessages(a.root, 'w1').map((x) => x.from), ['alpha', 'beta']);
+  } finally { w.done(); }
+});

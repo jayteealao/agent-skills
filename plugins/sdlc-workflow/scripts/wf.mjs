@@ -24,7 +24,9 @@
  *             expired lease of another machine, after the person said yes)
  *             Example: wf.mjs lease claim . demo
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
- *             messages between machines and projects: one file each in the workflow's inbox/
+ *             messages between machines and projects: one file each in the workflow's inbox/.
+ *             --to reads a project that is not linked here from the records repo, and a post
+ *             to it pushes only the message file
  *             Example: wf.mjs msg post . demo --kind note --text "the API is ready"
  *   design   <init|screen add|explore add|list|tokens|track> <root> ...
  *             the design surface of the repo, .ai/design/: screens, the manifest, the token sheet
@@ -1357,7 +1359,8 @@ function runMsg(pos, opt) {
   if (verb === 'post') {
     const r = postMessage(projectRoot, slug, { kind: opt.kind, text: opt.text, to });
     if (!to) noteMessage(projectRoot, slug, { kind: opt.kind, from: machineName(), text: opt.text });
-    if (r.project) inBackground(['records', 'push', projectRoot, slug, ...(to ? ['--to', to] : [])]);
+    // A post to a project that is not linked here is pushed already.
+    if (r.project && !r.pushed) inBackground(['records', 'push', projectRoot, slug, ...(to ? ['--to', to] : [])]);
     out(opt.json ? r : `posted ${r.id}`);
     return 0;
   }

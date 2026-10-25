@@ -862,6 +862,79 @@ export function syncRecords(root, { holds = () => false } = {}) {
   return out;
 }
 
+// ---------------------------------------------------------------- another project
+
+const fetchedOther = new Set();
+
+/**
+ * Where this machine reads a workflow of another project. A workflow with a local live branch is
+ * in the folder of the clone (`{ folder: true }`). Else the commit that has it is read with git:
+ * the remote live branch for an open workflow, the main branch for a closed one (`{ ref }`). The
+ * fetch goes into `refs/wf-other/`, once per process, so its prune leaves the remote-tracking
+ * refs of the sync as they are. Offline, the tips of the last fetch are read.
+ */
+export function otherProjectSource(project, slug, home = recordsHome()) {
+  if (!existsSync(join(home, '.git'))) return null;
+  if (sha(home, liveRef(project, slug))) return { folder: true };
+  const main = mainBranch(home);
+  if (hasRemote(home) && !fetchedOther.has(project)) {
+    fetchedOther.add(project);
+    gitIn(home, ['fetch', '-q', '--prune', 'origin', `+refs/heads/live/${project}/*:refs/wf-other/live/${project}/*`, `+refs/heads/${main}:refs/wf-other/main`], { net: true });
+  }
+  const key = `${project}/${slug}`;
+  for (const ref of [`refs/wf-other/live/${key}`, 'refs/wf-other/main', `refs/remotes/origin/${main}`, `refs/heads/${main}`, remoteLiveRef(project, slug)]) {
+    if (sha(home, ref) && gitIn(home, ['cat-file', '-e', `${ref}:${key}`]).status === 0) return { ref };
+  }
+  return null;
+}
+
+/** The names in the folder `path` of the commit `ref`; an empty list when the folder is missing. */
+export function namesAt(ref, path, home = recordsHome()) {
+  const ls = gitIn(home, ['ls-tree', '--name-only', `${ref}:${path}`]);
+  return ls.status === 0 ? ls.stdout.split('\n').filter(Boolean) : [];
+}
+
+/** The text of the file `path` in the commit `ref`, or null. */
+export function textAt(ref, path, home = recordsHome()) {
+  const r = gitIn(home, ['show', `${ref}:${path}`]);
+  return r.status === 0 ? r.stdout : null;
+}
+
+/**
+ * Put one new file on the live branch of a workflow of another project, and push it. The commit
+ * builds on the remote tip and adds only that file; a closed workflow gets a live branch from the
+ * main branch, which the next sync of its project folds back. No local branch and no file of the
+ * working tree change. A rejected push builds again on the new tip. Returns `{ pushed, offline, reason }`.
+ */
+export function postFileTo(project, slug, { path, text, message }, home = recordsHome()) {
+  const key = `${project}/${slug}`;
+  const live = liveRef(project, slug);
+  const main = mainBranch(home);
+  const blob = gitIn(home, ['hash-object', '-w', '--stdin'], { input: text });
+  if (blob.status !== 0) return { pushed: false, reason: blob.stderr };
+  const index = join(home, '.git', `wf-post-${process.pid}`);
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const tips = remoteTips(home, [live, `refs/heads/${main}`]);
+      if (!tips) return { pushed: false, offline: true, reason: 'the records remote is out of reach' };
+      const from = tips.has(live) ? [live, remoteLiveRef(project, slug)] : [`refs/heads/${main}`, `refs/remotes/origin/${main}`];
+      if (!tips.has(from[0])) return { pushed: false, reason: `no workflow ${key}` };
+      if (gitIn(home, ['fetch', '-q', 'origin', `+${from[0]}:${from[1]}`], { net: true }).status !== 0) return { pushed: false, offline: true, reason: 'the fetch failed' };
+      const parent = tips.get(from[0]);
+      if (gitIn(home, ['cat-file', '-e', `${parent}:${key}`]).status !== 0) return { pushed: false, reason: `no workflow ${key}` };
+      if (gitIn(home, ['read-tree', parent], { index }).status !== 0) return { pushed: false, reason: 'the tree could not be read' };
+      gitIn(home, ['update-index', '--add', '--cacheinfo', `100644,${blob.stdout},${key}/${path}`], { index });
+      const tree = gitIn(home, ['write-tree'], { index });
+      const c = tree.status === 0 ? gitIn(home, ['commit-tree', tree.stdout, '-p', parent, '-m', message]) : tree;
+      if (c.status !== 0) return { pushed: false, reason: c.stderr };
+      if (gitIn(home, ['push', '-q', 'origin', `${c.stdout}:${live}`], { net: true }).status === 0) return { pushed: true, commit: c.stdout };
+    }
+    return { pushed: false, reason: 'the push was rejected three times' };
+  } finally {
+    rmSync(index, { force: true });
+  }
+}
+
 // ---------------------------------------------------------------- state of the clone
 
 /** The files of a workflow folder in the clone that no commit holds: changed, new or deleted. */
