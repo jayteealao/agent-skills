@@ -61,6 +61,20 @@ function command(cell, prompt, root) {
   return ['pi', ['-p', prompt, '--mode', 'json']];
 }
 
+/**
+ * The environment of a run: its own SDLC home, and no variable of a Claude Code session that
+ * started the runner, so the host starts as a session of its own.
+ */
+function envOf(cell, at) {
+  const env = { ...process.env, SDLC_HOME: join(at, 'home') };
+  for (const k of Object.keys(env)) if (k === 'CLAUDECODE' || k.startsWith('CLAUDE_')) delete env[k];
+  return env;
+}
+
+// claude is an executable, so its arguments go to it as they are. A shell joins the arguments
+// into one line, which breaks a prompt with quotes; codex and pi may be .cmd files on Windows.
+const needsShell = (cell) => process.platform === 'win32' && cell.host !== 'claude';
+
 async function main() {
   const opt = flags(process.argv.slice(2));
   const cells = (opt.cells ? opt.cells.split(',') : Object.keys(CELLS)).map((c) => {
@@ -85,11 +99,18 @@ async function main() {
           const prompt = promptOf(task, arm, cell, f.root);
           const [cmd, args] = command(cell, prompt, f.root);
           const t0 = Date.now();
-          const r = spawnSync(cmd, args, { cwd: f.root, encoding: 'utf8', timeout: TIMEOUT_MS, maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SDLC_HOME: join(at, 'home') }, shell: process.platform === 'win32' });
+          const r = spawnSync(cmd, args, { cwd: f.root, encoding: 'utf8', timeout: TIMEOUT_MS, maxBuffer: 256 * 1024 * 1024, env: envOf(cell, at), shell: needsShell(cell) });
           const wallMs = Date.now() - t0;
           writeFileSync(join(at, 'transcript.jsonl'), r.stdout ?? '');
           writeFileSync(join(at, 'stderr.txt'), r.stderr ?? '');
           const m = measure(cell.host, r.stdout ?? '');
+          // A cell whose host has no tool of the named shell measures nothing: it stops at once.
+          if (cell.host === 'claude' && Array.isArray(m.tools) && !m.tools.includes(cell.shell)) {
+            throw new Error(`${name}: the host has no ${cell.shell} tool; its tools are: ${m.tools.join(', ')}`);
+          }
+          // A usage limit ends every later run at once too: the eval stops, and the run is not recorded.
+          if (m.error && /limit|rate|overloaded|credit/i.test(m.error)) throw new Error(`${name} ${arm} ${task.id} #${n}: ${m.error}; nothing more runs`);
+          if (cell.host === 'claude' && !m.tools) throw new Error(`${name}: the transcript has no init event; see ${join(at, 'stderr.txt')}`);
           const c = task.check(f, m.answer);
           const row = { cell: name, arm, task: task.id, class: task.class, run: n, pass: c.pass, why: c.why, exit: r.status, ...m, answer: undefined, wallMs };
           appendFileSync(join(out, 'results.jsonl'), `${JSON.stringify(row)}\n`);

@@ -15,9 +15,10 @@ export function writesAround(command = '', path = null) {
 }
 
 function claude(lines) {
-  const m = { calls: 0, invalid: 0, tokens: 0, outsideWrites: 0, answer: null };
+  const m = { calls: 0, invalid: 0, tokens: 0, outsideWrites: 0, answer: null, tools: null };
   for (const e of lines) {
-    if (e.type === 'assistant') {
+    if (e.type === 'system' && e.subtype === 'init') m.tools = e.tools ?? null;
+    else if (e.type === 'assistant') {
       for (const b of e.message?.content ?? []) {
         if (b.type !== 'tool_use') continue;
         m.calls += 1;
@@ -30,6 +31,7 @@ function claude(lines) {
       const u = e.usage ?? {};
       m.tokens = (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
       m.answer = e.result ?? null;
+      m.error = e.is_error ? String(e.result ?? e.terminal_reason ?? 'error') : null;
     }
   }
   return m;
