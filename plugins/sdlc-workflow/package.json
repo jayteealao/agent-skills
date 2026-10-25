@@ -19,7 +19,7 @@
     "doctor": "node scripts/doctor.mjs",
     "measure:load": "node scripts/measure-load.mjs",
     "measure:artifacts": "node scripts/measure-artifacts.mjs",
-    "verify": "node scripts/verify-docs.mjs",
+    "verify": "node scripts/verify-docs.mjs && node pi/scripts/check.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "test": "node tests/run-all.mjs tests/unit/",
     "test:core": "node tests/run-all.mjs tests/unit/",

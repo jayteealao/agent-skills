@@ -1,5 +1,5 @@
 ---
-description: Autonomous lifecycle driver (Claude Code only). The no-human-gates sibling of `/wf auto` — runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
+description: Autonomous lifecycle driver, on Claude Code, Codex and pi. The no-human-gates sibling of `/wf auto` — runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
 argument-hint: <slug> [<slice>]
 ---
 
@@ -10,9 +10,9 @@ this operation produces: translate workflow context to product language and leak
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through Claude Code's **Workflow** tool.
+You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through the host's workflow runtime (Step 1).
 
-> **Claude Code only.** Under Codex or pi this key is unavailable: treat it as an unknown key and point the user to `/wf auto` (see [_host-invocation.md](_host-invocation.md)). This file is a named host-contract file and may describe Claude Code's tools directly.
+> **Three hosts, one script.** `workflows/yolo.js` runs unchanged on each host. Claude Code runs it with the **Workflow** tool, pi with pi-subagents' **SubagentWorkflow** tool, and Codex with `wf.mjs drive`, where each agent is one `codex exec` call. Step 1 names the call for each host. This file is a named host-contract file and may describe each host's tools directly.
 
 # What `/wf yolo` is (and is not)
 
@@ -123,7 +123,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
-4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
+4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run it at every launch and resume (on Codex, `wf.mjs drive` runs it):
 
    ```
    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
@@ -131,9 +131,9 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 
    The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`. A `CAUTION` on stderr means a hot-patched copy was overwritten.
 
-# Step 1 — Invoke the Workflow tool
+# Step 1 — Start the driver
 
-Call the **Workflow** tool:
+**Claude Code.** Call the **Workflow** tool:
 
 ```
 Workflow({
@@ -153,10 +153,20 @@ Workflow({
 
 The workflow runs in the background. Right after this call, start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md).
 
+**pi.** Call the **SubagentWorkflow** tool with the same `scriptPath` and the same `args`, plus `host: "pi"`. The workflow runs in the background. Its result reaches you as context on your next turn, and `/agents` → Workflows shows the live agents. Each agent runs on the session's model unless the `models` block names one.
+
+**Codex.** Run one shell command, with a timeout that covers the run (several hours for a slug):
+
+```
+node "<pluginRoot>/scripts/wf.mjs" drive "<projectRoot>" <slug> [<slice>] [--answered <answers.json>] [--delegate]
+```
+
+The command stages the driver itself (Step 0.4), runs each agent as one `codex exec` call in the workspace-write sandbox, and prints the `outcome` as JSON. `--answered` names a JSON file with the `answered` array. While it runs, `wf.mjs progress show "<projectRoot>" <slug>` says where the run stands. When the command stops before its end, run it again with `--resume <run>`: the agents whose prompts did not change return their recorded results.
+
 # Resuming — one sanctioned path
 
 - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
-- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
+- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 call of your host with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
 
 # Questions — the stop that waits for the person
@@ -164,7 +174,7 @@ The workflow runs in the background. Right after this call, start the watch and 
 A stage agent never asks the person. It returns each intent-bearing decision as a question: `{ key, question, options, recommended, why }`. The run stops, and `outcome.questions` holds every question with its `stage` and `slice`. The main session asks them and relaunches:
 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
-2. Ask the questions with **AskUserQuestion**, at most four per call. Put the `recommended` option first.
+2. Ask the questions with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call. Put the `recommended` option first.
 3. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. Keep the id that the command prints.
 4. Repeat Step 0.4.
 5. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.

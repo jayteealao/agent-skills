@@ -15,14 +15,14 @@ question tool.
    |---|---|---|
    | Claude Code | `AskUserQuestion` | Every interactive session |
    | Codex | `request_user_input_async` in default mode; `request_user_input` in plan mode | Every interactive session exposes one of the two. Use the one the session lists. When neither is listed, the call errors — use rung 2. |
-   | pi | `AskUserQuestion` | Every interactive session. In print mode the tool disables itself; use rung 2 or rung 3. |
+   | pi | `ask_user_question` (the sdlc-workflow pi package bundles it; the same parameters as `AskUserQuestion`) | Every interactive session. In print mode (`pi -p`) the tool disables itself and no reply can come: use rung 3. |
 
 2. **Chat question (interactive, tool unavailable).** Ask ONE message that
    states the gate's question with the options as a numbered list, the
    recommended option first and marked, then WAIT for the reply. Map a
    free-text reply to the closest option. Do not proceed past the gate on
    silence.
-3. **Non-interactive (headless runs, the auto driver, CI).** No user input is
+3. **Non-interactive (headless runs such as `codex exec` and `pi -p`, CI).** No user input is
    possible. Resolve by recorded policy: take the gate's documented default
    (its recommended option unless the citing site names a different
    non-interactive default), write the decision AND the assumption behind it

@@ -12,7 +12,8 @@
  *              each shipped plan to docs/internal/archived/
  *   publish    one commit of those paths only, an annotated tag, a push of master and the tag
  *   delivered  origin/master and the remote tags carry the release
- *   install    a reinstall on each host of this machine, then doctor must say OK
+ *   install    a reinstall on each host of this machine, then doctor must say OK and the
+ *              smoke flow must pass on each host (scripts/smoke-hosts.mjs)
  *   report     the artifact needs a republish when docs/commands.html changed
  *
  * `next` is the channel for daily work: 9.x.y → 10.0.0-next.0 → 10.0.0-next.1 … and
@@ -24,10 +25,11 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BUILD_SHA_FILE, readClaudeInstalls, readCodexInstalls, runDoctor, formatDoctorTable, versionVerdict, MARKETPLACE, PLUGIN_NAME } from '../lib/doctor.mjs';
+import { BUILD_SHA_FILE, PI_PACKAGE, readClaudeInstalls, readCodexInstalls, readPiPackages, runDoctor, formatDoctorTable, versionVerdict, MARKETPLACE, PLUGIN_NAME } from '../lib/doctor.mjs';
 import { stampVersion } from './stamp-version.mjs';
 import { generate } from './generate.mjs';
 import { COMMAND_PAGE } from './verify-docs.mjs';
+import { HOSTS, smokeHost, smokeLine } from './smoke-hosts.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -41,7 +43,7 @@ export const PLANS_DIR = 'docs/internal';
 /** The paths the release writes, relative to the plugin root. */
 export const OWNED = [
   'package.json', 'package-lock.json', 'CHANGELOG.md', BUILD_SHA_FILE,
-  '.claude-plugin/plugin.json', '.codex-plugin/plugin.json',
+  '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'pi/package.json',
   '../../.claude-plugin/marketplace.json',
 ];
 
@@ -54,6 +56,7 @@ export const GATES = [
   ['neutrality', ['scripts/verify-host-neutrality.mjs']],
   ['surface', ['scripts/verify-surface.mjs']],
   ['docs', ['scripts/verify-docs.mjs']],
+  ['pi-package', ['pi/scripts/check.mjs']],
 ];
 
 export class ReleaseStop extends Error {}
@@ -184,6 +187,7 @@ function context(opts = {}) {
     checkCi: opts.checkCi ?? checkCi,
     install: opts.install ?? installHosts,
     doctor: opts.doctor ?? ((c) => runDoctor({ pluginRoot: c.root })),
+    smoke: opts.smoke ?? smokeHosts,
     generate: opts.generate ?? ((c) => generate({ root: c.root, write: true })),
     remote: opts.remote ?? 'origin',
     branch: opts.branch ?? 'master',
@@ -361,6 +365,8 @@ export function installHosts(ctx) {
     }
   }
   if (readCodexInstalls().installs.length) steps.push(['codex', ['plugin', 'marketplace', 'upgrade', MARKETPLACE], ctx.repoRoot]);
+  // pi loads the package in place, so its reinstall is the pinned packages in that folder.
+  for (const p of (readPiPackages() ?? []).filter((x) => x.name === PI_PACKAGE && x.dir)) steps.push(['npm', ['install', '--no-audit', '--no-fund'], p.dir]);
   for (const [cmd, args, cwd] of steps) {
     if (!existsSync(cwd)) { ctx.log(`[release]   skip ${cmd} ${args.join(' ')}: ${cwd} is gone`); continue; }
     const r = ctx.run(cmd, args, { cwd, shell });
@@ -374,6 +380,15 @@ async function install(ctx, state) {
   const report = await ctx.doctor(ctx);
   ctx.log(formatDoctorTable(report).split('\n').map((l) => `[release]   ${l}`).join('\n'));
   if (!report.ok) stop('doctor: a host does not run the released version');
+  const smoke = ctx.smoke(ctx);
+  for (const r of smoke) ctx.log(`[release]   smoke ${smokeLine(r)}`);
+  if (smoke.some((r) => !r.skipped && !r.ok)) stop('smoke: a host fails the smoke flow');
+}
+
+/** The smoke flow of each host, on the installed copy: pi runs the installed pi package. */
+export function smokeHosts() {
+  const pi = (readPiPackages() ?? []).find((x) => x.name === PI_PACKAGE && x.dir);
+  return HOSTS.map((h) => (h === 'pi' && !pi ? { host: h, skipped: true } : smokeHost(h, { piDir: pi?.dir })));
 }
 
 /** The docs gate keeps the command page in line with the registry; a changed page needs its artifact republished. */

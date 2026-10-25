@@ -13,10 +13,13 @@
 //     $CODEX_HOME/plugins/cache plus the enabled flag in config.toml)
 //   - whether the one-time cleanup removed the old hub and tray state from
 //     ~/.sdlc (lib/machine-cleanup.mjs)
+//   - pi: the sdlc-workflow pi package in the `packages` of the pi agent settings, the
+//     ownership check of that package, and the older pi packages that it replaces
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 
 import { sdlcHomeDir } from './home.mjs';
 import { MARKER, STATE_ENTRIES } from './machine-cleanup.mjs';
@@ -144,6 +147,48 @@ export function readCodexInstalls(codexHome = codexHomeDir(), pluginName = PLUGI
   return { installs: out, config };
 }
 
+/* ───────────────────────── pi ───────────────────────── */
+
+export const PI_PACKAGE = 'sdlc-workflow-pi';
+// The pi packages that the sdlc-workflow pi package replaces. They register the same tools.
+export const PI_REPLACED = Object.freeze(['jayte-pi-unified', 'pi-unified', 'pi-sdlc']);
+
+export function piAgentDir(env = process.env) {
+  return env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent');
+}
+
+/**
+ * The packages of the pi agent settings, each with its name and version. A path entry
+ * is relative to the agent dir; an npm or git entry has no local manifest.
+ */
+export function readPiPackages(agentDir = piAgentDir()) {
+  let settings;
+  try { settings = JSON.parse(readFileSync(join(agentDir, 'settings.json'), 'utf-8')); } catch { return null; }
+  const out = [];
+  for (const entry of Array.isArray(settings.packages) ? settings.packages : []) {
+    const source = typeof entry === 'string' ? entry : entry?.source;
+    if (typeof source !== 'string') continue;
+    const local = !/^(npm|git|https?):/.test(source);
+    const dir = local ? (isAbsolute(source) ? source : resolve(agentDir, source)) : null;
+    let name = null;
+    let version = null;
+    if (dir) {
+      try { ({ name = null, version = null } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8'))); } catch { /* not a package dir */ }
+    }
+    out.push({ source, dir, name, version });
+  }
+  return out;
+}
+
+/** The ownership check of an installed pi package: its own scripts/check.mjs. */
+export function piOwnership(dir, run = spawnSync) {
+  const check = join(dir, 'scripts', 'check.mjs');
+  if (!existsSync(check)) return { ok: false, text: 'no scripts/check.mjs' };
+  const r = run(process.execPath, [check], { encoding: 'utf8' });
+  const text = String((r.status === 0 ? r.stdout : r.stderr || r.stdout) || '').trim().split('\n').pop();
+  return { ok: r.status === 0, text };
+}
+
 /* ───────────────────────── the old view layer ───────────────────────── */
 
 /**
@@ -167,7 +212,9 @@ export async function runDoctor({
   pluginRoot,
   homeDir = homedir(),
   codexHome = codexHomeDir(),
+  piDir = piAgentDir(),
   sdlcHome = sdlcHomeDir(),
+  runCheck = spawnSync,
   now = () => new Date(),
 } = {}) {
   const shipped = shippedVersion(pluginRoot);
@@ -175,7 +222,12 @@ export async function runDoctor({
   const codexRead = readCodexInstalls(codexHome);
   const codex = codexRead.installs.map((i) => ({ ...i, verdict: versionVerdict(i.version, shipped) }));
 
+  const piPackages = readPiPackages(piDir) ?? [];
+  const pi = piPackages.filter((p) => p.name === PI_PACKAGE).map((p) => ({ ...p, verdict: versionVerdict(p.version, shipped), ownership: piOwnership(p.dir, runCheck) }));
+  const piReplaced = piPackages.filter((p) => PI_REPLACED.includes(p.name)).map((p) => p.name || p.source);
+
   const hostVerdicts = {
+    pi: pi.length ? (pi.every((i) => i.verdict === 'ok' && i.ownership.ok) ? 'ok' : 'mismatch') : 'absent',
     claude: claude.length ? (claude.every((i) => i.verdict === 'ok') ? 'ok' : (claude.some((i) => i.verdict === 'ok') ? 'mixed' : 'mismatch')) : 'absent',
     // `disabled`: the shipped version sits in the cache but config.toml has no
     // `enabled = true` for it — the reinstall landed, the enable step did not.
@@ -184,13 +236,13 @@ export async function runDoctor({
       : 'absent',
   };
   const hostOk = (v) => v === 'ok' || v === 'absent';
-  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex);
+  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex) && hostOk(hostVerdicts.pi);
 
   return {
     at: now().toISOString(),
     shipped,
     buildId: buildId(pluginRoot),
-    hosts: { claude, codex, codexConfig: codexRead.config },
+    hosts: { claude, codex, codexConfig: codexRead.config, pi, piReplaced },
     cleanup: cleanupStatus(sdlcHome),
     verdicts: hostVerdicts,
     ok,
@@ -209,8 +261,14 @@ export function formatDoctorTable(r) {
   for (const i of r.hosts.codex) push(`codex cache (${i.marketplace})`, `${i.version}${i.enabled === true ? ' enabled' : i.enabled === false ? ' DISABLED' : ''}`, i.verdict);
   if (r.hosts.codexConfig?.legacy?.length) push('codex legacy identities', r.hosts.codexConfig.legacy.join(', '), 'remove');
   if (r.hosts.codexConfig) push('codex trusted hook events', r.hosts.codexConfig.trustedEvents.length ? r.hosts.codexConfig.trustedEvents.join(', ') : 'none');
+  if (!r.hosts.pi?.length) push('pi package', 'none', 'absent');
+  for (const i of r.hosts.pi ?? []) {
+    push(`pi package (${i.source})`, i.version ?? 'unknown', i.verdict);
+    push('pi package ownership', i.ownership.text, i.ownership.ok ? 'ok' : 'fix');
+  }
+  if (r.hosts.piReplaced?.length) push('older pi packages', r.hosts.piReplaced.join(', '), 'remove with pi remove');
   push('old hub and tray state', r.cleanup.done ? 'removed' : (r.cleanup.left.length ? r.cleanup.left.join(', ') : 'none'), r.cleanup.left.length ? 'start a session' : '');
-  push('verdict', `claude ${r.verdicts.claude} · codex ${r.verdicts.codex}`, r.ok ? 'OK' : 'ACTION');
+  push('verdict', `claude ${r.verdicts.claude} · codex ${r.verdicts.codex} · pi ${r.verdicts.pi ?? 'absent'}`, r.ok ? 'OK' : 'ACTION');
   const w0 = Math.max(...rows.map((x) => x[0].length));
   const w1 = Math.min(96, Math.max(...rows.map((x) => x[1].length)));
   return rows.map(([k, v, verdict]) => `${k.padEnd(w0)}  ${v.padEnd(w1)}  ${verdict}`.trimEnd()).join('\n');

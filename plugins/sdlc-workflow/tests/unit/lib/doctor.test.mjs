@@ -197,3 +197,36 @@ test('buildId reads the SHA that the release writes, and is null without one', (
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('runDoctor: the pi package row, its ownership check, and the older pi packages it replaces', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'doctor-pi-'));
+  try {
+    const agent = path.join(root, 'agent');
+    const pkg = path.join(root, 'checkout', 'pi');
+    const old = path.join(root, 'pi-unified');
+    for (const [dir, name, version] of [[pkg, 'sdlc-workflow-pi', SHIPPED], [old, 'jayte-pi-unified', '0.2.0']]) {
+      mkdirSync(path.join(dir, 'scripts'), { recursive: true });
+      writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, version }));
+    }
+    mkdirSync(agent, { recursive: true });
+    writeFileSync(path.join(agent, 'settings.json'), JSON.stringify({ packages: [path.relative(agent, pkg), old, 'npm:pi-other'] }));
+    const empty = mkdtempSync(path.join(tmpdir(), 'doctor-empty-'));
+    const base = { pluginRoot, homeDir: empty, codexHome: path.join(empty, 'codex'), sdlcHome: path.join(empty, 'sdlc'), piDir: agent };
+    const pass = { status: 0, stdout: 'checks are valid\n', stderr: '' };
+    const r = await runDoctor({ ...base, runCheck: () => pass });
+    assert.equal(r.verdicts.pi, 'mismatch', 'the package has no scripts/check.mjs in the fixture');
+    writeFileSync(path.join(pkg, 'scripts', 'check.mjs'), '');
+    const r2 = await runDoctor({ ...base, runCheck: () => pass });
+    assert.equal(r2.verdicts.pi, 'ok');
+    assert.deepEqual(r2.hosts.piReplaced, ['jayte-pi-unified']);
+    const table = formatDoctorTable(r2);
+    assert.match(table, /pi package ownership\s+checks are valid\s+ok/);
+    assert.match(table, /older pi packages\s+jayte-pi-unified\s+remove with pi remove/);
+    assert.match(table, /verdict .*pi ok/);
+    const r3 = await runDoctor({ ...base, runCheck: () => ({ status: 1, stdout: '', stderr: 'conflict: x\n' }) });
+    assert.equal(r3.verdicts.pi, 'mismatch');
+    assert.equal(r3.ok, false);
+    const none = await runDoctor({ ...base, piDir: path.join(root, 'nothing') });
+    assert.equal(none.verdicts.pi, 'absent');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

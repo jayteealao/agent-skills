@@ -74,14 +74,14 @@ test('dispatch: an unsafe token fits only text', () => {
   assert.equal(run(['implement', '@']).reference, 'reference/route.md');
 });
 
-test('dispatch: a host gap stops the key; a partial gap rides along as a note', () => {
-  const gap = run(['yolo', 'demo'], disk({ demo: [] }), { host: 'codex' });
+test('dispatch: a host gap stops the key; a different form rides along as a note', () => {
+  const gap = run(['loop', 'optimize', 'demo'], disk({ demo: [] }), { host: 'codex' });
   assert.equal(gap.reference, null);
   assert.match(gap.reason, /^host gap: not available/);
-  assert.equal(run(['yolo', 'demo'], disk({ demo: [] }), { host: 'claude' }).reference, 'reference/yolo.md');
-  const part = run(['campaign', 'demo'], disk({ demo: [] }), { host: 'pi' });
-  assert.equal(part.reference, 'reference/campaign.md');
-  assert.match(part.hostNote, /^gap: the walk stops/);
+  assert.equal(run(['yolo', 'demo'], disk({ demo: [] }), { host: 'codex' }).reference, 'reference/yolo.md');
+  assert.equal(run(['yolo', 'demo'], disk({ demo: [] }), { host: 'pi' }).reference, 'reference/yolo.md');
+  const part = run(['loop', 'goal', 'demo'], disk({ demo: [] }), { host: 'pi' });
+  assert.match(part.hostNote, /^differs: /);
 });
 
 test('dispatchLine prints the key, the arguments and the reference', () => {

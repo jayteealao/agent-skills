@@ -9,7 +9,8 @@
  * Stamped carriers:
  *   .claude-plugin/plugin.json                 version
  *   .codex-plugin/plugin.json                  version
- *   package-lock.json                          version + packages[""].version
+ *   pi/package.json                            version (the pi package)
+ *   package-lock.json                         version + packages[""].version
  *   <repo>/.claude-plugin/marketplace.json     plugins[name=sdlc-workflow].version
  *
  * The catalog's own top-level `version` is the marketplace release line,
@@ -62,6 +63,7 @@ export function stampVersion({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT, v
   const carriers = [
     [path.join(pluginRoot, '.claude-plugin', 'plugin.json'), (t) => replaceVersionAfter(t, null, v)],
     [path.join(pluginRoot, '.codex-plugin', 'plugin.json'), (t) => replaceVersionAfter(t, null, v)],
+    [path.join(pluginRoot, 'pi', 'package.json'), (t) => replaceVersionAfter(t, null, v)],
     [path.join(pluginRoot, 'package-lock.json'), (t) => {
       const root = replaceVersionAfter(t, null, v);
       if (root === null) return null;

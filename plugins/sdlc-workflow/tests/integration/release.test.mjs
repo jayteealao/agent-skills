@@ -96,7 +96,7 @@ function fixture() {
   return { root, work, remote, cleanup };
 }
 
-const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, generate: () => [] };
+const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, smoke: () => [], generate: () => [] };
 const doctorOk = () => ({ ok: true, shipped: 'x', buildId: null, hosts: { claude: [], codex: [], codexConfig: null }, cleanup: { done: true, left: [] }, verdicts: { claude: 'absent', codex: 'absent' } });
 
 test('release next: end to end, with a stop at a gate and a stop at doctor, each resumed', async () => {
@@ -122,7 +122,10 @@ test('release next: end to end, with a stop at a gate and a stop at doctor, each
     assert.equal(git(remote, 'rev-parse', 'master'), commit, 'the remote has the release commit');
     assert.equal(git(remote, 'rev-parse', 'v10.0.0-next.0^{commit}'), commit, 'the remote has the annotated tag');
 
-    // The second resume reinstalls and finishes; it makes no second commit.
+    // A host that fails the smoke flow stops the install step too.
+    await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk, smoke: () => [{ host: 'pi', status: true, intake: false, slugs: [], ok: false, tail: 'no index' }] }), /smoke/);
+
+    // The next resume reinstalls and finishes; it makes no second commit.
     const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk });
     assert.equal(state.version, '10.0.0-next.0');
     assert.equal(git(work, 'rev-parse', 'HEAD'), commit);

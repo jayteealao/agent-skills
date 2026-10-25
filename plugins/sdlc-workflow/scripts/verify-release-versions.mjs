@@ -50,6 +50,11 @@ export function checkVersions({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT }
   }
 
   // Derived carriers.
+  const piPkg = path.join(pluginRoot, 'pi', 'package.json');
+  if (existsSync(piPkg)) {
+    carriers['pi-package'] = readJson(piPkg).version;
+    if (carriers['pi-package'] !== version) problems.push(`pi/package.json carries ${carriers['pi-package']}, .claude-plugin/plugin.json carries ${version}`);
+  }
   const lock = path.join(pluginRoot, 'package-lock.json');
   if (existsSync(lock)) {
     const lj = readJson(lock);

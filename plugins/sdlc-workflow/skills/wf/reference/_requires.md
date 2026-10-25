@@ -41,7 +41,7 @@ The table is a checklist. Before you write the stage artifact, read every row wh
 1. Read each whole-file input from its first line to its last line.
 2. For an input with named sections, read each named section in full.
 3. Read each input yourself. A read by a research sub-agent does not count for you, because its reads do not reach your context.
-4. Use the host's file-read tool. A search hit or a shell read does not count.
+4. Use the host's file-read tool. A search hit does not count. A shell read counts only on a host that has no file-read tool: there, one shell command that prints the whole file (`Get-Content -Raw <path>`, or `cat <path>`) is the file read.
 
 A partial read does not count. The line ranges you read must cover the whole file, or each named section.
 

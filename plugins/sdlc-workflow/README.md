@@ -82,7 +82,7 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 | `project` | The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`). |
 | `docs` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. |
 
-`yolo`, `campaign` and `loop optimize` have gaps on Codex and pi.
+`loop optimize` has a gap on Codex and pi.
 <!-- end generated -->
 
 Arguments and artifacts for each key are on the [command page](docs/commands.html). The surface is frozen by [docs/internal/SURFACE-POLICY.md](docs/internal/SURFACE-POLICY.md); `npm run verify:surface` enforces the pins.

@@ -204,8 +204,8 @@
       "reference": "reference/yolo.md",
       "hosts": {
         "claude": "full",
-        "codex": "gap: not available; no driver runtime runs the yolo script on this host yet",
-        "pi": "gap: not available; no driver runtime runs the yolo script on this host yet"
+        "codex": "full",
+        "pi": "full"
       }
     },
     {
@@ -220,8 +220,8 @@
       "reference": "reference/campaign.md",
       "hosts": {
         "claude": "full",
-        "codex": "gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet",
-        "pi": "gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet"
+        "codex": "full",
+        "pi": "full"
       }
     },
     {

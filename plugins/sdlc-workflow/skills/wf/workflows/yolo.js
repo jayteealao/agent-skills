@@ -1,6 +1,6 @@
 export const meta = {
   name: 'wf-yolo',
-  description: 'Autonomous SDLC lifecycle driver. Drives an already-intaked slug through plan→implement→verify→review. Each stage agent gets a brief built by code (the stage card, the slice, the plan section, the decisions in scope), settles implementation detail itself, and returns an intent-bearing decision as a question: the run stops, the main session asks and records the answer, and the next run carries it. Stops before handoff exactly like /wf auto. Claude-only (built on the Workflow tool, which the Codex runtime lacks).',
+  description: 'Autonomous SDLC lifecycle driver. Drives an already-intaked slug through plan→implement→verify→review. Each stage agent gets a brief built by code (the stage card, the slice, the plan section, the decisions in scope), settles implementation detail itself, and returns an intent-bearing decision as a question: the run stops, the main session asks and records the answer, and the next run carries it. Stops before handoff. Runs on Claude Code (Workflow), pi (SubagentWorkflow) and Codex (wf.mjs drive).',
   phases: [
     { title: 'Orient', detail: 'read 00-index + roster; resolve scope, file convention, branch posture (create/switch dedicated), resume point' },
     { title: 'Drive', detail: 'sequential plan→implement→verify[→review] per slice; questions stop the run' },
@@ -9,9 +9,8 @@ export const meta = {
 }
 
 // ===========================================================================
-// /wf yolo — autonomous sibling of /wf auto.
+// /wf yolo — the autonomous lifecycle driver.
 //
-// auto removes inter-stage friction but PAUSES at every gate for the user.
 // yolo settles each implementation-detail gate itself, by the `## Card` of the
 // stage reference, and stops only for an intent-bearing decision.
 //
@@ -46,6 +45,8 @@ export const meta = {
 //   delegate      (optional, default false) the person delegated the intent-bearing decisions
 //                 of this run: a stage settles each by its recommended option and records it
 //                 with --by delegate, and the run asks nothing
+//   host          (optional, default 'claude') the host that runs this script: 'claude' (the
+//                 Workflow tool), 'pi' (pi-subagents' workflow runner) or 'codex' (wf.mjs drive)
 // args may arrive as a JSON object or — depending on how the caller encodes the
 // Workflow invocation — as a JSON string. Tolerate both so a stringified payload
 // doesn't silently fail the object check (the Workflow runtime can hand a
@@ -58,6 +59,7 @@ if (!OPT || typeof OPT !== 'object') {
 const { projectRoot, referenceRoot, slug } = OPT
 const slice = OPT.slice && String(OPT.slice).trim() ? String(OPT.slice).trim() : null
 const DELEGATE = OPT.delegate === true
+const HOST = ['claude', 'pi', 'codex'].includes(OPT.host) ? OPT.host : 'claude'
 // The answers that the main session recorded since the last run. Each reaches the stage that asked it.
 const ANSWERED = (Array.isArray(OPT.answered) ? OPT.answered : []).filter(a => a && typeof a === 'object' && String(a.answer || '').trim())
 for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
@@ -71,9 +73,16 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
 // can lag a new release. OPUS: orient, the plan/implement/verify stages, the
 // review writer, and update-deps exec. HAIKU: the bookkeeping agents, which run
 // fixed commands or copy data and judge nothing. SONNET: every other agent.
-const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
-const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
-const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
+// On pi and Codex the three tiers name no model: each agent runs on the model of the
+// session (pi) or of the Codex config (Codex), at the tier's effort. The models block
+// still names a model per stage on every host.
+const tier = (model, effort) => (HOST === 'claude' ? { model, effort } : { effort })
+// Codex has no file-read tool: there, one shell command that prints the whole file is the read.
+const READ_TOOL = HOST === 'codex' ? 'one shell command that prints the whole file (`Get-Content -Raw <path>` or `cat <path>`)' : 'the file-read tool'
+const SHELL_READ = HOST === 'codex' ? '' : 'a shell read, '
+const SONNET = tier('claude-sonnet-5-5', 'high')
+const OPUS = tier('claude-opus-5-5', 'medium')
+const HAIKU = tier('claude-haiku-5-5', 'medium')
 // The model of each stage agent comes from the `models` block of .ai/sdlc-config.json,
 // passed in the args. A stage names an alias or any model id that the host can run; an
 // id runs at the effort of Opus. A stage that is not named runs on Opus.
@@ -231,7 +240,7 @@ function requiresClause(refPath) {
   return `\n\nREQUIRED READS. The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
-    `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
+    `with ${READ_TOOL}. A search hit, ${SHELL_READ}a partial read, or a sub-agent's read does not count. ` +
     `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
     `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). A mode also applies when its disk fact ` +
     `holds (section "Modes" of ${referenceRoot}/_requires.md lists them), even when \`modes:\` leaves it out. ` +
@@ -851,7 +860,7 @@ const CONTROL_PATH = `${projectRoot}/.ai/workflows/${slug}/.control.json`
 function stopCheckClause(controlPath, journalPath) {
   return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
     `one). Read ` +
-    `${controlPath} now, fresh, with the file-read tool. When the file is absent, continue normally. When it does ` +
+    `${controlPath} now, fresh, with ${READ_TOOL}. When the file is absent, continue normally. When it does ` +
     `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"stop","after":"current"}. A request in ` +
     `that file always applies. ` +
     `Stop when one of these holds for a request that applies:\n` +
@@ -1159,12 +1168,37 @@ const STAGE_RESULT = {
     // (implementation-detail | intent-bearing) per _decision-classes.md; an entry
     // that resolves a specific AC also carries { ac, classification }, and THAT
     // classification is canonical over anything the driver would re-derive (W3.2).
-    decisions: { type: 'array', items: { type: 'object' } },
+    decisions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['decision'],
+        properties: {
+          decision: { type: 'string' },
+          class: { enum: ['implementation-detail', 'intent-bearing'] },
+          ac: { type: 'string' },
+          classification: { type: 'string' },
+          slice: { type: 'string' },
+        },
+      },
+    },
     // W3.1 — deferred / could-not-fix notes that are NOT deferrals. A deferral lives
     // in terminal.deferrals[] once, with its probe; duplicating it here is what the
     // one-writer-per-fact rule now forbids (the driver still tolerates the old shape
     // when it appears, so a stale subagent can't false-stop a compliant slice).
-    residual: { type: 'array', items: { type: 'object' } },
+    residual: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['reason'],
+        properties: {
+          ac: { type: 'string' },
+          reason: { type: 'string' },
+          probe: { type: 'string' },
+          slice: { type: 'string' },
+        },
+      },
+    },
     // W3.4 — errors this subagent hit AND RECOVERED FROM (tool errors, rejected
     // writes, schema retries). Self-reported because the script cannot see a
     // subagent's tool history. A run that says "0 errors" while its agents were
@@ -2470,7 +2504,7 @@ if (idx.workflowType === 'update-deps') {
   }
   outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.at, reason: chain.reason, ran: chain.ran, route, ...(chain.questions ? { questions: chain.questions } : {}) }
 } else {
-  // ---- Slug mode — sequential over the roster (mirrors /wf auto). --------
+  // ---- Slug mode — sequential over the roster. ---------------------------
   // Each slice runs plan → implement → verify before the next slice plans. Implement
   // writes code on the shared tree, so slices run one at a time.
   const reviewPer = idx.reviewScope === 'per-slice'

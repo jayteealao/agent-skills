@@ -797,7 +797,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">3</span><b>Open</b><span class="who auto">agent</span><p>Writes the intake and the shape of each build packet from the packet, word for word. Lists the packets whose design is not settled.</p></li>
           <li class="phase rep"><span class="pn">4</span><b>Design</b><span class="who you">you, when needed</span><p>Stops for <code class="hp">/wf design &lt;packet-slug&gt;</code> when the work packet needs a design that is not confirmed.</p></li>
           <li class="phase rep"><span class="pn">5</span><b>Slice</b><span class="who auto">agent</span><p>One slice per capability, about 10 per work packet. A slice that drops a criterion is a question to you.</p></li>
-          <li class="phase rep"><span class="pn">6</span><b>Drive</b><span class="who auto">autonomous</span><p>yolo plans, implements, verifies and reviews the work packet on the list branch. On Codex and pi, you run <code class="hp">/wf auto &lt;packet-slug&gt;</code> here.</p></li>
+          <li class="phase rep"><span class="pn">6</span><b>Drive</b><span class="who auto">autonomous</span><p>yolo plans, implements, verifies and reviews the work packet on the list branch.</p></li>
           <li class="phase rep"><span class="pn">7</span><b>Fidelity</b><span class="who you">you</span><p>Each carried decision that the review marks narrowed or dropped: approve it, or fix it.</p></li>
           <li class="phase rep"><span class="pn">8</span><b>Try-out</b><span class="who you">you</span><p>Only for a packet with <code>try-out: yes</code>. You run it and say that it works, or describe the problem.</p></li>
           <li class="phase rep"><span class="pn">9</span><b>Done</b><span class="who auto">agent</span><p>Merges the trunk, marks the work packet done, and goes to the next one.</p></li>
@@ -816,7 +816,6 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <li data-s><b>One branch</b><span>Every work packet lands on <code>packets/&lt;slug&gt;</code>. The campaign never stashes and never forces. When git refuses the switch, it shows the files in the way and asks.</span></li>
         <li data-s><b>Design in this checkout</b><span>You can design a later work packet between two work packets, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the campaign.</span></li>
         <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before the handoff. Handoff and ship stop without a plan.</span></li>
-        <li data-s><b>Claude Code for the drive</b><span>yolo runs on Claude Code only. On Codex and pi, every other step runs, and you run <code class="hp">/wf auto &lt;packet-slug&gt;</code> in place of yolo.</span></li>
       </ul>
 
       <h3 class="group" id="cg-forms">Each form <em>the campaign builds only the build forms</em></h3>
@@ -1217,11 +1216,11 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { g: "drive", id: "auto", name: "auto", b: ["stop"], syn: ["auto <slug> [<slice>]"],
       d: "Runs the stages of a started workflow one after another. Per slice it runs plan, implement, verify and review, and it pauses whenever a stage's own gate needs you. With a slice, it drives that slice only. It never opens a PR and never fixes CI.",
       w: ["none of its own"], n: "handoff <slug>", t: "driver run all stages automatic" },
-    { g: "drive", id: "yolo", name: "yolo", b: ["cc", "stop"], syn: ["yolo <slug> [<slice>]"],
-      d: "Like auto, but it resolves each gate by a written decision policy and records every decision. Each decision that touches intent is named in the closing digest for audit. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes. On Codex and pi, use auto.",
+    { g: "drive", id: "yolo", name: "yolo", b: ["stop"], syn: ["yolo <slug> [<slice>]"],
+      d: "Runs the stages of a started workflow one after another: per slice, plan, implement, verify and review. It settles each implementation detail by a written decision policy and records every decision. A decision that touches intent stops the run as a question to you, and the next run carries your answer. With a slice, it drives that slice only. It never opens a PR. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes.",
       w: [".driver-journal.jsonl"], n: "handoff <slug>", t: "autonomous unattended driver" },
     { g: "drive", id: "campaign", name: "campaign", b: ["gate"], syn: ["campaign <slug>"],
-      d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. When the list is done, you hand off one PR for the whole list. On Codex and pi you run auto in place of yolo. One command resumes at any point.",
+      d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. When the list is done, you hand off one PR for the whole list. One command resumes at any point.",
       w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · handoff packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
     { g: "drive", id: "loop-goal", name: "loop goal", syn: ["loop goal <slug> [objective]", "loop goal <slug> resume|status|clear"],
       d: "Hands the slug to the host's goal feature, so the work continues over many turns. A script decides when it is done and prints GOAL: MET, GOAL: NOT-MET or GOAL: BLOCKED. Kinds: lifecycle (ready for handoff, the default), optimize, and proofs (named commands exit 0). At a human gate the goal parks; answer the gate, then resume.",
@@ -1346,7 +1345,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["A slug cannot be a command word", "A new workflow cannot be named after a key, a sub-key or a mode word, such as fix or status. status flags an old slug with such a name.", ""],
     ["Quote to force the default flow", "When your description starts with a mode word, put it in quotes so intake reads it as one description.", ""],
     ["Drivers stop before handoff", "auto, yolo and loop goal never open a PR or release. Handoff and ship are always your call.", "warn"],
-    ["yolo and loop optimize are Claude Code only", "On Codex and pi, use auto, or loop goal for an optimize slug. There, the campaign has you run auto in place of yolo.", ""],
+    ["loop optimize is Claude Code only", "On Codex and pi, use loop goal for an optimize slug.", ""],
     ["Human gates stay human", "The design stage, task authorization for shared or irreversible actions, and the end of a brainstorm wait for you. No policy answers them.", "warn"],
     ["Nothing is overwritten", "Re-runs merge findings, snapshot evidence and add files. Close deletes no artifact, branch or PR.", ""],
     ["Git is required", "The first run in a folder that is not a git repo asks to run git init. Without it, artifacts still write, but no slug branch exists until you run git init.", ""],

@@ -100,7 +100,7 @@ test('a stopped stage agent ends the chain cleanly at stop-request, before the s
 // WF-CAMPAIGN-DRIVER-PLAN W8 — the wave driver drives a campaign; yolo has no campaign wait,
 // no campaign control file and no campaign context.
 test('yolo has no campaign wait: the stop check has no condition (d), and the stage result has no wait kind', () => {
-  const clause = new Function(`${extractFn('stopCheckClause')}; return stopCheckClause`)()('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
+  const clause = new Function('READ_TOOL', `${extractFn('stopCheckClause')}; return stopCheckClause`)('the file-read tool')('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
   assert.doesNotMatch(clause, /\(d\)|Waits|'wait'/);
   assert.doesNotMatch(src, /stopKind|usage-pause/);
   assert.doesNotMatch(src, /contextPath|campaignControlPath|waitsFor|scout:campaign-contract|campaignClause/);
@@ -117,7 +117,7 @@ test('plan and implement dispatch with the stop check; a chain with no request r
 });
 
 test('the stop check reads the control file by path, fresh, and never edits it', () => {
-  const clause = new Function(`${extractFn('stopCheckClause')}; return stopCheckClause`)()('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
+  const clause = new Function('READ_TOOL', `${extractFn('stopCheckClause')}; return stopCheckClause`)('the file-read tool')('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
   assert.match(clause, /Read \/r\/\.ai\/workflows\/s\/\.control\.json now, fresh/);
   assert.match(clause, /"after" is "current"/);
   assert.match(clause, /agent-end" line for that stage .* later than the request's "requestedAt"/s);

@@ -24,7 +24,7 @@ Run this check before any read or write. Its result is your first visible output
    - `reason:` with `reference=reference/route.md`: the tokens did not fit a form of the key. The router gets every token and the reason.
    - `first-input:`: the reference reads this file first.
    - `reason: ask sub-key`: render the `sub-key:` rows and ask which one the person wants. STOP.
-   - `reason: host gap: …`: tell the person that the key does not run on this host and why. For `yolo`, point to `/wf auto`. STOP.
+   - `reason: host gap: …`: tell the person that the key does not run on this host and why. STOP.
    - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
 
 The script reads the forms of the table below from `skills/wf/keys.json` and checks each `<slug>`, `<slice>` and `<branch>` on disk. So `/wf plan the migration` goes to the router, because `the` is not a slug.
@@ -72,8 +72,6 @@ The script reads the forms of the table below from `skills/wf/keys.json` and che
 
 Every key runs on Claude Code, Codex and pi in the same form, with these exceptions:
 
-- `yolo` on Codex and pi: not available; no driver runtime runs the yolo script on this host yet.
-- `campaign` on Codex and pi: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet.
 - `loop goal` on Claude Code: the mod puts the /goal line into the prompt box.
 - `loop goal` on Codex: the agent calls create_goal.
 - `loop goal` on pi: the person pastes the line that goal.mjs arm prints.

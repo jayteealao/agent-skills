@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf campaign <source-slug>`, the **walk**. The source is a brainstorm folder or an ideate folder in `.ai/workflows/`. Its `work/index.md` (`type: list`) is the **list**: one work packet file `work/<packet-slug>.md` (`type: packet`) per work packet, in strict order. A brainstorm `done` or an ideate pick writes the list ([intake/brainstorm/_work.md](intake/brainstorm/_work.md)). Each work packet is one normal workflow, `.ai/workflows/<packet-slug>/`. The walk builds the work packets in list order, one work packet at a time, on the **list branch** `packets/<source-slug>`.
 
-> **Hosts.** Step 10 launches the yolo driver, which is Claude Code only. Under Codex or pi, step 10 runs `/wf auto <packet-slug>` with the person in place of the driver ([_host-invocation.md](_host-invocation.md)). Every other step runs on every host.
+> **Hosts.** Step 10 launches the yolo driver through the host's workflow runtime ([yolo.md](yolo.md) Step 1). Every step runs on every host.
 
 ## The rules of the walk
 

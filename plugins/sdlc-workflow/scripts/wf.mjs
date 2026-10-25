@@ -63,6 +63,10 @@
  *             (the source defaults to review, the scope to the whole packet)
  *   findings questions <root> <slug> [--json]
  *             the open findings whose fix changes an acceptance check, as questions
+ *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
+ *            [--time-box <minutes>] [--json]
+ *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
+ *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -70,6 +74,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
+import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -81,10 +86,11 @@ import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf }
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
+import { stageYoloDriver } from './stage-yolo-driver.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -101,11 +107,38 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
   return { pos, opt };
+}
+
+// ---------------------------------------------------------------- drive
+
+/** The yolo driver on Codex: the script runs here, and each agent runs as `codex exec`. */
+async function runDrive(pos, opt) {
+  const [root, slug, slice] = pos;
+  if (!root || !slug) throw new Error('drive: <root> <slug> are required');
+  const projectRoot = resolve(root);
+  const staged = stageYoloDriver(projectRoot);
+  const answered = opt.answered ? JSON.parse(readFileSync(resolve(opt.answered), 'utf8')) : null;
+  if (answered && !Array.isArray(answered)) throw new Error('drive: --answered must name a JSON array of answers');
+  const run = opt.resume || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
+  const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
+  if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
+  const args = {
+    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', models: staged.models,
+    ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate ? { delegate: true } : {}),
+  };
+  const r = await driveScript({
+    source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,
+    resume: opt.resume ? readRun(runDir) : undefined,
+    timeoutMs: opt['time-box'] ? Number(opt['time-box']) * 60_000 : undefined,
+    say: (line) => process.stderr.write(`[drive ${run}] ${line}\n`),
+  });
+  out(opt.json ? { run, runDir, ...r } : { run, outcome: r.result, agents: r.totals.agents, failed: r.totals.failed, usage: r.totals.usage });
+  return r.result && r.result.ok ? 0 : 3;
 }
 
 // ---------------------------------------------------------------- dispatch
@@ -588,6 +621,7 @@ export async function main(argv = process.argv.slice(2)) {
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
       case 'findings': return runFindings(pos, opt);
+      case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;
         if (!['set', 'show'].includes(verb) || !root || !slug) throw new Error('progress: <set|show> <root> <slug> are required');
