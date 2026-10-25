@@ -77,14 +77,32 @@ const slash = (p) => String(p ?? '').replace(/\\/g, '/');
 const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 
 /**
+ * The entries of a workflow folder that stay on this machine when the project is linked, each
+ * with its reason. Every other file of a workflow folder syncs: the records, the step record
+ * (`steps.jsonl`, the old `.implement-progress.jsonl`), the test receipts, the handover notes and
+ * the driver journal (`.driver-journal.jsonl`), which goes into the clone with the next commit.
+ */
+export const LOCAL_ONLY_ENTRIES = Object.freeze({
+  '.draft': 'the drafts of the agents of this session',
+  'answers.jsonl': 'the answer events that the question hook of this machine wrote',
+  '.control.json': 'the stop request of a run on this machine',
+  '.watch-state.json': 'the read offsets of the watch on this machine',
+  '.driver-outcome.json': 'the outcome of the last driver run on this machine',
+  '.api-log.jsonl': 'the operations of the wf scripts that ran on this machine',
+  '.ai': 'the render output of an old writer that took the records folder as a project root',
+});
+
+/**
  * True for a path, relative to the local workflows folder, that stays on this machine when the
- * project is linked: the drafts of the agents, the answer log, a top-level dot entry, and a
- * top-level `_` entry other than the design records (`_design`).
+ * project is linked: an entry of LOCAL_ONLY_ENTRIES at any depth of a workflow folder, a
+ * top-level dot entry (`.conflicts/` among them), the answer log, and a top-level `_` entry
+ * other than the design records (`_design`).
  */
 export function isLocalOnly(rel) {
   const parts = slash(rel).split('/').filter(Boolean);
-  return !parts.length || parts.includes('.draft') || parts[0].startsWith('.') || parts[0] === 'answers.jsonl' ||
-    (parts[0].startsWith('_') && parts[0] !== '_design');
+  if (!parts.length || parts[0].startsWith('.') || parts[0] === 'answers.jsonl') return true;
+  if (parts[0].startsWith('_') && parts[0] !== '_design') return true;
+  return parts.slice(1).some((p) => Object.hasOwn(LOCAL_ONLY_ENTRIES, p));
 }
 
 /** The path of `filePath` relative to the local workflows folder of the project, or null. */

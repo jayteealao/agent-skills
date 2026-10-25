@@ -46,7 +46,7 @@ import {
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
 import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
-import { nestedAiDir, recordPathOf, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, localWorkflowsRoot, nestedAiDir, recordPathOf, recordsRel, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
 
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
@@ -92,7 +92,7 @@ export async function run(input) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
     return;
   }
-  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) : null;
+  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? cloneDraftRefusal(filePath, projectRoot) : null;
   if (refusal) {
     refuseWrite(checksModeOf(config), refusal);
     return;
@@ -241,6 +241,20 @@ function linkedWriteRefusal(filePath, projectRoot) {
     `so the file belongs at ${real}. Write it there, and read it there later. Only the drafts stay in ` +
     `.ai/workflows/<slug>/${DRAFT_DIR}/.
 `;
+}
+
+// A draft belongs to the session that writes it, so it stays in the local folder of the project.
+// A draft in the records home would go into the next commit of the workflow and to every machine.
+function cloneDraftRefusal(filePath, projectRoot) {
+  const abs = resolveProjectPath(projectRoot, filePath);
+  const rel = recordsRel(abs);
+  const parts = rel ? rel.split('/') : [];
+  if (parts.length < 3 || !parts.slice(2).includes(DRAFT_DIR)) return null;
+  const [project, slug] = parts;
+  const local = linkedProject(projectRoot) === project
+    ? join(localWorkflowsRoot(projectRoot), slug, ...parts.slice(2))
+    : `<project root>/.ai/workflows/${slug}/${parts.slice(2).join('/')}`;
+  return `wf-validate: blocked a draft write into the records repo clone (${abs}). A draft stays on this machine: write it at ${local}, then run \`wf.mjs record put\`.\n`;
 }
 
 // Design lane human rule: read the slug's index, 02b-design.md presence, and the

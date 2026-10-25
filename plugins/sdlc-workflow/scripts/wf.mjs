@@ -158,7 +158,7 @@ import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, noteMessage, readOutbox } from '../lib/github-layer.mjs';
-import { commitWorkflow, linkProject, liveRef, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords } from '../lib/records-sync.mjs';
+import { commitWorkflow, healthLine, linkProject, liveRef, logRecordsFailure, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
 import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
@@ -249,7 +249,11 @@ async function runDispatch(pos, opt) {
   const sync = linkedProject(projectRoot) ? syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true }) : null;
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
   r.sync = sync;
-  r.lease = sync ? leaseAtDispatch(projectRoot, r, safe, opt.host ?? null) : null;
+  const target = sync ? slugAtDispatch(projectRoot, r, safe) : null;
+  r.lease = target ? leaseAtDispatch(projectRoot, target, opt.host ?? null) : null;
+  // The registry is generated in the clone: a pull that moved a folder rebuilds it.
+  if (sync && (sync.pulled.length || sync.folded.length)) await reconcileIndex(projectRoot);
+  r.health = target ? healthLine(workflowHealth(projectRoot, target)) : null;
   // The open workflows whose branch is merged: the person is asked whether to close each one.
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
@@ -270,6 +274,9 @@ async function runDispatch(pos, opt) {
   if (r.sync) lines.push(`records-dir: ${wfRoot(projectRoot)}`);
   if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
   for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
+  for (const c of r.sync?.fileConflicts ?? []) lines.push(`records-conflict: ${c} has a change of this machine; the pull did not overwrite it`);
+  for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-conflict: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
+  if (r.health) lines.push(r.health);
   if (r.lease) lines.push(r.lease);
   out(lines.join('\n'));
   return 0;
@@ -960,12 +967,15 @@ function runShip(pos, opt) {
 
 // ---------------------------------------------------------------- main
 
-// The lease of the workflow that a call acts on. A read-only key needs none.
-function leaseAtDispatch(projectRoot, r, tokens, host) {
+// The workflow that a call acts on, or null. A read-only key acts on none.
+function slugAtDispatch(projectRoot, r, tokens) {
   if (!r.key || r.key === 'status' || r.reason) return null;
   const args = (r.tokens ?? tokens).slice(r.argsFrom);
-  const slug = r.nextOf ?? args.slice(0, 2).find((t) => existsSync(join(wfRoot(projectRoot), t, INDEX_NAME)) || existsSync(join(wfRoot(projectRoot), t, 'state.yaml')));
-  if (!slug) return null;
+  return r.nextOf ?? args.slice(0, 2).find((t) => existsSync(join(wfRoot(projectRoot), t, INDEX_NAME)) || existsSync(join(wfRoot(projectRoot), t, 'state.yaml'))) ?? null;
+}
+
+// The lease of the workflow that a call acts on.
+function leaseAtDispatch(projectRoot, slug, host) {
   const c = claimLease(projectRoot, slug, { host });
   if (c.ok) return null;
   if (c.held) return `lease-held: ${slug} by ${c.lease.machine}${c.lease.host ? ` (${c.lease.host})` : ''} until ${c.lease.expires}`;
@@ -982,7 +992,7 @@ function inBackground(args) {
   } catch { /* the next sync pushes it */ }
 }
 
-function runRecords(pos, opt) {
+async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
   if (!root) throw new Error('records: <link|status|sync|push|close> <root> are required');
   const projectRoot = resolve(root);
@@ -995,13 +1005,21 @@ function runRecords(pos, opt) {
   if (verb === 'status') {
     const s = recordsStatus(projectRoot);
     const lines = s.linked
-      ? [`records: ${s.project} in ${s.home} (${s.remote ? 'with a remote' : 'no remote'}), machine ${s.machine}`, ...s.live.map((l) => `live: ${l}`), ...s.pendingClose.map((k) => `close waits for the network: ${k}`), ...s.conflicts.map((c) => `conflict: ${c.workflow}: ${c.reason}`)]
+      ? [`records: ${s.project} in ${s.home} (${s.remote ? 'with a remote' : 'no remote'}), machine ${s.machine}`, ...s.live.map((l) => `live: ${l}`), ...s.pendingClose.map((k) => `close waits for the network: ${k}`), ...s.conflicts.map((c) => `conflict: ${c.workflow}: ${c.reason}`),
+        ...s.workflows.flatMap((h) => [
+          ...(h.uncommitted.length ? [`uncommitted: ${h.workflow}: ${h.uncommitted.join(', ')}`] : []),
+          ...(h.ahead || h.behind ? [`branch: ${h.workflow}: ${h.ahead} ahead, ${h.behind} behind the remote`] : []),
+          ...h.adoptConflicts.map((f) => `kept aside: ${h.workflow}: .ai/workflows/.conflicts/${h.workflow.split('/')[1]}/${f} (the clone copy won; compare, then delete the kept copy)`),
+          ...(h.lastFailure ? [`failed: ${h.workflow}: ${h.lastFailure.step} at ${h.lastFailure.at}: ${h.lastFailure.error}`] : []),
+        ]),
+        ...s.dropped.map((d) => `dropped: ${d.ref} was ${d.sha} (${d.reason}); git -C "${s.home}" update-ref ${d.ref} ${d.sha} brings it back`)]
       : [`records: local in .ai/workflows/${s.clone ? `; a clone is at ${s.home}: wf.mjs records link <root> <project>` : ''}`];
     out(opt.json ? s : lines.join('\n'));
     return 0;
   }
   if (verb === 'sync') {
     const r = syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true });
+    if (r && (r.pulled.length || r.folded.length)) await reconcileIndex(projectRoot);
     out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; pushed ${r.pushed.join(', ') || 'nothing'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
     return r?.conflicts?.length ? 1 : 0;
   }
@@ -1009,6 +1027,8 @@ function runRecords(pos, opt) {
   if (verb === 'push') {
     const r = opt.to ? pushRef(recordsHome(), liveRef(opt.to, arg), { folder: `${opt.to}/${arg}` }) : pushWorkflow(projectRoot, arg);
     if (!opt.to) renewIfMine(projectRoot, arg);
+    // This step runs in the background with no output: a failure goes into the records log.
+    if (r && !r.pushed && !r.offline) logRecordsFailure({ project: opt.to ?? linkedProject(projectRoot), slug: arg, step: 'push', error: r.reason ?? (r.conflict ? 'the branches conflict' : 'not pushed') });
     out(opt.json ? r : !r ? 'records: local' : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
     return !r || r.pushed ? 0 : 1;
   }
@@ -1175,7 +1195,9 @@ export async function main(argv = process.argv.slice(2)) {
     // A linked project commits the records at each step and stage boundary, and pushes them in
     // the background. A closed workflow is squashed onto the main branch.
     try {
-      if (commitWorkflow(root, slug, `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim())) {
+      const c = commitWorkflow(root, slug, `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim());
+      for (const f of c?.conflicts ?? []) process.stderr.write(`wf.mjs: records-conflict: the local copy of ${slug}/${f} differs from the clone copy; it is kept in .ai/workflows/.conflicts/${slug}/\n`);
+      if (c) {
         const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
         inBackground(['records', TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', root, slug]);
       }
@@ -1189,7 +1211,7 @@ async function runMain(cmd, pos, opt) {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
       case 'gh': return runGh(pos, opt);
-      case 'records': return runRecords(pos, opt);
+      case 'records': return await runRecords(pos, opt);
       case 'lease': return runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
       case 'page': return runPage(pos, opt);

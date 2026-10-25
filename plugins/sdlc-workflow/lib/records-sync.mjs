@@ -4,21 +4,27 @@
 // Each open workflow has its own branch, `live/<project>/<slug>`. A commit goes to that branch
 // at each step and stage boundary, built with plumbing (a temporary index), so the working tree
 // and the main branch stay as they are. When the workflow closes, one commit puts its folder on
-// the main branch and the live branch is deleted: the main branch keeps one commit per workflow.
+// the main branch and the live branch is deleted. A write after the close makes a live branch
+// again, and the next sync puts that batch on the main branch as one more commit.
 //
 // A push that the remote rejects is merged with `git merge-tree`: two machines that wrote other
 // files (a message in `inbox/`, say) merge cleanly. A real conflict stops and is reported.
 // Offline work stays in the local refs, and the next sync pushes it.
+//
+// No step deletes a file that is not in a commit. A sync commits the clone first, and a move of
+// a ref writes only the files that changed between the two commits (`applyTree`). A ref that a
+// step deletes is kept in ~/.sdlc/records-state.json under `dropped`, so a person can recover it.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { DRAFT_DIR } from './records.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 
 const NET_TIMEOUT_MS = 20_000;
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+const MAX_DROPPED = 200;
 
 /** This machine's name in the records: `records.machine` of ~/.sdlc/config.json, else the host name. */
 export function machineName() {
@@ -38,6 +44,7 @@ const sha = (home, ref) => {
   return r.status === 0 ? r.stdout : null;
 };
 const isAncestor = (home, a, b) => gitIn(home, ['merge-base', '--is-ancestor', a, b]).status === 0;
+const zeroOid = (oid) => '0'.repeat(oid.length);
 
 /** The main branch of the records clone: the branch that HEAD names. */
 export function mainBranch(home) {
@@ -45,13 +52,15 @@ export function mainBranch(home) {
   return r.status === 0 && r.stdout ? r.stdout : 'main';
 }
 export const liveRef = (project, slug) => `refs/heads/live/${project}/${slug}`;
+const remoteLiveRef = (project, slug) => `refs/remotes/origin/live/${project}/${slug}`;
 const hasRemote = (home) => gitIn(home, ['remote', 'get-url', 'origin']).status === 0;
 
 // ---------------------------------------------------------------- local state
 
 const statePath = () => join(sdlcHomeDir(), 'records-state.json');
-function readState() {
-  try { return { pendingClose: [], conflicts: {}, ...JSON.parse(readFileSync(statePath(), 'utf8')) }; } catch { return { pendingClose: [], conflicts: {} }; }
+export function readState() {
+  const empty = { pendingClose: [], conflicts: {}, failures: {}, dropped: [] };
+  try { return { ...empty, ...JSON.parse(readFileSync(statePath(), 'utf8')) }; } catch { return empty; }
 }
 function writeState(s) {
   mkdirSync(sdlcHomeDir(), { recursive: true });
@@ -59,49 +68,236 @@ function writeState(s) {
   writeFileSync(tmp, `${JSON.stringify(s, null, 2)}\n`);
   renameSync(tmp, statePath());
 }
+/** Change the state file: read it, apply `fn`, write it. */
+function updateState(fn) {
+  const s = readState();
+  fn(s);
+  writeState(s);
+  return s;
+}
+
+/** The log of the records steps that failed: one JSON line each, in ~/.sdlc/records-log.jsonl. */
+export const recordsLogPath = () => join(sdlcHomeDir(), 'records-log.jsonl');
+export function logRecordsFailure({ project = null, slug = null, step, error }) {
+  const entry = { at: nowIso(), project, slug, step, error: String(error ?? '').split('\n')[0] };
+  try {
+    mkdirSync(sdlcHomeDir(), { recursive: true });
+    appendFileSync(recordsLogPath(), `${JSON.stringify(entry)}\n`);
+    // The state keeps the last failure of each workflow until a push or a close of it works.
+    if (project && slug) updateState((s) => { s.failures = { ...(s.failures ?? {}), [`${project}/${slug}`]: entry }; });
+  } catch { /* a log that cannot be written must not fail the step */ }
+}
+const clearFailure = (s, key) => { if (s.failures?.[key]) delete s.failures[key]; };
+export function readRecordsLog() {
+  try {
+    return readFileSync(recordsLogPath(), 'utf8').split(/\r?\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch { return []; }
+}
+
+/** Delete a local ref, and keep its old tip in the state under `dropped`. */
+function dropRef(home, ref, reason) {
+  const old = sha(home, ref);
+  if (!old) return true;
+  updateState((s) => {
+    s.dropped = [...(s.dropped ?? []), { at: nowIso(), ref, sha: old, reason }].slice(-MAX_DROPPED);
+  });
+  return gitIn(home, ['update-ref', '-d', ref, old]).status === 0;
+}
+
+// ---------------------------------------------------------------- content
+
+const blobBytes = (home, oid) => spawnSync('git', ['-C', home, 'cat-file', 'blob', oid], { windowsHide: true, maxBuffer: 256 * 1024 * 1024 }).stdout ?? Buffer.alloc(0);
+const lf = (buf) => Buffer.from(buf.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+/** Two contents are the same when their bytes match with the line endings normalized. */
+export const sameContent = (a, b) => a.equals(b) || lf(a).equals(lf(b));
+
+/** The blob of `path` in commit `commit`, as bytes, or null. */
+function blobAt(home, commit, path) {
+  const r = gitIn(home, ['rev-parse', '--verify', '--quiet', `${commit}:${path}`]);
+  return r.status === 0 ? blobBytes(home, r.stdout) : null;
+}
+
+/** True when the bytes (or their line-ending normal form) were a version of `path` in the history of `ref`. */
+function inHistory(home, ref, path, bytes) {
+  const ids = new Set();
+  for (const b of [bytes, lf(bytes)]) {
+    const h = spawnSync('git', ['-C', home, 'hash-object', '--stdin', '--no-filters'], { input: b, encoding: 'utf8', windowsHide: true });
+    if (h.status === 0) ids.add(h.stdout.trim());
+  }
+  const log = gitIn(home, ['log', '--format=', '--raw', '--no-abbrev', '--no-renames', ref, '--', path]);
+  if (log.status !== 0) return false;
+  for (const line of log.stdout.split('\n')) {
+    const m = /^:\d+ \d+ ([0-9a-f]+) ([0-9a-f]+) /.exec(line);
+    if (m && (ids.has(m[1]) || ids.has(m[2]))) return true;
+  }
+  return false;
+}
+
+const emptyTreeOf = new Map();
+const emptyTree = (home) => {
+  if (!emptyTreeOf.has(home)) emptyTreeOf.set(home, gitIn(home, ['mktree'], { input: '' }).stdout);
+  return emptyTreeOf.get(home);
+};
+
+function pruneEmpty(home, file, stop) {
+  let dir = dirname(join(home, file));
+  const end = join(home, stop);
+  while (dir.length > end.length && dir.startsWith(end)) {
+    try { if (readdirSync(dir).length) return; rmSync(dir, { recursive: true, force: true }); } catch { return; }
+    dir = dirname(dir);
+  }
+}
+
+/**
+ * Bring the working tree of `path` from commit `from` to commit `to`: write each file that
+ * differs, and delete each file that `from` has and `to` lacks. A file that neither commit has
+ * stays. A working file whose bytes match neither commit is a change of this machine: it stays,
+ * and it is reported as a conflict. `skip(file)` leaves a path out. `from` null is the empty tree.
+ * Returns `{ written, deleted, conflicts }`.
+ */
+export function applyTree(home, from, to, path, { skip = () => false } = {}) {
+  const out = { written: [], deleted: [], conflicts: [] };
+  if (!to || from === to) return out;
+  const d = spawnSync('git', ['-C', home, 'diff', '--raw', '-z', '--no-renames', '--no-abbrev', from ?? emptyTree(home), to, '--', path], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (d.status !== 0) return out;
+  const parts = d.stdout.split('\0');
+  for (let i = 0; i + 1 < parts.length; i += 2) {
+    const [meta, file] = [parts[i], parts[i + 1]];
+    if (!meta.startsWith(':') || !file || skip(file)) continue;
+    const [, , src, dst, st] = meta.slice(1).split(' ');
+    const target = join(home, file);
+    const want = st.startsWith('D') ? null : blobBytes(home, dst);
+    const had = st.startsWith('A') ? null : blobBytes(home, src);
+    const cur = existsSync(target) && statSync(target).isFile() ? readFileSync(target) : null;
+    if (cur && want && sameContent(cur, want)) continue;
+    if (cur && !(had && sameContent(cur, had))) { out.conflicts.push(file); continue; }
+    if (!want) {
+      if (cur) { rmSync(target, { force: true }); out.deleted.push(file); pruneEmpty(home, file, path.replace(/\/+$/, '')); }
+      continue;
+    }
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, want);
+    out.written.push(file);
+  }
+  return out;
+}
+
+/** The folders `<project>/<slug>` that have a live branch on this machine, of every project. */
+function liveFolders(home) {
+  const r = gitIn(home, ['for-each-ref', '--format=%(refname)', 'refs/heads/live/']);
+  return new Set(r.stdout.split('\n').filter(Boolean).map((ref) => ref.slice('refs/heads/live/'.length)));
+}
+/** The skip rule of a move of the main branch: a folder with a live branch shows that branch. */
+function skipLive(home) {
+  const live = liveFolders(home);
+  return (file) => {
+    const [p, s] = file.split('/');
+    return s !== undefined && live.has(`${p}/${s}`);
+  };
+}
+
+/** Move the main branch from `from` to `to`: the ref, the index and the files of the working tree. */
+function moveMain(home, from, to) {
+  const main = `refs/heads/${mainBranch(home)}`;
+  if (gitIn(home, ['update-ref', main, to, ...(from ? [from] : [])]).status !== 0) return null;
+  gitIn(home, ['read-tree', to]);
+  return applyTree(home, from, to, '.', { skip: skipLive(home) });
+}
 
 // ---------------------------------------------------------------- plumbing commit
 
+/** True for a path of the records home that stays out of every commit: a local-only file, or a generated INDEX.md. */
+export function keptOutOfCommits(file) {
+  const parts = String(file).replace(/\\/g, '/').split('/').filter(Boolean);
+  if (parts.length < 2 || parts[0] === '.machines') return false;
+  const rel = parts.slice(1).join('/');
+  return rel === 'INDEX.md' || isLocalOnly(rel);
+}
+
+/** Remove from a temporary index each path under `paths` that stays out of the commits. */
+function dropLocalOnly(home, index, paths) {
+  const ls = spawnSync('git', ['-C', home, 'ls-files', '-z', '--cached', '--', ...paths], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const out = (ls.stdout ?? '').split('\0').filter((f) => f && keptOutOfCommits(f));
+  if (out.length) gitIn(home, ['rm', '-q', '--cached', '--ignore-unmatch', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${out.join('\0')}\0` });
+}
+
 /**
- * Commit `paths` of the working tree onto `ref`, whose parent is the tip of `ref`, else the tip
- * of `base`. Nothing else of the tree changes. Returns the new commit, the old one when nothing
- * changed, or null when the commit failed.
+ * Build a commit on `ref` whose tree is the tip of `ref` (else the tip of `base`) changed by
+ * `fill(index)`. The ref moves with a compare-and-swap; a second writer that moved it first makes
+ * this one build again on the new tip. Returns the new commit, the old one when nothing changed,
+ * or null when the commit failed.
  */
-export function commitPaths(home, { ref, base = null, paths, message }) {
-  const parent = sha(home, ref) ?? (base ? sha(home, base) : null);
+function buildCommit(home, { ref, base, paths, message, fill }) {
   const index = join(home, '.git', `wf-index-${process.pid}`);
   try {
-    const read = parent ? gitIn(home, ['read-tree', parent], { index }) : gitIn(home, ['read-tree', '--empty'], { index });
-    if (read.status !== 0) return null;
-    for (const p of paths) {
-      gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p], { index });
-      if (existsSync(join(home, p))) gitIn(home, ['add', '-A', '-f', '--', p], { index });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const current = sha(home, ref);
+      const parent = current ?? (base ? sha(home, base) : null);
+      const read = parent ? gitIn(home, ['read-tree', parent], { index }) : gitIn(home, ['read-tree', '--empty'], { index });
+      if (read.status !== 0) return null;
+      fill(index);
+      dropLocalOnly(home, index, paths);
+      const tree = gitIn(home, ['write-tree'], { index });
+      if (tree.status !== 0) return null;
+      if (parent && gitIn(home, ['rev-parse', `${parent}^{tree}`]).stdout === tree.stdout) return parent;
+      const c = gitIn(home, ['commit-tree', tree.stdout, ...(parent ? ['-p', parent] : []), '-m', message]);
+      if (c.status !== 0) return null;
+      const u = gitIn(home, ['update-ref', ref, c.stdout, current ?? zeroOid(c.stdout)]);
+      if (u.status === 0) return c.stdout;
     }
-    const tree = gitIn(home, ['write-tree'], { index });
-    if (tree.status !== 0) return null;
-    if (parent && gitIn(home, ['rev-parse', `${parent}^{tree}`]).stdout === tree.stdout) return parent;
-    const c = gitIn(home, ['commit-tree', tree.stdout, ...(parent ? ['-p', parent] : []), '-m', message]);
-    if (c.status !== 0) return null;
-    const u = gitIn(home, ['update-ref', ref, c.stdout, ...(parent && sha(home, ref) ? [parent] : [])]);
-    return u.status === 0 ? c.stdout : null;
+    return null;
   } finally {
     rmSync(index, { force: true });
   }
 }
 
-/** Write the files under `path` of commit `ref` into the working tree, in place of what is there. */
-function writeFolder(home, ref, path) {
-  rmSync(join(home, path), { recursive: true, force: true });
-  const ls = gitIn(home, ['ls-tree', '-r', '-z', '--full-tree', ref, '--', path]);
-  if (ls.status !== 0 || !ls.stdout) return;
-  for (const row of ls.stdout.split('\0').filter(Boolean)) {
-    const [meta, file] = row.split('\t');
-    const blob = meta.split(' ')[2];
-    const out = spawnSync('git', ['-C', home, 'cat-file', 'blob', blob], { windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-    const target = join(home, file);
-    mkdirSync(join(target, '..'), { recursive: true });
-    writeFileSync(target, out.stdout);
-  }
+/**
+ * Commit `paths` of the working tree onto `ref`, whose parent is the tip of `ref`, else the tip
+ * of `base`. Nothing else of the tree changes, and no draft or local-only file goes in. Returns
+ * the new commit, the old one when nothing changed, or null when the commit failed.
+ */
+export function commitPaths(home, { ref, base = null, paths, message }) {
+  return buildCommit(home, {
+    ref, base, paths, message,
+    fill: (index) => {
+      for (const p of paths) {
+        gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p], { index });
+        if (existsSync(join(home, p))) gitIn(home, ['add', '-A', '-f', '--', p], { index });
+      }
+    },
+  });
+}
+
+/** Commit onto `ref` the files of `paths` as commit `source` has them. */
+function commitFrom(home, { ref, source, paths, message }) {
+  return buildCommit(home, {
+    ref, base: null, paths, message,
+    fill: (index) => {
+      for (const p of paths) {
+        gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p], { index });
+        const ls = spawnSync('git', ['-C', home, 'ls-tree', '-r', '-z', '--full-tree', source, '--', p], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+        if (ls.status === 0 && ls.stdout) gitIn(home, ['update-index', '-z', '--index-info'], { index, input: ls.stdout });
+      }
+    },
+  });
+}
+
+// ---------------------------------------------------------------- the clone's own files
+
+/** The lines of the .gitignore of the records repo: the registry of each project is generated. */
+export const CLONE_IGNORE = ['*/INDEX.md'];
+
+/** Write the .gitignore of the records repo on its main branch when a line is missing. */
+export function ensureCloneIgnore(home) {
+  const file = join(home, '.gitignore');
+  const have = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const lines = have.split(/\r?\n/);
+  const missing = CLONE_IGNORE.filter((l) => !lines.includes(l));
+  if (!missing.length) return false;
+  writeFileSync(file, `${have}${have && !have.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
+  const c = commitPaths(home, { ref: `refs/heads/${mainBranch(home)}`, paths: ['.gitignore'], message: 'records: the generated INDEX.md files stay out of git' });
+  if (c) gitIn(home, ['read-tree', c]);
+  return true;
 }
 
 // ---------------------------------------------------------------- link
@@ -121,6 +317,7 @@ export function linkProject(root, project) {
   }
   const target = join(home, project);
   mkdirSync(target, { recursive: true });
+  ensureCloneIgnore(home);
   const local = localWorkflowsRoot(root);
   const moved = [];
   if (existsSync(local)) {
@@ -154,28 +351,49 @@ export function linkProject(root, project) {
 
 // ---------------------------------------------------------------- adopt local files
 
-const sameBytes = (a, b) => {
-  const x = readFileSync(a);
-  const y = readFileSync(b);
-  return x.length === y.length && x.equals(y);
-};
+/** Keep a local copy that lost to the clone copy in `.ai/workflows/.conflicts/<slug>/`, which stays on this machine. */
+function parkConflict(localRoot, slug, rel, src) {
+  const base = join(localRoot, '.conflicts', slug ?? '_top', rel);
+  let to = base;
+  for (let n = 1; existsSync(to); n += 1) {
+    if (sameContent(readFileSync(to), readFileSync(src))) { rmSync(src, { force: true }); return to; }
+    to = `${base}.${n}`;
+  }
+  mkdirSync(dirname(to), { recursive: true });
+  try { renameSync(src, to); } catch { cpSync(src, to); rmSync(src, { force: true }); }
+  return to;
+}
 
 /**
  * Move the files that a writer put in the local folder of a linked workflow into the records
  * home: an agent that writes by the local path, a test runner, a shell redirect. The drafts
- * stay. A file of the same bytes is only deleted. When both places hold the file with other
- * bytes, the newer one wins, and an older local file stays where it is and is reported.
- * `slug` null adopts the top-level files of the local workflows folder (INDEX.md).
- * Returns `{ moved, conflicts }`, or null when the project is not linked.
+ * stay. The rule compares content, never times:
+ * - A local copy with the same content as the clone copy (line endings aside) is deleted.
+ * - A local copy that was once a version of the file (in the history of its branch) is stale:
+ *   a checkout, a restore or a stash put it back. It is deleted.
+ * - A local copy of a file that the clone lacks, or whose clone copy is the committed one, is the
+ *   newer write. It moves into the clone.
+ * - Otherwise the clone copy has its own change. It stays, and the local copy moves to
+ *   `.ai/workflows/.conflicts/<slug>/` and is reported.
+ * `slug` null adopts the top-level files of the local workflows folder (INDEX.md, which the
+ * clone rebuilds). Returns `{ moved, stale, conflicts }`, or null when the project is not linked.
  */
 export function adoptLocal(root, slug) {
   const project = linkedProject(root);
   if (!project) return null;
-  const out = { moved: [], conflicts: [] };
+  const out = { moved: [], stale: [], conflicts: [] };
+  const home = recordsHome();
   const localRoot = localWorkflowsRoot(root);
   const from = slug ? join(localRoot, slug) : localRoot;
-  const to = slug ? join(recordsHome(), project, slug) : join(recordsHome(), project);
+  const toRel = slug ? `${project}/${slug}` : project;
+  const to = join(home, toRel);
   if (!existsSync(from)) return out;
+  const tipRef = slug && sha(home, liveRef(project, slug)) ? liveRef(project, slug) : `refs/heads/${mainBranch(home)}`;
+  const tip = sha(home, tipRef);
+  const move = (src, dst) => {
+    mkdirSync(dirname(dst), { recursive: true });
+    try { renameSync(src, dst); } catch { cpSync(src, dst); rmSync(src, { force: true }); }
+  };
   const walk = (dir, rel) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const r = rel ? `${rel}/${e.name}` : e.name;
@@ -190,13 +408,19 @@ export function adoptLocal(root, slug) {
       }
       if (!e.isFile()) continue;
       const dst = join(to, r);
-      if (existsSync(dst)) {
-        if (sameBytes(src, dst)) { rmSync(src, { force: true }); continue; }
-        if (statSync(src).mtimeMs <= statSync(dst).mtimeMs) { out.conflicts.push(r); continue; }
+      const mine = readFileSync(src);
+      if (existsSync(dst) && sameContent(mine, readFileSync(dst))) { rmSync(src, { force: true }); continue; }
+      // The registry is rebuilt in the clone: a local copy only fills a clone that has none.
+      if (!slug && r === 'INDEX.md') {
+        if (existsSync(dst)) rmSync(src, { force: true }); else { move(src, dst); out.moved.push(r); }
+        continue;
       }
-      mkdirSync(join(dst, '..'), { recursive: true });
-      try { renameSync(src, dst); } catch { cpSync(src, dst); rmSync(src, { force: true }); }
-      out.moved.push(r);
+      const inHome = `${toRel}/${r}`;
+      if (tip && inHistory(home, tipRef, inHome, mine)) { rmSync(src, { force: true }); out.stale.push(r); continue; }
+      const committed = tip ? blobAt(home, tip, inHome) : null;
+      if (!existsSync(dst) || (committed && sameContent(readFileSync(dst), committed))) { move(src, dst); out.moved.push(r); continue; }
+      parkConflict(localRoot, slug, r, src);
+      out.conflicts.push(r);
     }
   };
   walk(from, '');
@@ -214,24 +438,56 @@ function localStrays(root) {
 
 // ---------------------------------------------------------------- commit and push
 
-/** Commit one workflow's folder to its live branch. Returns `{ commit, project }`, or null when unlinked. */
+/**
+ * Commit one workflow's folder to its live branch. Returns `{ commit, project, home, conflicts }`,
+ * or null when unlinked; `conflicts` are the local files that `adoptLocal` kept aside.
+ */
 export function commitWorkflow(root, slug, message) {
   const project = linkedProject(root);
   if (!project) return null;
-  adoptLocal(root, slug);
+  const adopted = adoptLocal(root, slug);
   const home = recordsHome();
   const commit = commitPaths(home, { ref: liveRef(project, slug), base: `refs/heads/${mainBranch(home)}`, paths: [`${project}/${slug}`], message });
-  return { commit, project, home };
+  if (!commit) logRecordsFailure({ project, slug, step: 'commit', error: 'the commit of the workflow folder failed' });
+  return { commit, project, home, conflicts: adopted?.conflicts ?? [] };
 }
 
 /**
- * Push a ref. A rejected push fetches the remote tip, merges the two trees, writes the merged
- * folder and pushes again. Returns `{ pushed, offline, conflict }`.
+ * Commit every change of the clone of a project that no commit holds yet: the design records on
+ * the main branch, and each workflow folder on its live branch. A folder with no change makes no
+ * commit. After this, a move of a ref loses no file.
+ */
+function commitPending(root, project, home) {
+  const main = `refs/heads/${mainBranch(home)}`;
+  if (existsSync(join(home, project, '_design'))) {
+    const c = commitPaths(home, { ref: main, paths: [`${project}/_design`], message: `${project}: the design records before a sync` });
+    if (c) gitIn(home, ['read-tree', c]);
+  }
+  // The folders that differ from the main branch: the open workflows, and a closed one with a new file.
+  const st = spawnSync('git', ['-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${project}/`], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const slugs = new Set();
+  for (const row of (st.stdout ?? '').split('\0')) {
+    const file = row.slice(3);
+    const [p, s, rest] = file.split('/');
+    if (p !== project || !s || rest === undefined || s.startsWith('.') || s.startsWith('_') || keptOutOfCommits(file)) continue;
+    slugs.add(s);
+  }
+  for (const s of slugs) commitWorkflow(root, s, `${project}/${s}: the records of ${machineName()} before a sync`);
+}
+
+/**
+ * Push a ref. A rejected push fetches the remote tip, merges the two trees, writes the changed
+ * files and pushes again. A live branch writes its folder; the main branch writes every folder
+ * that has no live branch here. Returns `{ pushed, offline, conflict }`.
  */
 export function pushRef(home, ref, { folder = null } = {}) {
   if (!hasRemote(home)) return { pushed: false, offline: true, reason: 'the records clone has no remote' };
   const local = sha(home, ref);
   if (!local) return { pushed: false, reason: `no ref ${ref}` };
+  const isMain = ref === `refs/heads/${mainBranch(home)}`;
+  const follow = (from, to) => {
+    if (isMain) { gitIn(home, ['read-tree', to]); applyTree(home, from, to, '.', { skip: skipLive(home) }); } else if (folder) applyTree(home, from, to, folder);
+  };
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const p = gitIn(home, ['push', '-q', 'origin', `${ref}:${ref}`], { net: true });
     if (p.status === 0) return { pushed: true };
@@ -241,8 +497,8 @@ export function pushRef(home, ref, { folder = null } = {}) {
     const ours = sha(home, ref);
     if (!theirs || isAncestor(home, theirs, ours)) continue;
     if (isAncestor(home, ours, theirs)) {
-      gitIn(home, ['update-ref', ref, theirs, ours]);
-      if (folder) writeFolder(home, theirs, folder);
+      if (gitIn(home, ['update-ref', ref, theirs, ours]).status !== 0) continue;
+      follow(ours, theirs);
       return { pushed: true, fastForward: true };
     }
     const m = gitIn(home, ['merge-tree', '--write-tree', '--allow-unrelated-histories', ours, theirs]);
@@ -250,8 +506,8 @@ export function pushRef(home, ref, { folder = null } = {}) {
     const tree = m.stdout.split('\n')[0];
     const c = gitIn(home, ['commit-tree', tree, '-p', ours, '-p', theirs, '-m', `merge ${ref.slice(11)} from another machine`]);
     if (c.status !== 0) return { pushed: false, reason: c.stderr };
-    gitIn(home, ['update-ref', ref, c.stdout, ours]);
-    if (folder) writeFolder(home, c.stdout, folder);
+    if (gitIn(home, ['update-ref', ref, c.stdout, ours]).status !== 0) continue;
+    follow(ours, c.stdout);
   }
   return { pushed: false, reason: 'the push was rejected three times' };
 }
@@ -262,51 +518,132 @@ export function pushWorkflow(root, slug) {
   if (!project) return null;
   const home = recordsHome();
   const r = pushRef(home, liveRef(project, slug), { folder: `${project}/${slug}` });
-  const state = readState();
   const key = `${project}/${slug}`;
-  if (r.conflict) state.conflicts[key] = { at: nowIso(), reason: r.reason };
-  else if (r.pushed) delete state.conflicts[key];
-  writeState(state);
+  updateState((state) => {
+    if (r.conflict) state.conflicts[key] = { at: nowIso(), reason: r.reason };
+    else if (r.pushed) { delete state.conflicts[key]; clearFailure(state, key); }
+  });
   return r;
 }
+
+/** The remote tips of `refs`, as a Map of ref → sha; null when the remote is out of reach. */
+function remoteTips(home, refs) {
+  if (!hasRemote(home)) return null;
+  const ls = gitIn(home, ['ls-remote', 'origin', ...refs], { net: true });
+  if (ls.status !== 0) return null;
+  return new Map(ls.stdout.split('\n').filter(Boolean).map((l) => l.split('\t').reverse()));
+}
+
+/** Delete a remote ref only while it still points at `expect`. */
+const deleteRemote = (home, ref, expect) => gitIn(home, ['push', '-q', `--force-with-lease=${ref}:${expect}`, 'origin', `:${ref}`], { net: true }).status === 0;
 
 // ---------------------------------------------------------------- close
 
 /**
  * Squash a closed workflow onto the main branch: one commit that puts its folder there, then
- * the live branch is deleted. Offline, the close waits in the local state for the next sync.
+ * the live branch is deleted. The squash takes the live branch with the work that other machines
+ * pushed to it. Offline, the close waits in the local state for the next sync.
  */
 export function squashWorkflow(root, slug) {
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
   const key = `${project}/${slug}`;
+  const ref = liveRef(project, slug);
   commitWorkflow(root, slug, `${key}: close`);
   const main = mainBranch(home);
-  // A remote with no main branch yet is online too.
-  const heads = hasRemote(home) ? gitIn(home, ['ls-remote', '--heads', 'origin', main], { net: true }) : { status: 1 };
-  const online = heads.status === 0
-    && (!heads.stdout || gitIn(home, ['fetch', '-q', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`], { net: true }).status === 0);
+  const tips = remoteTips(home, [`refs/heads/${main}`, ref]);
+  const online = Boolean(tips);
+  if (tips?.has(`refs/heads/${main}`)) gitIn(home, ['fetch', '-q', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`], { net: true });
+  // The live work of another machine comes in first, so the squash holds both sides.
+  // `remoteTip` is the remote live tip that the squash holds: the lease of its delete.
+  let remoteTip = null;
+  if (tips?.has(ref)) {
+    gitIn(home, ['fetch', '-q', 'origin', `+${ref}:${remoteLiveRef(project, slug)}`], { net: true });
+    remoteTip = sha(home, remoteLiveRef(project, slug));
+    const ours = sha(home, ref);
+    if (remoteTip && remoteTip !== ours && !(ours && isAncestor(home, remoteTip, ours))) {
+      const p = pushWorkflow(root, slug);
+      if (!p?.pushed) {
+        logRecordsFailure({ project, slug, step: 'close', error: p?.reason ?? 'the live branch did not merge' });
+        return { ok: false, reason: `the live branch of another machine did not merge: ${p?.reason ?? 'unknown'}` };
+      }
+      remoteTip = sha(home, ref);
+    }
+  }
   const remoteMain = online ? sha(home, `refs/remotes/origin/${main}`) : null;
   const localMain = sha(home, `refs/heads/${main}`);
   // The squash goes on the newest main this machine knows.
-  const base = remoteMain && (!localMain || isAncestor(home, localMain, remoteMain)) ? remoteMain : localMain;
-  if (base && base !== localMain) gitIn(home, ['update-ref', `refs/heads/${main}`, base]);
-  const live = sha(home, liveRef(project, slug));
-  if (live) writeFolder(home, live, key);
-  const commit = commitPaths(home, { ref: `refs/heads/${main}`, paths: [key], message: `${key}: the records of the closed workflow` });
-  if (!commit) return { ok: false, reason: 'the squash commit failed' };
+  if (remoteMain && remoteMain !== localMain && (!localMain || isAncestor(home, localMain, remoteMain))) moveMain(home, localMain, remoteMain);
+  const live = sha(home, ref);
+  // The trailer names the live tip that the squash holds: a later fold merges from it.
+  const message = `${key}: the records of the closed workflow${live ? `\n\n${SQUASHED_TRAILER}: ${live}` : ''}`;
+  const commit = live
+    ? commitFrom(home, { ref: `refs/heads/${main}`, source: live, paths: [key], message })
+    : commitPaths(home, { ref: `refs/heads/${main}`, paths: [key], message });
+  if (!commit) {
+    logRecordsFailure({ project, slug, step: 'close', error: 'the squash commit failed' });
+    return { ok: false, reason: 'the squash commit failed' };
+  }
   // HEAD names the main branch: the index follows the new tip, the working tree keeps its files.
   gitIn(home, ['read-tree', commit]);
-  const state = readState();
   const pushed = online ? pushRef(home, `refs/heads/${main}`) : { pushed: false, offline: true };
-  if (pushed.pushed) {
-    gitIn(home, ['push', '-q', 'origin', `:${liveRef(project, slug)}`], { net: true });
-    gitIn(home, ['update-ref', '-d', liveRef(project, slug)]);
-    state.pendingClose = state.pendingClose.filter((k) => k !== key);
-  } else if (!state.pendingClose.includes(key)) state.pendingClose.push(key);
-  writeState(state);
-  return { ok: true, commit, pushed: Boolean(pushed.pushed), pending: !pushed.pushed, ...(pushed.reason ? { reason: pushed.reason } : {}) };
+  let keptLive = false;
+  if (pushed.pushed && live) {
+    // A remote live branch that moved after the merge keeps its new commits for the next sync.
+    if (remoteTip && !deleteRemote(home, ref, remoteTip)) keptLive = true;
+    else dropRef(home, ref, `${key}: squashed onto ${main}`);
+  }
+  updateState((state) => {
+    if (pushed.pushed) { state.pendingClose = state.pendingClose.filter((k) => k !== key); clearFailure(state, key); }
+    else if (!state.pendingClose.includes(key)) state.pendingClose.push(key);
+  });
+  if (!pushed.pushed && !pushed.offline) logRecordsFailure({ project, slug, step: 'close', error: pushed.reason });
+  return { ok: true, commit, pushed: Boolean(pushed.pushed), pending: !pushed.pushed, ...(keptLive ? { keptLive } : {}), ...(pushed.reason ? { reason: pushed.reason } : {}) };
+}
+
+const SQUASHED_TRAILER = 'Squashed-live';
+
+/**
+ * Put the records that a live branch got after its workflow closed on the main branch, as one
+ * more commit, and delete the live branch. The merge starts from the newest tip that the main
+ * branch already holds: the live tip of the last squash, or the remote tip that this machine
+ * knew before the sync (`pushedTip`). A live branch with nothing past that tip, or with the
+ * same folder as the main branch, is only deleted. Returns `{ folded, dropped, reason }`.
+ */
+function foldAfterClose(root, project, slug, home, { remote, pushedTip = null }) {
+  const key = `${project}/${slug}`;
+  const ref = liveRef(project, slug);
+  const main = `refs/heads/${mainBranch(home)}`;
+  const live = sha(home, ref);
+  const tip = sha(home, main);
+  if (!live || !tip) return { folded: false };
+  const liveTree = gitIn(home, ['rev-parse', '--verify', '--quiet', `${live}:${key}`]).stdout;
+  const mainTree = gitIn(home, ['rev-parse', '--verify', '--quiet', `${tip}:${key}`]).stdout;
+  const squashed = gitIn(home, ['log', '-1', `--format=%(trailers:key=${SQUASHED_TRAILER},valueonly)`, tip, '--', key]).stdout.trim();
+  const held = [squashed, pushedTip].filter((c) => c && sha(home, c));
+  // The live branch goes on both sides; a remote tip that this machine lacks keeps it.
+  const drop = (folded, why) => {
+    const theirs = remote ? sha(home, remoteLiveRef(project, slug)) : null;
+    if (theirs && (!isAncestor(home, theirs, live) || !deleteRemote(home, ref, theirs))) return { folded, dropped: false };
+    dropRef(home, ref, `${key}: ${why}`);
+    // With no live branch, the folder shows the main branch.
+    applyTree(home, live, sha(home, main), key);
+    return { folded, dropped: true };
+  };
+  if (liveTree === mainTree) return drop(false, 'the same folder is on the main branch');
+  if (held.some((c) => isAncestor(home, live, c))) return drop(false, 'the main branch holds this live branch');
+  const mergeBase = held.find((c) => isAncestor(home, c, live)) ?? null;
+  const m = gitIn(home, ['merge-tree', '--write-tree', ...(mergeBase ? [`--merge-base=${mergeBase}`] : ['--allow-unrelated-histories']), tip, live]);
+  if (m.status !== 0) return { folded: false, reason: `${slug}: the records after the close conflict with ${mainBranch(home)}` };
+  const c = gitIn(home, ['commit-tree', m.stdout.split('\n')[0], '-p', tip, '-m', `${key}: records after close`]);
+  if (c.status !== 0 || gitIn(home, ['update-ref', main, c.stdout, tip]).status !== 0) return { folded: false, reason: `${slug}: the commit of the records after the close failed` };
+  gitIn(home, ['read-tree', c.stdout]);
+  if (remote) {
+    const p = pushRef(home, main);
+    if (!p.pushed) return { folded: true, dropped: false, reason: `${mainBranch(home)}: ${p.reason ?? 'not pushed'}` };
+  }
+  return drop(true, 'folded after the close');
 }
 
 // ---------------------------------------------------------------- sync
@@ -336,32 +673,43 @@ export function writeMachineFacts(root, change = {}) {
 }
 
 /**
- * Pull the work of other machines. The main branch and every live branch of the project that
- * this machine does not hold move to the remote tip, and their folders are written. A live
- * branch that this machine holds is pushed instead. Returns what moved.
+ * Pull the work of other machines. The uncommitted files of the clone go into commits first.
+ * The main branch and every live branch of the project that this machine does not hold move to
+ * the remote tip, and only the changed files are written. A live branch that this machine holds
+ * is pushed instead. A live branch of a closed workflow is folded onto the main branch. Returns
+ * what moved, with `conflicts` (refs that did not merge) and `adoptConflicts` (local files kept aside).
  */
 export function syncRecords(root, { holds = () => false } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
+  const home = recordsHome();
+  const out = { project, pulled: [], pushed: [], folded: [], conflicts: [], fileConflicts: [], adoptConflicts: [], offline: false };
   // The files that writers put in the local folder go home first, so the push carries them.
   adoptLocal(root, null);
-  for (const slug of localStrays(root)) commitWorkflow(root, slug, `${slug}: adopt the local files`);
-  const home = recordsHome();
-  const out = { project, pulled: [], pushed: [], conflicts: [], offline: false };
+  for (const slug of localStrays(root)) {
+    const c = commitWorkflow(root, slug, `${slug}: adopt the local files`);
+    for (const f of c?.conflicts ?? []) out.adoptConflicts.push(`${slug}/${f}`);
+  }
+  commitPending(root, project, home);
+  ensureCloneIgnore(home);
   if (!hasRemote(home)) { out.offline = true; return out; }
+  // The remote live tips that this machine knew: a fetch prunes the tips of closed workflows.
+  const prefix = `refs/remotes/origin/live/${project}/`;
+  const knownRemote = new Map(gitIn(home, ['for-each-ref', '--format=%(refname) %(objectname)', prefix]).stdout.split('\n').filter(Boolean)
+    .map((l) => { const [r, o] = l.split(' '); return [r.slice(prefix.length), o]; }));
   const f = gitIn(home, ['fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*', '+refs/leases/*:refs/leases/*'], { net: true });
   if (f.status !== 0) { out.offline = true; return out; }
   const main = mainBranch(home);
-  const state = readState();
   // A close that waited for the network goes out first.
-  for (const key of [...state.pendingClose]) {
+  for (const key of [...readState().pendingClose]) {
     if (key.startsWith(`${project}/`)) squashWorkflow(root, key.slice(project.length + 1));
   }
   const remoteMain = sha(home, `refs/remotes/origin/${main}`);
   const localMain = sha(home, `refs/heads/${main}`);
   if (remoteMain !== localMain) {
     if (remoteMain && (!localMain || isAncestor(home, localMain, remoteMain))) {
-      gitIn(home, ['update-ref', `refs/heads/${main}`, remoteMain]);
+      const a = moveMain(home, localMain, remoteMain);
+      for (const c of a?.conflicts ?? []) out.fileConflicts.push(c);
     } else {
       // This machine has main commits that the remote lacks: a squash or machine facts.
       const r = pushRef(home, `refs/heads/${main}`);
@@ -369,15 +717,8 @@ export function syncRecords(root, { holds = () => false } = {}) {
     }
     const tip = sha(home, `refs/heads/${main}`);
     if (tip && tip !== localMain) {
-      gitIn(home, ['read-tree', tip]);
-      // The folders of the closed workflows that came from other machines.
-      const ls = gitIn(home, ['ls-tree', '--name-only', tip, '--', `${project}/`]);
-      for (const p of ls.stdout.split('\n').filter(Boolean)) {
-        const slug = p.slice(project.length + 1);
-        if (sha(home, liveRef(project, slug))) continue;
-        writeFolder(home, tip, p);
-        out.pulled.push(slug);
-      }
+      const changed = gitIn(home, ['diff', '--name-only', localMain ?? emptyTree(home), tip, '--', `${project}/`]);
+      for (const p of new Set(changed.stdout.split('\n').filter(Boolean).map((x) => x.split('/')[1]))) out.pulled.push(p);
     }
   }
   const remotes = gitIn(home, ['for-each-ref', '--format=%(refname)', `refs/remotes/origin/live/${project}/`]);
@@ -394,31 +735,109 @@ export function syncRecords(root, { holds = () => false } = {}) {
       continue;
     }
     if (!ours || isAncestor(home, ours, theirs)) {
-      gitIn(home, ['update-ref', liveRef(project, slug), theirs]);
-      writeFolder(home, theirs, `${project}/${slug}`);
+      // The folder shows the main branch until this machine has the live branch.
+      const from = ours ?? sha(home, `refs/heads/${main}`);
+      if (gitIn(home, ['update-ref', liveRef(project, slug), theirs, ...(ours ? [ours] : [])]).status !== 0) continue;
+      const a = applyTree(home, from, theirs, `${project}/${slug}`);
+      for (const c of a.conflicts) out.fileConflicts.push(c);
       out.pulled.push(slug);
     } else {
       const r = pushWorkflow(root, slug);
       if (r?.pushed) out.pulled.push(slug); else out.conflicts.push(`${slug}: ${r?.reason ?? 'the branches diverged'}`);
     }
   }
-  // A live branch that only this machine has goes out, unless another machine closed it.
+  // A live branch that only this machine has goes out. A live branch of a workflow that is on
+  // the main branch holds records written after the close: they go onto the main branch.
   const tip = sha(home, `refs/heads/${main}`);
+  const pending = new Set(readState().pendingClose);
   const locals = gitIn(home, ['for-each-ref', '--format=%(refname)', `refs/heads/live/${project}/`]);
   for (const ref of locals.stdout.split('\n').filter(Boolean)) {
     const slug = ref.slice(`refs/heads/live/${project}/`.length);
-    if (seen.has(slug)) continue;
-    if (tip && gitIn(home, ['cat-file', '-e', `${tip}:${project}/${slug}`]).status === 0 && !state.pendingClose.includes(`${project}/${slug}`)) {
-      gitIn(home, ['update-ref', '-d', ref]);
-      writeFolder(home, tip, `${project}/${slug}`);
-      out.pulled.push(slug);
+    const key = `${project}/${slug}`;
+    if (tip && !pending.has(key) && gitIn(home, ['cat-file', '-e', `${tip}:${key}`]).status === 0) {
+      const r = foldAfterClose(root, project, slug, home, { remote: true, pushedTip: knownRemote.get(slug) ?? null });
+      if (r.folded) out.folded.push(slug);
+      if (r.reason) out.conflicts.push(r.reason);
       continue;
     }
+    if (seen.has(slug)) continue;
     const r = pushWorkflow(root, slug);
     if (r?.pushed) out.pushed.push(slug);
   }
   writeMachineFacts(root);
   return out;
+}
+
+// ---------------------------------------------------------------- state of the clone
+
+/** The files of a workflow folder in the clone that no commit holds: changed, new or deleted. */
+function uncommittedOf(home, project, slug) {
+  const key = `${project}/${slug}`;
+  const tip = sha(home, liveRef(project, slug)) ?? sha(home, `refs/heads/${mainBranch(home)}`);
+  const index = join(home, '.git', `wf-status-${process.pid}`);
+  try {
+    if ((tip ? gitIn(home, ['read-tree', tip], { index }) : gitIn(home, ['read-tree', '--empty'], { index })).status !== 0) return [];
+    const st = spawnSync('git', ['-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${key}/`], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+    return (st.stdout ?? '').split('\0').filter((row) => row.length > 3 && (row[1] !== ' ' || row.startsWith('??')))
+      .map((row) => row.slice(3)).filter((f) => !keptOutOfCommits(f)).map((f) => f.slice(key.length + 1));
+  } finally { rmSync(index, { force: true }); }
+}
+
+/**
+ * The health of one workflow in the clone: the uncommitted files, the commits ahead of and
+ * behind the remote live branch, the local files that the adopt kept aside, a conflict of a
+ * push, and the last logged failure. `problem` is true when any of these is not empty.
+ */
+export function workflowHealth(root, slug) {
+  const project = linkedProject(root);
+  if (!project) return null;
+  const home = recordsHome();
+  const key = `${project}/${slug}`;
+  const state = readState();
+  const ours = sha(home, liveRef(project, slug));
+  const theirs = sha(home, remoteLiveRef(project, slug));
+  let ahead = 0;
+  let behind = 0;
+  if (ours && theirs && ours !== theirs) {
+    const c = gitIn(home, ['rev-list', '--left-right', '--count', `${ours}...${theirs}`]).stdout.split(/\s+/).map(Number);
+    [ahead, behind] = [c[0] || 0, c[1] || 0];
+  } else if (ours && !theirs && hasRemote(home)) {
+    ahead = Number(gitIn(home, ['rev-list', '--count', ours, '--not', '--remotes=origin']).stdout) || 0;
+  }
+  // The local copies that an adopt kept aside stay listed until the person deletes them.
+  const kept = [];
+  const walk = (dir, rel) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(dir, e.name), r); else kept.push(r);
+    }
+  };
+  const parked = join(localWorkflowsRoot(root), '.conflicts', slug);
+  if (existsSync(parked)) walk(parked, '');
+  const h = {
+    workflow: key,
+    uncommitted: uncommittedOf(home, project, slug),
+    ahead, behind,
+    adoptConflicts: kept,
+    conflict: state.conflicts?.[key]?.reason ?? null,
+    lastFailure: state.failures?.[key] ?? null,
+    pendingClose: state.pendingClose.includes(key),
+  };
+  h.problem = Boolean(h.uncommitted.length || h.ahead || h.behind || h.adoptConflicts.length || h.conflict || h.lastFailure);
+  return h;
+}
+
+/** The one warning line of the dispatch for a workflow with a problem in the clone, or null. */
+export function healthLine(h) {
+  if (!h?.problem) return null;
+  const parts = [];
+  if (h.uncommitted.length) parts.push(`${h.uncommitted.length} uncommitted file(s)`);
+  if (h.ahead) parts.push(`${h.ahead} commit(s) not pushed`);
+  if (h.behind) parts.push(`${h.behind} commit(s) of another machine not pulled`);
+  if (h.adoptConflicts.length) parts.push(`local copies kept aside in .ai/workflows/.conflicts/: ${h.adoptConflicts.join(', ')}`);
+  if (h.conflict) parts.push(`a push conflict: ${h.conflict}`);
+  if (h.lastFailure) parts.push(`the last ${h.lastFailure.step} failed at ${h.lastFailure.at}: ${h.lastFailure.error}`);
+  return `records-warning: ${h.workflow}: ${parts.join('; ')}. Run wf.mjs records status <root>.`;
 }
 
 /** What the records clone holds for a project on this machine. */
@@ -428,9 +847,15 @@ export function recordsStatus(root) {
   const state = readState();
   if (!project) return { linked: false, home, clone: existsSync(join(home, '.git')) };
   const live = gitIn(home, ['for-each-ref', '--format=%(refname:short) %(objectname:short)', `refs/heads/live/${project}/`]).stdout.split('\n').filter(Boolean);
+  const slugs = new Set(gitIn(home, ['for-each-ref', '--format=%(refname)', `refs/heads/live/${project}/`]).stdout.split('\n').filter(Boolean).map((r) => r.slice(`refs/heads/live/${project}/`.length)));
+  const dir = join(home, project);
+  if (existsSync(dir)) for (const e of readdirSync(dir, { withFileTypes: true })) if (e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_')) slugs.add(e.name);
+  const workflows = [...slugs].sort().map((s) => workflowHealth(root, s)).filter((h) => h.problem);
   return {
     linked: true, home, project, machine: machineName(), main: mainBranch(home), remote: hasRemote(home), live,
     pendingClose: state.pendingClose.filter((k) => k.startsWith(`${project}/`)),
     conflicts: Object.entries(state.conflicts).filter(([k]) => k.startsWith(`${project}/`)).map(([k, v]) => ({ workflow: k, ...v })),
+    workflows,
+    dropped: (state.dropped ?? []).filter((d) => d.ref.startsWith(`refs/heads/live/${project}/`)).slice(-10),
   };
 }

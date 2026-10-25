@@ -206,20 +206,30 @@ test('a linked project: a local path maps to the records home, and a local file 
     assert.equal(existsSync(join(local, 'verify-evidence')), false);
     assert.equal(existsSync(join(local, '.draft', '04-plan.md')), true, 'the drafts stay');
     assert.match(git(join(a.home, 'records'), 'ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1'), /notes\/w1\/verify-evidence\/s1\/checks\.md/);
-    // The same bytes in both places: the local copy goes. Other bytes: the newer one wins.
-    writeFileSync(join(local, 'notes.md'), 'same\n');
+    // The same content in both places (line endings aside): the local copy goes.
+    writeFileSync(join(local, 'notes.md'), 'same\r\n');
     writeFileSync(join(home, 'notes.md'), 'same\n');
-    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], conflicts: [] });
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], stale: [], conflicts: [] });
     assert.equal(existsSync(join(local, 'notes.md')), false);
-    writeFileSync(join(home, 'notes.md'), 'home\n');
-    writeFileSync(join(local, 'notes.md'), 'local, older\n');
+    // The clone copy is committed: a local copy with new content is the newer write, whatever its time.
+    commitWorkflow(a.root, 'w1', 'w1: notes');
+    writeFileSync(join(local, 'notes.md'), 'local, newer\n');
     const { utimesSync } = await import('node:fs');
-    utimesSync(join(local, 'notes.md'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
-    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], conflicts: ['notes.md'] });
-    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'home\n');
-    utimesSync(join(local, 'notes.md'), new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
-    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: ['notes.md'], conflicts: [] });
-    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'local, older\n');
+    utimesSync(join(local, 'notes.md'), new Date(Date.now() - 600_000), new Date(Date.now() - 600_000));
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: ['notes.md'], stale: [], conflicts: [] });
+    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'local, newer\n');
+    commitWorkflow(a.root, 'w1', 'w1: notes again');
+    // A stale copy that a checkout put back, with a new time: it was a version of the file, so it goes.
+    writeFileSync(join(local, 'notes.md'), 'same\n');
+    utimesSync(join(local, 'notes.md'), new Date(Date.now() + 600_000), new Date(Date.now() + 600_000));
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], stale: ['notes.md'], conflicts: [] });
+    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'local, newer\n');
+    // The clone copy has its own uncommitted change: it stays, and the local copy is kept aside.
+    writeFileSync(join(home, 'notes.md'), 'home, uncommitted\n');
+    writeFileSync(join(local, 'notes.md'), 'local, other\n');
+    assert.deepEqual(adoptLocal(a.root, 'w1'), { moved: [], stale: [], conflicts: ['notes.md'] });
+    assert.equal(readFileSync(join(home, 'notes.md'), 'utf8'), 'home, uncommitted\n');
+    assert.equal(readFileSync(join(localWorkflowsRoot(a.root), '.conflicts', 'w1', 'notes.md'), 'utf8'), 'local, other\n');
     // The sync takes home the files of a workflow that no command touched.
     writeFileSync(join(local, 'late.md'), 'late\n');
     syncRecords(a.root);
