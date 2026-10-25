@@ -18,7 +18,8 @@
  *                                                   base-branch back to the trunk, push (stacked: gh stack sync and submit)
  *   close   <root> <source> <packet-key> done|dropped  close a routed packet, or drop a packet (packet file and board)
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge
- *   migrate <root> <source> report|apply|finish [--trunk t]          the migration of an old campaign (section 12)
+ *   migrate <root> <source> report|apply|regroup|finish [--trunk t] [--dry-run]  the migration of an old campaign (section 12);
+ *                                                   regroup gives each shared kept decision one home
  *   remove-worktree <root> <source> <path> [--allow-ignored]  the guarded remove of an old campaign worktree (12.7)
  *
  * Every command prints one JSON object on stdout. The list has no ledger: its state is
@@ -83,6 +84,24 @@ const commitOf = (cwd, ref) => {
   return r.status === 0 ? r.stdout : null;
 };
 const isAncestor = (cwd, a, b) => git(cwd, ['merge-base', '--is-ancestor', a, b]).status === 0;
+
+// The walk's own commits and merges. A repo's commit-msg hook can refuse git's default
+// subject (too long, no type), so each one has a short conventional subject, and the
+// names go into the body.
+const SUBJECTS = Object.freeze({
+  snapshot: 'chore: save the uncommitted work of an old unit',
+  squash: 'chore: put the work of an old unit in one commit',
+  unitMerge: 'chore: merge the work of an old unit',
+  trunkMerge: 'chore: merge the trunk into the list branch',
+});
+const message = (subject, body) => ['-m', subject, '-m', body];
+
+/** A merge that stopped, then aborted: a conflict when git left unmerged files, else a refused commit (a commit-msg hook, for example). */
+function abortMerge(cwd, mg) {
+  const unmerged = git(cwd, ['diff', '--name-only', '--diff-filter=U']).stdout.split(/\r?\n/).filter(Boolean);
+  git(cwd, ['merge', '--abort']);
+  return { conflict: unmerged.length > 0, unmerged, text: mg.stderr || mg.stdout };
+}
 const currentBranch = (cwd) => git(cwd, ['branch', '--show-current']).stdout || null;
 const hasRemote = (cwd, name = 'origin') => git(cwd, ['remote']).stdout.split(/\r?\n/).includes(name);
 
@@ -677,8 +696,8 @@ function landMigrated(root, src, packet) {
       const add = git(wt, ['add', '-A', '--', '.']);
       if (add.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${add.stderr}` };
       git(wt, ['reset', '-q', '--', '.ai']);
-      const c = git(wt, ['commit', '-m', `wip(${packet['packet-slug']}): migration snapshot`]);
-      if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}` };
+      const c = git(wt, ['commit', ...message(SUBJECTS.snapshot, `The campaign migration saved the uncommitted files of the work packet ${packet['packet-slug']}.`)]);
+      if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}. The files are staged. Ask the person to commit them by hand with a message that the repo accepts, then start again.` };
       steps.push({ snapshot: dirty.length });
     }
   }
@@ -691,10 +710,10 @@ function landMigrated(root, src, packet) {
       if (bk.status !== 0) return { ok: false, error: `git branch ${backup} failed: ${bk.stderr}` };
       const fork = git(wt, ['merge-base', waveBase, 'HEAD']).stdout;
       git(wt, ['reset', '-q', '--soft', fork]);
-      const c = git(wt, ['commit', '-q', '-m', `${packet['packet-slug']}: the work of the old unit, in one commit for the migration (old commits on ${backup})`]);
+      const c = git(wt, ['commit', '-q', ...message(SUBJECTS.squash, `The work packet ${packet['packet-slug']}, in one commit for the campaign migration. The old commits are on ${backup}.`)]);
       if (c.status !== 0) {
         git(wt, ['reset', '-q', '--soft', backup]);
-        return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}` };
+        return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}. Nothing changed. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
       }
       steps.push({ squashed: ahead, backup });
     }
@@ -705,10 +724,11 @@ function landMigrated(root, src, packet) {
     }
     steps.push({ rebased: true });
   }
-  const mg = git(root, ['merge', '--no-ff', '--no-edit', branch]);
+  const mg = git(root, ['merge', '--no-ff', ...message(SUBJECTS.unitMerge, `Merge ${branch} into ${list} for the work packet ${packet['packet-slug']}.`), branch]);
   if (mg.status !== 0) {
-    git(root, ['merge', '--abort']);
-    return { ok: false, conflict: 'merge', error: `the merge of ${branch} into ${listBranch(src)} stopped on a conflict: ${mg.stderr || mg.stdout}. Ask the person to merge by hand, then start again.` };
+    const stop = abortMerge(root, mg);
+    if (stop.conflict) return { ok: false, conflict: 'merge', unmerged: stop.unmerged, error: `the merge of ${branch} into ${list} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then start again.` };
+    return { ok: false, refused: 'merge', error: `git refused the merge commit of ${branch} into ${list}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then start again.` };
   }
   steps.push({ merged: branch });
   setFields(packet.path, { migrated: { ...m, merged: true } });
@@ -782,10 +802,11 @@ function doneCmd(root, src, [key], f) {
   const from = trunkRef(root, trunk);
   let merged = false;
   if (!isAncestor(root, from, 'HEAD')) {
-    const mg = git(root, ['merge', '--no-edit', from]);
+    const mg = git(root, ['merge', ...message(SUBJECTS.trunkMerge, `Merge ${from} into ${listBranch(src)} at the end of the work packet ${slug}.`), from]);
     if (mg.status !== 0) {
-      git(root, ['merge', '--abort']);
-      return { ok: false, conflict: 'trunk', error: `the merge of ${from} into ${listBranch(src)} stopped on a conflict: ${mg.stderr || mg.stdout}. Ask the person to merge by hand, then run done again.` };
+      const stop = abortMerge(root, mg);
+      if (stop.conflict) return { ok: false, conflict: 'trunk', unmerged: stop.unmerged, error: `the merge of ${from} into ${listBranch(src)} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then run done again.` };
+      return { ok: false, refused: 'trunk', error: `git refused the merge commit of ${from} into ${listBranch(src)}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then run done again.` };
     }
     merged = true;
   }
@@ -1053,8 +1074,14 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
   const strays = [];
   const wfRoot = workflowsRoot(root);
   try { for (const name of readdirSync(wfRoot)) if (STRAY_RE.test(name)) strays.push(name); } catch { /* none */ }
+  const homes = [
+    ...packets.map((p) => ({ key: p.lead, slug: p.slug, dir: p.worktree && existsSync(p.worktree) ? wfDir(p.worktree, p.slug) : wfDir(root, p.slug) })),
+    ...notStarted.filter((u) => u.slug).map((u) => ({ key: u.key, slug: u.slug, dir: wfDir(root, u.slug) })),
+  ];
   return {
     ok: true, source: src, trunk, records: ledger.records ?? null, live, ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60_000) : null,
+    prStack: ledger.stack?.enabled ? ledger.stack : null,
+    waits: unitWaits(homes, units),
     shipped: shipped.map((u) => ({ key: u.key, slug: u.slug, wave: u.wave })),
     dropped: dropped.map((u) => u.key),
     inflight: packets,
@@ -1063,6 +1090,28 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
     strays,
     blocked: packets.filter((p) => p.land === 'blocked'),
   };
+}
+
+/**
+ * The live steers of each unit's workflow that name another unit, by its key or its slug.
+ * The old waves ran units side by side, so a steer could make one unit wait for another.
+ * The walk runs one packet at a time, and such a wait never clears by itself.
+ */
+function unitWaits(homes, units) {
+  const names = units.flatMap((u) => [...new Set([u.key, u.slug].filter(Boolean))].map((name) => ({ unit: u.key, name })));
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const waits = [];
+  for (const h of homes) {
+    let list = [];
+    try { list = decisionsOf(h.dir); } catch { continue; }
+    for (const e of list) {
+      if (e.kind !== 'steer' || e['superseded-by']) continue;
+      const text = `${e.question ?? ''} ${e.answer ?? ''}`.trim();
+      const named = [...new Set(names.filter((n) => n.unit !== h.key && new RegExp(`(^|[^a-z0-9-])${esc(n.name)}([^a-z0-9-]|$)`, 'i').test(text)).map((n) => n.unit))];
+      if (named.length) waits.push({ unit: h.key, slug: h.slug, id: e.id, names: named, text: text.length > 400 ? `${text.slice(0, 400)}…` : text });
+    }
+  }
+  return waits;
 }
 
 function renderMigration(rep) {
@@ -1079,6 +1128,9 @@ function renderMigration(rep) {
   L.push('## Worktrees', '');
   for (const w of rep.worktrees) L.push(`- \`${posix(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : '(detached)'}: ${!w.old ? 'not an old campaign worktree; untouched' : w.inflight ? 'an in-flight unit; removed at its packet done' : 'removed at migrate finish, with the guarded remove'}`);
   L.push('', '## Stray folders', '', ...(rep.strays.length ? rep.strays.map((s) => `- \`${workflowRel(s)}/\` moves to \`work/archive/stray/\``) : ['- None.']), '');
+  L.push('## Steers that name another unit', '', 'The walk runs one packet at a time, so a wait for another unit never clears by itself. Settle each one in the regroup: put the packets in an order that meets it, move the waiting slices, or drop the wait.', '');
+  L.push(...(rep.waits.length ? rep.waits.map((w) => `- \`${w.unit}\` ${w.id} names ${w.names.map((n) => `\`${n}\``).join(', ')}: ${w.text.replace(/\s+/g, ' ')}`) : ['- None.']), '');
+  if (rep.prStack) L.push('## Stacked PRs', '', `The old campaign stacked its wave PRs (\`stack.enabled\`). The walk reads the PR shape from \`.ai/ship-plan.md\`: set \`pr-shape: stacked\` there to keep one PR for each work packet.`, '');
   return L.join('\n');
 }
 
@@ -1094,7 +1146,6 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   if (!rep.ok) return rep;
   if (rep.live) return { ok: false, error: `an old wave run is live (last ledger event ${rep.ledgerAgeMinutes} minutes ago). Stop it first.` };
   if (rep.blocked.length) return { ok: false, error: 'the trunk does not hold the earlier waves of an in-flight unit. Merge the open wave PRs first.', blocked: rep.blocked };
-  const ledger = readJson(join(oldCampDir(root, src), 'ledger.json'));
   const { path: boardPath, board } = boardOf(root, src);
   if (!board) return { ok: false, error: `no board in ${workflowRel(src)}` };
 
@@ -1153,10 +1204,12 @@ export function migrateApply(root, src, f = {}, deps = {}) {
     if (w.order > 1 && !String(w['why-here'] ?? '').trim()) w['why-here'] = shippedKeys.has(w.key) ? 'shipped in the old campaign' : 'the order of the old campaign';
   });
   for (const w of work) if (w.state === 'done' && !w['why-here'] && w.order > 1) w['why-here'] = 'shipped in the old campaign';
-  if (!board.stack && ledger.stack) board.stack = ledger.stack;
+  // The ledger's `stack` is the old stacked-wave-PR setting, not the tech stack of the board:
+  // it never enters the board. The report names it (`prStack`), for `pr-shape` in the ship plan.
   board.work = order;
   const shape = validateBrainstormBoard(board);
   if (!shape.valid) return { ok: false, error: 'the migrated board does not pass the board schema', errors: shape.errors.slice(0, 10), records };
+  const backup = backupBoard(root, src, boardPath, 'apply');
   writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
 
   // Step 5: the index of each in-flight packet, in the main checkout.
@@ -1173,7 +1226,65 @@ export function migrateApply(root, src, f = {}, deps = {}) {
     appendHistory(wfDir(root, p.slug), `campaign: migrated from the old unit branch ${p.branch} into the list ${src}`);
     indexes.push({ slug: p.slug, ok: true });
   }
-  return { ok: true, source: src, records, absorbed, indexes, order: order.map((w) => ({ key: w.key, order: w.order, state: w.state })), next: 'regroup the units that are not started with the person (12.4 or 12.6), then campaign.mjs write, then migrate finish' };
+  return { ok: true, source: src, records, absorbed, indexes, backup, order: order.map((w) => ({ key: w.key, order: w.order, state: w.state })), next: 'regroup the units that are not started with the person (12.4 or 12.6): migrate regroup first, then campaign.mjs write, then migrate finish' };
+}
+
+/** A copy of the board before the migration writes it, in the old ledger folder: migrate finish archives it with the ledger. */
+function backupBoard(root, src, boardPath, phase) {
+  const file = join(oldCampDir(root, src), `board.before-${phase}-${nowIso().replace(/[-:]/g, '')}.json`);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, readFileSync(boardPath));
+  return posix(relative(root, file));
+}
+
+/**
+ * 12.4 step 1: give each kept decision that two or more packets hold one home, by one rule,
+ * the earliest live owner. A done or open packet keeps the decision when it holds it: the
+ * old campaign built it there. Otherwise the first not-started unit of the old ledger in list
+ * order gets it. A packet that was no unit of the ledger (an old thread packet) keeps none.
+ * A decision that only such packets hold is `unsettled`: the person gives it a home.
+ */
+export function migrateRegroup(root, src, f = {}) {
+  const ledger = readJson(join(oldCampDir(root, src), 'ledger.json'));
+  if (!ledger?.units) return { ok: false, error: `no old campaign ledger in ${posix(relative(root, oldCampDir(root, src)))}` };
+  const { path: boardPath, board } = boardOf(root, src);
+  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}` };
+  const units = new Set(Object.keys(ledger.units));
+  const items = new Map((board.items ?? []).map((i) => [i.key, i]));
+  const live = (board.work ?? []).filter((w) => w.state !== 'dropped');
+  const started = (w) => w.state === 'done' || w.state === 'open';
+  const byOrder = (a, b) => (a.order ?? 1e9) - (b.order ?? 1e9);
+  const holders = new Map();
+  for (const w of live) for (const k of new Set(w.items ?? [])) {
+    if (!holders.has(k)) holders.set(k, []);
+    holders.get(k).push(w);
+  }
+  const moves = [];
+  const unsettled = [];
+  for (const [k, owners] of holders) {
+    const it = items.get(k);
+    if (owners.length < 2 || it?.kind !== 'decision' || it.scope !== 'keep' || it['replaced-by']) continue;
+    owners.sort(byOrder);
+    const home = owners.find(started) ?? owners.find((w) => units.has(w.key)) ?? null;
+    if (!home) { unsettled.push({ key: k, text: it.text, packets: owners.map((w) => w.key) }); continue; }
+    moves.push({ key: k, home: home.key, from: owners.filter((w) => w !== home).map((w) => w.key) });
+  }
+  for (const m of moves) for (const key of m.from) {
+    const w = live.find((x) => x.key === key);
+    w.items = (w.items ?? []).filter((x) => x !== m.key);
+  }
+  const groups = {};
+  for (const m of moves) for (const from of m.from) groups[`${m.home} <- ${from}`] = (groups[`${m.home} <- ${from}`] ?? 0) + 1;
+  // The decisions each not-started build packet carries now: an empty packet is a merge or a drop for the person.
+  const kept = (w) => (w.items ?? []).filter((k) => { const it = items.get(k); return it?.kind === 'decision' && it.scope === 'keep' && !it['replaced-by']; }).length;
+  const packets = live.filter((w) => !started(w) && BUILD_FORMS.includes(w.shape ?? 'intake')).sort(byOrder).map((w) => ({ key: w.key, order: w.order, decisions: kept(w) }));
+  const out = { ok: true, source: src, dryRun: Boolean(f['dry-run']), moved: moves.length, groups, unsettled, empty: packets.filter((p) => !p.decisions).map((p) => p.key), packets };
+  if (f['dry-run'] || !moves.length) return out;
+  const shape = validateBrainstormBoard(board);
+  if (!shape.valid) return { ok: false, error: 'the regrouped board does not pass the board schema', errors: shape.errors.slice(0, 10) };
+  out.backup = backupBoard(root, src, boardPath, 'regroup');
+  writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+  return out;
 }
 
 /** 12.2 steps 8 to 10, after the list is written: archive the ledger, move the strays, remove the old worktrees. */
@@ -1220,8 +1331,9 @@ function migrateCmd(root, src, [phase], f) {
     return { ...rep, wrote: posix(relative(root, join(workDir(root, src), 'migration.md'))) };
   }
   if (phase === 'apply') return migrateApply(root, src, f);
+  if (phase === 'regroup') return migrateRegroup(root, src, f);
   if (phase === 'finish') return migrateFinish(root, src);
-  throw new Error('migrate: the phase is report, apply or finish');
+  throw new Error('migrate: the phase is report, apply, regroup or finish');
 }
 
 // ---------------------------------------------------------------- main

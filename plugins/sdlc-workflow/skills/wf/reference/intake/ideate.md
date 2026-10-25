@@ -219,7 +219,7 @@ A later pick on a run that already has a list appends its work packets after the
 The first `/wf campaign <slug>` on an ideate run with an old campaign ledger migrates it (`campaign/_migrate.md`). After `migrate apply`, `ideate-work.json` holds a `done` work packet for each shipped unit and an `open` work packet for each in-flight unit. The walk then runs this regroup in its own session, with the person:
 1. Group the units that are not started into work packets, in their old order, under the Size rules of [brainstorm/_work.md](brainstorm/_work.md). Every carried item goes into exactly one work packet.
 2. Write up each new build work packet and confirm the stack, as in steps 4 and 5.
-3. Confirm the whole list with the person: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets.
+3. Confirm the whole list with the person: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
 4. Write the list (step 7).
 
 # Refresh

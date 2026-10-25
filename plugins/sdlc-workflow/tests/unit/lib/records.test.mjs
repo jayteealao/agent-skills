@@ -13,7 +13,7 @@ import {
   DRAFT_DIR, draftPath, listDocs, locate, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields, writeDoc,
 } from '../../../lib/records.mjs';
 import { parse } from '../../../lib/yaml.mjs';
-import { stampOf } from '../../../scripts/wf.mjs';
+import { fieldOf, stampOf } from '../../../scripts/wf.mjs';
 
 function folder() {
   const root = mkdtempSync(join(tmpdir(), 'records-'));
@@ -93,6 +93,18 @@ test('setFields merges into a record and deletes a null field', () => {
     assert.equal(fm['updated-at'], 'T');
     assert.equal(readDoc(dir, '00-index.md').frontmatter['pr-url'], undefined);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('record set undoes the Git Bash path conversion of a leading /wf, and nothing else', () => {
+  const quiet = process.stderr.write;
+  process.stderr.write = () => true;
+  try {
+    assert.deepEqual(fieldOf('next-invocation=C:/Program Files/Git/wf implement demo s1'), ['next-invocation', '/wf implement demo s1']);
+    assert.deepEqual(fieldOf('next-command=D:\\Tools\\Git\\wf'), ['next-command', '/wf']);
+    assert.deepEqual(fieldOf('next-command=/wf plan demo'), ['next-command', '/wf plan demo']);
+    assert.deepEqual(fieldOf('note=C:/Program Files/Git/usr/bin'), ['note', 'C:/Program Files/Git/usr/bin']);
+    assert.deepEqual(fieldOf('note=C:/Program Files/Git/wfx'), ['note', 'C:/Program Files/Git/wfx']);
+  } finally { process.stderr.write = quiet; }
 });
 
 test('a superseded decision marks every record that names it', () => {

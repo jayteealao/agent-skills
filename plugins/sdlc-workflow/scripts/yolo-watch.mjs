@@ -392,6 +392,9 @@ export function keptWatchFrom(saved, nowMs) {
   return live ? from : nowMs;
 }
 
+/** A saved HEAD older than this is from another launch, not from the watch that a re-arm replaces. */
+export const REPO_STALE_MS = 2 * 60 * 60 * 1000;
+
 /** B3 — one protected-change event per file in this window. */
 export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 
@@ -442,11 +445,14 @@ export function createWatcher({
 
   const lead = states.get(slugs[0]).st;
   // The repo-wide parts (HEAD, protected files, usage) live in the first slug's state.
-  if (!lead.repo || lead.repo.root !== root || states.get(slugs[0]).first || lead.repo.runEnded) {
+  // A saved HEAD carries over only to a re-arm, which comes minutes after the last poll.
+  // An older one is another launch: the commits since then (a merge, for example) are history.
+  const repoStale = !(Number(lead.repo?.polledAt) > now() - REPO_STALE_MS);
+  if (!lead.repo || lead.repo.root !== root || states.get(slugs[0]).first || lead.repo.runEnded || repoStale) {
     const prot = protectedSet(root, slugs, cfg);
     const hashes = {};
     for (const f of prot.files) hashes[f] = hashFile(path.join(root, f));
-    lead.repo = { root, head: git(root, ['rev-parse', 'HEAD']), hashes, dirtyAtStart: prot.dirtyAtStart, runEnded: false };
+    lead.repo = { root, head: git(root, ['rev-parse', 'HEAD']), hashes, dirtyAtStart: prot.dirtyAtStart, runEnded: false, polledAt: now() };
   }
 
   // F5 — one watch per journal.
@@ -551,6 +557,7 @@ export function createWatcher({
   }
 
   function pollCommits() {
+    lead.repo.polledAt = now();
     const head = git(root, ['rev-parse', 'HEAD']);
     if (!head || head === lead.repo.head) return [];
     const old = lead.repo.head;

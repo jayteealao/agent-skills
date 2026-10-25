@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -424,9 +424,11 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     const start = run(['start', root, SRC, 'eng']);
     assert.equal(start.ok, true, JSON.stringify(start));
     // Two commits (slice 1 and the snapshot) become one commit before the rebase; the old commits stay on a backup branch.
-    assert.match(git(m.wtEng, 'log', '-1', '--format=%s'), /^eng: the work of the old unit, in one commit/);
+    assert.equal(git(m.wtEng, 'log', '-1', '--format=%s'), 'chore: put the work of an old unit in one commit');
+    assert.match(git(m.wtEng, 'log', '-1', '--format=%b'), /work packet eng.*backup--eng/s);
     assert.equal(git(m.wtEng, 'rev-list', '--count', 'main..HEAD'), '1');
-    assert.match(git(root, 'log', '-1', '--format=%s', `campaign/${SRC}/backup--eng`), /wip\(eng\): migration snapshot/);
+    assert.equal(git(root, 'log', '-1', '--format=%s', `campaign/${SRC}/backup--eng`), 'chore: save the uncommitted work of an old unit');
+    assert.equal(git(root, 'log', '-1', '--format=%s'), 'chore: merge the work of an old unit');
     assert.deepEqual(start.migration.steps.map((s) => Object.keys(s)[0]), ['snapshot', 'squashed', 'rebased', 'merged']);
     assert.equal(readFileSync(path.join(root, 'app.txt'), 'utf8').replace(/\r\n/g, '\n'), 'v0\nengine\n');
     assert.equal(readFileSync(path.join(root, 'eng.txt'), 'utf8').replace(/\r\n/g, '\n'), 'not committed\n');
@@ -490,6 +492,101 @@ test('12.3: a squashed unit whose commits are all in the wave base is refused be
     assert.equal(start.ok, false);
     assert.match(start.error, /no commit beyond the wave base/);
     assert.equal(git(m.wtEng, 'log', '-1', '--format=%s'), 'eng: slice 1', 'no snapshot commit');
+  } finally { dropOldCampaign(m); }
+});
+
+/** A commit-msg hook as strict as a real repo's: a conventional type, and a subject of at most 70 characters. */
+function strictHook(root, extra = '') {
+  const file = path.join(root, git(root, 'rev-parse', '--git-common-dir'), 'hooks', 'commit-msg');
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, `#!/bin/sh\nsubject=$(head -n 1 "$1")\ncase "$subject" in\n  feat:*|fix:*|chore:*|docs:*|test:*) ;;\n  *) echo "no conventional type: $subject" >&2; exit 1 ;;\nesac\n[ \${#subject} -le 70 ] || { echo "the subject is too long" >&2; exit 1; }\n${extra}`);
+  chmodSync(file, 0o755);
+}
+
+test('12.3: the walk\'s own commits and merges pass a strict commit-msg hook', () => {
+  const m = makeOldCampaign();
+  try {
+    migratedList(m);
+    strictHook(m.root);
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, true, JSON.stringify(start));
+    assert.deepEqual(start.migration.steps.map((s) => Object.keys(s)[0]), ['snapshot', 'squashed', 'rebased', 'merged']);
+  } finally { dropOldCampaign(m); }
+});
+
+test('12.3: a merge commit that the hook refuses is a refusal, not a conflict, and leaves no merge open', () => {
+  const m = makeOldCampaign();
+  try {
+    migratedList(m);
+    strictHook(m.root, 'case "$subject" in chore:\\ merge*) echo "no merge commits" >&2; exit 1 ;; esac\n');
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, false);
+    assert.equal(start.conflict, undefined, JSON.stringify(start));
+    assert.equal(start.refused, 'merge');
+    assert.match(start.error, /no merge commits/);
+    assert.ok(!existsSync(path.join(m.root, '.git', 'MERGE_HEAD')), 'the merge is aborted');
+    assert.equal(git(m.root, 'status', '--porcelain', '--untracked-files=no'), '');
+  } finally { dropOldCampaign(m); }
+});
+
+test('12.2: the report names the steers that wait for another unit and the old stacked PRs; apply keeps the tech stack', () => {
+  const m = makeOldCampaign();
+  try {
+    const engDir = path.join(m.wtEng, '.ai', 'workflows', 'eng');
+    addDecision(engDir, { kind: 'steer', answer: 'Do not start the slice s2 until the unit later has its plan.' });
+    addDecision(engDir, { kind: 'steer', answer: 'Keep the engine small.' });
+    const ledgerFile = path.join(wf(m.root, SRC), 'work', 'campaign', 'ledger.json');
+    const ledger = JSON.parse(readFileSync(ledgerFile, 'utf8'));
+    ledger.stack = { enabled: true, number: null, 'max-unshipped': 2 };
+    writeFileSync(ledgerFile, JSON.stringify(ledger));
+    const old = new Date(Date.now() - 2 * 60 * 60_000);
+    utimesSync(ledgerFile, old, old);
+    const rep = migrationReport(m.root, SRC, {}, { isMerged: merged });
+    assert.deepEqual(rep.waits.map((w) => [w.unit, w.names]), [['eng', ['later']]], JSON.stringify(rep.waits));
+    assert.equal(rep.prStack.enabled, true);
+    run(['migrate', m.root, SRC, 'report']);
+    const md = readFileSync(path.join(wf(m.root, SRC), 'work', 'migration.md'), 'utf8');
+    assert.match(md, /## Steers that name another unit[\s\S]*`eng` D-001 names `later`/);
+    assert.match(md, /pr-shape: stacked/);
+    const ap = migrateApply(m.root, SRC, {}, { isMerged: merged });
+    assert.equal(ap.ok, true, JSON.stringify(ap));
+    const board = JSON.parse(readFileSync(path.join(wf(m.root, SRC), 'brainstorm-board.json'), 'utf8'));
+    assert.deepEqual(board.stack, { platforms: ['node'], languages: ['js'], 'user-confirmed': true }, 'the PR-stack setting never enters the board');
+    assert.ok(existsSync(path.join(m.root, ap.backup)), 'apply keeps a copy of the board');
+  } finally { dropOldCampaign(m); }
+});
+
+test('12.4: migrate regroup gives each shared kept decision one home, by the earliest live owner', () => {
+  const m = makeOldCampaign();
+  try {
+    assert.equal(migrateApply(m.root, SRC, {}, { isMerged: merged }).ok, true);
+    const boardPath = path.join(wf(m.root, SRC), 'brainstorm-board.json');
+    const board = JSON.parse(readFileSync(boardPath, 'utf8'));
+    board.items.push({ ...board.items[0], key: 'd-x', text: 'Decision d-x.' });
+    board.work.find((w) => w.key === 'later').items.push('d-eng');
+    board.work.push(
+      { key: 'thread', title: 'Old thread', shape: 'intake', slug: 'thread', entry: 'x', state: 'routed', order: 5, 'why-here': 'an old thread', items: ['d-base', 'd-later', 'd-x'] },
+      { key: 'thread-2', title: 'Old thread 2', shape: 'intake', slug: 'thread-2', entry: 'x', state: 'routed', order: 6, 'why-here': 'an old thread', items: ['d-x'] },
+    );
+    writeFileSync(boardPath, JSON.stringify(board, null, 2));
+    const before = readFileSync(boardPath, 'utf8');
+
+    const dry = run(['migrate', m.root, SRC, 'regroup', '--dry-run']);
+    assert.equal(dry.ok, true, JSON.stringify(dry));
+    assert.equal(dry.moved, 3);
+    assert.deepEqual(dry.unsettled.map((u) => [u.key, u.packets]), [['d-x', ['thread', 'thread-2']]]);
+    assert.equal(readFileSync(boardPath, 'utf8'), before, 'a dry run writes nothing');
+
+    const out = run(['migrate', m.root, SRC, 'regroup']);
+    assert.equal(out.ok, true, JSON.stringify(out));
+    assert.deepEqual(out.groups, { 'eng <- later': 1, 'base <- thread': 1, 'later <- thread': 1 });
+    assert.ok(existsSync(path.join(m.root, out.backup)));
+    const after = JSON.parse(readFileSync(boardPath, 'utf8'));
+    const items = (key) => after.work.find((w) => w.key === key).items;
+    assert.deepEqual(items('later'), ['d-later'], 'a started packet keeps the decision; the first not-started unit gets the rest');
+    assert.deepEqual(items('thread'), ['d-x'], 'an old thread packet keeps only what no unit holds');
+    assert.deepEqual(items('eng').sort(), ['d-eng', 'd-ext']);
+    assert.deepEqual(out.packets.find((p) => p.key === 'thread').decisions, 1);
   } finally { dropOldCampaign(m); }
 });
 

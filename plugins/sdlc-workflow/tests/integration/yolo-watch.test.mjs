@@ -393,6 +393,27 @@ test('K2: a stage end carries how many slugs run at once', () => {
 // ---------------------------------------------------------------------------
 const tmpDir = (name) => mkdtempSync(path.join(os.tmpdir(), `${name} `));
 
+test('a re-arm tells the commits made since the last watch; a watch hours later treats them as history', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  try {
+    const opts = { projectRoot: root, slugs: [SLUG], lockDir };
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:a', stage: 'implement', slice: 'a' });
+    const a = W.createWatcher({ ...opts, now: clockAt(0) });
+    a.pollJournals();
+    assert.deepEqual(a.pollCommits(), []);
+    a.save();
+    writeFileSync(path.join(root, 'f1.txt'), '1\n');
+    git(root, 'add', 'f1.txt');
+    git(root, 'commit', '-q', '-m', 'between the watches');
+    const rearm = W.createWatcher({ ...opts, now: clockAt(31) });
+    assert.deepEqual(rearm.pollCommits().map((e) => e.subject), ['between the watches'], 'a re-arm misses no commit');
+    a.save();
+    const later = W.createWatcher({ ...opts, now: clockAt(3 * 60) });
+    assert.deepEqual(later.pollCommits(), [], 'commits from before a later launch, a merge for example, are history');
+  } finally { for (const d of [root, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
 test('F3: a restart does not reset the silence; a long gap and a long silence across two restarts give stale', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');

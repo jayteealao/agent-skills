@@ -693,11 +693,19 @@ export function runFindings(pos, opt) {
 const RECORD_ALIASES = { index: INDEX_NAME, state: INDEX_NAME, meta: INDEX_NAME };
 const recordName = (n) => RECORD_ALIASES[n] ?? n;
 
+// Git Bash turns an argument `key=/wf ...` into `key=C:/Program Files/Git/wf ...` (its path
+// conversion). No record value is a path into the Git install, so the conversion is undone.
+const MSYS_WF = /^[A-Za-z]:[\\/](?:[^\\/=]+[\\/])*?Git[\\/](?=wf(?:\s|$))/i;
+
 /** `key=value` → [key, value], the value read as a YAML scalar or flow collection. */
-function fieldOf(arg) {
+export function fieldOf(arg) {
   const at = arg.indexOf('=');
   if (at < 1) throw new Error(`record set: ${arg} is not key=value`);
-  const raw = arg.slice(at + 1);
+  let raw = arg.slice(at + 1);
+  if (MSYS_WF.test(raw)) {
+    raw = raw.replace(MSYS_WF, '/');
+    process.stderr.write(`wf.mjs: ${arg.slice(0, at)} began with the Git install path, which Git Bash put in front of /wf; it is set to ${raw}\n`);
+  }
   let value;
   try { value = raw === '' ? '' : parseYaml(raw); } catch { value = raw; }
   return [arg.slice(0, at), value];
