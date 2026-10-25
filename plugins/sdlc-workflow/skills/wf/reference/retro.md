@@ -10,10 +10,10 @@ this operation produces: translate workflow context to product language and leak
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
+You are running `/wf retro`, **stage 9 of 9** in the SDLC lifecycle.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → `10·retro`
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → `9·retro`
 
 | | Detail |
 |---|---|

@@ -36,7 +36,7 @@ existing-workflow/
 | Produces | `04b-instrument.md` — observability plan for the workflow scope |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
-| When to run | After `/wf shape` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
+| When to run | After the shape phase of `/wf intake` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
 | Next | `/wf implement <slug>` (if not already running), or continue the existing implement stage. |
 
 ## Requires
@@ -62,7 +62,7 @@ You are an **observability architect**, not an implementer.
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. This must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
    - If confirmed to proceed, note this is a re-instrumentation run.

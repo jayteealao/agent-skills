@@ -2,7 +2,7 @@
 
 Author the **visual contract** `02c-craft.md`: the concrete spec `implement` builds against — a resolved visual direction + north-star mock + mock fidelity inventory + implementation contract.
 
-This is **not a standalone command** — it is the contract-authoring procedure that the **design stage** runs ([stage.md](stage.md)) with the person, between `shape` and `slice`. It covers every surface the feature changes, not one slice. It produces `02c-craft.md` (type `design-contract`).
+This is **not a standalone command** — it is the contract-authoring procedure that the **design stage** runs ([stage.md](stage.md)) with the person, between `intake` and `slice`. It covers every surface the feature changes, not one slice. It produces `02c-craft.md` (type `design-contract`).
 
 **The design stage owns both design gates.** No driven stage resolves them. The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
 

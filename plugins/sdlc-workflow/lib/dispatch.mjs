@@ -188,7 +188,8 @@ export function dispatch(reg, tokens, disk, { host = null } = {}) {
 
   const r = fitForms(key.args, tokens.slice(1), slotCheck(reg, disk));
   if (!r.ok) return route(r.reason);
-  return { key: key.name, reference: key.reference, argsFrom: 1, reason: null, hostNote: noteOf(key) };
+  const alias = key.alias ? { aliasOf: key.alias } : {};
+  return { key: key.name, reference: key.reference, argsFrom: 1, reason: null, hostNote: noteOf(key), ...alias };
 }
 
 /** The `wf dispatch:` line of SKILL.md Step 0. */

@@ -23,14 +23,14 @@ The narrative is the only explanation the person gets. A stage writes no explain
   | Stage | Explain |
   |---|---|
   | intake | the problem, who has it, and the outcome the person asked for |
-  | shape | the behaviour the person will see, and the choices behind it |
+  | intake (shape phase) | the behaviour the person will see, and the choices behind it |
   | design | the screens and states the person confirmed, and why they look this way |
   | slice | how the work splits, and how the slices depend on each other |
   | plan | how the change works end to end, and the order of the steps |
   | implement | what was built, how it works, and where it differs from the plan |
   | verify | what was proven, how it was proven, and what stays unproven |
   | review | the problems found, and why each one matters |
-  | handoff, ship | what the change does for users, and what the release carries |
+  | ship | what the change does for users, and what the release carries |
   | retro | what the work taught, and what to change next time |
   | other kinds | the finding, the decision, or the thing produced, and why it is so |
 

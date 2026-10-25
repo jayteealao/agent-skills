@@ -390,8 +390,8 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     slug,
     title: packet.title ?? slug,
     status: 'active',
-    'current-stage': 'shape',
-    'stage-number': 2,
+    'current-stage': 'intake',
+    'stage-number': 1,
     'created-at': now,
     'updated-at': now,
     'workflow-type': 'feature',
@@ -412,8 +412,8 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     'origin-packet': originPacket,
     'origin-items': decisions.map((d) => d.key),
     ...(packet.amends || packet['target-slug'] ? { amends: packet['target-slug'] ?? packet.amends } : {}),
-    // The person confirmed each risk at brainstorm done, and the walk runs no shape stage, so a
-    // risk is carried to the slug-wide review. An `open` risk would block the handoff gate.
+    // The person confirmed each risk at brainstorm done, and the walk runs no shape phase, so a
+    // risk is carried to the slug-wide review. An `open` risk would block the ship gate.
     'intent-risks': risks.length
       ? risks.map((r, i) => ({
         id: `RIM-${i + 1}`, risk: r, severity: 'medium', status: 'carried', 'adjudicated-by': '02-shape.md#unknowns--open-questions',
@@ -425,9 +425,9 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     'next-invocation': ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`,
     'workflow-files': ['00-index.md', '01-intake.md', '02-shape.md', DECISIONS_FILE],
     progress: {
-      intake: 'complete', shape: 'complete', design: ux === 'none' ? 'skipped' : 'not-started', slice: 'not-started',
+      intake: 'complete', design: ux === 'none' ? 'skipped' : 'not-started', slice: 'not-started',
       plan: 'not-started', implement: 'not-started', verify: 'not-started', review: 'not-started',
-      handoff: 'not-started', ship: 'not-started', retro: 'not-started',
+      ship: 'not-started', retro: 'not-started',
     },
   };
   const cite = (d) => `source: .ai/workflows/${src}/${boardFile}#${d.key}`;

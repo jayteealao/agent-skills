@@ -91,7 +91,7 @@ Never read a file under `docs/site/`. The reference files are what the keys run,
 > - **Something else** — describe the work again.
 
 - Show the full command in each option, so that the person learns the keys.
-- When the command starts a driver (`yolo`, `campaign`) or an outward act (`handoff`, `ship`), say so in its option.
+- When the command starts a driver (`yolo`, `campaign`) or an outward act (`ship`), say so in its option.
 - Route to `yolo` on every host: Claude Code, Codex and pi.
 - When the person answers **Something else** or with free text, classify the new text at Step 3.
 

@@ -208,8 +208,8 @@ slice — no option-card write-back.
 
 # What this command is NOT
 
-- **Not a chooser** — this command sketches options; the user picks. Recording the pick (`# Pick — decision closure`) is bookkeeping so the decision has provenance, not choosing. If you want a single recommended approach with acceptance criteria, that is `/wf shape <slug>` after `/wf intake`.
+- **Not a chooser** — this command sketches options; the user picks. Recording the pick (`# Pick — decision closure`) is bookkeeping so the decision has provenance, not choosing. If you want a single recommended approach with acceptance criteria, that is the shape phase of `/wf intake`.
 - **Not a problem validator** — this command assumes the problem is real and worth solving. If you're not sure whether the problem is genuine, that requires runtime data, telemetry, or user signal that this command doesn't gather. Run a measurement step first.
 - **Not a diagnostician** — if there is a specific symptom (error, crash, slow request) and you want to know *why*, that is `/wf intake rca <symptom>`. Investigate proposes *how to solve*; rca finds *why it's broken*.
 - **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf status recap <slug> [plan|shape|slice|review|findings]` or a plain research conversation outside `/wf`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
-- **Not a substitute for `/wf shape`** — `/wf shape` produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `/wf intake` → `/wf shape` deepens the chosen option into an implementable spec.
+- **Not a substitute for the shape phase of `/wf intake`** — the shape phase produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `/wf intake` deepens the chosen option into an implementable spec in its shape phase.

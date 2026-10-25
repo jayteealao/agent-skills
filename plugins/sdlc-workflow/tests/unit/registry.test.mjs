@@ -39,3 +39,15 @@ test('fill refuses an unknown placeholder', () => {
   assert.equal(fill('{keyCount} keys', ctx), `${ctx.keyCount} keys`);
   assert.throws(() => fill('{nope}', ctx), /unknown placeholder \{nope\}/);
 });
+
+test('the lifecycle has nine stages; shape and handoff are aliases of intake and ship', () => {
+  const reg = loadRegistry(pluginRoot);
+  assert.deepEqual(reg.keys.filter((k) => k.stage).map((k) => k.name), ['intake', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'ship', 'retro']);
+  assert.deepEqual(reg.keys.filter((k) => k.alias).map((k) => [k.name, k.alias]), [['shape', 'intake'], ['handoff', 'ship']]);
+  const bad = structuredClone(reg);
+  bad.keys.find((k) => k.name === 'shape').alias = 'status';
+  bad.keys.find((k) => k.name === 'handoff').stage = true;
+  const errors = registryErrors(bad, pluginRoot).join('\n');
+  assert.match(errors, /shape: alias status is not a stage key/);
+  assert.match(errors, /handoff: an alias is not a stage/);
+});

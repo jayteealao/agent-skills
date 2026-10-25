@@ -1,6 +1,6 @@
 # Project-level handoff config
 
-`/wf handoff` reads these optional keys from the workflow's `00-index.md` frontmatter. Each key's block is independent: handoff skips the corresponding step silently when the key is absent. Edit the keys directly in `00-index.md`.
+The PR phase of `/wf ship` reads these optional keys from the workflow's `00-index.md` frontmatter. Each key's block is independent: handoff skips the corresponding step silently when the key is absent. Edit the keys directly in `00-index.md`.
 
 ```yaml
 # Optional. Drives T3.6 — public-surface drift check.

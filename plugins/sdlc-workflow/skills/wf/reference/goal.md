@@ -90,7 +90,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
 ## Step 3 — Hand back
 
-End with the dispatcher's summary block (SKILL.md Step 2). The narrative says the kind, the objective, the check count against `max-checks`, the last `GOAL:` line, and the next step: the arming line to submit, the gate to answer, or `/wf handoff <slug>` when the lifecycle goal is met.
+End with the dispatcher's summary block (SKILL.md Step 2). The narrative says the kind, the objective, the check count against `max-checks`, the last `GOAL:` line, and the next step: the arming line to submit, the gate to answer, or `/wf ship <slug>` when the lifecycle goal is met.
 
 ## The files
 

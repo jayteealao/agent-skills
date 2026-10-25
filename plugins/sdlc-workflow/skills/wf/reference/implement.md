@@ -8,7 +8,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
+You are running `/wf implement`, **stage 5 of 9**: 1·intake → 2·design → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
 |---|---|
@@ -166,7 +166,7 @@ Do this in order:
 9. **Write or update `05-implement.md`** (master index, same file).
 10. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
 11. Update `00-index.md` and add files to `workflow-files`. Do not edit the slice or plan files. **Then write the slice's status back to the roster**: `03-slice.md`'s `slices:` entry for `<slice-slug>` gets `status: in-progress`. Implement writes only `in-progress`. `/wf verify` is the one writer of `complete` (yolo only mirrors it), and `close.md` Step S3 is the one writer of `skipped`. Set only this slice's entry; do not touch siblings and do not renumber. Change-modes (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md`; the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.
-12. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`).** **Stage by explicit path, classified** (the same discipline as `ship.md` Step 1.1): (a) code files this slice changed, each by path; (b) workflow artifacts under `.ai/workflows/<slug>/`, by path; (c) any OTHER dirty path is NOT yours: fail closed and ask before staging it. `git add -A`, `git add .`, and any pathless `git add` are **forbidden**: concurrent sessions leave unrelated work in this tree, and a sweep commits it. Commit `feat(<slug>): implement <slice-slug>` with a brief summary of what the slice does. No push; pushing happens at handoff. Record the commit SHA in the per-slice frontmatter (`commit-sha`). If `branch-strategy` is `none`, skip the commit. Then write the test receipt ([implement/_steps.md](implement/_steps.md)).
+12. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`).** **Stage by explicit path, classified** (the same discipline as `ship.md` Step 1.1): (a) code files this slice changed, each by path; (b) workflow artifacts under `.ai/workflows/<slug>/`, by path; (c) any OTHER dirty path is NOT yours: fail closed and ask before staging it. `git add -A`, `git add .`, and any pathless `git add` are **forbidden**: concurrent sessions leave unrelated work in this tree, and a sweep commits it. Commit `feat(<slug>): implement <slice-slug>` with a brief summary of what the slice does. No push; pushing happens in the PR phase of ship. Record the commit SHA in the per-slice frontmatter (`commit-sha`). If `branch-strategy` is `none`, skip the commit. Then write the test receipt ([implement/_steps.md](implement/_steps.md)).
 
 # Adaptive routing
 

@@ -69,8 +69,8 @@ test('kind lifecycle: the check names the next stage', () => {
   const root = makeRoot();
   try {
     assert.equal(json(root, 'arm').kind, 'lifecycle');
-    assert.equal(check(root).at(-1), 'GOAL: NOT-MET next: shape. no shape yet');
-    assert.equal(json(root, 'lifecycle').next.stage, 'shape');
+    assert.equal(check(root).at(-1), 'GOAL: NOT-MET next: intake. the shape phase of intake has not run');
+    assert.equal(json(root, 'lifecycle').next.stage, 'intake');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

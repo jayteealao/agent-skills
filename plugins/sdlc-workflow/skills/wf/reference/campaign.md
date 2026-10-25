@@ -71,16 +71,16 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
 14. **Close the work packet.** Run `<cmd> done "<root>" <source-slug> <packet-key>`. It refuses unless the work packet is `built`, the fidelity table has no unapproved row, and the try-out is recorded for a work packet with `try-out: yes`. Then it merges the trunk, moves the end branch `packets/<source-slug>--<packet-key>` to HEAD, and sets `base-branch` back to the trunk. When the result has `conflict: trunk`, stop. Ask the person to merge the trunk by hand, then run `done` again. Report the work packet in one line, run `status` again, and go to step 4.
 15. **End the call.** When `finished` is `true`, hand off (below). Otherwise report the work packets that reached `done` in this call, the next work packet with its step, and the work packets of `needDesign`. End with "Type `/wf campaign <source-slug>`" ([_chat-return.md](_chat-return.md)).
 
-## Handoff and ship
+## Ship
 
-The handoff needs all of these:
+The PR phase of ship needs all of these:
 - each work packet is `done` or `dropped`;
 - no work packet has an unapproved fidelity row;
-- the open-RIM gate of the handoff stage passes for each work packet. The handoff command runs that gate.
+- the open-RIM gate of the PR phase passes for each work packet. `/wf ship` runs that gate.
 
-At `done`, the `base-branch` of each work packet is the trunk again, so handoff and ship work as on any workflow. Before the handoff, set `handoff-lead: <the slug of the last done packet>` in the `00-index.md` of each done work packet.
+At `done`, the `base-branch` of each work packet is the trunk again, so ship works as on any workflow. Before ship, set `handoff-lead: <the slug of the last done packet>` in the `00-index.md` of each done work packet.
 
-**One PR for the list.** This is the default. Tell the person to type `/wf handoff packets/<source-slug>`. The batch mode packages every slug on the list branch in one PR. In the PR body, list each work packet with its title, the result of its acceptance criteria, and its decision fidelity table. Then `/wf ship packets/<source-slug>` ships it as usual.
+**One PR for the list.** This is the default. Tell the person to type `/wf ship packets/<source-slug>`. The batch mode of its PR phase packages every slug on the list branch in one PR. In the PR body, list each work packet with its title, the result of its acceptance criteria, and its decision fidelity table. Then ship stops at its go/no-go gate and ships the PR as usual.
 
 **Stacked PRs are not built.** `.ai/ship-plan.md` has no key that asks for stacked PRs for a list, so every list hands off as one PR. An end branch also holds the trunk merge of `done`, so a PR between two end branches would show trunk changes as the work packet's own.
 

@@ -8,7 +8,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf plan`, **stage 4 of 10**: 1·intake → 2·shape → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
+You are running `/wf plan`, **stage 4 of 9**: 1·intake → 2·design → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
 |---|---|
@@ -167,7 +167,7 @@ After completing this stage, write every viable option as one `recommended-route
 - **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`. Recommend compacting first.
 - **Option B: Implement all (sequential)** → `/wf implement <slug> <first-slice-slug>` when every slice is planned.
 - **Option C: Revisit slice** → `/wf slice <slug>` for wrong slice boundaries.
-- **Option D: Revisit shape** → `/wf shape <slug>` for an incomplete or contradictory spec.
+- **Option D: Revisit shape** → `/wf intake <slug>` for an incomplete or contradictory spec.
 
 # Artifacts
 
@@ -235,7 +235,7 @@ Each line carries `wall-ownership: code-owned | environment-negotiable | externa
 
 "Known limitation — document at handoff" is illegal wording when an AC depends on the limitation. **Hard gate:** if any user-observable AC's named dependency has none of the three, the plan is not complete; raise it as a gate question per [_gate-question.md](_gate-question.md) (scope the harness / author the proxy+deferral / PO-accept the risk) before writing the artifact. Verify's Step 0 refuses an unresolved wall (`blocked-runtime-evidence-missing`, deferral hatch unavailable).
 
-**Outcome-metric ACs need a pre-deploy proxy** — a fixture-corpus assertion verify can hold now, with the live metric as the deferral's clearing event. **Mandated-mitigation ACs are code-only-forbidden** — a fallback, escape hatch, or kill switch a shape mandates traces to an AC that exercises the wired path (fault injection, a forced fallback, a flag flip); add the seam (injection hook, forced-error fixture, flag toggle) as a plan task. **Tooling resolution** — when a slice `verify:` stub names a tool not in `stack:`, the PO decides here: add it to the stack (`/wf shape <slug>`), or authorize a verify-time bootstrap recorded as a PO-approved install and a verification-seam task. If the PO declines both, re-scope the AC or pre-register a deferral, never a static-reasoning `pass`. If no verification path exists for a user-observable AC, route back to slice/shape before any code is written.
+**Outcome-metric ACs need a pre-deploy proxy** — a fixture-corpus assertion verify can hold now, with the live metric as the deferral's clearing event. **Mandated-mitigation ACs are code-only-forbidden** — a fallback, escape hatch, or kill switch a shape mandates traces to an AC that exercises the wired path (fault injection, a forced fallback, a flag flip); add the seam (injection hook, forced-error fixture, flag toggle) as a plan task. **Tooling resolution** — when a slice `verify:` stub names a tool not in `stack:`, the PO decides here: add it to the stack (`/wf intake <slug>`), or authorize a verify-time bootstrap recorded as a PO-approved install and a verification-seam task. If the PO declines both, re-scope the AC or pre-register a deferral, never a static-reasoning `pass`. If no verification path exists for a user-observable AC, route back to slice/shape before any code is written.
 
 ## Step F — Write the sibling `.yaml`
 For each per-slice `04-plan-<slice-slug>.md`, write `04-plan-<slice-slug>.yaml` flat in the slug dir. Agents read it: the master `## Sibling Plans` table and the yolo bookkeeping agent read its `files:` and `edges:`. Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks the `.md` write when the `.yaml` is missing, so write the `.yaml` first or in the same turn. A plan with no file changes sets `fragment: none` in its frontmatter and writes no `.yaml`.

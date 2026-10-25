@@ -18,7 +18,7 @@ You are running `/wf project ship-plan edit`, the **block-editor for the project
 
 ## Step S0.5 — Scoped invocation (when called as a sub-step, not by the user)
 
-The readiness pre-check ([_ship-plan-readiness.md](../_ship-plan-readiness.md), Drift gate → *Amend now and continue*) may invoke this editor **as a sub-step of a running `/wf handoff` or `/wf ship`**, passing the block letters its drift findings named. When it does:
+The readiness pre-check ([_ship-plan-readiness.md](../_ship-plan-readiness.md), Drift gate → *Amend now and continue*) may invoke this editor **as a sub-step of a running `/wf ship`**, passing the block letters its drift findings named. When it does:
 
 - **Skip Step S1 entirely** — the blocks are given, not chosen. Amending anything outside them is out of scope; a drift about an unplanned secret does not license rewriting the rollback contract.
 - Run Step S2 onward for **each** named block, in letter order.

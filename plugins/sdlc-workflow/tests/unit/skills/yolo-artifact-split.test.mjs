@@ -143,7 +143,7 @@ test('a relaunch with args.answered carries the answer to the stage that asked i
   assert.match(plan, /Do not ask it again/);
   assert.doesNotMatch(calls.find((c) => c.label === 'review').prompt, /ANSWERED QUESTION/, 'the answer reaches only its stage');
   const end = calls.find((c) => c.label === 'run-end').prompt;
-  assert.match(end, /--status done --resume "\/wf handoff demo"/);
+  assert.match(end, /--status done --resume "\/wf ship demo"/);
 });
 
 test('an answer with no text is not an answer', async () => {

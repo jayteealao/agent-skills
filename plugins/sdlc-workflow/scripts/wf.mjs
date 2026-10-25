@@ -153,6 +153,7 @@ function runDispatch(pos, opt) {
   if (r.reason) lines.push(`reason: ${r.reason}`);
   if (r.firstInput) lines.push(`first-input: ${r.firstInput}`);
   if (r.hostNote) lines.push(`host-note: ${r.hostNote}`);
+  if (r.aliasOf) lines.push(`alias-of: ${r.aliasOf}`);
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   out(lines.join('\n'));
   return 0;
@@ -160,19 +161,21 @@ function runDispatch(pos, opt) {
 
 // ---------------------------------------------------------------- status
 
+// The nine stages and the files each one writes, in order. Intake writes the brief and the
+// shape; ship writes the PR package, then its runs.
 const STAGE_FILES = {
-  intake: () => '01-intake.md',
-  shape: () => '02-shape.md',
-  design: () => '02c-craft.md',
-  slice: () => '03-slice.md',
-  plan: (s) => (s ? `04-plan-${s}.md` : null),
-  implement: (s) => (s ? `05-implement-${s}.md` : null),
-  verify: (s) => (s ? `06-verify-${s}.md` : null),
-  review: (s) => (s ? `07-review-${s}.md` : null),
-  handoff: () => '08-handoff.md',
-  ship: () => '09-ship-runs.md',
-  retro: () => '10-retro.md',
+  intake: () => ['01-intake.md', '02-shape.md'],
+  design: () => ['02c-craft.md'],
+  slice: () => ['03-slice.md'],
+  plan: (s) => (s ? [`04-plan-${s}.md`] : []),
+  implement: (s) => (s ? [`05-implement-${s}.md`] : []),
+  verify: (s) => (s ? [`06-verify-${s}.md`] : []),
+  review: (s) => (s ? [`07-review-${s}.md`] : []),
+  ship: () => ['08-handoff.md', '09-ship-runs.md'],
+  retro: () => ['10-retro.md'],
 };
+// An index of an older workflow names a stage that is now a phase of another stage.
+const OLD_STAGE_FILE = { shape: '02-shape.md', handoff: '08-handoff.md' };
 const SLICE_STAGES = [['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']];
 
 function frontmatterOf(file) {
@@ -222,10 +225,14 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   if (!w) return { error: `Workflow ${slug} not found.` };
   const dir = w.workflowDir;
   const summary = summaryOf(w, now);
-  const stages = Object.entries(STAGE_FILES).map(([stage, name]) => {
-    const file = name(summary.selectedSlice);
-    const fm = file ? frontmatterOf(join(dir, file)) : null;
-    return { stage, file, present: !!fm, status: fm?.status ?? null, updatedAt: fm?.['updated-at'] ?? null };
+  const stages = Object.entries(STAGE_FILES).map(([stage, names]) => {
+    const files = names(summary.selectedSlice);
+    const fms = files.map((f) => frontmatterOf(join(dir, f)));
+    const at = fms.findLastIndex(Boolean);
+    const fm = at < 0 ? null : fms[at];
+    // A stage with a file still to write is in progress, whatever its first file says.
+    const status = !fm ? null : at === files.length - 1 ? fm.status ?? null : 'in-progress';
+    return { stage, file: at < 0 ? files[0] ?? null : files[at], files, present: !!fm, status, updatedAt: fm?.['updated-at'] ?? null };
   });
   const sliceFm = frontmatterOf(join(dir, '03-slice.md'));
   const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
@@ -234,7 +241,7 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(join(dir, `${prefix}-${name}.md`))?.status ?? null;
     return row;
   });
-  const current = STAGE_FILES[summary.stage]?.(summary.selectedSlice);
+  const current = OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
   const currentFm = current ? frontmatterOf(join(dir, current)) : null;
   return {
     workflow: summary,

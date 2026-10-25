@@ -38,12 +38,12 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
   question: "No ship plan at .ai/ship-plan.md. /wf ship will require one. Author it now, or is shipping handled outside this workflow?"
   header: "Ship plan"
   options:
-    - { label: "Create it now (Recommended)", description: "STOP; run /wf project ship-plan init --from-template <kind> before shipping, then re-run handoff." }
+    - { label: "Create it now (Recommended)", description: "STOP; run /wf project ship-plan init --from-template <kind> before shipping, then re-run /wf ship." }
     - { label: "Shipping is external",        description: "This work ships outside /wf ship (auto-deploy/owned elsewhere). Proceed; record ship-plan-readiness: not-applicable." }
     - { label: "Cancel",                      description: "Abort the handoff; leave everything unchanged." }
   multiSelect: false
   ```
-  - "Create it now" → STOP; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `00-index.md` `recommended-next-*` at `/wf project ship-plan init` and resume handoff after the plan exists.
+  - "Create it now" → STOP; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `00-index.md` `recommended-next-*` at `/wf project ship-plan init` and resume ship after the plan exists.
   - "Shipping is external" → set `ship-plan-readiness: not-applicable`; note the reason in the handoff's `## Risks / Caveats`; return to the caller and continue.
   - "Cancel" → STOP.
 

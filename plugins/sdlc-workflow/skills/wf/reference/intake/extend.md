@@ -11,7 +11,7 @@ Extension is a **scope-expansion** flow: it adds net-new slices to an existing w
 > reference. Do not restate or fork those rules here.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 Extension is a **utility flow**, not a pipeline stage. It adds net-new slices; it does **not** correct existing slices (corrections are a *new* slice or `/wf intake <slug> fix`, never an in-place amend of built work) and does **not** fix implementation bugs (use `/wf implement`).
 
@@ -67,7 +67,7 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 3. **Parse `00-index.md`** — `title`, `slug`, `current-stage`, `status`, `selected-slice`, `workflow-files`, `workflow-type`.
 3b. **Shape pre-flight (entry guard).** Extension requires a slice roster, and the dispatcher's branch 2 routes ANY on-disk slug here — including workflows that cannot have one. Check before reading further:
    - **Terminal analysis parent** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) — there is no roster and never will be. STOP: *"`<slug>` is a `<type>` analysis workflow — it has no slice roster to extend. Route its decision instead: record the pick/route (`/wf intake <type> <slug> …`) or start the follow-on work with `/wf intake "<scope>" from <slug>`."*
-   - **Pre-slice standard parent** (no `03-slice.md` on disk yet) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf shape <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
+   - **Pre-slice standard parent** (no `03-slice.md` on disk yet) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf intake <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
 4. **Parse the `03-slice.md`** `slices:` array. For each entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
 5. **Check every `03-slice-<slug>.md` file** that `workflow-files` lists. Note which are `status: complete`, `status: in-progress`, `status: defined`.
 6. **Use the seed source** that the Requires table names for the seed: every `07-review-*.md` for `from-review` (extension candidates often emerge from sibling reviews), `10-retro.md` for `from-retro`, and `02-shape.md` with the live entries of the decision store (`decide list`, per [_decisions.md](../_decisions.md)) for the general seed.
@@ -151,7 +151,7 @@ New scope enters the lifecycle here without passing through `intake default` or 
 
 This step **computes** the deltas and holds them; **Step 6 is the single index writer** — nothing here touches `00-index.md`:
 
-1. **RIM delta.** For the confirmed new slices, ask: *what are the most likely ways this new scope could be misread?* (the same misreading pass `intake/default.md` Step 6a runs). Each distinct risk becomes a drafted `intent-risks` entry — extension has no downstream shape run to adjudicate, so author each entry **adjudicated in place**: the Step 2 interview IS the adjudication forum (`status: adjudicated`, `decision:` from the interview answer, `adjudicated-by: 03-slice-<new-slug>.md#risks`, `po-ratified: true` citing the id of the decision-store entry). Leave an entry `open` ONLY when the interview genuinely could not resolve it — it must then appear in the new slice's `## Risks` and the drafted `open-questions` addition, and it will correctly hard-block handoff/ship until cleared.
+1. **RIM delta.** For the confirmed new slices, ask: *what are the most likely ways this new scope could be misread?* (the same misreading pass `intake/default.md` Step 6a runs). Each distinct risk becomes a drafted `intent-risks` entry — extension has no downstream shape run to adjudicate, so author each entry **adjudicated in place**: the Step 2 interview IS the adjudication forum (`status: adjudicated`, `decision:` from the interview answer, `adjudicated-by: 03-slice-<new-slug>.md#risks`, `po-ratified: true` citing the id of the decision-store entry). Leave an entry `open` ONLY when the interview genuinely could not resolve it — it must then appear in the new slice's `## Risks` and the drafted `open-questions` addition, and it will correctly hard-block ship until cleared.
 2. **Charter delta.** If the new scope adds a load-bearing commitment the existing charter does not cover, draft the ledger addition (`C<next>`, `source:` the new slice file, `po-ratified: true` — the Step 3 confirm gate is the ratification). Do not rewrite or renumber existing commitments.
 3. **Zero-delta escape.** If the new scope genuinely adds no misreading risk and no new commitment (a purely mechanical extension), state that in one line in the Extension Round section of `03-slice.md` — an explicit declaration, never a silent skip.
 

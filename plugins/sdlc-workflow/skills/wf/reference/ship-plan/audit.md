@@ -1,5 +1,5 @@
 ---
-description: Read-only adversarial audit of the ship pipeline — questions whether `.ai/ship-plan.md`, the CI/CD it built, and the release-relevant codebase are actually SOUND, not merely present or compliant. Fans out one sub-agent per audit lens (plan-soundness, release-safety, ci-correctness, secrets-and-permissions, supply-chain, rollback-realism, version-integrity), refutes each candidate finding before it lands, then merges survivors into an accumulating ledger at `.ai/ship-plan-audit.md` and routes each to its sanctioned fixer. Never edits the plan, never mutates the repo, never ships. Distinct from `build` (which trusts the plan and closes repo gaps) and from the handoff/ship readiness pre-check (which only catches mechanical drift).
+description: Read-only adversarial audit of the ship pipeline — questions whether `.ai/ship-plan.md`, the CI/CD it built, and the release-relevant codebase are actually SOUND, not merely present or compliant. Fans out one sub-agent per audit lens (plan-soundness, release-safety, ci-correctness, secrets-and-permissions, supply-chain, rollback-realism, version-integrity), refutes each candidate finding before it lands, then merges survivors into an accumulating ledger at `.ai/ship-plan-audit.md` and routes each to its sanctioned fixer. Never edits the plan, never mutates the repo, never ships. Distinct from `build` (which trusts the plan and closes repo gaps) and from the ship readiness pre-check (which only catches mechanical drift).
 argument-hint: "[<lens> | triage]"
 ---
 
@@ -27,7 +27,7 @@ Three neighbours touch the ship plan; none of them ask whether it is *correct*:
 - **`ship-plan build`** treats the plan as ground truth — *"what it says is right; what is in the repo is the
   current implementation"* — and mutates the repo to comply. If the plan is wrong, `build` faithfully builds
   the wrong pipeline.
-- The **handoff/ship readiness pre-check** ([_ship-plan-readiness.md](../_ship-plan-readiness.md)) only detects
+- The **ship readiness pre-check** ([_ship-plan-readiness.md](../_ship-plan-readiness.md)) only detects
   *mechanical drift*: a version file that moved, a secret referenced but unplanned. It never reasons about
   soundness.
 - **`ship`** executes the plan. By then it is too late to notice the plan was incoherent.

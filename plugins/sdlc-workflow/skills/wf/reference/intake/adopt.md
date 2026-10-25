@@ -1,5 +1,5 @@
 ---
-description: Adopt work that already happened into the lifecycle. Every other intake mode assumes the change lies ahead; adopt runs the other way — it reads the current working-tree / branch diff, reverse-engineers the planning-and-execution artifacts (01-adopt → 05-implement) from what the code already does, stamps them provenance:adopted, and lands the workflow at /wf verify so the quality tail (verify → review → handoff) can run over work that was done outside the pipeline. Use when you explored-and-patched first and only afterward decided the change deserves recorded verification.
+description: Adopt work that already happened into the lifecycle. Every other intake mode assumes the change lies ahead; adopt runs the other way — it reads the current working-tree / branch diff, reverse-engineers the planning-and-execution artifacts (01-adopt → 05-implement) from what the code already does, stamps them provenance:adopted, and lands the workflow at /wf verify so the quality tail (verify → review → ship) can run over work that was done outside the pipeline. Use when you explored-and-patched first and only afterward decided the change deserves recorded verification.
 argument-hint: "[description]"
 ---
 
@@ -16,7 +16,7 @@ You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hot
 - **Every artifact adopt writes carries `provenance: adopted`** so no downstream stage, reader, or learnings-harvester mistakes reconstruction for forethought. This is load-bearing: retro's learnings distillation and any pattern-mining over `04-plan`/`05-implement` must be able to tell authored work from adopted work.
 
 # Pipeline
-`01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → `05-implement` → **[confirm-before-write gate]** → `/wf verify` (→`06`) → `/wf review` (→`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → `05-implement` → **[confirm-before-write gate]** → `/wf verify` (→`06`) → `/wf review` (→`07`) → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
@@ -182,13 +182,11 @@ slices:
     complexity: <xs|s|m>
 progress:
   intake: complete
-  shape: complete
   slice: complete
   plan: complete
   implement: complete
   verify: not-started
   review: not-started
-  handoff: not-started
   ship: not-started
   retro: not-started
 ---

@@ -9,7 +9,7 @@ Apply `intake/_intake-context.md`: the External Output Boundary and the workflow
 You are running `/wf intake optimize`. An optimize slug changes code toward one number. Its lifecycle replaces shape and plan with a metric spec, and the loop of `/wf loop optimize` writes the slice and the implement artifacts.
 
 # Pipeline
-`01-optimize` (intake) → `02-optimize-spec` → **[the person confirms the spec]** → `/wf loop optimize` (the loop → `03-slice`, `05-implement-optimize`) → `/wf verify <slug> optimize` → `/wf review` → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-optimize` (intake) → `02-optimize-spec` → **[the person confirms the spec]** → `/wf loop optimize` (the loop → `03-slice`, `05-implement-optimize`) → `/wf verify <slug> optimize` → `/wf review` → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
@@ -166,7 +166,7 @@ Write `00-index.md` from the index template of `_change-mode-tail.md`, with thes
 - `selected-slice: optimize` and one slice, `optimize`, with `status: defined` and `complexity: m`.
 - `review-scope: per-slice`.
 - `workflow-files`: `00-index.md`, `01-optimize.md`, `02-optimize-spec.md`.
-- `progress`: `intake: complete`, `shape: skipped`, `design: skipped`, `slice: not-started`, `plan: skipped`, and every later stage `not-started`.
+- `progress`: `intake: complete`, `design: skipped`, `slice: not-started`, `plan: skipped`, and every later stage `not-started`.
 - `design-skip-reason: "an optimize loop changes code toward a metric; it draws no surface"`.
 - `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`.
 

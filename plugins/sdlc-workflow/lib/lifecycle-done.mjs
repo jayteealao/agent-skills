@@ -1,6 +1,6 @@
 // lib/lifecycle-done.mjs — the stop rules of the lifecycle drivers as code.
 //
-// A driver stops before handoff when every selected slice is clean: verify with
+// A driver stops before ship when every selected slice is clean: verify with
 // `convergence` in {not-needed, converged} and `result: pass`, and review with
 // `verdict` in {ship, ship-with-caveats} and `metric-findings-blocker == 0`
 // This module is the one copy of that rule: `/wf status` and `goal.mjs check` read it.
@@ -94,8 +94,9 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
     if (awaiting(spec) || str(spec['confirmed-by']) === '') return out('blocked', 'the metric spec waits for the person to confirm it');
   } else {
     const shape = artifact('02-shape.md');
-    if (!shape) return out('not-met', 'no shape yet', { stage: 'shape', slice: null });
-    if (awaiting(shape)) return out('blocked', 'shape is awaiting input');
+    // Intake writes the brief, then the shape: a missing shape is intake still to finish.
+    if (!shape) return out('not-met', 'the shape phase of intake has not run', { stage: 'intake', slice: null });
+    if (awaiting(shape)) return out('blocked', 'the shape phase of intake is awaiting input');
     if (design.needed && !design.settled) return out('blocked', 'the design is not settled: a person confirms it with /wf design <slug>');
   }
   const slices = (roster ?? []).filter((s) => s && str(s.slug) && str(s.status) !== 'skipped').map((s) => str(s.slug));
@@ -136,7 +137,7 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
     if (r.state === 'paused') return out('blocked', `slug-wide ${r.reason}`, null, { suffixed, slices: rows });
     if (r.state === 'open') return out('not-met', `slug-wide ${r.reason}`, { stage: 'review', slice: null }, { suffixed, slices: rows });
   }
-  return out('met', `every slice is clean (${slices.length}); the next step is /wf handoff <slug>`, null, { suffixed, slices: rows });
+  return out('met', `every slice is clean (${slices.length}); the next step is /wf ship <slug>`, null, { suffixed, slices: rows });
 }
 
 /** The `slices:` roster of 03-slice.md, or null when the file is absent. */

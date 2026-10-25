@@ -1,5 +1,5 @@
 ---
-description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one scout per selected dimension and one refuter for every finding, merges the findings into the ledger `findings.yaml` (re-runs keep IDs, mark cleared findings resolved, never delete a row), and writes one review file whole. `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
+description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 9) — reads workflow artifacts + diff, dispatches one scout per selected dimension and one refuter for every finding, merges the findings into the ledger `findings.yaml` (re-runs keep IDs, mark cleared findings resolved, never delete a row), and writes one review file whole. `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
@@ -21,7 +21,7 @@ this operation produces: translate workflow context to product language and leak
 > sub-agent you dispatch. Read-only — reads land in gitignored `.scratch/`, never in the review
 > artifact or the diff.
 
-You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
+You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 
 ## Card
 

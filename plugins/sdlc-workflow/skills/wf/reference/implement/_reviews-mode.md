@@ -30,4 +30,4 @@ Do this in order for reviews mode:
 8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:
    - **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>` when fixes were applied. Compact recommended: review-fix context is noise for re-verification.
    - **Option B: Re-review** → `/wf review <slug> <slice-slug>` when some findings could not be fixed and need re-assessment. Compact recommended: a fresh review needs clean context.
-   - **Option C: Handoff** → `/wf handoff <slug> <slice-slug>` when all findings were fixed and the change was already verified.
+   - **Option C: Ship** → `/wf ship <slug>` when all findings were fixed and the change was already verified.

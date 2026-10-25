@@ -17,7 +17,7 @@ scopes, resolved by whether the second token names a slice:
   are satisfied.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 ## Requires
 
@@ -192,7 +192,7 @@ the `selected-slice`, advance it to the next unresolved slice. Do not change `st
 ## Step S5 — Hand off
 Lead with a short narrative (what the slice was, why it's closed, what now proceeds without it), then a
 receipt: skipped slice, reason, skip-record path, next command (`/wf plan <slug> <next-slice>` or
-`/wf handoff <slug>` if this was the last open slice). If the slice had real in-progress work, prefix
+`/wf ship <slug>` if this was the last open slice). If the slice had real in-progress work, prefix
 ⚠ noting the discarded state.
 
 ---

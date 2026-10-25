@@ -1,6 +1,6 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the nine stages (intake → design → slice → plan → implement → verify → review → ship → retro), the drivers (probe, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
 disable-model-invocation: true
 argument-hint: "<intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|loop|status|project|docs> [args...]"
 ---
@@ -26,6 +26,7 @@ Run this check before any read or write. Its result is your first visible output
    - `reason: ask sub-key`: render the `sub-key:` rows and ask which one the person wants. STOP.
    - `reason: host gap: …`: tell the person that the key does not run on this host and why. STOP.
    - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
+   - `alias-of: <key>`: the key is an old name that stays for this release only. Tell the person in one line to use `/wf <key>` from now on, then run the reference.
 
 The script reads the forms of the table below from `skills/wf/keys.json` and checks each `<slug>`, `<slice>` and `<branch>` on disk. So `/wf plan the migration` goes to the router, because `the` is not a slug.
 
@@ -34,16 +35,16 @@ The script reads the forms of the table below from `skills/wf/keys.json` and che
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `intake` | `[<slug>] [<mode>] [text]` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
-| `shape` | `<slug> [text]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
+| `intake` | `[<slug>] [<mode>] [text]` | Entry dispatcher. A description starts stage 1: the brief, then the shape work in the same run. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
+| `shape` | `<slug> [text]` | Alias of `intake` for this release: runs the shape phase of intake on a workflow whose brief is written. Use `/wf intake`. | `02-shape.md` |
 | `design` | `[<slug>] [move\|amend\|import\|audit\|critique] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person confirms the boards before drivers run. | `02c-craft.md` |
 | `slice` | `<slug> [text]` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
 | `plan` | `<slug> [<slice> [text]]` · `<slug> all` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
 | `implement` | `<slug> [<slice>\|reviews]` · `<slug> <slice> reviews` | Code the slice. `reviews` runs fix-blockers mode on the selected slice or on the named slice. | `05-implement-<slice>.md` |
 | `verify` | `<slug> [<slice>]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
 | `review` | `<slug> [<slice>\|triage\|<dimension>]` · `<slug> triage [<slice>]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
-| `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers. | `08-handoff.md` |
-| `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
+| `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Alias of `ship` for this release: ship opens the PR first, then stops at the go/no-go gate. Use `/wf ship`. | `08-handoff.md` |
+| `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | The last mile: packages the completed slices into a PR and watches CI, stops at the go/no-go gate, then merges and releases via `.ai/ship-plan.md`. Refuses while a required review has unresolved blockers. Batch mode over `pr#N` or a branch is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `08-handoff.md`, `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
 | `retro` | `<slug>\|pr#N\|<branch> [deep]` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
 
 ### Drivers and loops
@@ -51,7 +52,7 @@ The script reads the forms of the table below from `skills/wf/keys.json` and che
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
 | `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
-| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. | none |
+| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before ship. | none |
 | `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
 | `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 

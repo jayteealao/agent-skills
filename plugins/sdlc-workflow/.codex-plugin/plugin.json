@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "SDLC Workflow",
     "shortDescription": "One-command SDLC lifecycle ($wf), from the same tree as the Claude Code plugin",
-    "longDescription": "A single-source SDLC plugin that Claude Code and Codex read directly: one $wf workflow skill (18 keys: intake, shape, design, slice, plan, implement, verify, review, handoff, ship, retro, probe, yolo, campaign, loop, status, project, docs) and five independent engineering skills (consult, imagery, uiproto, diataxis, study-sources), driving 11 stages with per-slice artifacts and runtime-truth verification. `loop optimize` has a gap on Codex and pi. Skill prose is host-neutral; the Codex hooks live in hooks/codex.hooks.json. Review and trust the bundled hooks before activation.",
+    "longDescription": "A single-source SDLC plugin that Claude Code and Codex read directly: one $wf workflow skill (18 keys: intake, shape, design, slice, plan, implement, verify, review, handoff, ship, retro, probe, yolo, campaign, loop, status, project, docs) and five independent engineering skills (consult, imagery, uiproto, diataxis, study-sources), driving 9 stages with per-slice artifacts and runtime-truth verification. `loop optimize` has a gap on Codex and pi. Skill prose is host-neutral; the Codex hooks live in hooks/codex.hooks.json. Review and trust the bundled hooks before activation.",
     "developerName": "jayte",
     "category": "Productivity",
     "capabilities": [

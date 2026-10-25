@@ -15,13 +15,13 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review security` (→`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review security` (→`07`) → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + acceptance criteria), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
-| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. Handoff and retro stay in the chain: ship STOPs without a ready handoff verdict. |
+| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. The PR phase of ship and retro stay in the chain: ship STOPs without a ready handoff verdict. |
 | Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate; family rules per `_change-mode-tail.md`). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
 | Escalate | If the fix needs >3 files / >~50 lines / architectural change, the tripwire fires — record it per `_change-mode-tail.md` and offer the gate's *Escalate*, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. |
@@ -188,13 +188,13 @@ recommended-routes: <routes>
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so handoff/ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
+Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
 
 # Step 7 — Hand off to the standard chain
-On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf handoff <slug>` (ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf ship <slug>` → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
+On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf ship <slug>` (its PR phase runs first, and ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
 
 Lead with a short **narrative** paragraph (the symptom, root cause, the minimal fix, the gate decision), then:
 ```
@@ -203,7 +203,7 @@ Branch: hotfix/<slug> (off <production-branch>)
 Root cause: <file:line>
 Plan: <N> steps · Files: <M> (≤3) · Data remediation: <yes|no>
 Gate: <proceeded | adjusted | escalated | auto-proceeded (minimal)>
-Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> security  →  /wf handoff  →  /wf ship  →  /wf retro
+Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> security  →  /wf ship  →  /wf retro
 ```
 
 # Workflow rules

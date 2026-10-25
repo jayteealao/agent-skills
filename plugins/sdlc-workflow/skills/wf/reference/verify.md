@@ -8,7 +8,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·handoff → 9·ship → 10·retro.
+You are running `/wf verify`, **stage 6 of 9**: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·ship → 9·retro.
 
 | | Detail |
 |---|---|
@@ -18,7 +18,7 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 | Deferrals | [verify/_deferrals.md](verify/_deferrals.md): the `interactive-verification: deferred` escape hatch and the index ledger |
 | Schemas | [verify/_artifact.md](verify/_artifact.md): frontmatter and body sections of both verify files |
 | Next | `/wf review <slug> <selected-slice>` when `result: pass` and `convergence:` is `not-needed` or `converged`. When `convergence: escalated`, re-invoke `/wf verify <slug> <selected-slice>` for a second round or escalate to `/wf implement <slug> <selected-slice>`. |
-| Skip-to | `/wf handoff <slug> <slice>` when review is unnecessary (solo project, trivial change, external peer review); valid only when `result: pass`. |
+| Skip-to | `/wf ship <slug>` when review is unnecessary (solo project, trivial change, external peer review); valid only when `result: pass`. |
 
 ## Card
 
@@ -70,7 +70,7 @@ Change-mode and single-scope workflows use the un-suffixed names, for example `0
 # Role
 
 You are a **workflow orchestrator that owns its own triage→fix loop**.
-- Run checks and compare results against acceptance criteria; do not improvise fixes while checks run, and do not review, handoff, or ship (later stages).
+- Run checks and compare results against acceptance criteria; do not improvise fixes while checks run, and do not review or ship (later stages).
 - After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure as a gate question per [_gate-question.md](_gate-question.md) (Fix / Skip / Escalate); `Fix` choices spawn parallel write-isolated sub-agents per [_subagents.md](_subagents.md) that apply the minimal patch. ONE round only: if anything still fails, write `convergence: escalated` and route to re-invoke `/wf verify` or `/wf implement`; do not loop again in this invocation.
 - Your only output is the workflow artifacts, the dispatched fix sub-agents, and the compact chat summary defined below.
 
@@ -144,9 +144,9 @@ Routing is driven by `convergence:` plus the post-fix-loop `result:`. Present AL
 - **Option A: Review** → `/wf review <slug> <selected-slice>` when `convergence:` is `not-needed` or `converged` and `result: pass`. **Compact recommended if verify was lengthy**; its output is noise for review.
 - **Option B: Second verify round** → `/wf verify <slug> <selected-slice>` when `convergence: escalated` and the user wants another fix round. State the unresolved issues first.
 - **Option C: Manual implement (escape hatch)** → `/wf implement <slug> <selected-slice>` when the remaining issues need a design rethink or input verify cannot supply.
-- **Option D: Skip review** → `/wf handoff <slug> <selected-slice>` for a solo project, an external review, or a trivial fix; only with `result: pass`.
+- **Option D: Skip review** → `/wf ship <slug>` for a solo project, an external review, or a trivial fix; only with `result: pass`.
 - **Option E: Revisit plan** → `/wf plan <slug> <selected-slice>` when verification revealed a wrong approach, not a wrong line of code. Dominates Option C.
-- **Option F: Re-verify in a capable environment, or defer** → re-run `/wf verify <slug> <selected-slice>`, or amend with `interactive-verification: deferred` per [verify/_deferrals.md](verify/_deferrals.md), when `result: blocked-runtime-evidence-missing` and the fix loop could not produce the evidence. Deferrals block ship but not review or handoff. A deferral is lawful only over a probed incapability and is unavailable for criteria in `constraint-resolution-missing:` (those route to Option E).
+- **Option F: Re-verify in a capable environment, or defer** → re-run `/wf verify <slug> <selected-slice>`, or amend with `interactive-verification: deferred` per [verify/_deferrals.md](verify/_deferrals.md), when `result: blocked-runtime-evidence-missing` and the fix loop could not produce the evidence. Deferrals block the release of ship, but not review or the PR phase of ship. A deferral is lawful only over a probed incapability and is unavailable for criteria in `constraint-resolution-missing:` (those route to Option E).
 - **Option G: Slug-wide runtime probe** → `/wf probe <slug>` when per-slice verify passed and a slug-wide runtime sweep is wanted (cross-slice integration breakage).
 
 # User-observable AC gate (Step 7.5)

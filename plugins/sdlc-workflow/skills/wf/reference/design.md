@@ -1,5 +1,5 @@
 ---
-description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between shape and slice — draw one board per changed surface, get the person's confirmation, freeze the boards, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `amend` reopens a confirmed design. `import` turns outside design work into boards. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
+description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between intake and slice — draw one board per changed surface, get the person's confirmation, freeze the boards, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `amend` reopens a confirmed design. `import` turns outside design work into boards. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
 argument-hint: "[slug] [move|amend|import|audit|critique|extract] [instructions] | <setup|teach|extract|direction|sync> [instructions]"
 ---
 
@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf design`. It has three jobs:
 
-1. **The design stage.** A human-only lifecycle stage between `shape` and `slice`. The person confirms the design here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md).
+1. **The design stage.** A human-only lifecycle stage between `intake` and `slice`. The person confirms the design here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md).
 2. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
 3. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
 

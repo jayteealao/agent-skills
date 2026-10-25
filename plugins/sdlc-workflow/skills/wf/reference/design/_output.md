@@ -33,7 +33,7 @@ Body sections: (1) **What changed** — bullets per file; (2) **Why** — design
 **Reference followed** — which `design/<name>.md` guided this; (4) **Verification needed** — what
 `verify` re-checks (visual regression? a11y? perf?); (5) **Anti-patterns avoided** — confirm
 none of the refusals in [_craft-floor.md](_craft-floor.md) were introduced (and, for transforms, the `design-mode:` field). This
-artifact lets `/wf review` and `/wf handoff` see exactly what design augmentations were applied.
+artifact lets `/wf review` and `/wf ship` see exactly what design augmentations were applied.
 
 **Move-pass note** (`/wf design <slug> <move>` on a confirmed design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, board key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
 

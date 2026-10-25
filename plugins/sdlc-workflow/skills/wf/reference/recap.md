@@ -13,7 +13,7 @@ this operation produces: translate workflow context to product language and leak
 You are running `/wf status recap`, the **plain-language catch-up** command for the SDLC lifecycle.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 Recap tells you **what has been done so far** on a workflow, in language a human can read and understand — not a terse machine brief. It reads the trail and narrates the work: what was decided and why, what got built, what was checked, and where things stand right now. Its second argument selects scope:
 
@@ -64,7 +64,7 @@ You are a **storyteller of the work done**, not a problem solver.
 
 # Step B — Batch recap (`pr#N` / branch)
 
-Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf handoff` / `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
+Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
 
 1. **Build the roster.** From `.ai/workflows/INDEX.md` (or a glob of `.ai/workflows/*/00-index.md`), collect every slug whose `branch:` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
 2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do not recap individual slices in batch mode — whole-workflow scope only.
@@ -72,7 +72,7 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
    - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).
    - **How the slugs relate** — dependencies, ordering, which slug blocks which, what they share.
    - **Where the branch stands** — a roster table (slug · stage · status · what's left) plus a short prose read of overall readiness (are they converging on one PR? which slug is the laggard?).
-   - **What's left across the branch** — the combined remaining work and the single most useful next command (`/wf handoff pr#N` if they're converging, or the specific per-slug command blocking progress).
+   - **What's left across the branch** — the combined remaining work and the single most useful next command (`/wf ship pr#N` if they're converging, or the specific per-slug command blocking progress).
 4. **Return in chat** per Step 3 item 3 — the combined branch narrative first, then a compact per-slug recap section for each roster slug.
 
 # Step 1 — Read the trail

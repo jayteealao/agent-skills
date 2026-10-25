@@ -9,17 +9,16 @@ Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to ever
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
+You are running `/wf intake`, **stage 1 of 9** in the SDLC lifecycle. This file is the brief, the first phase of intake. The shape phase ([shape.md](../shape.md)) follows it in the same run.
 
 # Pipeline
-`1·intake` → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+`1·intake` (brief → shape) → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces | `01-intake.md` and `00-index.md`; templates in [intake/default/_artifact.md](default/_artifact.md). The answers go into `decisions.yaml` through `wf.mjs decide` ([_decisions.md](../_decisions.md)) |
-| Next | `/wf shape <slug>` (default); shape writes `02-shape.md` |
-| Skip-to | `/wf plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
+| Produces | `01-intake.md` and `00-index.md` in this phase, then `02-shape.md` in the shape phase; templates in [intake/default/_artifact.md](default/_artifact.md). The answers go into `decisions.yaml` through `wf.mjs decide` ([_decisions.md](../_decisions.md)) |
+| Next | The shape phase, in the same run ([shape.md](../shape.md)); it writes `02-shape.md` and routes to design or slice |
 
 ## Requires
 
@@ -144,26 +143,20 @@ Do this in order:
 6. **Draft** the intake brief without designing the implementation (steps 6a–6c refine it before it is written to disk in Step 9). When the request implies a core loop, state it as NUMBERED STEPS in `## Restated Request`; shape derives the Charter Scenario from it.
 6a. **Misreading pass (the RIM quality floor).** Before the brief is final, run one short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate either becomes a RIM entry in `## Risks if Misunderstood` (stable id `RIM-1..n`, with severity) or is dismissed in that section with a stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents; this is the floor, and shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood` and `## Charter` sections may never be silently absent in default mode: zero entries is legal only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no interpretive surface"). Silence is illegal; shape's Step 9a backfills a missing ledger instead of waving it through.
 6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification with `decide add` per [_decisions.md](../_decisions.md); ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
-7. **Evaluate adaptive routing** (see below) and write ALL viable options into the `01-intake.md` `recommended-routes`.
-8. Update `00-index.md` with the recommended default option.
+7. Write `next-invocation: "/wf intake <slug>"`, and the same invocation as the one entry of the `01-intake.md` `recommended-routes`. A stop before the shape phase resumes there; the shape phase writes the routes that follow intake.
+8. Update `00-index.md`: `current-stage: intake`, `progress.intake: in-progress`. The shape phase sets `progress.intake: complete`.
 9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.
 10. **Register this workflow in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
-# Adaptive routing — evaluate what's actually next
-After completing this stage, do not blindly recommend `/wf shape`. Evaluate the intake and present the user with ALL viable options:
+# Continue into the shape phase
 
-**Option A (default): Shape** → `/wf shape <slug>`
-Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Most tasks should go here.
+After Step 10, do not stop and do not ask the person to type a new command:
 
-**Option B: Skip to Plan** → `/wf plan <slug>`
-Use when: The task is a well-understood, single-scope fix (for example "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
+- When `01-intake.md` has `status: complete`, load [shape.md](../shape.md) and run the shape phase for `<slug>` now, in this run. The shape phase asks only the questions that this brief left open, and it writes the routes that follow intake.
+- When `01-intake.md` has `status: awaiting-input`, STOP. Name the open questions. The next `/wf intake <slug>` call answers them, then runs the shape phase.
+- When the task is trivially scoped (at most 3 files, one acceptance criterion, no edge case worth a record), the shape phase still runs. It skips its research agents and asks no question that the brief already answers.
 
-**Option C: Blocked — re-run intake** → `/wf intake <slug>`
-Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
-
-**Design path note:** When `ux-impact` is `visual`, `flow`, or `new-surface`, give the shape route a `reason` that names the design path per `design/_lane.md`: `shape` writes the design brief (`02b-design.md`), the human-only design stage (`/wf design <slug>`) draws the changed surfaces and writes `02c-craft.md` after the person confirms, and only then can `slice`, `plan`, or `/wf yolo` run. Keep `shape` as the immediate next command. This is a path heads-up only, consistent with intake staying descriptive.
-
-Write ALL viable options (not just the default) into `recommended-routes` so the user can choose.
+**Design path note:** When `ux-impact` is `visual`, `flow`, or `new-surface`, the shape phase writes the design brief (`02b-design.md`) and routes to the human-only design stage (`/wf design <slug>`) per `design/_lane.md`. Only after the person confirms the design can `slice`, `plan`, or `/wf yolo` run.
 
 ## Additive-write contract
 

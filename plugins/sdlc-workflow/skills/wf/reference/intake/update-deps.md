@@ -15,7 +15,7 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `/wf review` → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `/wf review` → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
@@ -233,7 +233,7 @@ Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (rema
 **Then self-report to `00-index.md`** again: `current-stage: verify`, `stage-number: 6`, `progress.verify: complete`, append `06-verify.md` to `workflow-files`, refresh `updated-at`, `next-command: wf-review`, `next-invocation: "/wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` so the next run's provenance seed finds them without re-reading stage bodies.
 
 # Step 9 — Route to review
-On a `pass`/`partial` verify, route to **`/wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `/wf handoff` → `/wf ship` → `/wf retro`.
+On a `pass`/`partial` verify, route to **`/wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `/wf ship` → `/wf retro`.
 
 Lead with a short **narrative** paragraph (what was scanned, the tier counts, what updated vs blocked, the verify result), then:
 ```
@@ -241,7 +241,7 @@ wf intake update-deps complete: <slug>
 Branch: deps/<slug>
 Tiers: P0 <n> · P1 <n> · P2 <n> · Hold <n>
 Updated: <n> · Blocked: <n> · Verify: <pass|partial|fail>
-Next: /wf review <slug>  →  /wf handoff  →  /wf ship  →  /wf retro
+Next: /wf review <slug>  →  /wf ship  →  /wf retro
 ```
 
 # Workflow rules

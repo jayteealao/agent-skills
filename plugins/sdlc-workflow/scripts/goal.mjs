@@ -83,7 +83,7 @@ function arm(root, slug, f) {
   const host = f.host ?? prior?.host ?? 'claude-code';
   if (!HOSTS.includes(host)) throw new Error(`host must be one of ${HOSTS.join(', ')}`);
   const objective = String(f.objective ?? prior?.objective ?? '').trim()
-    || (kind === 'lifecycle' ? `Drive slug ${slug} to handoff-ready` : kind === 'optimize' ? `Finish the optimize loop of slug ${slug}` : '');
+    || (kind === 'lifecycle' ? `Drive slug ${slug} to ship-ready` : kind === 'optimize' ? `Finish the optimize loop of slug ${slug}` : '');
   const c = {
     objective,
     kind,

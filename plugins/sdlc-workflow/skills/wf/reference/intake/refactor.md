@@ -15,7 +15,7 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review architecture` (focus refactor-safety, →`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review architecture` (focus refactor-safety, →`07`) → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
@@ -199,7 +199,7 @@ Write the shared change-mode index template from [_change-mode-tail.md](_change-
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `/wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance-consume.md` (escalated change-mode row) instead of discarding two sub-agents of work.
 
 # Step 7 — Hand off to the standard chain
-On proceed, route to `/wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test; if two fix attempts on the same step fail, do not keep guessing — `/wf probe <slug> "<the behavior question the failure raises>"`, or surface to the user) → `/wf verify <slug>` (full baseline comparison: re-run the literal `## Baseline Command`, diff its pass/fail/skip counts against `## Baseline Test Result`, check every `## Public API Surface` name still exists with the same signature, verify all callers still work — any unplanned delta fails verify) → **`/wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `/wf handoff` → `/wf ship` → `/wf retro`.
+On proceed, route to `/wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test; if two fix attempts on the same step fail, do not keep guessing — `/wf probe <slug> "<the behavior question the failure raises>"`, or surface to the user) → `/wf verify <slug>` (full baseline comparison: re-run the literal `## Baseline Command`, diff its pass/fail/skip counts against `## Baseline Test Result`, check every `## Public API Surface` name still exists with the same signature, verify all callers still work — any unplanned delta fails verify) → **`/wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `/wf ship` → `/wf retro`.
 
 Lead with a short **narrative** paragraph (target, why, baseline counts, the pattern, gate decision), then:
 ```
@@ -208,7 +208,7 @@ Branch: refactor/<slug>
 Baseline: <pass>/<fail>/<skip> tests · Coverage gaps: <count>
 Plan: <N> atomic green steps · Pattern: <name> · API delta: <none | planned changes>
 Gate: <proceeded | adjusted | escalated>
-Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> refactor-safety  →  /wf handoff  →  /wf ship  →  /wf retro
+Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> refactor-safety  →  /wf ship  →  /wf retro
 ```
 
 # Workflow rules

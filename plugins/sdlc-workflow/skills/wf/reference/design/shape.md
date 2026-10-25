@@ -1,6 +1,6 @@
 # Brief (design-brief authoring procedure)
 
-Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
+Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **shape phase** of `intake` runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
 
 **Scope**: Design planning only. This procedure does NOT write code, does NOT draw boards, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (the boards and the confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
 
@@ -128,7 +128,7 @@ just the conceptual state of an unwritten gate.)
 When `shape` runs this procedure (`../shape.md` Step 5a):
 - Write the brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), with
   `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
-- Leave `00-index.md` `current-stage: shape` (the brief is part of shape).
+- Leave `00-index.md` `current-stage: intake` (the brief is part of the shape phase).
 - Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
   the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors
   the visual contract `02c-craft.md`.

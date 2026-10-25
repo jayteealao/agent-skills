@@ -43,35 +43,33 @@ To confirm the install, type `/wf` with no arguments. It asks what you want to d
 The standard lifecycle is:
 
 ```text
-/wf intake <description>   → 01-intake.md
-/wf shape <slug>           → 02-shape.md
+/wf intake <description>   → 01-intake.md, 02-shape.md
 /wf slice <slug>           → 03-slice.md
 /wf plan <slug> [slice]    → 04-plan-<slice>.md
 /wf implement <slug>       → 05-implement-<slice>.md
 /wf verify <slug>          → 06-verify-<slice>.md
 /wf review <slug>          → 07-review-<slice>.md
-/wf handoff <slug>         → 08-handoff.md
-/wf ship <slug>            → 09-ship-run-<run-id>.md
+/wf ship <slug>            → 08-handoff.md, 09-ship-run-<run-id>.md
 /wf retro <slug>           → 10-retro.md
 ```
 
-You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf yolo <slug>` drives the lifecycle on any host and stops before handoff. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
+You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf yolo <slug>` drives the lifecycle on any host and stops before ship. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
 
 ## The 18 keys
 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Does |
 |---|---|
-| `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. `brainstorm` thinks an idea through with you until you say `done`; `simplify` runs three read-only reviewers; `task` is work whose deliverable is not a code change. |
-| `shape` | Product-owner discovery: acceptance criteria, documentation plan, augmentations. |
-| `design` | Human-only design stage between shape and slice: the person confirms the drawings before any driver runs. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`). |
+| `intake` | Entry dispatcher. A description starts stage 1: the brief and the shape (acceptance criteria, documentation plan, augmentations) in one run; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. `brainstorm` thinks an idea through with you until you say `done`; `simplify` runs three read-only reviewers; `task` is work whose deliverable is not a code change. |
+| `shape` | Alias of `intake` for this release: runs the shape phase on an existing workflow. |
+| `design` | Human-only design stage between intake and slice: the person confirms the drawings before any driver runs. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`). |
 | `slice` | Decomposes the shape into shippable slices. |
 | `plan` | Per-slice plan with a reuse scan. |
 | `implement` | Codes the slice. `reviews` runs the fix-blockers mode. |
 | `verify` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop. |
 | `review` | Workflow review over an accumulating ledger; ad-hoc rubric or `sweep <aggregate>` without a slug. |
-| `handoff` | Aggregates completed slices into a PR. Batch mode over `pr#N` or a branch. |
-| `ship` | Release via `.ai/ship-plan.md`; `announce`, `rollback`. |
+| `handoff` | Alias of `ship` for this release: ship opens the PR first. |
+| `ship` | The last mile: the PR and CI, the go/no-go gate, then the merge and release via `.ai/ship-plan.md`; `announce`, `rollback`. |
 | `retro` | Post-mortem, per slug or per branch. |
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
 | `yolo` | Autonomous driver. Resolves each gate by written policy. |

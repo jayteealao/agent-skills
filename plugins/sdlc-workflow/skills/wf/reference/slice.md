@@ -8,7 +8,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf slice`, **stage 3 of 10**: 1·intake → 2·shape → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
+You are running `/wf slice`, **stage 3 of 9**: 1·intake → 2·design → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
 |---|---|
@@ -60,7 +60,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key slice-focus --stage slice` per [_decisions.md](_decisions.md), and apply it when you choose the slices.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`: `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - `01-intake.md` and `02-shape.md` exist. If missing → STOP. Tell the user which command to run first ("Run `/wf shape <slug>` first.").
+   - `01-intake.md` and `02-shape.md` exist. If missing → STOP. Tell the user which command to run first ("Run `/wf intake <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - **Stack gate (do not silently re-detect).** Inspect the `stack:` block in `00-index.md`.
      - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it."
@@ -112,7 +112,7 @@ Do this in order:
 Present ALL viable options. Write each option as one `recommended-routes` entry with its reason:
 - **Option A (default): Plan the best-first slice** → `/wf plan <slug> <best-first-slice-slug>`. Standard flow: work through slices one at a time, starting with the highest-risk or highest-value slice.
 - **Option B: Plan all slices in parallel** → `/wf plan <slug> all` when the slices are independent enough that planning them all upfront is efficient.
-- **Option C: Revisit shape** → `/wf shape <slug>` when slicing revealed a spec too vague, contradictory, or incomplete to decompose.
+- **Option C: Revisit shape** → `/wf intake <slug>` when slicing revealed a spec too vague, contradictory, or incomplete to decompose.
 
 # AC verifiability discipline (author the verification path WITH the AC)
 

@@ -25,8 +25,8 @@ If that slug's `workflow-type` IS `task`, or the first token after `task` names 
 |---|---|
 | Requires | See [## Requires](#requires). Start from a description, or resume a task slug. |
 | Produces | `00-index.md` (`type: index`, `workflow-type: task`), `01-task.md` (`type: intake`, the brief), `05-implement.md` (what actually happened), `06-verify.md` (per-AC evidence with rungs), `10-retro.md` on request |
-| Skips | `shape`, `slice`, `plan` — marked `skipped` in `progress:` (the brief carries its steps inline; for a task, planning and briefing are one motion). `review`, `handoff`, `ship` — `skipped` unless the task produced a repo diff worth reviewing or merging (Step 4). |
-| Next | `Done` for most tasks. A task that left a reviewable diff → ad-hoc `/wf review <dimension>` or `/wf handoff <slug>`. |
+| Skips | the shape phase, `slice`, `plan` — `slice` and `plan` are marked `skipped` in `progress:` (the brief carries its steps inline; for a task, planning and briefing are one motion). `review`, `ship` — `skipped` unless the task produced a repo diff worth reviewing or merging (Step 4). |
+| Next | `Done` for most tasks. A task that left a reviewable diff → ad-hoc `/wf review <dimension>` or `/wf ship <slug>`. |
 | Escalate | Deliverable turns out to be a code behavior change → `/wf intake fix`; more than one slice of work → `/wf intake` (tripwires below). |
 
 ## Requires
@@ -81,7 +81,7 @@ Author the brief. Ask at most **2 questions** in chat; record each answer with `
 - `## Acceptance Criteria` — each naming **how it will be observed** (the concrete read-back), not just what should be true.
 - `## Assumptions / Open Questions`, and `## Gate Decision` (written at the gate).
 
-`00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `shape`, `slice`, `plan` as `skipped`; `review`, `handoff`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
+`00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `slice`, `plan` as `skipped`; `review`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
 
 **[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](../_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen.
 
@@ -102,7 +102,7 @@ Set `result: pass` only when every AC closes at `live` or `attested`; otherwise 
 # Step 4 — Hand off
 
 1. Update `00-index.md`: `current-stage: verify` → close the loop honestly — a task whose ACs all closed sets `status: closed`, `close-reason: completed`, `closed-at` (a completed task has nothing left to drive; `/wf intake <slug> close` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
-2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`handoff` from `skipped` to `not-started` and recommend ad-hoc `/wf review <dimension>` or `/wf handoff <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
+2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`ship` from `skipped` to `not-started` and recommend ad-hoc `/wf review <dimension>` or `/wf ship <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
 3. `10-retro.md` on request only.
 4. Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then:
 

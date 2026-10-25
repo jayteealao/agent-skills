@@ -57,22 +57,20 @@ charter:
     source: "01-intake.md#<section>"
     status: honored
     po-ratified: <true|false>
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: wf-intake                 # the shape phase writes the next stage
+next-invocation: "/wf intake <slug>"   # a stop before the shape phase resumes it
 workflow-files:
   - 00-index.md
   - 01-intake.md
   - decisions.yaml
 progress:
-  intake: in-progress
-  shape: not-started
+  intake: in-progress                   # complete when the shape phase writes 02-shape.md
   design: not-started
   slice: not-started
   plan: not-started
   implement: not-started
   verify: not-started
   review: not-started
-  handoff: not-started
   ship: not-started
   retro: not-started
 ---
@@ -88,7 +86,7 @@ The index has no markdown body. The frontmatter is the current state of the work
 - Write `design-move` only when `/wf design <move>` started the workflow. Otherwise omit the key.
 - When `ux-impact: none`, shape sets `progress.design: skipped` and writes `design-skip-reason`. Otherwise omit the key.
 
-**`intent-risks` (the RIM ledger).** Write one entry for each RIM from the Step 6a misreading pass. When there are zero entries, write `intent-risks: none-declared`. An absent key is illegal in default mode, and shape's Step 9a backfills it. Shape adjudicates every `open` entry (shape.md Step 9a). Handoff and ship block on any entry that stays `open`. Compressed intake modes (fix, hotfix, refactor, update-deps, adopt) write entries only when a risk exists. Terminal-analysis modes write no ledger.
+**`intent-risks` (the RIM ledger).** Write one entry for each RIM from the Step 6a misreading pass. When there are zero entries, write `intent-risks: none-declared`. An absent key is illegal in default mode, and shape's Step 9a backfills it. Shape adjudicates every `open` entry (shape.md Step 9a). Ship blocks on any entry that stays `open`. Compressed intake modes (fix, hotfix, refactor, update-deps, adopt) write entries only when a risk exists. Terminal-analysis modes write no ledger.
 
 **`charter`.** Write the 3–7 load-bearing commitments from Step 6b. Keep them few: each commitment is falsifiable by code, not a mood. Distill them from the Restated Request, Intended Outcome, and Known Constraints. Set `po-ratified: true` when Step 6b confirms an entry. When there are zero commitments, write `charter: none-declared`. Compressed intake modes write no charter. Shape's RIM adjudications and the `## Intake Fidelity` rows can cite charter ids. The intent-fidelity review dimension checks each charter id.
 
@@ -113,14 +111,12 @@ tags: []
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: wf-intake
+next-invocation: "/wf intake <slug>"
 recommended-routes:
-  - invocation: "/wf shape <slug>"
-    reason: "<why shape is next>"
+  - invocation: "/wf intake <slug>"
+    reason: "the shape phase of intake runs next, in the same run"
     default: true
-  - invocation: "/wf plan <slug>"
-    reason: "<only when the task is trivially scoped>"
 ---
 ```
 

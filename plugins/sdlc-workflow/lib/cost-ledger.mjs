@@ -39,11 +39,13 @@ export const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'
 export const PI_WRITE_TOOLS = new Set(['write', 'edit', 'multi_edit', 'multiedit', 'notebook_edit']); // pi
 export const PI_SUBAGENT_USAGE_TYPE = 'sdlc:subagent-usage';
 
-// Artifact number → /wf key (plan §10.3.6). `01-<mode>` is always intake.
+// Artifact number → /wf key. `01-<mode>` is always intake; intake also writes the shape
+// (02), and ship also writes the PR package (08). `02b-` and `02c-` are design files.
 const KEY_BY_NUMBER = {
-  '01': 'intake', '02': 'shape', '03': 'slice', '04': 'plan', '05': 'implement',
-  '06': 'verify', '07': 'review', '08': 'handoff', '09': 'ship', '10': 'retro',
+  '01': 'intake', '02': 'intake', '03': 'slice', '04': 'plan', '05': 'implement',
+  '06': 'verify', '07': 'review', '08': 'ship', '09': 'ship', '10': 'retro',
 };
+const DESIGN_LETTERS = new Set(['b', 'c']);
 // Keys whose artifacts carry a `-<slice-slug>` suffix.
 const SLICED_KEYS = new Set(['slice', 'plan', 'implement', 'verify', 'review']);
 
@@ -275,11 +277,11 @@ export function workflowPathParts(filePath) {
 
 /** `04-plan-cli-json.md` → { key: 'plan', slice: 'cli-json' }; `01-rca.md` → { key: 'intake', slice: null }; other names → null. */
 export function keyFromArtifactName(filename) {
-  const m = /^(\d{2})[a-z]?-([a-z][a-z0-9]*)(?:-(.+))?\.md$/i.exec(filename ?? '');
+  const m = /^(\d{2})([a-z]?)-([a-z][a-z0-9]*)(?:-(.+))?\.md$/i.exec(filename ?? '');
   if (!m) return null;
-  const key = KEY_BY_NUMBER[m[1]];
+  const key = m[1] === '02' && DESIGN_LETTERS.has(m[2].toLowerCase()) ? 'design' : KEY_BY_NUMBER[m[1]];
   if (!key) return null;
-  return { key, slice: SLICED_KEYS.has(key) && m[3] ? m[3] : null };
+  return { key, slice: SLICED_KEYS.has(key) && m[4] ? m[4] : null };
 }
 
 /**

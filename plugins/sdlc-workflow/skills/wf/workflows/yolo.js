@@ -1,6 +1,6 @@
 export const meta = {
   name: 'wf-yolo',
-  description: 'Autonomous SDLC lifecycle driver. Drives an already-intaked slug through plan→implement→verify→review. Each stage agent gets a brief built by code (the stage card, the slice, the plan section, the decisions in scope), settles implementation detail itself, and returns an intent-bearing decision as a question: the run stops, the main session asks and records the answer, and the next run carries it. Stops before handoff. Runs on Claude Code (Workflow), pi (SubagentWorkflow) and Codex (wf.mjs drive).',
+  description: 'Autonomous SDLC lifecycle driver. Drives an already-intaked slug through plan→implement→verify→review. Each stage agent gets a brief built by code (the stage card, the slice, the plan section, the decisions in scope), settles implementation detail itself, and returns an intent-bearing decision as a question: the run stops, the main session asks and records the answer, and the next run carries it. Stops before ship. Runs on Claude Code (Workflow), pi (SubagentWorkflow) and Codex (wf.mjs drive).',
   phases: [
     { title: 'Orient', detail: 'read 00-index + roster; resolve scope, file convention, branch posture (create/switch dedicated), resume point' },
     { title: 'Drive', detail: 'sequential plan→implement→verify[→review] per slice; questions stop the run' },
@@ -1353,7 +1353,7 @@ async function orient() {
     `06-verify.md, 07-review.md.\n` +
     `4. Determine mode: 'slice' if a target slice was given, else 'slug'. In slice mode, confirm the target slice ` +
     `is in the roster — if not, set ok=false, blockReason, route='/wf slice ${slug}'.\n` +
-    `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake or shape autonomously; those own ` +
+    `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake (the brief and the shape) autonomously; intake owns ` +
     `product-owner alignment). First CLASSIFY by 00-index.md workflow-type — only workflows with a decided build are ` +
     `drivable, and a non-build type must NOT fall through to the slice check:\n` +
     `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate, brainstorm} (00-index.md ` +
@@ -1414,7 +1414,7 @@ async function orient() {
     `hotfix→01-hotfix.md, refactor→01-refactor.md, else 01-intake.md (all carry frontmatter type: intake, ` +
     `stage-number 1; accept any 01-*.md whose frontmatter is type: intake if the named file is somehow absent). If ` +
     `the resolved intake lead, 02-shape.md, or (when required) 03-slice.md is missing or awaiting-input, set ok=false ` +
-    `with blockReason and route='/wf intake <description>' (or '/wf shape ${slug}' / '/wf slice ${slug}' for the ` +
+    `with blockReason and route='/wf intake <description>' (or '/wf intake ${slug}' / '/wf slice ${slug}' for the ` +
     `specific gap).\n` +
     `   5e. DESIGN GATE (applies to 5b and 5d; a person confirms the design — yolo NEVER runs the design stage). ` +
     `Read ux-impact from 00-index.md. Design is NEEDED when ux-impact ∈ {visual, flow, new-surface}, or when ` +
@@ -1681,7 +1681,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // W5.2 — SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
 // at `status: defined` and the index `progress` block stale, so the next run's
 // orientation had to cross-check artifacts instead of trusting the index — and a
-// later handoff had to self-repair what the drive should have recorded. The
+// later ship had to self-repair what the drive should have recorded. The
 // mechanism belongs to the streamline plan's write-back work; what belongs HERE is
 // that yolo's slice-complete step is a WRITER: the fix lands at drive time, when
 // the fact is fresh, not two stages later when someone notices the drift.
@@ -1718,7 +1718,7 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `this slice's \`status:\` to complete, set it to complete. If the roster records no per-slice status field, ` +
     `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
-    `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before handoff and ` +
+    `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
     `the workflow is not done.` +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
     `Return { ok, wrote: [<the files you actually changed>], note }.` +
@@ -1789,7 +1789,7 @@ async function driveVerify(sliceArg, idx, extra = {}) {
       }
       const deferred = (Array.isArray(t.deferrals) ? t.deferrals.length : 0) +
                        (Array.isArray(last.residual) ? last.residual.filter(d => d && d.ac).length : 0)
-      if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review/handoff proceed, /wf ship blocks until cleared`)
+      if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review proceeds, /wf ship blocks until cleared`)
       return last
     }
     // Bare blocked-runtime-evidence-missing means the subagent left a user-observable
@@ -2058,7 +2058,7 @@ async function runUpdateDepsExec(idx) {
     steer('writer') + `\n\n` +
     `Operating rules:\n` +
     `- Your mandate is ONLY the self-managed update-deps exec (05-implement.md + 06-verify.md) for slug '${slug}'. ` +
-    `Do NOT run /wf review or /wf handoff, do NOT claim completion of the whole workflow, and do NOT recommend ` +
+    `Do NOT run /wf review or /wf ship, do NOT claim completion of the whole workflow, and do NOT recommend ` +
     `routes beyond what update-deps.md Steps 6–9 themselves return.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
     `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
@@ -2067,7 +2067,7 @@ async function runUpdateDepsExec(idx) {
     `- Record EVERY autonomous decision into the artifacts (## Updated / ## Blocked / ## Held in 05-implement.md; ` +
     `## Test Result / ## Build / ## Blocked packages in 06-verify.md) so this run is exactly as auditable as a ` +
     `human-gated one. Nothing dies silently inside an artifact.\n` +
-    `- STOP after writing 06-verify.md — do NOT route to /wf review or /wf handoff and do NOT run the review. yolo ` +
+    `- STOP after writing 06-verify.md — do NOT route to /wf review or /wf ship and do NOT run the review. yolo ` +
     `runs the slug-wide review as its own next stage.\n\n` +
     `Return the terminal state as a STAGE_RESULT with stage:'verify' (its gate IS the verify gate): status ` +
     `('complete' when 06 is convergence ∈ {not-needed, converged} with result pass or a deferral-only partial; ` +
@@ -2134,7 +2134,7 @@ async function driveUpdateDeps(idx) {
   const probeGapsField = execProbeGaps.length ? { probeGaps: execProbeGaps } : {}
   return stopped
     ? { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', ran, slugWide: rev, ...probeGapsField, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-    : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, ...probeGapsField, route: `/wf handoff ${slug}` }
+    : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, ...probeGapsField, route: `/wf ship ${slug}` }
 }
 
 
@@ -2340,7 +2340,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   } else if (ranStages.length) {
     const wb = await writeBackSliceStatus(sliceArg, idx, ranStages)
     if (wb && wb.ok) log(`slice '${sliceArg}' complete → wrote status back to ${(wb.wrote || ['(nothing)']).join(', ')}`)
-    else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf handoff will self-repair the index`)
+    else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
   }
   return { stopped: false, slice: sliceArg, ran }
 }
@@ -2500,7 +2500,7 @@ if (idx.workflowType === 'update-deps') {
   } else if (next) {
     route = `/wf yolo ${slug} ${next}`
   } else {
-    route = idx.reviewScope === 'slug-wide' ? `/wf yolo ${slug}` : `/wf handoff ${slug}`   // last slice → finalizer
+    route = idx.reviewScope === 'slug-wide' ? `/wf yolo ${slug}` : `/wf ship ${slug}`   // last slice → finalizer
   }
   outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.at, reason: chain.reason, ran: chain.ran, route, ...(chain.questions ? { questions: chain.questions } : {}) }
 } else {
@@ -2589,8 +2589,8 @@ if (idx.workflowType === 'update-deps') {
   outcome = await driveRoster(walkOrder(primary), false)
   if (!outcome) {
     if (reviewPer) {
-      // Endpoint: every per-slice review clean. Stop before handoff.
-      outcome = { ok: true, mode: 'slug', reviewScope: 'per-slice', stopped: false, results, route: `/wf handoff ${slug}` }
+      // Endpoint: every per-slice review clean. Stop before ship.
+      outcome = { ok: true, mode: 'slug', reviewScope: 'per-slice', stopped: false, results, route: `/wf ship ${slug}` }
     } else {
       // slug-wide: every slice verified → ONE slug-wide review over the branch diff.
       // This is the run's TARGET, so it runs before the re-challenge sweep.
@@ -2603,7 +2603,7 @@ if (idx.workflowType === 'update-deps') {
         ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
         : stopped
         ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-        : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf handoff ${slug}` }
+        : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
     }
   }
   // The bounded re-challenge sweep, last — after the target, in the same run. A
@@ -2625,7 +2625,7 @@ const collected = collectDeferrals(outcome)
 const { deferrals, reconciled } = reconcileDeferrals(outcome, collected, idx.priorDeferrals)
 if (deferrals.length) {
   outcome.runtimeEvidenceDeferrals = deferrals
-  log(`runtime-evidence deferrals on this run: ${deferrals.length} — review/handoff proceed; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
+  log(`runtime-evidence deferrals on this run: ${deferrals.length} — review proceeds; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
 }
 if (reconciled.length) {
   outcome.reconciled = reconciled

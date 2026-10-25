@@ -1,10 +1,10 @@
 # Shared PR/CI handoff machinery (loaded on demand by `handoff.md`)
 
-This file carries the GitHub-conditional machinery of `/wf handoff`: the CI watch procedure (T5.0/T5.3) and the fix-subagent contract (7a CI-red + 7b triage). The PR comment triage loop (T5.1, step 7b) is in [handoff/_pr-triage.md](_pr-triage.md). `handoff.md` instructs you to read this file **in full** the moment the PR/CI path is active (`branch-strategy` is `dedicated`/`shared` AND a `pr-number` is recorded). A local-branch handoff (`branch-strategy: none`) never loads it. Once loaded, follow every section below exactly; the same fidelity rules as the parent reference apply.
+This file carries the GitHub-conditional machinery of the PR phase of `/wf ship`: the CI watch procedure (T5.0/T5.3) and the fix-subagent contract (7a CI-red + 7b triage). The PR comment triage loop (T5.1, step 7b) is in [handoff/_pr-triage.md](_pr-triage.md). `handoff.md` instructs you to read this file **in full** the moment the PR/CI path is active (`branch-strategy` is `dedicated`/`shared` AND a `pr-number` is recorded). A local-branch handoff (`branch-strategy: none`) never loads it. Once loaded, follow every section below exactly; the same fidelity rules as the parent reference apply.
 
 # The host's PR monitor
 
-A host can have its own PR monitor, which fixes CI and answers review comments by itself. The "PR monitor" row of [_host-surfaces.md](../_host-surfaces.md) names it and its tools. Its default can tell a session to offer the monitor after it opens a PR, and not to poll CI. The person who runs handoff asks for handoff's own CI watch and comment triage, so this stage keeps both:
+A host can have its own PR monitor, which fixes CI and answers review comments by itself. The "PR monitor" row of [_host-surfaces.md](../_host-surfaces.md) names it and its tools. Its default can tell a session to offer the monitor after it opens a PR, and not to poll CI. The person who runs ship asks for the PR phase's own CI watch and comment triage, so this phase keeps both:
 
 1. Let the host show the PR, as the row says.
 2. Do not offer, ask about, or turn on the host's PR monitor: not in a gate question, not in a wrap-up question or button, and not in a closing line. The monitor skips the diagnose-then-ask rule of [_ci-red-routing.md](_ci-red-routing.md) and the triage table, and a second fixer pushes to the same branch. When the monitor is already on for the PR, leave it on, and say once in the handoff report that it also acts on this PR.

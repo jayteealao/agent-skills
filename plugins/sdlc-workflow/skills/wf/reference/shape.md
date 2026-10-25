@@ -1,5 +1,5 @@
 ---
-description: Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
+description: The shape phase of intake. Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
 argument-hint: <slug> [focus hint]
 ---
 
@@ -8,7 +8,9 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
+You are running the **shape phase of `/wf intake`**, the second half of stage 1 of 9: 1·intake (brief → `shape`) → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
+
+Intake runs this phase right after the brief, in the same run. On a workflow whose brief is written, `/wf intake <slug>` runs it alone, and so does `/wf shape <slug>`, an alias that stays for this release only.
 
 | | Detail |
 |---|---|
@@ -23,7 +25,7 @@ You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·
 - Each acceptance criterion says whether it is observable, and how verify checks it.
 - Adjudicate every `open` entry of the RIM ledger.
 - Do not design, architect or code the solution.
-- Done when `02-shape.md` is complete and every answer is in the decision store.
+- Done when `02-shape.md` is complete, `progress.intake` is `complete`, and every answer is in the decision store.
 
 ## Requires
 
@@ -53,7 +55,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk t
 3. **Check prerequisites:**
    - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
    - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve open intake questions first.
-   - If `current-stage` is already past shape, note the re-run in chat and proceed per the Additive-write contract below.
+   - If `02-shape.md` already exists with `status: complete`, note the re-run in chat and proceed per the Additive-write contract below.
 4. Carry forward `selected-slice` and `open-questions` from the index.
 
 # Step 1 — Launch research agents (launch before the interview so results are back by Step 3)
@@ -91,7 +93,7 @@ Harvest every ambiguity, unstated assumption, and unclear-context item from `01-
 ```
 - **AMB-1** — <one-line ambiguity or assumption statement> — source: 01-intake.md#<section>
 ```
-The inventory is the interview's coverage instrument, a living list: add entries as later rounds or late research surface new ambiguities. **Work packet** (`origin-packet` set): seed the inventory from its file. Decisions and findings enter `closed (packet <key>)`, never asked; tensions and questions enter open.
+**One interview.** In the same run as the brief, the questions that the brief asked count toward the 20-question floor of Step 2.2, and an item that a brief answer closed enters the inventory `closed (decision <id>)`. Never ask such an item again. The inventory is the interview's coverage instrument, a living list: add entries as later rounds or late research surface new ambiguities. **Work packet** (`origin-packet` set): seed the inventory from its file. Decisions and findings enter `closed (packet <key>)`, never asked; tensions and questions enter open.
 
 ## Step 2.2 — Interview rules
 
@@ -152,7 +154,7 @@ Classify whether this work needs any of the five and record the decision so `pla
 - Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. REQUIRED even when the answer is none: write `augmentations-needed: []` and a one-line reason.
 
 # Step 7 — Route and update the index
-Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update `00-index.md`: `current-stage: shape`, `stage-number: 2`, `progress.shape: complete` (`in-progress` while `status: awaiting-input`), `updated-at`, `next-command`, `next-invocation`. Append `02-shape.md` to `workflow-files`.
+Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update `00-index.md`: `current-stage: intake`, `stage-number: 1`, `progress.intake: complete` (`in-progress` while `status: awaiting-input`), `updated-at`, `next-command`, `next-invocation`. An older index can still hold a `progress.shape` key: set it to `complete` too, and add none. Append `02-shape.md` to `workflow-files`.
 
 # Step 9 — Adversarial pre-mortem (the RIM generator — a BLIND sub-agent, run BEFORE 9a)
 Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + the live entries of the decision store (`decide list`) ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
@@ -187,8 +189,8 @@ After writing files, return per [_chat-return.md](_chat-return.md). Lead with th
 Do not blindly recommend `/wf slice`. Present ALL viable options and write them into `recommended-routes`:
 - **Option A (default): Slice** → `/wf slice <slug>`. The spec covers multiple distinct areas, has more than one AC cluster, or benefits from incremental delivery.
 - **Option B: Skip to Plan** → `/wf plan <slug>`. A single coherent unit: one scope, one acceptance path, ≤5 files likely touched, no meaningful split.
-- **Option C: Revisit Intake** → `/wf intake <slug>`. Shaping revealed the brief is wrong, misses key constraints, or misunderstands the problem.
-- **Option D: Blocked — re-run shape** → `/wf shape <slug>`. Required PO answers are still missing.
+- **Option C: Revisit the brief** → a new `/wf intake <description>`, then `/wf intake <slug> close` for this one. Shaping revealed the brief is wrong, misses key constraints, or misunderstands the problem.
+- **Option D: Blocked — answers missing** → `/wf intake <slug>`, which resumes this phase. Required PO answers are still missing.
 - **Option E (default when design is needed): Design.** Type `/wf design <slug>`. Shape authored `02b-design.md`; the person confirms the design at the design stage before slice, plan, or any driver runs. Options A and B follow it.
 
 # Artifacts

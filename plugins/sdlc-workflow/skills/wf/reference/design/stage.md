@@ -1,6 +1,6 @@
 # Design stage (`design/stage.md`)
 
-The human-only stage between `shape` and `slice`. It turns the brief into a design the person confirms, so every later stage builds against a decision a person made. [_lane.md](_lane.md) holds the rule that puts this stage before every driven stage.
+The human-only stage between `intake` and `slice`. It turns the brief into a design the person confirms, so every later stage builds against a decision a person made. [_lane.md](_lane.md) holds the rule that puts this stage before every driven stage.
 
 | | Detail |
 |---|---|
@@ -12,7 +12,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 
 1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`. Then run `/wf design <slug>` again."*
 2. When a driver (`yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
-3. When `02-shape.md` is missing or not complete, STOP and route to `/wf shape <slug>`.
+3. When `02-shape.md` is missing or not complete, STOP and route to `/wf intake <slug>`.
 4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.
 5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
 

@@ -16,7 +16,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline position
 ```
-[wf-ideate] → wf-intake → 1·intake → 2·shape → ... → 10·retro
+[wf-ideate] → wf-intake → 1·intake → 2·design → ... → 9·retro
 ```
 
 This command does NOT start or advance any workflow. It discovers improvement opportunities in the codebase and produces ranked, evidence-grounded idea candidates that are ready to feed directly into `/wf intake`. Run it when you want to find what's worth working on next, rather than starting from a blank brief.

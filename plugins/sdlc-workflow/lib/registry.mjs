@@ -56,6 +56,11 @@ export function registryErrors(reg, root = PLUGIN_ROOT) {
     if (!Array.isArray(k.artifacts)) errors.push(`${k.name}: no artifacts list`);
     checkRef(k.name, k.reference);
     checkHosts(k.name, k.hosts);
+    if (k.alias !== undefined) {
+      // An alias keeps an old key for one release: it names a stage key, and is no stage itself.
+      if (!(reg.keys ?? []).some((x) => x.name === k.alias && x.stage)) errors.push(`${k.name}: alias ${k.alias} is not a stage key`);
+      if (k.stage) errors.push(`${k.name}: an alias is not a stage`);
+    }
     for (const s of k.subkeys ?? []) { checkRef(`${k.name} ${s.name}`, s.reference); checkHosts(`${k.name} ${s.name}`, s.hosts); }
     for (const m of k.modes ?? []) {
       checkRef(`${k.name} ${m.name}`, m.reference);

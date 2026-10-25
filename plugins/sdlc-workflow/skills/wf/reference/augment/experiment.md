@@ -28,7 +28,7 @@ existing-workflow/
 | Produces | `04c-experiment.md` — experiment design with hypothesis, metrics, cohorts, and rollback criteria |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Implement flag infrastructure, modify the plan, or advance the workflow stage. |
-| When to run | After `/wf shape` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
+| When to run | After the shape phase of `/wf intake` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
 | Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do not block. |
 
 ## Requires
@@ -53,7 +53,7 @@ You are an **experiment designer**, not an implementer.
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
 3. **Check for instrumentation:**

@@ -27,7 +27,7 @@ Rules:
 
 ## The human rule
 
-A person confirms the design before any stage that a driver can run. The `design` stage sits between `shape` and `slice`, and only a person runs it. `/wf yolo` does not run it.
+A person confirms the design before any stage that a driver can run. The `design` stage sits between `intake` and `slice`, and only a person runs it. `/wf yolo` does not run it.
 
 **Design is settled** when one of these holds:
 - `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`. When it names its boards (`boards: design/r<N>/boards.json`) and `ux-impact` is `visual` or `new-surface`, every board that manifest lists also exists on disk ([_boards.md](_boards.md)). A contract without `boards:` (written before boards existed) keeps the first two conditions only.
@@ -57,12 +57,12 @@ Every stage that has a design duty reads the parts its duty names. Only `retro`,
 
 ## One duty per stage
 
-Each duty applies only when design is needed, except the `intake` and `shape` duties.
+Each duty applies only when design is needed, except the two `intake` duties.
 
 | Stage | Design duty |
 |---|---|
 | `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. Every mode that can route to `slice` or `plan` sets it: `rca` from the suggested fix, `update-deps` as `none`, and `extend` for the new slices. |
-| `shape` | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
+| `intake` (shape phase) | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
 | `design` | Run [stage.md](stage.md) with the person: present the thoughts a design brainstorm carried ([_carried.md](_carried.md)), choose the design mode of each surface ([_design-context.md](_design-context.md) → Design modes), offer three directions when the direction of a new surface is open, draw one board per changed surface and state plus the worst-case boards ([_boards.md](_boards.md)), get the person's confirmation, freeze the boards, write `02c-craft.md`. |
 | `slice` | Map every slice to the surfaces in `02c-craft.md` and their board keys. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. Write `ux-impact` into each slice file: `none` for a slice that maps to no surface. |
 | `plan` | Check the human rule. Turn every `02c-craft.md` `## Mock fidelity inventory` item into a plan step that cites its board key. Cite the moves in `references-loaded:` as step pointers. Write `## Design Components`: the system components the slice uses, and the component delta (new or changed components). |

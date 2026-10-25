@@ -1,5 +1,5 @@
 ---
-description: Autonomous lifecycle driver, on Claude Code, Codex and pi. Runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
+description: Autonomous lifecycle driver, on Claude Code, Codex and pi. Runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE ship; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs ship/retro, or fixes CI.
 argument-hint: <slug> [<slice>]
 ---
 
@@ -19,7 +19,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 - **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
 - **Reads are listed.** Each stage prompt names the reference's `## Requires` table as a checklist per [_requires.md](_requires.md).
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
-- **It stops before handoff — always.** It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope.
+- **It stops before ship — always.** It never opens a PR or runs `ship` or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
 - **A dead driver looks dead.** Every dispatched subagent writes heartbeats to `.ai/workflows/<slug>/.driver-journal.jsonl`. Read it by the staleness rule; never by its existence.
 
@@ -40,7 +40,7 @@ It is diagnostic, never a gate: a failed append never changes what a stage does.
 
 # Slug-mode contract
 
-`yolo` drives from **plan onward** — never `intake`, `shape`, or `design`, which own the product-owner alignment. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
+`yolo` drives from **plan onward** — never `intake` (with its shape phase) or `design`, which own the product-owner alignment. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
 
 **Intake modes — what `yolo` drives.** Orientation classifies the slug by `00-index.md`'s `workflow-type`. Six classes:
 
@@ -78,7 +78,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 # Two modes
 
-- **Slug mode — `/wf yolo <slug>`** drives every slice in the roster, then the final review, then stops before handoff.
+- **Slug mode — `/wf yolo <slug>`** drives every slice in the roster, then the final review, then stops before ship.
   - `review-scope: per-slice` → each slice is driven `plan → implement → verify → review`; the run ends when the last slice's review is clean.
   - `review-scope: slug-wide` → each slice is driven `plan → implement → verify`; then the single slug-wide review (`07-review.md` over the branch diff) runs once.
 - **Slice mode — `/wf yolo <slug> <slice>`** drives that one slice, then routes you to the next slice.
@@ -98,7 +98,7 @@ Every stage gate that would ask the person, `yolo` resolves by this rule. Two ti
 | `update-deps` scope gate (Step 6) | **Proceed with the full plan** — P0 security + P1 major+migration (one at a time, only the API-forced app-code changes) + P2 safe batch. A package that fails its test/build is marked `blocked` and the run continues (`result: partial`); its `06-verify.md` deferrals reuse the runtime-evidence hatch. Never audit-only, never hand-edit lockfiles, never mix a security update with a major migration in one commit. | A substantive `06-verify.md` failure unresolved (same rule as `verify`), or a slug-wide review that returns `dont-ship` / an unfixable security blocker. |
 | branch posture (`dedicated` only) | Land the tree on the slug branch **before any stage runs**: switch to it if it exists, else **create it from `base-branch`**. `shared`/`none` never switch. | A switch or create that would clobber uncommitted work (never stash/force), or a missing `base-branch` that blocks the create. |
 | intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous, except in delegate mode. A live answer in the decision store settles it (`decide answered`). | The stage records the open question in its artifact as awaiting-input and returns `status: 'questions'`. The run stops as `waiting` with `outcome.questions`. See [Questions](#questions--the-stop-that-waits-for-the-person). |
-| `intake` / `shape` / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. |
+| `intake` (with its shape phase) / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. |
 | standing steering (live `steer` entries) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. |
 
 Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recorded defer only when the fix would reach outside the slice's diff, be non-localized, or risk a convention conflict. An unfixable finding is recorded `could-not-fix`, and is a HARD-STOP only per the `review` row.
@@ -221,8 +221,8 @@ Next: <outcome.route — the routing command>
 ```
 
 `Next` routing comes from `outcome.route`:
-- **Endpoint, slice mode:** the next roster slice → `/wf yolo <slug> <next-slice>`; last slice → `/wf yolo <slug>` (slug-wide) or `/wf handoff <slug>` (per-slice).
-- **Endpoint, slug mode:** `/wf handoff <slug>`.
+- **Endpoint, slice mode:** the next roster slice → `/wf yolo <slug> <next-slice>`; last slice → `/wf yolo <slug>` (slug-wide) or `/wf ship <slug>` (per-slice).
+- **Endpoint, slug mode:** `/wf ship <slug>`.
 - **HARD-STOP:** the gate that fired and the command to resolve it, then `/wf yolo <slug> [<slice>]` to resume.
 - **Stop request** (`stoppedAt` is `stop-request`): where the run stopped, then `outcome.route`.
 - **Questions** (`outcome.questions` is not empty): ask them and relaunch per [Questions](#questions--the-stop-that-waits-for-the-person). Do not wait for the person to type the command.

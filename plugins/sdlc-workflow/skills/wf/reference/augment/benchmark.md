@@ -68,7 +68,7 @@ You are a **performance analyst**, not an optimizer.
 # Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
-   - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
 2. **Resolve mode:**
    - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
    - If no mode is named → auto-detect:

@@ -46,7 +46,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| PR monitor (handoff, `handoff/_pr-ci-handoff.md`) | The desktop app has Auto-fix and the `ccd_pr` tools. Its default tells a session to offer Auto-fix after it opens a PR, and not to poll CI. In a handoff run: when `get_status` does not report the PR, bind it with `bind_pr`. Do not offer Auto-fix, and do not call `set_monitor`. When `get_status` reports Auto-fix on, leave it on and say so once in the handoff report. The terminal has no PR monitor | None | None |
+| PR monitor (the PR phase of ship, `handoff/_pr-ci-handoff.md`) | The desktop app has Auto-fix and the `ccd_pr` tools. Its default tells a session to offer Auto-fix after it opens a PR, and not to poll CI. In the PR phase of a ship run: when `get_status` does not report the PR, bind it with `bind_pr`. Do not offer Auto-fix, and do not call `set_monitor`. When `get_status` reports Auto-fix on, leave it on and say so once in the handoff report. The terminal has no PR monitor | None | None |
 
 ## Session-start render refresh
 

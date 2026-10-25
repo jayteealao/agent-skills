@@ -127,7 +127,10 @@ test('keyFromArtifactName: number → key, slice suffix only for sliced keys, 01
   assert.deepEqual(keyFromArtifactName('04-plan.md'), { key: 'plan', slice: null });
   assert.deepEqual(keyFromArtifactName('01-rca.md'), { key: 'intake', slice: null });
   assert.deepEqual(keyFromArtifactName('07-review-cli-security.md'), { key: 'review', slice: 'cli-security' });
-  assert.deepEqual(keyFromArtifactName('02c-craft.md'), { key: 'shape', slice: null });
+  assert.deepEqual(keyFromArtifactName('02-shape.md'), { key: 'intake', slice: null });
+  assert.deepEqual(keyFromArtifactName('02c-craft.md'), { key: 'design', slice: null });
+  assert.deepEqual(keyFromArtifactName('02b-design.md'), { key: 'design', slice: null });
+  assert.deepEqual(keyFromArtifactName('08-handoff.md'), { key: 'ship', slice: null });
   assert.deepEqual(keyFromArtifactName('09-ship-run-3.md'), { key: 'ship', slice: null });
   assert.equal(keyFromArtifactName('00-index.md'), null);
   assert.equal(keyFromArtifactName('po-answers.md'), null);

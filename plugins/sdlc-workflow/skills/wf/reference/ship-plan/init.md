@@ -138,7 +138,7 @@ options:
 multiSelect: false
 ```
 
-Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>" --write` to add the design exceptions (`design/_boards.md`); the "Ignored" answer is the approval, because the option names them. `/wf ship`'s pre-flight (Step 1.1) and `/wf handoff` read this policy instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
+Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>" --write` to add the design exceptions (`design/_boards.md`); the "Ignored" answer is the approval, because the option names them. `/wf ship` reads this policy in its PR phase and its pre-flight (Step 1.1) instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
 
 ---
 

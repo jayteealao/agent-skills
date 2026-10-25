@@ -12,7 +12,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 You are running `/wf status`, the **dashboard, detail view, and router** for all SDLC workflows.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 `status` does NOT advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest (its writes are listed under Role).
 
@@ -70,7 +70,7 @@ For each list with an unfinished work packet, lead with `node "<skill-dir>/scrip
 
 # Roster Mode (`pr#N` / branch) — read-only branch view
 
-This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answers "which slugs on this branch are handoff-ready or ship-ready" **without triggering anything**. It writes nothing beyond the Step -1 registry reconcile.
+This is the read-only counterpart to batch `/wf ship`: it answers "which slugs on this branch are handoff-ready or ship-ready" **without triggering anything**. It writes nothing beyond the Step -1 registry reconcile.
 
 1. From `.ai/workflows/INDEX.md` (just reconciled), collect every slug whose `branch` column equals the resolved branch — the roster. If none → "No
    workflows are on branch `<branch>`." STOP.
@@ -91,7 +91,7 @@ This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answer
    Ship-ready = pr-readiness-verdict is `ready` AND the slug's runtime-evidence is clean.
    ```
 
-   The bottom line names the single batch action available now: `/wf handoff pr#N` if any slug is packageable-but-not-packaged, `/wf ship pr#N` if the whole branch is ship-ready, or the specific per-slug command blocking progress.
+   The bottom line names the single batch action available now: `/wf ship pr#N` if any slug is packageable-but-not-packaged or the whole branch is ship-ready, or the specific per-slug command blocking progress.
 
 # Dashboard Mode (no slug)
 

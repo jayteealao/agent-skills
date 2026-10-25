@@ -508,7 +508,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <div class="spans">
           <div class="span des">human-only</div>
           <div class="span drv">yolo drives these</div>
-          <div class="span you">yours: drivers stop before handoff</div>
+          <div class="span you">yours: drivers stop before ship</div>
         </div>
       </div>
       <div class="cmds" data-group="stage"></div>
@@ -801,7 +801,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase rep"><span class="pn">7</span><b>Fidelity</b><span class="who you">you</span><p>Each carried decision that the review marks narrowed or dropped: approve it, or fix it.</p></li>
           <li class="phase rep"><span class="pn">8</span><b>Try-out</b><span class="who you">you</span><p>Only for a packet with <code>try-out: yes</code>. You run it and say that it works, or describe the problem.</p></li>
           <li class="phase rep"><span class="pn">9</span><b>Done</b><span class="who auto">agent</span><p>Merges the trunk, marks the work packet done, and goes to the next one.</p></li>
-          <li class="phase"><span class="pn">10</span><b>Handoff and ship</b><span class="who you">you</span><p>One PR for the list: <code class="hp">/wf handoff packets/&lt;slug&gt;</code>, then ship and retro.</p></li>
+          <li class="phase"><span class="pn">10</span><b>Ship</b><span class="who you">you</span><p>One PR for the list: <code class="hp">/wf ship packets/&lt;slug&gt;</code>, then retro.</p></li>
         </ol>
       </div>
       <ul class="states static" aria-label="Work packet states">
@@ -815,7 +815,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <li data-s><b>A confirmed scope</b><span>You confirmed the goal, the scope, the acceptance criteria, <code>ux-impact</code>, <code>try-out</code> and the stack at done. The campaign does not ask about them again.</span></li>
         <li data-s><b>One branch</b><span>Every work packet lands on <code>packets/&lt;slug&gt;</code>. The campaign never stashes and never forces. When git refuses the switch, it shows the files in the way and asks.</span></li>
         <li data-s><b>Design in this checkout</b><span>You can design a later work packet between two work packets, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the campaign.</span></li>
-        <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before the handoff. Handoff and ship stop without a plan.</span></li>
+        <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before ship. Ship stops without a plan.</span></li>
       </ul>
 
       <h3 class="group" id="cg-forms">Each form <em>the campaign builds only the build forms</em></h3>
@@ -850,9 +850,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
       <h3 class="group" id="cg-ship">Handoff and ship <em>one PR for the list</em></h3>
       <ul class="rules">
-        <li data-s><b>When the list is done</b><span>Each work packet is done or dropped, and no fidelity row waits for your approval. Type <code><span class="hp">/wf</span> handoff packets/&lt;slug&gt;</code>. The PR lists each work packet with its acceptance results and its decision fidelity table.</span></li>
+        <li data-s><b>When the list is done</b><span>Each work packet is done or dropped, and no fidelity row waits for your approval. Type <code><span class="hp">/wf</span> ship packets/&lt;slug&gt;</code>. The PR lists each work packet with its acceptance results and its decision fidelity table.</span></li>
         <li data-s><b>Then ship and retro</b><span><code><span class="hp">/wf</span> ship packets/&lt;slug&gt;</code> ships the PR as usual. <code><span class="hp">/wf</span> retro packets/&lt;slug&gt;</code> runs one retro over every work packet on the list branch.</span></li>
-        <li data-s><b>An early handoff</b><span>You can hand off between work packets. The PR then holds the done work packets only. After it merges, the campaign asks whether to delete the list branch and the end branches, and starts the next PR from the trunk.</span></li>
+        <li data-s><b>An early PR</b><span>You can ship between work packets. The PR then holds the done work packets only. After it merges, the campaign asks whether to delete the list branch and the end branches, and starts the next PR from the trunk.</span></li>
         <li data-s><b>No stacked PRs</b><span>Every list hands off as one PR.</span></li>
         <li data-s class="warn"><b>Deletes wait for you</b><span>WARNING: the campaign deletes no remote branch, tag or release without your yes. These deletions cannot be undone.</span></li>
       </ul>
@@ -908,7 +908,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <table>
               <thead><tr><th>Kind</th><th>Met when</th></tr></thead>
               <tbody>
-                <tr data-s><td><code>lifecycle</code></td><td>Default. Every selected slice has a clean verify and the review it needs is clean: ready for handoff.</td></tr>
+                <tr data-s><td><code>lifecycle</code></td><td>Default. Every selected slice has a clean verify and the review it needs is clean: ready for ship.</td></tr>
                 <tr data-s><td><code>optimize</code></td><td>For an optimize slug: the metric loop is complete.</td></tr>
                 <tr data-s><td><code>proofs</code></td><td>Every command you name exits 0, for example "CI green and coverage at 80".</td></tr>
               </tbody>
@@ -935,7 +935,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures and keeps or reverts.</p></li>
           <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches that see only their own history. The best branch wins.</p></li>
           <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Kept trials squash into one commit on the slug branch, as one slice.</p></li>
-          <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, handoff, ship, retro.</p></li>
+          <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, ship, retro.</p></li>
         </ol>
       </div>
       <div class="two">
@@ -1103,19 +1103,19 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
   var B = {
     ro: ["ro", "read-only"], term: ["term", "terminal"], gate: ["gate", "human gate"], cc: ["cc", "Claude Code only"],
-    slug: ["slug", "slug first"], solo: ["", "standalone only"], lane: ["", "quick lane"], stop: ["term", "stops before handoff"],
+    slug: ["slug", "slug first"], solo: ["", "standalone only"], lane: ["", "quick lane"], stop: ["term", "stops before ship"],
     you: ["gate", "you end it"], nocode: ["ro", "writes no code"]
   };
 
   /* g: group · id · name · badges · syn · d: what it does · w: writes · n: next */
   var C = [
     { g: "stage", id: "intake", st: "01", name: "intake", syn: ["intake <description>", "intake \"<description that starts with a mode word>\""],
-      d: "Starts a new workflow. A short product-owner interview turns a rough request into a brief, fingerprints the stack and picks the slug. When the description clearly matches one mode, intake proposes that mode and asks first.",
-      w: ["00-index.md", "01-intake.md"], n: "shape <slug>", t: "new feature start begin build create default" },
-    { g: "stage", id: "shape", st: "02", name: "shape", syn: ["shape <slug> [focus area]"],
-      d: "Product-owner questions turn the brief into a mini-spec: acceptance criteria, edge cases and the decisions later stages honor. Shape also decides the documentation plan and any add-ons (benchmark, experiment, instrument). When the work changes what a person sees, shape adds a design brief.",
+      d: "Starts a new workflow. A product-owner interview turns a rough request into a brief, fingerprints the stack and picks the slug. In the same run, the shape phase turns the brief into a mini-spec: acceptance criteria, edge cases, the documentation plan and any add-ons (benchmark, experiment, instrument), and a design brief when the work changes what a person sees. When the description clearly matches one mode, intake proposes that mode and asks first.",
+      w: ["00-index.md", "01-intake.md", "02-shape.md", "02b-design.md"], n: "design <slug> · or · slice <slug>", t: "new feature start begin build create default" },
+    { g: "stage", id: "shape", name: "shape", syn: ["shape <slug> [focus area]"],
+      d: "An old name that stays for this release only. On a workflow whose brief is written, it runs the shape phase of intake. Type intake <slug> instead.",
       w: ["02-shape.md", "02b-design.md"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
-    { g: "stage", id: "design", st: "02c", name: "design", b: ["gate"],
+    { g: "stage", id: "design", st: "02", name: "design", b: ["gate"],
       syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
       d: "The person confirms one board for every changed surface and state before any driver runs. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens a confirmed design; import turns a canvas, a folder, a zip or images into boards. A move without a slug starts a new workflow through intake.",
       w: ["02c-craft.md", "design/r<N>/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual boards mockup polish look feel" },
@@ -1134,14 +1134,14 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { g: "stage", id: "review", st: "07", name: "review",
       syn: ["review <slug> [<slice>|triage]   # the workflow stage", "review <rubric> [scope]   # ad-hoc, one rubric", "review sweep <aggregate>   # ad-hoc, in parallel"],
       d: "With a slug, one reviewer runs per selected dimension, the findings merge into an accumulating ledger, and the verdict is ship, ship-with-caveats or dont-ship. triage sorts the open findings again. Without a slug, it is an ad-hoc review and the findings come back in chat. The rubrics are under Review dimensions.",
-      w: ["07-review[-<slice>].md", "07-review-<dimension>.md"], n: "handoff <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
-    { g: "stage", id: "handoff", st: "08", name: "handoff", syn: ["handoff <slug|pr#N|branch> [<slice>]"],
-      d: "Packages the finished slices into a pull request with reviewer and QA context. A PR number or a branch runs batch mode over every slug on that branch. Handoff refuses while a required review has open blockers or an intent risk is open, and it checks ship-plan readiness first.",
+      w: ["07-review[-<slice>].md", "07-review-<dimension>.md"], n: "ship <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
+    { g: "stage", id: "handoff", name: "handoff", syn: ["handoff <slug|pr#N|branch> [<slice>]"],
+      d: "An old name that stays for this release only. It runs ship, which opens the pull request first. Type ship <slug> instead.",
       w: ["08-handoff.md"], n: "ship <slug>", t: "pr pull request open package" },
-    { g: "stage", id: "ship", st: "09", name: "ship", syn: ["ship <slug|pr#N|branch> [<env>]", "ship <slug> announce", "ship <slug> rollback [<run-id>]"],
-      d: "Runs the release that .ai/ship-plan.md describes: 13 replayable steps under a fresh run-id, from pre-flight to merge, tag and post-release bookkeeping. After a failure, a re-run resumes at the failed step. announce re-runs only the stakeholder messages; rollback runs a Go/No-Go reversal of a finished run.",
-      w: ["09-ship-run-<run-id>.md", "09-ship-runs.md", "09-rollback-<run-id>.md"], n: "retro <slug>", t: "release deploy publish tag merge undo revert" },
-    { g: "stage", id: "retro", st: "10", name: "retro", syn: ["retro <slug|pr#N|branch>"],
+    { g: "stage", id: "ship", st: "08", name: "ship", syn: ["ship <slug|pr#N|branch> [<env>]", "ship <slug> announce", "ship <slug> rollback [<run-id>]"],
+      d: "The last mile. First it packages the finished slices into a pull request with reviewer and QA context and watches CI; it refuses while a required review has open blockers or an intent risk is open. Then it stops at the go/no-go gate. On your go, it runs the release that .ai/ship-plan.md describes: 13 replayable steps under a fresh run-id, from pre-flight to merge, tag and post-release bookkeeping. A PR number or a branch runs batch mode over every slug on that branch. After a failure, a re-run resumes at the failed step. announce re-runs only the stakeholder messages; rollback runs a Go/No-Go reversal of a finished run.",
+      w: ["08-handoff.md", "09-ship-run-<run-id>.md", "09-ship-runs.md", "09-rollback-<run-id>.md"], n: "retro <slug>", t: "release deploy publish tag merge undo revert" },
+    { g: "stage", id: "retro", st: "09", name: "retro", syn: ["retro <slug|pr#N|branch>"],
       d: "The post-mortem. It turns lessons into concrete changes to prompts, hooks, repo instructions, tests and automation. Batch mode retros every slug on the branch and adds the lessons that span all of them.",
       w: ["10-retro.md"], n: "Done", t: "post-mortem lessons learn" },
 
@@ -1215,12 +1215,12 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       w: ["03-slice-probe-<descriptor>.md", ".ai/surface-sweep-<date>.md"], n: "the routed fixes", t: "runtime check app works manual qa smoke" },
     { g: "drive", id: "yolo", name: "yolo", b: ["stop"], syn: ["yolo <slug> [<slice>]"],
       d: "Runs the stages of a started workflow one after another: per slice, plan, implement, verify and review. It settles each implementation detail by a written decision policy and records every decision. A decision that touches intent stops the run as a question to you, and the next run carries your answer. With a slice, it drives that slice only. It never opens a PR. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes.",
-      w: [".driver-journal.jsonl"], n: "handoff <slug>", t: "autonomous unattended driver run all stages automatic" },
+      w: [".driver-journal.jsonl"], n: "ship <slug>", t: "autonomous unattended driver run all stages automatic" },
     { g: "drive", id: "campaign", name: "campaign", b: ["gate"], syn: ["campaign <slug>"],
       d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. When the list is done, you hand off one PR for the whole list. One command resumes at any point.",
-      w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · handoff packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
+      w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · ship packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
     { g: "drive", id: "loop-goal", name: "loop goal", syn: ["loop goal <slug> [objective]", "loop goal <slug> resume|status|clear"],
-      d: "Hands the slug to the host's goal feature, so the work continues over many turns. A script decides when it is done and prints GOAL: MET, GOAL: NOT-MET or GOAL: BLOCKED. Kinds: lifecycle (ready for handoff, the default), optimize, and proofs (named commands exit 0). At a human gate the goal parks; answer the gate, then resume.",
+      d: "Hands the slug to the host's goal feature, so the work continues over many turns. A script decides when it is done and prints GOAL: MET, GOAL: NOT-MET or GOAL: BLOCKED. Kinds: lifecycle (ready for ship, the default), optimize, and proofs (named commands exit 0). At a human gate the goal parks; answer the gate, then resume.",
       more: "lp-goal", w: ["goal.md", "goal/checks.jsonl"], n: "loop goal <slug> resume", t: "keep going long running many turns objective" },
     { g: "drive", id: "loop-optimize", name: "loop optimize", syn: ["loop optimize <slug>", "loop optimize <description>"],
       d: "Change the code, measure one number, keep or revert. A script makes every git write and measurement, and trials run in a separate worktree, so your tree is never reset. A change is kept only when its gain beats twice the noise and a confirm run agrees. The kept trials become one slice for verify and review. The driver runs on Claude Code; elsewhere, loop goal carries it.",
@@ -1282,8 +1282,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["Check that the app really works", "probe", "probe <slug>"]
     ]],
     ["Finish", [
-      ["Open the pull request", "handoff", "handoff <slug>"],
-      ["Release it", "ship", "ship <slug>"],
+      ["Open the pull request and release it", "ship", "ship <slug>"],
       ["Undo a release", "ship", "ship <slug> rollback"],
       ["Learn from it", "retro", "retro <slug>"],
       ["Stop or cancel a workflow", "intake-close", "intake <slug> close [reason]"],
@@ -1318,14 +1317,14 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["INDEX.md", "every run", "The registry of all workflows, one row each. Lives in .ai/workflows/."],
     ["00-index.md", "intake", "The workflow's state: stage, slices, branch, review scope."],
     ["01-<mode>.md", "intake", "The brief: 01-intake.md, 01-fix.md, 01-rca.md, 01-brainstorm.md and so on."],
-    ["02-shape.md", "shape", "The mini-spec with acceptance criteria. 02b-design.md is the design brief."],
+    ["02-shape.md", "intake", "The mini-spec with acceptance criteria, from the shape phase. 02b-design.md is the design brief."],
     ["02c-craft.md", "design", "The confirmed visual contract. Frozen boards go in design/r<N>/."],
     ["03-slice.md", "slice", "The slice index, plus one 03-slice-<slice>.md per slice."],
     ["04-plan-<slice>.md", "plan", "The implementation plan of one slice."],
     ["05-implement-<slice>.md", "implement", "What was built, linked to the slice and the plan."],
     ["06-verify-<slice>.md", "verify", "Checks and acceptance evidence. Raw output in verify-evidence/<slice>/."],
     ["07-review.md", "review", "The accumulating findings ledger, plus one file per dimension."],
-    ["08-handoff.md", "handoff", "The PR package and branch readiness."],
+    ["08-handoff.md", "ship", "The PR package and branch readiness, from the PR phase."],
     ["09-ship-run-<run-id>.md", "ship", "One release run. 09-ship-runs.md lists them all."],
     ["10-retro.md", "retro", "Lessons and the changes they caused."],
     ["90-recap.md", "status recap", "The plain-language story of the workflow."],
@@ -1340,7 +1339,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["Typos get a suggestion, never a guess", "Any key that names a missing slug offers the nearest match and asks. It never runs on a guess.", ""],
     ["A slug cannot be a command word", "A new workflow cannot be named after a key, a sub-key or a mode word, such as fix or status. status flags an old slug with such a name.", ""],
     ["Quote to force the default flow", "When your description starts with a mode word, put it in quotes so intake reads it as one description.", ""],
-    ["Drivers stop before handoff", "yolo and loop goal never open a PR or release. Handoff and ship are always your call.", "warn"],
+    ["Drivers stop before ship", "yolo and loop goal never open a PR or release. Ship is always your call.", "warn"],
     ["loop optimize is Claude Code only", "On Codex and pi, use loop goal for an optimize slug.", ""],
     ["Human gates stay human", "The design stage, task authorization for shared or irreversible actions, and the end of a brainstorm wait for you. No policy answers them.", "warn"],
     ["Nothing is overwritten", "Re-runs merge findings, snapshot evidence and add files. Close deletes no artifact, branch or PR.", ""],
@@ -1427,8 +1426,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     }).join("");
   }
 
-  var STAGE_ORDER = ["intake", "shape", "design", "slice", "plan", "implement", "verify", "review", "handoff", "ship", "retro"];
-  var STAGE_FILE = { intake: "01-intake", shape: "02-shape", design: "02c-craft", slice: "03-slice", plan: "04-plan", implement: "05-implement", verify: "06-verify", review: "07-review", handoff: "08-handoff", ship: "09-ship-run", retro: "10-retro" };
+  var STAGE_ORDER = ["intake", "design", "slice", "plan", "implement", "verify", "review", "ship", "retro"];
+  var STAGE_FILE = { intake: "01-intake · 02-shape", design: "02c-craft", slice: "03-slice", plan: "04-plan", implement: "05-implement", verify: "06-verify", review: "07-review", ship: "08-handoff · 09-ship-run", retro: "10-retro" };
 
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function pre() { return '<span class="pre t-pre">' + esc(HOSTS[host].pre) + "</span>"; }
@@ -1488,11 +1487,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         return '<li data-s><a href="#' + id + '" data-jump="' + id + '"><span class="say">' + esc(i[0]) + '</span><span class="go">' + pre() + " " + esc(i[2]) + "</span></a></li>";
       }).join("") + "</ul></div>";
     }).join("");
-    document.getElementById("rail").innerHTML = STAGE_ORDER.map(function (k) {
-      var c = C.filter(function (x) { return x.id === k; })[0];
-      var cls = k === "design" ? "stop alt" : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? "stop mine" : "stop");
-      var tag = k === "design" ? '<span class="tag des">human-only</span>' : (["plan", "implement", "verify", "review"].indexOf(k) >= 0 ? '<span class="tag drv">yolo</span>' : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? '<span class="tag you">yours</span>' : ""));
-      return '<a class="' + cls + '" href="#k-' + k + '" data-jump="k-' + k + '"><span class="dot">' + c.st + "</span><b>" + k + "</b><small>" + STAGE_FILE[k] + "</small>" + tag + "</a>";
+    document.getElementById("rail").innerHTML = STAGE_ORDER.map(function (k, i) {
+      var cls = k === "design" ? "stop alt" : (["ship", "retro"].indexOf(k) >= 0 ? "stop mine" : "stop");
+      var tag = k === "design" ? '<span class="tag des">human-only</span>' : (["plan", "implement", "verify", "review"].indexOf(k) >= 0 ? '<span class="tag drv">yolo</span>' : (["ship", "retro"].indexOf(k) >= 0 ? '<span class="tag you">yours</span>' : ""));
+      return '<a class="' + cls + '" href="#k-' + k + '" data-jump="k-' + k + '"><span class="dot">' + (i + 1) + "</span><b>" + k + "</b><small>" + STAGE_FILE[k] + "</small>" + tag + "</a>";
     }).join("");
     document.getElementById("rubrics").innerHTML = RUBRICS.map(function (r) {
       return "<tr data-s><td><code>" + esc(r[0]) + "</code></td><td class=w>" + esc(r[1]) + '</td><td class="w mono" style="font-size:.8rem">' + esc(r[2]) + "</td></tr>";

@@ -37,7 +37,7 @@ test('the first missing stage is the next action', () => {
   const noVerify = { ...base, ...sliceDone('a'), ...sliceDone('b') };
   delete noVerify['06-verify-b.md'];
   assert.deepEqual(judge(noVerify).next, { stage: 'verify', slice: 'b' });
-  assert.deepEqual(judge({}).next, { stage: 'shape', slice: null });
+  assert.deepEqual(judge({}).next, { stage: 'intake', slice: null });
   assert.deepEqual(judge({ '02-shape.md': {} }, { roster: null }).next, { stage: 'slice', slice: null });
 });
 

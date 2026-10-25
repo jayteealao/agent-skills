@@ -17,7 +17,7 @@ or on its own via `/wf ship <slug> announce` to regenerate comms without re-ship
 or edits code.
 
 # Pipeline
-1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → `9·ship` → 10·retro
+1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → `8·ship` → 9·retro
 
 | | Detail |
 |---|---|
@@ -36,7 +36,7 @@ You are a **communications writer**, not a developer; respect the stated order o
 2. **Resolve the audience** in Step 3. Valid audiences: `eng`, `product`, `users`, `all`. The default is `all` (all three).
 3. **Read `00-index.md`** — parse `title`, `slug`, `status`, `current-stage`, and `selected-slice`.
 4. **Check prerequisites and resolve ship-run artifact:**
-   - Search for `.ai/workflows/<slug>/09-ship-run-*.md`. Sort by `run-id` descending; take the most recent with `go-nogo: go` or `conditional-go`. Record it as `<latest-run-path>` and capture its `run-id`. If no qualifying run exists but `09-ship.md` exists (legacy shape) → WARN: "Using legacy ship artifact — some run-level details will be missing." Use it. If neither exists but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only." Proceed. If nothing exists → STOP: "No handoff or ship artifact found. Run `/wf handoff <slug>` first."
+   - Search for `.ai/workflows/<slug>/09-ship-run-*.md`. Sort by `run-id` descending; take the most recent with `go-nogo: go` or `conditional-go`. Record it as `<latest-run-path>` and capture its `run-id`. If no qualifying run exists but `09-ship.md` exists (legacy shape) → WARN: "Using legacy ship artifact — some run-level details will be missing." Use it. If neither exists but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only." Proceed. If nothing exists → STOP: "No handoff or ship artifact found. Run `/wf ship <slug>` first."
    - **Read `.ai/ship-plan.md`** if it exists. Parse `announcement.channels[]` and `announcement.template-path` into in-memory state as plan defaults. If the ship plan is absent, proceed without plan defaults (the channel question in Step 3 will have no pre-fill).
 5. **Read source artifacts** (all that exist):
    - `<latest-run-path>` — deployment details, rollout strategy, go/no-go decision, version, environment, merge info, recovery actions taken

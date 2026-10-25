@@ -169,3 +169,33 @@ test('stamp prints every required field of a type, with the allowed values of an
   assert.match(text, /pr-number: 0/);
   assert.throws(() => stampOf('no-such-type'), /no artifact type/);
 });
+
+test('dispatch: an alias runs its reference and names the key that replaces it', () => {
+  const shape = run(['shape', 'demo'], disk({ demo: [] }));
+  assert.deepEqual([shape.reference, shape.aliasOf], ['reference/shape.md', 'intake']);
+  const handoff = run(['handoff', 'demo'], disk({ demo: [] }));
+  assert.deepEqual([handoff.reference, handoff.aliasOf], ['reference/ship.md', 'ship']);
+  assert.equal(run(['ship', 'demo'], disk({ demo: [] })).aliasOf, undefined);
+});
+
+test('status: intake and ship each hold two files; an old stage name finds its file', async () => {
+  const { root, wf } = repo();
+  try {
+    wf('a', 'slug: a\nstatus: active\ncurrent-stage: shape\nupdated-at: "2026-10-20T00:00:00Z"');
+    const dir = path.join(root, '.ai', 'workflows', 'a');
+    writeFileSync(path.join(dir, '01-intake.md'), '---\nstatus: complete\n---\n');
+    const now = Date.parse('2026-10-24T00:00:00Z');
+    let one = await statusOf(root, 'a', now);
+    assert.deepEqual(one.stages.map((s) => s.stage), ['intake', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'ship', 'retro']);
+    const intake = () => one.stages.find((s) => s.stage === 'intake');
+    assert.deepEqual([intake().file, intake().status], ['01-intake.md', 'in-progress'], 'the shape is still to write');
+    assert.equal(one.next.file, '02-shape.md', 'current-stage shape is the shape file of intake');
+    writeFileSync(path.join(dir, '02-shape.md'), '---\nstatus: complete\nnext-invocation: /wf slice a\n---\n');
+    one = await statusOf(root, 'a', now);
+    assert.deepEqual([intake().file, intake().status], ['02-shape.md', 'complete']);
+    assert.equal(one.next.invocation, '/wf slice a');
+    assert.deepEqual(one.stages.find((s) => s.stage === 'ship').files, ['08-handoff.md', '09-ship-runs.md']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

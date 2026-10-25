@@ -22,7 +22,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
   for readability, but the index is canonical — the standard stage commands and `/wf status recap` read it there).
 - **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
-  (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
+  (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, slice: …, …}` with
   enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set
   from [intake/default.md](default.md). Add `workflow-type: <mode>`. A missing field or wrong `status`
   → schema-invalid → a render-time warn-banner on every overview.
@@ -30,7 +30,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   `02-shape.md` (`type: shape`), `03-slice.md` (`type: slice-index` — even with one slice: a one-entry
   `slices[]` + `total-slices: 1` + `best-first-slice: <the-slice>`, so the overview's slice/implement
   stations derive counts via the slice roster), `04-plan.md` (`type: plan`, carries `slice-slug`).
-- **`current-stage` uses the standard enum** (`intake`/`shape`/`slice`/`plan`/`implement`/`verify`/…)
+- **`current-stage` uses the standard enum** (`intake`/`slice`/`plan`/`implement`/`verify`/…)
   — never bespoke names like `diagnose`/`baseline`/`scan`. Put descriptive labels in free-form body
   prose, not in `current-stage`.
 
@@ -38,7 +38,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
 The mode skill writes **only** `01-<mode>`(intake) → `02-shape` → `03-slice` → `04-plan`, then
 **gates** (below). On *proceed* it routes into the standard execution chain, each its own command:
 `/wf implement <slug>` (→`05`) → `/wf verify <slug>` (→`06`) → `/wf review <slug>` (→`07`) →
-`/wf handoff` (→`08`) → `/wf ship` (→`09`) → `/wf retro` (→`10`). Those commands recognize the
+`/wf ship` (→`08`, `09`) → `/wf retro` (→`10`). Those commands recognize the
 change-mode `workflow-type`s and read the un-suffixed single-slice files. This reuses the standard
 pipeline (rather than re-implementing it per mode) and is what makes the workflow resumable.
 **Exception — `update-deps`** self-authors `05-implement`/`06-verify` (its tier-ordered execution is
@@ -166,14 +166,12 @@ slices:
     complexity: <complexity>
 progress:
   intake: complete
-  shape: complete
   design: <complete|skipped>
   slice: complete
   plan: complete
   implement: not-started
   verify: not-started
   review: not-started
-  handoff: not-started
   ship: not-started
   retro: not-started
 ---
@@ -192,7 +190,7 @@ mechanism is uniform and **warn-and-continue — never refuse**:
    `## Tripwire breaches`, one line each: `[tripwire-name]: <what specifically tripped>`.
 2. Mirror each breach as an `intent-risks` entry on `00-index.md`
    (`id: RIM-<n>`, `risk:` the breach line, `severity: medium`, `status: open`) so the
-   handoff/ship RIM gate adjudicates it instead of a hardcoded-empty list hiding it.
+   RIM gate of ship adjudicates it instead of a hardcoded-empty list hiding it.
 3. Close with: "One or more <mode> tripwires fired. The plan is valid but has grown beyond
    the <mode> envelope — the gate's *Escalate* option restarts this as a full `/wf intake`
    workflow."

@@ -48,7 +48,7 @@ refs:
 next-command: <key of the default route>
 next-invocation: "/wf <key> <slug> [<slice>]"   # equals the default route's invocation
 recommended-routes:              # every viable option from _stage.md Adaptive routing; exactly one default
-  - invocation: "/wf handoff <slug>"
+  - invocation: "/wf ship <slug>"
     reason: "<one phrase>"
     default: true
   - invocation: "/wf review <slug> [<slice>]"
