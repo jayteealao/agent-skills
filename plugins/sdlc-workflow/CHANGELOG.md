@@ -5,6 +5,40 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.1] - 2026-10-25
+
+- feat(sdlc-workflow): the canvas reads as a light table for screens
+- feat(sdlc-workflow): design migrate moves the boards of a repo onto the surface
+- feat(sdlc-workflow): every design file speaks of screens; uiproto and imagery go
+- feat(sdlc-workflow): commands keep each design fact in one place
+- feat(sdlc-workflow): the design stage draws screens, checks them and records the approval from the answer
+- feat(sdlc-workflow): a canvas shows every screen of a repo, served on the tailnet
+- feat(sdlc-workflow): one design surface per product repo, tracked in git
+- feat(sdlc-workflow): modernize converts an old workflow to the nine stages
+- feat(sdlc-workflow): each brainstorm gets a page that an agent keeps up to date
+- feat(sdlc-workflow): a workflow continues on any computer through the records repo
+- feat(sdlc-workflow): each workflow gets an issue on the private records repo
+- feat(sdlc-workflow): the first /wf call in a new repo sets it up
+- feat(sdlc-workflow): a merged branch asks to close its workflow
+- feat(sdlc-workflow): ship owns the last mile; a branch is cut only from a base that matches its remote
+- feat(sdlc-workflow): a slug alone runs the next step; the model asks once before it starts /wf
+- feat(sdlc-workflow): the small path: implement and verify in intake, one commit, one note
+- feat(sdlc-workflow)!: scripts write the records; a stage writes a draft
+- feat(sdlc-workflow): YAML record files, with readers of the old layout and a redirect map
+- feat(sdlc-workflow): one resolver for the record paths, and no nested .ai folder
+- feat(sdlc-workflow): nine stages; intake holds the shape, ship holds the PR
+- feat(sdlc-workflow): the auto key goes; yolo is the one lifecycle driver
+- feat(sdlc-workflow): the autonomous driver runs on Codex and pi
+- feat(sdlc-workflow): the autonomous driver stops on questions and carries the answers
+- feat(sdlc-workflow): one findings ledger in code, a refuter for every finding
+- feat(sdlc-workflow): a run keeps a progress record, and a session start names a stopped run
+- feat(sdlc-workflow): the tune augmentation moves a measured number into its target range
+- feat(sdlc-workflow): intake estimates the test suites, and an unchanged deferral is not probed again
+- feat(sdlc-workflow): wf.mjs step keeps the step record of a slice
+- feat(sdlc-workflow)!: every stage reads one decision store, and a stage agent gets a brief
+- feat(sdlc-workflow): wf.mjs decide keeps one keyed decision store
+- fix(sdlc-workflow): the release runs its gates again at the new version
+
 ## [10.0.0-next.0] - 2026-10-24
 
 - fix(sdlc-workflow): the release accepts a CI workflow that is not on the remote yet
