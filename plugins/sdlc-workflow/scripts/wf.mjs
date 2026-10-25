@@ -40,8 +40,13 @@
  *             Example: wf.mjs page check . demo
  *   gh       <flush|status> [<root>] [--json]
  *             the GitHub layer: send the queued issue edits and comments in order, or show what
- *             is queued. Each state change of a workflow queues one progress edit by itself.
+ *             is queued and parked. Each state change of a workflow queues one progress edit by
+ *             itself. An entry that fails three flushes is parked, so the rest go on
  *             Example: wf.mjs gh status .
+ *   gh       backfill <root> [--json]
+ *             queue one progress edit for each workflow of the project, so a workflow from
+ *             before the layer gets its issue; an issue that another machine made is reused
+ *             Example: wf.mjs gh backfill .
  *   setup    <root> [--about "<one line>"] [--ignore] [--json]
  *             the first-run setup: the .ai/ tree, the project line, the merge method and the gaps
  *             of ship (--ignore: add .ai/ to .gitignore, after the person said yes)
@@ -245,7 +250,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -256,7 +261,7 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
-import { flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
+import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { afterChange, inBackground } from '../lib/after-change.mjs';
 import { healthLine, linkProject, liveRef, logRecordsFailure, machineName, productRepoGapLines, productRepoGaps, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
 import { claimLease, heldBefore, leaseLostLine, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
@@ -363,6 +368,9 @@ async function runDispatch(pos, opt) {
   // The registry is generated in the clone: a pull that moved a folder rebuilds it.
   if (sync && (sync.pulled.length || sync.folded.length)) await reconcileIndex(projectRoot);
   r.health = target ? healthLine(workflowHealth(projectRoot, target)) : null;
+  // The person's comments on the issue reach the inbox of the workflow that the call acts on.
+  r.imported = target && layerOf(projectRoot) ? importIssueComments(projectRoot, target) : [];
+  r.parked = layerOf(projectRoot) ? layerStatus(projectRoot).parked.length : 0;
   // A linked project whose product repo tracks or does not ignore the record folder is warned.
   r.repoGaps = sync ? productRepoGapLines(productRepoGaps(projectRoot)) : [];
   // The open workflows whose branch is merged: the person is asked whether to close each one.
@@ -389,6 +397,8 @@ async function runDispatch(pos, opt) {
   for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-warning: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
   if (r.health) lines.push(r.health);
   lines.push(...r.repoGaps);
+  if (r.imported.length) lines.push(`messages: ${r.imported.length} new comment(s) from GitHub in the inbox of ${target}; wf.mjs msg list "${projectRoot}" ${target} --unread`);
+  if (r.parked) lines.push(`github-parked: ${r.parked} entry(ies) failed ${MAX_FAILS} flushes; wf.mjs gh status "${projectRoot}"`);
   if (r.lease) lines.push(r.lease);
   out(lines.join('\n'));
   return 0;
@@ -1237,6 +1247,11 @@ async function runRecords(pos, opt) {
   if (verb === 'link') {
     if (!arg) throw new Error('records link: <project> is required');
     const r = linkProject(projectRoot, arg);
+    // Each workflow of the project gets its issue when the GitHub layer is on.
+    if (r.ok && layerOf(projectRoot)) {
+      r.queued = backfill(projectRoot, r.moved.filter((s) => s !== '_design')) ?? [];
+      if (r.queued.length) flushInBackground();
+    }
     if (opt.json) { out(r); return r.ok && !r.conflicts.length ? 0 : 1; }
     if (!r.ok) { out(r.reason); return 1; }
     out([
@@ -1324,6 +1339,16 @@ function runPage(pos, opt) {
   return r.ok ? 0 : 1;
 }
 
+/** Import the person's comments on the issue of a workflow into its inbox, and commit them at once. */
+function importIssueComments(projectRoot, slug) {
+  try {
+    const comments = issueComments(projectRoot, slug);
+    const added = comments ? importComments(projectRoot, slug, comments) : [];
+    if (added.length) afterChange(projectRoot, slug, { label: `${slug}: ${added.length} comment(s) from GitHub` });
+    return added;
+  } catch { return []; }
+}
+
 function runMsg(pos, opt) {
   const [verb, root, slug, id] = pos;
   if (!['post', 'list', 'read'].includes(verb) || !root || !slug) throw new Error('msg: <post|list|read> <root> <slug> are required');
@@ -1337,10 +1362,7 @@ function runMsg(pos, opt) {
     return 0;
   }
   if (verb === 'list') {
-    if (!to) {
-      const comments = issueComments(projectRoot, slug);
-      if (comments) importComments(projectRoot, slug, comments);
-    }
+    if (!to) importIssueComments(projectRoot, slug);
     const all = listMessages(projectRoot, slug, { to });
     const rows = opt.unread ? all.filter((m) => !m.read) : all;
     out(opt.json ? rows : rows.length ? rows.map((m) => `${m.read ? ' ' : '*'} ${m.id} (${m.kind} from ${m.from})`).join('\n') : 'no messages');
@@ -1369,9 +1391,19 @@ function changed(cmd, pos, opt = {}) {
 
 function runGh(pos, opt) {
   const [verb, root] = pos;
+  if (verb === 'backfill') {
+    if (!root) throw new Error('gh backfill: <root> is required');
+    const projectRoot = resolve(root);
+    if (!layerOf(projectRoot)) throw new Error('gh backfill: the layer is off (records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json)');
+    const slugs = existsSync(wfRoot(projectRoot)) ? readdirSync(wfRoot(projectRoot), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_') && frontmatterOf(join(wfRoot(projectRoot), e.name), INDEX_NAME)).map((e) => e.name) : [];
+    const queued = backfill(projectRoot, slugs) ?? [];
+    if (queued.length) flushInBackground();
+    out(opt.json ? { queued } : queued.length ? `queued ${queued.length} workflow(s): ${queued.join(', ')}` : 'no workflow');
+    return 0;
+  }
   if (verb === 'flush') {
     const r = flushOutbox();
-    out(opt.json ? r : r.busy ? 'another flush runs' : `sent ${r.sent}, left ${r.left}${r.error ? `; stopped: ${r.error}` : ''}`);
+    out(opt.json ? r : r.busy ? 'another flush runs' : `sent ${r.sent}, left ${r.left}${r.parked ? `, parked ${r.parked}` : ''}${r.error ? `; stopped: ${r.error}` : ''}`);
     return r.error ? 1 : 0;
   }
   if (verb === 'status') {
@@ -1381,11 +1413,12 @@ function runGh(pos, opt) {
       `queued: ${s.queued}`,
       s.error ? `last error: ${s.error.message} (${s.error.at})` : null,
       ...s.issues.map((i) => `${i.workflow}: issue ${i.number}${i.closed ? ' (closed)' : ''}${i.needsMe ? ' needs-me' : ''}`),
+      ...s.parked.map((p) => `parked: ${p.workflow} ${p.op} at ${p.at}: ${p.error}`),
     ].filter(Boolean);
     out(opt.json ? s : lines.join('\n'));
     return 0;
   }
-  throw new Error('gh: <flush|status> is required');
+  throw new Error('gh: <flush|status|backfill> is required');
 }
 
 // Commands that run but have no help block: none today. A command must have a help block, so

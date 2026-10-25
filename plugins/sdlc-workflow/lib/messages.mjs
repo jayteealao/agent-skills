@@ -7,6 +7,7 @@
 // records but never writes them otherwise. Agents post and read messages only through
 // `wf.mjs msg`. The GitHub layer mirrors each message as a comment on the issue, and imports the
 // person's issue comments as messages.
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sdlcHomeDir } from './home.mjs';
@@ -41,6 +42,16 @@ function addRead(root, key, id) {
     mkdirSync(sdlcHomeDir(), { recursive: true });
     writeFileSync(localReadsPath(), `${JSON.stringify({ ...reads, ...change }, null, 2)}\n`);
   }
+}
+
+// The comments that the GitHub layer writes carry this mark (lib/github-layer.mjs).
+const LAYER_MARK = '<!-- wf-layer -->';
+
+/** The number of a comment: the digits of its `#issuecomment-<n>` URL, else a number from its id. */
+function commentNumber(c) {
+  const n = /issuecomment-(\d+)/.exec(String(c?.url ?? ''))?.[1];
+  if (n) return n;
+  return String(parseInt(createHash('sha1').update(String(c?.id ?? c?.body ?? '')).digest('hex').slice(0, 12), 16));
 }
 
 /** Post one message. Returns `{ id, file, project }`; the commit goes on the workflow's live branch. */
@@ -95,9 +106,11 @@ export function importComments(root, slug, comments) {
   const added = [];
   for (const c of comments ?? []) {
     const body = String(c?.body ?? '').trim();
-    if (!body || /^\*\*(Answer|handoff|review-request|question-for-project|note)\*\*/.test(body)) continue;
+    // The layer marks each comment that it writes; every other comment is the person's.
+    if (!body || body.includes(LAYER_MARK)) continue;
     const at = new Date(c.createdAt ?? Date.now());
-    const id = `${stampOf(at)}-github-note.md`;
+    // The file is named by the comment, so two comments in one second are two files.
+    const id = `${stampOf(at)}-github-note-${commentNumber(c)}.md`;
     if (existsSync(join(inbox, id))) continue;
     mkdirSync(inbox, { recursive: true });
     writeFileSync(join(inbox, id), `---\nkind: note\nfrom: github\nauthor: ${c.author?.login ?? 'unknown'}\nat: ${at.toISOString().replace(/\.\d{3}Z$/, 'Z')}\n---\n\n${body}\n`);
