@@ -13,6 +13,7 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 - Read and write every record per [_records.md](reference/_records.md): scripts write the record files, an agent writes a draft and puts it.
+- Run the code of another commit only in a scratch worktree that `wf.mjs worktree add` makes, and remove it before the stage ends, per [_workflow-rules.md](reference/_workflow-rules.md).
 
 # Step 0 — Dispatch check
 

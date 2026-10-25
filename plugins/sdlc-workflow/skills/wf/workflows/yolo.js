@@ -2449,7 +2449,7 @@ async function charterCheckpoint(idx, throughSlice) {
 const RUN_END_RESULT = {
   type: 'object',
   required: ['ended'],
-  properties: { ended: { type: 'boolean' } },
+  properties: { ended: { type: 'boolean' }, worktreesKept: { type: 'array', items: { type: 'string' } } },
 }
 
 // WF-SYSTEM-REVIEW A3 + E4: the last agent of every run that has a run id. It writes
@@ -2465,12 +2465,16 @@ async function runEnd(stoppedAt = null, reason = null, progress = null) {
   const p = progress || { status: stoppedAt ? 'stopped' : 'done' }
   const progressCmd = `${WF_CMD} progress set "${projectRoot}" ${slug} --run ${shellText(RUN_ID)} --driver yolo ` +
     `--status ${p.status}${p.reason ? ` --reason ${shellText(p.reason)}` : ''}${p.resume ? ` --resume ${shellText(p.resume)}` : ''}`
+  const worktreeCmd = `${WF_CMD} worktree remove "${projectRoot}" ${slug}`
   return await agent(
     `RUN END for slug '${slug}'. Bookkeeping only. Never write, edit, or truncate any ` +
-    `file other than ${JOURNAL_PATH}, and write that file only with the command below.\n` +
+    `file other than ${JOURNAL_PATH}, and write that file only with the command below. ` +
+    `The command of step 3 removes the scratch worktrees of the slug; delete nothing else.\n` +
     `1. Run \`${endCmd}\`. It appends the run-end line.\n` +
     `2. Run \`${progressCmd}\`. It writes where the run stands.\n` +
-    `Return { ended: true } when both commands exit 0, else { ended: false }.` +
+    `3. Run \`${worktreeCmd}\`. It removes the copies of the repo that the stages left in .scratch/worktrees/${slug}/. ` +
+    `When it exits 1, put each \`kept\` line of its output in worktreesKept.\n` +
+    `Return { ended: true } when the commands of steps 1 and 2 exit 0, else { ended: false }. Step 3 does not change ended.` +
     heartbeatClause('run-end', 'Drive', 'run-end', null),
     { schema: RUN_END_RESULT, label: 'run-end', phase: 'Drive', ...HAIKU } // mechanical bookkeeping; pinned per _subagents.md
   )
@@ -2717,10 +2721,15 @@ if (branchAction) outcome.branch = branchAction   // surface the up-front create
 const cleanStop = outcome.stoppedAt === 'stop-request'
 const waiting = Array.isArray(outcome.questions) && outcome.questions.length > 0
 const resumeCmd = `/wf yolo ${slug}${slice ? ' ' + slice : ''}`
-await runEnd(outcome.stopped ? (outcome.stoppedAt || 'stopped') : null, outcome.stopped && !cleanStop ? outcome.reason : null,
+const ended = await runEnd(outcome.stopped ? (outcome.stoppedAt || 'stopped') : null, outcome.stopped && !cleanStop ? outcome.reason : null,
   waiting ? { status: 'waiting', reason: `${outcome.questions.length} question(s) wait for the person`, resume: resumeCmd }
   : outcome.stopped ? { status: 'stopped', reason: outcome.reason || outcome.stoppedAt || 'stopped', resume: resumeCmd }
   : { status: 'done', resume: outcome.route })
+// A scratch worktree that the run end could not remove is the person's to look at.
+if (ended?.worktreesKept?.length) {
+  outcome.worktreesKept = ended.worktreesKept
+  log(`scratch worktrees kept: ${ended.worktreesKept.join('; ')}`)
+}
 // The questions of a stopped run: the main session asks them, records each answer, and relaunches.
 if (waiting) {
   outcome.route = `answer the questions, record each answer with decide add, then re-run ${resumeCmd} with args.answered`

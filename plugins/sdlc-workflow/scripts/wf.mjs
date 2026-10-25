@@ -123,6 +123,12 @@
  *   base     check <root> [--base b] [--remote r] [--json]
  *             fetch the base and compare it with the remote one: fast-forward a base that is only
  *             behind; exit 1 when it has diverged (cut no branch from it)
+ *   worktree add <root> <slug> <name> <commit> [--json]
+ *             make a detached copy of the repo at <commit> in .scratch/worktrees/<slug>/<name>/
+ *             and print its path; the same copy at the same commit is kept
+ *   worktree remove <root> <slug> [<name>] [--json]
+ *             remove the copies of the workflow, or one of them; a copy that holds a link is kept
+ *             and reported; exit 1 when a copy stays
  *   ship     facts <root> [--base b] [--json]
  *             the merge rules of the repo: allowed methods, rulesets, protection, merge queue
  *   ship     ready <root> [<slug>] [--json]
@@ -159,6 +165,7 @@ import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
 import { runDesign } from '../lib/design-cli.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
+import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
@@ -877,6 +884,28 @@ function runBase(pos, opt) {
   return r.stop ? 1 : 0;
 }
 
+function runWorktree(pos, opt) {
+  const [verb, root, slug, name, commit] = pos;
+  if (verb === 'add') {
+    if (!root || !slug || !name || !commit) throw new Error('worktree: add <root> <slug> <name> <commit> are required');
+    const r = addScratchWorktree(resolve(root), slug, name, commit);
+    out(opt.json ? r : r.ok ? r.path : r.error);
+    return r.ok ? 0 : 1;
+  }
+  if (verb === 'remove') {
+    if (!root || !slug) throw new Error('worktree: remove <root> <slug> are required');
+    const r = removeScratchWorktrees(resolve(root), slug, name ?? null);
+    const kept = [...r.refused, ...r.failed];
+    if (opt.json) out(r);
+    else {
+      const lines = [...r.removed.map((p) => `removed ${p}`), ...kept.map((k) => `kept ${k.path}: ${k.reason}`)];
+      out(lines.join('\n') || 'no scratch worktree');
+    }
+    return kept.length ? 1 : 0;
+  }
+  throw new Error('worktree: <add|remove> is required');
+}
+
 const TASK_PREFIX = 'ship-ready:';
 
 function runShip(pos, opt) {
@@ -1238,6 +1267,7 @@ async function runMain(cmd, pos, opt) {
       case 'record': return runRecord(pos, opt);
       case 'consent': return runConsent(pos, opt);
       case 'base': return runBase(pos, opt);
+      case 'worktree': return runWorktree(pos, opt);
       case 'ship': return runShip(pos, opt);
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {

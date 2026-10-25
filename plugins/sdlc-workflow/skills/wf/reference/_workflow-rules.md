@@ -15,5 +15,14 @@
 - Use parallel sub-agents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up sub-agents for trivial work.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: STOP, and ask the person to reconcile it. Do not cut the branch from it.
+- **Run the code of another commit only in a scratch worktree.** This applies when a step needs the code of a commit that is not checked out: the base of a slice (to see whether a test failed before the slice), a release tag, or a commit to bisect.
+  1. Run `node "<skill-dir>/scripts/wf.mjs" worktree add "<root>" <slug> <name> <commit>`. Name the copy by its use, for example `base-<slice>`. The command prints the path, `.scratch/worktrees/<slug>/<name>/`.
+  2. Run the check in that path. When the check needs packages, run the install inside the copy.
+  3. Record the results. Then run `node "<skill-dir>/scripts/wf.mjs" worktree remove "<root>" <slug> <name>`, before the stage writes its record. The stage is not done while the copy exists.
+  4. When the remove exits 1, tell the person which copy stays and why.
+  - Do not make a worktree, a clone or a copy of the repo in any other folder.
+  - Do not stash the working tree to reach the other commit.
+  - Do not link `node_modules` or any other folder into the copy. `git worktree remove --force` deletes through a link.
+  - The prototype worktree and the campaign worktrees keep their own rules.
 
 A stage body cites this file instead of restating these rules. A stage-specific rule (an extra artifact, an idempotency invariant, an evidence layout) stays in the stage body, beneath the citation.

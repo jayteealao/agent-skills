@@ -124,4 +124,11 @@ The person can stop the run at a stage boundary, for example "stop after the cur
    ```
 
    Omit `--stopped-at` when the run reached its endpoint. The watch emits `run-end` and exits.
-2. The Step 2 hand-back is the run summary. Do not also give a `run-end` note in chat. Append the hand-back's narrative paragraph to `commentary.md` with `--event run-end`.
+2. Remove the scratch worktrees that the stages left. A run that stopped before its run-end agent left them in place:
+
+   ```
+   node "<pluginRoot>/scripts/wf.mjs" worktree remove "<projectRoot>" <slug>
+   ```
+
+   When it exits 1, put each `kept` line in the hand-back.
+3. The Step 2 hand-back is the run summary. Do not also give a `run-end` note in chat. Append the hand-back's narrative paragraph to `commentary.md` with `--event run-end`.

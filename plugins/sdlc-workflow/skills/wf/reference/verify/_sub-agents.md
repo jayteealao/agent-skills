@@ -18,7 +18,7 @@ Prompt the agent with all of the following.
 **Build.** Run the project build (`npm run build`, `go build ./...`, `cargo build`, `make`); report success/failure, warnings, and the output artifact.
 
 **Default performance gate (every slice, with or without the `benchmark` augmentation).**
-- **Bundle size (web):** compare the output artifact size against the base branch through a temporary worktree, never a stash: `git worktree add <tmp-dir> <base-branch>`, build there, `du -sh` both outputs, `git worktree remove <tmp-dir>`. The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is HIGH. Record `metric-bundle-size-delta-pct`.
+- **Bundle size (web):** compare the output artifact size against the base branch in a scratch worktree, per the scratch worktree rule of [_workflow-rules.md](../_workflow-rules.md): `wf.mjs worktree add "<root>" <slug> base-<slice-slug> <base-branch>`, build there, `du -sh` both outputs, then `wf.mjs worktree remove "<root>" <slug> base-<slice-slug>`. The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is HIGH. Record `metric-bundle-size-delta-pct`.
 - **Build time delta:** wall-clock time of the current build vs the base-branch build (from the worktree comparison, else CI cache statistics). An increase ≥ 30% is a WARN.
 - **Startup time (service/CLI):** measure cold start (`time curl -s localhost:<port>/health` after a fresh start). An increase ≥ 15% vs the base branch is HIGH.
 - If the worktree comparison is impossible, record `metric-bundle-size-delta-pct: skipped — <reason>` and the absolute artifact size. This gate is the lightweight floor; the `benchmark` augmentation adds profiling.
