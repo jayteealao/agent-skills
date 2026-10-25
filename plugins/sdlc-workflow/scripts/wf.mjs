@@ -15,6 +15,9 @@
  *             expired lease of another machine, after the person said yes)
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/
+ *   page     <brief|put|check> <root> <slug> [--json]
+ *             the page of a brainstorm: the brief of the page agent, the check and move of its
+ *             draft (.draft/page.html → page/index.html), or the check of the page in place
  *   gh       <flush|status> [<root>] [--json]
  *             the GitHub layer: send the queued issue edits and comments in order, or show what
  *             is queued. Each state change of a workflow queues one progress edit by itself.
@@ -134,6 +137,7 @@ import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChang
 import { commitWorkflow, linkProject, liveRef, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords } from '../lib/records-sync.mjs';
 import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
+import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -152,7 +156,7 @@ import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsR
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -918,6 +922,26 @@ function runLease(pos, opt) {
   return r.ok ? 0 : 1;
 }
 
+function runPage(pos, opt) {
+  const [verb, root, slug] = pos;
+  if (!['brief', 'put', 'check'].includes(verb) || !root || !slug) throw new Error('page: <brief|put|check> <root> <slug> are required');
+  const projectRoot = resolve(root);
+  if (verb === 'brief') {
+    const b = pageBrief(projectRoot, slug);
+    if (!b.ok) { out(opt.json ? b : b.reason); return 1; }
+    const now = checkPage(projectRoot, slug);
+    if (now.ok && !now.stale) { out(opt.json ? { ...b, needed: false } : 'no page needed: the page shows the newest board'); return 0; }
+    if (opt.json) { out({ ...b, needed: true }); return 0; }
+    const k = b.keys;
+    out([`board: ${b.board}`, `decisions: ${b.decisions}`, `draft: ${b.draft}`, `page: ${b.page}`, `version: ${b.version}`,
+      `keys: areas ${k.areas.join(' ') || '-'} | threads ${k.threads.join(' ') || '-'} | decisions ${k.decisions.join(' ') || '-'} | work ${k.work.join(' ') || '-'} | store ${k.ledger.join(' ') || '-'}`].join('\n'));
+    return 0;
+  }
+  const r = verb === 'put' ? putPage(projectRoot, slug) : checkPage(projectRoot, slug);
+  out(opt.json ? r : r.ok ? (r.page ? `put the page → ${r.page}` : 'the page is good and shows the newest board') : r.problems.map((p) => `problem: ${p}`).join('\n'));
+  return r.ok ? 0 : 1;
+}
+
 function runMsg(pos, opt) {
   const [verb, root, slug, id] = pos;
   if (!['post', 'list', 'read'].includes(verb) || !root || !slug) throw new Error('msg: <post|list|read> <root> <slug> are required');
@@ -954,7 +978,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'migrate'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'],
+  record: ['put', 'set', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'],
 };
 function changed(cmd, pos) {
   if (cmd === 'close') return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -1014,6 +1038,7 @@ async function runMain(cmd, pos, opt) {
       case 'records': return runRecords(pos, opt);
       case 'lease': return runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
+      case 'page': return runPage(pos, opt);
       case 'setup': {
         const [root] = pos;
         if (!root) throw new Error('setup: <root> is required');

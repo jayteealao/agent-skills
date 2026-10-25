@@ -40,6 +40,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_light-index.md` | procedure | always | |
 | `intake/brainstorm/_artifact.md` | procedure | always | |
 | `intake/brainstorm/_talk.md` | procedure | always | |
+| `intake/brainstorm/_page.md` | procedure | always | |
 | `intake/brainstorm/_design.md` | procedure | mode:design | |
 | `intake/brainstorm/_work.md` | procedure | mode:done | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -134,7 +135,7 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 | `look it up` | Dispatch one research sub-agent per [_subagents.md](../_subagents.md) on the last unverified statement. Write its result as a research note in `research/`, record the finding with `evidence` pointing at the note, then continue. |
 | `second opinion` | Run `/consult` with the live threads and open tensions as the brief (2.7). |
 | `cohere` | Run a coherence pass ([brainstorm/_cohere.md](brainstorm/_cohere.md)). |
-| `pause` | Tell the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), write both files, and return (Step 4). The board stays open. |
+| `pause` | Tell the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), write both files, run the page agent ([brainstorm/_page.md](brainstorm/_page.md)), and return (Step 4). The board stays open. |
 | `done` | Go to Step 3. |
 
 A control word that names no known thread gets the thread names back and changes nothing.
@@ -147,6 +148,7 @@ Check in at a natural moment, not on a schedule: when a thread feels settled, wh
 1. **Sum up.** Rewrite the document's `## The Brainstorm` section: what we believe now, in 150 words or fewer. Put the summary in the question text, with one line on what we learned since the last check-in.
 2. **Ask** whether the summary is right, and where to go next, the move you recommend first: go deeper here; open a new area (name the unexplored areas); zoom out and look for what is missing; show where we are; stop for now (the story of this sitting, as `pause`). Say that `done` ends the session.
 3. **Close the area** (2.8) when the check-in follows an area that feels explored.
+4. **Update the page.** Run the page agent per [brainstorm/_page.md](brainstorm/_page.md).
 
 A correction to the summary is a decision. Record it, and rewrite the summary.
 
@@ -203,6 +205,7 @@ Propose a first split, then change it as the person directs. Continue until the 
 3. After the person confirms, write one work packet per agreed work packet into the board's `work` list, with the fields of [brainstorm/_work.md](brainstorm/_work.md), and mark them `selected`. Write the stack to the board with `user-confirmed: true`. Then check the list, run each write-now work packet, and write the list, per that file's "Check and write the list". Run no command that starts a workflow.
 4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`. A thread whose kept items are all in work packets becomes `routed`.
 5. Write the agreed scope to the document's `## Scope` and `## Work` sections, and set its `status: distilled`: get `01-brainstorm.md`, change it, write the draft and put it. `## Work` links each work packet file; it holds no second copy. Set `progress.brainstorm: complete` with `record set "<root>" <slug> index progress.brainstorm=complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf intake <slug> close"` in the same call. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+6. Run the page agent per [brainstorm/_page.md](brainstorm/_page.md).
 
 A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
 
