@@ -5,7 +5,11 @@
  *   dispatch <root> [--host claude|codex|pi] [--json] [--] <token>...
  *             Step 0 of SKILL.md: the key, the reference and where the key's arguments start.
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
- *             each open workflow whose branch is merged.
+ *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
+ *             no .ai/ folder, so the setup runs before the key.
+ *   setup    <root> [--about "<one line>"] [--ignore] [--json]
+ *             the first-run setup: the .ai/ tree, the project line, the merge method and the gaps
+ *             of ship (--ignore: add .ai/ to .gitignore, after the person said yes)
  *   close    <root> <slug> [--reason r] [--note n] [--decline]
  *             close a workflow: the close record and the index fields (--decline: record the
  *             person's no to the close question, so it is not asked again)
@@ -114,6 +118,7 @@ import { driveScript, readRun } from '../lib/drive.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
+import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -132,7 +137,7 @@ import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -149,7 +154,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -193,6 +198,8 @@ async function runDispatch(pos, opt) {
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
   // The open workflows whose branch is merged: the person is asked whether to close each one.
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
+  // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
+  r.firstRun = Boolean(r.key && r.key !== 'status' && needsSetup(projectRoot));
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];
   if (r.reason) lines.push(`reason: ${r.reason}`);
@@ -202,6 +209,7 @@ async function runDispatch(pos, opt) {
   if (r.nextOf) lines.push(`next-of: ${r.nextOf} → /wf ${r.tokens.join(' ')}${r.nextReason ? ` (${r.nextReason})` : ''}`);
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   for (const c of r.closeAsk) lines.push(`close-ask: ${c.slug} (${c.reason})`);
+  if (r.firstRun) lines.push('first-run: reference/setup.md');
   out(lines.join('\n'));
   return 0;
 }
@@ -809,6 +817,21 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
+      case 'setup': {
+        const [root] = pos;
+        if (!root) throw new Error('setup: <root> is required');
+        const r = setupProject(resolve(root), { about: opt.about ?? null, ignore: Boolean(opt.ignore) });
+        if (opt.json) { out(r); return 0; }
+        const lines = [`${r.created ? 'created' : 'kept'} .ai/ and ${r.config}`];
+        lines.push(`about: ${r.project.about ?? '(no line yet)'}`);
+        const suites = Object.keys(r.profile);
+        lines.push(`test profile: ${suites.length ? suites.join(', ') : 'none'}`);
+        lines.push(`merge: ${r.facts.method ? `${r.facts.repo} ${r.facts.base} merges by ${r.facts.method}` : r.facts.reason ?? 'the repo allows no merge method'}`);
+        lines.push(`.ai/ in git: ${r.ignored === true ? `ignored${r.ignoreAdded ? ' (added to .gitignore)' : ''}` : r.ignored === false ? 'tracked' : 'not a git repo'}`);
+        for (const g of r.gaps) lines.push(`gap: ${g.task}`);
+        out(lines.join('\n'));
+        return 0;
+      }
       case 'close': {
         const [root, slug] = pos;
         if (!root || !slug) throw new Error('close: <root> <slug> are required');

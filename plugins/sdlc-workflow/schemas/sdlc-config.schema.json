@@ -120,6 +120,21 @@
         }
       }
     },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the first-run setup recorded about the repo.",
+      "properties": {
+        "about": {
+          "type": "string",
+          "description": "What the repo is, in one line from the person."
+        },
+        "setupAt": {
+          "type": "string",
+          "description": "When the first-run setup ran."
+        }
+      }
+    },
     "testProfile": {
       "type": "object",
       "additionalProperties": false,
