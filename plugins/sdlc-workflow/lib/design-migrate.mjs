@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 import { commitSurface } from './design-approve.mjs';
 import { boardsRef, isInsidePath, parseBoardKey, readManifest as readBoards } from './design-boards.mjs';
 import { capturePicture } from './design-records.mjs';
-import { KEY_RE, MANIFEST_FILE, SURFACE_REL, SCREENS_DIR, readManifest, screenFile, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
+import { KEY_RE, MANIFEST_FILE, SURFACE_REL, SCREENS_DIR, initSurface, readManifest, screenFile, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
 import { frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir, workflowsRoot } from './records-root.mjs';
 
@@ -308,6 +308,7 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
   const done = readMigrated(root);
   const taken = new Map(Object.entries(readManifest(root).screens).map(([k, s]) => [k, s.workflows ?? []]));
   const results = [];
+  let surface = null;
   for (const slug of slugs?.length ? slugs : boardWorkflows(root)) {
     if (done.workflows[slug]) { results.push({ slug, skip: 'migrated already' }); continue; }
     const plan = planWorkflow(root, slug, taken);
@@ -315,6 +316,11 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
       results.push({ slug, ...(plan.skip ? { skip: plan.skip } : {}), ...(plan.blocked ? { blocked: true, exports: plan.exports, missing: plan.missing } : {}),
         ...(plan.map ? { keys: plan.map, revisions: plan.revisions.map((r) => r.n), confirmed: plan.confirmed?.n ?? null } : {}) });
       continue;
+    }
+    // The surface before the first write: a repo that ignores `.ai/` gets the git rule for `.ai/design/`.
+    if (!surface) {
+      surface = initSurface(root);
+      if (!surface.track.tracked) throw new Error(`.ai/design/ is not tracked in git: ${surface.track.manual}`);
     }
     const commits = {};
     const warnings = new Set();

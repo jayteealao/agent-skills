@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { migrateDesign, readMigrated } from '../../lib/design-migrate.mjs';
 import { capturePicture } from '../../lib/design-records.mjs';
-import { initSurface, missingDesignFiles, readManifest, screenFile, surfaceDir } from '../../lib/design-surface.mjs';
+import { missingDesignFiles, readManifest, screenFile, surfaceDir } from '../../lib/design-surface.mjs';
 import { designSettled } from '../../lib/design-lane.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 
@@ -48,7 +48,7 @@ function project() {
   writeFileSync(join(design, 'captures', 's1', 'home--default.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 3]));
   const saved = process.env.SDLC_HOME;
   process.env.SDLC_HOME = join(top, 'home');
-  initSurface(root);
+  // The repo ignores .ai/ and has no design surface yet: migrate makes it.
   execFileSync('git', ['-C', root, 'add', '.gitignore']);
   execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'start']);
   return { root, wf, design, done: () => { if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved; rmSync(top, { recursive: true, force: true }); } };
@@ -67,6 +67,7 @@ test('migrate writes one commit per revision, the legacy frame, the contract and
 
     const r = migrateDesign(root, { now: new Date('2026-10-25T00:00:00Z') }).results[0];
     assert.equal(r.migrated, true);
+    assert.match(readFileSync(join(root, '.gitignore'), 'utf8'), /^!\.ai\/design\/$/m, 'the git rule keeps the surface tracked');
     assert.deepEqual(Object.keys(r.commits), ['r1', 'r2']);
     assert.notEqual(r.commits.r1, r.commits.r2);
     assert.equal(r.approved, r.commits.r2);
