@@ -1,5 +1,5 @@
 ---
-description: Autonomous lifecycle driver, on Claude Code, Codex and pi. The no-human-gates sibling of `/wf auto` — runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
+description: Autonomous lifecycle driver, on Claude Code, Codex and pi. Runs each stage as a background-workflow subagent and resolves each stage gate itself by a written Autonomous Decision Policy, recording every decision into the artifact. `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice and routes to the next. Writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
 argument-hint: <slug> [<slice>]
 ---
 
@@ -68,7 +68,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 1. **Re-reads immediately before every edit.** Never edit from a copy read earlier in the same agent.
 2. **Treats an edit rejection as "the other writer moved"** — re-read, re-derive the change, retry once. Never force a stale string through; never rewrite the whole file to dodge the conflict.
-3. **Never runs a second driver** (`auto` or another `yolo`) for the same slug while one is live.
+3. **Never runs a second driver** (another `yolo`) for the same slug while one is live.
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.
 
@@ -87,7 +87,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 # The Autonomous Decision Policy (what replaces each gate)
 
-Every gate `auto` defers to the user, `yolo` resolves by this rule. Two tiers: **auto-resolve** (proceed, recording the decision into the artifact) and **HARD-STOP** (end the run with the artifact trail and a reason).
+Every stage gate that would ask the person, `yolo` resolves by this rule. Two tiers: **auto-resolve** (proceed, recording the decision into the artifact) and **HARD-STOP** (end the run with the artifact trail and a reason).
 
 | Gate | Auto-resolve | HARD-STOP |
 |---|---|---|

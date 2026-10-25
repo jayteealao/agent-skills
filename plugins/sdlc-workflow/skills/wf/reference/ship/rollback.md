@@ -1,5 +1,5 @@
 ---
-description: The rollback phase of `/wf ship` — a runbook-driven, user-gated reversal of a prior completed ship run. Loads the run's recorded steps, authors a reversal runbook with each step marked reversible or irreversible, gates on an explicit Go/No-Go, executes, verifies the prior state is live, and writes `09-rollback-<run-id>.md` (stamping the original run `rolled-back: true`). Invoked via `/wf ship <slug> rollback [<run-id>]`. Manual only — `auto`/`yolo` never trigger it.
+description: The rollback phase of `/wf ship` — a runbook-driven, user-gated reversal of a prior completed ship run. Loads the run's recorded steps, authors a reversal runbook with each step marked reversible or irreversible, gates on an explicit Go/No-Go, executes, verifies the prior state is live, and writes `09-rollback-<run-id>.md` (stamping the original run `rolled-back: true`). Invoked via `/wf ship <slug> rollback [<run-id>]`. Manual only — `yolo` never triggers it.
 argument-hint: <slug> rollback [<run-id>]
 ---
 
@@ -20,7 +20,7 @@ You are a **release reversal operator**, not a developer; each runbook step is i
 - Do not fix code. A rollback restores the prior state; the *fix* for whatever prompted it is a new workflow (`/wf intake fix|hotfix <description>`).
 - Do not rewrite history on shared branches — reversal of a merge is a **revert commit**, never a force-push or rebase.
 - **No execution before the Go/No-Go gate.** Author the full runbook first, present it, and wait for an explicit Go — identical discipline to ship Step 5.
-- **`auto` and `yolo` never trigger rollback.** This phase is user-invoked only; there is no autonomous path to it. Automated canary/metric-gated rollback is explicitly out of scope.
+- **`yolo` never triggers rollback.** This phase is user-invoked only; there is no autonomous path to it. Automated canary/metric-gated rollback is explicitly out of scope.
 
 # Step 0 — Orient
 
@@ -148,4 +148,4 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 - **No automated canary/metric-gated rollback** — that is rollout-automation territory, deliberately
   out of scope; this phase is a manual, runbook-driven reversal.
 - **No post-ship impact measurement** — probe/retro own observation.
-- **`auto`/`yolo` never invoke this phase.**
+- **`yolo` never invokes this phase.**

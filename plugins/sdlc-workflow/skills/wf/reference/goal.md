@@ -25,7 +25,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 
 | `kind` | `check` prints `GOAL: MET` when | Chosen when |
 |---|---|---|
-| `lifecycle` | every selected slice has a clean verify and the review that the scope needs is clean, by the stop rules of `auto` ([auto.md](auto.md)) | the default |
+| `lifecycle` | every selected slice has a clean verify and the review that the scope needs is clean, by the stop rules in `lib/lifecycle-done.mjs`, which `goal.mjs lifecycle` reads: a verify is clean when `convergence` is `not-needed` or `converged` and `result` is `pass`; a review is clean when `verdict` is `ship` or `ship-with-caveats` and no blocker is open | the default |
 | `optimize` | `optimize.mjs status` prints `complete` or `finished`. A stopped loop prints `BLOCKED` with the stop reason | the slug has `workflow-type: optimize` |
 | `proofs` | every proof command exits 0 | the person names commands that must pass, for example "CI green and coverage at 80" |
 
@@ -74,7 +74,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 While `goal.md` has `state: armed`, do these steps in each turn:
 
 1. Do the next unit of work:
-   - `lifecycle`: run the stage that `goal.mjs lifecycle` names in `next`, as `auto` runs it ([auto.md](auto.md)).
+   - `lifecycle`: run the stage that `goal.mjs lifecycle` names in `next`. Run that stage by its own reference file (`/wf <stage> <slug> [<slice>]`).
    - `optimize`: run one trial, as `optimize.mjs status` names it ([optimize.md](optimize.md), "Without the driver").
    - `proofs`: change the code toward the objective. Keep the change inside the scope of the slug.
 2. When a `/wf` gate needs the person, run `park`, per [_autonomy-guards.md](_autonomy-guards.md), "Goal park". Do not answer the gate.

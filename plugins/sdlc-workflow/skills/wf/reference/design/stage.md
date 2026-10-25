@@ -6,12 +6,12 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
 | Produces | `02c-craft.md` (type `design-contract`); the boards in `design/` and the frozen revision `design/r<N>/` ([_boards.md](_boards.md)); `00-index.md` updates |
-| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now. For a campaign work packet, the campaign command of [Chat return](#chat-return). |
+| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf yolo <slug>`, which may start now. For a campaign work packet, the campaign command of [Chat return](#chat-return). |
 
 ## Step 0 — Orient
 
 1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`. Then run `/wf design <slug>` again."*
-2. When a driver (`auto` or `yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
+2. When a driver (`yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
 3. When `02-shape.md` is missing or not complete, STOP and route to `/wf shape <slug>`.
 4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.
 5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
@@ -133,5 +133,5 @@ When the person wants to reconsider the direction itself, run Step 3b again arou
 Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how many boards were frozen and in which revision, the path of `design/r<N>/index.html`, the canvas link when a mirror exists, the `DESIGN.md` change, and the top design risk.
 
 Write the next step as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
-- Next: "Type `/wf slice <slug>`.", or "Type `/wf auto <slug>`." when the person wants the build driven.
+- Next: "Type `/wf slice <slug>`.", or "Type `/wf yolo <slug>`." when the person wants the build driven.
 - When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. The next step is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-packet` path (`.ai/workflows/<source-slug>/work/<packet-slug>.md`).

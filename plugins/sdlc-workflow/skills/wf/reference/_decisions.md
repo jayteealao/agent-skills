@@ -59,7 +59,7 @@ Pass `--json` to read the result as data.
 A `steer` entry is a standing constraint or preference of the person, for example "do not touch `config/loader.ts`", "prefer the queue approach" or "no new runtime deps". Stages never write a `steer` entry of their own. When the person dictates steer in chat ("add to steering: never touch `config/loader.ts`"), record the exact words with `--kind steer`.
 
 - Steer is per workflow. A convention of the whole project belongs in `AGENTS.md`, `CLAUDE.md` or `sdlc-config.json`.
-- In an autonomous run (`/wf auto`, `/wf yolo`), a `steer` veto outranks every policy default.
+- In an autonomous run (`/wf yolo`), a `steer` veto outranks every policy default.
 - A `steer` entry can answer one NAMED intent-bearing question (per [_decision-classes.md](_decision-classes.md)) in advance. It cannot give an autonomous run standing leave to settle intent-bearing decisions in general.
 - `status <slug> deep` reads the `steer` entries as signal. An artifact that contradicts a live `steer` entry is a drift finding.
 - A `steer` entry that recurs across workflows can become a solutions-corpus learning at retro.

@@ -1,5 +1,5 @@
 // WF-PROTOTYPE-PLAN W4 — the guard tests of /wf loop prototype, red first:
-//   - the person starts every round: auto, yolo, goal and campaign refuse a prototype slug;
+//   - the person starts every round: yolo, goal and campaign refuse a prototype slug;
 //   - a commit happens only on a decide round, through the script, by explicit path;
 //   - no write lands outside the worktree; the report reads with scripts off.
 // The script behaviour is in tests/integration/prototype-cli.test.mjs; this file pins the wiring.
@@ -16,8 +16,7 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const read = (rel) => readFileSync(path.join(pluginRoot, rel), 'utf8');
 const REF = 'skills/wf/reference';
 
-test('each of the four drivers refuses a prototype slug', () => {
-  assert.match(read(`${REF}/auto.md`), /`workflow-type: prototype`[^\n]*a driver runs none[^\n]*PAUSE/);
+test('each of the three drivers refuses a prototype slug', () => {
   assert.match(read(`${REF}/yolo.md`), /`prototype` \(the person starts every round; route `\/wf loop prototype <slug> <request>`\)/);
   assert.match(read('skills/wf/workflows/yolo.js'), /5b2\. PROTOTYPE — workflow-type 'prototype'[^]*yolo drives NOTHING here/);
   assert.ok(NOT_DRIVEN.prototype, 'goal: lifecycle-done refuses a prototype');

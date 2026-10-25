@@ -181,18 +181,6 @@
       "hosts": { "claude": "full", "codex": "full", "pi": "full" }
     },
     {
-      "name": "auto",
-      "group": "drivers",
-      "args": ["<slug> [<slice>]"],
-      "needs": "slug",
-      "does": "Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff.",
-      "summary": "Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff.",
-      "writes": "none",
-      "artifacts": [],
-      "reference": "reference/auto.md",
-      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
-    },
-    {
       "name": "yolo",
       "group": "drivers",
       "args": ["<slug> [<slice>]"],

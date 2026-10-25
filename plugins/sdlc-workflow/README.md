@@ -55,9 +55,9 @@ The standard lifecycle is:
 /wf retro <slug>           → 10-retro.md
 ```
 
-You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
+You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf yolo <slug>` drives the lifecycle on any host and stops before handoff. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
 
-## The 19 keys
+## The 18 keys
 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Does |
@@ -74,7 +74,6 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 | `ship` | Release via `.ai/ship-plan.md`; `announce`, `rollback`. |
 | `retro` | Post-mortem, per slug or per branch. |
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
-| `auto` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. |
 | `yolo` | Autonomous driver. Resolves each gate by written policy. |
 | `campaign` | Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet. |
 | `loop` | Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person. |

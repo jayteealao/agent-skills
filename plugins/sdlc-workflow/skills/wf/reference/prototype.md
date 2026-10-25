@@ -24,7 +24,7 @@ Read every row before the first round. [_requires.md](_requires.md) defines the 
 
 ## The rules of a prototype
 
-- **The person steers.** Only the person's words start a round. Each round records them in `request`. `auto`, `yolo`, `goal` and `campaign` refuse a prototype slug.
+- **The person steers.** Only the person's words start a round. Each round records them in `request`. `yolo`, `goal` and `campaign` refuse a prototype slug.
 - **The ledger is the memory.** Read `prototype-ledger.json` before every round. The chat compacts; the ledger does not.
 - **The worktree holds every file.** Write code, outputs and media inside the worktree, with paths relative to it. Write scratch to `.scratch/prototype/` in the worktree, which git ignores. Do not write to a temp folder or to the main checkout.
 - **A decide round commits.** Only a decide round makes a commit, through the prototype script. Other rounds commit nothing.

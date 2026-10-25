@@ -1,8 +1,8 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, auto, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
 disable-model-invocation: true
-argument-hint: "<intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|auto|yolo|campaign|loop|status|project|docs> [args...]"
+argument-hint: "<intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|loop|status|project|docs> [args...]"
 ---
 
 # Role
@@ -51,7 +51,6 @@ The script reads the forms of the table below from `skills/wf/keys.json` and che
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
 | `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
-| `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. | none |
 | `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
 | `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |

@@ -28,7 +28,7 @@ test('surface-policy.json pins equal the working tree counts', () => {
 
 test('the counters see the surface the docs name', () => {
   const m = surfaceMembers(pluginRoot);
-  for (const k of ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro', 'status', 'loop', 'project', 'auto', 'yolo']) {
+  for (const k of ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro', 'status', 'loop', 'project', 'yolo']) {
     assert.ok(m.keys.includes(k), `keys lacks ${k}`);
   }
   assert.equal(new Set(m.keys).size, m.keys.length, 'a key appears twice in the SKILL.md tables');

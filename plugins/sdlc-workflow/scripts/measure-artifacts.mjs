@@ -41,7 +41,7 @@ export const STAGES = ['plan', 'implement', 'verify', 'review'];
 
 /** Top-level reference names that a bare relative path may name. */
 const REFERENCE_NAMES = new Set([
-  'auto.md', 'brainstorm.md', 'campaign.md', 'close.md', 'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
+  'brainstorm.md', 'campaign.md', 'close.md', 'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
   'observability.md', 'plan.md', 'probe.md', 'recap.md', 'retro.md', 'review.md', 'runtime-adapters.md',
   'shape.md', 'ship-plan.md', 'ship.md', 'simplify.md', 'slice.md', 'status.md', 'task.md', 'verify.md', 'yolo.md',
 ]);

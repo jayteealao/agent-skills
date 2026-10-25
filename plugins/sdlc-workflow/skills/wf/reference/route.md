@@ -14,7 +14,7 @@ You turn the person's words into one `/wf` command. You do not do the work of a 
 Step 0 gives you every token, the key candidate included, and the reason it did not dispatch:
 
 - `empty`: `/wf` has no arguments (Step 2).
-- `not a key`: the first token is not one of the 19 keys.
+- `not a key`: the first token is not one of the 18 keys.
 - `missing <position>`: a required position of the key is empty, for example the slug of `/wf implement`.
 - `<token> does not fit <position>`: a token is not of the class that the Arguments cell names.
 - `<token> does not fit the form`: tokens are left after the last position of every form.
@@ -91,8 +91,8 @@ Never read a file under `docs/site/`. The reference files are what the keys run,
 > - **Something else** — describe the work again.
 
 - Show the full command in each option, so that the person learns the keys.
-- When the command starts a driver (`auto`, `yolo`, `campaign`) or an outward act (`handoff`, `ship`), say so in its option.
-- Route to `yolo` only under Claude Code. Under Codex or pi, offer `auto` with the host redirect of `SKILL.md` Step 0.
+- When the command starts a driver (`yolo`, `campaign`) or an outward act (`handoff`, `ship`), say so in its option.
+- Route to `yolo` on every host: Claude Code, Codex and pi.
 - When the person answers **Something else** or with free text, classify the new text at Step 3.
 
 **The clarifying question.** When no route is clear, ask one question with at most four options and the free-text answer. When the second answer is also unclear, render the key tables of `SKILL.md` and end the run.

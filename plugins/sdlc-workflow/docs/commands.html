@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>wf Command Reference</title>
-<meta name="wf:commands" content="auto, campaign, design, docs, handoff, implement, intake, intake adopt, intake amend, intake audit, intake brainstorm, intake close, intake discover, intake fix, intake hotfix, intake ideate, intake investigate, intake modernize, intake optimize, intake rca, intake refactor, intake simplify, intake task, intake update-deps, loop, loop goal, loop optimize, loop prototype, plan, probe, project, project observability, project ship-plan, retro, review, shape, ship, slice, status, status recap, verify, yolo">
+<meta name="wf:commands" content="campaign, design, docs, handoff, implement, intake, intake adopt, intake amend, intake audit, intake brainstorm, intake close, intake discover, intake fix, intake hotfix, intake ideate, intake investigate, intake modernize, intake optimize, intake rca, intake refactor, intake simplify, intake task, intake update-deps, loop, loop goal, loop optimize, loop prototype, plan, probe, project, project observability, project ship-plan, retro, review, shape, ship, slice, status, status recap, verify, yolo">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -507,7 +507,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <div class="rail" id="rail"></div>
         <div class="spans">
           <div class="span des">human-only</div>
-          <div class="span drv">auto · yolo drive these</div>
+          <div class="span drv">yolo drives these</div>
           <div class="span you">yours: drivers stop before handoff</div>
         </div>
       </div>
@@ -999,7 +999,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li data-s><b>Before a decide</b><span>The agent looks for a passed generalize proof: a held-out input, frozen settings, no manual selection. Without one it asks whether to run it first; you can accept anyway.</span></li>
           <li data-s><b>Failures stay</b><span>A failed or unresolved proof stays in the ledger and on the report, with its reason.</span></li>
           <li data-s><b>The report</b><span><code>report.html</code>: the accepted pipeline, the latest round, every proof newest first, rejected paths. No script, no external loads, under 1 MB, republished to the same link.</span></li>
-          <li data-s class="warn"><b>No drivers</b><span>auto, yolo, loop goal and campaign refuse a prototype. Only your words start a round.</span></li>
+          <li data-s class="warn"><b>No drivers</b><span>yolo, loop goal and campaign refuse a prototype. Only your words start a round.</span></li>
         </ul>
       </div>
       <p class="aside" data-s>Files live in the worktree: <code>prototype-ledger.json</code> (the memory: proofs, rounds, decisions, pipeline, rejected paths), <code>01-prototype.md</code> (the accepted pipeline in plain words) and <code>report.html</code>. Run output goes to <code>.scratch/prototype/</code>, which git ignores. <code>cleanup</code> removes a closed prototype's worktree, refuses while it holds a link, and keeps the branch.</p>
@@ -1213,12 +1213,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { g: "drive", id: "probe", name: "probe", b: ["nocode"], syn: ["probe <slug> [<target>|sweep]", "probe sweep [<path>]"],
       d: "Drives the running app, not the code, and compares what it observes with the acceptance criteria. sweep checks the whole user surface against the criteria, the charter and nine classes of surface defect. As the first word, sweep runs on any repo with no workflow at all.",
       w: ["03-slice-probe-<descriptor>.md", ".ai/surface-sweep-<date>.md"], n: "the routed fixes", t: "runtime check app works manual qa smoke" },
-    { g: "drive", id: "auto", name: "auto", b: ["stop"], syn: ["auto <slug> [<slice>]"],
-      d: "Runs the stages of a started workflow one after another. Per slice it runs plan, implement, verify and review, and it pauses whenever a stage's own gate needs you. With a slice, it drives that slice only. It never opens a PR and never fixes CI.",
-      w: ["none of its own"], n: "handoff <slug>", t: "driver run all stages automatic" },
     { g: "drive", id: "yolo", name: "yolo", b: ["stop"], syn: ["yolo <slug> [<slice>]"],
       d: "Runs the stages of a started workflow one after another: per slice, plan, implement, verify and review. It settles each implementation detail by a written decision policy and records every decision. A decision that touches intent stops the run as a question to you, and the next run carries your answer. With a slice, it drives that slice only. It never opens a PR. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes.",
-      w: [".driver-journal.jsonl"], n: "handoff <slug>", t: "autonomous unattended driver" },
+      w: [".driver-journal.jsonl"], n: "handoff <slug>", t: "autonomous unattended driver run all stages automatic" },
     { g: "drive", id: "campaign", name: "campaign", b: ["gate"], syn: ["campaign <slug>"],
       d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. When the list is done, you hand off one PR for the whole list. One command resumes at any point.",
       w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · handoff packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
@@ -1279,9 +1276,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["Decide which workflow is next", "status", "status advise"],
       ["Add scope to a workflow", "intake-extend", "intake <slug> <new scope>"],
       ["Add a quick fix to a workflow", "intake-attach", "intake <slug> fix <description>"],
-      ["Run the stages for me", "auto", "auto <slug>"],
       ["Keep it going over many turns", "lp-goal", "loop goal <slug>"],
-      ["Run them without stopping", "yolo", "yolo <slug>"],
+      ["Run the stages for me", "yolo", "yolo <slug>"],
       ["Build a list of work packets", "campaign", "campaign <slug>"],
       ["Check that the app really works", "probe", "probe <slug>"]
     ]],
@@ -1344,7 +1340,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["Typos get a suggestion, never a guess", "Any key that names a missing slug offers the nearest match and asks. It never runs on a guess.", ""],
     ["A slug cannot be a command word", "A new workflow cannot be named after a key, a sub-key or a mode word, such as fix or status. status flags an old slug with such a name.", ""],
     ["Quote to force the default flow", "When your description starts with a mode word, put it in quotes so intake reads it as one description.", ""],
-    ["Drivers stop before handoff", "auto, yolo and loop goal never open a PR or release. Handoff and ship are always your call.", "warn"],
+    ["Drivers stop before handoff", "yolo and loop goal never open a PR or release. Handoff and ship are always your call.", "warn"],
     ["loop optimize is Claude Code only", "On Codex and pi, use loop goal for an optimize slug.", ""],
     ["Human gates stay human", "The design stage, task authorization for shared or irreversible actions, and the end of a brainstorm wait for you. No policy answers them.", "warn"],
     ["Nothing is overwritten", "Re-runs merge findings, snapshot evidence and add files. Close deletes no artifact, branch or PR.", ""],
@@ -1495,7 +1491,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     document.getElementById("rail").innerHTML = STAGE_ORDER.map(function (k) {
       var c = C.filter(function (x) { return x.id === k; })[0];
       var cls = k === "design" ? "stop alt" : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? "stop mine" : "stop");
-      var tag = k === "design" ? '<span class="tag des">human-only</span>' : (["plan", "implement", "verify", "review"].indexOf(k) >= 0 ? '<span class="tag drv">auto \u00b7 yolo</span>' : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? '<span class="tag you">yours</span>' : ""));
+      var tag = k === "design" ? '<span class="tag des">human-only</span>' : (["plan", "implement", "verify", "review"].indexOf(k) >= 0 ? '<span class="tag drv">yolo</span>' : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? '<span class="tag you">yours</span>' : ""));
       return '<a class="' + cls + '" href="#k-' + k + '" data-jump="k-' + k + '"><span class="dot">' + c.st + "</span><b>" + k + "</b><small>" + STAGE_FILE[k] + "</small>" + tag + "</a>";
     }).join("");
     document.getElementById("rubrics").innerHTML = RUBRICS.map(function (r) {

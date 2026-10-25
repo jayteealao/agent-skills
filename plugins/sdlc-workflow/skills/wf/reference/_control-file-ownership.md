@@ -7,7 +7,7 @@ Two files are written by nearly every `/wf` stage and by every driver:
 
 They are the only files in the system with **many concurrent writers**, Two writers that read minutes apart collide: the second edit fails with *"File has been modified since read"*. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
 
-This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage references cite it rather than restating it.
+This file is the shared rule. `yolo.md` and the write-bearing stage references cite it rather than restating it.
 
 ## The rule
 
@@ -15,7 +15,7 @@ This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage 
 
 **2. An edit rejection means the other writer moved — not that your string is wrong.** Re-read, re-derive your change against the *new* content, and retry **once**. Do not hunt for a stale string to force through, and do not rewrite the whole file to dodge the conflict. Both of those turn a benign race into lost work.
 
-**3. While a driver is live for a slug, that slug's control files are driver-owned.** A foreground session may still write them — the driver holds no lock — but it writes under rules 1 and 2 and expects to lose a race sometimes. What it must **not** do is start a second driver (`auto` or another `yolo`) for the same slug.
+**3. While a driver is live for a slug, that slug's control files are driver-owned.** A foreground session may still write them — the driver holds no lock — but it writes under rules 1 and 2 and expects to lose a race sometimes. What it must **not** do is start a second driver (another `yolo`) for the same slug.
 
 **4. A presumed-dead driver's writes are suspect until reconciled.** Judge liveness by the staleness rule in `_liveness.md` — never by a file existing. Once a driver is presumed dead, treat its last writes as possibly half-finished: re-read fresh from disk, and where an artifact on disk contradicts what `00-index.md` claims, **trust the artifact and correct the index**. The artifact is written by the stage that did the work; the index is a summary of it.
 

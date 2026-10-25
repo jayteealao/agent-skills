@@ -47,7 +47,7 @@ pass** is one wave of them.
   example the 11-rubric review `all` aggregate) into waves of at most the
   host's advertised concurrency (default 6): dispatch a wave, collect it, then
   dispatch the next.
-- **Non-interactive runs.** Under a headless run or the auto driver, children
+- **Non-interactive runs.** Under a headless run, children
   inherit the approval posture; any child action that needs an approval
   becomes an error. Keep children read-only there.
 - **No sub-agents for trivial work.** Token cost scales linearly with

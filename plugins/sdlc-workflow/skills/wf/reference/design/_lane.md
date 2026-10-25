@@ -27,7 +27,7 @@ Rules:
 
 ## The human rule
 
-A person confirms the design before any stage that a driver can run. The `design` stage sits between `shape` and `slice`, and only a person runs it. Neither `/wf auto` nor `/wf yolo` runs it.
+A person confirms the design before any stage that a driver can run. The `design` stage sits between `shape` and `slice`, and only a person runs it. `/wf yolo` does not run it.
 
 **Design is settled** when one of these holds:
 - `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`. When it names its boards (`boards: design/r<N>/boards.json`) and `ux-impact` is `visual` or `new-surface`, every board that manifest lists also exists on disk ([_boards.md](_boards.md)). A contract without `boards:` (written before boards existed) keeps the first two conditions only.

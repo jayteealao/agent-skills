@@ -1,10 +1,9 @@
-// lib/lifecycle-done.mjs — the stop rules of `/wf auto` as code (WF-GOAL-PLAN W1).
+// lib/lifecycle-done.mjs — the stop rules of the lifecycle drivers as code.
 //
-// `/wf auto` stops before handoff when every selected slice is clean: verify with
+// A driver stops before handoff when every selected slice is clean: verify with
 // `convergence` in {not-needed, converged} and `result: pass`, and review with
 // `verdict` in {ship, ship-with-caveats} and `metric-findings-blocker == 0`
-// (skills/wf/reference/auto.md, the gate table). Before this module, that rule was
-// prose only. Now `auto`, `/wf status` and `goal.mjs check` read one copy.
+// This module is the one copy of that rule: `/wf status` and `goal.mjs check` read it.
 //
 // The verdict has three values:
 //   met      every selected slice is clean, and the review that the scope needs is clean
@@ -22,12 +21,12 @@ import { missingBoardFiles } from './design-boards.mjs';
 import { designNeeded, designSettled } from './design-lane.mjs';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 
-/** The change modes: one slice, un-suffixed stage files (auto.md Step 0.4). */
+/** The change modes: one slice, un-suffixed stage files. */
 export const CHANGE_MODES = Object.freeze(['fix', 'hotfix', 'refactor']);
 
 /**
  * Workflow types whose lifecycle a driver does not run: each one has its own key or
- * gate (auto.md Step 0.4). The verdict is `blocked`, with the route.
+ * gate. The verdict is `blocked`, with the route.
  */
 export const NOT_DRIVEN = Object.freeze({
   'update-deps': '/wf intake update-deps <slug>',
@@ -45,7 +44,7 @@ export const REVIEW_CLEAN_VERDICTS = Object.freeze(['ship', 'ship-with-caveats']
 
 const str = (v) => String(v ?? '').trim();
 
-/** The verify gate of auto.md: `clean`, `paused` (with the reason), or `open` (run verify). */
+/** The verify gate: `clean`, `paused` (with the reason), or `open` (run verify). */
 export function verifyGate(fm) {
   if (!fm) return { state: 'open', reason: 'no verify artifact' };
   if (str(fm.status) === 'awaiting-input') return { state: 'paused', reason: 'verify is awaiting input' };
@@ -55,7 +54,7 @@ export function verifyGate(fm) {
   return { state: 'open', reason: `verify is not clean (convergence ${str(fm.convergence) || 'none'}, result ${str(fm.result) || 'none'})` };
 }
 
-/** The review gate of auto.md: `clean`, `paused` (dont-ship or open blockers), or `open`. */
+/** The review gate: `clean`, `paused` (dont-ship or open blockers), or `open`. */
 export function reviewGate(fm) {
   if (!fm) return { state: 'open', reason: 'no review artifact' };
   if (str(fm.status) === 'awaiting-input') return { state: 'paused', reason: 'review is awaiting input' };

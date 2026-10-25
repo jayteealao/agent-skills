@@ -118,7 +118,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 **Staleness:** when `stale` is true, append `(stale)` to the status.
 
-**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
+**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf yolo <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
 
 **Cost (exact tokens).** For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its `total` row is the slug's input / output / cache read / cache write, with the external in / out pair apart. Copy every integer as written; never estimate or price. Omit a slug whose result is `No cost ledger.`. Omit the table when no slug has one.
 

@@ -1,4 +1,4 @@
-// WF-GOAL-PLAN W1 — lib/lifecycle-done.mjs: the stop rules of /wf auto as code.
+// lib/lifecycle-done.mjs: the stop rules of the lifecycle drivers as code.
 // The verdict is met, not-met (with the next stage) or blocked (the person decides).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +15,7 @@ function judge(files, { index = { 'workflow-type': 'standard' }, roster = [{ slu
 const base = { '02-shape.md': { status: 'complete' }, '03-slice-a.md': {}, '03-slice-b.md': {} };
 const sliceDone = (s, extra = {}) => ({ [`04-plan-${s}.md`]: { status: 'complete' }, [`05-implement-${s}.md`]: { status: 'complete' }, [`06-verify-${s}.md`]: clean.verify, [`07-review-${s}.md`]: clean.review, ...extra });
 
-test('the verify and review gates follow the auto gate table', () => {
+test('the verify and review gates follow the stop rules', () => {
   assert.equal(verifyGate({ convergence: 'not-needed', result: 'pass' }).state, 'clean');
   assert.equal(verifyGate({ convergence: 'escalated', result: 'fail' }).state, 'paused');
   assert.equal(verifyGate({ result: 'blocked-runtime-evidence-missing' }).state, 'paused');

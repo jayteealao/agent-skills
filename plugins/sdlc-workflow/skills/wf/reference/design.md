@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf design`. It has three jobs:
 
-1. **The design stage.** A human-only lifecycle stage between `shape` and `slice`. The person confirms the design here, before any stage that `/wf auto` or `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md).
+1. **The design stage.** A human-only lifecycle stage between `shape` and `slice`. The person confirms the design here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md).
 2. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
 3. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
 

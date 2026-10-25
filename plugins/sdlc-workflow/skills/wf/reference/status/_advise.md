@@ -87,8 +87,7 @@ the stated priority; if steering implies that, say so and keep the dependency or
 
 Lead with the single highest-leverage move, then the ranked plan, the blocked set, the decisions, and
 the carried risk. **Every row carries a one-line rationale** so the ranking is auditable, and each
-names a concrete next command that chains into the drivers (`/wf auto <slug>`, or `/wf yolo <slug>`
-for autonomous where the host offers it — [_host-invocation.md](../_host-invocation.md)).
+names a concrete next command that chains into a driver (`/wf yolo <slug>`).
 
 ```
 ## Portfolio Advice — <N> open · <A> active · <B> blocked · <S> stale     (<date> · scope: <all | branch <b>>)
