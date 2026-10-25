@@ -7,6 +7,14 @@
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
  *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
  *             no .ai/ folder, so the setup runs before the key.
+ *   records  <link|status|sync|push|close> <root> [<project>|<slug>] [--json]
+ *             the records repo: link a project (its records move into the clone), show the
+ *             clone, pull the work of other machines, push a workflow, squash a closed one
+ *   lease    <claim|release|show> <root> <slug> [--take] [--json]
+ *             the lease of a workflow: the one machine that writes its records now (--take: an
+ *             expired lease of another machine, after the person said yes)
+ *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
+ *             messages between machines and projects: one file each in the workflow's inbox/
  *   gh       <flush|status> [<root>] [--json]
  *             the GitHub layer: send the queued issue edits and comments in order, or show what
  *             is queued. Each state change of a workflow queues one progress edit by itself.
@@ -122,7 +130,10 @@ import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
-import { flushOutbox, layerOf, layerStatus, noteAnswer, noteChange, readOutbox } from '../lib/github-layer.mjs';
+import { flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, noteMessage, readOutbox } from '../lib/github-layer.mjs';
+import { commitWorkflow, linkProject, liveRef, machineName, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords } from '../lib/records-sync.mjs';
+import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -137,11 +148,11 @@ import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox }
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
-import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -158,7 +169,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }
@@ -199,7 +210,11 @@ async function runDispatch(pos, opt) {
   if (!root) throw new Error('dispatch: <root> is required');
   const safe = tokens.map((t) => (t === UNSAFE || SAFE_TOKEN.test(t) ? t : UNSAFE));
   const projectRoot = resolve(root);
+  // A linked project pulls the work of other machines first, so the dispatch sees it.
+  const sync = linkedProject(projectRoot) ? syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true }) : null;
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
+  r.sync = sync;
+  r.lease = sync ? leaseAtDispatch(projectRoot, r, safe, opt.host ?? null) : null;
   // The open workflows whose branch is merged: the person is asked whether to close each one.
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
@@ -216,6 +231,9 @@ async function runDispatch(pos, opt) {
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   for (const c of r.closeAsk) lines.push(`close-ask: ${c.slug} (${c.reason})`);
   if (r.firstRun) lines.push('first-run: reference/setup.md');
+  if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
+  for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
+  if (r.lease) lines.push(r.lease);
   out(lines.join('\n'));
   return 0;
 }
@@ -682,7 +700,12 @@ function runRecord(pos, opt) {
   if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
   switch (verb) {
     case 'put': {
-      const drafts = rest.length ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : draftPath(dir, p))) : draftsOf(dir);
+      // The agents write the drafts in the local folder; a linked project keeps its records elsewhere.
+      const local = join(localWorkflowsRoot(resolve(root)), slug);
+      const homes = local === dir ? [dir] : [local, dir];
+      const drafts = rest.length
+        ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
+        : homes.flatMap(draftsOf);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
       const results = drafts.map((p) => putDraft(dir, p));
       const ev = pruneEvidence(dir);
@@ -817,6 +840,112 @@ function runShip(pos, opt) {
 
 // ---------------------------------------------------------------- main
 
+// The lease of the workflow that a call acts on. A read-only key needs none.
+function leaseAtDispatch(projectRoot, r, tokens, host) {
+  if (!r.key || r.key === 'status' || r.reason) return null;
+  const args = (r.tokens ?? tokens).slice(r.argsFrom);
+  const slug = r.nextOf ?? args.slice(0, 2).find((t) => existsSync(join(wfRoot(projectRoot), t, INDEX_NAME)) || existsSync(join(wfRoot(projectRoot), t, 'state.yaml')));
+  if (!slug) return null;
+  const c = claimLease(projectRoot, slug, { host });
+  if (c.ok) return null;
+  if (c.held) return `lease-held: ${slug} by ${c.lease.machine}${c.lease.host ? ` (${c.lease.host})` : ''} until ${c.lease.expires}`;
+  if (c.expired) return `lease-expired: ${slug} by ${c.lease.machine} since ${c.lease.expires}`;
+  if (c.offline) return `lease-offline: ${slug}`;
+  return `lease-held: ${slug} (${c.reason ?? 'another machine claimed it at the same time'})`;
+}
+
+function inBackground(args) {
+  // SDLC_RECORDS_FOREGROUND=1 runs the step in this process's time, for tests.
+  if (process.env.SDLC_RECORDS_FOREGROUND === '1') { spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { stdio: 'ignore', windowsHide: true }); return; }
+  try {
+    spawn(process.execPath, [fileURLToPath(import.meta.url), ...args], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } catch { /* the next sync pushes it */ }
+}
+
+function runRecords(pos, opt) {
+  const [verb, root, arg] = pos;
+  if (!root) throw new Error('records: <link|status|sync|push|close> <root> are required');
+  const projectRoot = resolve(root);
+  if (verb === 'link') {
+    if (!arg) throw new Error('records link: <project> is required');
+    const r = linkProject(projectRoot, arg);
+    out(opt.json ? r : r.ok ? `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}` : r.reason);
+    return r.ok ? 0 : 1;
+  }
+  if (verb === 'status') {
+    const s = recordsStatus(projectRoot);
+    const lines = s.linked
+      ? [`records: ${s.project} in ${s.home} (${s.remote ? 'with a remote' : 'no remote'}), machine ${s.machine}`, ...s.live.map((l) => `live: ${l}`), ...s.pendingClose.map((k) => `close waits for the network: ${k}`), ...s.conflicts.map((c) => `conflict: ${c.workflow}: ${c.reason}`)]
+      : [`records: local in .ai/workflows/${s.clone ? `; a clone is at ${s.home}: wf.mjs records link <root> <project>` : ''}`];
+    out(opt.json ? s : lines.join('\n'));
+    return 0;
+  }
+  if (verb === 'sync') {
+    const r = syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true });
+    out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; pushed ${r.pushed.join(', ') || 'nothing'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
+    return r?.conflicts?.length ? 1 : 0;
+  }
+  if (!arg) throw new Error(`records ${verb}: <slug> is required`);
+  if (verb === 'push') {
+    const r = opt.to ? pushRef(recordsHome(), liveRef(opt.to, arg), { folder: `${opt.to}/${arg}` }) : pushWorkflow(projectRoot, arg);
+    if (!opt.to) renewIfMine(projectRoot, arg);
+    out(opt.json ? r : !r ? 'records: local' : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
+    return !r || r.pushed ? 0 : 1;
+  }
+  if (verb === 'close') {
+    const r = squashWorkflow(projectRoot, arg);
+    if (r?.ok) releaseLease(projectRoot, arg);
+    out(opt.json ? r : !r ? 'records: local' : r.ok ? `squashed ${arg}${r.pending ? '; the push waits for the network' : ''}` : r.reason);
+    return !r || r.ok ? 0 : 1;
+  }
+  throw new Error(`records: unknown verb ${verb}`);
+}
+
+function runLease(pos, opt) {
+  const [verb, root, slug] = pos;
+  if (!['claim', 'release', 'show'].includes(verb) || !root || !slug) throw new Error('lease: <claim|release|show> <root> <slug> are required');
+  const projectRoot = resolve(root);
+  const r = verb === 'claim' ? claimLease(projectRoot, slug, { take: Boolean(opt.take), host: opt.host ?? null })
+    : verb === 'release' ? releaseLease(projectRoot, slug) : showLease(projectRoot, slug);
+  if (opt.json) { out(r); return r.ok === false ? 1 : 0; }
+  if (r.linked === false) { out('records: local; no lease'); return 0; }
+  if (verb === 'show') {
+    out(!r.online ? 'offline' : !r.lease ? `${slug}: free` : `${slug}: ${r.mine ? 'this machine' : r.lease.machine} until ${r.lease.expires}${r.expired ? ' (expired)' : ''}`);
+    return 0;
+  }
+  if (r.ok) out(verb === 'claim' ? `${slug}: held by ${machineName()} until ${r.lease.expires}${r.took ? ' (taken over)' : ''}` : `${slug}: ${r.released ? 'released' : 'free'}`);
+  else out(r.offline ? 'offline' : r.held ? `${slug}: held by ${r.lease?.machine} until ${r.lease?.expires}` : r.expired ? `${slug}: the lease of ${r.lease.machine} expired at ${r.lease.expires}; claim with --take after the person said yes` : `not done: ${r.reason}`);
+  return r.ok ? 0 : 1;
+}
+
+function runMsg(pos, opt) {
+  const [verb, root, slug, id] = pos;
+  if (!['post', 'list', 'read'].includes(verb) || !root || !slug) throw new Error('msg: <post|list|read> <root> <slug> are required');
+  const projectRoot = resolve(root);
+  const to = opt.to ?? null;
+  if (verb === 'post') {
+    const r = postMessage(projectRoot, slug, { kind: opt.kind, text: opt.text, to });
+    if (!to) noteMessage(projectRoot, slug, { kind: opt.kind, from: machineName(), text: opt.text });
+    if (r.project) inBackground(['records', 'push', projectRoot, slug, ...(to ? ['--to', to] : [])]);
+    out(opt.json ? r : `posted ${r.id}`);
+    return 0;
+  }
+  if (verb === 'list') {
+    if (!to) {
+      const comments = issueComments(projectRoot, slug);
+      if (comments) importComments(projectRoot, slug, comments);
+    }
+    const all = listMessages(projectRoot, slug, { to });
+    const rows = opt.unread ? all.filter((m) => !m.read) : all;
+    out(opt.json ? rows : rows.length ? rows.map((m) => `${m.read ? ' ' : '*'} ${m.id} (${m.kind} from ${m.from})`).join('\n') : 'no messages');
+    return 0;
+  }
+  if (!id) throw new Error('msg read: <id> is required');
+  const r = readMessage(projectRoot, slug, id, { to });
+  out(opt.json ? r : r.text);
+  return 0;
+}
+
 function flushInBackground() {
   try {
     spawn(process.execPath, [fileURLToPath(import.meta.url), 'gh', 'flush'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
@@ -860,11 +989,19 @@ export async function main(argv = process.argv.slice(2)) {
   const target = code === 0 ? changed(cmd, pos) : null;
   if (target) {
     // The GitHub layer mirrors the change; a failure here never fails the command.
+    const [root, slug] = [resolve(target[0]), target[1]];
     try {
-      const [root, slug] = [resolve(target[0]), target[1]];
       if (cmd === 'decide' && opt.answer) noteAnswer(root, slug, { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null });
       else noteChange(root, slug);
     } catch (e) { process.stderr.write(`wf.mjs: the GitHub layer did not queue the change: ${e.message}\n`); }
+    // A linked project commits the records at each step and stage boundary, and pushes them in
+    // the background. A closed workflow is squashed onto the main branch.
+    try {
+      if (commitWorkflow(root, slug, `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim())) {
+        const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
+        inBackground(['records', TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', root, slug]);
+      }
+    } catch (e) { process.stderr.write(`wf.mjs: the records commit failed: ${e.message}\n`); }
   }
   return code;
 }
@@ -874,6 +1011,9 @@ async function runMain(cmd, pos, opt) {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
       case 'gh': return runGh(pos, opt);
+      case 'records': return runRecords(pos, opt);
+      case 'lease': return runLease(pos, opt);
+      case 'msg': return runMsg(pos, opt);
       case 'setup': {
         const [root] = pos;
         if (!root) throw new Error('setup: <root> is required');

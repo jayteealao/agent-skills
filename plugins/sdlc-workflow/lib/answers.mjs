@@ -3,15 +3,15 @@
 // A host hook sees each answer event: Claude Code's PostToolUse on AskUserQuestion, pi's
 // tool_result on ask_user_question (the bridge sends it in Claude Code's shape), and Codex's
 // PostToolUse on request_user_input. The hook appends one line per event to answers.jsonl in
-// the records folder of the project. A script that must know what the person answered (the
+// the local records folder of the project: the answers of a session stay on its machine. A script that must know what the person answered (the
 // model-invocation consent, a confirmed design direction) reads the log, never the agent's word.
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { workflowsRoot } from './records-root.mjs';
+import { localWorkflowsRoot } from './records-root.mjs';
 
 export const ANSWERS_FILE = 'answers.jsonl';
 
-export const answersPath = (projectRoot) => join(workflowsRoot(projectRoot), ANSWERS_FILE);
+export const answersPath = (projectRoot) => join(localWorkflowsRoot(projectRoot), ANSWERS_FILE);
 
 const text = (v) => (Array.isArray(v) ? v.map(text).filter(Boolean).join(', ') : v == null ? '' : String(v));
 
@@ -47,7 +47,7 @@ export function answerEventOf(payload) {
 
 /** Append one answer event. The log is written only in a project that has a records folder. */
 export function appendAnswerEvent(projectRoot, event, { host = null, session = null, now = new Date() } = {}) {
-  const root = workflowsRoot(projectRoot);
+  const root = localWorkflowsRoot(projectRoot);
   if (!existsSync(root)) return false;
   mkdirSync(root, { recursive: true });
   const row = { at: now.toISOString(), host, session, tool: event.tool, questions: event.questions };

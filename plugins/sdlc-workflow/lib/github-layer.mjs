@@ -249,6 +249,17 @@ export function flushOutbox({ run = defaultRun } = {}) {
   }
 }
 
+/** The comments of a workflow's issue, or null when the layer is off or gh failed. */
+export function issueComments(root, slug, { run = defaultRun } = {}) {
+  const layer = layerOf(root);
+  if (!layer) return null;
+  const issue = readState().issues[keyOf(layer.project, slug)];
+  if (!issue) return [];
+  const r = run('gh', ['issue', 'view', String(issue.number), '--repo', layer.repo, '--json', 'comments'], {});
+  if (r.status !== 0) return null;
+  try { return JSON.parse(r.stdout).comments ?? []; } catch { return null; }
+}
+
 /** What the layer of a project holds on this machine. */
 export function layerStatus(root) {
   const layer = root ? layerOf(root) : null;

@@ -204,8 +204,11 @@ function recordWriteRefusal(filePath, projectRoot) {
     return 'wf-validate: blocked a write to answers.jsonl. The question hook writes each answer event of the person; no agent writes it.\n';
   }
   const info = workflowPathInfo(abs);
-  if (!info || info.storageRel.includes('/')) return null;
   const cli = 'node <plugin root>/skills/wf/scripts/wf.mjs';
+  if (info && /^inbox\//.test(info.storageRel)) {
+    return `wf-validate: blocked a write to the inbox of workflow '${info.slug}'. Post a message with \`${cli} msg post <root> ${info.slug} --kind <kind> --text "<text>"\`.\n`;
+  }
+  if (!info || info.storageRel.includes('/')) return null;
   if (RECORD_FILE_RE.test(info.filename)) {
     return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. Scripts write the record files.\n` +
       `Change a field with \`${cli} record set <root> ${info.slug} <old name> key=value\`, or write a draft and put it.\n`;

@@ -1,0 +1,102 @@
+// The lease of a workflow: which machine may write its records now.
+//
+// A lease is one git ref in the records repo, `refs/leases/<project>/<slug>`. It points at a
+// commit with no files whose message is the lease as JSON. A machine claims it with a push and a
+// `--force-with-lease` compare-and-swap, so two machines that claim at once cannot both win. The
+// holder renews it at each step and stage boundary. It expires after the longest suite of the
+// test profile plus one hour. An expired lease of another machine is taken only after the
+// person said yes (`--take`).
+import { gitIn, machineName } from './records-sync.mjs';
+import { linkedProject, recordsHome } from './records-root.mjs';
+import { SUITES, readProfile, suiteSeconds } from './test-profile.mjs';
+
+export const LEASE_SLACK_SECONDS = 3600;
+const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+export const leaseRefOf = (project, slug) => `refs/leases/${project}/${slug}`;
+
+/** The lifetime of a lease of this project: the longest suite plus one hour, in seconds. */
+export function leaseSeconds(root) {
+  const profile = readProfile(root);
+  const longest = Math.max(0, ...SUITES.map((s) => suiteSeconds(profile, s) ?? 0));
+  return longest + LEASE_SLACK_SECONDS;
+}
+
+/** The remote lease: `{ online, sha, lease }`. An unknown remote is `{ online: false }`. */
+function remoteLease(home, ref) {
+  const ls = gitIn(home, ['ls-remote', 'origin', ref], { net: true });
+  if (ls.status !== 0) return { online: false };
+  const sha = ls.stdout.split('\n').map((l) => l.split('\t')).find(([, r]) => r === ref)?.[0] ?? null;
+  if (!sha) {
+    gitIn(home, ['update-ref', '-d', ref]);
+    return { online: true, sha: null, lease: null };
+  }
+  if (gitIn(home, ['cat-file', '-e', sha]).status !== 0) gitIn(home, ['fetch', '-q', 'origin', `+${ref}:${ref}`], { net: true });
+  let lease = null;
+  try { lease = JSON.parse(gitIn(home, ['log', '-1', '--format=%B', sha]).stdout); } catch { lease = null; }
+  return { online: true, sha, lease };
+}
+
+const expired = (lease, now) => !lease || Date.parse(lease.expires) <= now.getTime();
+
+/** The lease of a workflow, as this machine sees it now. */
+export function showLease(root, slug, { now = new Date() } = {}) {
+  const project = linkedProject(root);
+  if (!project) return { linked: false };
+  const r = remoteLease(recordsHome(), leaseRefOf(project, slug));
+  if (!r.online) return { linked: true, online: false };
+  const me = machineName();
+  return { linked: true, online: true, lease: r.lease, mine: r.lease?.machine === me, expired: r.lease ? expired(r.lease, now) : null };
+}
+
+/**
+ * Claim or renew the lease. Returns `{ ok }` with the lease, or `{ ok: false }` and why: `held`
+ * (another machine holds it), `expired` (another machine's lease ran out; it needs the person's
+ * yes), `offline`, or `raced` (another machine won the compare-and-swap).
+ */
+export function claimLease(root, slug, { take = false, host = null, now = new Date() } = {}) {
+  const project = linkedProject(root);
+  if (!project) return { ok: true, linked: false };
+  const home = recordsHome();
+  const ref = leaseRefOf(project, slug);
+  const r = remoteLease(home, ref);
+  if (!r.online) return { ok: false, offline: true };
+  const me = machineName();
+  const other = r.lease && r.lease.machine !== me;
+  if (other && !expired(r.lease, now)) return { ok: false, held: true, lease: r.lease };
+  if (other && !take) return { ok: false, expired: true, lease: r.lease };
+  const lease = {
+    schema: 'wf-lease/1', project, slug, machine: me, host,
+    at: r.lease?.machine === me ? r.lease.at : nowIso(now),
+    renewed: nowIso(now),
+    expires: nowIso(new Date(now.getTime() + leaseSeconds(root) * 1000)),
+  };
+  const tree = gitIn(home, ['mktree'], { input: '' }).stdout;
+  const commit = gitIn(home, ['commit-tree', tree, '-m', JSON.stringify(lease)]);
+  if (commit.status !== 0) return { ok: false, reason: commit.stderr };
+  const push = gitIn(home, ['push', '-q', `--force-with-lease=${ref}:${r.sha ?? ''}`, 'origin', `${commit.stdout}:${ref}`], { net: true });
+  if (push.status !== 0) return { ok: false, raced: true, reason: push.stderr.split('\n')[0] };
+  gitIn(home, ['update-ref', ref, commit.stdout]);
+  return { ok: true, lease, renewed: r.lease?.machine === me, took: Boolean(other) };
+}
+
+/** Release the lease of this machine, so another machine or host can continue the workflow. */
+export function releaseLease(root, slug) {
+  const project = linkedProject(root);
+  if (!project) return { ok: true, linked: false };
+  const home = recordsHome();
+  const ref = leaseRefOf(project, slug);
+  const r = remoteLease(home, ref);
+  if (!r.online) return { ok: false, offline: true };
+  if (!r.lease) return { ok: true, released: false };
+  if (r.lease.machine !== machineName()) return { ok: false, held: true, lease: r.lease };
+  const push = gitIn(home, ['push', '-q', `--force-with-lease=${ref}:${r.sha}`, 'origin', `:${ref}`], { net: true });
+  if (push.status !== 0) return { ok: false, raced: true, reason: push.stderr.split('\n')[0] };
+  gitIn(home, ['update-ref', '-d', ref]);
+  return { ok: true, released: true };
+}
+
+/** Renew the lease when this machine holds it; otherwise change nothing. */
+export function renewIfMine(root, slug, { now = new Date() } = {}) {
+  const s = showLease(root, slug, { now });
+  return s.online && s.mine ? claimLease(root, slug, { now }) : { ok: false, skipped: true };
+}

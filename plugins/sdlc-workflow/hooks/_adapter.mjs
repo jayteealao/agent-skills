@@ -19,6 +19,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -339,6 +340,34 @@ export function insideGitCheckout(dir) {
  * DESIGN.md / .ai/ship-plan.md). Must stay in sync so every managed artifact the
  * verifier checks at write time is also tracked on the Stop-time ledger.
  */
+/** The records clone of this machine: `records.home` of the machine settings, else <state>/records. */
+export function recordsHomeOf() {
+  const base = process.env.SDLC_HOME && process.env.SDLC_HOME.trim() ? process.env.SDLC_HOME : join(homedir(), '.sdlc');
+  try {
+    const h = JSON.parse(readFileSync(join(base, 'config.json'), 'utf8')).records?.home;
+    if (h && String(h).trim()) return resolve(String(h).trim().replace(/^~(?=$|[\\/])/, homedir()));
+  } catch { /* no settings */ }
+  return join(base, 'records');
+}
+
+/** The records folder of a project, as lib/records-root.mjs resolves it, with no import. */
+export function workflowsRootOf(projectRoot) {
+  try {
+    const project = JSON.parse(readFileSync(join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8')).records?.project;
+    const home = recordsHomeOf();
+    if (typeof project === 'string' && /^[a-z0-9][a-z0-9._-]*$/.test(project) && existsSync(join(home, '.git')) && existsSync(join(home, project))) return join(home, project);
+  } catch { /* not linked */ }
+  return join(projectRoot, '.ai', 'workflows');
+}
+
+/** True for a record, draft or message file inside the records clone: the pre-write check sees it. */
+export function isRecordsHomePath(path) {
+  const fold = (s) => (process.platform === 'win32' ? s.toLowerCase() : s);
+  const home = recordsHomeOf().replace(/\\/g, '/').replace(/\/+$/, '');
+  const n = String(path ?? '').replace(/\\/g, '/');
+  return fold(n).startsWith(`${fold(home)}/`) && /\.(md|yaml|jsonl)$/.test(n);
+}
+
 export function isManagedArtifactPath(path) {
   const n = String(path ?? '').replace(/\\/g, '/');
   return (

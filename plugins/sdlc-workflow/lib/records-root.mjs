@@ -1,22 +1,68 @@
 // The one resolver of the record paths of a project.
 //
 // Every script and hook gets the folder of the workflow records, and the folder of one
-// workflow, from here. The records live in <project root>/.ai/workflows/<slug>/.
+// workflow, from here. The records live in <project root>/.ai/workflows/<slug>/, until the
+// project is linked to the records repo of this machine (`wf.mjs records link`). Then they live
+// in <records home>/<project>/<slug>/, and the local .ai/workflows/ folder keeps only the drafts
+// of the agents and the machine-local files of a run.
 //
 // A write into a nested `.ai/` folder is refused: an agent that runs in a subfolder, or in a
 // workflow folder, must not start a second record store. An `.ai/` folder is allowed only at
 // the project root, at the root of a git checkout (a worktree has its own), or where a record
 // store already exists (a sub-project of a monorepo).
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 
 export const AI_DIR = '.ai';
 export const WORKFLOWS_DIR = 'workflows';
 /** The records folder, relative to the project root, with forward slashes. */
 export const WORKFLOWS_REL = `${AI_DIR}/${WORKFLOWS_DIR}`;
 
+/** The name of a project in the records repo. */
+export const PROJECT_NAME_RE = /^[a-z0-9][a-z0-9._-]*$/;
+
+/** The clone of the records repo on this machine: `records.home` of ~/.sdlc/config.json, else ~/.sdlc/records. */
+export function recordsHome() {
+  const h = readMachineConfig().records?.home;
+  return h && String(h).trim() ? resolve(String(h).trim().replace(/^~(?=$|[\\/])/, homedir())) : join(sdlcHomeDir(), 'records');
+}
+
+const linkCache = new Map();
+
+/**
+ * The project name when the project is linked: `records.project` in .ai/sdlc-config.json, a
+ * records clone, and the project folder in it. Else null, and the records stay local.
+ */
+export function linkedProject(projectRoot) {
+  const file = join(projectRoot, AI_DIR, 'sdlc-config.json');
+  let mtime;
+  try { mtime = statSync(file).mtimeMs; } catch { return null; }
+  const key = resolve(projectRoot);
+  let hit = linkCache.get(key);
+  if (!hit || hit.mtime !== mtime) {
+    let project = null;
+    try {
+      const p = JSON.parse(readFileSync(file, 'utf8')).records?.project;
+      project = typeof p === 'string' && PROJECT_NAME_RE.test(p) ? p : null;
+    } catch { project = null; }
+    hit = { mtime, project };
+    linkCache.set(key, hit);
+  }
+  if (!hit.project) return null;
+  const home = recordsHome();
+  return existsSync(join(home, '.git')) && existsSync(join(home, hit.project)) ? hit.project : null;
+}
+
+/** The local records folder of a project: the drafts, and every record of an unlinked project. */
+export const localWorkflowsRoot = (projectRoot) => join(projectRoot, AI_DIR, WORKFLOWS_DIR);
+
 /** The folder of all workflow records of a project. */
-export const workflowsRoot = (projectRoot) => join(projectRoot, AI_DIR, WORKFLOWS_DIR);
+export function workflowsRoot(projectRoot) {
+  const project = linkedProject(projectRoot);
+  return project ? join(recordsHome(), project) : localWorkflowsRoot(projectRoot);
+}
 
 /** The folder of one workflow. */
 export const workflowDir = (projectRoot, slug) => join(workflowsRoot(projectRoot), slug);
@@ -25,25 +71,51 @@ export const workflowDir = (projectRoot, slug) => join(workflowsRoot(projectRoot
 export const workflowRel = (slug) => `${WORKFLOWS_REL}/${slug}`;
 
 /** True when a directory holds a record store. */
-export const ownsRecords = (dir) => existsSync(workflowsRoot(dir));
+export const ownsRecords = (dir) => existsSync(localWorkflowsRoot(dir));
 
-/** `<...>/.ai/workflows/<slug>/<rest>` → { root, slug, storageRel, filename }, or null. */
-export function parseWorkflowPath(filePath) {
-  const n = String(filePath ?? '').replace(/\\/g, '/');
-  const m = /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/.exec(n);
-  if (!m) return null;
-  return {
-    root: m[1] ? `${m[1]}/${WORKFLOWS_REL}` : WORKFLOWS_REL,
-    slug: m[2],
-    storageRel: m[3],
-    filename: m[3].split('/').at(-1),
-  };
+const slash = (p) => String(p ?? '').replace(/\\/g, '/');
+const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
+
+/** The path of `filePath` inside the records home, with forward slashes, or null. */
+export function recordsRel(filePath) {
+  const home = slash(recordsHome()).replace(/\/+$/, '');
+  const n = slash(filePath);
+  return fold(n).startsWith(`${fold(home)}/`) ? n.slice(home.length + 1) : null;
 }
 
-/** The folder of the workflow that holds a record path (a draft too), or null. */
+/**
+ * `<...>/.ai/workflows/<slug>/<rest>`, or `<records home>/<project>/<slug>/<rest>`, →
+ * { root, slug, storageRel, filename }, or null; a path in the records home also has `project`.
+ */
+export function parseWorkflowPath(filePath) {
+  const n = slash(filePath);
+  const m = /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/.exec(n);
+  if (m) {
+    return {
+      root: m[1] ? `${m[1]}/${WORKFLOWS_REL}` : WORKFLOWS_REL,
+      slug: m[2],
+      storageRel: m[3],
+      filename: m[3].split('/').at(-1),
+    };
+  }
+  const rel = recordsRel(n);
+  const h = rel ? /^([^/.][^/]*)\/([^/.][^/]*)\/(.+)$/.exec(rel) : null;
+  if (!h) return null;
+  return { root: n.slice(0, n.length - rel.length) + h[1], slug: h[2], storageRel: h[3], filename: h[3].split('/').at(-1), project: h[1] };
+}
+
+/**
+ * The folder of the workflow that holds a record path (a draft too), or null. A draft in the
+ * local folder of a linked project names the workflow folder in the records home.
+ */
 export function workflowDirOf(filePath) {
   const info = parseWorkflowPath(filePath);
-  return info ? `${info.root}/${info.slug}` : null;
+  if (!info) return null;
+  if (!info.project) {
+    const projectRoot = info.root === WORKFLOWS_REL ? process.cwd() : info.root.slice(0, -(WORKFLOWS_REL.length + 1));
+    if (linkedProject(projectRoot)) return join(workflowsRoot(projectRoot), info.slug);
+  }
+  return `${info.root}/${info.slug}`;
 }
 
 const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);

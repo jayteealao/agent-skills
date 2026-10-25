@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { emitAdditionalContext, findProjectRoot, readEvent } from './_adapter.mjs';
+import { emitAdditionalContext, findProjectRoot, readEvent, workflowsRootOf } from './_adapter.mjs';
 
 const MAX_SLUGS = 3;
 // The schema's slug shape (`$defs.slug`). INDEX.md is plain text in the repo, so a row that
@@ -26,7 +26,7 @@ function activeWorkflows(projectRoot) {
   // INDEX.md rows: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at
   let text;
   try {
-    text = readFileSync(join(projectRoot, '.ai', 'workflows', 'INDEX.md'), 'utf-8');
+    text = readFileSync(join(workflowsRootOf(projectRoot), 'INDEX.md'), 'utf-8');
   } catch {
     return [];
   }
@@ -45,7 +45,7 @@ function activeWorkflows(projectRoot) {
 function currentStage(projectRoot, slug) {
   for (const name of ['state.yaml', '00-index.md']) {
     try {
-      const head = readFileSync(join(projectRoot, '.ai', 'workflows', slug, name), 'utf-8').slice(0, 4000);
+      const head = readFileSync(join(workflowsRootOf(projectRoot), slug, name), 'utf-8').slice(0, 4000);
       const stage = /^current-stage:\s*["']?([^"'\s]+)/m.exec(head)?.[1] ?? null;
       return stage && STAGE.test(stage) ? stage : null;
     } catch {

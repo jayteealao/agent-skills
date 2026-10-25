@@ -4,7 +4,7 @@ description: The first-run setup of a repo. The first /wf key in a repo with no 
 
 # First-run setup
 
-The dispatch prints `first-run: reference/setup.md` when the repo has no `.ai/` folder. Run these steps once, then run the key that the person typed. Keep the setup short: two questions at most, then one more when git does not ignore `.ai/`.
+The dispatch prints `first-run: reference/setup.md` when the repo has no `.ai/` folder. Run these steps once, then run the key that the person typed. Keep the setup short: two questions at most, then one more for each of Steps 5 and 6 that applies.
 
 ## Step 1 — Read the repo
 
@@ -29,5 +29,9 @@ Tell the person the merge method in one line. Give each `gap:` line as a task fo
 ## Step 5 — The `.ai/` folder and git
 
 When the setup prints `.ai/ in git: tracked`, ask the person: "Add `.ai/` to .gitignore, so that the workflow records stay out of your commits?" On yes, run the setup command again with `--ignore`. On no, change nothing.
+
+## Step 6 — The records repo
+
+Run `node "<skill-dir>/scripts/wf.mjs" records status "<projectRoot>"`. When it prints that a clone is there, ask the person: "Keep the records of this repo in the records repo, so that the work continues on any computer?" On yes, run `node "<skill-dir>/scripts/wf.mjs" records link "<projectRoot>" <name>`, where `<name>` is the folder name of the repo in lower case. On no, change nothing.
 
 Then run the key that the person typed.
