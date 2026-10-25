@@ -986,7 +986,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve'],
+  record: ['put', 'set', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;

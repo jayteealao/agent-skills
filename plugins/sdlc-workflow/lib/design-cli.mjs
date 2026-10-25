@@ -8,6 +8,7 @@ import { installTask, serverPort, serverStatus, startServer, stopServer, tailnet
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, openThreads } from './design-records.mjs';
+import { migrateDesign } from './design-migrate.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   init <root>                                   make .ai/design/: the manifest, tokens.css, the git rule, the repo entry
@@ -26,6 +27,7 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   capture-path <root> <slug> <slice> <key>      where verify writes the capture of a built screen
   state <root>                                  the canvas data, as JSON
   publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
+  migrate <root> [slug...] [--check]            move the boards of each workflow onto the surface, once; --check only plans
   server start|stop|status|url                  the one design server of this computer
   server install|uninstall                      the Windows scheduled task that starts the server at logon`;
 
@@ -141,6 +143,11 @@ export async function runDesign(pos, opt, out) {
       out(opt.json ? { file } : `canvas page: ${file}`);
       return 0;
     }
+    case 'migrate': {
+      const r = migrateDesign(projectRoot, { slugs: rest.slice(1), write: !opt.check });
+      out(opt.json ? r : r.results.map(migrateLine).join('\n') || 'no workflow has boards');
+      return r.results.some((x) => x.blocked) ? 1 : 0;
+    }
     default:
       throw new Error(DESIGN_USAGE);
   }
@@ -184,4 +191,18 @@ async function runServer(sub, opt, out) {
     default:
       throw new Error(DESIGN_USAGE);
   }
+}
+
+/** One line per workflow of a migration, and the lines of what it waits for. */
+function migrateLine(r) {
+  if (r.skip) return `${r.slug}: ${r.skip}`;
+  const keys = Object.entries(r.keys ?? {}).map(([b, k]) => `${b} → ${k}`).join(', ');
+  if (r.blocked) {
+    return [`${r.slug}: not migrated`,
+      ...r.exports.map((e) => `  export ${e.file} from ${e.canvas} (read the artifact, save its page there), then run migrate again`),
+      ...r.missing.map((f) => `  the board file ${f} is missing`)].join('\n');
+  }
+  if (!r.migrated) return `${r.slug}: would migrate revisions ${r.revisions.map((n) => n ?? 'working').join(', ')}${r.confirmed ? `, approve r${r.confirmed}` : ''}: ${keys}`;
+  return [`${r.slug}: migrated ${Object.keys(r.commits).join(', ')}${r.approved ? `; approved ${r.screens.join(', ')} at ${r.approved.slice(0, 10)}` : ''}; ${r.captures} captures`,
+    `  ${keys}`, ...r.warnings.map((w) => `  ${w}`)].join('\n');
 }

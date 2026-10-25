@@ -65,6 +65,22 @@ The design server serves the canvas of every repo on the list `~/.sdlc/design-re
 
 The settled rule is in [_lane.md](_lane.md) → "The human rule": a contract that names screens is settled only when a script recorded the approval and every screen page exists.
 
+## Move the boards of an older workflow
+
+A workflow from before the surface keeps its drawings as boards in `.ai/workflows/<slug>/design/`. Move them onto the surface once per repo:
+
+1. Run `<wf> design migrate <root> --check`. The command lists each workflow, its revisions, the revision that its contract confirmed, and the screen key of each board. It writes nothing.
+2. When a workflow shows `export <file> from <link>`, read that claude.ai artifact and save its page at that file. Do this for each listed board.
+3. Run `<wf> design migrate <root>`. It must exit 0.
+4. Read the warnings. When a screen links to a file outside its page, copy that file onto the surface and fix the link.
+
+The command makes these changes:
+- An HTML board becomes a screen page. A PNG-only board becomes a legacy frame: a screen page that shows the picture from `.ai/design/legacy/<key>.png`.
+- Each revision `r<N>/` becomes one commit of the product repo, in order. The working boards become one more commit when they changed after the last revision.
+- The contract of a confirmed revision gets `screens`, `approval-commit` (the commit of that revision), `direction-confirmed-by: migrated` and `migrated-from`. The settled rule accepts it as an approval.
+- The verify captures are copied to the records under the screen keys.
+- `.ai/design/migrated.json` maps each board key to its screen key. The board files stay, so the old paths keep working. A second run leaves a migrated workflow as it is.
+
 Prohibitions:
 - Do not write `screens.json`, `layout.json` or `references.json`. The pre-write check refuses it.
 - Do not write a comment, an approval picture or a check result. The design server and `<wf> design` write them.

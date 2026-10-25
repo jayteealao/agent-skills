@@ -30,7 +30,7 @@ Rules:
 A person approves the design before any stage that a driver can run. The `design` stage sits between `intake` and `slice`, and only a person runs it. `/wf yolo` does not run it.
 
 **Design is settled** when one of these holds:
-- `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`. When it names its screens (`screens:`), a script recorded the approval from the answer event of the person (`direction-confirmed-by: answer-event` and `approval-commit`), and every screen page exists on the design surface ([_surface.md](_surface.md)). A contract from before the design surface names frozen boards in `boards:` instead, and every board file must exist; `wf.mjs design migrate` turns those boards into screens.
+- `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`. When it names its screens (`screens:`), a script recorded the approval from the answer event of the person (`direction-confirmed-by: answer-event` and `approval-commit`, or `migrated` with `migrated-from` after `wf.mjs design migrate`), and every screen page exists on the design surface ([_surface.md](_surface.md)). A contract from before the design surface names frozen boards in `boards:` instead, and every board file must exist; `wf.mjs design migrate` turns those boards into screens.
 - `00-index.md` records `progress.design: skipped` and a `design-skip-reason:`.
 
 The design is **reopened**, and not settled, while `00-index.md` records `progress.design: in-progress`. An extension that adds surfaces sets it, and so does rule 2 below. Step 6 of the design stage sets `progress.design: complete` again.

@@ -27,7 +27,7 @@ function git(root, args) {
 }
 
 /** Commit these paths of the product repo, and only these. Returns the commit that holds them. */
-function commitSurface(root, paths, message) {
+export function commitSurface(root, paths, message) {
   if (!git(root, ['rev-parse', '--is-inside-work-tree']).ok) throw new Error('the product repo is not a git repo: the approval needs a commit');
   const add = git(root, ['add', '--', ...paths]);
   if (!add.ok) throw new Error(`git add failed: ${add.err}`);

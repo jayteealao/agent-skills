@@ -79,9 +79,14 @@ export function namesScreens(contract) {
   return Array.isArray(contract?.screens) && contract.screens.length > 0;
 }
 
-/** Did a script record the approval from the answer event of the person? */
+/**
+ * Did a script record the approval from the answer event of the person? A contract that
+ * `wf.mjs design migrate` moved from confirmed boards (`migrated`, with `migrated-from`) counts.
+ */
 export function approvedByAnswer(contract) {
-  return String(contract?.['direction-confirmed-by'] ?? '').trim() === 'answer-event' && String(contract?.['approval-commit'] ?? '').trim() !== '';
+  const by = String(contract?.['direction-confirmed-by'] ?? '').trim();
+  const from = by === 'answer-event' || (by === 'migrated' && String(contract?.['migrated-from'] ?? '').trim() !== '');
+  return from && String(contract?.['approval-commit'] ?? '').trim() !== '';
 }
 
 /** True when a screen page or a board file that the contract names is missing. */
