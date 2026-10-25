@@ -113,6 +113,27 @@ test('import copies both files once; a second import adds nothing', () => {
   } finally { f.done(); }
 });
 
+test('wf.mjs decide add takes the answered key out of open-questions of the index', () => {
+  const f = fixture();
+  const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });
+  try {
+    writeFileSync(path.join(f.dir, 'state.yaml'), 'schema: sdlc/v1\ntype: index\nslug: demo\nstatus: active\nupdated-at: "2026-10-25T10:00:00Z"\nopen-questions:\n  - finding:SEC-1\n  - key: finding:DES-1\n  - finding:DOC-2\n');
+    const open = () => parse(readFileSync(path.join(f.dir, 'state.yaml'), 'utf8'))['open-questions'];
+    let r = cli('add', f.root, 'demo', '--key', 'finding:SEC-1', '--question', 'Back up the token?', '--answer', 'no', '--stage', 'review');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /settled finding:SEC-1/);
+    assert.deepEqual(open(), [{ key: 'finding:DES-1' }, 'finding:DOC-2']);
+    r = cli('add', f.root, 'demo', '--key', 'finding:DES-1', '--answer', 'own row', '--json');
+    assert.equal(JSON.parse(r.stdout).settled, true);
+    assert.deepEqual(open(), ['finding:DOC-2']);
+    r = cli('add', f.root, 'demo', '--key', 'other', '--answer', 'x', '--json');
+    assert.equal(JSON.parse(r.stdout).settled, false, 'a key that is not open changes nothing');
+    r = cli('add', f.root, 'demo', '--kind', 'steer', '--key', 'finding:DOC-2', '--answer', 'prefer short docs', '--json');
+    assert.equal(JSON.parse(r.stdout).settled, false, 'a steer answers no question');
+    assert.deepEqual(open(), ['finding:DOC-2']);
+  } finally { f.done(); }
+});
+
 test('wf.mjs decide: add, list, answered, drop and import from the command line', () => {
   const f = fixture();
   const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });

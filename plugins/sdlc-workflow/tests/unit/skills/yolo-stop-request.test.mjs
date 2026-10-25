@@ -55,6 +55,7 @@ function chainHarness(answers, answered = []) {
     const implementSlice = (slice, idx, entry, answered) => runStage('implement', slice, idx, { stopCheck: true, answered })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
+    ${extractFn('sliceOf')}
     ${extractFn('questionsOf')}
     ${extractFn('questionsText')}
     ${extractFn('questionStop')}

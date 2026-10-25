@@ -693,7 +693,12 @@ function questionsOf(res) {
   const list = res && Array.isArray(res.questions) ? res.questions : []
   return list
     .filter(q => q && typeof q === 'object' && String(q.key || '').trim() && String(q.question || '').trim())
-    .map(q => ({ ...q, stage: q.stage || (res && res.stage) || null, slice: q.slice || (res && res.slice) || null }))
+    .map(q => ({ ...q, stage: q.stage || (res && res.stage) || null, slice: sliceOf(q.slice || (res && res.slice)) }))
+}
+
+// A slug-wide stage has no slice. An agent sometimes names its scope as the slice.
+function sliceOf(s) {
+  return !s || s === 'slug-wide' ? null : s
 }
 
 // The questions as one line each, for the stop reason.
@@ -702,11 +707,16 @@ function questionsText(list) {
     `${q.recommended ? ` (recommended: ${String(q.recommended).slice(0, 80)})` : ''}`).join('; ')
 }
 
-// The answer that reaches this stage of this slice: the newest entry of args.answered whose
-// stage and slice match (an entry with no stage or no slice matches any).
+// The answers that reach this stage of this slice: the entries of args.answered whose stage
+// and slice match (an entry with no stage or no slice matches any), the newest per key.
+// One stage can stop on several questions, so it gets every answer in `all`.
 function answeredFor(answered, stage, sliceArg) {
-  const hits = (answered || []).filter(a => a && (!a.stage || a.stage === stage) && (!a.slice || a.slice === sliceArg))
-  return hits.length ? hits[hits.length - 1] : null
+  const hits = (answered || []).filter(a => a && (!a.stage || a.stage === stage) && (!sliceOf(a.slice) || sliceOf(a.slice) === sliceArg))
+  const byKey = new Map(hits.map((a, i) => [a.key || `#${i}`, a]))
+  const list = [...byKey.values()]
+  if (!list.length) return null
+  if (list.length === 1) return list[0]
+  return { ...list[list.length - 1], key: list.map(a => a.key || 'answer').join(','), all: list }
 }
 
 // An answered stage runs again with the answer. A verify can accept the slice on the answer;
@@ -715,10 +725,18 @@ function answeredClause(a, stage) {
   if (!a) return ''
   const by = a.by || 'person'
   const quote = (s) => JSON.stringify(String(s || '').slice(0, 600))
-  return `\n\nANSWERED QUESTION (MANDATORY). The last run of this stage stopped on a question: ${quote(a.question)} ` +
-    `(key ${a.key || '?'}). The answer, by ${by}, is in the decision store${a.id ? ` as ${a.id}` : ''}: ` +
-    `${quote(a.answer)}. Settle the stopped decision by this answer, and record it as a decision with class ` +
-    `'intent-bearing', the answer quoted, and by: '${by}'. Do not ask it again.` +
+  const head = a.all
+    ? `\n\nANSWERED QUESTIONS (MANDATORY). The last run of this stage stopped on ${a.all.length} questions. The ` +
+      `answers are in the decision store: ` +
+      a.all.map((x, i) => `(${i + 1}) ${quote(x.question)} (key ${x.key || '?'}${x.id ? `, ${x.id}` : ''}, by ` +
+        `${x.by || 'person'}): ${quote(x.answer)}`).join('; ') +
+      `. Settle each stopped decision by its answer, and record each as a decision with class 'intent-bearing', ` +
+      `the answer quoted, and the person or delegate that answered it as by. Do not ask them again.`
+    : `\n\nANSWERED QUESTION (MANDATORY). The last run of this stage stopped on a question: ${quote(a.question)} ` +
+      `(key ${a.key || '?'}). The answer, by ${by}, is in the decision store${a.id ? ` as ${a.id}` : ''}: ` +
+      `${quote(a.answer)}. Settle the stopped decision by this answer, and record it as a decision with class ` +
+      `'intent-bearing', the answer quoted, and by: '${by}'. Do not ask it again.`
+  return head +
     (stage === 'verify'
       ? ` When the answer ACCEPTS this slice with its failing or residual items (for example "accept it", "record ` +
         `the miss", "continue to the next slice"), run no fix and no check round to make it pass: keep the result ` +
@@ -1962,6 +1980,9 @@ async function driveReview(sliceArg, idx, extra = {}) {
     return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered || null })
   }
   phase('Review')
+  // The fan-out agents journal too, so the watch and the status see the review run.
+  const beat = (label) => heartbeatClause(label, 'Review', 'review', sliceArg) +
+    ` The two journal lines are the only writes of this agent.`
   const base = idx.branch.base || '<base>'
   const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
   // An answered review runs the writer again with the answer, over the ledger of the last run.
@@ -1985,7 +2006,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
     `steeringPresent: true when the steering command prints at least one entry, false otherwise.` + steer('context') +
     stopCheck() + ` When the stop-request check stops you, return rubrics: [], stopped: true and ` +
-    `stopReason; otherwise return stopped: false.`,
+    `stopReason; otherwise return stopped: false.` + beat('select-rubrics'),
     { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review', ...SONNET }
   )
   if (selection && selection.stopped === true) {
@@ -2006,7 +2027,8 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
     `${r.focus ? ` — the '${r.focus}' section and '# Severity calibration'` : ' in full'}, and apply it as the ` +
     `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
-    `findings the diff supports, with dimension '${r.rubric}'. ${shape}\n\n${EOB}` + steer('context'),
+    `findings the diff supports, with dimension '${r.rubric}'. ${shape}\n\n${EOB}` + steer('context') +
+    beat(`scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
   ).then(s => (s && Array.isArray(s.findings) ? s.findings : []).map(f => ({ ...f, dimension: f.dimension || r.rubric })))))
   // Standing steering — one more scout whose rubric is the user's steer entries. It runs only
@@ -2015,7 +2037,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     ? await agent(
         `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
         `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'. ` +
-        `${shape}\n\n${EOB}` + steer('scout'),
+        `${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
         { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
       )
     : null
@@ -2034,7 +2056,8 @@ async function driveReview(sliceArg, idx, extra = {}) {
       `or when the failure cannot happen with the inputs that reach the code. Read the code at HEAD in ` +
       `${projectRoot} (read-only); do not reason from the finding's text alone. When you cannot refute a finding, ` +
       `it stands. Findings: ${JSON.stringify(g)}. Return { verdicts: [{ id, refuted, reason }] }, one for each ` +
-      `finding, each reason with file:line.` + steer('refute'),
+      `finding, each reason with file:line.` + steer('refute') +
+      beat(`refute:${g.length === 1 ? g[0].id : `${g[0].rubric || 'group'}#${gi + 1}`}`),
       { schema: REFUTE_GROUP, label: `refute:${g.length === 1 ? g[0].id : `${g[0].rubric || 'group'}#${gi + 1}`}`, phase: 'Review', ...SONNET }
     ).then(v => g.map(f => {
       const hit = v && Array.isArray(v.verdicts) ? v.verdicts.find(x => x && x.id === f.id) : null

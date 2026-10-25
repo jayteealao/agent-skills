@@ -179,7 +179,7 @@ A stage agent never asks the person. It returns each intent-bearing decision as 
 4. Repeat Step 0.4.
 5. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
 
-The answer reaches only the stage and the slice that asked it. Orientation skips every stage that is already terminal-clean, so the relaunch starts at the stage that asked. An answered stage can settle in three ways:
+The answer reaches only the stage and the slice that asked it. A stage that stopped on several questions gets every answer. A slug-wide stage has no slice: give its answers no slice. Orientation skips every stage that is already terminal-clean, so the relaunch starts at the stage that asked. An answered stage can settle in three ways:
 
 - It settles the decision and continues.
 - A verify accepts the slice with its failing or residual items on the answer. The slice passes, and the verify frontmatter records `accepted-by`.

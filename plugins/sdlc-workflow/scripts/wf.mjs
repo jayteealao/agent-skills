@@ -512,6 +512,19 @@ export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } 
 
 const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice, files: opt.files });
 
+// An answer settles its question at once: its key leaves `open-questions` of the index.
+// Only a stage rewrites the rest of the index, so without this the status shows the
+// workflow as blocked until that stage runs again.
+function settleQuestion(dir, key) {
+  if (!key) return false;
+  const open = frontmatterOfDoc(dir, INDEX_NAME)?.['open-questions'];
+  if (!Array.isArray(open)) return false;
+  const kept = open.filter((q) => (q && typeof q === 'object' ? q.key ?? q.id : q) !== key);
+  if (kept.length === open.length) return false;
+  setFields(dir, INDEX_NAME, { 'open-questions': kept });
+  return true;
+}
+
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
   if (!verb || !root || !slug) throw new Error('decide: <add|list|answered|drop|import> <root> <slug> are required');
@@ -526,7 +539,8 @@ export function runDecide(pos, opt) {
       });
       // Each record that names a superseded entry gets a marker that names the new one.
       const marked = markSuperseded(dir, r.superseded, r.entry.id);
-      out(opt.json ? { ...r, marked } : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...marked.map((n) => `marked ${n}`)].join('\n'));
+      const settled = r.entry.kind !== 'steer' && settleQuestion(dir, r.entry.key);
+      out(opt.json ? { ...r, marked, settled } : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...marked.map((n) => `marked ${n}`), ...(settled ? [`settled ${r.entry.key}`] : [])].join('\n'));
       return 0;
     }
     case 'list': {

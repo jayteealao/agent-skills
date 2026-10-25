@@ -172,6 +172,40 @@ test('the slug-wide review that returns finding questions stops the run as waiti
   assert.deepEqual(outcome.questions.map((q) => q.key), ['finding:F-3']);
 });
 
+test('the slug-wide review gets every answer, also with slice slug-wide, and runs no fan-out again', async () => {
+  const review = (q) => ({ stage: 'review', slice: 'slug-wide', status: 'questions', artifactPath: '/repo/07-review.md', terminal: {}, questions: [q] });
+  const asked = await run({}, (label) => {
+    if (label === 'orient') return orientResult();
+    if (label === 'review') return review({ key: 'finding:F-3', question: 'Keep the retry loop?' });
+    return common(label);
+  });
+  assert.equal(asked.outcome.questions[0].slice, null, 'a slug-wide stage gives its questions no slice');
+  const answered = [
+    { key: 'finding:F-3', stage: 'review', slice: 'slug-wide', question: 'Keep the retry loop?', answer: 'fix it', by: 'person', id: 'D-7' },
+    { key: 'finding:F-4', stage: 'review', slice: 'slug-wide', question: 'Move the toggle?', answer: 'own row', by: 'person', id: 'D-8' },
+  ];
+  const { calls, labels } = await run({ answered }, (label) => (label === 'orient' ? orientResult() : common(label)));
+  const writer = calls.find((c) => c.label === 'review').prompt;
+  assert.match(writer, /ANSWERED QUESTIONS \(MANDATORY\)\. The last run of this stage stopped on 2 questions/);
+  assert.match(writer, /key finding:F-3, D-7, by person\): "fix it"/);
+  assert.match(writer, /key finding:F-4, D-8, by person\): "own row"/);
+  assert.ok(!labels.some((l) => l === 'select-rubrics' || /^(scout|refute):/.test(l)), 'the answered review runs only the writer');
+});
+
+test('the review fan-out agents write journal lines', async () => {
+  const { calls } = await run({}, (label) => {
+    if (label === 'orient') return orientResult();
+    if (label === 'scout:correctness') return { findings: [{ id: 'C-1', severity: 'HIGH', file: 'a.js', line: 1, issue: 'x' }] };
+    if (label && label.startsWith('refute:')) return { verdicts: [{ id: 'correctness:C-1', refuted: false, reason: 'a.js:1' }] };
+    return common(label);
+  });
+  for (const label of ['select-rubrics', 'scout:correctness', 'refute:correctness:C-1']) {
+    const prompt = calls.find((c) => c.label === label).prompt;
+    assert.match(prompt, /DRIVER HEARTBEAT/, `${label} journals`);
+    assert.ok(prompt.includes(`"agent":"${label}","phase":"Review","stage":"review"`), `${label} names itself in its journal line`);
+  }
+});
+
 // ---- Y4 ---------------------------------------------------------------------
 
 test('A3: the last agent writes the run-end line with the run id, and reads no read ledger', async () => {
