@@ -31,6 +31,7 @@ import {
   parseBoardKey, parseViewport, readManifest, renderAnsi, renderSheet, revisionDir, sketchAdvice, splitAnchor,
 } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { workflowDir, workflowRel } from '../lib/records-root.mjs';
 
 const USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import|canvas-stale> <projectRoot> <slug> [args]
        design-boards.mjs track <projectRoot> [--write]
@@ -40,7 +41,6 @@ const RENDER_TIMEOUT_MS = Number(process.env.SDLC_BROWSER_TIMEOUT_MS) || 30_000;
 
 const posix = (p) => String(p).split('\\').join('/');
 const nowIso = () => new Date().toISOString();
-const workflowDir = (root, slug) => join(root, '.ai', 'workflows', slug);
 const designDir = (root, slug) => join(workflowDir(root, slug), DESIGN_DIR);
 const manifestPath = (root, slug) => join(designDir(root, slug), MANIFEST);
 
@@ -67,7 +67,7 @@ function flags(rest) {
 
 function requireWorkflow(root, slug) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(slug)) throw new Error(`'${slug}' is not a workflow slug`);
-  if (!existsSync(workflowDir(root, slug))) throw new Error(`no workflow folder .ai/workflows/${slug}/`);
+  if (!existsSync(workflowDir(root, slug))) throw new Error(`no workflow folder ${workflowRel(slug)}/`);
 }
 
 /** The working manifest, created empty when absent. Throws on an invalid manifest. */

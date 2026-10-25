@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from
 import { join } from 'node:path';
 
 import { readSteps, whereOf } from './steps.mjs';
+import { workflowsRoot } from './records-root.mjs';
 
 export const PROGRESS_FILE = 'progress.json';
 export const STATUSES = ['running', 'waiting', 'stopped', 'done'];
@@ -116,7 +117,7 @@ export const NOTICE_DAYS = 7;
 
 /** The recent stopped runs of a project: one { slug, line } per workflow whose run stopped or died. */
 export function stoppedRuns(projectRoot, { now = Date.now() } = {}) {
-  const root = join(projectRoot, '.ai', 'workflows');
+  const root = workflowsRoot(projectRoot);
   if (!existsSync(root)) return [];
   const out = [];
   for (const e of readdirSync(root, { withFileTypes: true })) {

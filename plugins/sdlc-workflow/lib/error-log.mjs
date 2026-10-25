@@ -11,6 +11,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { appendLogLine, errorsLogPath } from './home.mjs';
+import { workflowsRoot } from './records-root.mjs';
 
 export function hookErrorLogPath(projectRoot = process.cwd()) {
   return join(projectRoot, '.ai', '_view', '.hook-errors.log');
@@ -18,7 +19,7 @@ export function hookErrorLogPath(projectRoot = process.cwd()) {
 
 /** True when the repository runs workflows and so earns a per-repo error file. */
 export function hasWorkflows(projectRoot = process.cwd()) {
-  try { return existsSync(join(projectRoot, '.ai', 'workflows')); } catch { return false; }
+  try { return existsSync(workflowsRoot(projectRoot)); } catch { return false; }
 }
 
 export async function logError(label, err, {

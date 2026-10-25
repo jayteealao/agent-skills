@@ -10,6 +10,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from '
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { stringify } from '../lib/yaml.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
+import { workflowsRoot } from '../lib/records-root.mjs';
 
 const LEGACY_CONTRACT_TYPES = new Set(['craft', 'design-brief', 'design-contract']);
 const LEGACY_CRITIQUE_TYPES = new Set(['critique', 'design-critique']);
@@ -31,10 +32,10 @@ function parseArgs(argv) {
   return args;
 }
 
-function workflowsRoot(rootArg) {
+function workflowsRootOf(rootArg) {
   const root = resolve(rootArg);
   if (basename(root) === 'workflows' && basename(dirname(root)) === '.ai') return root;
-  return join(root, '.ai', 'workflows');
+  return workflowsRoot(root);
 }
 
 function* walk(dir) {
@@ -210,7 +211,7 @@ function migrateFile(filePath, { dryRun, cwd, now }) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cwd = process.cwd();
-  const root = workflowsRoot(args.root);
+  const root = workflowsRootOf(args.root);
   const now = new Date().toISOString();
   const candidates = [...walk(root)].filter((path) => statSync(path).isFile());
   let changed = 0;

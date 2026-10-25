@@ -21,8 +21,10 @@
 //      the pre-existing behaviour for non-git projects.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+
+import { ownsRecords } from './records-root.mjs';
 
 const WALK_CAP = 200;   // path depth bound — guards a cycle from a bad realpath
 
@@ -56,9 +58,7 @@ function sameDir(a, b) {
   return a === b;
 }
 
-function ownsWorkflowStore(dir) {
-  return existsSync(join(dir, '.ai', 'workflows'));
-}
+const ownsWorkflowStore = ownsRecords;
 
 /**
  * Resolve the project root for a directory the process happens to be running

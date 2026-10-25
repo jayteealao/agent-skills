@@ -12,6 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { safeParseFrontmatter } from './frontmatter.mjs';
+import { workflowDir } from './records-root.mjs';
 
 export const PROBE_TIMEOUT_MS = 30000;
 
@@ -38,7 +39,7 @@ export function runProbe(command, cwd, { timeoutMs = PROBE_TIMEOUT_MS } = {}) {
  * the next slice needs now.
  */
 export function checkDeferrals(projectRoot, slug, { next = null, probe = runProbe } = {}) {
-  const dir = join(projectRoot, '.ai', 'workflows', slug);
+  const dir = workflowDir(projectRoot, slug);
   const entries = openDeferrals(dir).map((d) => {
     const cmd = typeof d['clearing-probe'] === 'string' ? d['clearing-probe'].trim() : '';
     const r = cmd ? probe(cmd, projectRoot) : null;

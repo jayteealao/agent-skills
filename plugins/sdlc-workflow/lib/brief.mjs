@@ -14,6 +14,7 @@ import { join } from 'node:path';
 
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
 import { STAGE_SUITES, profileLines, readProfile, timeBox } from './test-profile.mjs';
+import { workflowDir, workflowRel } from './records-root.mjs';
 
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
@@ -75,10 +76,10 @@ export function absoluteLinks(text, referenceRoot) {
  * `missing` names each part that the stage needs and the records do not hold.
  */
 export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = null, wfCli = null }) {
-  const dir = join(projectRoot, '.ai', 'workflows', slug);
+  const dir = workflowDir(projectRoot, slug);
   if (!existsSync(dir)) throw new Error(`no workflow folder ${dir}`);
   const missing = [];
-  const rel = (name) => `.ai/workflows/${slug}/${name}`;
+  const rel = (name) => `${workflowRel(slug)}/${name}`;
 
   const rawCard = cardOf(referenceRoot, stage);
   const card = rawCard == null ? null : absoluteLinks(rawCard, referenceRoot);

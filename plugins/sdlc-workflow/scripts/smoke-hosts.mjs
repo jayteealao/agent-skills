@@ -15,6 +15,7 @@ import { existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workflowsRoot } from '../lib/records-root.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const HOSTS = Object.freeze(['claude', 'codex', 'pi']);
@@ -59,7 +60,7 @@ function run(host, prompt, cwd, exec, piDir) {
 
 /** The indexes that the intake wrote. */
 function indexesOf(dir) {
-  const wf = path.join(dir, '.ai', 'workflows');
+  const wf = workflowsRoot(dir);
   if (!existsSync(wf)) return [];
   return readdirSync(wf, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(path.join(wf, e.name, '00-index.md'))).map((e) => e.name);
 }

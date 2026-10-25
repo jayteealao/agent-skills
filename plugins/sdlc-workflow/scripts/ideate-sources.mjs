@@ -22,11 +22,12 @@ import { fileURLToPath } from 'node:url';
 
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { MAX_ISSUES, classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems } from '../lib/ideate.mjs';
+import { workflowDir } from '../lib/records-root.mjs';
 
 const USAGE = 'Usage: ideate-sources.mjs <args|issues|reference|check> <projectRoot> ...';
 const ISSUE_FIELDS = 'number,title,body,labels,comments,reactionGroups,state,createdAt,updatedAt,url';
 const FORBIDDEN_ISSUE_KEYS = ['author', 'body', 'comments-text', 'assignees'];
-const wfDir = (root, slug) => join(root, '.ai', 'workflows', slug);
+const wfDir = workflowDir;
 const toPosix = (p) => p.split('\\').join('/');
 const today = () => new Date().toISOString().slice(0, 10);
 

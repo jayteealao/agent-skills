@@ -18,6 +18,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { workflowsRoot } from './records-root.mjs';
 
 // Bump when the kernel body changes. A newer version replaces an older fence in
 // place (version-gate, mirrors the render `.last-render` PLUGIN_VERSION idea).
@@ -173,7 +174,7 @@ export function seedMemoryKernel(projectRoot, config = {}, deps = {}) {
   const result = { enabled: true, seeded: false, changed: false, firstInsert: false, targets: [], notice: null };
   try {
     if (config?.memory?.seedRules === false) { result.enabled = false; return result; }
-    if (!fs.existsSync(join(projectRoot, '.ai', 'workflows'))) return result;
+    if (!fs.existsSync(workflowsRoot(projectRoot))) return result;
 
     const markerPath = join(projectRoot, '.ai', '.wf-rules-seeded');
     const markerExisted = fs.existsSync(markerPath);

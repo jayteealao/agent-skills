@@ -23,13 +23,14 @@ import {
   projectRootFromInput,
 } from '../lib/hook-utils.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
+import { workflowsRoot } from '../lib/records-root.mjs';
 
 export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
 
   if (existsSync(join(projectRoot, '.ai', '.no-auto-stage'))) return;
-  if (!existsSync(join(projectRoot, '.ai', 'workflows'))) return;
+  if (!existsSync(workflowsRoot(projectRoot))) return;
 
   const filePaths = collectToolInputPaths(input).filter((p) => !isInsideWorkflowArtifacts(p));
   if (!filePaths.length) return;

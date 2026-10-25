@@ -32,6 +32,8 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
+import { parseWorkflowPath } from './records-root.mjs';
+
 export const COST_FILE = 'cost.jsonl';
 export const CLAUDE_USAGE_FIELDS = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'];
 export const CODEX_USAGE_FIELDS = ['input_tokens', 'cached_input_tokens', 'cache_write_input_tokens', 'output_tokens', 'reasoning_output_tokens'];
@@ -268,12 +270,7 @@ export function parsePiEntries(entries) {
 /* ───────────────────────── attribution ───────────────────────── */
 
 /** `.ai/workflows/<slug>/<file>` → { slug, filename, root } or null. */
-export function workflowPathParts(filePath) {
-  const normalized = String(filePath ?? '').replace(/\\/g, '/');
-  const m = normalized.match(/^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/);
-  if (!m) return null;
-  return { root: m[1] ? `${m[1]}/.ai/workflows` : '.ai/workflows', slug: m[2], filename: m[3].split('/').at(-1) };
-}
+export const workflowPathParts = parseWorkflowPath;
 
 /** `04-plan-cli-json.md` → { key: 'plan', slice: 'cli-json' }; `01-rca.md` → { key: 'intake', slice: null }; other names → null. */
 export function keyFromArtifactName(filename) {

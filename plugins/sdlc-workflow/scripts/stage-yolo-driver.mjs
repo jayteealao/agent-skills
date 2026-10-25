@@ -40,6 +40,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { modelsOf } from '../lib/campaign.mjs';
+import { workflowsRoot } from '../lib/records-root.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
@@ -71,7 +72,7 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   if (typeof projectRoot !== 'string' || !path.isAbsolute(projectRoot)) {
     throw new Error(`stage-yolo-driver: projectRoot must be an absolute path (got ${JSON.stringify(projectRoot)})`);
   }
-  if (!existsSync(path.join(projectRoot, '.ai', 'workflows'))) {
+  if (!existsSync(workflowsRoot(projectRoot))) {
     throw new Error(`stage-yolo-driver: ${projectRoot} has no .ai/workflows — pass the repo root that owns the workflow`);
   }
   const name = opts.driver ?? 'yolo';

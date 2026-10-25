@@ -27,6 +27,7 @@ import {
 } from '../lib/goal.mjs';
 import { lifecycleDone } from '../lib/lifecycle-done.mjs';
 import { optimizeStatus } from './optimize.mjs';
+import { workflowDir } from '../lib/records-root.mjs';
 
 const USAGE = 'Usage: goal.mjs <arm|check|park|status|clear|lifecycle> <projectRoot> <slug> ...';
 // scripts/ sits one level under the plugin root.
@@ -34,7 +35,7 @@ const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const WRAPPER = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'goal.mjs');
 const PROOF_TIMEOUT_MS = 30 * 60_000;
 
-const wfDir = (root, slug) => join(root, '.ai', 'workflows', slug);
+const wfDir = workflowDir;
 const goalPath = (root, slug) => join(wfDir(root, slug), 'goal.md');
 const goalDir = (root, slug) => join(wfDir(root, slug), 'goal');
 const checksPath = (root, slug) => join(goalDir(root, slug), 'checks.jsonl');

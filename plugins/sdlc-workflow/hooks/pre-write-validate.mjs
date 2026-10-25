@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * PreToolUse(Write) validator for .ai/workflows/ artifacts:
+ * - Refuse a Write or Edit into a nested .ai/ folder (lib/records-root.mjs nestedAiDir).
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -42,6 +43,7 @@ import {
   resolveProjectPath,
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
+import { nestedAiDir, workflowsRoot } from '../lib/records-root.mjs';
 
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
@@ -58,7 +60,7 @@ function validateFilename(filename) {
 async function registryWarnings({ projectRoot, filePath, workflowDir, filename }) {
   if (filename !== '00-index.md') return [];
 
-  const registry = join(projectRoot, '.ai', 'workflows', 'INDEX.md');
+  const registry = join(workflowsRoot(projectRoot), 'INDEX.md');
   if (!existsSync(registry)) {
     return [
       `Global workflow registry .ai/workflows/INDEX.md is missing. Run /wf status once to bootstrap it - this enables positional slug detection (the no-flag way to attach a compressed slice to '${workflowDir}' via /wf intake/probe/simplify).`,
@@ -82,6 +84,11 @@ export async function run(input) {
 
   const filePath = input?.tool_input?.file_path;
   const content = input?.tool_input?.content;
+  const nested = filePath ? nestedAiDir(filePath, projectRoot) : null;
+  if (nested) {
+    refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
+    return;
+  }
   if (!filePath || (!isWorkflowMarkdownPath(filePath) && !isProjectContextMarkdownPath(filePath))) return;
   if (!content) return;
 

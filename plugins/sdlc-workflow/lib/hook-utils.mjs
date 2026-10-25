@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import { resolveProjectRoot } from './project-root.mjs';
+import { parseWorkflowPath } from './records-root.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -65,15 +66,9 @@ export function resolveProjectPath(projectRoot, path) {
 }
 
 export function workflowPathInfo(filePath) {
-  const normalized = normalizePathForMatch(filePath);
-  const match = normalized.match(/(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/);
-  if (!match) return null;
-  return {
-    slug: match[1],
-    storageRel: match[2],
-    filename: match[2].split('/').at(-1),
-    workflowsRoot: normalized.slice(0, match.index) + normalized.slice(match.index).replace(/\/?\.ai\/workflows\/[^/]+\/.+$/, '/.ai/workflows'),
-  };
+  const info = parseWorkflowPath(filePath);
+  if (!info) return null;
+  return { slug: info.slug, storageRel: info.storageRel, filename: info.filename, workflowsRoot: info.root };
 }
 
 export function isWorkflowMarkdownPath(filePath) {

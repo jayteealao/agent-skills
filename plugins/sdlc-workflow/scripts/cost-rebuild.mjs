@@ -24,6 +24,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { COST_FILE, agentTotalsFromFiles, listClaudeAgentFiles, readCostRows, rebuildLedgerRows } from '../lib/cost-ledger.mjs';
+import { workflowsRoot } from '../lib/records-root.mjs';
 
 function argsOf(argv) {
   const out = { root: null, apply: false, force: false, projectsDir: join(homedir(), '.claude', 'projects') };
@@ -51,7 +52,7 @@ function sessionDirs(projectsDir, sessions) {
 }
 
 export function costRebuild({ root, apply = false, force = false, projectsDir }) {
-  const wf = join(resolve(root), '.ai', 'workflows');
+  const wf = workflowsRoot(resolve(root));
   if (!existsSync(wf)) return { ok: false, error: `no .ai/workflows in ${root}` };
   const files = [];
   for (const d of readdirSync(wf, { withFileTypes: true })) {

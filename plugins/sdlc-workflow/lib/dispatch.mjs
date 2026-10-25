@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { safeParseFrontmatter } from './frontmatter.mjs';
+import { workflowsRoot } from './records-root.mjs';
 
 export const UNSAFE = '@';
 export const SAFE_TOKEN = /^[A-Za-z0-9#._/-]+$/;
@@ -98,7 +99,7 @@ export function fitForms(forms, tokens, check) {
 
 /** The disk facts that Step 0 reads: workflows, slice rosters and local branches. */
 export function diskFacts(projectRoot, { git = defaultGit } = {}) {
-  const wf = join(projectRoot, '.ai', 'workflows');
+  const wf = workflowsRoot(projectRoot);
   return {
     hasWorkflow: (slug) => SAFE_TOKEN.test(slug) && !slug.includes('/') && existsSync(join(wf, slug, '00-index.md')),
     hasWorkflowDir: (slug) => SAFE_TOKEN.test(slug) && !slug.includes('/') && existsSync(join(wf, slug)),

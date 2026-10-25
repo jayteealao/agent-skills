@@ -146,7 +146,7 @@ test('attributeWrites: last artifact write wins, index writes keep the key on th
   assert.deepEqual(attributeWrites([
     { path: '/r/.ai/workflows/a/04-plan-x.md' }, { path: '/r/src/app.js' }, { path: 'C:\\r\\.ai\\workflows\\a\\05-implement-x.md' },
   ], null), { slug: 'a', key: 'implement', slice: 'x', root: 'C:/r/.ai/workflows' });
-  assert.deepEqual(workflowPathParts('.ai/workflows/demo/07-review.md'), { root: '.ai/workflows', slug: 'demo', filename: '07-review.md' }, 'a cwd-relative Codex path');
+  assert.deepEqual(workflowPathParts('.ai/workflows/demo/07-review.md'), { root: '.ai/workflows', slug: 'demo', storageRel: '07-review.md', filename: '07-review.md' }, 'a cwd-relative Codex path');
   assert.equal(workflowPathParts('/r/.ai/simplify/x.md'), null);
 });
 

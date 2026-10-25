@@ -65,6 +65,7 @@ import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
 import { decisionsOf, liveDecisions } from '../lib/decisions.mjs';
+import { workflowDir } from '../lib/records-root.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
@@ -77,7 +78,6 @@ const STATE_FILE = '.watch-state.json';
 export const FULL_NOTE_EVENTS = Object.freeze(['stage-end', 'decision', 'protected-change', 'stale', 'stop', 'run-end', 'look-in']);
 const STATE_VERSION = 1;
 
-const workflowDir = (root, slug) => path.join(root, '.ai', 'workflows', slug);
 export const journalPath = (root, slug) => path.join(workflowDir(root, slug), '.driver-journal.jsonl');
 export const statePath = (root, slug) => path.join(workflowDir(root, slug), STATE_FILE);
 export const controlPath = (root, slug) => path.join(workflowDir(root, slug), '.control.json');

@@ -32,12 +32,13 @@ import {
   branchFor, buildReport, commitPlan, ledgerProblems, mediaKind, newLedger, openProofs, reportProblems,
 } from '../lib/prototype.mjs';
 import { validatePrototypeLedger } from '../lib/schema-validator.mjs';
+import { workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 
 const USAGE = 'Usage: prototype.mjs <start|status|check|report|decide|exit|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const toPosix = (p) => p.split('\\').join('/');
-const wfRel = (slug) => `.ai/workflows/${slug}`;
+const wfRel = workflowRel;
 
 function writeAtomic(file, text) {
   mkdirSync(dirname(file), { recursive: true });
@@ -111,7 +112,7 @@ const saveLedger = (wt, slug, ledger) => writeAtomic(ledgerPath(wt, slug), `${JS
 const INDEX_HEADER = '# .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
 
 function indexRow(main, slug) {
-  const p = join(main, '.ai', 'workflows', 'INDEX.md');
+  const p = join(workflowsRoot(main), 'INDEX.md');
   if (!existsSync(p)) return null;
   for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
     const cols = line.split('\t');
@@ -122,7 +123,7 @@ function indexRow(main, slug) {
 
 /** Add or replace the prototype's row in the main checkout's INDEX.md, so /wf status finds the worktree. */
 function upsertIndexRow(main, { slug, status, branch, at }) {
-  const p = join(main, '.ai', 'workflows', 'INDEX.md');
+  const p = join(workflowsRoot(main), 'INDEX.md');
   const lines = existsSync(p) ? readFileSync(p, 'utf8').split(/\r?\n/).filter((l) => l.length) : [INDEX_HEADER];
   const header = lines.filter((l) => l.startsWith('#'));
   const rows = lines.filter((l) => !l.startsWith('#') && l.split('\t')[0] !== slug);
@@ -211,7 +212,7 @@ function start(root, slug, f) {
   const top = git(root, ['rev-parse', '--show-toplevel']);
   if (!top.ok) throw new Error('not a git repository: a prototype runs in a worktree on its own branch');
   const main = mainCheckout(resolve(top.out));
-  if (existsSync(join(main, wfRel(slug), '00-index.md'))) throw new Error(`.ai/workflows/${slug} exists in the main checkout: pick another slug`);
+  if (existsSync(join(main, wfRel(slug), '00-index.md'))) throw new Error(`${workflowRel(slug)} exists in the main checkout: pick another slug`);
   const existing = locate(main, slug);
   if (existing) return { ok: true, resumed: true, slug, worktree: existing, ...summary(existing, slug) };
 

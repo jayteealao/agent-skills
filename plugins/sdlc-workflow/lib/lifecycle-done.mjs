@@ -20,6 +20,7 @@ import { join } from 'node:path';
 import { missingBoardFiles } from './design-boards.mjs';
 import { designNeeded, designSettled } from './design-lane.mjs';
 import { safeParseFrontmatter } from './frontmatter.mjs';
+import { workflowDir } from './records-root.mjs';
 
 /** The change modes: one slice, un-suffixed stage files. */
 export const CHANGE_MODES = Object.freeze(['fix', 'hotfix', 'refactor']);
@@ -151,7 +152,7 @@ export function readRoster(workflowDir) {
 
 /** Read the disk and judge. `root` is the project root; `slug` the workflow. */
 export function lifecycleDone(root, slug) {
-  const dir = join(root, '.ai', 'workflows', slug);
+  const dir = workflowDir(root, slug);
   const read = (name) => {
     const f = join(dir, name);
     if (!existsSync(f)) return null;

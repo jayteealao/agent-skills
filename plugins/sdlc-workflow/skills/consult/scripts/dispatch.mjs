@@ -50,6 +50,7 @@ import {
   userCodexHome,
 } from './isolate.mjs';
 import { appendCostRow, CLAUDE_USAGE_FIELDS, CODEX_USAGE_FIELDS } from '../../../lib/cost-ledger.mjs';
+import { workflowDir } from '../../../lib/records-root.mjs';
 
 // ── configuration (NOT user-facing flags, D15) ──────────────────────────────
 // Default reasoning models for the REST oracles. To pin a specific model use the
@@ -541,7 +542,7 @@ async function main() {
   // cost.jsonl. No slug → no row; a write failure never fails the consult.
   const row = externalCostRow(results, { slug: process.env.SDLC_COST_SLUG || null, key: process.env.SDLC_COST_KEY || null });
   if (row) {
-    try { appendCostRow(join(repoRoot, '.ai', 'workflows', row.slug), row); } catch (err) { process.stderr.write(`cost ledger skipped: ${String(err?.message || err)}\n`); }
+    try { appendCostRow(workflowDir(repoRoot, row.slug), row); } catch (err) { process.stderr.write(`cost ledger skipped: ${String(err?.message || err)}\n`); }
   }
   process.stdout.write(`${JSON.stringify({ results, skipped, bare }, null, 2)}\n`);
   process.exit(0);

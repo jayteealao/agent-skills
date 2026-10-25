@@ -32,12 +32,13 @@ import {
   SPEC_FILE, buildDigest, commandFiles, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   nextAction, parseMetricLine, parseSpec, pathViolations, pickWinner, branchNameOf,
 } from '../lib/optimize.mjs';
+import { workflowDir } from '../lib/records-root.mjs';
 
 const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|checkpoint|finish|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
-const wfDir = (root, slug) => join(root, '.ai', 'workflows', slug);
+const wfDir = workflowDir;
 const optDir = (root, slug) => join(wfDir(root, slug), 'optimize');
 const statePath = (root, slug) => join(optDir(root, slug), 'state.json');
 const resultsPath = (root, slug) => join(optDir(root, slug), 'results.jsonl');

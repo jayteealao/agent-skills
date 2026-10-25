@@ -3,6 +3,7 @@ import { readdir, realpath, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import { EVIDENCE_DIRS, SOURCE_DIRS, WORK_DIR } from './hook-utils.mjs';
+import { workflowsRoot } from './records-root.mjs';
 
 // Wider than the schema's `status` enum (active/complete/closed) on purpose —
 // tolerates legacy or hand-edited 00-index.md files using `completed`,
@@ -15,9 +16,7 @@ export const TERMINAL_WORKFLOW_STATUSES = new Set([
   'cancelled',
 ]);
 
-export function workflowsRootFor(projectRoot) {
-  return join(projectRoot, '.ai', 'workflows');
-}
+export const workflowsRootFor = workflowsRoot;
 
 // 00-index.md frontmatter carries `branch: ""` / `base-branch: ""` when
 // `branch-strategy: none` (verified in live repos — Aperture), and `pr-number: 0`

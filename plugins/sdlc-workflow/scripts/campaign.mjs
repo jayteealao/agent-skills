@@ -37,15 +37,16 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
+import { workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 
 const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-const sourceDir = (root, src) => join(root, '.ai', 'workflows', src);
+const sourceDir = workflowDir;
 const workDir = (root, src) => join(sourceDir(root, src), 'work');
 const oldCampDir = (root, src) => join(workDir(root, src), 'campaign');
 const archivedCampDir = (root, src) => join(workDir(root, src), 'archive', 'campaign');
-const wfDir = (root, slug) => join(root, '.ai', 'workflows', slug);
+const wfDir = workflowDir;
 const posix = (p) => String(p).split('\\').join('/');
 
 function readJson(file) {
@@ -300,13 +301,13 @@ function routeOf(src, packet) {
     case 'discover': return `/wf intake discover ${slug}`;
     case 'rca': return `/wf intake rca ${slug}`;
     case 'task': return `/wf intake task ${slug}`;
-    default: return `/wf intake .ai/workflows/${src}/work/${packet.file}`;
+    default: return `/wf intake ${workflowRel(src)}/work/${packet.file}`;
   }
 }
 
 function statusCmd(root, src) {
   const dir = sourceDir(root, src);
-  if (!existsSync(dir)) return { ok: false, error: `no source folder .ai/workflows/${src}` };
+  if (!existsSync(dir)) return { ok: false, error: `no source folder ${workflowRel(src)}` };
   const { index, packets } = readList(root, src);
   const oldLedger = existsSync(join(oldCampDir(root, src), 'ledger.json'));
   if (oldLedger && index?.type !== 'list') {
@@ -343,7 +344,7 @@ function statusCmd(root, src) {
 // ---------------------------------------------------------------- open (section 5)
 
 function indexRow(root, slug, branch) {
-  const file = join(root, '.ai', 'workflows', 'INDEX.md');
+  const file = join(workflowsRoot(root), 'INDEX.md');
   const header = '# .ai/workflows/INDEX.md — global workflow registry. Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
   const lines = existsSync(file) ? readFileSync(file, 'utf8').split(/\r?\n/).filter((l, i, a) => l || i < a.length - 1) : [header];
   if (lines.some((l) => l.split('\t')[0] === slug)) return false;
@@ -373,7 +374,7 @@ function sectionText(text, heading) {
 /** The files of a fresh packet folder (section 5), from the packet file and the list index. */
 export function packetFolderFiles({ src, packet, packetText, list, trunk, now }) {
   const slug = packet['packet-slug'];
-  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
+  const originPacket = `${workflowRel(src)}/work/${packet.file}`;
   const decisions = packet['carried-decisions'] ?? [];
   const boardFile = list?.board ?? DEFAULT_FILES.board;
   const goal = sectionText(packetText, 'Goal');
@@ -430,7 +431,7 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
       ship: 'not-started', retro: 'not-started',
     },
   };
-  const cite = (d) => `source: .ai/workflows/${src}/${boardFile}#${d.key}`;
+  const cite = (d) => `source: ${workflowRel(src)}/${boardFile}#${d.key}`;
   const intake = [
     '---',
     dump({
@@ -500,7 +501,7 @@ function openCmd(root, src, [key], f) {
   const slug = packet['packet-slug'];
   const dir = wfDir(root, slug);
   const trunk = trunkOf(root, f);
-  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
+  const originPacket = `${workflowRel(src)}/work/${packet.file}`;
   if (existsSync(join(dir, '00-index.md'))) {
     // A prepared unit of the old campaign (Secbot): its intake and shape stay; the packet adopts the folder (12.4).
     setFields(join(dir, '00-index.md'), {
@@ -708,7 +709,7 @@ function sliceOrder(root, slug, [action], f) {
   const s = String(f.slice ?? '').trim();
   const t = String(f.after ?? '').trim();
   if (!s || !t || s === t) throw new Error('slice-order add: give --slice <slice> --after <another slice>');
-  const dir = join(root, '.ai', 'workflows', slug);
+  const dir = workflowDir(root, slug);
   const rosterFile = join(dir, '03-slice.md');
   if (!existsSync(rosterFile)) return { ok: false, error: `slice-order: ${relative(root, rosterFile)} does not exist` };
   const text = readFileSync(rosterFile, 'utf8');
@@ -871,7 +872,7 @@ function journalAgeMs(root, src, ledger = null) {
     if (!started.has(u.wave)) continue;
     const slug = u.slug ?? u['work-slug'];
     if (!slug) continue;
-    for (const base of [root, u.worktree?.path].filter(Boolean)) seen(join(base, '.ai', 'workflows', slug, '.driver-journal.jsonl'));
+    for (const base of [root, u.worktree?.path].filter(Boolean)) seen(join(workflowDir(base, slug), '.driver-journal.jsonl'));
   }
   return newest ? Date.now() - newest : Infinity;
 }
@@ -936,7 +937,7 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
     return { path: w.path, branch: w.branch ?? null, detached: Boolean(w.detached), old: true, inflight: inflightPaths.has(posix(resolve(w.path)).toLowerCase()) };
   });
   const strays = [];
-  const wfRoot = join(root, '.ai', 'workflows');
+  const wfRoot = workflowsRoot(root);
   try { for (const name of readdirSync(wfRoot)) if (STRAY_RE.test(name)) strays.push(name); } catch { /* none */ }
   return {
     ok: true, source: src, trunk, records: ledger.records ?? null, live, ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60_000) : null,
@@ -963,7 +964,7 @@ function renderMigration(rep) {
   L.push('', '## Units not started (the regroup)', '', ...(rep.notStarted.length ? rep.notStarted.map((u) => `- \`${u.key}\` (${u.state}${u.prepared ? ', has intake and shape' : ''}${u.designSettled ? ', design settled' : ''})`) : ['- None.']), '');
   L.push('## Worktrees', '');
   for (const w of rep.worktrees) L.push(`- \`${posix(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : '(detached)'}: ${!w.old ? 'not an old campaign worktree; untouched' : w.inflight ? 'an in-flight unit; removed at its packet done' : 'removed at migrate finish, with the guarded remove'}`);
-  L.push('', '## Stray folders', '', ...(rep.strays.length ? rep.strays.map((s) => `- \`.ai/workflows/${s}/\` moves to \`work/archive/stray/\``) : ['- None.']), '');
+  L.push('', '## Stray folders', '', ...(rep.strays.length ? rep.strays.map((s) => `- \`${workflowRel(s)}/\` moves to \`work/archive/stray/\``) : ['- None.']), '');
   return L.join('\n');
 }
 
@@ -981,7 +982,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   if (rep.blocked.length) return { ok: false, error: 'the trunk does not hold the earlier waves of an in-flight unit. Merge the open wave PRs first.', blocked: rep.blocked };
   const ledger = readJson(join(oldCampDir(root, src), 'ledger.json'));
   const { path: boardPath, board } = boardOf(root, src);
-  if (!board) return { ok: false, error: `no board in .ai/workflows/${src}` };
+  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}` };
 
   // Step 4: the records of each in-flight worktree come home (local records only).
   const records = [];
@@ -1051,7 +1052,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
     if (!existsSync(idx)) { indexes.push({ slug: p.slug, error: 'no 00-index.md in the main checkout after the records sync' }); continue; }
     const lead = order.find((w) => w.slug === p.slug);
     setFields(idx, {
-      'origin-packet': `.ai/workflows/${src}/work/${p.slug}.md`, branch: listBranch(src), 'base-branch': rep.trunk, 'branch-strategy': 'dedicated',
+      'origin-packet': `${workflowRel(src)}/work/${p.slug}.md`, branch: listBranch(src), 'base-branch': rep.trunk, 'branch-strategy': 'dedicated',
       'workflow-type': 'feature', 'review-scope': 'slug-wide', 'review-scope-confirmed': true,
       'migrated-from': p.branch, ...(p.waveBase ? { 'wave-base': p.waveBase } : {}), land: p.land, 'updated-at': nowIso(),
       ...(lead ? { 'origin-items': [...new Set(lead.items ?? [])] } : {}),
@@ -1075,7 +1076,7 @@ export function migrateFinish(root, src) {
     moved.push('work/campaign → work/archive/campaign');
   }
   const strays = [];
-  const wfRoot = join(root, '.ai', 'workflows');
+  const wfRoot = workflowsRoot(root);
   try {
     for (const name of readdirSync(wfRoot)) {
       if (!STRAY_RE.test(name)) continue;
@@ -1084,7 +1085,7 @@ export function migrateFinish(root, src) {
       const tracked = git(root, ['ls-files', '--', posix(relative(root, join(wfRoot, name)))]).stdout;
       if (tracked) git(root, ['mv', posix(relative(root, join(wfRoot, name))), posix(relative(root, dest))]);
       else renameSync(join(wfRoot, name), dest);
-      strays.push({ from: `.ai/workflows/${name}`, to: posix(relative(root, dest)) });
+      strays.push({ from: workflowRel(name), to: posix(relative(root, dest)) });
     }
   } catch { /* none */ }
   // The worktree of an in-flight packet stays until its packet is done, unless the regroup dropped the packet.

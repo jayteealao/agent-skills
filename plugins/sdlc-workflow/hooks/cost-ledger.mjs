@@ -40,6 +40,7 @@ import { readStdinJson } from '../lib/stdin.mjs';
 import { projectRootFromInput } from '../lib/hook-utils.mjs';
 import { sdlcHomeDir } from '../lib/home.mjs';
 import { appendCostRow, collectTurn, readCursor, writeCursor } from '../lib/cost-ledger.mjs';
+import { WORKFLOWS_REL, workflowsRoot } from '../lib/records-root.mjs';
 
 /** `--plugin-root X --plugin-data Y` (the Codex wiring); absent under Claude Code. */
 export function parseHookArgs(argv = process.argv.slice(2)) {
@@ -99,11 +100,11 @@ export async function runCostLedger({ input, cursorDir, env = process.env, now =
   // the main checkout only: a row in a worktree would leave an untracked file
   // that makes `git worktree remove` refuse. A slug with no folder in the main
   // checkout goes back to the turn.
-  const mainRoot = resolve(projectRoot, '.ai', 'workflows');
+  const mainRoot = workflowsRoot(resolve(projectRoot));
   const [own, ...others] = turn.groups ?? [{ attributed: turn.attributed, main: turn.main, subagents: turn.subagents }];
   const ownDir = (a) => {
     if (!a?.slug) return null;
-    const root = a.root && isAbsolute(a.root) ? a.root : resolve(projectRoot, a.root ?? join('.ai', 'workflows'));
+    const root = a.root && isAbsolute(a.root) ? a.root : resolve(projectRoot, a.root ?? WORKFLOWS_REL);
     return join(root, a.slug);
   };
   const byDir = new Map();

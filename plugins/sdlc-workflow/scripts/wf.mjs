@@ -87,6 +87,7 @@ import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox }
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
+import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -96,7 +97,7 @@ const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-const wfRoot = (root) => join(root, '.ai', 'workflows');
+const wfRoot = workflowsRoot;
 const out = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
 function flags(argv) {
@@ -321,7 +322,7 @@ export async function reconcileIndex(root, { write = true } = {}) {
     if (rows.has(slug)) continue;
     const [, , type, branch] = line.split('\t');
     const tree = type === 'prototype' && branch ? trees.get(branch) : null;
-    const fm = tree ? frontmatterOf(join(tree, '.ai', 'workflows', slug, '00-index.md')) : null;
+    const fm = tree ? frontmatterOf(join(workflowDir(tree, slug), '00-index.md')) : null;
     if (fm) rows.set(slug, rowOf(fm, slug));
   }
   const sorted = [...rows.keys()].sort((a, b) => a.localeCompare(b));
