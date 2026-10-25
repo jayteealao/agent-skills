@@ -4,6 +4,8 @@ The records of a workflow are YAML files in `.ai/workflows/<slug>/`, and scripts
 
 In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>` is the project root. Run `<wf> help <command>` for the forms and the flags of a command. Do not read the source of `wf.mjs` to learn them.
 
+The path of `<skill-dir>` carries the plugin version, and an update removes it. A command that you save for a later session (a resume command, a command in a note or a record) names the stable entry point `node "$HOME/.sdlc/bin/wf.mjs"` when that file exists. Each session start points it at the installed plugin.
+
 ## Record names
 
 A record has the name of its old Markdown file. Every command and every stage reference uses that name. The table gives the file that holds each record.

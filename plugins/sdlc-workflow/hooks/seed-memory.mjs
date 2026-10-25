@@ -23,14 +23,24 @@ import { logError } from '../lib/error-log.mjs';
 import { outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
 import { seedMemoryKernel } from '../lib/memory-seed.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
+import { writeShim } from '../lib/wf-shim.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ON_CODEX = process.env.SDLC_HOST === 'codex';
+const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
   // A dispatched read-only sub-agent (consult skill) boots a session in this repo
   // and must not seed. Same isolation sentinel machine-cleanup honors.
   if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
+  // The stable entry point ~/.sdlc/bin/wf.mjs follows the plugin of this session.
+  try {
+    const version = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf8')).version ?? null;
+    writeShim(PLUGIN_ROOT, { version, host: process.env.SDLC_HOST || 'claude' });
+  } catch { /* the shim never blocks a session start */ }
   if (process.env.SDLC_DISABLE_MEMORY_SEED === '1') return;
 
   const input = await readStdinJson();

@@ -32,6 +32,7 @@ import { basename, dirname, join } from 'node:path';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { validateFrontmatter, formatValidationErrors } from './schema-validator.mjs';
 import { parse, stringify } from './yaml.mjs';
+import { undoGitBashPath } from './msys.mjs';
 
 export const RECORD_SCHEMA = 'sdlc/v2';
 export const STATE_FILE = 'state.yaml';
@@ -151,6 +152,11 @@ function readOld(dir, name) {
  * null when neither layout has it. The new layout wins.
  */
 export function readDoc(dir, name, opts = {}) {
+  const doc = readDocRaw(dir, name, opts);
+  return doc?.frontmatter ? { ...doc, frontmatter: repairCommands(doc.frontmatter) } : doc;
+}
+
+function readDocRaw(dir, name, opts = {}) {
   const n = basename(name);
   if (n === INDEX_NAME) return readIndex(dir);
   const loc = locate(n, { slices: opts.slices ?? (/^07-review-/.test(n) ? slicesOfDir(dir) : []) });
@@ -204,8 +210,24 @@ function writeIndex(dir, frontmatter, body) {
   writeYaml(join(dir, META_FILE), { schema: RECORD_SCHEMA, type: 'meta', ...indexType, ...cold, slug, ...(body && body.trim() ? { body } : {}) });
 }
 
+// The fields that hold a command. Git Bash turns `/wf ship x` into `C:/Program Files/Git/wf
+// ship x` on the way in; each write stores the value with the Git install path taken off.
+export const COMMAND_FIELDS = ['next-invocation', 'recommended-next-invocation', 'resume', 'resume-command'];
+
+/** The frontmatter with each command field repaired (lib/msys.mjs). */
+export function repairCommands(frontmatter) {
+  if (!frontmatter || typeof frontmatter !== 'object') return frontmatter;
+  let out = frontmatter;
+  for (const k of COMMAND_FIELDS) {
+    const { value, repaired } = undoGitBashPath(frontmatter[k]);
+    if (repaired) out = { ...out, [k]: value };
+  }
+  return out;
+}
+
 /** Write one record into the new layout, by its file name of the old layout. Returns its place. */
-export function writeDoc(dir, name, { frontmatter, body = '' }, opts = {}) {
+export function writeDoc(dir, name, { frontmatter: rawFrontmatter, body = '' }, opts = {}) {
+  const frontmatter = repairCommands(rawFrontmatter);
   const n = basename(name);
   // A body ends with one newline: trailing blank lines carry nothing, and the YAML of the
   // last block of a file would not keep them.

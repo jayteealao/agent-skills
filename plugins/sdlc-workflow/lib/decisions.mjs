@@ -116,7 +116,9 @@ export function dropAnswered(list, questions, query = {}) {
 export function appendEntry(list, input, { now = nowIso() } = {}) {
   const kind = input.kind ?? 'answer';
   const by = input.by ?? 'person';
-  if (!KINDS.includes(kind)) throw new Error(`kind must be one of ${KINDS.join(', ')}`);
+  if (!KINDS.includes(kind)) {
+    throw new Error(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`);
+  }
   if (!BY.includes(by)) throw new Error(`by must be one of ${BY.join(', ')}`);
   if (input.answer == null || String(input.answer).trim() === '') throw new Error('an answer is required');
   if (kind !== 'steer' && !input.key) throw new Error(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`);

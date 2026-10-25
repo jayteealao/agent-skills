@@ -172,6 +172,14 @@ export function installBridges(pi: ExtensionAPI, pluginRoot: string) {
   pi.on("session_start", async (_event, ctx) => {
     for (const u of unsubscribe) u();
     unsubscribe = [pi.events.on("subagents:completed", stop), pi.events.on("subagents:failed", stop)];
+    // The stable entry point ~/.sdlc/bin/wf.mjs follows the plugin of this session. The seed-memory
+    // hook writes it; the memory seed itself is off on pi.
+    spawnSync("node", [join(pluginRoot, "hooks", "seed-memory.mjs")], {
+      input: "{}",
+      timeout: HOOK_TIMEOUT_MS,
+      windowsHide: true,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, SDLC_HOST: "pi", SDLC_DISABLE_MEMORY_SEED: "1" },
+    });
     // pi-code reads the skills from the Claude Code plugin cache: its version must be this package's.
     const version = packageVersion();
     const cached = cachedPluginVersions();

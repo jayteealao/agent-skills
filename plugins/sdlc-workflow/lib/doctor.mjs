@@ -24,6 +24,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { sdlcHomeDir } from './home.mjs';
 import { MARKER, STATE_ENTRIES } from './machine-cleanup.mjs';
 import { taskStatus } from './design-server.mjs';
+import { readShimCurrent, shimProblems } from './wf-shim.mjs';
 
 export const PLUGIN_NAME = 'sdlc-workflow';
 export const MARKETPLACE = 'agent-skills-marketplace';
@@ -247,6 +248,7 @@ export async function runDoctor({
     hosts: { claude, codex, codexConfig: codexRead.config, pi, piReplaced },
     cleanup: cleanupStatus(sdlcHome),
     designTask: designTask(),
+    shim: { current: readShimCurrent(), problems: shimProblems() },
     verdicts: hostVerdicts,
     ok,
   };
@@ -271,6 +273,7 @@ export function formatDoctorTable(r) {
   }
   if (r.hosts.piReplaced?.length) push('older pi packages', r.hosts.piReplaced.join(', '), 'remove with pi remove');
   push('old hub and tray state', r.cleanup.done ? 'removed' : (r.cleanup.left.length ? r.cleanup.left.join(', ') : 'none'), r.cleanup.left.length ? 'start a session' : '');
+  if (r.shim) push('wf.mjs shim (~/.sdlc/bin)', r.shim.problems.length ? r.shim.problems.join('; ') : `runs ${r.shim.current?.version ?? '?'} (${r.shim.current?.host ?? '?'})`, r.shim.problems.length ? 'start a session' : 'ok');
   const t = r.designTask;
   if (t?.supported) push('design server task', t.installed ? (t.targetExists === false ? 'installed, its script is gone' : 'installed') : 'not installed', t.targetExists === false ? 'run design server install' : '');
   push('verdict', `claude ${r.verdicts.claude} · codex ${r.verdicts.codex} · pi ${r.verdicts.pi ?? 'absent'}`, r.ok ? 'OK' : 'ACTION');

@@ -26,6 +26,7 @@ You are running `/wf implement`, **stage 5 of 9**: 1·intake → 2·design → 3
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
 - Run only the fast and affected suites of the test profile. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time.
 - Done when the code is committed and `05-implement-<slice>.md` has `status: complete`.
+- To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 
 ## Requires
 

@@ -40,10 +40,10 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 
 ## The test receipt
 
-After the final commit, write `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json`:
+After the final commit, run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`. It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
 
 ```json
-{ "sha": "<the final commit sha>", "commands": ["<each test, lint, and type command you ran green on that tree>"], "result": "pass", "at": "<ISO time>" }
+{ "sha": "<the final commit sha>", "commands": ["<each suite command that ran green on that tree>"], "result": "pass", "at": "<ISO time>" }
 ```
 
-Write it only when every command passed on the committed tree. Verify reuses it when no code changed after `sha` ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").
+When it exits 1, a suite failed: fix it in a new step, then run `receipt` again. Do not write the receipt file by hand. Verify reuses it when no code changed after `sha` ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").

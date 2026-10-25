@@ -141,7 +141,13 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 A control word that names no known thread gets the thread names back and changes nothing.
 
 ## 2.4 Update the board
-After every batch, write only what changed to `brainstorm-board.json`: the new and changed items, the area states, one log entry per question, `batches`, and `updated-at`. Add the new items to `01-brainstorm.md` and refresh its frontmatter: get the record, change it, write the draft and put it. Rewrite the document's front at a check-in, and its full record at an area close and at `done`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`.
+After every batch, write only what changed to `brainstorm-board.json`: the new and changed items, the area states, one log entry per question, `batches`, and `updated-at`. Use the board commands for these four edits, and do not write a script for them. Each command checks the whole board against the schema before it writes:
+- Add an item, a thread or an area: `node "<skill-dir>/scripts/wf.mjs" board add "<root>" <slug> <item|thread|area> --file <entries.json>`. Write the file with the file-write tool; it holds one entry or a list.
+- Move items into a thread: `board move "<root>" <slug> <item>... --to <thread>`, or `--new <thread> --name "<name>" --area <area>` for a new thread.
+- Move threads into another area: `board regroup "<root>" <slug> <thread>... --to <area>`.
+- Remove items that nothing names: `board remove "<root>" <slug> <item>...`.
+
+Change any other field of the board with the file-edit tool. Add the new items to `01-brainstorm.md` and refresh its frontmatter: get the record, change it, write the draft and put it. Rewrite the document's front at a check-in, and its full record at an area close and at `done`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`.
 
 ## 2.5 Check in and sum up
 Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. The question text carries everything the person needs to answer it, per [_gate-question.md](../_gate-question.md): the host can hide the chat text before a question. A check-in has three parts:

@@ -29,6 +29,10 @@
  *       JSON.stringify; the agent adds only what it alone knows, as flags. `at` is the
  *       clock now. Every line goes out through JSON.stringify, so a path with
  *       backslashes always parses.
+ *   node yolo-watch.mjs stop-check <projectRoot> <slug>
+ *       Print the stop request of the workflow as JSON: whether a stop is asked, and where.
+ *   node yolo-watch.mjs help
+ *       Print these forms.
  *
  * S1 Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
  *    protected files every 20 s, the usage readings every 60 s. A poll needs no
@@ -858,7 +862,25 @@ async function watch(root, slugs, flags) {
   }
 }
 
+/** The forms of this script, from its header, so the help never drifts from it. */
+export function watchHelp() {
+  const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+  const head = src.slice(src.indexOf('/**'), src.indexOf('*/')).split(/\r?\n/);
+  const out = [];
+  let inForm = false;
+  for (const line of head) {
+    if (/^ \* {3}node yolo-watch\.mjs/.test(line)) { inForm = true; out.push(line.replace(/^ \* {3}/, '')); continue; }
+    if (inForm && /^ \* {4,}\S/.test(line)) { out.push(line.replace(/^ \* {3}/, '')); continue; }
+    inForm = false;
+  }
+  return out.join('\n');
+}
+
 export async function main(argv = process.argv.slice(2)) {
+  if (!argv.length || argv[0] === 'help' || argv[0] === '--help' || argv[0] === '-h') {
+    process.stdout.write(`${watchHelp()}\n`);
+    return argv.length ? 0 : 2;
+  }
   const { pos, flags } = parseArgs(argv);
   const [first] = pos;
   if (first === 'note') {

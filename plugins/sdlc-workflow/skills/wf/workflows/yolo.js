@@ -1387,7 +1387,7 @@ async function orient() {
     `2. Read the roster from the slices[] of the status output (slice, roster). Run \`${REC('get')} 03-slice.md\` ` +
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
-    `skipped) as slices[].status — capture 'skipped' entries too (the driver skips them itself; dropping them here ` +
+    `skipped | dropped) as slices[].status — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
     `(selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
@@ -2662,7 +2662,7 @@ if (idx.workflowType === 'update-deps') {
   const primary = idx.slices.filter(s => !isSweep(s))
   const sweep = idx.slices.filter(isSweep)
   if (sweep.length) {
-    log(`work ordering: ${primary.filter(s => s.status !== 'skipped').length} slice(s) with real work run first; ${sweep.length} terminal-clean slice(s) whose only residue is an open deferral are re-challenged AFTER the target, as a bounded wall probe rather than a full re-verify`)
+    log(`work ordering: ${primary.filter(s => s.status !== 'skipped' && s.status !== 'dropped').length} slice(s) with real work run first; ${sweep.length} terminal-clean slice(s) whose only residue is an open deferral are re-challenged AFTER the target, as a bounded wall probe rather than a full re-verify`)
   }
 
   // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
@@ -2676,8 +2676,8 @@ if (idx.workflowType === 'update-deps') {
       // An already-skipped roster entry (00-index slices[].status: skipped, with its
       // skip record) has nothing to drive — walking it into verify HARD-STOPs the
       // whole run at a slice a human already retired. Skip it, keep it countable.
-      if (s.status === 'skipped') {
-        log(`slice '${s.slice}' is status: skipped in the roster — skipping (a skip record retires it; nothing to drive)`)
+      if (s.status === 'skipped' || s.status === 'dropped') {
+        log(`slice '${s.slice}' is status: ${s.status} in the roster — skipping (it left the roster; nothing to drive)`)
         results.push({ slice: s.slice, skipped: true, ran: [], stopped: false })
         continue
       }

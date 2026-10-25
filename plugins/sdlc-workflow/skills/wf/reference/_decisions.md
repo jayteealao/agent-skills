@@ -26,6 +26,16 @@ Each entry has these fields:
 
 An entry is live until a later entry supersedes it. A new entry with the same key and the same scope supersedes the old one. An `approval` or a `try-out` supersedes only an entry of its own kind, so an approval of a decision does not replace the decision.
 
+The kind of a common word:
+
+| The word | The kind |
+|---|---|
+| a decision, a choice, an answer, a pick | `answer` |
+| a constraint, a preference, a rule of the person | `steer` |
+| a sign-off, an OK of a decision, approved, rejected | `approval` |
+| a manual check that works or fails | `try-out` |
+| a decision that the run made for the person | `delegate` |
+
 ## The commands
 
 `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.

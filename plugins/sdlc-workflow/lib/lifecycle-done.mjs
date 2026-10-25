@@ -99,7 +99,7 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
     if (awaiting(shape)) return out('blocked', 'the shape phase of intake is awaiting input');
     if (design.needed && !design.settled) return out('blocked', 'the design is not settled: a person confirms it with /wf design <slug>');
   }
-  const slices = (roster ?? []).filter((s) => s && str(s.slug) && str(s.status) !== 'skipped').map((s) => str(s.slug));
+  const slices = (roster ?? []).filter((s) => s && str(s.slug) && str(s.status) !== 'skipped' && str(s.status) !== 'dropped').map((s) => str(s.slug));
   if (!slices.length) {
     return optimize
       ? out('not-met', 'the optimize loop has not finished', { stage: 'optimize', slice: null })

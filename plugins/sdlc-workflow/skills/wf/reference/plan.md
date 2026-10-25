@@ -24,6 +24,7 @@ You are running `/wf plan`, **stage 4 of 9**: 1·intake → 2·design → 3·sli
 - Record each choice that you settle in `## Assumptions`, with the reason.
 - Do not write product code.
 - Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
+- To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 
 ## Requires
 

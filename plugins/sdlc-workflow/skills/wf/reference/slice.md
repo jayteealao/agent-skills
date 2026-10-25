@@ -23,6 +23,7 @@ You are running `/wf slice`, **stage 3 of 9**: 1·intake → 2·design → `3·s
 - Write each acceptance criterion with its verification path: `observable: true|false`, and a `verify:` stub for an observable criterion.
 - Write the per-slice drafts first, then the draft of `03-slice.md`, and put them. Update the index last.
 - Do not plan, design or code.
+- To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 
 ## Requires
 

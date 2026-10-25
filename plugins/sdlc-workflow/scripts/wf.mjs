@@ -7,155 +7,241 @@
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
  *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
  *             no .ai/ folder, so the setup runs before the key.
+ *             Example: wf.mjs dispatch . --host claude -- implement demo api
  *   help     [<command>]
  *             the commands, or the forms and the flags of one command (also <command> --help)
+ *             Example: wf.mjs help record
  *   path     <root> [<slug> [<file>]]
  *             the real place of the records folder, a workflow folder or a file in it: a linked
  *             project keeps them in the records repo clone, and only the drafts stay local
+ *             Example: wf.mjs path . demo verify-evidence/api/run.txt
  *   records  <link|status|sync|push|close> <root> [<project>|<slug>] [--json]
  *             the records repo: link a project (its records move into the clone), show the
  *             clone, pull the work of other machines, push a workflow, squash a closed one
+ *             Example: wf.mjs records status .
  *   lease    <claim|release|show> <root> <slug> [--take] [--json]
  *             the lease of a workflow: the one machine that writes its records now (--take: an
  *             expired lease of another machine, after the person said yes)
+ *             Example: wf.mjs lease claim . demo
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/
+ *             Example: wf.mjs msg post . demo --kind note --text "the API is ready"
  *   design   <init|screen add|explore add|list|tokens|track> <root> ...
  *             the design surface of the repo, .ai/design/: screens, the manifest, the token sheet
  *             and the git rule (lib/design-cli.mjs lists every command)
+ *             Example: wf.mjs design list .
  *   modernize <root> <slug> [--check] [--json]
  *             convert an old workflow: the record files into the YAML layout, and the stages
  *             shape and handoff into intake and ship in the index (--check: only report)
+ *             Example: wf.mjs modernize . demo --check
  *   page     <brief|put|check> <root> <slug> [--json]
  *             the page of a brainstorm: the brief of the page agent, the check and move of its
  *             draft (.draft/page.html → page/index.html), or the check of the page in place
+ *             Example: wf.mjs page check . demo
  *   gh       <flush|status> [<root>] [--json]
  *             the GitHub layer: send the queued issue edits and comments in order, or show what
  *             is queued. Each state change of a workflow queues one progress edit by itself.
+ *             Example: wf.mjs gh status .
  *   setup    <root> [--about "<one line>"] [--ignore] [--json]
  *             the first-run setup: the .ai/ tree, the project line, the merge method and the gaps
  *             of ship (--ignore: add .ai/ to .gitignore, after the person said yes)
+ *             Example: wf.mjs setup . --about "a CLI for photo backups"
  *   close    <root> <slug> [--reason r] [--note n] [--decline]
  *             close a workflow: the close record and the index fields (--decline: record the
  *             person's no to the close question, so it is not asked again)
+ *             Example: wf.mjs close . demo --reason merged
  *   status   <root> [<slug>] [--json]
  *             every workflow with its group and next command; with a slug, its stage files,
  *             slices (with the verify result and the convergence), cost and next routes
+ *             Example: wf.mjs status . demo
  *   status   <root> <slug> --brief [--json]
  *             where the workflow stands, in one block under 2 KB: the stage and the slice, step
  *             n of N, the open questions and deferrals, the last driver run, the next command
+ *             Example: wf.mjs status . demo --brief
  *   index    <root> [--check]
  *             rebuild .ai/workflows/INDEX.md from the 00-index.md files
+ *             Example: wf.mjs index . --check
  *   cost     <root> <slug> [--json]
  *             the sums of the slug's cost.jsonl per key
+ *             Example: wf.mjs cost . demo
  *   stamp    <type> [--slug s] [--slice x]
  *             the frontmatter template of an artifact type, with every required field
+ *             Example: wf.mjs stamp plan --slug demo --slice api
+ *   board    add <root> <slug> <item|thread|area> (--file <entries.json> | --key k [--kind k]
+ *                [--thread t] [--text x] [--why w] [--source s] [--name n] [--area a] [--side s])
+ *             add an item, a thread or an area to the brainstorm board; the file holds one
+ *             entry or a list. The whole board is checked against the schema before the write
+ *             Example: wf.mjs board add . ideas item --key cap-warns --kind decision --thread limits --text "A cap warns." --source person
+ *   board    move <root> <slug> <item>... (--to <thread> | --new <thread> --name n [--area a])
+ *             move items into a thread; --new makes the thread first
+ *             Example: wf.mjs board move . ideas cap-warns cap-per-run --new caps --name "Spending caps" --area cost
+ *   board    regroup <root> <slug> <thread>... --to <area>
+ *             move threads into another area
+ *             Example: wf.mjs board regroup . ideas caps alerts --to cost
+ *   board    remove <root> <slug> <item>...
+ *             remove items that nothing else on the board names (a work packet, a brief, a
+ *             budget, a sketch, a tension, a replaced-by)
+ *             Example: wf.mjs board remove . ideas old-idea
+ *   receipt  <root> <slug> <slice> [--suites a,b] [--json]
+ *             run the suites of the test profile (the implement suites, or --suites) at HEAD,
+ *             and write .test-receipt-<slice>.json only when every suite passed; exit 1 else
+ *             Example: wf.mjs receipt . demo api
+ *   slice    drop <root> <slug> <slice> --reason r [--json]
+ *             drop a slice from the roster: the roster, the slice record and the index say
+ *             dropped, with the reason; its stage records stay
+ *             Example: wf.mjs slice drop . demo docs --reason "the API docs cover it"
+ *   slice    move <root> <slug> <slice> --to <slug> --reason r [--json]
+ *             move a slice to the roster of another workflow: the slice record goes with it,
+ *             and the source says dropped, with moved-to
+ *             Example: wf.mjs slice move . demo ui --to demo-ui --reason "its own PR"
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--json]
+ *             Example: wf.mjs decide add . demo --key db --question "Which database?" --answer postgres
  *   decide   add <root> <slug> --file <answers.json> [--by b] [--stage s] [--json]
  *             record a decision; a live entry with the same key and scope is superseded, and
  *             each record that names it gets superseded-decisions.<old id>: <new id>
+ *             Example: wf.mjs decide add . demo --file .ai/workflows/demo/.draft/answers.json
  *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
  *             the live entries in a scope (--all: every entry)
+ *             Example: wf.mjs decide list . demo --slice api
  *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
  *             exit 0 and the entry when a live entry answers the key, exit 1 when none does
+ *             Example: wf.mjs decide answered . demo --key db
  *   decide   drop <root> <slug> <questions.json> [--packet p] [--slice s] [--json]
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
+ *             Example: wf.mjs decide drop . demo .ai/workflows/demo/.draft/questions.json
  *   decide   import <root> <slug>
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
+ *             Example: wf.mjs decide import . demo
  *   step     start <root> <slug> <slice> <n> [--title t]
+ *             Example: wf.mjs step start . demo api 3 --title "add the route"
  *   step     done <root> <slug> <slice> <n> (--sha s|HEAD | --no-change)
+ *             Example: wf.mjs step done . demo api 3 --sha HEAD
  *   step     stop <root> <slug> <slice> [--reason r] [--kind fail|gate|question]
+ *             Example: wf.mjs step stop . demo api --kind gate --reason "the plan names a manual check"
  *   step     retry <root> <slug> <slice>
+ *             Example: wf.mjs step retry . demo api
  *   step     complete <root> <slug> <slice> [--sha s|HEAD] [--skip n,... --reason r]
  *             record a plan step in steps.jsonl: done needs the step commit or --no-change; a
  *             gate of the plan or a question to the person is a stop of its own kind, and only a
  *             fail counts toward the split question; complete refuses an open step unless --skip
+ *             Example: wf.mjs step complete . demo api --sha HEAD
  *   step     where <root> <slug> [<slice>] [--json]
  *             the done steps of the slice, the step that runs, the next open step, the hard-stops
+ *             Example: wf.mjs step where . demo api
  *   profile  show <root> [--json]
  *             the suites of the test profile with their commands and times
+ *             Example: wf.mjs profile show .
  *   profile  set <root> <suite> --command c --estimate seconds
  *             the command of a suite and the estimate of intake, with no run
+ *             Example: wf.mjs profile set . unit --command "npm test" --estimate 30
  *   profile  record <root> <suite> <seconds>
  *             a real run of a suite: its time replaces the estimate
+ *             Example: wf.mjs profile record . unit 42
  *   profile  run <root> <suite> [--json]
  *             run the command of a suite in the root and record its time; exit 1 when it fails
+ *             Example: wf.mjs profile run . unit
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
+ *             Example: wf.mjs profile timebox . verify
  *   progress set <root> <slug> [--stage s] [--slice x] [--status running|waiting|stopped|done]
  *                [--run id] [--driver d] [--reason r] [--resume cmd]
  *             write progress.json: where a run stands
+ *             Example: wf.mjs progress set . demo --stage implement --slice api --status running
  *   progress show <root> <slug> [--json]
  *             where the run stands, a dead run as stopped, with the ETA of the slice
+ *             Example: wf.mjs progress show . demo
  *   defer    check <root> <slug> [--next <slice>] [--json]
  *             run the clearing-probe of each open deferral; exit 1 when the next slice needs
  *             an open deferral now (a person task)
+ *             Example: wf.mjs defer check . demo --next ui
  *   brief    <root> <slug> <stage> [<slice>] [--json]
  *             the brief of a stage agent: the stage card, the slice and its acceptance criteria,
  *             the plan sections of the stage, and the live decisions in scope
+ *             Example: wf.mjs brief . demo implement api
  *   findings add <root> <slug> <found.json> [--source review|audit|pr-bot] [--slice x]
  *                [--dimensions a,b] [--run id] [--json]
  *             merge the findings of one run into findings.yaml by the merge law
+ *             Example: wf.mjs findings add . demo .ai/workflows/demo/.draft/found.json --source review --slice api
  *   findings list <root> <slug> [--source s] [--slice x] [--open] [--json]
  *             the entries of the ledger (--open: open, deferred and could-not-fix only)
+ *             Example: wf.mjs findings list . demo --open
  *   findings set <root> <slug> <id> <status> [--reason r]
  *             the triage status of one entry
+ *             Example: wf.mjs findings set . demo F-3 fixed --reason "commit 1a2b3c"
  *   findings table|metrics <root> <slug> [--source s] [--slice x] [--json]
  *             the verdict and the findings table, or the metric fields, of a review file
  *             (the source defaults to review, the scope to the whole packet)
+ *             Example: wf.mjs findings table . demo --slice api
  *   findings questions <root> <slug> [--json]
  *             the open findings whose fix changes an acceptance check, as questions
+ *             Example: wf.mjs findings questions . demo
  *   record   put <root> <slug> [<draft>...] [--json]
  *             check each draft (.draft/<old name>.md, or every draft) and write it into its
  *             section of the record files; a draft with errors stays, and exit 1
+ *             Example: wf.mjs record put . demo 04-plan-api.md
  *   record   get <root> <slug> <name|index>... [--fields a,b] [--json]
  *             records by their old file names, as Markdown with frontmatter (either layout);
  *             several names in one call; --fields prints only those frontmatter fields
+ *             Example: wf.mjs record get . demo index 03-slice --fields status,best-first-slice
  *   record   draft <root> <slug> <name|index> [--json]
  *             write one record as its draft (.draft/<old name>.md) to change its body: edit the
  *             draft, then run record put
+ *             Example: wf.mjs record draft . demo 04-plan-api
  *   record   set <root> <slug> <name|index> <path=value>...
  *             merge fields into one record; a value reads as YAML, null deletes the field.
  *             Paths: field=v, a.b=v, list[<slug>].field=v, list[0].field=v, list+=v, list-=v.
  *             A value outside the enum of the schema is refused with the allowed values
+ *             Example: wf.mjs record set . demo 03-slice slices[api].status=in-progress
  *   record   stage-done <root> <slug> <stage> [<slice>] [--next "<invocation>"] [--status s]
  *             the end of a stage in the index: current-stage, progress.<stage>, next-command,
  *             next-invocation (the default route of the stage, or --next) and workflow-files
+ *             Example: wf.mjs record stage-done . demo implement api
  *   record   list|where|migrate <root> <slug> [<old path>]
  *             the records of a workflow; the new place of an old path; move a workflow of
  *             the old layout into the record files, with redirects.yaml
+ *             Example: wf.mjs record list . demo
  *   record   evidence <root> <slug> [--check] [--json]
  *             the size of the evidence; delete the oldest runs over the 200 MB cap (put does
  *             this too), never the newest run (--check: say what it would delete)
+ *             Example: wf.mjs record evidence . demo --check
  *   consent  check|grant|revoke <root> <slug> [--json]
  *             whether the model may start /wf for the workflow (its own consent, or its list's);
  *             grant records it only from the answer event of the person's yes to the consent
  *             question, which the question hook wrote; check exits 1 and prints the question
+ *             Example: wf.mjs consent check . demo
  *   base     check <root> [--base b] [--remote r] [--json]
  *             fetch the base and compare it with the remote one: fast-forward a base that is only
  *             behind; exit 1 when it has diverged (cut no branch from it)
+ *             Example: wf.mjs base check . --base main
  *   worktree add <root> <slug> <name> <commit> [--json]
  *             make a detached copy of the repo at <commit> in .scratch/worktrees/<slug>/<name>/
  *             and print its path; the same copy at the same commit is kept
+ *             Example: wf.mjs worktree add . demo before HEAD~3
  *   worktree remove <root> <slug> [<name>] [--json]
  *             remove the copies of the workflow, or one of them; a copy that holds a link is kept
  *             and reported; exit 1 when a copy stays
+ *             Example: wf.mjs worktree remove . demo
  *   ship     facts <root> [--base b] [--json]
  *             the merge rules of the repo: allowed methods, rulesets, protection, merge queue
+ *             Example: wf.mjs ship facts . --base main
  *   ship     ready <root> [<slug>] [--json]
  *             the gaps before ship that a script sees; with a slug, each gap is a person task of
  *             the workflow; exit 1 when there is a gap
+ *             Example: wf.mjs ship ready . demo
  *   ship     merge <root> <slug> [--pr N] [--print]
  *             merge the PR by the method of the facts, or print the one command when a review
  *             or a merge queue is in the way (exit 3)
+ *             Example: wf.mjs ship merge . demo --print
  *   ship     finish <root> <slug>
  *             after the merge: fast-forward and switch to the base, delete the branch, and mark
  *             the workflow shipped
+ *             Example: wf.mjs ship finish . demo
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
+ *             Example: wf.mjs drive . demo api --time-box 90
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
@@ -190,6 +276,8 @@ import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs,
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { PATH_FORMS, applySet, enumAt, parseSetArg } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
+import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
+import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, gitSteps, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -1022,8 +1110,16 @@ function runConsent(pos, opt) {
     return r.ok ? 0 : 1;
   }
   const r = verb === 'grant' ? grantConsent(projectRoot, slug) : revokeConsent(projectRoot, slug);
-  out(opt.json ? r : r.ok ? `${verb === 'grant' ? 'granted' : 'revoked'}: ${slug}` : `not ${verb === 'grant' ? 'granted' : 'revoked'}: ${r.reason}`);
-  return r.ok ? 0 : 1;
+  if (opt.json) { out(r); return r.ok ? 0 : 1; }
+  if (r.ok) { out(`${verb === 'grant' ? 'granted' : 'revoked'}: ${slug}`); return 0; }
+  // The refusal names the exact question, and the commands that follow the person's answer.
+  const how = r.question ? [
+    `ask the person this exact question with the question tool, so that its answer event is written: ${r.question}`,
+    `record the answer: wf.mjs decide add "${root}" ${slug} --key consent --question "${r.question}" --answer "<the answer>"`,
+    `then run: wf.mjs consent grant "${root}" ${slug}`,
+  ] : [];
+  out([`not ${verb === 'grant' ? 'granted' : 'revoked'}: ${r.reason}`, ...how].join('\n'));
+  return 1;
 }
 
 // ---------------------------------------------------------------- base, ship
@@ -1264,7 +1360,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'stage-done', 'migrate'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -1290,6 +1386,32 @@ function runGh(pos, opt) {
     return 0;
   }
   throw new Error('gh: <flush|status> is required');
+}
+
+// Commands that run but have no help block: none today. A command must have a help block, so
+// `describe` and the unknown-command rule see it.
+const HIDDEN_COMMANDS = new Set();
+
+/**
+ * The first words (the forms) of a command whose blocks start with a form, such as `record put`
+ * or `lease <claim|release|show>`, or null for a command whose first argument is the root.
+ * `design` lists its own forms (lib/design-cli.mjs).
+ */
+export function formsOf(cmd) {
+  if (cmd === 'design') return null;
+  const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+  const head = src.slice(src.indexOf('/**'), src.indexOf('*/'));
+  const verbs = new Set();
+  let blocks = 0;
+  for (const m of head.matchAll(/^ \* {3}(\S+)\s+(\S+)/gm)) {
+    if (m[1] !== cmd) continue;
+    blocks += 1;
+    const t = m[2];
+    const list = /^<([a-z][a-z |-]*\|[a-z |-]*)>$/.exec(t)?.[1] ?? (/^[a-z][a-z|-]*$/.test(t) ? t : null);
+    if (!list) return null;
+    for (const v of list.split('|')) verbs.add(v.trim().split(' ')[0]);
+  }
+  return blocks ? verbs : null;
 }
 
 // The forms of each command, from the header of this file, so the help never drifts from it.
@@ -1323,15 +1445,25 @@ function guardPipe() {
 
 export async function main(argv = process.argv.slice(2)) {
   guardPipe();
-  // `help [cmd]`, `--help` and `<cmd> --help` print the forms and exit 0.
-  if (argv[0] === 'help' || argv[0] === '--help' || argv[0] === '-h' || argv.includes('--help')) {
+  // A bare call, `help [cmd]`, `--help`, `<cmd> help` and `<cmd> --help` print the forms and exit 0.
+  if (!argv.length) { out(helpText()); return 0; }
+  if (argv[0] === 'help' || argv[0] === '--help' || argv[0] === '-h' || argv.includes('--help') || (argv[1] === 'help' && argv.length === 2)) {
     const want = argv[0] === 'help' ? argv[1] : argv[0]?.startsWith('-') ? undefined : argv[0];
     const text = helpText(want);
     if (text === null) { process.stderr.write(`wf.mjs: no command ${want}\n${helpText()}\n`); return 2; }
     out(text);
     return 0;
   }
+  // An unknown command or form exits 2 with the forms of the command, each with its example.
+  // It names no near match: the forms are the answer.
   const [cmd, ...rest] = argv;
+  const known = helpText(cmd);
+  if (known === null && !HIDDEN_COMMANDS.has(cmd)) { process.stderr.write(`wf.mjs: no command ${cmd}\n${helpText()}\n`); return 2; }
+  const verbs = formsOf(cmd);
+  if (verbs && (!rest.length || (!rest[0].startsWith('-') && !verbs.has(rest[0])))) {
+    process.stderr.write(`wf.mjs: ${rest.length ? `${cmd} has no form ${rest[0]}` : `${cmd} needs a form`}. Its forms:\n${known}\n`);
+    return 2;
+  }
   const { pos, opt } = flags(rest);
   const code = await runMain(cmd, pos, opt);
   const target = code === 0 ? changed(cmd, pos, opt) : null;
@@ -1464,6 +1596,84 @@ async function runMain(cmd, pos, opt) {
         // A draft stays in the local folder; every other file of a workflow is in its records folder.
         const local = slug && file ? join(localWorkflowsRoot(projectRoot), slug, file) : null;
         out(!slug ? wfRoot(projectRoot) : !file ? workflowDir(projectRoot, slug) : recordPathOf(projectRoot, local));
+        return 0;
+      }
+      case 'board': {
+        const [verb, root, slug, ...keys] = pos;
+        if (!['add', 'move', 'regroup', 'remove'].includes(verb) || !root || !slug) throw new Error('board: <add|move|regroup|remove> <root> <slug> are required');
+        const dir = join(wfRoot(resolve(root)), slug);
+        if (!existsSync(dir)) throw new Error(`board: no workflow folder ${dir}`);
+        const file = opt.board ?? null;
+        let r;
+        if (verb === 'add') {
+          const [kind] = keys;
+          if (!kind) throw new Error(`board add: <${BOARD_KINDS.join('|')}> is required`);
+          // A file holds one entry or a list; flags hold one entry. A file avoids the quoting of a shell.
+          const entries = opt.file
+            ? JSON.parse(readFileSync(resolve(opt.file), 'utf8'))
+            : Object.fromEntries(['key', 'kind', 'thread', 'text', 'why', 'source', 'name', 'area', 'side', 'state'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
+          r = boardAdd(dir, kind, entries, { file });
+        } else if (verb === 'move') {
+          if (!keys.length) throw new Error('board move: <item>... are required');
+          if (!opt.to && !opt.new) throw new Error('board move: --to <thread>, or --new <thread> --name n [--area a], is required');
+          r = boardMove(dir, keys, opt.to ?? null, { newThread: opt.new ? { key: opt.new, name: opt.name, area: opt.area } : null, file });
+        } else if (verb === 'regroup') {
+          if (!keys.length || !opt.to) throw new Error('board regroup: <thread>... --to <area> are required');
+          r = boardRegroup(dir, keys, opt.to, { file });
+        } else {
+          if (!keys.length) throw new Error('board remove: <item>... are required');
+          r = boardRemove(dir, keys, { file });
+        }
+        out(opt.json ? r : `${verb}: ${JSON.stringify(r)}`);
+        return 0;
+      }
+      case 'receipt': {
+        // Run the suites of the slice at HEAD; a receipt is written only when every suite passed.
+        const [root, slug, slice] = pos;
+        if (!root || !slug || !slice) throw new Error('receipt: <root> <slug> <slice> are required');
+        const projectRoot = resolve(root);
+        const dir = join(wfRoot(projectRoot), slug);
+        if (!existsSync(dir)) throw new Error(`receipt: no workflow folder ${dir}`);
+        const g = (args) => spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8', windowsHide: true });
+        const head = g(['rev-parse', 'HEAD']);
+        if (head.status !== 0) throw new Error(`receipt: ${projectRoot} has no commit`);
+        if (g(['diff', '--quiet', 'HEAD', '--', '.', ':!.ai']).status !== 0) {
+          throw new Error('receipt: the tree has code changes that HEAD lacks; commit them first, so the receipt names the tree that ran');
+        }
+        const profile = readProfile(projectRoot);
+        const names = opt.suites ? String(opt.suites).split(',').map((s) => s.trim()).filter(Boolean) : STAGE_SUITES.implement.filter((s) => profile[s]?.command);
+        if (!names.length) throw new Error('receipt: the test profile has no suite for implement; set one with profile set');
+        const runs = [];
+        for (const name of names) {
+          const suite = profile[name];
+          if (!suite?.command) throw new Error(`receipt: the test profile has no command for the ${name} suite`);
+          const t0 = Date.now();
+          const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
+          const seconds = Math.round((Date.now() - t0) / 100) / 10;
+          if (!r.error) recordRun(projectRoot, name, seconds);
+          runs.push({ suite: name, command: suite.command, pass: r.status === 0, seconds });
+          if (r.status !== 0) break;
+        }
+        const pass = runs.length === names.length && runs.every((r) => r.pass);
+        const file = join(dir, `.test-receipt-${slice}.json`);
+        const receipt = { sha: head.stdout.trim(), commands: runs.map((r) => r.command), result: 'pass', at: nowIso() };
+        if (pass) writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
+        out(opt.json ? { pass, runs, receipt: pass ? file : null } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}` : `no receipt: ${runs.find((r) => !r.pass)?.suite} failed`);
+        return pass ? 0 : 1;
+      }
+      case 'slice': {
+        const [verb, root, slug, slice] = pos;
+        if (!['drop', 'move'].includes(verb) || !root || !slug || !slice) throw new Error('slice: <drop|move> <root> <slug> <slice> are required');
+        const projectRoot = resolve(root);
+        const dir = join(wfRoot(projectRoot), slug);
+        if (!existsSync(dir)) throw new Error(`slice: no workflow folder ${dir}`);
+        const r = verb === 'drop'
+          ? dropSlice(dir, slice, { reason: opt.reason })
+          : moveSlice(dir, join(wfRoot(projectRoot), String(opt.to ?? '')), slice, { fromSlug: slug, toSlug: opt.to, reason: opt.reason });
+        // The target of a move commits as its own change; main() commits the source.
+        if (verb === 'move') afterChange(projectRoot, opt.to, { label: `${opt.to}: slice move ${slice} from ${slug}` });
+        await reconcileIndex(projectRoot);
+        out(opt.json ? r : verb === 'drop' ? `dropped ${slice} from ${slug}` : `moved ${slice} from ${slug} to ${r.to}`);
         return 0;
       }
       case 'brief': {

@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import { readSteps, whereOf } from './steps.mjs';
 import { workflowsRoot } from './records-root.mjs';
+import { undoGitBashPath } from './msys.mjs';
 
 export const PROGRESS_FILE = 'progress.json';
 export const STATUSES = ['running', 'waiting', 'stopped', 'done'];
@@ -32,6 +33,7 @@ export function writeProgress(slugDir, change, { now = nowIso() } = {}) {
   // `complete` is the word of the stage records; the run record says `done`.
   if (change.status === 'complete' || change.status === 'completed') change = { ...change, status: 'done' };
   if (change.status && !STATUSES.includes(change.status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
+  if (typeof change.resume === 'string') change = { ...change, resume: undoGitBashPath(change.resume).value };
   const old = readProgress(slugDir) ?? {};
   const fresh = change.run && change.run !== old.run;
   const base = fresh ? {} : old;
@@ -99,7 +101,7 @@ export function etaSeconds(slugDir, slice) {
 
 /** The default resume command of a run. */
 export function resumeOf(p, slug) {
-  if (p?.resume) return p.resume;
+  if (p?.resume) return undoGitBashPath(p.resume).value;
   if (p?.driver === 'yolo') return `/wf yolo ${slug}`;
   return `/wf ${slug}`;
 }

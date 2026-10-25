@@ -3,7 +3,7 @@
 // with the saved outcome of the last driver run.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -118,5 +118,84 @@ test('status --brief prints the stage, the questions, the slices and the last ru
     assert.match(r.stdout, /last run: yolo r1 stopped: a gate; resume: \/wf yolo demo/);
     const j = JSON.parse(run(['status', f.root, 'demo', '--brief', '--json']).stdout);
     assert.deepEqual(j.slices[0], { slice: 'api', roster: 'defined', result: 'pass', convergence: 'converged' });
+  } finally { f.done(); }
+});
+
+test('help: a bare call lists the commands; <command> help and an unknown form print the forms with examples', () => {
+  const bare = run([]);
+  assert.equal(bare.status, 0);
+  assert.match(bare.stdout, /Run wf\.mjs help <command> for its forms and flags/);
+  const h = run(['record', 'help']);
+  assert.equal(h.status, 0);
+  assert.match(h.stdout, /Example: wf\.mjs record set \. demo 03-slice slices\[api\]\.status=in-progress/);
+  const unknown = run(['record', 'sett', '.', 'demo']);
+  assert.equal(unknown.status, 2);
+  assert.match(unknown.stderr, /record has no form sett\. Its forms:/);
+  assert.doesNotMatch(unknown.stderr, /did you mean/i);
+  assert.equal(run(['record']).status, 2);
+  assert.equal(run(['nope']).status, 2);
+  // Every help block carries one example.
+  const all = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(new URL('../../scripts/wf.mjs', import.meta.url).href)}).then((m) => { for (const c of ['record', 'step', 'decide', 'slice', 'status']) console.log(m.helpText(c)); })`], { encoding: 'utf8' });
+  for (const block of all.stdout.split(/\n(?=\S)/).filter((b) => /^[a-z]+ {2,}/.test(b))) assert.match(block, /Example: wf\.mjs/, block.split('\n')[0]);
+  const watch = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'yolo-watch.mjs'), 'help'], { encoding: 'utf8' });
+  assert.equal(watch.status, 0);
+  for (const f of ['note', 'control', 'end', 'line', 'stop-check']) assert.match(watch.stdout, new RegExp(`yolo-watch\.mjs ${f} `));
+});
+
+test('the refusals name what they need: the kinds of decide add, the question of consent grant', () => {
+  const f = fixture();
+  try {
+    const kind = run(['decide', 'add', f.root, 'demo', '--key', 'db', '--answer', 'x', '--kind', 'decision']);
+    assert.equal(kind.status, 1);
+    assert.match(kind.stderr, /the kinds are: answer \(a decision or a choice\), steer/);
+    const consent = run(['consent', 'grant', f.root, 'demo']);
+    assert.equal(consent.status, 1);
+    assert.match(consent.stdout, /ask the person this exact question .*: May I start the next steps of demo on my own/);
+    assert.match(consent.stdout, /decide add .* --key consent/);
+  } finally { f.done(); }
+});
+
+test('slice drop marks the roster, the slice record and the index; slice move gives the slice to another workflow', () => {
+  const f = fixture();
+  try {
+    writeDoc(f.dir, '03-slice-ui.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice', slug: 'demo', 'slice-slug': 'ui', status: 'defined' }, body: '## Scope\n\nthe UI\n' });
+    run(['record', 'set', f.root, 'demo', 'index', 'selected-slice=docs']);
+    const drop = run(['slice', 'drop', f.root, 'demo', 'docs', '--reason', 'covered by api']);
+    assert.equal(drop.status, 0, drop.stderr);
+    const roster = frontmatterOfDoc(f.dir, '03-slice.md').slices;
+    assert.deepEqual(roster.find((s) => s.slug === 'docs'), { slug: 'docs', status: 'dropped', 'drop-reason': 'covered by api' });
+    assert.equal(frontmatterOfDoc(f.dir, INDEX_NAME)['selected-slice'], 'api', 'the selected slice moves to the next open one');
+    assert.equal(run(['slice', 'drop', f.root, 'demo', 'docs', '--reason', 'again']).status, 1);
+    assert.match(run(['slice', 'drop', f.root, 'demo', 'api']).stderr, /--reason/);
+
+    const other = path.join(f.root, '.ai', 'workflows', 'demo-ui');
+    mkdirSync(other, { recursive: true });
+    writeDoc(other, INDEX_NAME, { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: 'demo-ui', status: 'active' } });
+    writeDoc(other, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: 'demo-ui', status: 'complete', slices: [] } });
+    const move = run(['slice', 'move', f.root, 'demo', 'ui', '--to', 'demo-ui', '--reason', 'its own PR']);
+    assert.equal(move.status, 0, move.stderr);
+    assert.deepEqual(frontmatterOfDoc(other, '03-slice.md').slices, [{ slug: 'ui', status: 'defined' }]);
+    const moved = frontmatterOfDoc(other, '03-slice-ui.md');
+    assert.equal(moved['moved-from'], 'demo');
+    assert.equal(moved.slug, 'demo-ui');
+    assert.equal(frontmatterOfDoc(f.dir, '03-slice.md').slices.find((s) => s.slug === 'ui')['moved-to'], 'demo-ui');
+    assert.equal(frontmatterOfDoc(f.dir, '03-slice-ui.md').status, 'dropped');
+    // A review after the last open slice routes to ship: the dropped slices do not count.
+    assert.equal(run(['record', 'stage-done', f.root, 'demo', 'review', 'api']).status, 0);
+    assert.equal(frontmatterOfDoc(f.dir, INDEX_NAME)['next-invocation'], '/wf ship demo');
+  } finally { f.done(); }
+});
+
+test('a stored command with the Git install path in front of /wf reads repaired, and the next write stores it repaired', () => {
+  const f = fixture();
+  try {
+    // A value written by hand, past every repair at the door.
+    const state = path.join(f.dir, 'state.yaml');
+    writeFileSync(state, `${readFileSync(state, 'utf8').trimEnd()}\nnext-invocation: C:/Program Files/Git/wf ship demo\n`);
+    assert.equal(frontmatterOfDoc(f.dir, INDEX_NAME)['next-invocation'], '/wf ship demo');
+    assert.equal(run(['record', 'set', f.root, 'demo', 'index', 'status=active']).status, 0);
+    assert.match(readFileSync(state, 'utf8'), /next-invocation: \/wf ship demo/);
+    writeProgress(f.dir, { run: 'r2', status: 'stopped', resume: 'C:/Program Files/Git/wf yolo demo' });
+    assert.equal(JSON.parse(readFileSync(path.join(f.dir, 'progress.json'), 'utf8')).resume, '/wf yolo demo');
   } finally { f.done(); }
 });

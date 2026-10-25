@@ -44,7 +44,7 @@ test('add numbers entries, writes YAML that reads back, and supersedes the same 
 test('add refuses an unknown kind or by, an empty answer, and a keyless answer', () => {
   const f = fixture();
   try {
-    assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', kind: 'vote' }), /kind must be one of/);
+    assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', kind: 'vote' }), /kind vote is not a kind; the kinds are: answer .*steer .*approval .*try-out .*delegate/);
     assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', by: 'robot' }), /by must be one of/);
     assert.throws(() => addDecision(f.dir, { key: 'k', answer: ' ' }), /an answer is required/);
     assert.throws(() => addDecision(f.dir, { answer: 'x' }), /an answer needs --key/);
