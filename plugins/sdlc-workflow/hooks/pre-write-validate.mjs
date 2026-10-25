@@ -200,12 +200,12 @@ const ANSWER_LOG = /(?:^|\/)\.ai\/workflows\/answers\.jsonl$/;
 
 // The manifest and the layout of the design surface, and the design records (comments,
 // approval pictures, check results), have script writers only.
-const DESIGN_SCRIPT_FILE = /(?:^|\/)\.ai\/design\/(?:screens|layout)\.json$/;
+const DESIGN_SCRIPT_FILE = /(?:^|\/)\.ai\/design\/(?:screens|layout|references)\.json$/;
 
 function recordWriteRefusal(filePath, projectRoot) {
   const abs = resolveProjectPath(projectRoot, filePath);
   if (DESIGN_SCRIPT_FILE.test(String(abs).replace(/\\/g, '/'))) {
-    return 'wf-validate: blocked a write to the design manifest or layout. Add or change a screen with `node <plugin root>/skills/wf/scripts/wf.mjs design screen add <root> <key> ...`; the canvas saves the layout.\n';
+    return 'wf-validate: blocked a write to the design manifest, layout or references. Add or change a screen with `node <plugin root>/skills/wf/scripts/wf.mjs design screen add <root> <key> ...`, a reference with `... design refs add <root> <key> --file <path>`, and the viewports with `... design viewports <root> <name>=<W>x<H> ...`; the canvas saves the layout.\n';
   }
   if (ANSWER_LOG.test(String(abs).replace(/\\/g, '/'))) {
     return 'wf-validate: blocked a write to answers.jsonl. The question hook writes each answer event of the person; no agent writes it.\n';

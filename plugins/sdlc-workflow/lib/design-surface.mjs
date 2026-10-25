@@ -143,6 +143,20 @@ export function screenTemplate(key, title) {
 `;
 }
 
+/** Set the viewports of the surface: `{ name: 'WxH' }`. Each name is kebab-case and each size is WxH. */
+export function setViewports(root, viewports) {
+  const entries = Object.entries(viewports ?? {});
+  if (!entries.length) throw new Error('name at least one viewport, as name=WxH');
+  for (const [name, size] of entries) {
+    if (!KEY_RE.test(name)) throw new Error(`the viewport name ${name} is not kebab-case`);
+    if (!parseViewport(size)) throw new Error(`the viewport ${name}=${size} is not WxH`);
+  }
+  const m = readManifest(root);
+  m.viewports = Object.fromEntries(entries);
+  writeManifest(root, m);
+  return m.viewports;
+}
+
 /** The screens that `02c-craft.md` `screens:` approves but that have no page on the surface. */
 export function missingScreens(root, contract) {
   const keys = Array.isArray(contract?.screens) ? contract.screens : [];

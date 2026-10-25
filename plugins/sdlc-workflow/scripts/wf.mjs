@@ -181,7 +181,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve'].includes(name)) opt[name] = true;
       else opt[name] = argv[(i += 1)];
     } else pos.push(a);
   }

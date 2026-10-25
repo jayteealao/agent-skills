@@ -4,7 +4,7 @@
 // the export of a canvas or a web page. A link alone is not enough, because a sub-agent cannot
 // open a canvas or a page behind a login, so a link must also name its exported file. The
 // check runs before a design agent starts, and an unreadable reference stops the run.
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { KEY_RE, REFERENCES_FILE, surfaceDir } from './design-surface.mjs';
 
@@ -35,6 +35,22 @@ function problemOf(root, r) {
     readFileSync(abs).subarray(0, 1);
   } catch (e) { return `${r.file} cannot be read: ${e.message}`; }
   return null;
+}
+
+/**
+ * Add or change one reference. The file must be readable and inside the repo; a link alone is
+ * refused, because a sub-agent cannot open it.
+ */
+export function addReference(root, { key, file = null, kind = 'other', link = null, note = null }) {
+  const entry = { key, kind, file, ...(link ? { link } : {}), ...(note ? { note } : {}) };
+  const problem = problemOf(root, entry);
+  if (problem) throw new Error(problem);
+  const refs = readReferences(root).filter((r) => r?.key !== key);
+  refs.push({ ...entry, file: String(file).replace(/\\/g, '/') });
+  const path = join(surfaceDir(root), REFERENCES_FILE);
+  writeFileSync(`${path}.tmp`, `${JSON.stringify({ references: refs }, null, 2)}\n`);
+  renameSync(`${path}.tmp`, path);
+  return entry;
 }
 
 /** Check every reference. Returns `{ ok, references: [{ ...entry, readable, problem }] }`. */

@@ -1,11 +1,13 @@
 // `wf.mjs design ...`: the commands of the design surface. wf.mjs routes here.
-import { writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { canvasState, snapshotHtml } from './design-state.mjs';
 import { failureLines, runChecks } from './design-check.mjs';
 import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
-import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, trackSurface, writeTokens } from './design-surface.mjs';
+import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
+import { addReference, checkReferences } from './design-references.mjs';
+import { addComment, capturePicture, commentsBrief, openThreads } from './design-records.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   init <root>                                   make .ai/design/: the manifest, tokens.css, the git rule, the repo entry
@@ -16,6 +18,12 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   track <root> [--check]                        keep .ai/design/ tracked in git
   check <root> [key...] [--workflow slug]       contrast, target size, viewport fit, worst case, in each viewport and state
   approve <root> <slug> [key...] [--slice s]    record the approval from the answer event: commit, pictures, 02c-craft.md
+  viewports <root> [name=WxH...]                the viewports of the surface; with pairs, set them
+  refs check <root>                             exit 1 when a reference is not a readable file in the repo
+  refs add <root> <key> --file f [--kind k] [--link l] [--note n]
+  comments <root> [key...] [--workflow slug]    the open comment threads, as untrusted data for a round
+  comments reply <root> <key> <thread> --text t [--resolve]
+  capture-path <root> <slug> <slice> <key>      where verify writes the capture of a built screen
   state <root>                                  the canvas data, as JSON
   publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
   server start|stop|status|url                  the one design server of this computer
@@ -24,7 +32,7 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server'].includes(verb) ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') ? rest.shift() : null;
   if (verb === 'server') return runServer(sub, opt, out);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
@@ -82,6 +90,46 @@ export async function runDesign(pos, opt, out) {
         ? `approved ${r.screens.join(', ')} for ${r.slug} in ${r.commit.slice(0, 8)}${r.committed ? '' : ' (no change since the last commit)'}; ${r.pictures} picture(s); ${r.checkFailures ?? 'no'} check failure(s)`
         : [`not approved: ${r.reason}`, ...(r.question ? [`ask: ${r.question}`] : [])].join('\n'));
       return r.ok ? 0 : 1;
+    }
+    case 'viewports': {
+      const pairs = rest.slice(1);
+      const v = pairs.length ? setViewports(projectRoot, Object.fromEntries(pairs.map((p) => { const i = p.indexOf('='); return i > 0 ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; }))) : readManifest(projectRoot).viewports;
+      out(opt.json ? v : Object.entries(v).map(([n, s]) => `${n}=${s}`).join(' '));
+      return 0;
+    }
+    case 'refs': {
+      if (sub === 'add') {
+        if (!key) throw new Error('design refs add <root> <key> --file <path> is required');
+        const r = addReference(projectRoot, { key, file: opt.file ?? null, kind: opt.kind ?? 'other', link: opt.link ?? null, note: opt.note ?? null });
+        out(opt.json ? r : `reference ${key}: ${r.file}`);
+        return 0;
+      }
+      if (sub !== 'check') throw new Error(DESIGN_USAGE);
+      const r = checkReferences(projectRoot);
+      out(opt.json ? r : [`${r.references.length} reference(s)${r.ok ? ', all readable' : ''}`, ...r.references.filter((x) => !x.readable).map((x) => `unreadable: ${x.key}: ${x.problem}`)].join('\n'));
+      return r.ok ? 0 : 1;
+    }
+    case 'comments': {
+      if (sub === 'reply') {
+        const [, k, thread] = rest;
+        if (!k || !thread) throw new Error('design comments reply <root> <key> <thread> --text t is required');
+        const r = addComment(projectRoot, k, { thread, text: opt.text ?? '', author: 'agent', resolve: Boolean(opt.resolve) });
+        out(opt.json ? r : r.ok === false ? `not saved: ${r.reason}` : `replied on ${k} thread ${thread}${opt.resolve ? ' and resolved it' : ''}`);
+        return r.ok === false ? 1 : 0;
+      }
+      const keys = rest.slice(1).length ? rest.slice(1) : opt.workflow ? listScreens(projectRoot, { workflow: opt.workflow }).map((s) => s.key) : null;
+      if (opt.json) { out(openThreads(projectRoot, keys)); return 0; }
+      out(commentsBrief(projectRoot, keys) || 'no open comment');
+      return 0;
+    }
+    case 'capture-path': {
+      const [, slug, slice, k] = rest;
+      const ok = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && v !== '..';
+      if (![slug, slice, k].every(ok)) throw new Error('design capture-path <root> <slug> <slice> <key> is required');
+      const file = capturePicture(projectRoot, slug, slice, k);
+      mkdirSync(dirname(file), { recursive: true });
+      out(opt.json ? { file } : file);
+      return 0;
     }
     case 'state': {
       out(canvasState(projectRoot, { repo: basename(projectRoot), writable: false }));
