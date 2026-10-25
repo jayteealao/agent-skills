@@ -125,7 +125,8 @@ export function linkProject(root, project) {
   const moved = [];
   if (existsSync(local)) {
     for (const e of readdirSync(local, { withFileTypes: true })) {
-      if (!e.isDirectory() || e.name.startsWith('.') || e.name.startsWith('_')) continue;
+      // The project's design records (`_design`) move too; another `_` or `.` folder stays.
+      if (!e.isDirectory() || e.name.startsWith('.') || (e.name.startsWith('_') && e.name !== '_design')) continue;
       const from = join(local, e.name);
       const to = join(target, e.name);
       if (existsSync(to)) continue;
@@ -139,7 +140,12 @@ export function linkProject(root, project) {
   config.records = { ...(config.records ?? {}), project };
   mkdirSync(join(root, '.ai'), { recursive: true });
   writeFileSync(configFile, `${JSON.stringify(config, null, 2)}\n`);
-  for (const slug of moved) commitWorkflow(root, slug, `${project}/${slug}: move the records into the records repo`);
+  for (const slug of moved) {
+    if (slug === '_design') {
+      const c = commitPaths(home, { ref: `refs/heads/${mainBranch(home)}`, paths: [`${project}/_design`], message: `${project}: move the design records into the records repo` });
+      if (c) gitIn(home, ['read-tree', c]);
+    } else commitWorkflow(root, slug, `${project}/${slug}: move the records into the records repo`);
+  }
   writeMachineFacts(root);
   return { ok: true, home, project, moved };
 }

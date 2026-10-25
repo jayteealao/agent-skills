@@ -15,6 +15,9 @@
  *             expired lease of another machine, after the person said yes)
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/
+ *   design   <init|screen add|explore add|list|tokens|track> <root> ...
+ *             the design surface of the repo, .ai/design/: screens, the manifest, the token sheet
+ *             and the git rule (lib/design-cli.mjs lists every command)
  *   modernize <root> <slug> [--check] [--json]
  *             convert an old workflow: the record files into the YAML layout, and the stages
  *             shape and handoff into intake and ship in the index (--check: only report)
@@ -142,6 +145,7 @@ import { claimLease, releaseLease, renewIfMine, showLease } from '../lib/leases.
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
+import { runDesign } from '../lib/design-cli.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
@@ -160,7 +164,7 @@ import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsR
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -1043,6 +1047,7 @@ async function runMain(cmd, pos, opt) {
       case 'lease': return runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
       case 'page': return runPage(pos, opt);
+      case 'design': return await runDesign(pos, opt, out);
       case 'modernize': {
         const [root, slug] = pos;
         if (!root || !slug) throw new Error('modernize: <root> <slug> are required');

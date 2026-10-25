@@ -198,13 +198,23 @@ export async function run(input) {
 // appends to it.
 const ANSWER_LOG = /(?:^|\/)\.ai\/workflows\/answers\.jsonl$/;
 
+// The manifest and the layout of the design surface, and the design records (comments,
+// approval pictures, check results), have script writers only.
+const DESIGN_SCRIPT_FILE = /(?:^|\/)\.ai\/design\/(?:screens|layout)\.json$/;
+
 function recordWriteRefusal(filePath, projectRoot) {
   const abs = resolveProjectPath(projectRoot, filePath);
+  if (DESIGN_SCRIPT_FILE.test(String(abs).replace(/\\/g, '/'))) {
+    return 'wf-validate: blocked a write to the design manifest or layout. Add or change a screen with `node <plugin root>/skills/wf/scripts/wf.mjs design screen add <root> <key> ...`; the canvas saves the layout.\n';
+  }
   if (ANSWER_LOG.test(String(abs).replace(/\\/g, '/'))) {
     return 'wf-validate: blocked a write to answers.jsonl. The question hook writes each answer event of the person; no agent writes it.\n';
   }
   const info = workflowPathInfo(abs);
   const cli = 'node <plugin root>/skills/wf/scripts/wf.mjs';
+  if (info && info.slug === '_design') {
+    return 'wf-validate: blocked a write to the design records. Comments come through the canvas, and `wf.mjs design` writes the approvals and the check results.\n';
+  }
   if (info && /^inbox\//.test(info.storageRel)) {
     return `wf-validate: blocked a write to the inbox of workflow '${info.slug}'. Post a message with \`${cli} msg post <root> ${info.slug} --kind <kind> --text "<text>"\`.\n`;
   }
