@@ -11,6 +11,14 @@
  *   help     [<command>]
  *             the commands, or the forms and the flags of one command (also <command> --help)
  *             Example: wf.mjs help record
+ *   describe [--json]
+ *             every CLI form and every function of the library of wf.mjs run, each with one example
+ *             Example: wf.mjs describe
+ *   run      <root> <script.mjs> [<arg>...] [--slug s] [--dry-run] [--json]
+ *             run a script in the project: its default export gets { wf, open, args }, and its
+ *             return value prints as JSON. All or nothing: a script that throws changes nothing.
+ *             Each changed workflow gets one commit. --dry-run lists the changes and applies none
+ *             Example: wf.mjs run . .ai/workflows/demo/.draft/verify-all.mjs --slug demo
  *   path     <root> [<slug> [<file>]]
  *             the real place of the records folder, a workflow folder or a file in it: a linked
  *             project keeps them in the records repo clone, and only the drafts stay local
@@ -109,10 +117,12 @@
  *             each record that names it gets superseded-decisions.<old id>: <new id>
  *             Example: wf.mjs decide add . demo --file .ai/workflows/demo/.draft/answers.json
  *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
- *             the live entries in a scope (--all: every entry)
+ *             the live entries in a scope (--all: every entry). Use it to read what is decided;
+ *             use decide answered to test one key before a question is asked
  *             Example: wf.mjs decide list . demo --slice api
  *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
- *             exit 0 and the entry when a live entry answers the key, exit 1 when none does
+ *             exit 0 and the entry when a live entry answers the key, exit 1 when none does.
+ *             Use it before a question is asked; use decide list to read every decision
  *             Example: wf.mjs decide answered . demo --key db
  *   decide   drop <root> <slug> <questions.json> [--packet p] [--slice s] [--json]
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
@@ -134,7 +144,8 @@
  *             fail counts toward the split question; complete refuses an open step unless --skip
  *             Example: wf.mjs step complete . demo api --sha HEAD
  *   step     where <root> <slug> [<slice>] [--json]
- *             the done steps of the slice, the step that runs, the next open step, the hard-stops
+ *             the done steps of the slice, the step that runs, the next open step, the hard-stops.
+ *             Only the steps of one slice: status --brief gives where the whole workflow stands
  *             Example: wf.mjs step where . demo api
  *   profile  show <root> [--json]
  *             the suites of the test profile with their commands and times
@@ -156,7 +167,8 @@
  *             write progress.json: where a run stands
  *             Example: wf.mjs progress set . demo --stage implement --slice api --status running
  *   progress show <root> <slug> [--json]
- *             where the run stands, a dead run as stopped, with the ETA of the slice
+ *             where the driver run stands, a dead run as stopped, with the ETA of the slice. Only
+ *             the run: status --brief gives where the whole workflow stands
  *             Example: wf.mjs progress show . demo
  *   defer    check <root> <slug> [--next <slice>] [--json]
  *             run the clearing-probe of each open deferral; exit 1 when the next slice needs
@@ -252,14 +264,13 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveScript, readRun } from '../lib/drive.mjs';
-import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
@@ -275,29 +286,33 @@ import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts }
 import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
-import { checkDeferrals, deferralLine, openDeferrals } from '../lib/deferrals.mjs';
+import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
-import { progressLine, progressOf, readDriverOutcome, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
+import { progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
-import { PATH_FORMS, applySet, enumAt, parseSetArg } from '../lib/record-path.mjs';
+import { PATH_FORMS } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
 import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
-import { appendStep, branchOf, commitIdentity, gitRevParse, gitSteps, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
+import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
-import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
+import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
+import { decideAdd, defOfType, noRecord, pick, recordName, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
+import { runScript } from '../lib/wf-api.mjs';
+
+// The status and record bodies live in lib/, so the library calls the same functions.
+export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
-const STALE_DAYS = 7;
-const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const wfRoot = workflowsRoot;
@@ -408,89 +423,10 @@ async function runDispatch(pos, opt) {
 
 // ---------------------------------------------------------------- status
 
-// An index of an older workflow names a stage that is now a phase of another stage.
-const OLD_STAGE_FILE = { shape: '02-shape.md', handoff: '08-handoff.md' };
 
 // A record by its old file name, in either layout.
 const frontmatterOf = (dir, name) => frontmatterOfDoc(dir, name);
 
-const count = (v) => (Array.isArray(v) ? v.length : v && typeof v === 'object' ? Object.keys(v).length : 0);
-
-function groupOf(fm) {
-  const status = String(fm.status ?? '');
-  if (DONE.has(status)) return 'completed';
-  if (status === 'awaiting-input' || count(fm['open-questions']) > 0) return 'blocked';
-  return 'active';
-}
-
-function summaryOf(w, now) {
-  const fm = w.frontmatter ?? {};
-  const updated = Date.parse(fm['updated-at'] ?? '');
-  return {
-    slug: w.slug,
-    title: fm.title ?? null,
-    status: fm.status ?? null,
-    group: w.classification === 'invalid' ? 'invalid' : groupOf(fm),
-    invalid: w.invalidReason ?? null,
-    stage: fm['current-stage'] ?? null,
-    selectedSlice: fm['selected-slice'] ?? null,
-    workflowType: fm['workflow-type'] ?? 'standard',
-    branch: w.branch,
-    updatedAt: fm['updated-at'] ?? null,
-    stale: Number.isFinite(updated) && now - updated > STALE_DAYS * 86_400_000,
-    openQuestions: count(fm['open-questions']),
-    next: fm['recommended-next-invocation'] ?? fm['next-invocation'] ?? null,
-    progress: w.workflowDir ? progressOf(w.workflowDir, w.directorySlug ?? w.slug, { now }) : null,
-  };
-}
-
-function costSummary(dir) {
-  const rows = readCostRows(dir);
-  return rows.length ? aggregateCost(rows) : null;
-}
-
-export async function statusOf(root, slug = null, now = Date.now()) {
-  const workflows = await scanWorkflowIndexes({ projectRoot: root });
-  if (!slug) return { workflows: workflows.map((w) => summaryOf(w, now)) };
-  const w = workflows.find((x) => x.slug === slug || x.directorySlug === slug);
-  if (!w) return { error: `Workflow ${slug} not found.` };
-  const dir = w.workflowDir;
-  const summary = summaryOf(w, now);
-  const small = summary.workflowType === 'small';
-  const stages = Object.entries(small ? SMALL_STAGE_FILES : STAGE_FILES).map(([stage, names]) => {
-    const files = names(summary.selectedSlice);
-    const fms = files.map((f) => frontmatterOf(dir, f));
-    const at = fms.findLastIndex(Boolean);
-    const fm = at < 0 ? null : fms[at];
-    // A stage with a file still to write is in progress, whatever its first file says.
-    const status = !fm ? null : at === files.length - 1 ? fm.status ?? null : 'in-progress';
-    return { stage, file: at < 0 ? files[0] ?? null : files[at], files, present: !!fm, status, updatedAt: fm?.['updated-at'] ?? null };
-  });
-  const sliceFm = frontmatterOf(dir, '03-slice.md');
-  const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
-    const name = typeof s === 'string' ? s : s?.slug;
-    const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
-    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, `${prefix}-${name}.md`)?.status ?? null;
-    // The verify result and its convergence, so a reader needs no loop over the verify records.
-    const v = frontmatterOf(dir, `06-verify-${name}.md`);
-    row.result = v?.result ?? null;
-    row.convergence = v?.convergence ?? null;
-    return row;
-  });
-  const current = small ? '01-small.md' : OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
-  const currentFm = current ? frontmatterOf(dir, current) : null;
-  return {
-    workflow: summary,
-    stages,
-    slices,
-    cost: costSummary(dir),
-    next: {
-      file: current ?? null,
-      invocation: currentFm?.['next-invocation'] ?? summary.next,
-      routes: currentFm?.['recommended-routes'] ?? [],
-    },
-  };
-}
 
 function statusText(s) {
   if (s.error) return s.error;
@@ -508,56 +444,6 @@ function statusText(s) {
   return lines.join('\n');
 }
 
-const BRIEF_MAX = 2000;
-const clip = (s, n = 200) => (String(s).length > n ? `${String(s).slice(0, n - 1)}…` : String(s));
-const few = (list, n = 5) => `${list.slice(0, n).join(', ')}${list.length > n ? ` and ${list.length - n} more` : ''}`;
-
-/**
- * Where a workflow stands, in one block: the stage and the slice, step n of N, the open
- * questions, the open deferrals, the last driver run on this machine, and the next command.
- * `status --brief` prints it, and `wf.status.summary()` of the library returns it.
- */
-export async function statusBrief(root, slug) {
-  const s = await statusOf(root, slug);
-  if (s.error) return { error: s.error };
-  const dir = join(wfRoot(root), s.workflow.slug);
-  const index = frontmatterOf(dir, INDEX_NAME) ?? {};
-  const slice = s.workflow.selectedSlice ?? lastSlice(dir);
-  let step = null;
-  if (slice && frontmatterOf(dir, `04-plan-${slice}.md`)) {
-    const w = whereOf(dir, slice, stepGit(root, dir));
-    step = { slice, done: w.done.length, total: w.total, next: w.next?.n ?? null, current: w.current?.n ?? null, complete: w.complete, line: whereLine(w) };
-  }
-  const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key ?? q?.question ?? JSON.stringify(q)));
-  const deferrals = openDeferrals(dir).map((d) => d.id ?? d.ac ?? d.slice ?? 'deferral');
-  const outcome = readDriverOutcome(dir);
-  const progress = s.workflow.progress;
-  return {
-    slug: s.workflow.slug,
-    status: s.workflow.status,
-    stage: s.workflow.stage,
-    slice,
-    step,
-    slices: s.slices.map((x) => ({ slice: x.slice, roster: x.roster, result: x.result, convergence: x.convergence })),
-    openQuestions: questions,
-    openDeferrals: deferrals,
-    lastRun: outcome ?? (progress ? { run: progress.run ?? null, driver: progress.driver ?? null, status: progress.state ?? progress.status ?? null, reason: progress.reason ?? null, resume: progress.resume ?? null } : null),
-    next: s.next.invocation ?? null,
-  };
-}
-
-export function briefText(b) {
-  if (b.error) return b.error;
-  const lines = [`${b.slug}: ${b.status ?? '?'} at ${b.stage ?? '-'}${b.slice ? `, slice ${b.slice}` : ''}`];
-  if (b.step) lines.push(`step: ${b.step.done} of ${b.step.total} done; ${clip(b.step.line)}`);
-  if (b.slices.length) lines.push(`slices: ${few(b.slices.map((x) => `${x.slice}=${x.result ?? x.roster ?? '-'}`), 8)}`);
-  if (b.openQuestions.length) lines.push(clip(`questions: ${b.openQuestions.length} open: ${few(b.openQuestions)}`));
-  if (b.openDeferrals.length) lines.push(clip(`deferrals: ${b.openDeferrals.length} open: ${few(b.openDeferrals)}`));
-  if (b.lastRun) lines.push(clip(`last run: ${b.lastRun.driver ?? 'run'} ${b.lastRun.run ?? ''} ${b.lastRun.status ?? ''}${b.lastRun.stoppedAt ? ` at ${b.lastRun.stoppedAt}` : ''}${b.lastRun.reason ? `: ${b.lastRun.reason}` : ''}${b.lastRun.resume ? `; resume: ${b.lastRun.resume}` : ''}`.replace(/\s+/g, ' ')));
-  lines.push(clip(`next: ${b.next ?? '-'}`));
-  const text = lines.join('\n');
-  return text.length > BRIEF_MAX ? `${text.slice(0, BRIEF_MAX - 1)}…` : text;
-}
 
 // ---------------------------------------------------------------- index
 
@@ -648,25 +534,6 @@ function costText(agg) {
 
 // ---------------------------------------------------------------- stamp
 
-function schemaOf() {
-  return JSON.parse(readFileSync(join(PLUGIN_ROOT, 'schemas', 'frontmatter.schema.json'), 'utf8'));
-}
-
-function resolveRef(schema, node) {
-  let n = node;
-  while (n?.$ref) n = schema.$defs[n.$ref.split('/').pop()];
-  return n ?? {};
-}
-
-/** The definition whose `type` property accepts the given artifact type. */
-export function defOfType(schema, type) {
-  for (const branch of (schema.allOf ?? []).flatMap((a) => a.oneOf ?? [])) {
-    const def = resolveRef(schema, branch);
-    const t = def.properties?.type;
-    if (t?.const === type || t?.enum?.includes(type)) return def;
-  }
-  return null;
-}
 
 const yamlScalar = (v) => (typeof v === 'string' ? (v === '' || /[:#\-[\]{},&*!|>'"%@`]|^\s|\s$|^(true|false|null|\d)/.test(v) ? JSON.stringify(v) : v) : JSON.stringify(v));
 
@@ -703,18 +570,6 @@ export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } 
 
 const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice, files: opt.files });
 
-// An answer settles its question at once: its key leaves `open-questions` of the index.
-// Only a stage rewrites the rest of the index, so without this the status shows the
-// workflow as blocked until that stage runs again.
-function settleQuestion(dir, key) {
-  if (!key) return false;
-  const open = frontmatterOfDoc(dir, INDEX_NAME)?.['open-questions'];
-  if (!Array.isArray(open)) return false;
-  const kept = open.filter((q) => (q && typeof q === 'object' ? q.key ?? q.id : q) !== key);
-  if (kept.length === open.length) return false;
-  setFields(dir, INDEX_NAME, { 'open-questions': kept });
-  return true;
-}
 
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
@@ -728,15 +583,7 @@ export function runDecide(pos, opt) {
         const doc = JSON.parse(readFileSync(resolve(opt.file), 'utf8'));
         const list = Array.isArray(doc) ? doc : doc.answers ?? doc.decisions ?? [];
         if (!list.length) throw new Error(`decide add: ${opt.file} holds no answers`);
-        const rows = list.map((a) => {
-          const r = addDecision(dir, {
-            kind: a.kind, key: a.key, question: a.question, answer: a.answer, by: a.by ?? opt.by,
-            scope: { packet: a.packet, slice: a.slice && a.slice !== 'slug-wide' ? a.slice : undefined, files: a.files },
-            stage: a.stage ?? opt.stage, source: a.source, rewrote: Array.isArray(a.rewrote) ? a.rewrote : [],
-          });
-          const marked = markSuperseded(dir, r.superseded, r.entry.id);
-          return { ...r, marked, settled: r.entry.kind !== 'steer' && settleQuestion(dir, r.entry.key) };
-        });
+        const rows = list.map((a) => decideAdd(dir, a, { by: opt.by ?? null, stage: opt.stage ?? null }));
         out(opt.json ? rows : rows.flatMap((r) => [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...(r.settled ? [`settled ${r.entry.key}`] : [])]).join('\n'));
         return 0;
       }
@@ -783,8 +630,6 @@ export function runDecide(pos, opt) {
 
 // ---------------------------------------------------------------- step
 
-/** The git answers of the step record for a workflow: the branch of each row, its base for the patch search. */
-const stepGit = (projectRoot, dir) => gitSteps(projectRoot, { base: frontmatterOfDoc(dir, INDEX_NAME)?.['base-branch'] ?? null });
 
 export function runStep(pos, opt) {
   const [verb, root, slug, slice, n] = pos;
@@ -963,11 +808,6 @@ export function runFindings(pos, opt) {
 
 // ---------------------------------------------------------------- record
 
-// The short names of a record for `record get` and `record set`.
-const RECORD_ALIASES = { index: INDEX_NAME, state: INDEX_NAME, meta: INDEX_NAME };
-// A name without `.md` (`05-implement-api`) names the same record.
-const recordName = (n) => RECORD_ALIASES[n] ?? (/^\d{2}[a-z]?-[^.]+$/.test(n) ? `${n}.md` : n);
-const noRecord = (name, slug, dir) => `no record ${name} in ${slug}; its records are: ${listDocs(dir).join(', ') || 'none'}`;
 
 /** `key=value` → [key, value], the value read as a YAML scalar or flow collection. */
 export function fieldOf(arg) {
@@ -981,35 +821,9 @@ export function fieldOf(arg) {
   return [arg.slice(0, at), value];
 }
 
-/**
- * Apply the path forms of `record set` to one record (lib/record-path.mjs). A value outside the
- * enum of the schema is refused with the allowed values. Returns `{ frontmatter, keys }`.
- */
-export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
-  const doc = readDoc(dir, name);
-  if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
-  const schema = schemaOf();
-  const def = defOfType(schema, doc.frontmatter.type ?? (name === INDEX_NAME ? 'index' : null));
-  const fm = structuredClone(doc.frontmatter);
-  const changes = args.map((a) => (typeof a === 'string'
-    ? parseSetArg(a, { onRepair: (k, v) => process.stderr.write(`wf.mjs: ${k} began with the Git install path, which Git Bash put in front of /wf; it is set to ${v}\n`) })
-    : a));
-  for (const c of changes) {
-    const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
-    if (allowed && !allowed.includes(c.value)) {
-      throw new Error(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`);
-    }
-    applySet(fm, c);
-  }
-  const top = [...new Set(changes.map((c) => c.path[0].key))];
-  const written = setFields(dir, name, Object.fromEntries(top.map((k) => [k, fm[k] ?? null])));
-  return { frontmatter: written, keys: changes.map((c) => c.key) };
-}
 
 const RECORD_VERBS = ['put', 'get', 'draft', 'set', 'stage-done', 'list', 'where', 'migrate', 'evidence'];
 
-/** The frontmatter fields `keys` of a record; a missing field reads as null. */
-const pick = (fm, keys) => Object.fromEntries(keys.map((k) => [k, k.split('.').reduce((v, p) => (v == null ? undefined : v[p]), fm) ?? null]));
 
 function runRecord(pos, opt) {
   const [verb, root, slug, ...rest] = pos;
@@ -1341,6 +1155,38 @@ function runPage(pos, opt) {
   return r.ok ? 0 : 1;
 }
 
+/**
+ * `wf.mjs run`: a script of the project, with the library (lib/wf-api.mjs). The script comes
+ * from a file that the agent wrote, never from shell text; a path outside the project is refused.
+ */
+async function runRun(pos, opt) {
+  const [root, script, ...args] = pos;
+  if (!root || !script) throw new Error('run: <root> <script.mjs> are required');
+  const projectRoot = realpathSync(resolve(root));
+  const file = [resolve(projectRoot, script), resolve(script)].find(existsSync);
+  if (!file) throw new Error(`run: no script ${script}`);
+  const real = realpathSync(file);
+  const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  if (!fold(real).startsWith(fold(`${projectRoot}${sep}`))) {
+    throw new Error(`run: ${real} is outside the project ${projectRoot}. Write the script in .ai/workflows/<slug>/.draft/ or in .scratch/`);
+  }
+  const mod = await import(`${pathToFileURL(real).href}?run=${Date.now()}`);
+  if (typeof mod.default !== 'function') throw new Error(`run: ${script} has no default export function; write export default async function ({ wf, open, args }) { ... }`);
+  const dryRun = Boolean(opt['dry-run']);
+  const r = await runScript(projectRoot, mod.default, { slug: opt.slug ?? null, script: real, args, dryRun });
+  const writes = r.ops.filter((o) => o.write).map(({ slug, op, record, keys }) => ({ slug, op, record, keys }));
+  if (!r.ok) {
+    process.stderr.write(`wf.mjs: run: ${r.error?.message ?? r.error}\n${r.failedOp ? `wf.mjs: run: the operation that failed: ${r.failedOp}\n` : ''}wf.mjs: run: nothing was applied\n`);
+    return 1;
+  }
+  if (opt.json) { out({ value: r.value ?? null, applied: r.applied, changed: r.changed, changes: writes }); return 0; }
+  if (r.value !== undefined) out(r.value);
+  const list = writes.map((w) => `  ${w.slug}: ${w.op}${w.record ? ` ${w.record}` : ''}${w.keys.length ? ` (${w.keys.join(', ')})` : ''}`);
+  if (dryRun) process.stderr.write(`dry run: ${writes.length} change(s), none applied${list.length ? `:\n${list.join('\n')}` : ''}\n`);
+  else if (writes.length) process.stderr.write(`applied ${writes.length} change(s); committed ${r.changed.join(', ') || 'nothing'}\n`);
+  return 0;
+}
+
 /** Import the person's comments on the issue of a workflow into its inbox, and commit them at once. */
 function importIssueComments(projectRoot, slug) {
   try {
@@ -1450,9 +1296,9 @@ export function formsOf(cmd) {
   return blocks ? verbs : null;
 }
 
-// The forms of each command, from the header of this file, so the help never drifts from it.
-export function helpText(cmd) {
-  const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+/** The blocks of the first comment of a file: `name` is the first word of a block, `lines` its text. */
+function headerBlocks(file) {
+  const src = readFileSync(file, 'utf8');
   const head = src.slice(src.indexOf('/**'), src.indexOf('*/'));
   const blocks = [];
   for (const line of head.split(/\r?\n/)) {
@@ -1460,6 +1306,37 @@ export function helpText(cmd) {
     if (m) blocks.push({ name: m[1], lines: [`${m[1]}${m[2]}`] });
     else if (blocks.length && /^ \* {4,}\S/.test(line)) blocks.at(-1).lines.push(line.replace(/^ \* {3}/, ''));
   }
+  return blocks;
+}
+
+const API_FILE = join(PLUGIN_ROOT, 'lib', 'wf-api.mjs');
+
+/** Every CLI form and every library function, each with its text and its example. */
+export function describeAll() {
+  const entry = (b) => ({
+    name: b.name,
+    form: b.lines[0],
+    about: b.lines.slice(1).filter((l) => !/^\s*Example:/.test(l)).map((l) => l.trim()).join(' '),
+    example: b.lines.find((l) => /^\s*Example:/.test(l))?.replace(/^\s*Example:\s*/, '') ?? null,
+  });
+  return { cli: headerBlocks(fileURLToPath(import.meta.url)).map(entry), api: headerBlocks(API_FILE).map(entry) };
+}
+
+function describeText(d) {
+  const block = (e) => [e.form, `    ${e.about}`, ...(e.example ? [`    Example: ${e.example}`] : [])].join('\n');
+  return [
+    'CLI: wf.mjs <command> ... (one record or one decision)',
+    ...d.cli.map(block),
+    '',
+    'API: wf.mjs run <root> <script.mjs> --slug <slug> (several records, a list edit, a read with a filter).',
+    'The script exports default async function ({ wf, open, args }); its return value prints as JSON.',
+    ...d.api.map(block),
+  ].join('\n');
+}
+
+// The forms of each command, from the header of this file, so the help never drifts from it.
+export function helpText(cmd) {
+  const blocks = headerBlocks(fileURLToPath(import.meta.url));
   if (!cmd) {
     const names = [...new Set(blocks.map((b) => b.name))];
     return `Usage: wf.mjs <command> ...\nCommands: ${names.join(', ')}\nRun wf.mjs help <command> for its forms and flags.`;
@@ -1517,6 +1394,12 @@ async function runMain(cmd, pos, opt) {
   try {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
+      case 'run': return await runRun(pos, opt);
+      case 'describe': {
+        const d = describeAll();
+        out(opt.json ? d : describeText(d));
+        return 0;
+      }
       case 'gh': return runGh(pos, opt);
       case 'records': return await runRecords(pos, opt);
       case 'lease': return runLease(pos, opt);
