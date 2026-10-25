@@ -2,6 +2,8 @@
 import { writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { canvasState, snapshotHtml } from './design-state.mjs';
+import { failureLines, runChecks } from './design-check.mjs';
+import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, trackSurface, writeTokens } from './design-surface.mjs';
 
@@ -12,6 +14,8 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   explore add <root> <key> [--title t] [--link slug]
   tokens <root>                                 write tokens.css from DESIGN.md
   track <root> [--check]                        keep .ai/design/ tracked in git
+  check <root> [key...] [--workflow slug]       contrast, target size, viewport fit, worst case, in each viewport and state
+  approve <root> <slug> [key...] [--slice s]    record the approval from the answer event: commit, pictures, 02c-craft.md
   state <root>                                  the canvas data, as JSON
   publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
   server start|stop|status|url                  the one design server of this computer
@@ -62,6 +66,22 @@ export async function runDesign(pos, opt, out) {
       const r = trackSurface(projectRoot, { write: !opt.check });
       out(opt.json ? r : r.tracked ? `.ai/design/ is tracked${r.changed ? ' (.gitignore changed)' : ''}` : r.would ? `would change .gitignore: ${r.would.join(', ')}` : `not tracked: ${r.manual}`);
       return r.tracked ? 0 : 1;
+    }
+    case 'check': {
+      const r = await runChecks(projectRoot, { keys: rest.slice(1), workflow: opt.workflow ?? null });
+      if (opt.json) { out(r); return r.ran && r.passed ? 0 : 1; }
+      const lines = failureLines(r.new ?? r.failures);
+      out([r.ran ? `checked ${r.checked.length} screen(s): ${lines.length ? `${lines.length} failure(s)` : 'all pass'}` : `not checked: ${r.reason}`,
+        ...lines, ...(opt.workflow ? [`ask: ${approvalQuestion(opt.workflow)}`] : [])].join('\n'));
+      return r.ran && !lines.length ? 0 : 1;
+    }
+    case 'approve': {
+      if (!key) throw new Error('design approve <root> <slug> is required');
+      const r = await approveDesign(projectRoot, key, { keys: rest.slice(2), slice: opt.slice ?? null });
+      out(opt.json ? r : r.ok
+        ? `approved ${r.screens.join(', ')} for ${r.slug} in ${r.commit.slice(0, 8)}${r.committed ? '' : ' (no change since the last commit)'}; ${r.pictures} picture(s); ${r.checkFailures ?? 'no'} check failure(s)`
+        : [`not approved: ${r.reason}`, ...(r.question ? [`ask: ${r.question}`] : [])].join('\n'));
+      return r.ok ? 0 : 1;
     }
     case 'state': {
       out(canvasState(projectRoot, { repo: basename(projectRoot), writable: false }));

@@ -1,24 +1,25 @@
 ---
-description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between intake and slice — draw one board per changed surface, get the person's confirmation, freeze the boards, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `amend` reopens a confirmed design. `import` turns outside design work into boards. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
-argument-hint: "[slug] [move|amend|import|audit|critique|extract] [instructions] | <setup|teach|extract|direction|sync> [instructions]"
+description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between intake and slice — draw each changed screen on the repo's design surface, check it, get the person's approval from the answer event, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `explore` sketches ideas and settles nothing. `amend` reopens an approved design. `import` turns outside design work into screens. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
+argument-hint: "[slug] [move|amend|import|audit|critique|extract|explore] [instructions] | <setup|teach|extract|direction|sync|explore> [instructions]"
 ---
 
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf design`. It has three jobs:
+You are running `/wf design`. It has four jobs:
 
-1. **The design stage.** A human-only lifecycle stage between `intake` and `slice`. The person confirms the design here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md).
-2. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
-3. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
+1. **The design stage.** A human-only lifecycle stage between `intake` and `slice`. The person approves the screens here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md). The screens live on the repo's design surface ([design/_surface.md](design/_surface.md)).
+2. **Explore.** A free path that sketches ideas on the design surface and settles nothing ([design/explore.md](design/explore.md)).
+3. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
+4. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
 
 ## Card
 
 - This stage is for a person only. A driver never runs it.
-- Draw one board for each surface that changes. Get the confirmation of the person. Freeze the confirmed boards, and write the visual contract `02c-craft.md`.
+- Draw each screen that changes on the design surface. Check the screens, and get the approval of the person from the answer event. Write the visual contract `02c-craft.md`.
 - Do not decide a visual question for the person.
-- Done when every changed surface has a frozen board and `02c-craft.md` is written.
+- Done when every changed screen is approved and `02c-craft.md` carries the approval.
 
 ## Requires
 
@@ -41,11 +42,12 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `design/_design-context.md` | procedure | mode:stage | |
 | `design/_preflight.md` | procedure | mode:stage | |
 | `design/_craft-floor.md` | procedure | mode:stage | |
-| `_host-surfaces.md` | procedure | mode:stage | Design canvas |
+| `design/_surface.md` | procedure | mode:stage | |
+| `design/explore.md` | procedure | mode:explore | |
+| `design/_surface.md` | procedure | mode:explore | |
 | `design/_craft-floor.md` | procedure | mode:audit | |
 | `design/_craft-floor.md` | procedure | mode:critique | |
 | `design/_craft-floor.md` | procedure | mode:upkeep | Record guard |
-| `design/_boards.md` | procedure | mode:stage | |
 | `design/import.md` | procedure | mode:import | |
 | `design/_craft-floor.md` | procedure | mode:import | |
 | `_host-surfaces.md` | procedure | mode:import | Design canvas |
@@ -67,8 +69,10 @@ Resolve the first token by an exact existence check. Never fuzzy-match: a wrong 
    - `import` → **import**; the rest of the invocation is the link or the paths;
    - `audit` or `critique` → **review**;
    - `extract` → **upkeep** (the report attaches to the slug);
+   - `explore` → **explore**, linked to the slug;
    - anything else → STOP and render the usage below.
 2. **Else**, `token0` is the command:
+   - `explore` → **explore**; when `token1` is a slug (`record get` exits 0), the run links to it;
    - `setup`, `teach`, `extract`, `direction`, `sync` → **upkeep**;
    - `audit`, `critique` → **review**, freestanding against the target code;
    - one of the 15 moves → **new workflow**;
@@ -78,10 +82,11 @@ The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `d
 
 ```
 Usage:
-  /wf design <slug> [move] [instructions]   Run the design stage: draw, confirm, write 02c-craft.md.
-                                            On a confirmed design, a move runs its checks and draws nothing.
-  /wf design <slug> amend [instructions]    Reopen a confirmed design.
-  /wf design <slug> import <link|path>...   Turn outside design work into boards, then confirm.
+  /wf design <slug> [move] [instructions]   Run the design stage: draw the screens, check them, approve, write 02c-craft.md.
+                                            On an approved design, a move runs its checks and draws nothing.
+  /wf design <slug> amend [instructions]    Reopen an approved design.
+  /wf design <slug> import <link|path>...   Turn outside design work into screens, then approve.
+  /wf design explore [slug] [instructions]  Sketch ideas on the design surface. Settles nothing.
   /wf design [slug] audit|critique          Run a design review dimension now.
   /wf design <move> <instructions>          Start a new workflow seeded with a move.
   /wf design setup|teach|extract|direction|sync [instructions]
@@ -97,13 +102,17 @@ Record the resolved job, slug, command, and instructions before you continue.
 
 ## Stage and amend
 
-Follow [design/stage.md](design/stage.md) exactly. The boards follow [design/_boards.md](design/_boards.md). A move on a confirmed design runs [design/stage.md](design/stage.md) → Move pass. The moves use the generic terms of [design/_platforms.md](design/_platforms.md).
+Follow [design/stage.md](design/stage.md) exactly. The screens follow [design/_surface.md](design/_surface.md). A move on an approved design runs [design/stage.md](design/stage.md) → Move pass. The moves use the generic terms of [design/_platforms.md](design/_platforms.md).
 
-Load [design/_craft-floor.md](design/_craft-floor.md) at Step 4, before the first board. Do not load it at Steps 1–3b. The Move pass reads it as a checklist.
+Load [design/_craft-floor.md](design/_craft-floor.md) at Step 4, before the first screen. Do not load it at Steps 1–3b. The Move pass reads it as a checklist.
+
+## Explore
+
+Follow [design/explore.md](design/explore.md). An explore run writes only explore sketches and, when it links to a workflow, decisions. It writes no screen and no contract.
 
 ## Import
 
-Follow [design/import.md](design/import.md). An import continues at the design stage, Step 5: the person confirms the imported boards. It loads the design record, the shared design context, and the move reference when a move is named. Load [design/_craft-floor.md](design/_craft-floor.md) with them, because the import skips Step 4.
+Follow [design/import.md](design/import.md). An import continues at the design stage, Step 5: the person approves the imported screens. It loads the design record, the shared design context, and the move reference when a move is named. Load [design/_craft-floor.md](design/_craft-floor.md) with them, because the import skips Step 4.
 
 ## New workflow (`/wf design <move> <instructions>`)
 
@@ -130,7 +139,7 @@ wf design <job> complete: <slug-or-"freestanding">
 
 Design modes: <surface: persuade|operate|read|experience, ... | n/a>
 Image gate: <pass | skipped:<reason> | n/a>
-Boards: <design/r<N>/ — <count> boards — design/r<N>/index.html | n/a>
+Screens: <keys> — approved in <commit> — <canvas URL> | n/a
 Artifacts: <comma-separated paths, or "none">
 Next: <Type `/wf <key> <args>`. | Done>
 ```
@@ -139,3 +148,4 @@ Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write 
 - After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md). An `rca` workflow has no slice stage.
 - When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-packet` path (`.ai/workflows/<source-slug>/work/<packet-slug>.md`).
 - After amend, `Next` names the first plan to revisit.
+- After explore, `Next` follows [design/explore.md](design/explore.md) → Chat return.

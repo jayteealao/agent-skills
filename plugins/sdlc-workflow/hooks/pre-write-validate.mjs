@@ -25,7 +25,7 @@ import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { checksModeOf, loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
-import { missingBoardFiles } from '../lib/design-boards.mjs';
+import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
 import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
@@ -244,9 +244,8 @@ async function designGate({ projectRoot, filePath, slug, storageRel }) {
     const hasBrief = hasDoc(dir, '02b-design.md');
     const sliceSlug = planSliceOf(storageRel);
     const slice = sliceSlug === null ? null : frontmatterOfDoc(dir, `03-slice-${sliceSlug}.md`);
-    // A contract that names its boards (`boards:`) is settled only when the board
-    // files exist (DESIGN-BOARDS-PLAN D5).
-    const missingBoards = contract ? missingBoardFiles(dir, contract) : null;
+    // A contract that names its screens or its boards is settled only when those files exist.
+    const missingBoards = missingDesignFiles(projectRoot, dir, contract);
     return designGateRefusal({ index, hasBrief, contract, slug, slice, sliceSlug, missingBoards });
   } catch {
     return null;

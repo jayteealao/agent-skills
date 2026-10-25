@@ -7,10 +7,12 @@
 // pre-write hook uses them to refuse a `04-plan*.md` write while a needed design
 // is unsettled; the prose stages and the yolo driver state the same rule.
 //
-// Boards (DESIGN-BOARDS-PLAN D5): when `02c-craft.md` names its frozen boards in
-// `boards:` and the change is `visual` or `new-surface`, the design is settled only
-// when every listed board file exists. The caller reads the disk
-// (lib/design-boards.mjs missingBoardFiles) and passes the missing list in.
+// Screens: when `02c-craft.md` names the approved screens in `screens:`, the design is
+// settled only when a script recorded the approval from the answer event
+// (`direction-confirmed-by: answer-event` and `approval-commit`), and every screen page
+// exists on the surface. A contract from before the surface names its frozen boards in
+// `boards:` instead, and every listed board file must exist. The caller reads the disk
+// (lib/design-surface.mjs missingDesignFiles) and passes the missing list in.
 
 import { needsPictures } from './design-boards.mjs';
 
@@ -68,11 +70,23 @@ export function designSettled(index, contract, missingBoards = null) {
   if (!contract) return false;
   if (!imageGateResolved(contract['image-gate'])) return false;
   if (String(contract['direction-confirmed-by'] ?? '').trim() === '') return false;
+  if (namesScreens(contract) && !approvedByAnswer(contract)) return false;
   return !boardsMissing(index, contract, missingBoards);
 }
 
-/** True when the contract names boards, the change needs pictures, and a board file is missing. */
+/** Does the contract name approved screens (`screens:`)? */
+export function namesScreens(contract) {
+  return Array.isArray(contract?.screens) && contract.screens.length > 0;
+}
+
+/** Did a script record the approval from the answer event of the person? */
+export function approvedByAnswer(contract) {
+  return String(contract?.['direction-confirmed-by'] ?? '').trim() === 'answer-event' && String(contract?.['approval-commit'] ?? '').trim() !== '';
+}
+
+/** True when a screen page or a board file that the contract names is missing. */
 export function boardsMissing(index, contract, missingBoards) {
+  if (namesScreens(contract)) return Array.isArray(missingBoards) && missingBoards.length > 0;
   if (!String(contract?.boards ?? '').trim()) return false;
   if (!needsPictures(index)) return false;
   return Array.isArray(missingBoards) && missingBoards.length > 0;
@@ -116,8 +130,12 @@ export function designGateRefusal({ index, hasBrief, contract, slug, slice = nul
     : !contract
       ? '02c-craft.md is missing'
       : boardsMissing(index, contract, missingBoards)
-        ? `the confirmed boards are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug})`
-        : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by';
+        ? namesScreens(contract)
+          ? `the approved screens are not on the design surface: ${shown}${more}`
+          : `the confirmed boards are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug})`
+        : namesScreens(contract) && !approvedByAnswer(contract)
+          ? '02c-craft.md names screens, but no approval is recorded from the answer of the person (wf.mjs design approve)'
+          : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by';
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
   const sliceHint = sliceSlug
     ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.`

@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { sdlcHomeDir } from './home.mjs';
+import { missingBoardFiles } from './design-boards.mjs';
 
 export const SURFACE_REL = '.ai/design';
 export const SCREENS_DIR = 'screens';
@@ -140,6 +141,21 @@ export function screenTemplate(key, title) {
 </body>
 </html>
 `;
+}
+
+/** The screens that `02c-craft.md` `screens:` approves but that have no page on the surface. */
+export function missingScreens(root, contract) {
+  const keys = Array.isArray(contract?.screens) ? contract.screens : [];
+  return keys.filter((k) => !KEY_RE.test(String(k)) || !existsSync(screenFile(root, String(k)))).map((k) => `${SURFACE_REL}/${SCREENS_DIR}/${k}.html`);
+}
+
+/**
+ * The design files that a contract names but that are not on disk: the screens of `screens:`,
+ * or the board files of `boards:` for a contract from before the surface.
+ */
+export function missingDesignFiles(root, workflowDir, contract) {
+  if (!contract) return null;
+  return Array.isArray(contract.screens) && contract.screens.length ? missingScreens(root, contract) : missingBoardFiles(workflowDir, contract);
 }
 
 /** The states that a screen page declares with `data-state`. */

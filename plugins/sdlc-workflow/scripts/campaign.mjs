@@ -36,8 +36,9 @@ import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.
 import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
-import { designNeeded, designSettled } from '../lib/design-lane.mjs';
+import { needsPictures } from '../lib/design-boards.mjs';
+import { missingDesignFiles } from '../lib/design-surface.mjs';
+import { designNeeded, designSettled, namesScreens } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 import { workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 import { INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
@@ -228,14 +229,14 @@ export function designBlock(root, slug) {
   if (!index) return null;
   if (!designNeeded(index, hasDoc(dir, '02b-design.md'))) return null;
   const contract = recordFm(dir, '02c-craft.md');
-  const missing = contract ? missingBoardFiles(dir, contract) : null;
+  const missing = missingDesignFiles(root, dir, contract);
   if (!designSettled(index, contract, missing)) {
-    if (missing?.length) return `the confirmed boards are missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
+    if (missing?.length) return `the approved ${namesScreens(contract) ? 'screens' : 'boards'} are missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
     return `the design is not settled; run /wf design ${slug} with the person`;
   }
   const skipped = index.progress && typeof index.progress === 'object' && index.progress.design === 'skipped';
-  if (!skipped && needsPictures(index) && !String(contract?.boards ?? '').trim()) {
-    return `02c-craft.md names no boards (ux-impact ${index['ux-impact']}); run /wf design ${slug} amend`;
+  if (!skipped && needsPictures(index) && !String(contract?.boards ?? '').trim() && !namesScreens(contract)) {
+    return `02c-craft.md names no screens (ux-impact ${index['ux-impact']}); run /wf design ${slug} amend`;
   }
   return null;
 }

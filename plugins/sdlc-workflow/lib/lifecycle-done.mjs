@@ -14,7 +14,7 @@
 // `judgeLifecycle` is pure: it takes the frontmatter that the caller read. The
 // reader `lifecycleDone` reads the disk.
 
-import { missingBoardFiles } from './design-boards.mjs';
+import { missingDesignFiles } from './design-surface.mjs';
 import { designNeeded, designSettled } from './design-lane.mjs';
 import { frontmatterOfDoc, hasDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -157,7 +157,7 @@ export function lifecycleDone(root, slug) {
   let design = { needed: false, settled: true };
   if (index) {
     const needed = designNeeded(index, hasDoc(dir, '02b-design.md'));
-    design = { needed, settled: !needed || designSettled(index, contract, contract ? missingBoardFiles(dir, contract) : null) };
+    design = { needed, settled: !needed || designSettled(index, contract, missingDesignFiles(root, dir, contract)) };
   }
   return judgeLifecycle({ index, roster: readRoster(dir), artifact: read, design });
 }
