@@ -3,8 +3,9 @@
 // tokens, the writes to workflow files that went around wf.mjs, and the final answer.
 
 // A shell command that writes a file, and a path in the workflow records.
-const WRITES = /\b(python3?|node\s+-e|sed\s+-i|perl\s+-i|Set-Content|Add-Content|Out-File|Copy-Item|Move-Item|Remove-Item|tee|cp|mv|rm)\b|>>?\s*\S/;
-const RECORDS = /\.ai[\\/]workflows[\\/](?![^\s"']*[\\/](\.draft|\.scratch)[\\/])/;
+const WRITES = /\b(python3?|node\s+-e|sed\s+-i|perl\s+-i|Set-Content|Add-Content|Out-File|Copy-Item|Move-Item|Remove-Item|tee|cp|mv|rm)\b|(?<![\d&])>>?\s*[^&\s]/;
+// The drafts and the scratch files are not records: a path that names them is not counted.
+const RECORDS = /\.ai[\\/]workflows[\\/](?![^\s"']*[\\/](\.draft|\.scratch)(?![\w.-]))/;
 const WF_CLI = /^\s*(&\s*)?node(\.exe)?\s+["']?[^"'\s]*wf\.mjs["']?\s/;
 
 /** True when a shell command or a file tool writes a workflow file without wf.mjs. */

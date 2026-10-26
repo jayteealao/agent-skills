@@ -55,7 +55,11 @@ export function promptOf(task, arm, cell, root) {
 }
 
 function command(cell, prompt, root) {
-  if (cell.host === 'claude') return ['claude', ['-p', prompt, '--model', cell.model, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'bypassPermissions', '--max-turns', '60']];
+  // No permission bypass: the agent may read and write files and run node, and nothing else.
+  if (cell.host === 'claude') {
+    return ['claude', ['-p', prompt, '--model', cell.model, '--output-format', 'stream-json', '--verbose', '--max-turns', '60',
+      '--allowedTools', 'Read,Write,Edit,Glob,Grep,Bash(node:*),PowerShell(node:*)']];
+  }
   if (cell.host === 'codex') return ['codex', ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-C', root, prompt]];
   // The pi command line: check its flags before a pi run.
   return ['pi', ['-p', prompt, '--mode', 'json']];
