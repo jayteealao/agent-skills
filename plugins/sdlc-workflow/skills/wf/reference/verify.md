@@ -30,6 +30,7 @@ You are running `/wf verify`, **stage 6 of 9**: 1·intake → 2·design → 3·s
 - Set the terminal state honestly: `convergence` and `result`.
 - Done when `06-verify-<slice>.md` records the result of every acceptance criterion.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
+- To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
 
 ## Requires
 

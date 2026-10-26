@@ -45,7 +45,20 @@ To change the body of a record, run `<wf> record draft <root> <slug> <name>`: it
 
 Run `<wf> record set <root> <slug> <name> key=value ...`. A value reads as YAML: `[a, b]` is a list, `{k: v}` is a map, and `null` deletes the field. A key with dots names one field in a map: `progress.plan=complete`. `updated-at` moves by itself. Use it for the index fields that each stage changes, for example `<wf> record set <root> <slug> index current-stage=verify progress.verify=in-progress`.
 
-A change to a list (for example, one more entry of `runtime-evidence-deferrals`) sets the whole list. When the list is long or its entries hold text, change the record as a draft instead.
+A path form changes one item of a list:
+
+| Form | Change |
+|---|---|
+| `list[<slug>].field=v` | a field of the item whose `slug` (or `id`, or `name`) is `<slug>`, for example `slices[api].status=in-progress` |
+| `list[0].field=v` | a field of the item at a position, from 0 |
+| `list+=v` | append an item, for example `runtime-evidence-deferrals+={slice: api, ac: AC-2, reason: "..."}` |
+| `list-=v` | remove the equal item, or the item whose `slug` is `v` |
+
+A value outside the enum of the schema is refused, and the refusal names the allowed values.
+
+## Change several records
+
+To change several records or several list items, or to read several records with a filter, write a script and run it with `<wf> run`, per [_api.md](_api.md). One script makes one commit, and a script that fails changes nothing.
 
 The command reads the file, merges the change and writes the file in one step. So two writers lose no field, and a re-read before the change is not needed.
 

@@ -33,6 +33,7 @@ You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
 - Stop on a `dont-ship` verdict, or on an open security or data-loss BLOCKER that the fix loop did not fix.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
+- To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
 
 ## Requires
 

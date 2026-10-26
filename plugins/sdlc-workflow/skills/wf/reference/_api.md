@@ -31,33 +31,34 @@ Run `<wf> describe` for every function of the library, each with one example.
 
 ## Examples
 
-The verify result and the convergence of every slice:
+The slices that have a plan and no verify record yet. A read changes nothing, so it needs no dry run:
 
 ```js
 export default async function ({ wf }) {
-  return wf.records.fields('03-slice', ['slices']).slices.map(({ slug }) => {
-    const v = wf.records.get(`06-verify-${slug}`);
-    return { slice: slug, result: v?.frontmatter.result ?? null, convergence: v?.frontmatter.convergence ?? null };
-  });
+  const names = new Set(wf.records.list());
+  return wf.records.fields('03-slice', ['slices']).slices
+    .filter(({ slug }) => names.has(`04-plan-${slug}.md`) && !names.has(`06-verify-${slug}.md`))
+    .map(({ slug, status }) => ({ slice: slug, status }));
 }
 ```
 
-Three slices to `in-progress`, and one deferral:
-
-```js
-export default async function ({ wf }) {
-  for (const s of ['s4', 's5', 's6']) wf.records.set('03-slice', `slices[${s}].status`, 'in-progress');
-  wf.records.set('index', 'runtime-evidence-deferrals+', {
-    slice: 's6', ac: 'AC-2', reason: 'waits for the payment API sandbox', 'clearing-event': 'the payment API sandbox is up',
-  });
-}
-```
-
-A batch of answers of the person. Each answer settles its open question:
+The size of several slices of the roster, from a map in the first argument, for example `'{"api":"s","ui":"m"}'`:
 
 ```js
 export default async function ({ wf, args }) {
-  const answers = JSON.parse(args[0]);
-  return wf.decisions.addMany(answers.map((a) => ({ kind: 'answer', by: 'person', ...a }))).map((r) => r.entry.key);
+  const sizes = JSON.parse(args[0]);
+  for (const [slice, size] of Object.entries(sizes)) wf.records.set('03-slice', `slices[${slice}].complexity`, size);
+  return Object.keys(sizes);
+}
+```
+
+Every open finding in one file, set to `fixed` after the fix is committed:
+
+```js
+export default async function ({ wf, args }) {
+  const [file] = args;
+  const open = wf.findings.list({ open: true }).filter((f) => f.file === file);
+  for (const f of open) wf.findings.set(f.id, { status: 'fixed' });
+  return open.map((f) => f.id);
 }
 ```
