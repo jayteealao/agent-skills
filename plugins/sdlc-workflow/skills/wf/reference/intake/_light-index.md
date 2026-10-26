@@ -31,7 +31,7 @@ updated-at: "<ISO 8601>"
 | Mode | `<title>` | `<current-stage>` | `<status>` | `<next-command>` | `<next-invocation>` | `<progress>` | Extra keys (in the mode reference) |
 |---|---|---|---|---|---|---|---|
 | `brainstorm` | `Brainstorm: <topic> <YYYY-MM-DD>` | `brainstorm` | `ready` | `intake` | `/wf intake brainstorm <slug>` | `in-progress` | none |
-| `ideate` | `Ideate: <focus-area or codebase-wide> <YYYY-MM-DD>` | `routing` | `ready` | `user-picks` | `user-picks — record via /wf intake ideate <slug> <idea-id>; see 01-ideate.md` | `complete` | none |
+| `ideate` | `Ideate: <focus-area or codebase-wide> <YYYY-MM-DD>` | `routing` | `ready` | `user-picks` | `/wf intake ideate <slug>` | `complete` | none |
 | `investigate` | `Investigate: <one-line problem>` | `routing` | `ready` | `user-picks` | `user-picks — record via /wf intake investigate <slug> <option>; see 01-investigate.md ## Routing` | `complete` | branch, option counts and labels, `augmentations` |
 | `rca` | `RCA: <one-line symptom>` | `fix-routing` | `ready` | the route of `## Recommended next command`, for example `wf-plan`; `user-picks` until a route is recorded | the invocation of that route | `complete` | branch, `recommended-routes`, `stack`, `ux-impact`, two more `progress` entries |
 | `discover` | `Discover: <one-line hypothesis>` | `routing` | `closed` | `none` | `none — verdict recorded; see recommended-routes` | `complete` | closure, branch, `recommended-routes`, verdict, `augmentations` |

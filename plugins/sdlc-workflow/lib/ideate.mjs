@@ -1,13 +1,19 @@
-// lib/ideate.mjs — the pure side of /wf intake ideate with sources (WF-IDEATE-SOURCES-PLAN).
+// lib/ideate.mjs — the pure side of /wf intake ideate (WF-IDEATE-SOURCES-PLAN, WF-IDEATE-TRIAGE-PLAN).
 //
-// Three jobs, each with a test:
-//   classifyArgs        Step 0: give each argument a kind from its shape (section 3).
+// Four jobs, each with a test:
+//   classifyArgs        Step 0: give each argument a kind from its shape (section 3);
+//                       after a slug, the mode: resume, refresh, steer, or pick.
 //   sourceItemProblems  Step 6: every source item has exactly one result (section 4.2).
+//   triageProblems      the loop: triage states, links between ideas, and rounds resolve.
 //   redactIssue         section 5.3: an issue reference copy keeps no author, body, or comment.
 // scripts/ideate-sources.mjs owns the disk and `gh`; this module reads nothing.
 
 export const LENSES = Object.freeze(['quality', 'performance', 'security', 'dx', 'feature', 'architecture']);
 export const RESERVED = Object.freeze(['research', 'issues']);
+// The words after an ideate slug that run a round (intake/ideate/_rounds.md).
+export const STEER_WORDS = Object.freeze(['deeper', 'similar', 'lens', 'direction', 'surprise']);
+export const TRIAGE_STATES = Object.freeze(['open', 'take', 'later', 'drop', 'brainstorm']);
+export const ROUND_KINDS = Object.freeze(['initial', 'deeper', 'similar', 'lens', 'direction']);
 export const RESULTS = Object.freeze(['applies', 'already-used', 'not-applicable', 'blocked-by-version', 'needs-verification', 'already-fixed', 'duplicate-of', 'withdrawn']);
 // Results that only an issue item can have.
 const ISSUE_ONLY = new Set(['already-fixed', 'duplicate-of']);
@@ -37,19 +43,27 @@ const DEP_RE = /^(@?[a-z0-9][\w.-]*(?:\/[\w.-]+)?)@(v?\d[\w.+-]*|latest|next)$/i
  * Give each argument a kind (section 3). The first rule that matches wins.
  * `isIdeateSlug(token)` and `isFile(token)` are the two disk checks; the caller supplies them.
  * Rule 1 (an existing ideate slug) applies to the first token only: the tokens after it are
- * the pick, `refresh`, or a resume, and stay unclassified in `rest`.
+ * a resume (none), `refresh`, a steer (a word of STEER_WORDS, with the rest as `target`), or
+ * the pick, and stay unclassified in `rest`. A quoted first token is never a steer word.
  */
 export function classifyArgs(input, { isIdeateSlug = () => false, isFile = () => false } = {}) {
   const tokens = Array.isArray(input) ? input.map((t) => (typeof t === 'string' ? { token: t, quoted: false } : t)) : splitArgs(input);
   const kinds = [];
-  const out = { mode: 'new', slug: null, rest: [], sources: [], research: false, count: null, lenses: [], topic: [], kinds };
+  const out = { mode: 'new', slug: null, rest: [], steer: null, target: null, sources: [], research: false, count: null, lenses: [], topic: [], kinds };
   if (tokens.length && !tokens[0].quoted && isIdeateSlug(tokens[0].token)) {
     out.mode = 'resume';
     out.slug = tokens[0].token;
-    out.rest = tokens.slice(1).map((t) => t.token);
+    const after = tokens.slice(1);
+    out.rest = after.map((t) => t.token);
     kinds.push({ token: tokens[0].token, kind: 'slug' });
-    if (out.rest[0] === 'refresh') out.mode = 'refresh';
-    else if (out.rest.length) out.mode = 'pick';
+    const first = after[0];
+    if (!first) return out;
+    if (!first.quoted && first.token === 'refresh') out.mode = 'refresh';
+    else if (!first.quoted && STEER_WORDS.includes(first.token.toLowerCase())) {
+      out.mode = 'steer';
+      out.steer = first.token.toLowerCase();
+      out.target = after.slice(1).map((t) => t.token).join(' ');
+    } else out.mode = 'pick';
     return out;
   }
   for (const { token, quoted } of tokens) {
@@ -117,6 +131,52 @@ export function sourceItemProblems(fm) {
   }
   for (const idea of ideas) {
     for (const ref of idea?.['source-items'] ?? []) if (!itemIds.has(ref)) out.push(`idea ${idea.id}: names source item ${ref}, which is not in source-items`);
+  }
+  return out;
+}
+
+/**
+ * The triage check (WF-IDEATE-TRIAGE-PLAN 9.3). A record with no triage key, no
+ * links, and no rounds is a run from before the loop, and passes.
+ */
+export function triageProblems(fm) {
+  const out = [];
+  if (!fm || typeof fm !== 'object') return out;
+  const ideas = Array.isArray(fm.ideas) ? fm.ideas : [];
+  const culled = Array.isArray(fm.culled) ? fm.culled : [];
+  const rounds = Array.isArray(fm.rounds) ? fm.rounds : [];
+  const ideaIds = new Set(ideas.map((i) => i?.id));
+  const allIds = new Set([...ideaIds, ...culled.map((c) => c?.id)]);
+  const roundNs = new Set([1, ...rounds.map((r) => r?.n)]);
+  const merged = new Map();
+  for (const idea of ideas) {
+    const id = idea?.id ?? '<no id>';
+    const t = idea?.triage;
+    if (t === 'drop' && !idea['triage-reason']) out.push(`idea ${id}: a drop needs triage-reason (the person's words, or "no reason given")`);
+    if (t === 'brainstorm' && !idea['routed-to']) out.push(`idea ${id}: triage brainstorm needs routed-to, the brainstorm slug`);
+    if (idea?.parent && !allIds.has(idea.parent)) out.push(`idea ${id}: parent ${idea.parent} is not in ideas or culled`);
+    if (idea?.['merged-into'] !== undefined) {
+      if (!ideaIds.has(idea['merged-into'])) out.push(`idea ${id}: merged-into ${idea['merged-into']} is not in ideas`);
+      else merged.set(id, idea['merged-into']);
+    }
+    if (idea?.round !== undefined && !roundNs.has(idea.round)) out.push(`idea ${id}: round ${idea.round} is not in rounds`);
+  }
+  for (const start of merged.keys()) {
+    const seen = new Set([start]);
+    let at = merged.get(start);
+    while (merged.has(at)) {
+      if (seen.has(at)) { out.push(`idea ${start}: the merged-into chain loops`); break; }
+      seen.add(at);
+      at = merged.get(at);
+    }
+  }
+  for (const c of culled) {
+    const id = c?.id ?? '<no id>';
+    if (c?.source === 'person' && !c.reason) out.push(`culled ${id}: a person's drop needs reason`);
+    if (c?.round !== undefined && !roundNs.has(c.round)) out.push(`culled ${id}: round ${c.round} is not in rounds`);
+  }
+  for (const r of rounds) {
+    if ((r?.kind === 'deeper' || r?.kind === 'similar') && r.target && !allIds.has(r.target)) out.push(`round ${r.n}: target ${r.target} is not in ideas or culled`);
   }
   return out;
 }

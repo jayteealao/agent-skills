@@ -1990,7 +1990,60 @@
               "source-items": { "$ref": "#/$defs/stringArray" },
               "seen-in": { "type": "string" },
               "changed": { "type": "string" },
-              "refresh": { "enum": ["still-valid", "stale", "done-elsewhere", "new"] }
+              "refresh": { "enum": ["still-valid", "stale", "done-elsewhere", "new"] },
+              "triage": { "enum": ["open", "take", "later", "drop", "brainstorm"], "description": "WF-IDEATE-TRIAGE-PLAN 4.1: the person's triage state (intake/ideate/_loop.md). Absent reads as open (a run from before the loop)." },
+              "triage-reason": { "type": "string", "minLength": 1, "description": "The person's words for the triage state. Required on a drop." },
+              "triage-at": { "$ref": "#/$defs/iso8601" },
+              "round": { "type": "integer", "minimum": 1, "description": "The round that found the idea (intake/ideate/_rounds.md). Absent means round 1." },
+              "parent": { "type": "string", "description": "The idea that a deeper or similar round, or a split, grew this idea from." },
+              "merged-into": { "type": "string", "description": "The idea that this idea was merged or split into. Not shown and not picked." },
+              "rescued": { "type": "boolean" },
+              "culled-reason": { "type": "string", "description": "The filter's reason, kept when the person rescues a cull." },
+              "discussed": { "type": "boolean" },
+              "notes": {
+                "type": "array",
+                "description": "One plain sentence per discussion change (WF-IDEATE-TRIAGE-PLAN 5.2).",
+                "items": {
+                  "type": "object",
+                  "required": ["at", "text"],
+                  "properties": { "at": { "$ref": "#/$defs/iso8601" }, "text": { "type": "string", "minLength": 1 } }
+                }
+              },
+              "routed-to": { "type": "string", "description": "The brainstorm slug that a hand-off started. Required when triage is brainstorm." }
+            },
+            "allOf": [
+              { "if": { "properties": { "triage": { "const": "drop" } }, "required": ["triage"] }, "then": { "required": ["triage-reason"] } },
+              { "if": { "properties": { "triage": { "const": "brainstorm" } }, "required": ["triage"] }, "then": { "required": ["routed-to"] } }
+            ]
+          }
+        },
+        "culled": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": { "enum": ["filter", "person"], "description": "WF-IDEATE-TRIAGE-PLAN 4.5: who removed the idea. Absent means filter." },
+              "round": { "type": "integer", "minimum": 1 },
+              "dropped-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        },
+        "rounds": {
+          "type": "array",
+          "description": "WF-IDEATE-TRIAGE-PLAN 6.1: the scans of this run. Round 1 is the first scan; each steer adds one round (intake/ideate/_rounds.md).",
+          "items": {
+            "type": "object",
+            "required": ["n", "kind"],
+            "properties": {
+              "n": { "type": "integer", "minimum": 1 },
+              "kind": { "enum": ["initial", "deeper", "similar", "lens", "direction"] },
+              "target": { "type": "string" },
+              "lenses": { "$ref": "#/$defs/stringArray" },
+              "topic": { "type": "string" },
+              "raw": { "type": "integer", "minimum": 0 },
+              "culled": { "type": "integer", "minimum": 0 },
+              "survivors": { "type": "integer", "minimum": 0 },
+              "at": { "$ref": "#/$defs/iso8601" }
             }
           }
         }

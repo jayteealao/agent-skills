@@ -14,7 +14,8 @@ raw-candidates: <N>
 culled-count: <N>
 survivor-count: <N>
 shown-count: <N>
-selected: []          # idea ids the user selected in Step 5; stamped again at pick time
+modes: []             # [steer] when a round of _rounds.md ran
+selected: []          # the ideas at triage: take, stamped at done (_loop.md)
 ideas:
   - id: IDEA-001
     title: "<title>"
@@ -29,13 +30,39 @@ ideas:
     source-items: [S01-I04, S02-#42]   # only when sources fed the idea
     seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3c)
     changed: "<what changed since that run>"
+    triage: <open|take|later|drop|brainstorm>   # _loop.md; every idea starts open
+    triage-reason: "<the person's words>"       # required on a drop
+    triage-at: "<ISO 8601>"
+    round: <N>                         # only when a later round found it (_rounds.md)
+    parent: IDEA-NNN                   # only for an idea from deeper, similar, or a split
+    merged-into: IDEA-NNN              # only for an idea merged or split into another
+    rescued: true                      # only for a rescued cull, with culled-reason
+    culled-reason: "<the filter's reason>"
+    discussed: true                    # only after a discussion
+    notes:                             # one plain sentence per discussion change
+      - at: "<ISO 8601>"
+        text: "<what changed, from what, and why>"
+    routed-to: <brainstorm slug>       # required when triage is brainstorm
   - ...
 culled:
   - id: IDEA-NNN
     title: "<title>"
     reason: "<adversarial filter reason, or needs-verification: <the named cheap check>>"
     seen-in: "<an earlier ideate slug>"  # only for an earlier cull that stays culled
+    source: <filter|person>            # person for a drop in the loop; absent means filter
+    round: <N>                         # only when a later round culled it
+    dropped-at: "<ISO 8601>"           # only for a person's drop
   - ...
+rounds:                                # round 1 is the first scan; each steer adds one (_rounds.md)
+  - n: 1
+    kind: <initial|deeper|similar|lens|direction>
+    target: IDEA-NNN                   # deeper and similar only
+    lenses: [<the lenses that ran>]
+    topic: "<words>"                   # direction only
+    raw: <N>
+    culled: <N>
+    survivors: <N>
+    at: "<ISO 8601>"
 sources:                               # only when Step 0 found source arguments (_sources.md)
   - id: S01
     kind: <web|document|dependency|issues|research>
@@ -54,8 +81,8 @@ research:                              # every research act (_lenses.md, Researc
     trigger: <keyword|agent>
     note: research/R01-<label>.md
 next-command: user-picks
-next-invocation: "/wf intake ideate <slug> <idea-id>"
-recommended-routes: [{invocation: "/wf intake ideate <slug> <idea-id>", reason: "record the pick", default: true}]
+next-invocation: "/wf intake ideate <slug>"
+recommended-routes: [{invocation: "/wf intake ideate <slug>", reason: "triage, discuss, or steer the ideas", default: true}, {invocation: "/wf intake ideate <slug> <idea-id>", reason: "record the pick"}]
 ---
 ```
 
@@ -65,11 +92,27 @@ recommended-routes: [{invocation: "/wf intake ideate <slug> <idea-id>", reason: 
 
 ## Ranked Ideas
 
-Build this list from the `ideas:` roster. The roster order is the rank. Write one entry for each roster entry. Do not copy the roster fields (category, impact, effort, feasibility, rank-reason, evidence, entry) into the body. The `culled:` roster is the adversarial filter log.
+Build this list from the `ideas:` roster. The roster order is the rank. Write one entry for each roster entry that has no `merged-into`. Do not copy the roster fields (category, impact, effort, feasibility, rank-reason, evidence, entry) into the body. The `culled:` roster is the adversarial filter log. Mark each entry with its triage state in words: Open, Taken, Later, Dropped, or Sent to brainstorm.
 
-### #1 — <Title> (IDEA-001)
+### #1 — <Title> (IDEA-001) · <triage state in words>
 
 <Description>
+
+#### Discussion
+
+<Only after a discussion: one plain line per `notes:` entry.>
+
+## Triage
+
+<Written by the loop. The taken ideas, then the later ideas, then the drops with the person's reasons, then the ideas sent to brainstorm with their brainstorm slug.>
+
+## Rounds
+
+<Written by _rounds.md. One plain line per round after the first: what it looked at, and what it found.>
+
+## Sessions
+
+<Written at pause. The story of each sitting, newest first.>
 
 ---
 
@@ -88,7 +131,16 @@ Give each idea the highest `confidence` that its evidence allows. Step 4 weighs 
 
 Each idea above maps directly to a `/wf intake` invocation. Copy the entry command for any idea you want to pursue. The slug suggestion is a starting point; you can adjust it.
 
-If you want to re-run ideation with a different focus or count:
+To continue this run, run `/wf intake ideate <slug>`: the loop triages, discusses, and steers the ideas. To look further inside this run:
+```
+/wf intake ideate <slug> deeper <idea>        # the idea's files and their neighbours
+/wf intake ideate <slug> similar <idea>       # the same pattern elsewhere
+/wf intake ideate <slug> lens security        # a lens this run did not run
+/wf intake ideate <slug> direction payments   # a new topic
+/wf intake ideate <slug> surprise me          # angles you did not raise
+```
+
+To start a new run with a different focus or count:
 ```
 /wf intake ideate security          # security lens only
 /wf intake ideate performance 5     # performance lens, top 5

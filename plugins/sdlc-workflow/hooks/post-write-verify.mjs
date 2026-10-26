@@ -29,7 +29,7 @@ import { workflowDirOf } from '../lib/records-root.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { ledgerProblems } from '../lib/prototype.mjs';
 import { designModesOf } from '../lib/design-boards.mjs';
-import { sourceItemProblems } from '../lib/ideate.mjs';
+import { sourceItemProblems, triageProblems } from '../lib/ideate.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import {
   collectToolInputPaths,
@@ -403,30 +403,39 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
 }
 
 /**
- * The coverage guarantee of ideate with sources (WF-IDEATE-SOURCES-PLAN 4.2): every
- * source item of 01-ideate.md has exactly one result, and its ids resolve. A write
- * that leaves an item without a result BLOCKS (exit 2) and names the items.
- * Opt out with hooks.ideateSourceCoverage: false.
+ * Two checks on 01-ideate.md. The coverage guarantee of ideate with sources
+ * (WF-IDEATE-SOURCES-PLAN 4.2): every source item has exactly one result, and its ids
+ * resolve. The triage check (WF-IDEATE-TRIAGE-PLAN 9.3), on every ideation record: a drop
+ * has a reason, a hand-off names its brainstorm, and the links between ideas and rounds
+ * resolve. A failing write BLOCKS (exit 2) in checks mode block, and names the problems.
  */
-async function enforceSourceCoverage(paths, config) {
+async function enforceIdeateRecord(paths, config) {
   const failures = [];
   for (const path of paths) {
     if (!/(?:^|\/)01-ideate\.md$/.test(normalizePathForMatch(path.original))) continue;
     const text = await readTextIfExists(path.absolute);
     if (!text) continue;
     const fm = safeParseFrontmatter(text).data;
-    if (fm?.type !== 'ideation' || (!fm.sources && !fm['source-items'])) continue;
-    const problems = sourceItemProblems(fm);
-    if (problems.length) failures.push({ path, problems });
+    if (fm?.type !== 'ideation') continue;
+    const coverage = fm.sources || fm['source-items'] ? sourceItemProblems(fm) : [];
+    const triage = triageProblems(fm);
+    if (coverage.length || triage.length) failures.push({ path, coverage, triage });
   }
   if (!failures.length) return;
   const reason = [];
   for (const f of failures) {
-    reason.push(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}\n`);
-    for (const p of f.problems) reason.push(`  - ${p}\n`);
+    if (f.coverage.length) {
+      reason.push(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}\n`);
+      for (const p of f.coverage) reason.push(`  - ${p}\n`);
+      reason.push('Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n');
+      reason.push('Give each named item its result, then continue.\n');
+    }
+    if (f.triage.length) {
+      reason.push(`wf-postwrite-verify: ideate triage check FAILED for ${f.path.original}\n`);
+      for (const p of f.triage) reason.push(`  - ${p}\n`);
+      reason.push('Fix the named ideas (skills/wf/reference/intake/ideate/_loop.md), then continue.\n');
+    }
   }
-  reason.push('Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n');
-  reason.push('Give each named item its result, then continue.\n');
   refuseWrite(checksModeOf(config), reason.join(''));
 }
 
@@ -599,7 +608,7 @@ export async function run(input) {
     // `verify` artifact whose `result: pass` contradicts its acceptance evidence
     // (may exit 2; warns on prose-only deferrals). Then the warn-only lints.
     await enforceVerifyResultGate(paths, config);
-    await enforceSourceCoverage(paths, config);
+    await enforceIdeateRecord(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
     await enforceDesignModeLint(paths, config);

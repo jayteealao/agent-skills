@@ -1,6 +1,6 @@
 ---
-description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates a broad set of improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Sources (web pages, documents, name@version changelogs, GitHub issues) and the word research add a source-fit lens that checks every announced item against the code. A pick writes a list of work packets that `/wf campaign` builds; refresh checks a run again. Inverts the normal pattern — surfaces what you might not have thought to ask about.
-argument-hint: "[source...] [research] [lens] [count] [topic] | <ideate-slug> [idea-id...|refresh] [reason]"
+description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates a broad set of improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Sources (web pages, documents, name@version changelogs, GitHub issues) and the word research add a source-fit lens that checks every announced item against the code. After the ranked list, a loop lets the person triage each idea (take, later, drop, check, merge, split, rescue), discuss one idea, and steer the scan into new rounds (deeper, similar, lens, direction, surprise me) in the same run. A pick writes a list of work packets that `/wf campaign` builds; refresh checks a run again. Inverts the normal pattern — surfaces what you might not have thought to ask about.
+argument-hint: "[source...] [research] [lens] [count] [topic] | <ideate-slug> [idea-id...|refresh|deeper|similar|lens|direction|surprise] [text]"
 ---
 
 # Output boundary & shared context
@@ -41,6 +41,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_light-index.md` | procedure | always | |
 | `intake/ideate/_lenses.md` | procedure | always | |
 | `intake/ideate/_artifact.md` | procedure | always | |
+| `intake/ideate/_loop.md` | procedure | always | |
+| `intake/ideate/_rounds.md` | procedure | mode:steer | |
 | `intake/ideate/_sources.md` | procedure | mode:sources | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-ideate.md` | writes | | |
@@ -49,7 +51,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 You are an **opportunity discoverer and adversarial filter**, not a problem solver; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not start implementing, planning, or designing anything, and do not make code changes.
 - This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do not author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
-- Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact**.
+- Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact → the loop with the person** (triage, discuss, steer).
 
 ---
 
@@ -72,7 +74,11 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
    `research` and `issues` are reserved words: a topic that is one of them is quoted.
 2b. **Derive the workflow slug:** `ideate-<focusSlug>-<YYYYMMDD>`, with `focusSlug` from the script (the lens filter, the topic, `sources` when only sources are given, else `all`) and the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed. This roots the terminal analysis workflow. If that slug already exists, append `-2`/`-3`.
-2c. **Pick / refresh / resume split** (kind 1): a following `refresh` → jump to `# Refresh`. Following idea ids (`IDEA-NNN`) or an idea title → **pick mode**, jump to `# Pick — decision closure` (trailing prose is the decision note; if the index is already closed and the run has no list, WARN and end the run; with a list, the pick appends to it). No idea token and `01-ideate.md` complete → tell the user how to record a pick — `/wf intake ideate <slug> <idea-id...> [reason]` — and end the run. Incomplete → resume from the missing step.
+2c. **Resume / refresh / steer / pick split** (kind 1). The `mode` of the script output decides:
+   - `refresh` → jump to `# Refresh`.
+   - `steer` (a word of `deeper`, `similar`, `lens`, `direction`, `surprise` after the slug) → run sub-steps 3 to 3c, then the round per [_rounds.md](ideate/_rounds.md), then Step 7. Add `steer` to `modes:` of `01-ideate.md`.
+   - `pick` (idea ids `IDEA-NNN` or an idea title) → set those ideas to `triage: take`, and jump to `# Pick — decision closure` (trailing prose is the decision note; if the index is already closed and the run has no list, WARN and end the run; with a list, the pick appends to it). An idea title that starts with a steer word is quoted.
+   - `resume` (no token after the slug) and `01-ideate.md` complete → go to Step 7, at its Resume section. Incomplete → resume from the missing step.
 3. **Discover existing workflows** — read the index of each workflow under `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`). Note which are active or recently completed. Ideas that duplicate in-flight or just-shipped work should be flagged as such during adversarial filtering.
 3b. **Seed from recorded history** — the repo already wrote down what needs doing; the lenses must not re-derive it blind. Cheap reads, skip whatever is absent: retro action items (the `10-retro.md` record of each workflow, read with `record get`, the action-item section), `.ai/solutions/` entries, deferred review findings (review ledger entries marked deferred), and `sdlc-debt:` markers (`grep -rn 'sdlc-debt:' --include='*.{js,ts,py,go,rs,java,kt,md}'` or the repo's equivalent). Pass the harvest to every lens prompt as prior context, tagged `recorded-history` — a candidate that matches a recorded item cites it as evidence and skips Challenge 1.
 3c. **Remember earlier runs.** Read the `01-ideate.md` record of every earlier ideate workflow (`record get`), open and closed. Pass their `ideas:` and `culled:` rosters to Step 3. A new candidate matches an earlier one by title or by evidence:
@@ -177,12 +183,7 @@ Raw candidates: <N>  |  Culled by filter: <N>  |  Survivors: <N>  |  Showing: <N
 ### #2 — ...
 ```
 
-Then ask which ideas to pursue. A gate question carries at most 4 options ([_gate-question.md](../_gate-question.md)) — so:
-
-- **≤3 ranked ideas:** a multi-select gate question, one option per idea (label `#N — <Title>`, description = the entry command) plus "None — save list and decide later".
-- **4+ ranked ideas:** ask in chat instead — "Reply with the numbers of the ideas to act on (e.g. `1 3`), or `none` to save the list and decide later." A 10-option question widget is unbuildable; the numbered chat reply is the same decision.
-
-**Persist the selection** — the answer is a decision, not chat exhaust: record the selected idea ids in `01-ideate.md` frontmatter as `selected: [IDEA-NNN, …]` (empty list for "none") and append a one-line `## Selection` note to the body (who picks later when "none"). One selected idea and several use the same path: apply `# Pick — decision closure` after Step 6. "None" keeps the workflow open.
+Then write the records (Step 6), and go to Step 7. The first question of the loop asks what happens next ([_loop.md](ideate/_loop.md), The first question): go through the ideas one by one, take some ideas now by number, look further, or save the list and decide later. The answer is a decision, not chat exhaust: each idea's `triage` state holds it, and `selected:` holds the taken ideas at `done`.
 
 # Step 6 — Write Artifact
 
@@ -190,13 +191,17 @@ The terminal analysis modes root in a `type: workflow-index` slug workflow (the 
 
 Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
-**`00-index.md`**: write its draft from [_light-index.md](_light-index.md), the `ideate` row. The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, never `complete`-and-parked.
+**`00-index.md`**: write its draft from [_light-index.md](_light-index.md), the `ideate` row. The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, `next-invocation: /wf intake ideate <slug>`, never `complete`-and-parked.
 
-Write the draft of **`01-ideate.md`** (`type: ideation`) per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation), the `culled:` log, and with sources the `sources:`, `source-items:` and `research:` rosters, then the ranked ideas built from the roster, and the how-to-use footer. With sources, run `ideate-sources.mjs check "<projectRoot>" <slug>` after the put. It must return `ok: true`; the write hook refuses a source item with no result.
+Write the draft of **`01-ideate.md`** (`type: ideation`) per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence, `entry:` invocation, and `triage: open`), the `culled:` log, the `rounds:` list with its round-1 entry (`kind: initial`), and with sources the `sources:`, `source-items:` and `research:` rosters, then the ranked ideas built from the roster, and the how-to-use footer. After the put, run `ideate-sources.mjs check "<projectRoot>" <slug>`. It must return `ok: true`: every source item has a result, and the triage states and the links between ideas resolve.
+
+# Step 7 — The loop
+
+Follow [_loop.md](ideate/_loop.md). The person triages each idea, discusses an idea, and steers the scan into new rounds ([_rounds.md](ideate/_rounds.md)). Only the person's `done` or `pause` ends the loop. `done` with taken ideas runs `# Pick — decision closure`. In a non-interactive run, skip this step.
 
 # Pick — decision closure
 
-Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line reason]`), or from Step 5 with one or more selected ideas. The pick is the workflow's terminus: it writes one list, with one work packet per selected idea, and closes the workflow. It never starts a workflow; it prints the invocations and ends the run.
+Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line reason]`), or from `done` in Step 7 with one or more ideas at `triage: take`. The ideas at `take` are the selected ideas; `later`, `drop`, `brainstorm`, and `open` ideas are not picked. The pick is the workflow's terminus: it writes one list, with one work packet per selected idea, and closes the workflow. It never starts a workflow; it prints the invocations and ends the run.
 
 1. **Stamp the artifact.** In `01-ideate.md` frontmatter, with one `record set "<root>" <slug> 01-ideate.md` call, set `selected: [<idea-id>, …]`, `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body (get `01-ideate.md`, add the section, write the draft and put it): which ideas were picked; why (the user's exact reason, else "user picked without a stated reason"); the sibling ideas they beat and the one-line reason each lost (the culled-sibling rationale a work packet's out-of-scope list is seeded from).
@@ -227,16 +232,17 @@ The first `/wf campaign <slug>` on an ideate run with an old campaign ledger mig
 `/wf intake ideate <slug> refresh` checks a finished run again:
 
 1. Snapshot `01-ideate.md` to `history/` (write the output of `record get "<root>" <slug> 01-ideate.md`), and add a `revisions:` entry with `trigger: refresh`, per [_additive-write.md](../_additive-write.md).
-2. Check each survivor's evidence against the current code. Set its `refresh:` to `still-valid`, `stale` (the evidence is gone), or `done-elsewhere` (a later workflow or commit did it).
+2. Check each survivor's evidence against the current code. Set its `refresh:` to `still-valid`, `stale` (the evidence is gone), or `done-elsewhere` (a later workflow or commit did it). Keep each idea's `triage` state. A person's drop stays dropped; when its cited code changed, list it in one line, "you dropped this on <date>; its code changed", so the person can rescue it.
 3. Read each source again ([_sources.md](ideate/_sources.md)). Compare the new item list with `source-items:`. New items go through Lens 7 and get a result. A removed item gets `result: withdrawn`.
 4. Re-rank, write the draft of `01-ideate.md` and put it, and print the changes only.
 
-On a closed run, `refresh` reopens the workflow (`status: ready`) only when it finds a new idea. Otherwise it reports and leaves the run closed.
+On a closed run, `refresh` reopens the workflow (`status: ready`) only when it finds a new idea. Otherwise it reports and leaves the run closed. An open run goes into Step 7 after the refresh.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
+- `triage: <N> taken · <N> later · <N> dropped · <N> to brainstorm · <N> open`, and `rounds: <N>` when a steer ran
 - `sources: <N> read, <N> unavailable; items by result` and every research act, when sources ran
 - The ranked list (Step 5 format)
-- `options:` — the pick's invocations, or "Run `/wf intake ideate` again with a focus area for deeper coverage"
+- `options:` — the pick's invocations after `done`; else `/wf intake ideate <slug>` to continue the loop, or `/wf intake ideate <slug> deeper <idea>` to look further

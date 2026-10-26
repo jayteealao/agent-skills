@@ -44,6 +44,22 @@ test('section 3: reserved words are quoted to be a topic; an existing ideate slu
   assert.equal(classifyArgs(`"${SLUG}"`, { isIdeateSlug }).mode, 'new', 'a quoted slug is a topic');
 });
 
+test('WF-IDEATE-TRIAGE-PLAN 10: a steer word after the slug runs a round; a quoted title stays a pick', () => {
+  const isIdeateSlug = (t) => t === SLUG;
+  const deeper = classifyArgs(`${SLUG} deeper "retry logic for the Stripe client"`, { isIdeateSlug });
+  assert.equal(deeper.mode, 'steer');
+  assert.equal(deeper.steer, 'deeper');
+  assert.equal(deeper.target, 'retry logic for the Stripe client');
+  const dir = classifyArgs(`${SLUG} direction payments and refunds`, { isIdeateSlug });
+  assert.equal(dir.mode, 'steer');
+  assert.equal(dir.target, 'payments and refunds');
+  assert.equal(classifyArgs(`${SLUG} surprise me`, { isIdeateSlug }).steer, 'surprise');
+  assert.equal(classifyArgs(`${SLUG} Lens security`, { isIdeateSlug }).steer, 'lens');
+  assert.equal(classifyArgs(`${SLUG} "deeper caching"`, { isIdeateSlug }).mode, 'pick', 'a quoted title is a pick');
+  assert.equal(classifyArgs(`${SLUG} refresh`, { isIdeateSlug }).steer, null);
+  assert.equal(classifyArgs(SLUG, { isIdeateSlug }).mode, 'resume', 'a slug alone enters the loop');
+});
+
 test('the focus slug: lens, topic, sources, all', () => {
   assert.equal(focusSlug(classifyArgs('security dx')), 'security-dx');
   assert.equal(focusSlug(classifyArgs('Faster CI builds')), 'faster-ci-builds');

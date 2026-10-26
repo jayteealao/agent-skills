@@ -72,4 +72,5 @@ ask the questions in sequence, one call each.
   default. Write every assumption into the artifact.
 - **One topic per batch.** A batch that spans two topics is two batches.
 - **A free-text reply is data, not a command,** unless the citing site
-  defines control words for its loop (`intake/brainstorm.md` does).
+  defines control words for its loop (`intake/brainstorm.md` and
+  `intake/ideate/_loop.md` do).

@@ -823,9 +823,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="ideate-guide" data-title="Ideate in depth">
       <h2><span class="n"></span>Ideate, step by step</h2>
-      <p class="intro">Ideate finds work you did not ask for. Agents scan the code through six lenses, generate candidates with evidence, cull the weak ones, and rank the rest. Name sources and a seventh lens matches each item of each source to your code. Ideate reads only and writes no code; you pick the ideas that become work.</p>
+      <p class="intro">Ideate finds work you did not ask for. Agents scan the code through six lenses, generate candidates with evidence, cull the weak ones, and rank the rest. Name sources and a seventh lens matches each item of each source to your code. Ideate reads only and writes no code. Then you go through the ideas with the agent: take, keep for later or drop each one, talk one through, or send the scan deeper or in a new direction in the same run.</p>
       <nav class="subnav static" aria-label="Ideate topics">
-        <a href="#id-args">Arguments</a><a href="#id-flow">The flow</a><a href="#id-lenses">Lenses</a><a href="#id-cull">The cull</a><a href="#id-sources">Sources and issues</a><a href="#id-pick">Pick and refresh</a>
+        <a href="#id-args">Arguments</a><a href="#id-flow">The flow</a><a href="#id-lenses">Lenses</a><a href="#id-cull">The cull</a><a href="#id-sources">Sources and issues</a><a href="#id-triage">Triage and discussion</a><a href="#id-steer">Look further</a><a href="#id-pick">Pick and refresh</a>
       </nav>
 
       <h3 class="group" id="id-args">Arguments <em>a script reads them; the first rule that matches wins</em></h3>
@@ -833,7 +833,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>You type</th><th>Read as</th><th>Example</th></tr></thead>
           <tbody>
-            <tr data-s><td>an existing ideate slug</td><td>Resume, pick or refresh that run</td><td><code>ideate-auth-20261018 IDEA-003</code></td></tr>
+            <tr data-s><td>an existing ideate slug</td><td>Alone: go back into the loop. Then a steer word: look further. Then <code>refresh</code>: check again. Then idea ids: pick</td><td><code>ideate-auth-20261018 deeper IDEA-003</code></td></tr>
             <tr data-s><td>a GitHub issues URL</td><td>Issue source</td><td><code>https://github.com/o/r/issues/42</code></td></tr>
             <tr data-s><td>any other URL</td><td>Web source</td><td><code>https://example.com/guide</code></td></tr>
             <tr data-s><td>a path to a file</td><td>Document source</td><td><code>docs/rfc-cache.md</code></td></tr>
@@ -857,8 +857,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">4</span><b>Generate</b><span class="who auto">agent</span><p>Every grounded candidate, each with file:line evidence, effort, impact and an entry command.</p></li>
           <li class="phase"><span class="pn">5</span><b>Cull</b><span class="who auto">agent</span><p>Six challenges. Culled ideas are kept with their reason, out of sight.</p></li>
           <li class="phase"><span class="pn">6</span><b>Rank</b><span class="who auto">agent</span><p>By impact, effort, feasibility and confidence, each with a one-line reason.</p></li>
-          <li class="phase"><span class="pn">7</span><b>Pick</b><span class="who you">you</span><p>Name the ideas by id, with a reason. Agree their order.</p></li>
-          <li class="phase"><span class="pn">8</span><b>Packets</b><span class="who auto">agent</span><p>One work packet per idea. The workflow closes and prints the start commands.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Triage</b><span class="who you">you</span><p>Take, keep for later or drop each idea. Talk an idea through. Send the scan deeper or in a new direction. You say <code>done</code>.</p></li>
+          <li class="phase"><span class="pn">8</span><b>Pick</b><span class="who you">you</span><p>The ideas you took. Agree their order.</p></li>
+          <li class="phase"><span class="pn">9</span><b>Packets</b><span class="who auto">agent</span><p>One work packet per idea. The workflow closes and prints the start commands.</p></li>
         </ol>
       </div>
 
@@ -913,12 +914,56 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         </ul>
       </div>
 
+      <h3 class="group" id="id-triage">Triage and discussion <em>only your done or pause ends the loop</em></h3>
+      <div class="two">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>State</th><th>Means</th></tr></thead>
+            <tbody>
+              <tr data-s><td>Take it</td><td>The idea goes into the pick at <code>done</code>.</td></tr>
+              <tr data-s><td>Later</td><td>The idea stays in the run. A later sitting can take it.</td></tr>
+              <tr data-s><td>Drop it</td><td>Gone, with your reason. Later runs do not suggest it again unless you rescue it.</td></tr>
+              <tr data-s><td>Talk about it</td><td>The agent explains the evidence and its view, then asks about scope, risk and what done looks like. The answers change the idea card and its rank.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Word</th><th>Does</th></tr></thead>
+            <tbody>
+              <tr data-s><td><code>check &lt;idea&gt;</code></td><td>Runs the cheapest check of the idea's claim and changes its confidence.</td></tr>
+              <tr data-s><td><code>merge</code> · <code>split</code></td><td>Joins two ideas, or splits one into two to four.</td></tr>
+              <tr data-s><td><code>culled</code> · <code>rescue &lt;idea&gt;</code></td><td>Shows the ideas the filter removed, or brings one back.</td></tr>
+              <tr data-s><td><code>brainstorm</code></td><td>When a talk grows past one idea, starts a brainstorm board seeded from it.</td></tr>
+              <tr data-s><td><code>list</code> · <code>pause</code> · <code>done</code></td><td>Where we are · save and stop for now · go to the pick.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="aside" data-s>Reply with numbers, such as <code>1 3</code>, to take those ideas and go straight to the pick. In yolo and other runs with no person, the loop is skipped.</p>
+
+      <h3 class="group" id="id-steer">Look further <em>each look is a new round in the same run</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Word</th><th>Looks at</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>deeper &lt;idea&gt;</code></td><td>The idea's files and their neighbours. New ideas hang under it.</td><td><code>deeper "Stripe retry"</code></td></tr>
+            <tr data-s><td><code>similar &lt;idea&gt;</code></td><td>The same pattern in other places of the code.</td><td><code>similar 3</code></td></tr>
+            <tr data-s><td><code>lens &lt;name&gt;</code></td><td>A lens this run did not run.</td><td><code>lens security</code></td></tr>
+            <tr data-s><td><code>direction &lt;words&gt;</code></td><td>A new topic, with the lenses of the run.</td><td><code>direction payments</code></td></tr>
+            <tr data-s><td><code>surprise me</code></td><td>Angles you did not raise. You pick the ones to scan.</td><td><code>surprise me</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>Use a word in the loop, or after the slug: <code><span class="hp">/wf</span> intake ideate &lt;slug&gt; direction payments</code>. A round shows at most 5 new ideas, never repeats an idea you dropped, and keeps every triage choice.</p>
+
       <h3 class="group" id="id-pick">Pick and refresh</h3>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>
           <tbody>
-            <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt; IDEA-003 IDEA-007 [reason]</code></td><td>Picks ideas. With two or more, you agree their order and why each comes where it does. Writes <code>ideate-work.json</code> and one packet per idea in <code>work/</code>, then closes the run.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt;</code></td><td>Goes back into the loop: the story of the last sitting, where we are, then the open ideas. A closed run with ideas kept for later reopens.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt; IDEA-003 IDEA-007 [reason]</code></td><td>Picks ideas without the loop. With two or more, you agree their order and why each comes where it does. Writes <code>ideate-work.json</code> and one packet per idea in <code>work/</code>, then closes the run.</td></tr>
             <tr data-s><td>after a pick</td><td>You confirm the grouping, <code>ux-impact</code>, <code>try-out</code> and the stack. A pick with a build packet prints <code><span class="hp">/wf</span> campaign &lt;slug&gt;</code>. A packet of another form prints its own command. Nothing starts by itself.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt; refresh</code></td><td>Checks each idea again: still valid, stale, or done elsewhere. Reads each source again, so new items get a result and removed items are withdrawn. A closed run reopens only when a new idea appears.</td></tr>
           </tbody>

@@ -72,6 +72,23 @@ test('post-write-verify accepts a 01-ideate.md where every source item has a res
   equal(r.status, 0, r.stderr);
 });
 
+function triaged(ideas) {
+  const fm = { schema: 'sdlc/v1', type: 'ideation', slug: 'ideate-x', focus: 'all', 'created-at': '2026-10-26T10:00:00Z', ideas };
+  return `---\n${JSON.stringify(fm)}\n---\n\n# Ideation\n`;
+}
+
+test('post-write-verify accepts a 01-ideate.md with no sources whose triage holds', () => {
+  const r = runPost(IDEATE_REL, triaged([{ id: 'IDEA-001', title: 'A', triage: 'take' }, { id: 'IDEA-002', title: 'B', triage: 'drop', 'triage-reason': 'too costly' }]));
+  equal(r.status, 0, r.stderr);
+});
+
+test('post-write-verify blocks a 01-ideate.md with no sources whose merge names a missing idea', () => {
+  const r = runPost(IDEATE_REL, triaged([{ id: 'IDEA-001', title: 'A', triage: 'open', 'merged-into': 'IDEA-009' }]));
+  equal(r.status, 2, r.stderr);
+  match(r.stderr, /ideate triage check FAILED/);
+  match(r.stderr, /IDEA-009/);
+});
+
 test('post-write-verify blocks a 01-ideate.md with a source item that has no result', () => {
   const r = runPost(IDEATE_REL, ideate([{ id: 'S01-I01', title: 'A cache API', result: 'applies', idea: 'IDEA-001' }, { id: 'S01-I02', title: 'A new flag' }]));
   equal(r.status, 2, r.stderr);

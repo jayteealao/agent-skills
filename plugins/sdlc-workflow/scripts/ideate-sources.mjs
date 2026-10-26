@@ -7,7 +7,8 @@
  *   args      <root> <argument text...>             the kind of each argument (section 3)
  *   issues    <root> <slug> <S-id> <origin>         read issues with gh; write the redacted reference copy
  *   reference <root> <slug> <S-id> <file> --origin o add the references/index.md row of a copied source
- *   check     <root> <slug>                         every source item has one result; no issue copy keeps text
+ *   check     <root> <slug>                         every source item has one result; the triage links resolve;
+ *                                                   no issue copy keeps text
  *
  * Every command prints one JSON object on stdout. `issues` prints the full issues on
  * stdout for the agent to read in memory, and saves only the redacted copy (section 5.3).
@@ -20,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MAX_ISSUES, classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems } from '../lib/ideate.mjs';
+import { MAX_ISSUES, classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems, triageProblems } from '../lib/ideate.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, readDoc } from '../lib/records.mjs';
 
@@ -171,7 +172,7 @@ function check(root, slug) {
   const fm = readRecord(dir, '01-ideate.md');
   if (!fm) throw new Error(`no 01-ideate.md in ${slug}`);
   if (fm.error) throw new Error(`01-ideate.md does not parse: ${fm.error}`);
-  const problems = [...sourceItemProblems(fm.data), ...issueCopyProblems(dir)];
+  const problems = [...sourceItemProblems(fm.data), ...triageProblems(fm.data), ...issueCopyProblems(dir)];
   return { ok: problems.length === 0, slug, problems };
 }
 

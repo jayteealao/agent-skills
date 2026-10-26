@@ -52,6 +52,16 @@ Goal: find structural risk. Architectural fixes usually carry effort l/xl; say s
 - over-engineering: single-implementation indirection, configuration heavier than what it configures
 - coupling hotspots: files imported everywhere, large modules that export too much
 
+## The scope of a later round
+
+A round of [_rounds.md](_rounds.md) narrows the lens prompt:
+
+- **`deeper <idea>`.** The files of the idea's `evidence:`, and the files that import them or that they import, one step away. Each finding must be new ground: not a restatement of the idea.
+- **`similar <idea>`.** The idea's problem stated as a pattern, for example "an external client call with no retry and no timeout". Search the whole repo for the pattern. For each hit, say whether it is the same problem as the idea (more evidence) or a different problem (a new finding).
+- **`lens <name>` and `direction <words>`.** The whole repo, as in round 1, with the new lens or topic.
+
+Every round agent gets the titles and evidence of the ideas already in the roster, and reports new ground only.
+
 ## Lens 7 — Source fit
 
 Runs when the `source-items:` roster is not empty ([_sources.md](_sources.md)). Dispatch the items in waves of at most 6 agents. **Effort tier: medium** (per [_subagents.md](../../_subagents.md)): the lens matches outside facts to code, which is judgement, not extraction. For each item, the agent:
