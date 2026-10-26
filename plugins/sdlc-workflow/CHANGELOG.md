@@ -5,6 +5,23 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.5] - 2026-10-26
+
+- feat(sdlc-workflow): ideate triages, discusses, and steers its ideas in one run
+- test(sdlc-workflow): the code-mode eval stops at a usage limit and runs claude without a shell
+- test(sdlc-workflow): the code-mode eval harness, and a draft reference for wf.mjs run
+- feat(sdlc-workflow): wf.mjs run, a library of the record operations, and describe
+- feat(sdlc-workflow): read a project that is not linked here, and post a message to it
+- fix(sdlc-workflow): one issue per workflow on every machine, parked entries and every comment imported
+- feat(sdlc-workflow): help by example, slice drop and move, board commands, receipt and a stable entry point
+- feat(sdlc-workflow): record set on list items, record stage-done, lighter reads and status --brief
+- fix(sdlc-workflow): the link merges an existing folder, waits for worktree files and reports tracked records
+- fix(sdlc-workflow): a shell write or a patch into a local workflow path of a linked project is refused
+- fix(sdlc-workflow): the lease guards every push and every write of a linked workflow
+- fix(sdlc-workflow): the step record survives a rebase and a worktree, and a slug-wide review routes back
+- fix(sdlc-workflow): the records repo keeps every file through a sync, a squash and a write after the close
+- fix(sdlc-workflow): a copy of the repo at another commit has one place, and the stage removes it
+
 ## [10.0.0-next.4] - 2026-10-25
 
 - fix(sdlc-workflow): a linked project keeps every workflow file in the records repo, and wf.mjs is easier for agents
