@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.6] - 2026-10-26
+
+- feat(sdlc-workflow): the stage references point to wf.mjs run for several records
+- test(sdlc-workflow): the code-mode eval runs claude with the file tools and node only
+- docs(sdlc-workflow): the ideate command card shows the loop and the steer words
+
 ## [10.0.0-next.5] - 2026-10-26
 
 - feat(sdlc-workflow): ideate triages, discusses, and steers its ideas in one run
