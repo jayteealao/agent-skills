@@ -4,7 +4,8 @@
 // .ai/workflows) cannot carry the workflow records on the wave branches. In
 // that repo the records live in the main checkout. A worktree gets a copy of
 // the main .ai/ tree when the campaign adds it, and every record that the
-// worktree creates or changes comes back before the campaign removes it.
+// worktree creates or changes comes back before the campaign removes it. In a linked project
+// the main copy of a workflow file is in the clone of the records repo.
 //
 // The sync is three-way and never deletes: a manifest in the main checkout
 // keeps, for each file, the content hash that both sides last agreed on (the
@@ -196,6 +197,8 @@ export function recordsIn({ main, worktree, manifest, exclude = () => false, pri
  * B2 (DP13): a worktree file whose hash equals an earlier base is an old version, and
  * `mainOnly(rel)` names the files that the main checkout owns (`.ai/design/`). Neither
  * is copied over the main version: a changed worktree copy goes to the conflict store.
+ * For a linked project the main copy of a workflow file is the clone copy, which
+ * `recordPathOf` names, so a both-sides change with the clone is a conflict here too.
  */
 export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = () => false, mainOnly = () => false }) {
   const src = walk(join(worktree, '.ai'));
@@ -203,7 +206,7 @@ export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = (
   for (const [rel, abs] of src.files) {
     if (isSkipped(rel) || exclude(rel)) continue;
     const wh = hashFile(abs);
-    const target = join(main, '.ai', ...rel.split('/'));
+    const target = recordPathOf(main, join(main, '.ai', ...rel.split('/')));
     const mh = existsSync(target) ? hashFile(target) : null;
     const e = entryOf(manifest, rel);
     if (mh === wh) { setBase(e, wh); res.same++; continue; }

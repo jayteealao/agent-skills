@@ -41,7 +41,8 @@ import { needsPictures } from '../lib/design-boards.mjs';
 import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { designNeeded, designSettled, namesScreens } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
-import { workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, realPathOf, recordsRel, workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
+import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 
@@ -184,18 +185,24 @@ function gitIgnoredCheck(projectRoot) {
 
 const projectRootOfSource = (dir) => resolve(dir, '..', '..', '..');
 
+/** The board that `arg` names, and the project root of its source. A linked project keeps the board in the clone. */
+function boardAt(arg) {
+  const abs = resolve(arg);
+  return { ...resolveBoard(realPathOf(abs)), root: projectRootOfSource(abs.endsWith('.json') ? dirname(abs) : abs) };
+}
+
 function checkCmd(arg) {
-  const { dir, boardFile } = resolveBoard(arg);
+  const { dir, boardFile, root } = boardAt(arg);
   const board = readJson(join(dir, boardFile));
   if (!board) return { ok: false, error: `no ${boardFile} in ${dir}` };
-  const res = checkList(board, { isIgnored: gitIgnoredCheck(projectRootOfSource(dir)) });
+  const res = checkList(board, { isIgnored: gitIgnoredCheck(root) });
   return { ok: !res.errors.length, ...res };
 }
 
 function writeCmd(arg, f) {
-  const { dir, boardFile } = resolveBoard(arg);
+  const { dir, boardFile, root } = boardAt(arg);
   if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}` };
-  return writeList(dir, { isIgnored: gitIgnoredCheck(projectRootOfSource(dir)), dryRun: Boolean(f['dry-run']), boardFile });
+  return writeList(dir, { isIgnored: gitIgnoredCheck(root), dryRun: Boolean(f['dry-run']), boardFile });
 }
 
 /** Move the closed part of the board to archive/board.json, and check the caps of the lead document. */
@@ -1079,7 +1086,7 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
     ...notStarted.filter((u) => u.slug).map((u) => ({ key: u.key, slug: u.slug, dir: wfDir(root, u.slug) })),
   ];
   return {
-    ok: true, source: src, trunk, records: ledger.records ?? null, live, ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60_000) : null,
+    ok: true, source: src, trunk, records: ledger.records ?? null, linked: linkedProject(root), live, ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60_000) : null,
     prStack: ledger.stack?.enabled ? ledger.stack : null,
     waits: unitWaits(homes, units),
     shipped: shipped.map((u) => ({ key: u.key, slug: u.slug, wave: u.wave })),
@@ -1116,7 +1123,10 @@ function unitWaits(homes, units) {
 
 function renderMigration(rep) {
   const L = ['# Migration of the old campaign', '', `Written by \`campaign.mjs migrate report\` at ${nowIso()}. It changes no branch and deletes nothing (WF-PIECES-PLAN 12.2).`, ''];
-  L.push(`- Trunk: \`${rep.trunk}\`. Records: ${rep.records === 'local' ? 'local (.ai/ is not tracked; the records sync brings them home)' : 'tracked'}.`);
+  const records = rep.linked
+    ? `linked as \`${rep.linked}\` in the records repo (the migration brings the worktree records into its clone, and each campaign command commits what it writes there; the next records sync pushes the commits)`
+    : rep.records === 'local' ? 'local (.ai/ is not tracked; the records sync brings them home)' : 'tracked';
+  L.push(`- Trunk: \`${rep.trunk}\`. Records: ${records}.`);
   L.push(`- Old wave run live: ${rep.live ? `YES (last ledger event ${rep.ledgerAgeMinutes} minutes ago): stop it first` : 'no'}.`, '');
   L.push('## Shipped units (done packets)', '', ...(rep.shipped.length ? rep.shipped.map((u) => `- \`${u.key}\` (wave ${u.wave})`) : ['- None.']), '');
   L.push('## In-flight units (the first packets)', '');
@@ -1350,14 +1360,42 @@ function flags(args) {
   return { pos, f };
 }
 
+/** The commands that write no record: they make no commit in the clone. */
+const READ_ONLY = new Set(['check', 'status', 'remove-worktree']);
+
+/**
+ * A linked project keeps its records in the clone of the records repo. Commit what the command
+ * wrote there, so the clone history holds it before the next records sync pushes it. A failed
+ * commit fails no command: that sync commits the files too.
+ */
+function commitWrites(cmd, pos) {
+  const label = `campaign ${cmd}`;
+  try {
+    if (cmd === 'write' || cmd === 'archive') {
+      const { dir, root } = boardAt(pos[0]);
+      return commitRecords({ root, label }) ?? commitRecords({ project: recordsRel(dir)?.split('/')[0], label });
+    }
+    return commitRecords({ root: resolve(pos[0]), label });
+  } catch { return null; }
+}
+
 function dispatch(cmd, argv) {
   const { pos, f } = flags(argv);
+  const out = dispatchCmd(cmd, pos, f);
+  if (out && pos[0] && !READ_ONLY.has(cmd) && !f['dry-run']) {
+    const committed = commitWrites(cmd, pos);
+    if (committed?.length) out.committed = committed;
+  }
+  return out;
+}
+
+function dispatchCmd(cmd, pos, f) {
   if (['check', 'write', 'archive'].includes(cmd)) {
     const [arg] = pos;
     if (!arg) return null;
     if (cmd === 'check') return checkCmd(arg);
     if (cmd === 'write') return writeCmd(arg, f);
-    const { dir, boardFile } = resolveBoard(arg);
+    const { dir, boardFile } = boardAt(arg);
     if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}` };
     return archiveCommand(dir, boardFile, { dryRun: Boolean(f['dry-run']) });
   }

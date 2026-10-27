@@ -14,6 +14,7 @@ import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
 import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
+import { linkProject } from '../../lib/records-sync.mjs';
 
 const SRC = 'brainstorm-demo';
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -447,6 +448,76 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     try { git(root, 'worktree', 'remove', '--force', m.wtOther); } catch { /* gone */ }
     rmSync(root, { recursive: true, force: true });
     rmSync(m.outside, { recursive: true, force: true });
+  }
+});
+
+/** A records repo for a linked project: a bare remote and the clone of this machine, in SDLC_HOME. */
+function recordsWorld() {
+  const top = tmp('mig-records ');
+  const bare = path.join(top, 'records.git');
+  execFileSync('git', ['init', '-q', '--bare', '-b', 'main', bare]);
+  const home = path.join(top, 'home');
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, 'config.json'), JSON.stringify({ records: { machine: 'alpha' } }));
+  execFileSync('git', ['clone', '-q', bare, path.join(home, 'records')], { stdio: 'ignore' });
+  const saved = { ...process.env };
+  Object.assign(process.env, { SDLC_HOME: home, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
+  const done = () => {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+    rmSync(top, { recursive: true, force: true });
+  };
+  return { clone: path.join(home, 'records'), done };
+}
+
+test('12.2 linked: the migration brings the worktree records into the clone, a change on both sides is a conflict, and each command commits its writes', () => {
+  const r = recordsWorld();
+  const m = makeOldCampaign();
+  const { root } = m;
+  try {
+    // The link waits for worktree records that the main checkout lacks: link first, then the old run writes on in its worktree.
+    const wtEng = path.join(m.wtEng, '.ai', 'workflows', 'eng');
+    const held = Object.fromEntries(['00-index.md', '05-implement-s1.md'].map((n) => [n, readFileSync(path.join(wtEng, n))]));
+    rmSync(wtEng, { recursive: true, force: true });
+    const l = linkProject(root, 'demo');
+    assert.equal(l.ok, true, JSON.stringify(l));
+    mkdirSync(wtEng, { recursive: true });
+    for (const [n, b] of Object.entries(held)) writeFileSync(path.join(wtEng, n), b);
+    const clone = (...p) => path.join(r.clone, 'demo', ...p);
+    // The clone copy of the index changes too.
+    appendFileSync(clone('eng', '00-index.md'), '\nclone note\n');
+
+    const rep = run(['migrate', root, SRC, 'report']);
+    assert.equal(rep.ok, true, JSON.stringify(rep));
+    assert.equal(rep.linked, 'demo');
+    assert.match(readFileSync(clone(SRC, 'work', 'migration.md'), 'utf8'), /Records: linked as `demo` in the records repo/);
+    // The commit takes every change that no commit holds: the report, and the clone note above.
+    assert.deepEqual([...rep.committed].sort(), ['eng', SRC].sort());
+    assert.equal(git(r.clone, 'log', '-1', '--format=%s', `live/demo/${SRC}`), `demo/${SRC}: campaign migrate`);
+
+    const ap = migrateApply(root, SRC, {}, { isMerged: merged });
+    assert.equal(ap.ok, true, JSON.stringify(ap));
+    assert.ok(existsSync(clone('eng', '05-implement-s1.md')), 'the worktree record goes into the clone');
+    assert.ok(!existsSync(path.join(wf(root, 'eng'), '05-implement-s1.md')), 'not into the local folder');
+    assert.deepEqual(ap.records[0].conflicts.map((c) => c.rel), ['workflows/eng/00-index.md']);
+    assert.notEqual(frontmatterOfDoc(clone('eng'), '00-index.md')['current-stage'], 'implement', 'the clone copy stays; the worktree copy does not win');
+    assert.ok(existsSync(clone(SRC, 'work', 'campaign', 'records', 'conflicts', 'eng')), 'step 6 finds the worktree copy in the conflict store of the migration');
+
+    // write takes the local path of the source, finds the board in the clone, and commits what the migration left.
+    const boardPath = clone(SRC, 'brainstorm-board.json');
+    const board = JSON.parse(readFileSync(boardPath, 'utf8'));
+    Object.assign(board.work.find((w) => w.key === 'later'), { goal: 'Do it later.', 'acceptance-criteria': ['It is done.'], ...WRITE_UP });
+    writeFileSync(boardPath, JSON.stringify(board, null, 2));
+    const written = run(['write', wf(root, SRC)]);
+    assert.equal(written.ok, true, JSON.stringify(written));
+    assert.ok(existsSync(clone(SRC, 'work', 'later.md')));
+    assert.deepEqual([...written.committed].sort(), ['eng', SRC].sort());
+    assert.equal(git(r.clone, 'show', 'live/demo/eng:demo/eng/05-implement-s1.md').trim(), '# Implement s1');
+    git(r.clone, 'cat-file', '-e', `live/demo/${SRC}:demo/${SRC}/work/later.md`);
+    assert.equal(run(['write', wf(root, SRC)]).committed, undefined, 'a command that changes nothing makes no commit');
+  } finally {
+    dropOldCampaign(m);
+    r.done();
   }
 });
 

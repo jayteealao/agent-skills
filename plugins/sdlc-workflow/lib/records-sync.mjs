@@ -543,9 +543,10 @@ export function commitWorkflow(root, slug, message) {
 /**
  * Commit every change of the clone of a project that no commit holds yet: the design records on
  * the main branch, and each workflow folder on its live branch. A folder with no change makes no
- * commit. After this, a move of a ref loses no file.
+ * commit. After this, a move of a ref loses no file. With `root` null, the local files are not
+ * adopted. Returns the slugs whose live branch got a new commit.
  */
-function commitPending(root, project, home) {
+function commitPending(root, project, home, label = `the records of ${machineName()} before a sync`) {
   const main = `refs/heads/${mainBranch(home)}`;
   if (existsSync(join(home, project, '_design'))) {
     const c = commitPaths(home, { ref: main, paths: [`${project}/_design`], message: `${project}: the design records before a sync` });
@@ -560,7 +561,30 @@ function commitPending(root, project, home) {
     if (p !== project || !s || rest === undefined || s.startsWith('.') || s.startsWith('_') || keptOutOfCommits(file)) continue;
     slugs.add(s);
   }
-  for (const s of slugs) commitWorkflow(root, s, `${project}/${s}: the records of ${machineName()} before a sync`);
+  const committed = [];
+  for (const s of slugs) {
+    const ref = liveRef(project, s);
+    const before = sha(home, ref);
+    const message = `${project}/${s}: ${label}`;
+    if (root) commitWorkflow(root, s, message);
+    else commitPaths(home, { ref, base: main, paths: [`${project}/${s}`], message });
+    if (sha(home, ref) !== before) committed.push(s);
+  }
+  return committed;
+}
+
+/**
+ * Commit the records that a writer other than the wf.mjs record commands left in the clone, such
+ * as the campaign script. The next sync pushes the commits. Give `root` for a linked project, or
+ * `project` for a writer that knows only the clone folder. Returns the slugs with a new commit,
+ * or null when the records are not in a clone.
+ */
+export function commitRecords({ root = null, project = null, label }) {
+  const name = root ? linkedProject(root) : project;
+  if (!name || !PROJECT_NAME_RE.test(name)) return null;
+  const home = recordsHome();
+  if (!existsSync(join(home, '.git')) || !existsSync(join(home, name))) return null;
+  return commitPending(root, name, home, label);
 }
 
 /**
