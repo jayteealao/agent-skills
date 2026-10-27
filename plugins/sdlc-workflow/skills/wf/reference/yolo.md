@@ -84,6 +84,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 - **Slice mode — `/wf yolo <slug> <slice>`** drives that one slice, then routes you to the next slice.
   - `review-scope: per-slice` → `plan → implement → verify → review` for the slice.
   - `review-scope: slug-wide` → `plan → implement → verify`, then stop before review.
+- A slice of complexity `xs` or `s` has no separate verify agent. Its implement agent runs `verify.md` in the same session, with at most 2 verify rounds, and writes the verify record. When that verify does not converge, the run stops. m, l and xl slices keep a separate verify agent.
 
 # The Autonomous Decision Policy (what replaces each gate)
 

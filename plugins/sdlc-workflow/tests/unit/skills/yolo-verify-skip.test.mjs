@@ -34,8 +34,9 @@ const CLEAN = (stage) => ({ stage, status: 'complete', artifactPath: `x/${stage}
 
 // driveChain with every dispatch stubbed. `heads` is the list of HEAD commits that headCommit
 // returns in order.
-function chainHarness(heads) {
+function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
   const calls = [];
+  const verifyArgs = [];
   const logs = [];
   const build = new Function('stubs', `
     const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, headCommit, log, slug, ANSWERED } = stubs
@@ -46,7 +47,8 @@ function chainHarness(heads) {
     const SPLIT_AFTER_STOPS = 2
     const MAX_ROUTE_BACKS = 2
     const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
-    const implementSlice = (slice, idx, entry, answered) => runStage('implement', slice, idx, { stopCheck: true, answered })
+    const SELF_VERIFY_SIZES = ['xs', 's']
+    const implementSlice = (slice, idx, entry, answered, selfVerify) => runStage('implement', slice, idx, { stopCheck: true, answered, selfVerify })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('sliceOf')}
@@ -62,15 +64,18 @@ function chainHarness(heads) {
     slug: 'demo',
     ANSWERED: [],
     log: (m) => logs.push(m),
-    runStage: async (stage) => { calls.push(stage); return CLEAN(stage); },
-    driveVerify: async () => { calls.push('verify'); return CLEAN('verify'); },
+    runStage: async (stage, slice, idx, extra = {}) => {
+      calls.push(extra.selfVerify ? `${stage}+verify` : stage);
+      return extra.selfVerify && selfVerifyResult ? { ...CLEAN(stage), verify: selfVerifyResult } : CLEAN(stage);
+    },
+    driveVerify: async (slice, idx, extra) => { verifyArgs.push(extra); calls.push(extra.first ? 'verify-from-implement' : 'verify'); return CLEAN('verify'); },
     driveReview: async () => { calls.push('review'); return CLEAN('review'); },
     driveWallProbe: async () => null,
     classifyDecisions: async (r) => r,
     writeBackSliceStatus: async () => ({ ok: true, wrote: ['00-index.md'] }),
     headCommit: async () => { const v = heads[Math.min(h, heads.length - 1)]; h += 1; return v; },
   });
-  return { driveChain, calls, logs };
+  return { driveChain, calls, logs, verifyArgs };
 }
 
 const DONE = { slices: [{ slice: 'auth', stages: { plan: 'done', implement: 'done', verify: 'done' } }], priorDeferrals: [] };
@@ -150,4 +155,54 @@ test('the verify reference keeps a clean result at its verified HEAD', () => {
   assert.match(verify, /When `verified-head` of the last verify record of this slice equals HEAD and the plan of the slice did not change, keep the last clean result/);
   const schema = readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8');
   assert.match(schema, /"verified-head": \{ "type": "string"/);
+});
+
+const NEW = (complexity) => ({ slices: [{ slice: 'auth', complexity, stages: { plan: 'todo', implement: 'todo', verify: 'todo' } }], priorDeferrals: [] });
+
+test('an xs or s slice verifies in its implement agent: no verify agent runs', async () => {
+  for (const size of ['xs', 's']) {
+    const h = chainHarness(['abc1234']);
+    const chain = await h.driveChain(['plan', 'implement', 'verify'], 'auth', NEW(size));
+    assert.equal(chain.stopped, false);
+    assert.deepEqual(h.calls, ['plan', 'implement+verify', 'verify-from-implement']);
+    assert.deepEqual(h.verifyArgs[0].first, CLEAN('verify'));
+    assert.ok(h.logs.some(l => l.includes('ran in the implement agent')));
+  }
+});
+
+test('an m slice, or a slice without a complexity, keeps its verify agent', async () => {
+  for (const size of ['m', 'l', undefined]) {
+    const h = chainHarness(['abc1234']);
+    await h.driveChain(['plan', 'implement', 'verify'], 'auth', NEW(size));
+    assert.deepEqual(h.calls, ['plan', 'implement', 'verify']);
+  }
+});
+
+test('an xs implement that returns no verify gets a verify agent', async () => {
+  const h = chainHarness(['abc1234'], { selfVerifyResult: null });
+  await h.driveChain(['plan', 'implement', 'verify'], 'auth', NEW('xs'));
+  assert.deepEqual(h.calls, ['plan', 'implement+verify', 'verify']);
+  assert.ok(h.logs.some(l => l.includes('returned no verify')));
+});
+
+test('driveVerify: a self-verify that did not converge stops without a verify agent', async () => {
+  const runs = [];
+  const build = new Function('stubs', `
+    const { runStage, log, probeGaps, driveWallProbe, acKey } = stubs
+    ${extractFn('verifyClean')}
+    ${extractFn('driveVerify')}
+    return driveVerify
+  `);
+  const driveVerify = build({
+    runStage: async (...a) => { runs.push(a); return CLEAN('verify'); },
+    log: () => {}, probeGaps: () => [], driveWallProbe: async () => null, acKey: (x) => x,
+  });
+  const failed = { status: 'complete', terminal: { convergence: 'escalated', result: 'fail', substantiveResidual: true } };
+  const r = await driveVerify('auth', { priorDeferrals: [] }, { first: failed });
+  assert.equal(r.status, 'hard-stop');
+  assert.match(r.hardStopReason, /implement agent of 'auth' did not converge/);
+  assert.equal(runs.length, 0);
+  const ok = await driveVerify('auth', { priorDeferrals: [] }, { first: CLEAN('verify') });
+  assert.equal(ok.status, 'complete');
+  assert.equal(runs.length, 0);
 });

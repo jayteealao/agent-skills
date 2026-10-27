@@ -1148,6 +1148,8 @@ const ORIENT_RESULT = {
           reverifyReason: { type: 'string' },   // new-work | deferral-rechallenge | none
           // the slice's depends-on list in 03-slice.md: the walk runs a slice after these.
           dependsOn: { type: 'array', items: { type: 'string' } },
+          // the slice's complexity in 03-slice.md (xs | s | m | l | xl): an xs or s slice verifies in its implement agent.
+          complexity: { type: ['string', 'null'] },
           // From `wf.mjs step where`: the plan's step count, the done steps, and the
           // implement hard-stops since the slice's last complete implement or retry.
           planSteps: { type: 'number' },
@@ -1197,6 +1199,19 @@ const STAGE_RESULT = {
     routeBack: { enum: ['plan', 'implement'] },
     // The review: the commit of each fix step, in order. The driver scans them once more.
     fixCommits: { type: 'array', items: { type: 'string' } },
+    // The implement of an xs or s slice: the verify that it ran in the same session, as a verify result.
+    verify: {
+      type: 'object',
+      required: ['status', 'terminal'],
+      properties: {
+        status: { enum: ['complete', 'hard-stop', 'questions'] },
+        artifactPath: { type: 'string' },
+        terminal: { type: 'object' },
+        residual: { type: 'array' },
+        hardStopReason: { type: 'string' },
+        sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
+      },
+    },
     // E4: the slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
     stopReason: { type: 'string' },
@@ -1418,7 +1433,7 @@ async function orient() {
     `2. Read the roster from the slices[] of the status output (slice, roster). Run \`${REC('get')} 03-slice.md\` ` +
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
-    `deferred | skipped | dropped) as slices[].status — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
+    `deferred | skipped | dropped) as slices[].status, and its \`complexity:\` (xs | s | m | l | xl; null when the entry has none) as slices[].complexity — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
     `(selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
@@ -1745,7 +1760,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `is a plan, a question, or a promise about work you have not done, do that work now; end only when the stage ` +
     `contract is complete, or you return questions or a hard-stop.\n` +
     preambleClause() +
-    `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${slug}'`}. Do ` +
+    `- Your mandate is ONLY the '${stage}' stage${extra.selfVerify ? ' and its verify (SELF VERIFY below)' : ''} for ${sliceArg ? `slice '${sliceArg}'` : `slug '${slug}'`}. Do ` +
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
@@ -1758,6 +1773,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `- When you stop, still finish the artifact in its honest terminal state, then return status 'hard-stop' ` +
     `with hardStopReason, or status 'questions' with the questions.` +
     (stage === 'implement' ? implementStepsClause(WF_CMD, sliceArg || slug, extra.retry === true) : '') +
+    (stage === 'implement' && extra.selfVerify && sliceArg ? selfVerifyClause(sliceArg, idx, deferCmd) : '') +
     (stage === 'verify' && sliceArg ? sliceStatusClause(sliceArg) : '') +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when you ` +
@@ -1772,6 +1788,23 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     heartbeatClause(label, 'Drive', stage, sliceArg),
     { schema: STAGE_RESULT, label, phase: 'Drive', ...stageModel(stage) }
   )
+}
+
+// An xs or s slice pays for no separate verify agent: its implement agent runs the verify
+// procedure in the same session. The slug-wide review, with its refuters, stays the independent check.
+const SELF_VERIFY_SIZES = ['xs', 's']
+
+function selfVerifyClause(sliceArg, idx, deferCmd) {
+  return `\n\nSELF VERIFY (slice '${sliceArg}' is complexity xs or s, so no separate verify agent runs). After the ` +
+    `test receipt, run the verify stage for slice '${sliceArg}' in this session: run \`${WF_CMD} brief ` +
+    `"${projectRoot}" ${slug} verify ${sliceArg}\`, then read ${referenceRoot}/verify.md IN FULL and follow it ` +
+    `VERBATIM: the AC gate, the runtime checks with the evidence reuse of verify/_runtime-evidence.md, the deferral ` +
+    `rules, and the verify record 06-verify-${sliceArg}.md. When the verify fails, fix the code as a new step, ` +
+    `commit it, and verify again: at most 2 verify rounds.` + reChallengeClause(idx.priorDeferrals, deferCmd) +
+    sliceStatusClause(sliceArg) +
+    `\nReturn the verify as \`verify\`: { status, artifactPath, terminal: { convergence, result, deferrals ` +
+    `([{ac, reason, probe}]; [] if none), substantiveResidual }, residual, sliceWriteBack, hardStopReason }. ` +
+    `The top-level fields stay the implement result.`
 }
 
 // W5.2 — SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
@@ -1854,7 +1887,10 @@ async function driveVerify(sliceArg, idx, extra = {}) {
   for (let round = 1; round <= 2; round++) {
     // Only the first round checks for a stop request: a stop never lands inside the fix loop.
     // The answer goes to every round: a fix round that drops it would undo the person's decision.
-    last = await runStage('verify', sliceArg, idx, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, answered: extra.answered || null })
+    // Round 1 of an xs or s slice is the verify that its implement agent ran in the same session.
+    last = round === 1 && extra.first
+      ? { stage: 'verify', slice: sliceArg, artifactPath: '', ...extra.first }
+      : await runStage('verify', sliceArg, idx, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, answered: extra.answered || null })
     // A null return = the verify subagent was skipped or died on a terminal API
     // error after retries (not a quality failure). Stop cleanly; resume retries it.
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
@@ -1919,6 +1955,10 @@ async function driveVerify(sliceArg, idx, extra = {}) {
       return { ...last, status: 'hard-stop', hardStopReason: 'a user-observable AC has no runtime evidence and was not deferred — re-run /wf verify (it should defer un-producible evidence) or /wf probe in a capable environment; never fabricated' }
     }
     log(`verify:${sliceArg} round ${round} → convergence=${t.convergence} result=${t.result} substantiveResidual=${t.substantiveResidual === true}`)
+    // The implement agent of an xs or s slice already ran its own 2 verify rounds: no verify agent follows.
+    if (extra.first) {
+      return { ...last, status: 'hard-stop', hardStopReason: `the verify in the implement agent of '${sliceArg}' did not converge after its 2 fix rounds (substantive issues remain)` }
+    }
     if (round === 2) {
       return { ...last, status: 'hard-stop', hardStopReason: 'verify did not converge after 2 autonomous fix rounds (substantive issues remain)' }
     }
@@ -2376,8 +2416,8 @@ async function planFreshness(sliceArg) {
 }
 
 // One implement agent for the whole slice. A re-run resumes after the last committed step.
-async function implementSlice(sliceArg, idx, entry, answered) {
-  return await runStage('implement', sliceArg, idx, { stopCheck: true, answered })
+async function implementSlice(sliceArg, idx, entry, answered, selfVerify = false) {
+  return await runStage('implement', sliceArg, idx, { stopCheck: true, answered, selfVerify })
 }
 
 async function driveChain(stages, sliceArg, idx, opts = {}) {
@@ -2400,6 +2440,9 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   let routedTo = null
   let headBefore = null
   let noCodeChange = false
+  // An xs or s slice verifies in its implement agent; that verify result stands in for verify round 1.
+  const selfVerify = !!entry && SELF_VERIFY_SIZES.includes(entry.complexity) && stages.includes('verify')
+  let selfVerified = null
   if (opts.forceFrom && CHAIN_ORDER.includes(opts.forceFrom)) {
     CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(opts.forceFrom)).filter(s => stages.includes(s)).forEach(s => forced.add(s))
     carried = opts.carried ? { ...opts.carried, routedBack: opts.forceFrom } : null
@@ -2481,9 +2524,13 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // The answer that reaches this stage: one a route back carries, or one from args.answered.
     const answered = carried || answeredFor(ANSWERED, stage, sliceArg)
     log(`yolo → ${stage} ${slug} ${sliceArg}${answered ? ` (answered: ${answered.key || 'answer'})` : ''}`)
+    // A verify answer that the implement agent did not see needs its own verify agent.
+    const firstVerify = stage === 'verify' && selfVerified && (carried || !answered) ? selfVerified : null
+    if (firstVerify) log(`verify:${sliceArg} ran in the implement agent (complexity ${entry.complexity}) — no separate verify agent`)
+    if (stage === 'implement') selfVerified = null
     let res =
-      stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered)
-      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered })
+      stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify)
+      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
       : await runStage(stage, sliceArg, idx, { stopCheck: true, answered })
@@ -2529,6 +2576,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     }
     if (stage === 'plan') refresh = null
     if (stage === 'implement') codeMoved++
+    if (stage === 'implement' && selfVerify) {
+      selfVerified = res.verify && typeof res.verify === 'object' ? res.verify : null
+      if (!selfVerified) log(`implement:${sliceArg} returned no verify — a verify agent runs`)
+    }
     if (stage === 'implement' && forced.has('implement') && headBefore) {
       const headAfter = await headCommit(`head:after-implement:${sliceArg}`)
       noCodeChange = headAfter === headBefore

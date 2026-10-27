@@ -52,7 +52,8 @@ function chainHarness(answers, answered = []) {
     const MAX_ROUTE_BACKS = 2
     const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
     // C3: implement runs through implementSlice, which dispatches runStage with the stop check.
-    const implementSlice = (slice, idx, entry, answered) => runStage('implement', slice, idx, { stopCheck: true, answered })
+    const SELF_VERIFY_SIZES = ['xs', 's']
+    const implementSlice = (slice, idx, entry, answered, selfVerify) => runStage('implement', slice, idx, { stopCheck: true, answered, selfVerify })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('sliceOf')}
@@ -143,7 +144,7 @@ test('the driver journals by root and slug, keeps found.json in the drafts, and 
 test('every stage boundary carries the stop check, and no fix round does', () => {
   assert.match(src, /status: \{ enum: \['complete', 'hard-stop', 'stopped', 'questions'\] \}/, 'STAGE_RESULT allows stopped and questions');
   assert.match(src, /runStage\(stage, sliceArg, idx, \{ stopCheck: true, answered \}\)/, 'plan in driveChain');
-  assert.match(src, /runStage\('implement', sliceArg, idx, \{ stopCheck: true, answered \}\)/, 'implement in driveChain');
+  assert.match(src, /runStage\('implement', sliceArg, idx, \{ stopCheck: true, answered, selfVerify \}\)/, 'implement in driveChain');
   assert.match(src, /stopCheck: round === 1 && !probeCorrection/, 'verify: the first round only');
   assert.match(src, /runStage\('review', sliceArg, idx, \{ stopCheck: true, answered: extra\.answered \|\| null \}\)/, 'review without the fan-out');
   assert.match(extractFn('driveReview'), /stopCheck\(\) \+ ` When the stop-request check stops you/, 'review fan-out: the rubric selection agent checks before any scout');
