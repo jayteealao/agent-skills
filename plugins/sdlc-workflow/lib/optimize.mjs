@@ -303,7 +303,32 @@ export function laneBest(state, lane) {
  * @returns {{ state: 'running'|'complete'|'stopped'|'finished', reason?: string, detail?: string,
  *            next: { action: string, on?: string, point?: number|'extra', why?: string } | null }}
  */
-export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null }) {
+/**
+ * The pace of the loop (G6), from the ledger lines: `trialMs`, the median time between the last 6
+ * trial lines, and `measureMs`, the mean time of the guard and the measurement of the last 5
+ * trials that have one. Each is null when the ledger cannot tell.
+ */
+export function paceOf(lines) {
+  const trials = (lines ?? []).filter((l) => l.event === 'trial' && l.at);
+  const times = trials.slice(-6).map((l) => Date.parse(l.at)).filter(Number.isFinite);
+  const gaps = times.slice(1).map((t, i) => t - times[i]).filter((g) => g >= 0).sort((a, b) => a - b);
+  const ms = trials.filter((l) => Number.isFinite(l.ms)).slice(-5).map((l) => l.ms);
+  return {
+    trialMs: gaps.length ? gaps[Math.floor((gaps.length - 1) / 2)] : null,
+    measureMs: ms.length ? Math.round(ms.reduce((s, x) => s + x, 0) / ms.length) : null,
+  };
+}
+
+/** The trials that the wall clock allows (G6): the trials used, plus the time left over the trial time. null with no wall clock or no pace. */
+export function projectTrials(spec, state, pace, now) {
+  if (spec.budget.wallClockMs === null || !pace?.trialMs) return null;
+  const left = Math.max(0, spec.budget.wallClockMs - (now - Date.parse(state.startedAt)));
+  return state.counters.trials + Math.floor(left / pace.trialMs);
+}
+
+const minutes = (ms) => `${Math.round(ms / 60_000)} min`;
+
+export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null, pace = null }) {
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
   if (state.finished) return { state: 'finished', reason: 'finished', detail: `squashed as ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
@@ -346,30 +371,42 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (overClock) return { state: 'stopped', reason: 'budget', detail: 'the wall-clock budget is used', next: { action: 'person', why: personNext('budget') } };
   if (overTokens) return { state: 'stopped', reason: 'budget', detail: 'the token budget is used', next: { action: 'person', why: personNext('budget') } };
   const need = spec.rounds.branches * spec.rounds.branchTrials;
-  const remaining = B - used;
+  // G6: the schedule follows the budget that ends the run first: budget.trials, or the trials that the wall clock allows.
+  const projected = projectTrials(spec, state, pace, now);
+  const S = projected === null ? B : Math.min(B, projected);
+  const allows = S < B ? `; the wall clock allows about ${S} trials` : '';
+  const remaining = S - used;
+  const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - (now - Date.parse(state.startedAt));
+  // A round opens only when its measurements fit in the time left.
+  const fits = timeLeft === null || !pace?.measureMs || need * pace.measureMs <= timeLeft;
+  const roundTime = pace?.measureMs ? `its ${need} measurements take about ${minutes(need * pace.measureMs)}, and ${minutes(Math.max(0, timeLeft ?? 0))} are left` : '';
   const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i));
   // G1: the first profile comes before any trial, and a round opens only on a profile of the trunk best.
   if (spec.profile && !state.profile) return running({ action: 'profile', why: 'the first profile of the code, before any trial' });
   const open = (next) => (spec.profile && state.profile?.commit !== state.best.commit
     ? running({ action: 'profile', why: `a profile of the trunk best before the round (${next.why})` })
     : running(next));
-  const due = points.find(({ p }) => used >= Math.ceil(p * B));
-  if (due && remaining >= need) return open({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of budget.trials` });
+  const due = points.find(({ p }) => used >= Math.ceil(p * S));
+  if (due && remaining >= need && fits) return open({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of budget.trials${allows}` });
+  // A due round that does not fit is skipped: the next trunk trial records it, and the trunk continues.
+  const skip = due && remaining >= need && !fits ? { point: due.i, why: `the round of ${Math.round(due.p * 100)}% is skipped: ${roundTime}` } : null;
+  const trunk = (next) => running({ ...next, ...(skip ? { skipRound: skip.point } : {}), why: `${skip ? `${skip.why}; ` : ''}${next.why}${allows}` });
   if (state.counters.streak >= spec.budget.plateau) {
     // D14: a plateau opens the next scheduled round early, or adds one, up to max-extra.
-    const later = points.find(({ p }) => used < Math.ceil(p * B));
-    if (later && remaining >= need) return open({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
-    if (state.extraRounds < spec.rounds.maxExtra && remaining >= need) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
-    const detail = state.extraRounds >= spec.rounds.maxExtra ? `max-extra (${spec.rounds.maxExtra}) is used` : `${remaining} trials are left, and a round needs ${need}`;
+    const later = points.find(({ p }) => used < Math.ceil(p * S));
+    if (later && remaining >= need && fits) return open({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
+    if (state.extraRounds < spec.rounds.maxExtra && remaining >= need && fits) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
+    const detail = state.extraRounds >= spec.rounds.maxExtra ? `max-extra (${spec.rounds.maxExtra}) is used`
+      : remaining < need ? `${remaining} trials are left, and a round needs ${need}` : `no round fits in the time left: ${roundTime}`;
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
   if (spec.holdout && state.counters.sinceCheckpoint >= spec.checkpointEvery) return running({ action: 'checkpoint', why: `${state.counters.sinceCheckpoint} trunk trials since the last checkpoint` });
   // G4: half a plateau with no keep, and marginal ideas whose gains add up past the threshold: try them together.
   if (state.counters.streak >= Math.ceil(spec.budget.plateau / 2)) {
     const bundle = bundleOf(ideas, keepThreshold(spec, state.best.value, noiseFor(spec, state)), state.bundlesTried ?? []);
-    if (bundle) return running({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `bundle: the ideas ${bundle.ids.join(', ')} gain ${bundle.sum} together` });
+    if (bundle) return trunk({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `bundle: the ideas ${bundle.ids.join(', ')} gain ${bundle.sum} together` });
   }
-  return running({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
+  return trunk({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
 }
 const running = (next) => ({ state: 'running', reason: 'running', next });
 

@@ -667,6 +667,7 @@ test('a port: a branch that conflicts gives its kept trial that applies to the t
     const line = ledger(root).find((l) => l.port);
     assert.deepEqual(line.port, { round: 1, trial: 2, branch: B2 });
     assert.deepEqual(line.additive, { measured: 10, alone: 10 });
+    assert.ok(Number.isFinite(line.ms) && line.ms > 0, 'a measured trial records the time of its guard and measurement');
     assert.equal(run(root, 'status').next.action, 'trial', 'the merge step closes when no try is left');
     assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '');
   } finally {

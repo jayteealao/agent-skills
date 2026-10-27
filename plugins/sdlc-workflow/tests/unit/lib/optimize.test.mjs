@@ -8,7 +8,7 @@ import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
-  bundleOf, pruneCandidate, seedsOf,
+  bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -322,4 +322,36 @@ test('G5: the seeds of a round, and a branch that trails the leader with no keep
   assert.deepEqual([t.next.action, t.next.on], ['trial', 'b5'], 'the new fork takes the trials that the pruned branch left');
   assert.ok(t.next.ready.includes('b5') && !t.next.ready.includes('b2'));
   assert.equal(buildDigest({ spec, specProse: '', state: { ...s, round: { ...round, branches: round.branches.map((b) => (b.k === 5 ? { ...b, seed: 'decide' } : b)) } }, results: [], lane: 'b5' }).seed, 'decide');
+});
+
+test('G6: the pace comes from the ledger, the schedule follows the trials that the wall clock allows, and a round that does not fit is skipped', () => {
+  const at = (min) => new Date(Date.UTC(2026, 0, 1, 0, min)).toISOString();
+  const lines = [0, 10, 20, 30, 40, 50, 90].map((m, i) => ({ event: 'trial', trial: i + 1, at: at(m), ms: 60_000 }));
+  assert.deepEqual(paceOf(lines), { trialMs: 600_000, measureMs: 60_000 }, 'the median gap of the last 6 lines, and the mean of the last 5 ms');
+  assert.deepEqual(paceOf([]), { trialMs: null, measureMs: null });
+
+  const spec = specOf({ budget: { trials: 60, 'wall-clock': '6h' } });
+  const startedAt = at(0);
+  const now = Date.parse(at(60));
+  const s = stateOf({ startedAt, schedule: { used: [0] }, counters: { trials: 6, trunkTrials: 6, streak: 0, sinceCheckpoint: 0, keeps: 0 } });
+  assert.equal(projectTrials(spec, s, { trialMs: 600_000 }, now), 6 + 30, '5 hours left at 10 minutes a trial');
+  assert.equal(projectTrials(specOf({ budget: { 'wall-clock': null } }), s, { trialMs: 600_000 }, now), null);
+
+  // After 2 hours, 4 hours allow 24 more trials: 33% of 36 trials is trial 12, and the round of 33% opens after 12 trials, not after 20.
+  const later = Date.parse(at(120));
+  const twelve = { ...s, counters: { ...s.counters, trials: 12, trunkTrials: 12 } };
+  const open = nextAction({ state: twelve, spec, now: later, pace: { trialMs: 600_000, measureMs: 60_000 } });
+  assert.deepEqual([open.next.action, open.next.point], ['round-open', 1], JSON.stringify(open.next));
+  assert.match(open.next.why, /the wall clock allows about 36 trials/);
+  assert.equal(nextAction({ state: twelve, spec, now: later }).next.action, 'trial', 'with no pace, the schedule uses budget.trials');
+
+  // 12 measurements of 30 minutes do not fit in 4 hours: the trunk continues and names the skip.
+  const skip = nextAction({ state: twelve, spec, now: later, pace: { trialMs: 600_000, measureMs: 1_800_000 } });
+  assert.deepEqual([skip.next.action, skip.next.on, skip.next.skipRound], ['trial', 'optimize/s', 1]);
+  assert.match(skip.next.why, /^the round of 33% is skipped: its 12 measurements take about 360 min, and 240 min are left; trunk trial 13/);
+
+  const plateau = { ...twelve, schedule: { used: [0, 1, 2] }, counters: { ...twelve.counters, streak: 8 } };
+  const stop = nextAction({ state: plateau, spec, now: later, pace: { trialMs: 60_000, measureMs: 1_800_000 } });
+  assert.deepEqual([stop.state, stop.reason], ['stopped', 'plateau']);
+  assert.match(stop.detail, /^no round fits in the time left/);
 });

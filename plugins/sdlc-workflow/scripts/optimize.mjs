@@ -55,7 +55,7 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
-  branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf,
+  branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
@@ -458,7 +458,7 @@ export function optimizeStatus(root, slug) {
   const err = consistency(root, slug, state, results, spec);
   if (err) return { ok: true, state: 'stopped', reason: 'state-error', detail: err, next: { action: 'person', why: 'report; do not repair' } };
   const ideas = readIdeas(root, slug);
-  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas });
+  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas, pace: paceOf(results) });
   // A port or a bundle has no proposer: the editor gets the hypothesis and the kept diff.
   if (st.next?.port) {
     const c = state.merge?.candidates.find((x) => x.name === st.next.port);
@@ -809,6 +809,11 @@ function trial(root, slug, id, f) {
       port.verdict = verdict;
       if (line.reason) port.reason = line.reason;
     } else if (isTrunk) {
+      // G6: a scheduled round that did not fit in the time left is used up, and the line records it.
+      if (st.next.skipRound !== undefined && !state.schedule.used.includes(st.next.skipRound)) {
+        state.schedule.used.push(st.next.skipRound);
+        line.skippedRound = { point: st.next.skipRound, why: st.next.why };
+      }
       state.counters.trunkTrials++;
       state.counters.sinceCheckpoint++;
       state.counters.streak = verdict === 'kept' ? 0 : state.counters.streak + 1;
@@ -839,11 +844,14 @@ function trial(root, slug, id, f) {
   if (!c.ok) return finish('rejected', { reason: 'the commit hook refused the change', paths, output: tail(`${c.out}\n${c.err}`) });
   line.commit = headOf(wt);
   line.paths = paths;
+  // G6: the time of the guard and the measurement goes on the line: the schedule fits a round in the time left with it.
+  const t0 = Date.now();
   const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
   line.guard = g.code === 0 ? 'pass' : 'fail';
   if (g.timedOut) return finish('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
   if (g.code !== 0) return finish('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
   const j = judge(root, state, spec, wt, env, best, line);
+  line.ms = Date.now() - t0;
   if (j.verdict !== 'kept') return finish(j.verdict, j.extra);
   const kept = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
   if (isTrunk) state.best = kept;
@@ -1139,11 +1147,13 @@ function mergeTrial(root, slug, f) {
   const auto = commandFiles([spec.metric.command, spec.guard.command, spec.holdout?.command, spec.format], (p) => existsSync(join(wt, p)));
   const bad = pathViolations(paths, spec, auto);
   if (bad.length) return done('rejected', { reason: `path check: ${bad.map((b) => `${b.path} (${b.reason})`).join(', ')}` });
+  const t0 = Date.now();
   const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
   line.guard = g.code === 0 ? 'pass' : 'fail';
   if (g.timedOut) return done('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
   if (g.code !== 0) return done('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
   const j = judge(root, state, spec, wt, env, best, line);
+  line.ms = Date.now() - t0;
   if (j.verdict !== 'kept') return done(j.verdict, j.extra);
   state.best = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
   state.counters.keeps++;
