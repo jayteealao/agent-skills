@@ -329,6 +329,28 @@ test('the measure lock: a trial while another process measures is busy; a stale 
   }
 });
 
+test('a proposer past twice its propose-time gets no probe; another lane still does', () => {
+  const { parent, root } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(run(root, 'propose-context', '--on', B1).ok, true);
+    assert.equal(run(root, 'probe-open', '--on', B1).ok, true, 'within its time the proposer probes');
+    // The proposer of B1 started 31 minutes ago; the default propose-time is 15 minutes.
+    const stamp = path.join(root, '.ai', 'workflows', S, 'optimize', '.propose-r1b1.json');
+    writeFileSync(stamp, `${JSON.stringify({ at: Date.now() - 31 * 60_000 })}\n`);
+    const open = run(root, 'probe-open', '--on', B1);
+    assert.deepEqual([open.ok, open.refused, open.overtime], [false, true, true], JSON.stringify(open));
+    assert.match(open.error, /past twice its propose-time \(30 min\).*return your best hypothesis/);
+    const p = run(root, 'probe', '--on', B1, '--cmd', 'node metric.js');
+    assert.equal(p.overtime, true, JSON.stringify(p));
+    assert.equal(run(root, 'probe-open', '--on', B2).ok, true, 'a lane without an old proposer still probes');
+    assert.match(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8'), /"event":"propose-overtime","lane":"r1b1"/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('a probe runs in its own worktree and build folder under the lock, a trial waits for a probe, and the loop removes the probes', () => {
   const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
   try {

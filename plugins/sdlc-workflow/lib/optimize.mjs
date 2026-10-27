@@ -332,6 +332,23 @@ export function projectTrials(spec, state, pace, now) {
 
 const minutes = (ms) => `${Math.round(ms / 60_000)} min`;
 
+/**
+ * A proposer that runs past twice its `budget.propose-time` is over its time. `startedAt` is the
+ * time (ms) that `propose-context` stamped for its lane. Returns `{ elapsedMs, limitMs }` when the
+ * proposer is over, else null; null too with no start or no propose time.
+ */
+export function proposeOvertime(startedAt, proposeTimeMs, now = Date.now()) {
+  if (!Number.isFinite(startedAt) || !Number.isFinite(proposeTimeMs) || proposeTimeMs <= 0) return null;
+  const limitMs = 2 * proposeTimeMs;
+  const elapsedMs = now - startedAt;
+  return elapsedMs > limitMs ? { elapsedMs, limitMs } : null;
+}
+
+/** The refusal that a probe of a proposer over its time prints: the proposer returns what it has. */
+export const overtimeRefusal = (lane, over) =>
+  `the proposer of ${lane} started ${minutes(over.elapsedMs)} ago, past twice its propose-time (${minutes(over.limitMs)}): ` +
+  'no more probes. Stop the research now and return your best hypothesis';
+
 export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null, pace = null, canApply = null }) {
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
   if (state.finished) return { state: 'finished', reason: 'finished', detail: `squashed as ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };

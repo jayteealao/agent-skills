@@ -131,7 +131,8 @@ function proposePrompt(n, width, on = null) {
     `already holds an edit from before a stop: read nothing more and return { hypotheses: [], prepared: true, lane, worktree }.\n` +
     `2. Read the code in the worktree that the metric exercises. Read only inside the worktree.\n` +
     `   TIME: you have digest.proposeMinutes minutes. Run \`date\` when you start. When the time is up, stop the research ` +
-    `and return your best hypothesis.\n` +
+    `and return your best hypothesis. At twice that time, probe-open and probe refuse with "overtime": true: then ` +
+    `return your best hypothesis at once.\n` +
     `   MEASURE ONLY WITH A PROBE. Another trial can be measuring on this machine, and a build, a test or a benchmark ` +
     `corrupts its numbers. So never build, test, format or run the project in the lane worktree, and never copy the ` +
     `worktree to another folder. To build, profile or time something:\n` +

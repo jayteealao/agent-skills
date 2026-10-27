@@ -21,6 +21,7 @@
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
  *                                                     run one command in the probe worktree, under the measure lock
+ *                                                     (probe-open and probe refuse a proposer past twice its propose-time)
  *   idea-claim      <root> <slug> [--on <lane>] --target t [--family f] [--again "<reason>"]
  *                                                     claim an idea in the shared ideas ledger before the edit
  *   profile         <root> <slug>                     run the profile command of the spec on the trunk best
@@ -53,7 +54,7 @@ import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
-  ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget,
+  ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
@@ -702,11 +703,28 @@ function probeLane(state, f) {
   return lane;
 }
 
-function probeOpen(root, slug, f, { locked = false } = {}) {
+/**
+ * The refusal of a probe whose proposer runs past twice its propose-time, or null. The proposer
+ * of a lane starts at its `propose-context` stamp. A probe is the costly work of a proposer, so
+ * the refusal ends its research, and the loop goes on with the hypothesis that it returns.
+ */
+function proposerOverTime(root, slug, state, spec, lane) {
+  const tag = laneTagOf(state, lane);
+  let at = null;
+  try { at = JSON.parse(readFileSync(proposeStamp(root, slug, tag), 'utf8')).at; } catch { return null; }
+  const over = proposeOvertime(at, spec.budget.proposeTimeMs);
+  if (!over) return null;
+  appendResult(root, slug, { event: 'propose-overtime', lane: tag, ms: over.elapsedMs });
+  return { ok: false, refused: true, overtime: true, lane, error: overtimeRefusal(lane, over) };
+}
+
+function probeOpen(root, slug, f, { locked = false, proposer = false } = {}) {
   const state = readState(root, slug);
   if (!state) throw new Error('no baseline: run baseline first');
   const { spec } = loadSpec(root, slug);
   const lane = probeLane(state, f);
+  const over = proposer ? proposerOverTime(root, slug, state, spec, lane) : null;
+  if (over) return over;
   const best = laneBest(state, lane);
   const wt = probePath(state, laneTagOf(state, lane));
   if (existsSync(wt)) {
@@ -739,6 +757,8 @@ function probe(root, slug, f) {
   const command = typeof f.cmd === 'string' ? f.cmd.trim() : '';
   if (!command) throw new Error('probe needs --cmd "<command>"');
   const label = (typeof f.label === 'string' && f.label.trim()) || command.slice(0, 60);
+  const over = proposerOverTime(root, slug, state, spec, lane);
+  if (over) return over;
   const l = waitLock(root, slug, spec, lane, 'probe', () => true);
   if (!l.ok) return l;
   try {
@@ -1588,7 +1608,7 @@ export function main(argv = process.argv.slice(2)) {
       case 'finish': out = withLock(root, slug, null, () => finish(root, slug, f)); break;
       case 'ablate': out = withLock(root, slug, null, () => ablate(root, slug)); break;
       case 'cleanup': out = cleanup(root, slug); break;
-      case 'probe-open': out = probeOpen(root, slug, f); break;
+      case 'probe-open': out = probeOpen(root, slug, f, { proposer: true }); break;
       case 'probe': out = probe(root, slug, f); break;
       case 'idea-claim': out = ideaClaim(root, slug, f); break;
       case 'profile': out = withLock(root, slug, null, () => profileRun(root, slug)); break;

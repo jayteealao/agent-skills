@@ -9,6 +9,7 @@ import {
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
+  proposeOvertime, overtimeRefusal,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -428,4 +429,14 @@ test('G9: the near misses of a lane: reverted trials with a gain, the largest fi
   assert.deepEqual(nearMisses(lines, 1, 'b2').map((x) => x.trial), [5, 7], 'trial 3 shares sim.rs with trial 5');
   assert.deepEqual(nearMisses(lines, 1, 'b2', (p) => !p.includes('patches/7.patch')).map((x) => x.trial), [], 'one near miss alone is not a bundle');
   assert.deepEqual(nearMisses(lines, 2, 'b2'), []);
+});
+
+test('a proposer past twice its propose-time is over its time; without a start or a propose time it is not', () => {
+  const min = 60_000;
+  assert.equal(proposeOvertime(0, 15 * min, 30 * min), null, 'at twice the time it is still within');
+  assert.deepEqual(proposeOvertime(0, 15 * min, 31 * min), { elapsedMs: 31 * min, limitMs: 30 * min });
+  assert.equal(proposeOvertime(null, 15 * min, 99 * min), null);
+  assert.equal(proposeOvertime(0, null, 99 * min), null);
+  assert.equal(proposeOvertime(0, 0, 99 * min), null);
+  assert.match(overtimeRefusal('trunk', { elapsedMs: 31 * min, limitMs: 30 * min }), /31 min ago, past twice its propose-time \(30 min\).*return your best hypothesis/);
 });
