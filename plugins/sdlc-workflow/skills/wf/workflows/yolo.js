@@ -756,9 +756,10 @@ function answeredClause(a, stage, sliceArg = null) {
         `again, and return acceptedByPerson: false.`
       : '') +
     (stage === 'verify' || stage === 'review'
-      ? ` When the answer changes the slice's design, its acceptance criteria or its plan, change no code: write ` +
-        `route-back: plan in the ${stage} frontmatter, and return routeBack: 'plan'. When the answer needs new ` +
-        `code that the current plan already describes, and more than a fix round, change no code: write ` +
+      ? smallChangeClause(stage) +
+        ` When the change is NOT small and the answer changes the slice's design, adds plan steps or adds files, ` +
+        `change no code: write route-back: plan in the ${stage} frontmatter, and return routeBack: 'plan'. When ` +
+        `the change is NOT small and the current plan already describes the work, change no code: write ` +
         `route-back: implement and return routeBack: 'implement'. The driver then runs that stage and every later ` +
         `stage of the slice again, with this answer.` +
         (stage === 'review' && !sliceArg
@@ -776,6 +777,25 @@ function answeredClause(a, stage, sliceArg = null) {
       ? ` The walk already routed back to ${a.routedBack} on this answer, so the plan and the code carry it now. ` +
         `Do not route back again: settle the stage on the work as it is.`
       : '')
+}
+
+// An answered verify or review fixes a small change itself. Only a change that is not small
+// routes back, so a label or one screen row does not run plan, implement and verify again.
+function smallChangeClause(stage) {
+  return ` First decide the size of the change that the answer asks for. The change is SMALL when all five ` +
+    `criteria hold: (1) it changes only files that the slug's diff already changes, plus their tests; (2) it adds ` +
+    `no schema change, no migration, no new dependency and no new module; (3) it changes no public contract: no ` +
+    `API, no rules file, no stored format and no event that another slice reads; (4) it changes the acceptance ` +
+    `checks of one slice only; (5) one fix round can make it and check it. Record the size as a decision with ` +
+    `class 'implementation-detail', and name the criterion that fails when the change is not small. For a SMALL ` +
+    `change: (a) rewrite the acceptance check and the plan step that the answer changes, per rule 5 of ` +
+    `${referenceRoot}/_decisions.md, and name the rewritten records with --rewrote when you record the decision; ` +
+    `(b) make the change in your fix round; (c) run the checks of the rewritten acceptance check. When a check ` +
+    `fails, the change is not small: continue with the route-back rules below. ` +
+    (stage === 'review'
+      ? `(d) set the finding to fixed with \`${WF_CMD} findings set "${projectRoot}" ${slug} <id> fixed\`. `
+      : '') +
+    `Return no routeBack for a small change that passes its checks.`
 }
 
 // Delegate mode: the person delegated the intent-bearing decisions of this run.

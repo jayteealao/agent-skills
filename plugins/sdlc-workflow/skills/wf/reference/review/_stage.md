@@ -165,7 +165,20 @@ Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one
 
 # Step 4b: Triage findings needing a decision
 
-First run `wf.mjs findings questions "<root>" <slug>`. Each question is an open finding whose fix changes an acceptance check, an approved screen or a craft line. Do not fix such a finding at Step 4c. Before you ask, run `wf.mjs decide answered "<root>" <slug> --key finding:<id>`: a live answer settles the question. Otherwise ask the question as a gate question per [_gate-question.md](../_gate-question.md), with the recommended option first. Record the answer with `wf.mjs decide add --kind answer --key finding:<id>` per [_decisions.md](../_decisions.md). Then record the outcome on the finding with `wf.mjs findings set`.
+First run `wf.mjs findings questions "<root>" <slug>`. Each question is an open finding whose fix changes an acceptance check, an approved screen or a craft line. Do not fix such a finding at Step 4c before the person answers. Before you ask, run `wf.mjs decide answered "<root>" <slug> --key finding:<id>`: a live answer settles the question. Otherwise ask the question as a gate question per [_gate-question.md](../_gate-question.md), with the recommended option first. Record the answer with `wf.mjs decide add --kind answer --key finding:<id>` per [_decisions.md](../_decisions.md). Then record the outcome on the finding with `wf.mjs findings set`.
+
+When the answer asks for a change, decide the size of the change. The change is **small** when all five criteria hold:
+
+1. It changes only files that the slug's diff already changes, plus their tests.
+2. It adds no schema change, no migration, no new dependency and no new module.
+3. It changes no public contract: no API, no rules file, no stored format and no event that another slice reads.
+4. It changes the acceptance checks of one slice only.
+5. One fix round can make it and check it.
+
+Record the size as an `implementation-detail` decision. When the change is not small, name the criterion that fails.
+
+- **A small change is fixed in this review.** Rewrite the acceptance check and the plan step that the answer changes, per rule 5 of [_decisions.md](../_decisions.md), and name the rewritten records with `--rewrote`. Fix the finding at Step 4c. Run the checks of the rewritten acceptance check. When a check fails, the change is not small. When the checks pass, set the finding to `fixed`.
+- **A change that is not small routes back.** When the plan already describes the work, the next step is `/wf implement <slug> <slice>`. When the answer adds plan steps, files or design, the next step is `/wf plan <slug> <slice>`. Record the route in the review frontmatter as `route-back`.
 
 Then present the other findings that **need a decision** as a gate question per [_gate-question.md](../_gate-question.md): net-new findings, findings that opened again, and `open` (untriaged) findings. A refuted finding needs no decision. **Skip pre-existing findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. Record each `Defer` and `Dismiss` with `wf.mjs findings set <id> deferred|dismissed --reason "<the reason>"`. **`Fix` decisions execute in Step 4c.**
 

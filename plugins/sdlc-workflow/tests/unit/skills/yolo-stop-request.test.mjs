@@ -299,6 +299,49 @@ test('a slug-wide route back stops at a stopped chain, at the limit, and at a sl
   assert.match(g.reason, /named no slice of the roster/);
 });
 
+test('a slug-wide review that fixes a small answered finding itself routes nothing back', async () => {
+  const answer = { key: 'finding:DES-6', stage: 'review', answer: 'label it Cancel sign-in', by: 'person' };
+  const h = slugWideHarness([CLEAN_REVIEW], {}, [answer]);
+  const out = await h.slugWideReview(ROSTER, []);
+  assert.deepEqual([out.ok, out.route, h.calls.chain.length], [true, '/wf ship demo', 0]);
+  assert.equal(h.calls.review.length, 1);
+  assert.equal(h.calls.review[0].answered.key, 'finding:DES-6', 'the review gets the answer');
+});
+
+test('an answered review or verify fixes a small change, and routes back only a change that is not small', () => {
+  const build = new Function(`
+    const referenceRoot = '/plugin/skills/wf/reference'
+    const WF_CMD = 'node "/p/scripts/wf.mjs"'
+    const projectRoot = '/repo'
+    const slug = 'demo'
+    ${extractFn('sliceOf')}
+    ${extractFn('smallChangeClause')}
+    ${extractFn('answeredClause')}
+    return answeredClause
+  `);
+  const answeredClause = build();
+  const a = { key: 'finding:DES-6', question: 'Rename the button?', answer: 'Cancel sign-in', by: 'person' };
+  const review = answeredClause(a, 'review', null);
+  for (const criterion of [
+    /\(1\) it changes only files that the slug's diff already changes, plus their tests/,
+    /\(2\) it adds no schema change, no migration, no new dependency and no new module/,
+    /\(3\) it changes no public contract/,
+    /\(4\) it changes the acceptance checks of one slice only/,
+    /\(5\) one fix round can make it and check it/,
+  ]) assert.match(review, criterion);
+  assert.match(review, /class 'implementation-detail', and name the criterion that fails/);
+  assert.match(review, /rule 5 of \/plugin\/skills\/wf\/reference\/_decisions\.md, and name the rewritten records with --rewrote/);
+  assert.match(review, /findings set "\/repo" demo <id> fixed/);
+  assert.match(review, /Return no routeBack for a small change that passes its checks/);
+  assert.match(review, /When the change is NOT small and the answer changes the slice's design, adds plan steps or adds files, change no code: write route-back: plan/);
+  assert.match(review, /When the change is NOT small and the current plan already describes the work, change no code: write route-back: implement/);
+  assert.match(review, /return routeBackSlices/, 'a slug-wide review still names its slices');
+  const verify = answeredClause(a, 'verify', 'auth');
+  assert.match(verify, /\(5\) one fix round can make it and check it/);
+  assert.doesNotMatch(verify, /findings set/);
+  assert.doesNotMatch(answeredClause(a, 'implement', 'auth'), /SMALL/, 'implement keeps its own rule');
+});
+
 test('a slug-wide review that returns nothing stops as a transient stop that a re-run retries', async () => {
   const h = slugWideHarness([null]);
   const out = await h.slugWideReview(ROSTER, []);
