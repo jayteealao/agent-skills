@@ -88,6 +88,18 @@ test('D13: the proposer reads only the digest, and never the ledger or the histo
   assert.equal(/different approach/.test(p), false, 'no diversity directive (arXiv 2610.07447: no measured effect)');
 });
 
+test('a proposer measures only with a probe of its own lane, and has a time limit', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  const branch = calls.find((c) => c.label === 'propose:1').prompt;
+  assert.match(branch, /optimize\.mjs" probe-open "\/repo" s --on optimize\/s--r1b1/);
+  assert.match(branch, /optimize\.mjs" probe "\/repo" s --on optimize\/s--r1b1 --label "<what>" --cmd "<command>"/);
+  assert.match(branch, /never build, test, format or run the project in the lane worktree, and never copy the worktree/);
+  assert.match(branch, /digest\.proposeMinutes minutes/);
+  const trunk = calls.filter((c) => c.label.startsWith('propose:')).at(-1).prompt;
+  assert.match(trunk, /probe-open "\/repo" s --on trunk/);
+});
+
 test('the trial bookkeeping writes the hypothesis to the file of its lane and passes it with --hypothesis-file', async () => {
   const { agent, calls } = fakeLoop();
   await run(ARGS, agent);

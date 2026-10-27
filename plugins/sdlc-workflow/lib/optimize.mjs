@@ -27,7 +27,7 @@ export const DIGEST_TRIALS = 20;
 export const DEFAULT_SPEC = Object.freeze({
   repeat: 5,
   'min-gain': '2%',
-  budget: { trials: 60, plateau: 8, 'wall-clock': '6h', tokens: null, 'trial-timeout': '10m' },
+  budget: { trials: 60, plateau: 8, 'wall-clock': '6h', tokens: null, 'trial-timeout': '10m', 'propose-time': '15m' },
   'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider' },
   width: 1,
   'checkpoint-every': 5,
@@ -105,6 +105,8 @@ export function parseSpec(fm) {
   if (Number.isNaN(wallClock)) errors.push('budget.wall-clock does not parse (use 90s, 10m, 6h or 2d)');
   const trialTimeout = parseDuration(b['trial-timeout']);
   if (Number.isNaN(trialTimeout) || trialTimeout === null) errors.push('budget.trial-timeout does not parse');
+  const proposeTime = parseDuration(b['propose-time']);
+  if (Number.isNaN(proposeTime) || proposeTime === null) errors.push('budget.propose-time does not parse');
   const tokens = b.tokens === null || b.tokens === undefined || b.tokens === '' ? null : Number(b.tokens);
   if (tokens !== null && !(tokens > 0)) errors.push('budget.tokens must be a positive number or null');
   const rRaw = { ...DEFAULT_SPEC['branch-rounds'], ...(isObj(fm['branch-rounds']) ? fm['branch-rounds'] : {}) };
@@ -134,7 +136,7 @@ export function parseSpec(fm) {
     sharedBuild: str(fm['shared-build']) || null,
     allowedPaths: allowed,
     offLimits,
-    budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout },
+    budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout, proposeTimeMs: proposeTime },
     rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra, merge },
     width,
     checkpointEvery,
@@ -401,6 +403,7 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
     solutions: isBranch ? [] : solutions,
     worktree: laneWorktree(state, isBranch ? lane : state.trunk),
     branch: isBranch ? lane : state.trunk,
+    proposeMinutes: Math.round((spec.budget.proposeTimeMs ?? 0) / 60_000),
   };
 }
 

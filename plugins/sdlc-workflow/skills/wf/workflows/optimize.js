@@ -130,6 +130,15 @@ function proposePrompt(n, width, on = null) {
     `the worktree of your lane and its branch ("worktree" and "branch"). When "prepared" is not null, the worktree ` +
     `already holds an edit from before a stop: read nothing more and return { hypotheses: [], prepared: true, lane, worktree }.\n` +
     `2. Read the code in the worktree that the metric exercises. Read only inside the worktree.\n` +
+    `   TIME: you have digest.proposeMinutes minutes. Run \`date\` when you start. When the time is up, stop the research ` +
+    `and return your best hypothesis.\n` +
+    `   MEASURE ONLY WITH A PROBE. Another trial can be measuring on this machine, and a build, a test or a benchmark ` +
+    `corrupts its numbers. So never build, test, format or run the project in the lane worktree, and never copy the ` +
+    `worktree to another folder. To build, profile or time something:\n` +
+    `   a. Run \`${cmd('probe-open', `--on ${on || 'trunk'}`)}\`. It prints the path of a probe worktree at the best ` +
+    `code of your lane. You may edit that worktree freely, for example to add timer counters.\n` +
+    `   b. Run each build or benchmark as \`${cmd('probe', `--on ${on || 'trunk'} --label "<what>" --cmd "<command>"`)}\`. The ` +
+    `probe waits for the measure lock, runs the command in the probe worktree, and prints its output.\n` +
     `3. Do NOT read the optimize folder of the workflow, the results ledger, or the git history of other branches. ` +
     `When digest.flushed is true, you are a branch of a branch round: work out the intent of the code from the ` +
     `code itself. That fresh start is the purpose of the round.\n` +
@@ -281,7 +290,7 @@ while (st && st.state === 'running') {
     h = onTrunk && queue.length ? queue.shift() : null
     if (!h) {
       queue.length = 0
-      const p = await call(proposePrompt(n, onTrunk ? width : 1), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
+      const p = await call(proposePrompt(n, onTrunk ? width : 1, onTrunk ? null : lane), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
       if (p && p.prepared) h = { text: '', prepared: true }
       else {
         const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)

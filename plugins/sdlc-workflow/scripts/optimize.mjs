@@ -17,10 +17,20 @@
  *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline (D7)
  *   finish          <root> <slug> [--message m]       squash the kept trials onto the slug branch; write the slice artifacts; clean up
  *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
+ *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
+ *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
+ *                                                     run one command in the probe worktree, under the measure lock
+ *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
+ *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
+ *                                                     run one command in the probe worktree, under the measure lock
  *
  * `--on <lane>` names a branch that status lists in `next.ready`. A round whose branches have
  * their own worktrees lets the driver edit them at the same time; `trial` holds the measure
- * lock (optimize/.measure.lock), so one guard and one measurement run at a time.
+ * lock (optimize/.measure.lock), so one guard and one measurement run at a time. A proposer
+ * builds and runs benchmarks only with `probe`, which takes the same lock: a build during a
+ * measurement corrupts its numbers. A proposer
+ * builds and runs benchmarks only with `probe`, which takes the same lock: a build during a
+ * measurement corrupts its numbers.
  *
  * Every command prints one JSON object on stdout. The model proposes and edits only:
  * this script makes every git write, every measurement, and every keep or revert.
@@ -43,7 +53,7 @@ import {
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -160,6 +170,12 @@ const assertWorktree = (root, state) => assertWorktreePath(root, state.worktree)
 
 /** The variables that every command of the loop gets: the shared build folder, when the spec names one. */
 const envOf = (state, spec) => (spec.sharedBuild && state.buildDir ? { [spec.sharedBuild]: state.buildDir } : null);
+/** The probe worktrees build in their own folder, so an instrumented build never replaces a build of a lane. */
+function probeEnvOf(state, spec) {
+  if (!spec.sharedBuild || !state.buildDir) return null;
+  mkdirSync(`${state.buildDir}-probe`, { recursive: true });
+  return { [spec.sharedBuild]: `${state.buildDir}-probe` };
+}
 /** The shared build folder is recorded once, beside the trunk worktree, and later commands use only that record. */
 function ensureBuildDir(state, spec) {
   if (!spec.sharedBuild || state.buildDir) return false;
@@ -185,18 +201,35 @@ function lockHolder(root, slug, trialTimeoutMs) {
   const old = trialTimeoutMs && Date.now() - Date.parse(h.at) > 3 * trialTimeoutMs;
   return !h.pid || !alive(h.pid) || old ? null : h;
 }
-function takeLock(root, slug, spec, lane) {
+function takeLock(root, slug, spec, lane, kind = 'trial') {
   const f = lockPath(root, slug);
   mkdirSync(dirname(f), { recursive: true });
   const holder = lockHolder(root, slug, spec.budget.trialTimeoutMs);
-  if (holder) return { ok: false, busy: true, error: `a measurement runs on ${holder.lane ?? 'a lane'} (process ${holder.pid}, since ${holder.at}): measurements run one at a time` };
+  if (holder) return { ok: false, busy: true, holder, error: `a ${holder.kind ?? 'measurement'} runs on ${holder.lane ?? 'a lane'} (process ${holder.pid}, since ${holder.at}): measurements run one at a time` };
   rmSync(f, { force: true });
   try {
-    writeFileSync(f, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), lane }), { flag: 'wx' });
+    writeFileSync(f, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), lane, kind }), { flag: 'wx' });
   } catch {
     return { ok: false, busy: true, error: 'another measurement took the lock at the same time: measurements run one at a time' };
   }
   return { ok: true };
+}
+const LOCK_POLL_MS = Number(process.env.OPTIMIZE_LOCK_POLL_MS) || 1000;
+const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+/**
+ * Take the lock, and wait while `waitFor(holder)` is true, for at most one trial timeout. A probe
+ * waits for any holder. A trial waits only for a probe: two trials never overlap, because the
+ * driver queues them.
+ */
+function waitLock(root, slug, spec, lane, kind, waitFor) {
+  const until = Date.now() + spec.budget.trialTimeoutMs;
+  for (;;) {
+    const l = takeLock(root, slug, spec, lane, kind);
+    if (l.ok) return l;
+    if (l.holder && !waitFor(l.holder)) return l;
+    if (Date.now() >= until) return { ...l, error: `${l.error}; this ${kind} waited ${Math.round(spec.budget.trialTimeoutMs / 1000)} s for it` };
+    sleepMs(LOCK_POLL_MS);
+  }
 }
 const dropLock = (root, slug) => rmSync(lockPath(root, slug), { force: true });
 const currentBranch = (cwd) => git(cwd, ['branch', '--show-current']).out;
@@ -383,7 +416,91 @@ function proposeContext(root, slug, f = {}) {
   const digest = buildDigest({ spec, specProse: prose, state, results: readResults(root, slug), lane, solutions: lane === 'trunk' ? solutionsFor(root, spec) : [] });
   // A worktree that holds an edit from before a stop is a prepared trial: `trial` measures it.
   const paths = dirtyPaths(wt);
+  // The start of the proposer of this lane: `trial` records the time from here to the measurement.
+  // Each lane has a file of its own, because proposers run while a trial writes state.json.
+  if (!paths.length) writeAtomic(proposeStamp(root, slug, laneTagOf(state, on)), `${JSON.stringify({ at: Date.now() })}\n`);
   return { ok: true, why: st.next.why, digest, prepared: paths.length ? { paths } : null };
+}
+
+// ---------------------------------------------------------------------------
+// probes: the proposer's own builds and benchmarks, under the measure lock
+// ---------------------------------------------------------------------------
+/** `trunk`, or `r<n>b<k>` for a branch of a round. */
+const laneTagOf = (state, lane) => (!lane || lane === 'trunk' || lane === state.trunk ? 'trunk' : (/--(r\d+b\d+)$/.exec(lane) || [])[1] || 'trunk');
+const proposeStamp = (root, slug, tag) => join(optDir(root, slug), `.propose-${tag}.json`);
+/** The probe worktree of a lane, beside the trunk worktree. Its path follows from the lane, so no write to state.json is needed. */
+const probePath = (state, tag) => join(dirname(state.worktree), `${basename(state.worktree)}--probe-${tag}`);
+/** The lane of a probe: the trunk, or a branch of the open round. */
+function probeLane(state, f) {
+  const lane = !f.on || f.on === 'trunk' ? state.trunk : String(f.on);
+  if (state.finished) throw new Error('the loop is finished: no probe');
+  if (!laneBest(state, lane)) throw new Error(`${lane} is not a lane of the loop now: use the trunk or a branch of the open round`);
+  return lane;
+}
+
+function probeOpen(root, slug, f) {
+  const state = readState(root, slug);
+  if (!state) throw new Error('no baseline: run baseline first');
+  const { spec } = loadSpec(root, slug);
+  const lane = probeLane(state, f);
+  const best = laneBest(state, lane);
+  const wt = probePath(state, laneTagOf(state, lane));
+  if (existsSync(wt)) {
+    assertWorktreePath(root, wt);
+    gitOk(wt, ['checkout', '-q', '--detach', '-f', best.commit], 'checkout');
+    gitOk(wt, ['clean', '-fd'], 'clean');
+    return { ok: true, lane, worktree: wt, commit: best.commit, fresh: false };
+  }
+  gitOk(root, ['worktree', 'add', '-q', '--detach', wt, best.commit], 'worktree add');
+  if (spec.setup) {
+    // The setup loads the machine, so it runs under the lock too.
+    const l = waitLock(root, slug, spec, lane, 'probe', () => true);
+    if (!l.ok) return l;
+    try {
+      const r = runCommand(spec.setup, wt, 60 * 60_000, probeEnvOf(state, spec));
+      if (r.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${r.code})`, output: tail(r.stdout + r.stderr) };
+    } finally { dropLock(root, slug); }
+  }
+  return { ok: true, lane, worktree: wt, commit: best.commit, fresh: true };
+}
+
+function probe(root, slug, f) {
+  const state = readState(root, slug);
+  if (!state) throw new Error('no baseline: run baseline first');
+  const { spec } = loadSpec(root, slug);
+  const lane = probeLane(state, f);
+  const tag = laneTagOf(state, lane);
+  const wt = probePath(state, tag);
+  if (!existsSync(wt)) throw new Error(`no probe worktree for ${lane}: run probe-open --on ${lane} first`);
+  const command = typeof f.cmd === 'string' ? f.cmd.trim() : '';
+  if (!command) throw new Error('probe needs --cmd "<command>"');
+  const label = (typeof f.label === 'string' && f.label.trim()) || command.slice(0, 60);
+  const l = waitLock(root, slug, spec, lane, 'probe', () => true);
+  if (!l.ok) return l;
+  try {
+    const r = runCommand(command, wt, spec.budget.trialTimeoutMs, probeEnvOf(state, spec));
+    appendResult(root, slug, { event: 'probe', lane: tag, label, code: r.code, ms: r.ms, ...(r.timedOut ? { timedOut: true } : {}) });
+    return { ok: true, lane, worktree: wt, code: r.code, timedOut: r.timedOut, ms: r.ms, output: tail(r.stdout + r.stderr, 80) };
+  } finally { dropLock(root, slug); }
+}
+
+/** Remove the probe worktree of each tag. The instrumentation in it is reset first, so git removes it without --force. */
+function removeProbes(root, state, tags, out) {
+  for (const tag of tags) {
+    const wt = probePath(state, tag);
+    if (!existsSync(wt)) continue;
+    try { assertWorktreePath(root, wt); resetTo(root, wt, 'HEAD'); } catch { /* removeWorktree reports it */ }
+    const res = removeWorktree(root, wt);
+    if (res.removed) out.removed.push(wt);
+    else out.kept.push({ path: wt, reason: res.reason });
+  }
+}
+/** The tags of the probe worktrees that exist beside the trunk worktree. */
+function probeTags(state) {
+  const dir = dirname(state.worktree);
+  const pre = `${basename(state.worktree)}--probe-`;
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((n) => n.startsWith(pre)).map((n) => n.slice(pre.length));
 }
 
 // ---------------------------------------------------------------------------
@@ -409,6 +526,11 @@ function trial(root, slug, id, f) {
   const hypothesis = { id, text, expected: String(f.expected ?? '').trim() };
   const n = state.counters.trials + 1;
   const line = { event: 'trial', trial: n, round: isTrunk ? null : round.n, branch: isTrunk ? null : laneName, hypothesis, values: [], median: null, delta: null, noise: state.baseline.noise, guard: null };
+  const stamp = proposeStamp(root, slug, laneTagOf(state, laneName));
+  if (existsSync(stamp)) {
+    try { line.prepareMs = Date.now() - JSON.parse(readFileSync(stamp, 'utf8')).at; } catch { /* no time */ }
+    rmSync(stamp, { force: true });
+  }
   const finish = (verdict, extra = {}) => {
     Object.assign(line, { verdict, ...extra });
     if (verdict !== 'kept') resetTo(root, wt, best.commit);
@@ -575,6 +697,10 @@ function roundClose(root, slug) {
     if (res.removed) removed.push(b.worktree);
     else (state.leftovers ??= []).push({ path: b.worktree, branch: b.name, reason: res.reason });
   }
+  const probes = { removed: [], kept: [] };
+  removeProbes(root, state, r.branches.map((b) => `r${r.n}b${b.k}`), probes);
+  removed.push(...probes.removed);
+  for (const k of probes.kept) (state.leftovers ??= []).push(k);
   // CAUTION: delete only the branches that state.json lists for this round, by their exact names.
   // A candidate keeps its branch until the merge step ends.
   const deleted = [];
@@ -888,19 +1014,23 @@ function cleanupAll(root, slug, state) {
     if (had) out.removed.push(wt);
     if (branch && git(root, ['branch', '-D', branch]).ok) out.removed.push(branch);
   };
-  for (const l of state.leftovers ?? []) drop(l.path, l.branch);
+  const probeLeft = (p) => /--probe-[^\\/]+$/.test(p ?? '');
+  for (const l of state.leftovers ?? []) if (!probeLeft(l.path)) drop(l.path, l.branch);
+  removeProbes(root, state, probeTags(state), out);
   drop(state.worktree, state.trunk);
-  const bd = state.buildDir;
-  if (bd && existsSync(bd)) {
-    // WARNING: a recursive delete. It deletes only the exact folder that state.json records, beside
-    // the trunk worktree, and only when it holds no link. A delete of a path from the spec text, or
-    // through a link, can delete files of the main checkout.
+  // The build folders: the shared one, and the folders of the probes and of the reference worktree.
+  const builds = state.buildDir ? [state.buildDir, `${state.buildDir}-probe`, `${state.buildDir}-ref`] : [];
+  for (const bd of builds) {
+    if (!existsSync(bd)) continue;
+    // WARNING: a recursive delete. It deletes only the exact folders that follow from the folder that
+    // state.json records, beside the trunk worktree, and only when they hold no link. A delete of a
+    // path from the spec text, or through a link, can delete files of the main checkout.
     const links = linksUnder(bd);
     if (samePath(bd, root) || !samePath(dirname(bd), dirname(state.worktree))) out.kept.push({ path: bd, reason: 'the build folder is not beside the trunk worktree: remove it yourself' });
     else if (links.length) out.kept.push({ path: bd, reason: `the build folder holds links (${links.slice(0, 3).join(', ')}): remove them, then run cleanup again` });
     else { rmSync(bd, { recursive: true, force: true }); out.removed.push(bd); }
   }
-  state.leftovers = out.kept.filter((k) => k.path !== bd);
+  state.leftovers = out.kept.filter((k) => !builds.includes(k.path));
   state.cleanedAt = nowIso();
   saveState(root, slug, state);
   return out;
@@ -917,7 +1047,7 @@ function cleanup(root, slug) {
 /** Run `fn` while this process holds the measure lock. */
 function withLock(root, slug, lane, fn) {
   const { spec } = loadSpec(root, slug);
-  const l = takeLock(root, slug, spec, lane);
+  const l = waitLock(root, slug, spec, lane, 'trial', (h) => h.kind === 'probe');
   if (!l.ok) return l;
   try { return fn(); } finally { dropLock(root, slug); }
 }
@@ -960,6 +1090,8 @@ export function main(argv = process.argv.slice(2)) {
       case 'merge-close': out = withLock(root, slug, null, () => mergeClose(root, slug)); break;
       case 'finish': out = finish(root, slug, f); break;
       case 'cleanup': out = cleanup(root, slug); break;
+      case 'probe-open': out = probeOpen(root, slug, f); break;
+      case 'probe': out = probe(root, slug, f); break;
       default: out = null;
     }
   } catch (e) {

@@ -103,6 +103,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `budget.trials` | 60 | Trunk trials and branch trials together |
 | `budget.plateau` | 8 | Trunk trials in a row with no keep that open a branch round |
 | `budget.wall-clock`, `budget.tokens`, `budget.trial-timeout` | `6h`, `null`, `10m` | The other limits |
+| `budget.propose-time` | `15m` | The time of one proposer. Its builds and benchmarks run only as probes, under the measure lock |
 | `branch-rounds.at` | `[0%, 33%, 66%]` | The share of `budget.trials` used at which a round opens. `[]` turns the rounds off |
 | `branch-rounds.branches` | 4 | Branches of each round |
 | `branch-rounds.branch-trials` | 6% of `budget.trials`, at least 3 | Trials of each branch |
@@ -143,6 +144,7 @@ budget:
   wall-clock: 6h
   tokens: null
   trial-timeout: 10m
+  propose-time: 15m
 branch-rounds:
   at: [0%, 33%, 66%]
   branches: 4

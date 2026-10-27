@@ -2400,7 +2400,8 @@
             "plateau": { "type": "integer", "minimum": 1 },
             "wall-clock": { "type": ["string", "number", "null"] },
             "tokens": { "type": ["number", "null"] },
-            "trial-timeout": { "type": ["string", "number"] }
+            "trial-timeout": { "type": ["string", "number"] },
+            "propose-time": { "type": ["string", "number"], "description": "The time that one proposer has for its research, for example 15m. The proposer prompt gives the limit." }
           }
         },
         "branch-rounds": {

@@ -25,6 +25,9 @@ test('the spec defaults follow D12: 60 trials, 4 branches, rounds at 0, 33 and 6
   assert.equal(s.rounds.branchTrials, 3);
   assert.equal(defaultBranchTrials(200), 12);
   assert.equal(parseDuration('10m'), 600000);
+  assert.equal(s.budget.proposeTimeMs, 900000, 'a proposer has 15 minutes');
+  assert.equal(buildDigest({ spec: s, specProse: '', state: stateOf(), results: [], lane: 'trunk' }).proposeMinutes, 15);
+  assert.ok(parseSpec(fm({ budget: { 'propose-time': 'soon' } })).errors.some((e) => /propose-time/.test(e)));
   const bad = parseSpec(fm({ guard: {}, 'allowed-paths': [] })).errors;
   assert.ok(bad.some((e) => /guard/.test(e)) && bad.some((e) => /allowed-paths/.test(e)));
 });

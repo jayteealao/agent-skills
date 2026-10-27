@@ -6,7 +6,7 @@
 // squash at finish, and the cleanup.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -324,6 +324,55 @@ test('the measure lock: a trial while another process measures is busy; a stale 
     writeFileSync(lock, JSON.stringify({ pid: process.pid, at: '2000-01-01T00:00:00Z' }));
     edit(`${wt}--r1b2`, 95);
     assert.equal(run(root, 'trial', 'h2', '--hypothesis', 'set the value to 95').verdict, 'kept', 'a lock older than three trial timeouts is stale');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a probe runs in its own worktree and build folder under the lock, a trial waits for a probe, and the loop removes the probes', () => {
+  const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    const bd = `${wt}.build`;
+    const open = run(root, 'probe-open', '--on', B1);
+    assert.equal(open.ok, true, JSON.stringify(open));
+    assert.equal(open.worktree, `${wt}--probe-r1b1`);
+    writeFileSync(path.join(open.worktree, 'src', 'value.txt'), '1\n');
+    const p = run(root, 'probe', '--on', B1, '--label', 'build', '--cmd', 'node guard.js && node metric.js');
+    assert.equal(p.ok, true, JSON.stringify(p));
+    assert.equal(p.code, 0);
+    assert.match(p.output, /^1$/m, 'the probe runs the instrumented probe worktree');
+    assert.match(readFileSync(path.join(`${bd}-probe`, 'built'), 'utf8'), /probe-r1b1$/, 'the probe builds into its own folder');
+    assert.equal(existsSync(path.join(bd, 'built')) && /probe/.test(readFileSync(path.join(bd, 'built'), 'utf8')), false, 'the shared build folder of the lanes is not touched');
+    assert.equal(existsSync(path.join(root, '.ai', 'workflows', S, 'optimize', '.measure.lock')), false, 'the probe releases the lock');
+    const ledger = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8');
+    assert.match(ledger, /"event":"probe","lane":"r1b1","label":"build","code":0/);
+    assert.equal(run(root, 'probe-open', '--on', 'optimize/other').ok, false, 'a probe needs a lane of the loop');
+    assert.equal(run(root, 'probe', '--on', B2, '--cmd', 'node metric.js').ok, false, 'a probe needs its probe worktree');
+
+    // A probe of another process holds the lock: the trial waits for it, and then measures.
+    const lock = path.join(root, '.ai', 'workflows', S, 'optimize', '.measure.lock');
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)'], { stdio: 'ignore' });
+    writeFileSync(lock, JSON.stringify({ pid: child.pid, at: new Date().toISOString(), lane: B2, kind: 'probe' }));
+    edit(`${wt}--r1b1`, 90);
+    const t0 = Date.now();
+    const t = JSON.parse(execFileSync(process.execPath, [SCRIPT, 'trial', root, S, 'h1', '--on', B1, '--hypothesis', 'set the value to 90'], { encoding: 'utf8', env: { ...process.env, OPTIMIZE_LOCK_POLL_MS: '100' } }));
+    assert.equal(t.verdict, 'kept', JSON.stringify(t));
+    assert.ok(Date.now() - t0 >= 1000, 'the trial waited for the probe');
+    child.kill();
+
+    assert.equal(step(root, wt, 'h2', 95).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h3', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h4', 85).t.verdict, 'kept');
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.equal(existsSync(`${wt}--probe-r1b1`), false, 'round-close removes the probe worktrees of the round');
+    assert.equal(run(root, 'probe-open').ok, true, 'the trunk has a probe worktree too');
+    if (run(root, 'status').next.action === 'merge-consider') run(root, 'merge-consider', '--skip', 'b2:test');
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.deepEqual([existsSync(`${wt}--probe-trunk`), existsSync(`${bd}-probe`)], [false, false], 'finish removes the probe worktrees and their build folder');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
