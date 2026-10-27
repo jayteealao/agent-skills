@@ -2413,7 +2413,8 @@
             "branches": { "type": "integer", "minimum": 2 },
             "branch-trials": { "type": ["integer", "null"], "minimum": 1 },
             "max-extra": { "type": "integer", "minimum": 0 },
-            "merge": { "enum": ["consider", "off"], "description": "consider: after a round, the other kept branches are considered for a merge into the trunk, and each merge is measured as a trial. off: only the winner is kept." }
+            "merge": { "enum": ["consider", "off"], "description": "consider: after a round, the other kept branches are considered for a merge into the trunk, and each merge is measured as a trial. off: only the winner is kept." },
+            "prune": { "enum": ["on", "off"], "description": "on: a branch with no keep that trails the leader of its round by more than the keep threshold gives its other trials to a new fork of the leader. off: every branch runs to the end of the round." }
           }
         },
         "width": { "type": "integer", "minimum": 1 },

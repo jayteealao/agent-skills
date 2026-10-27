@@ -183,7 +183,7 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     const results = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
     assert.equal(results.filter((r) => r.event === 'trial').length, 10);
     assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'finish']);
-    assert.deepEqual(results.find((r) => r.event === 'merge-close').skipped, [{ name: `optimize/${S}--r1b2`, reason: 'conflict' }]);
+    assert.deepEqual(results.find((r) => r.event === 'merge-close').skipped, [{ name: `optimize/${S}--r1b2`, reason: 'conflict' }, { name: 't2', reason: 'conflict' }], 'the merge conflicts, and the port of its kept trial t2 conflicts too');
 
     const cl = run(root, 'cleanup');
     assert.equal(cl.ok, true, JSON.stringify(cl));
@@ -628,6 +628,103 @@ test('a candidate that the consider step skips is not merged, and its reason is 
     assert.deepEqual(lines.find((l) => l.event === 'merge-consider').skip, [{ name: B2, reason: 'the same mechanism as the winner' }]);
     assert.equal(lines.some((l) => l.merge), false);
     assert.equal(git(root, 'branch', '--list', B2), '');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+/** A new spec text in the committed spec file: the finish refuses a tracked file with changes. */
+function respec(root, ...pairs) {
+  const file = path.join(root, '.ai', 'workflows', S, '02-optimize-spec.md');
+  let text = readFileSync(file, 'utf8');
+  for (let i = 0; i < pairs.length; i += 2) text = text.replace(pairs[i], pairs[i + 1]);
+  writeFileSync(file, text);
+  git(root, 'commit', '-q', '-am', 'spec');
+}
+
+test('a port: a branch that conflicts gives its kept trial that applies to the trunk, which the trunk measures with no proposer', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 100, { 'src/extra.txt': '-10' }).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h3', 120).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h4', 95, { 'src/extra.txt': '-10' }).t.verdict, 'kept');
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.deepEqual(close.merge.candidates.map((c) => [c.kind ?? 'branch', c.name, c.conflict]), [['branch', B2, true], ['port', 't2', false], ['port', 't4', true]]);
+    const mc = run(root, 'merge-consider', '--try', 't2');
+    assert.equal(mc.ok, true, JSON.stringify(mc));
+    assert.deepEqual([mc.next.action, mc.next.on, mc.next.port], ['trial', `optimize/${S}`, 't2']);
+    const st = run(root, 'status');
+    assert.equal(st.next.portOf.trial, 2);
+    assert.match(readFileSync(st.next.portOf.patch, 'utf8'), /extra\.txt/, 'the editor reads the kept diff');
+
+    writeFileSync(path.join(wt, 'src', 'extra.txt'), '-10');
+    const t = run(root, 'trial', 'p1', '--hypothesis', 'port t2');
+    assert.deepEqual([t.ok, t.verdict], [true, 'kept'], JSON.stringify(t));
+    const line = ledger(root).find((l) => l.port);
+    assert.deepEqual(line.port, { round: 1, trial: 2, branch: B2 });
+    assert.deepEqual(line.additive, { measured: 10, alone: 10 });
+    assert.equal(run(root, 'status').next.action, 'trial', 'the merge step closes when no try is left');
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a bundle: two marginal ideas on other targets are tried together after half a plateau, and a kept bundle marks them', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'min-gain: 0', 'min-gain: 10', 'plateau: 2', 'plateau: 4');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    for (const [id, v] of [['h1', 120], ['h2', 130], ['h3', 140], ['h4', 150]]) assert.equal(step(root, wt, id, v).t.verdict, 'reverted');
+    assert.equal(run(root, 'round-close').ok, true);
+
+    const a = run(root, 'idea-claim', '--target', 'value');
+    edit(wt, 95);
+    assert.equal(run(root, 'trial', 'm1', '--idea', a.idea.id, '--hypothesis', 'value 95').verdict, 'reverted');
+    const b = run(root, 'idea-claim', '--target', 'extra');
+    writeFileSync(path.join(wt, 'src', 'extra.txt'), '-6');
+    const m2 = run(root, 'trial', 'm2', '--idea', b.idea.id, '--hypothesis', 'extra -6');
+    assert.equal(m2.verdict, 'reverted');
+    assert.deepEqual(m2.next.bundle, [b.idea.id, a.idea.id], JSON.stringify(m2.next));
+    assert.deepEqual(run(root, 'status').next.bundleOf.map((x) => x.id), [b.idea.id, a.idea.id]);
+
+    edit(wt, 95, { 'src/extra.txt': '-6' });
+    const t = run(root, 'trial', 'm3', '--hypothesis', 'the bundle');
+    assert.equal(t.verdict, 'kept', JSON.stringify(t));
+    const line = ledger(root).find((l) => l.bundle);
+    assert.deepEqual([line.bundle, line.additive], [[b.idea.id, a.idea.id], { measured: 11, sum: 11 }]);
+    const ideas = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'ideas.json'), 'utf8'));
+    assert.deepEqual(ideas.ideas.map((i) => i.status), ['bundled', 'bundled']);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a prune: a branch with no keep that trails the leader gives its trials to a new fork of the leader', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'branch-trials: 2', 'branch-trials: 3');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 120).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h3', 70).t.verdict, 'kept');
+    const h4 = step(root, wt, 'h4', 130).t;
+    assert.deepEqual([h4.next.action, h4.next.branch], ['prune', B2], JSON.stringify(h4.next));
+    const p = run(root, 'prune');
+    const B3 = `optimize/${S}--r1b3`;
+    assert.deepEqual([p.ok, p.pruned, p.into, p.from, p.trials], [true, B2, B3, B1, 1], JSON.stringify(p));
+    assert.equal(existsSync(`${wt}--r1b2`), false);
+    assert.equal(git(root, 'branch', '--list', B2), '');
+    assert.equal(readFileSync(path.join(`${wt}--r1b3`, 'src', 'value.txt'), 'utf8').trim(), '70', 'the fork starts at the leader best');
+    assert.deepEqual(p.next.ready, [B1, B3]);
+    assert.equal(step(root, wt, 'h5', 60, undefined, B3).t.verdict, 'kept');
+    assert.deepEqual(ledger(root).find((l) => l.event === 'prune'), { event: 'prune', round: 1, branch: B2, into: B3, from: B1, trials: 1, at: ledger(root).find((l) => l.event === 'prune').at });
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

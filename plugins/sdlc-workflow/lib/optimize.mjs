@@ -31,7 +31,7 @@ export const DEFAULT_SPEC = Object.freeze({
   repeat: 5,
   'min-gain': '2%',
   budget: { trials: 60, plateau: 8, 'wall-clock': '6h', tokens: null, 'trial-timeout': '10m', 'propose-time': '15m' },
-  'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider' },
+  'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider', prune: 'on' },
   width: 1,
   'checkpoint-every': 5,
 });
@@ -123,6 +123,8 @@ export function parseSpec(fm) {
   if (!Number.isInteger(maxExtra) || maxExtra < 0) errors.push('branch-rounds.max-extra must be an integer of 0 or more');
   const merge = str(rRaw.merge) || 'consider';
   if (!MERGE_MODES.includes(merge)) errors.push('branch-rounds.merge must be consider or off');
+  const prune = str(rRaw.prune) || 'on';
+  if (!['on', 'off'].includes(prune)) errors.push('branch-rounds.prune must be on or off');
   const width = Number(fm.width ?? DEFAULT_SPEC.width);
   if (!Number.isInteger(width) || width < 1) errors.push('width must be a positive integer');
   const sharedBuild = str(fm['shared-build']);
@@ -142,7 +144,7 @@ export function parseSpec(fm) {
     allowedPaths: allowed,
     offLimits,
     budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout, proposeTimeMs: proposeTime },
-    rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra, merge },
+    rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra, merge, prune },
     width,
     checkpointEvery,
     worktree: str(fm.worktree) || null,
@@ -301,7 +303,7 @@ export function laneBest(state, lane) {
  * @returns {{ state: 'running'|'complete'|'stopped'|'finished', reason?: string, detail?: string,
  *            next: { action: string, on?: string, point?: number|'extra', why?: string } | null }}
  */
-export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null }) {
+export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null }) {
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
   if (state.finished) return { state: 'finished', reason: 'finished', detail: `squashed as ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
@@ -318,6 +320,8 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     if (used >= B || overClock || overTokens) return running({ action: 'merge-close', why: 'the budget ran out during the merge step' });
     if (!mg.considered) return running({ action: 'merge-consider', why: `round ${mg.round}: ${mg.candidates.filter((c) => !c.conflict).length} branch(es) to consider for a merge into the trunk` });
     const tryNext = (mg.order ?? []).map((name) => mg.candidates.find((c) => c.name === name)).find((c) => c && !c.verdict);
+    // G4: a port applies one kept idea of a branch that was not merged again, on the trunk code.
+    if (tryNext?.kind === 'port') return running({ action: 'trial', on: state.trunk, port: tryNext.name, why: `round ${mg.round}: the port of trial ${tryNext.trial} of ${tryNext.branch}` });
     if (tryNext) return running({ action: 'merge-trial', branch: tryNext.name, why: `round ${mg.round}: the merge of ${tryNext.name}` });
     return running({ action: 'merge-close', why: 'every candidate is tried or skipped' });
   }
@@ -325,14 +329,17 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (r) {
     if (r.branches.some((b) => b.keeps > 0 && reachesTarget(spec, b.best.value))) return running({ action: 'round-close', why: 'a branch reached the target' });
     if (used >= B || overClock || overTokens) return running({ action: 'round-close', why: 'the budget ran out during the round' });
-    const open = r.branches.filter((b) => b.trials < r.branchTrials);
+    const open = r.branches.filter((b) => !b.pruned && b.trials < (b.limit ?? r.branchTrials));
     if (!open.length) return running({ action: 'round-close', why: `every branch ran ${r.branchTrials} trials` });
+    // G5: a branch that trails the leader with no keep gives its other trials to a new fork of the leader.
+    const prune = pruneCandidate(r, spec, noiseFor(spec, state));
+    if (prune) return running({ action: 'prune', branch: prune.name, why: `${prune.name} has no keep after ${prune.trials} trials and trails the leader of round ${r.n}` });
     // The branches take trials in turn: the one with the fewest trials, first in order.
     const turn = [...open].sort((a, b) => a.trials - b.trials || a.k - b.k)[0];
     // A round whose branches have their own worktrees names every branch that can take a trial:
     // the driver prepares them at the same time, and measures them one at a time.
-    const ready = r.branches.every((b) => b.worktree) ? open.map((b) => b.name) : undefined;
-    return running({ action: 'trial', on: turn.name, ...(ready ? { ready } : {}), why: `round ${r.n}, branch ${turn.k}, trial ${turn.trials + 1} of ${r.branchTrials}` });
+    const ready = r.branches.filter((b) => !b.pruned).every((b) => b.worktree) ? open.map((b) => b.name) : undefined;
+    return running({ action: 'trial', on: turn.name, ...(ready ? { ready } : {}), why: `round ${r.n}, branch ${turn.k}, trial ${turn.trials + 1} of ${turn.limit ?? r.branchTrials}` });
   }
   if (reachesTarget(spec, state.best.value)) return { state: 'complete', reason: 'complete', next: { action: 'finish' } };
   if (used >= B) return { state: 'stopped', reason: 'budget', detail: `${used} of ${B} trials used`, next: { action: 'person', why: personNext('budget') } };
@@ -357,6 +364,11 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
   if (spec.holdout && state.counters.sinceCheckpoint >= spec.checkpointEvery) return running({ action: 'checkpoint', why: `${state.counters.sinceCheckpoint} trunk trials since the last checkpoint` });
+  // G4: half a plateau with no keep, and marginal ideas whose gains add up past the threshold: try them together.
+  if (state.counters.streak >= Math.ceil(spec.budget.plateau / 2)) {
+    const bundle = bundleOf(ideas, keepThreshold(spec, state.best.value, noiseFor(spec, state)), state.bundlesTried ?? []);
+    if (bundle) return running({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `bundle: the ideas ${bundle.ids.join(', ')} gain ${bundle.sum} together` });
+  }
   return running({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
 }
 const running = (next) => ({ state: 'running', reason: 'running', next });
@@ -461,6 +473,55 @@ export function settleIdea(book, id, { trial, verdict, gain, patch = false }) {
 
 const brief = (i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled, trials: i.trials });
 
+/**
+ * A bundle (G4): marginal ideas with a kept diff and different targets, the largest pooled gain
+ * first, until their gains add up to more than the threshold. At most 4 ideas; null when the
+ * gains cannot pass, or when the same set was tried before.
+ */
+export function bundleOf(book, threshold, tried = []) {
+  const pool = (book?.ideas ?? []).filter((i) => i.status === 'marginal' && (i.patches ?? []).length && i.pooled?.mean > 0)
+    .sort((a, b) => b.pooled.mean - a.pooled.mean);
+  const set = [];
+  const targets = new Set();
+  let sum = 0;
+  for (const i of pool) {
+    if (targets.has(normTarget(i.target))) continue;
+    set.push(i.id);
+    targets.add(normTarget(i.target));
+    sum += i.pooled.mean;
+    if (set.length >= 2 && sum > threshold) break;
+    if (set.length >= 4) break;
+  }
+  if (set.length < 2 || !(sum > threshold)) return null;
+  const key = [...set].sort().join(',');
+  return tried.includes(key) ? null : { ids: set, key, sum: Number(sum.toPrecision(6)) };
+}
+
+/**
+ * The seeds of a round (G5): the largest profile entries that can pass alone, and whose target
+ * has no failed idea. Branch k gets entry k − 1; with fewer entries, the seeds repeat.
+ */
+export function seedsOf(entries, book, best, threshold, count) {
+  const failed = new Set((book?.ideas ?? []).filter((i) => i.status === 'failed').map((i) => normTarget(i.target)));
+  const pool = profileView(entries ?? [], best, threshold).filter((e) => e.alone && !failed.has(normTarget(e.name)));
+  if (!pool.length) return Array.from({ length: count }, () => null);
+  return Array.from({ length: count }, (_, k) => pool[k % pool.length].name);
+}
+
+/**
+ * The branch to prune (G5): 2 or more trials, no keep, trials left, and a best that trails the
+ * leader of the round by more than the threshold. null when none.
+ */
+export function pruneCandidate(round, spec, noise) {
+  if (spec.rounds.prune === 'off') return null;
+  const live = round.branches.filter((b) => !b.pruned);
+  const leader = pickWinner({ branches: live }, spec.metric.direction);
+  if (!leader || !live.every((b) => b.worktree)) return null;
+  const threshold = keepThreshold(spec, leader.best.value, noise);
+  return live.find((b) => b !== leader && b.keeps === 0 && b.trials >= 2 && b.trials < (b.limit ?? round.branchTrials)
+    && gainOf(spec.metric.direction, b.best.value, leader.best.value) > threshold) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // The profile (G1): where the work of the metric goes, from a profile command or a profiler agent.
 // ---------------------------------------------------------------------------
@@ -552,6 +613,7 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
     solutions: isBranch ? [] : solutions,
     worktree: laneWorktree(state, isBranch ? lane : state.trunk),
     branch: isBranch ? lane : state.trunk,
+    seed: isBranch ? state.round?.branches.find((b) => b.name === lane)?.seed ?? null : null,
     proposeMinutes: Math.round((spec.budget.proposeTimeMs ?? 0) / 60_000),
   };
 }

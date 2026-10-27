@@ -142,6 +142,7 @@ function proposePrompt(n, width, on = null) {
     `3. Do NOT read the optimize folder of the workflow, the results ledger, or the git history of other branches. ` +
     `When digest.flushed is true, you are a branch of a branch round: work out the intent of the code from the ` +
     `code itself. That fresh start is the purpose of the round.\n` +
+    `   SEED: when digest.seed is not null, it names the part of the profile where your branch starts. Start there.\n` +
     `   PROFILE: when digest.profile is not null, start from it. Each entry gives the share of the work, and maxGain, ` +
     `the gain if that cost went to zero. An entry with alone: false cannot pass the threshold by itself: do not ` +
     `propose a change to it alone.\n` +
@@ -182,21 +183,39 @@ async function runTrial(n, h, lane, on) {
 
 /** The consider step after a round: one agent decides which other kept branches to merge into the trunk. */
 function considerPrompt(mg) {
-  const shown = (mg.candidates || []).filter(c => !c.conflict).map(c => ({ name: c.name, short: `b${c.k}`, commit: c.commit, gain: c.gain, hypotheses: c.hypotheses, paths: c.paths, sharedWithWinner: c.shared }))
+  const open = (mg.candidates || []).filter(c => !c.conflict)
+  const shown = open.filter(c => c.kind !== 'port').map(c => ({ name: c.name, short: `b${c.k}`, commit: c.commit, gain: c.gain, hypotheses: c.hypotheses, paths: c.paths, sharedWithWinner: c.shared }))
+  const ports = open.filter(c => c.kind === 'port').map(c => ({ name: c.name, branch: c.branch, gain: c.gain, hypothesis: c.hypothesis, paths: c.paths, diff: c.patchFile }))
   return `MERGE CONSIDER for round ${mg.round} of the optimize loop of '${slug}'. The round chose its winner, and the trunk ` +
     `now holds the winner's code. These other branches kept a gain over the round base, and each one merges cleanly onto the trunk:\n` +
     `${JSON.stringify(shown, null, 2)}\n` +
+    (ports.length ? `These kept trials of the other branches are ports: the editor makes the same change again on the trunk code. ` +
+      `Use a port when its branch as a whole is not worth a merge, but this one change is:\n${JSON.stringify(ports, null, 2)}\n` : '') +
     `For each candidate, decide try or skip:\n` +
     `1. Read its diff against the round base: \`git -C "${mg.worktree || '<the trunk worktree>'}" diff ${mg.from || '<round base>'} <commit>\`. Read the winner's ` +
-    `change in the trunk worktree too. Read nothing else: not the optimize folder, not the ledger.\n` +
+    `change in the trunk worktree too. For a port, read the file that its diff names. Read nothing else: not the rest of the optimize folder, not the ledger.\n` +
     `2. Skip a candidate whose change removes the same cost as the winner's change: the gains do not add, and the ` +
-    `measurement only confirms that. Try a candidate whose change is independent of the winner's.\n` +
+    `measurement only confirms that. Try a candidate whose change is independent of the winner's. Do not try a branch and a port of the same branch.\n` +
     `3. Put the tries in order, the largest expected added gain first. Each try is measured as one trial against the budget.\n` +
     `Then run exactly one command, with every candidate in --try or in one --skip:\n` +
-    `  ${cmd('merge-consider', '--try <b2,b4> --skip "<b3>:<one-line reason>"')}\n` +
+    `  ${cmd('merge-consider', '--try <b2,t7> --skip "<b3>:<one-line reason>"')}\n` +
     `(leave out --try when you skip all; repeat --skip for each skipped branch). Return { ok, result } where result is the ` +
     `JSON object that the command printed, parsed. When the command exits non-zero it still prints JSON: return it as ` +
     `result with ok false. Do not edit any file and do not run any other git command than the diffs.` + heartbeat(`merge-consider:${mg.round}`, 'Loop')
+}
+
+/** The hypothesis of a port or a bundle: the kept diffs, made again on the current trunk code. */
+function reuseHypothesis(next, worktree) {
+  const items = next.port
+    ? [{ text: (next.portOf && next.portOf.hypothesis) || `trial ${next.port}`, patches: next.portOf ? [next.portOf.patch] : [] }]
+    : (next.bundleOf || []).map(b => ({ text: (b.hypotheses || []).filter(Boolean).slice(-1)[0] || `${b.target}: ${b.family}`, patches: (b.patches || []).slice(-1) }))
+  const text = next.port
+    ? `Port of trial ${next.portOf ? next.portOf.trial : next.port} of ${next.portOf ? next.portOf.branch : 'a branch'}: ${items[0].text}`
+    : `Bundle of ${(next.bundle || []).join(', ')}: ${items.map(i => i.text).join(' | ')}`
+  const plan = `Make the change of each diff below again in the current code. The code may have moved since the diff was made: ` +
+    `where a diff does not apply as it is, make the same change by hand. Read each diff file; do not edit it.\n` +
+    items.map((i, k) => `${k + 1}. ${i.text}\n   diff: ${i.patches.join(', ') || 'none'}`).join('\n')
+  return { text, expected: String(next.port ? (next.portOf && next.portOf.gain) || '' : ''), plan, worktree: worktree || '' }
 }
 
 /** The profiler: it measures where the work of the metric goes on the trunk best, with probes only. */
@@ -245,7 +264,8 @@ if (!CEILING_ARG) {
   // The merge step adds one consider agent and at most branches - 1 merge trials for each round.
   const branches = Number(st.budget && st.budget.branches) || 4
   // A profile before the first trial and before each round adds one profiler agent and one status agent each.
-  CEILING = 3 * trials + 2 * rounds + 10 + branches * rounds + 2 * (rounds + 1)
+  // A prune adds one bookkeeping agent and one status agent; at most 2 for each round are counted.
+  CEILING = 3 * trials + 2 * rounds + 10 + branches * rounds + 2 * (rounds + 1) + 4 * rounds
 }
 const width = Math.max(1, Number(st.budget && st.budget.width) || 1)
 log(`optimize '${slug}': ${st.state}, next ${(st.next && st.next.action) || 'none'}; agent ceiling ${CEILING}`)
@@ -270,7 +290,7 @@ while (st && st.state === 'running') {
     await drain()
     prepared.length = 0
   }
-  if (['round-open', 'round-close', 'checkpoint', 'merge-trial', 'merge-close'].includes(next.action)) {
+  if (['round-open', 'round-close', 'checkpoint', 'merge-trial', 'merge-close', 'prune'].includes(next.action)) {
     queue.length = 0
     const isMerge = next.action === 'merge-trial'
     const r = await book(next.action, isMerge ? `--branch ${next.branch}` : '', isMerge ? `merge:${laneTag(next.branch)}` : next.action, 'Loop')
@@ -328,6 +348,14 @@ while (st && st.state === 'running') {
     const item = prepared.shift()
     if (item.error) { stoppedAt = 'proposer'; reason = item.error; break }
     n = item.n; h = item.h; lane = item.lane; on = item.lane
+  } else if (next.port || next.bundle) {
+    // G4: a port or a bundle has no proposer. The editor makes the change of the kept diffs again on the trunk code.
+    queue.length = 0
+    n = ++SEQ_T
+    lane = next.on
+    h = reuseHypothesis(next, st.worktree)
+    const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
+    if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
   } else {
     n = ++SEQ_T
     lane = next.on

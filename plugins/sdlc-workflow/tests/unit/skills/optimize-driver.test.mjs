@@ -269,7 +269,7 @@ test('after a round, one consider agent chooses the merges, and the merge trials
   assert.ok(calls.findIndex((c) => c.label.startsWith('merge:')) > calls.findIndex((c) => c.label.startsWith('merge-consider')));
 });
 
-test('the agent ceiling counts the merge step and the profiles of each round', async () => {
+test('the agent ceiling counts the merge step, the profiles and the prunes of each round', async () => {
   const { agent } = fakeLoop({ trunkTrials: 50 });
   const out = await run(ARGS, async (prompt, opts) => {
     const r = await agent(prompt, opts);
@@ -277,8 +277,8 @@ test('the agent ceiling counts the merge step and the profiles of each round', a
     return r;
   });
   assert.equal(out.stoppedAt, 'agent-ceiling');
-  assert.ok(out.agentsUsed <= 3 * 8 + 2 * 2 + 10 + 4 * 2 + 2 * 3 + 3, `agents ${out.agentsUsed}`);
-  assert.ok(out.agentsUsed > 3 * 8 + 2 * 2 + 10 + 4 * 2, 'the ceiling is larger than before the profile step');
+  assert.ok(out.agentsUsed <= 3 * 8 + 2 * 2 + 10 + 4 * 2 + 2 * 3 + 4 * 2 + 3, `agents ${out.agentsUsed}`);
+  assert.ok(out.agentsUsed > 3 * 8 + 2 * 2 + 10 + 4 * 2 + 2 * 3, 'the ceiling is larger than before the prune step');
 });
 
 test('a stop during a round waits for the editors in flight and does not measure their edits', async () => {
@@ -313,4 +313,43 @@ test('the profile step: the profiler agent in agent mode, the bookkeeping in com
   const b = fakeLoop({ profile: 'command' });
   await run(ARGS, b.agent);
   assert.match(b.calls.find((c) => c.label === 'profile').prompt, /^BOOKKEEPING[\s\S]*optimize\.mjs" profile "\/repo" s/);
+});
+
+test('a prune is bookkeeping, and a port and a bundle go to the editor with the kept diffs and no proposer', async () => {
+  const steps = [
+    { action: 'prune', branch: 'optimize/s--r1b2', why: 'trails' },
+    { action: 'trial', on: 'optimize/s', port: 't2', portOf: { trial: 2, branch: 'optimize/s--r1b2', hypothesis: 'cache the table', gain: 10, patch: '/repo/opt/patches/2.patch' } },
+    { action: 'trial', on: 'optimize/s', bundle: ['i1', 'i3'], bundleOf: [{ id: 'i1', target: 'value', family: 'smaller', hypotheses: ['value 95'], patches: ['/repo/opt/patches/4.patch'] }, { id: 'i3', target: 'extra', family: 'x', hypotheses: [], patches: ['/repo/opt/patches/5.patch'] }] },
+  ];
+  let at = 0;
+  const calls = [];
+  const common = { ok: true, counters: { trials: at }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 }, metric: { command: 'node m.js' }, profile: null, worktree: '/wt' };
+  const status = () => (at < steps.length ? { ...common, state: 'running', next: steps[at] } : { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } });
+  const agent = async (prompt, opts) => {
+    calls.push({ label: opts.label, prompt });
+    const base = opts.label.split(':')[0];
+    if (base === 'status') return { ok: true, result: status() };
+    if (base === 'prune') { at++; return { ok: true, result: { ...status(), pruned: 'optimize/s--r1b2' } }; }
+    if (base === 'edit') return { ok: true, changed: ['src/a.js'] };
+    if (base === 'trial') { at++; return { ok: true, result: { ok: true, trial: at, lane: 'optimize/s', verdict: 'kept', median: 1, next: status().next } }; }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc' } };
+    throw new Error(`no answer for ${opts.label}`);
+  };
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  const labels = calls.map((c) => c.label);
+  assert.match(calls.find((c) => c.label === 'prune').prompt, /optimize\.mjs" prune "\/repo" s/);
+  assert.equal(labels.some((l) => l.startsWith('propose:')), false, 'a port and a bundle run no proposer');
+  const [port, bundle] = calls.filter((c) => c.label.startsWith('edit:')).map((c) => c.prompt);
+  assert.match(port, /Port of trial 2 of optimize\/s--r1b2: cache the table/);
+  assert.match(port, /diff: \/repo\/opt\/patches\/2\.patch/);
+  assert.match(bundle, /Bundle of i1, i3: value 95 \| extra: x/);
+  assert.match(bundle, /diff: \/repo\/opt\/patches\/4\.patch[\s\S]*diff: \/repo\/opt\/patches\/5\.patch/);
+  assert.ok(labels.includes('finish'));
+});
+
+test('a branch proposer reads the seed of its branch', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  assert.match(calls.find((c) => c.label === 'propose:1').prompt, /SEED: when digest\.seed is not null, it names the part of the profile where your branch starts/);
 });

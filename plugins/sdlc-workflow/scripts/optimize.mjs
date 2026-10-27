@@ -25,6 +25,7 @@
  *   profile         <root> <slug>                     run the profile command of the spec on the trunk best
  *   profile-record  <root> <slug> --file <json> | --skip "<reason>"
  *                                                     record the profile of the profiler agent
+ *   prune           <root> <slug>                     give the trials of a trailing branch to a new fork of the leader
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
  *                                                     run one command in the probe worktree, under the measure lock
@@ -54,12 +55,12 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
-  branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision,
+  branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -456,7 +457,20 @@ export function optimizeStatus(root, slug) {
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) return { ok: true, state: 'stopped', reason: 'state-error', detail: err, next: { action: 'person', why: 'report; do not repair' } };
-  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt) });
+  const ideas = readIdeas(root, slug);
+  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas });
+  // A port or a bundle has no proposer: the editor gets the hypothesis and the kept diff.
+  if (st.next?.port) {
+    const c = state.merge?.candidates.find((x) => x.name === st.next.port);
+    if (c) st.next.portOf = { trial: c.trial, branch: c.branch, idea: c.idea ?? null, hypothesis: c.hypothesis, gain: c.gain, patch: join(optDir(root, slug), c.patch) };
+  }
+  if (st.next?.bundle) {
+    const results = readResults(root, slug);
+    st.next.bundleOf = st.next.bundle.map((id) => {
+      const i = ideas.ideas.find((x) => x.id === id);
+      return { id, target: i?.target, family: i?.family, pooled: i?.pooled, hypotheses: results.filter((r) => r.event === 'trial' && r.idea === id).map((r) => r.hypothesis?.text ?? ''), patches: (i?.patches ?? []).map((t) => join(patchesDir(root, slug), `${t}.patch`)) };
+    });
+  }
   return {
     ok: true,
     ...st,
@@ -465,9 +479,10 @@ export function optimizeStatus(root, slug) {
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
-    merge: state.merge ?? null,
+    merge: state.merge ? { ...state.merge, candidates: state.merge.candidates.map((c) => (c.kind === 'port' ? { ...c, patchFile: join(optDir(root, slug), c.patch) } : c)) } : null,
     rounds: state.rounds.length,
     metric: { command: spec.metric.command, unit: spec.metric.unit, direction: spec.metric.direction },
+    worktree: state.worktree,
     profile: spec.profile ? { mode: spec.profile === 'agent' ? 'agent' : 'command', last: state.profile ?? null, patch: existsSync(profilePatch(root, slug)) ? profilePatch(root, slug) : null } : null,
   };
 }
@@ -763,11 +778,21 @@ function trial(root, slug, id, f) {
     try { line.prepareMs = Date.now() - JSON.parse(readFileSync(stamp, 'utf8')).at; } catch { /* no time */ }
     rmSync(stamp, { force: true });
   }
-  // The idea of the trial: --idea, or the claim in flight of its lane (a trial that waited through a stop).
-  const ideaId = typeof f.idea === 'string' && f.idea ? f.idea : readIdeas(root, slug).ideas.find((i) => i.claim === laneName)?.id ?? null;
+  // G4: a port applies a kept idea of a branch that was not merged again; a bundle tries marginal ideas together.
+  const mg = state.merge;
+  const port = st.next.port ? mg?.candidates.find((c) => c.name === st.next.port) ?? null : null;
+  const bundle = Array.isArray(st.next.bundle) ? st.next.bundle : null;
+  if (port) line.port = { round: mg.round, trial: port.trial, branch: port.branch };
+  if (bundle) line.bundle = bundle;
+  const bundleSum = bundle ? Number(readIdeas(root, slug).ideas.filter((i) => bundle.includes(i.id)).reduce((s, i) => s + (i.pooled?.mean ?? 0), 0).toPrecision(6)) : null;
+  // The idea of the trial: --idea, the idea of a port, or the claim in flight of its lane (a trial that waited through a stop).
+  const ideaId = port ? port.idea : bundle ? null
+    : typeof f.idea === 'string' && f.idea ? f.idea : readIdeas(root, slug).ideas.find((i) => i.claim === laneName)?.id ?? null;
   if (ideaId) line.idea = ideaId;
   const finish = (verdict, extra = {}) => {
     Object.assign(line, { verdict, ...extra });
+    if (verdict === 'kept' && port) line.additive = { measured: line.delta, alone: port.gain };
+    if (verdict === 'kept' && bundle) line.additive = { measured: line.delta, sum: bundleSum };
     // A kept change, and a reverted change with a real gain, keep their diff: a port or a bundle can use it (G4).
     const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
     if (keepPatch) {
@@ -776,16 +801,23 @@ function trial(root, slug, id, f) {
       line.patch = `patches/${n}.patch`;
     }
     if (ideaId) withIdeas(root, slug, (book) => settleIdea(book, ideaId, { trial: n, verdict, gain: line.delta, patch: keepPatch }));
+    if (bundle && verdict === 'kept') withIdeas(root, slug, (book) => { for (const i of book.ideas) if (bundle.includes(i.id)) { i.status = 'bundled'; i.trials.push(n); } });
     if (verdict !== 'kept') resetTo(root, wt, best.commit);
     state.counters.trials = n;
-    if (isTrunk) {
+    if (port) {
+      // A port counts against budget.trials. It is not a hypothesis of the trunk, so the plateau streak does not change.
+      port.verdict = verdict;
+      if (line.reason) port.reason = line.reason;
+    } else if (isTrunk) {
       state.counters.trunkTrials++;
       state.counters.sinceCheckpoint++;
       state.counters.streak = verdict === 'kept' ? 0 : state.counters.streak + 1;
+      if (bundle) state.bundlesTried = [...(state.bundlesTried ?? []), [...bundle].sort().join(',')];
     } else {
       branch.trials++;
     }
     appendResult(root, slug, line);
+    if (port && !mg.order.some((name) => !mg.candidates.find((c) => c.name === name).verdict)) closeMerge(root, slug, state, spec, 'not tried');
     saveState(root, slug, state);
     return { ok: true, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict, reason: line.reason ?? null, median: line.median, delta: line.delta, threshold: line.threshold ?? null, best: isTrunk ? state.best : branch.best, ...(line.output ? { output: line.output } : {}), next: optimizeStatus(root, slug).next };
   };
@@ -841,6 +873,12 @@ function roundOpen(root, slug) {
     if (existsSync(worktree)) throw new Error(`${worktree} exists: a worktree of round ${n} from another run. Ask the person.`);
     branches.push({ k, name, worktree, best: { ...state.best, reachedAt: 0 }, trials: 0, keeps: 0 });
   }
+  // G5: each branch starts at its own hot spot of the profile.
+  const prof = readProfile(root, slug);
+  if (prof?.entries?.length) {
+    const seeds = seedsOf(prof.entries, readIdeas(root, slug), state.best.value, keepThreshold(spec, state.best.value, noiseFor(spec, state)), branches.length);
+    branches.forEach((b, i) => { if (seeds[i]) b.seed = seeds[i]; });
+  }
   if (ensureBuildDir(state, spec)) saveState(root, slug, state);
   const env = envOf(state, spec);
   const undo = () => {
@@ -866,6 +904,45 @@ function roundOpen(root, slug) {
   appendResult(root, slug, { event: 'round-open', round: n, reason, why: st.next.why, from: state.best.commit, branches: branches.map((b) => b.name) });
   saveState(root, slug, state);
   return { ok: true, round: n, reason, why: st.next.why, branches: branches.map((b) => b.name), branchTrials: spec.rounds.branchTrials, next: optimizeStatus(root, slug).next };
+}
+
+/**
+ * G5: prune a branch that trails the leader with no keep. Its worktree and its branch go; its
+ * other trials go to a new branch forked from the best of the leader, with the next free seed.
+ */
+function prune(root, slug) {
+  const st = requireNext(root, slug, 'prune');
+  const state = readState(root, slug);
+  const { spec } = loadSpec(root, slug);
+  const r = state.round;
+  const b = r.branches.find((x) => x.name === st.next.branch);
+  const leader = pickWinner({ branches: r.branches.filter((x) => !x.pruned) }, spec.metric.direction);
+  if (!b || !leader) throw new Error(`prune: ${st.next.branch} or the leader of round ${r.n} is missing`);
+  if (existsSync(b.worktree) && dirtyPaths(b.worktree).length) resetTo(root, b.worktree, b.best.commit);
+  const res = removeWorktree(root, b.worktree);
+  if (res.removed) git(root, ['branch', '-D', b.name]);
+  else (state.leftovers ??= []).push({ path: b.worktree, branch: b.name, reason: res.reason });
+  removeProbes(root, state, [`r${r.n}b${b.k}`], { removed: [], kept: [] });
+  const left = (b.limit ?? r.branchTrials) - b.trials;
+  Object.assign(b, { pruned: true, limit: b.trials, worktree: null });
+  const k = Math.max(...r.branches.map((x) => x.k)) + 1;
+  const name = branchNameOf(slug, r.n, k);
+  const worktree = join(dirname(state.worktree), `${basename(state.worktree)}--r${r.n}b${k}`);
+  if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok || existsSync(worktree)) throw new Error(`${name} or ${worktree} exists from another run. Ask the person.`);
+  gitOk(root, ['branch', name, leader.best.commit], 'branch');
+  gitOk(root, ['worktree', 'add', '-q', worktree, name], 'worktree add');
+  if (spec.setup) {
+    const s = runCommand(spec.setup, worktree, 60 * 60_000, envOf(state, spec));
+    if (s.code !== 0) return { ok: false, error: `the setup command failed in ${worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr) };
+  }
+  const prof = readProfile(root, slug);
+  const used = new Set(r.branches.filter((x) => !x.pruned).map((x) => x.seed).filter(Boolean));
+  const seeds = prof?.entries?.length ? seedsOf(prof.entries, readIdeas(root, slug), leader.best.value, keepThreshold(spec, leader.best.value, noiseFor(spec, state)), r.branches.length + 1) : [];
+  const seed = seeds.find((x) => x && !used.has(x)) ?? null;
+  r.branches.push({ k, name, worktree, best: { ...leader.best, reachedAt: 0 }, trials: 0, keeps: 0, limit: left, forkedFrom: leader.name, ...(seed ? { seed } : {}) });
+  appendResult(root, slug, { event: 'prune', round: r.n, branch: b.name, into: name, from: leader.name, trials: left, ...(seed ? { seed } : {}) });
+  saveState(root, slug, state);
+  return { ...optimizeStatus(root, slug), ok: true, pruned: b.name, into: name, from: leader.name, trials: left, seed };
 }
 
 function runCheckpoint(root, slug, state, spec) {
@@ -913,6 +990,18 @@ function roundClose(root, slug) {
       ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
     };
   });
+  // G4: each kept trial of a branch that did not win, and that no merge candidate can bring in whole,
+  // is a port candidate: its saved diff can be applied again on the trunk code. A diff that does not
+  // apply to the new trunk is skipped as a conflict.
+  const whole = new Set(candidates.filter((c) => !c.conflict).map((c) => c.name));
+  const ports = spec.rounds.merge === 'off' ? [] : results.filter((x) => x.event === 'trial' && x.round === r.n && x.branch && x.branch !== winner?.name && !whole.has(x.branch) && x.verdict === 'kept' && x.patch).map((x) => {
+    const file = join(optDir(root, slug), x.patch);
+    const conflict = !existsSync(file) || !git(state.worktree, ['apply', '--check', file]).ok;
+    return {
+      kind: 'port', name: `t${x.trial}`, trial: x.trial, branch: x.branch, idea: x.idea ?? null, hypothesis: x.hypothesis?.text ?? '', patch: x.patch, gain: x.delta, paths: x.paths ?? [], conflict,
+      ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
+    };
+  });
   // The branch worktrees go first: git does not delete a branch that a worktree holds. A prepared
   // trial that was not measured is discarded with its worktree.
   const removed = [];
@@ -939,14 +1028,15 @@ function roundClose(root, slug) {
   state.rounds.push(summary);
   state.round = null;
   if (!winner && r.reason === 'plateau') state.stopped = { reason: 'plateau', detail: `the trunk found no gain in ${spec.budget.plateau} trials, and no branch of round ${r.n} beat it`, at: nowIso() };
-  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })) });
+  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, gain: c.gain, conflict: c.conflict })) });
   let cp = { ran: false };
-  if (candidates.length) {
-    state.merge = { round: r.n, from: r.from, base, worktree: state.worktree, considered: candidates.every((c) => c.conflict), order: [], candidates };
-    if (state.merge.considered) cp = closeMerge(root, slug, state, spec, 'no candidate merges cleanly');
+  const all = [...candidates, ...ports];
+  if (all.length && !state.stopped) {
+    state.merge = { round: r.n, from: r.from, base, worktree: state.worktree, considered: all.every((c) => c.conflict), order: [], candidates: all };
+    if (state.merge.considered) cp = closeMerge(root, slug, state, spec, 'no candidate applies cleanly');
   } else if (!state.stopped) cp = runCheckpoint(root, slug, state, spec);
   saveState(root, slug, state);
-  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], candidates: candidates.map((c) => ({ name: c.name, conflict: c.conflict })), checkpoint: cp, ...optimizeStatus(root, slug) };
+  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], candidates: candidates.map((c) => ({ name: c.name, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, conflict: c.conflict })), checkpoint: cp, ...optimizeStatus(root, slug) };
 }
 
 // ---------------------------------------------------------------------------
@@ -956,7 +1046,7 @@ function roundClose(root, slug) {
 /** A candidate by its full branch name, `b<k>` or `r<n>b<k>`. */
 function candidateOf(merge, token) {
   const t = String(token ?? '').trim();
-  return merge.candidates.find((c) => c.name === t || `b${c.k}` === t || `r${merge.round}b${c.k}` === t) ?? null;
+  return merge.candidates.find((c) => c.name === t || (c.kind !== 'port' && (`b${c.k}` === t || `r${merge.round}b${c.k}` === t))) ?? null;
 }
 
 /**
@@ -969,8 +1059,8 @@ function closeMerge(root, slug, state, spec, why, { checkpoint: runCp = true } =
     if (!c.verdict) Object.assign(c, { verdict: 'skipped', reason: c.decision === 'try' ? why : (c.reason ?? why) });
   }
   // CAUTION: delete only the candidate branches that state.json lists, by their exact names.
-  for (const c of mg.candidates) git(root, ['branch', '-D', c.name]);
-  const merged = mg.candidates.filter((c) => c.verdict === 'kept').map((c) => c.name);
+  for (const c of mg.candidates) if (c.kind !== 'port') git(root, ['branch', '-D', c.name]);
+  const merged = mg.candidates.filter((c) => c.kind !== 'port' && c.verdict === 'kept').map((c) => c.name);
   const summary = state.rounds.find((x) => x.n === mg.round);
   if (summary) summary.merged = merged;
   appendResult(root, slug, { event: 'merge-close', round: mg.round, merged, skipped: mg.candidates.filter((c) => c.verdict !== 'kept').map((c) => ({ name: c.name, reason: c.reason ?? c.verdict })) });
@@ -1058,6 +1148,8 @@ function mergeTrial(root, slug, f) {
   state.best = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
   state.counters.keeps++;
   if (state.digestFrom?.round === mg.round) state.digestFrom.merged = [...(state.digestFrom.merged ?? []), cand.name];
+  // The ideas of a merged branch are in the trunk now: their ports have nothing left to do.
+  for (const c of mg.candidates) if (c.kind === 'port' && c.branch === cand.name && !c.verdict) Object.assign(c, { verdict: 'skipped', reason: 'merged with its branch' });
   return done('kept');
 }
 
@@ -1308,6 +1400,7 @@ export function main(argv = process.argv.slice(2)) {
       case 'idea-claim': out = ideaClaim(root, slug, f); break;
       case 'profile': out = withLock(root, slug, null, () => profileRun(root, slug)); break;
       case 'profile-record': out = profileRecord(root, slug, f); break;
+      case 'prune': out = withLock(root, slug, null, () => prune(root, slug)); break;
       default: out = null;
     }
   } catch (e) {

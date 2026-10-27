@@ -8,6 +8,7 @@ import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
+  bundleOf, pruneCandidate, seedsOf,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -271,4 +272,54 @@ test('G3: the paired rule keeps a small gain that repeats, and refuses a block i
   assert.equal(noiseFor(spec, s), 0.4);
   assert.equal(buildDigest({ spec, specProse: '', state: s, results: [], lane: 'trunk' }).threshold, 1, 'the digest threshold uses the paired noise');
   assert.equal(specOf().metric.paired, false, 'an old spec keeps the unpaired rule');
+});
+
+test('G4: a bundle joins marginal ideas with a kept diff and other targets, once; a port is a trunk trial of the merge step', () => {
+  const book = emptyIdeas();
+  for (const [t, g] of [['a', 0.04], ['b', 0.05], ['a', 0.03], ['c', 0.01]]) {
+    const c = claimIdea(book, { lane: 'trunk', target: t, again: 'x' });
+    settleIdea(book, c.idea.id, { trial: book.next, verdict: 'reverted', gain: g, patch: true });
+  }
+  const b = bundleOf(book, 0.0885);
+  assert.deepEqual(b.ids, ['i2', 'i1', 'i3'], 'the largest pooled gains first, one idea for each target');
+  assert.equal(b.sum, 0.095);
+  assert.equal(bundleOf(book, 0.0885, [b.key]), null, 'a bundle that was tried is not tried again');
+  assert.equal(bundleOf(book, 1), null, 'gains that cannot pass make no bundle');
+
+  const spec = specOf({ budget: { plateau: 4 } });
+  const s = { ...newState({ slug: 's', worktree: '/wt', baseCommit: 'c0', values: [2.5, 2.5, 2.5], startedAt: new Date().toISOString() }), schedule: { used: [0, 1, 2] }, counters: { trials: 5, trunkTrials: 5, streak: 2, sinceCheckpoint: 0, keeps: 0 } };
+  const next = nextAction({ state: s, spec, ideas: book });
+  assert.equal(next.next.action, 'trial');
+  assert.deepEqual(next.next.bundle, ['i2', 'i1']);
+  assert.match(next.next.why, /^bundle/);
+  assert.equal(nextAction({ state: { ...s, counters: { ...s.counters, streak: 1 } }, spec, ideas: book }).next.bundle, undefined, 'a bundle waits for half a plateau');
+
+  const merge = { round: 1, considered: true, order: ['t3'], candidates: [{ kind: 'port', name: 't3', trial: 3, branch: 'b2' }] };
+  const port = nextAction({ state: { ...stateOf(), merge, schedule: { used: [0] } }, spec });
+  assert.deepEqual([port.next.action, port.next.on, port.next.port], ['trial', 'optimize/s', 't3']);
+});
+
+test('G5: the seeds of a round, and a branch that trails the leader with no keep is pruned', () => {
+  const entries = [{ name: 'decide', share: 0.3 }, { name: 'steer', share: 0.2 }, { name: 'threat', share: 0.001 }];
+  const book = emptyIdeas();
+  const c = claimIdea(book, { lane: 'trunk', target: 'steer' });
+  settleIdea(book, c.idea.id, { trial: 1, verdict: 'reverted', gain: -0.1 });
+  assert.deepEqual(seedsOf(entries, book, 2.5, 0.0885, 3), ['decide', 'decide', 'decide'], 'no seed on a failed target, nor on an entry that cannot pass alone');
+  assert.deepEqual(seedsOf(entries, emptyIdeas(), 2.5, 0.0885, 3), ['decide', 'steer', 'decide']);
+  assert.deepEqual(seedsOf(null, book, 2.5, 0.1, 2), [null, null]);
+
+  const spec = specOf({ 'branch-rounds': { 'branch-trials': 4 } });
+  const br = (k, value, trials, keeps) => ({ k, name: `b${k}`, worktree: `/w${k}`, best: { commit: `c${k}`, value, reachedAt: trials }, trials, keeps });
+  const round = { n: 1, branchTrials: 4, branches: [br(1, 90, 2, 1), br(2, 100, 2, 0), br(3, 100, 1, 0), br(4, 89.99, 2, 1)] };
+  const s = stateOf({ round, schedule: { used: [0] } });
+  const p = nextAction({ state: s, spec });
+  assert.deepEqual([p.next.action, p.next.branch], ['prune', 'b2']);
+  assert.equal(pruneCandidate(round, specOf({ 'branch-rounds': { prune: 'off' } }), 0), null, 'prune: off');
+  round.branches[1].pruned = true;
+  round.branches[1].worktree = null;
+  round.branches.push({ ...br(5, 89.99, 0, 0), limit: 2 });
+  const t = nextAction({ state: s, spec });
+  assert.deepEqual([t.next.action, t.next.on], ['trial', 'b5'], 'the new fork takes the trials that the pruned branch left');
+  assert.ok(t.next.ready.includes('b5') && !t.next.ready.includes('b2'));
+  assert.equal(buildDigest({ spec, specProse: '', state: { ...s, round: { ...round, branches: round.branches.map((b) => (b.k === 5 ? { ...b, seed: 'decide' } : b)) } }, results: [], lane: 'b5' }).seed, 'decide');
 });
