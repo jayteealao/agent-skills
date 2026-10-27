@@ -165,6 +165,27 @@ test('a worktree with no config uses the clone; the link waits while a worktree 
   } finally { w.done(); }
 });
 
+test('a worktree with its own unlinked config is a separate record store: the link does not wait for it and names it', () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    productRepo(a.root);
+    writeFileSync(join(workflow(a.root, 'w1'), 'a.md'), 'v1\n');
+    const wt = join(w.top, 'wt-poc');
+    git(a.root, 'worktree', 'add', '-q', wt);
+    mkdirSync(join(wt, '.ai', 'workflows', 'w1'), { recursive: true });
+    writeFileSync(join(wt, '.ai', 'workflows', 'w1', 'a.md'), 'poc\n');
+    writeFileSync(join(wt, '.ai', 'sdlc-config.json'), '{ "artifactTracking": "ignored" }\n');
+
+    const l = linkProject(a.root, 'notes');
+    assert.equal(l.ok, true, JSON.stringify(l));
+    assert.deepEqual(l.separate.map((p) => p.toLowerCase()), [wt.toLowerCase()]);
+    assert.equal(linkedProject(wt), null, 'the worktree stays unlinked');
+    assert.equal(read(join(wt, '.ai', 'workflows', 'w1', 'a.md')), 'poc\n', 'its records stay in it');
+    assert.equal(read(join(a.clone, 'notes', 'w1', 'a.md')), 'v1\n', 'the clone keeps the main copy');
+  } finally { w.done(); }
+});
+
 test('a Git Bash drive path is repaired on Windows; a record path ignores case on Windows', () => {
   assert.equal(fromGitBashPath('/c/Users/x', { platform: 'win32' }), 'C:/Users/x');
   assert.equal(fromGitBashPath('/d', { platform: 'win32' }), 'D:/');

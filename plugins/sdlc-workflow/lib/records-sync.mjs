@@ -338,11 +338,23 @@ export function productRepoGapLines(gaps) {
 }
 
 /**
+ * True when a worktree keeps its own `.ai/sdlc-config.json` that does not name `project`. Such a
+ * worktree is a separate record store: it is not linked with the main checkout, and its records
+ * stay in it.
+ */
+function separateStore(wt, project) {
+  const file = join(wt, '.ai', 'sdlc-config.json');
+  if (!existsSync(file)) return false;
+  try { return JSON.parse(readFileSync(file, 'utf8')).records?.project !== project; } catch { return true; }
+}
+
+/**
  * The workflow files that a git worktree of the project holds and the main checkout lacks or
  * holds with other content. The main copy is the local file, else the clone copy. The link waits
- * for these files: a worktree that a session left at a later stage would lose them.
+ * for these files: a worktree that a session left at a later stage would lose them. A separate
+ * record store is not scanned: its files go to `separate`, by worktree, and the link reports them.
  */
-export function worktreeRecords(root, project) {
+export function worktreeRecords(root, project, separate = null) {
   const list = gitIn(root, ['worktree', 'list', '--porcelain']);
   if (list.status !== 0) return [];
   const self = resolve(root);
@@ -354,6 +366,7 @@ export function worktreeRecords(root, project) {
     if (wt.toLowerCase() === self.toLowerCase()) continue;
     const dir = localWorkflowsRoot(wt);
     if (!existsSync(dir)) continue;
+    if (separateStore(wt, project)) { separate?.push(wt); continue; }
     const walk = (d, rel) => {
       for (const e of readdirSync(d, { withFileTypes: true })) {
         const r = rel ? `${rel}/${e.name}` : e.name;
@@ -394,7 +407,8 @@ export function linkProject(root, project) {
   if (config.records?.project && config.records.project !== project && linkedProject(root)) {
     return { ok: false, reason: `the project is linked as ${config.records.project}` };
   }
-  const waiting = worktreeRecords(root, project);
+  const separate = [];
+  const waiting = worktreeRecords(root, project, separate);
   if (waiting.length) {
     const shown = waiting.slice(0, 20).map((w) => `${w.worktree}: ${w.file}`).join('\n  ');
     return { ok: false, worktreeFiles: waiting, reason: `${waiting.length} workflow file(s) in a worktree of the project are not in the main checkout. Copy them home or remove the worktree, then link again:\n  ${shown}` };
@@ -433,7 +447,7 @@ export function linkProject(root, project) {
   }
   writeMachineFacts(root);
   const gaps = productRepoGaps(root);
-  return { ok: true, home, project, moved, conflicts, squashed, tracked: gaps.tracked, ignoreLine: gaps.ignoreLine };
+  return { ok: true, home, project, moved, conflicts, squashed, separate, tracked: gaps.tracked, ignoreLine: gaps.ignoreLine };
 }
 
 // ---------------------------------------------------------------- adopt local files

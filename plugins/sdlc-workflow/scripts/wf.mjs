@@ -1088,6 +1088,7 @@ async function runRecords(pos, opt) {
     out([
       `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}`,
       ...(r.squashed.length ? [`squashed the closed workflows onto the main branch: ${r.squashed.join(', ')}`] : []),
+      ...r.separate.map((p) => `separate: ${p} has its own .ai/sdlc-config.json with no link, so its records stay in it`),
       ...r.conflicts.map((f) => `records-conflict: ${f}: the clone copy stays; the local copy is in .ai/workflows/.conflicts/${f}. Compare them, then delete the kept copy.`),
       ...(r.tracked.length ? [`tracked: ${r.tracked.slice(0, 10).join(', ')}${r.tracked.length > 10 ? ` and ${r.tracked.length - 10} more` : ''}`] : []),
       ...productRepoGapLines(r),
