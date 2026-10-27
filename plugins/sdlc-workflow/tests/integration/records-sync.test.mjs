@@ -297,3 +297,20 @@ test('a record file above the size limit stays in the clone folder and out of ev
     assert.equal(gitIn(clone, ['rev-parse', 'refs/heads/live/notes/w1']).stdout, tip);
   } finally { w.done(); }
 });
+
+test('a record path longer than 260 characters goes into the commit', () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    workflow(a.root, 'w1');
+    assert.equal(linkProject(a.root, 'notes').ok, true);
+    const deep = ['work', 'archive', 'campaign', 'records', 'conflicts', 'a-long-unit-name-of-an-old-campaign-wave', '20261022T171353Z', 'workflows', 'a-long-unit-name-of-an-old-campaign-wave', 'nested-folder-that-makes-the-path-long-enough'];
+    const dir = join(workflowDir(a.root, 'w1'), ...deep);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'commentary.md'), '# Long\n');
+    assert.ok(join(dir, 'commentary.md').length > 260, 'the path passes the Windows limit');
+    assert.ok(commitWorkflow(a.root, 'w1', 'notes/w1: long path').commit);
+    const files = gitIn(join(a.home, 'records'), ['ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1']).stdout.split('\n');
+    assert.ok(files.includes(['notes', 'w1', ...deep, 'commentary.md'].join('/')));
+  } finally { w.done(); }
+});

@@ -35,10 +35,13 @@ export function machineName() {
   return raw.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'machine';
 }
 
+/** Every git call in the records home: a folder of an archived campaign can pass the 260 characters of a Windows path. */
+const LONG_PATHS = ['-c', 'core.longpaths=true'];
+
 /** One git call in the records home. `index` names a temporary index file. */
 export function gitIn(home, args, { input, index, net = false } = {}) {
   const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', ...(index ? { GIT_INDEX_FILE: index } : {}) };
-  const r = spawnSync('git', ['-C', home, ...args], { input, env, encoding: 'utf8', windowsHide: true, timeout: net ? NET_TIMEOUT_MS : 60_000, maxBuffer: 32 * 1024 * 1024 });
+  const r = spawnSync('git', [...LONG_PATHS, '-C', home, ...args], { input, env, encoding: 'utf8', windowsHide: true, timeout: net ? NET_TIMEOUT_MS : 60_000, maxBuffer: 32 * 1024 * 1024 });
   return { status: r.error ? 127 : r.status ?? 1, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? r.error?.message ?? '').trim() };
 }
 const sha = (home, ref) => {
@@ -116,7 +119,7 @@ function dropRef(home, ref, reason) {
 
 // ---------------------------------------------------------------- content
 
-const blobBytes = (home, oid) => spawnSync('git', ['-C', home, 'cat-file', 'blob', oid], { windowsHide: true, maxBuffer: 256 * 1024 * 1024 }).stdout ?? Buffer.alloc(0);
+const blobBytes = (home, oid) => spawnSync('git', [...LONG_PATHS, '-C', home, 'cat-file', 'blob', oid], { windowsHide: true, maxBuffer: 256 * 1024 * 1024 }).stdout ?? Buffer.alloc(0);
 const lf = (buf) => Buffer.from(buf.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
 /** Two contents are the same when their bytes match with the line endings normalized. */
 export const sameContent = (a, b) => a.equals(b) || lf(a).equals(lf(b));
@@ -131,7 +134,7 @@ function blobAt(home, commit, path) {
 function inHistory(home, ref, path, bytes) {
   const ids = new Set();
   for (const b of [bytes, lf(bytes)]) {
-    const h = spawnSync('git', ['-C', home, 'hash-object', '--stdin', '--no-filters'], { input: b, encoding: 'utf8', windowsHide: true });
+    const h = spawnSync('git', [...LONG_PATHS, '-C', home, 'hash-object', '--stdin', '--no-filters'], { input: b, encoding: 'utf8', windowsHide: true });
     if (h.status === 0) ids.add(h.stdout.trim());
   }
   const log = gitIn(home, ['log', '--format=', '--raw', '--no-abbrev', '--no-renames', ref, '--', path]);
@@ -168,7 +171,7 @@ function pruneEmpty(home, file, stop) {
 export function applyTree(home, from, to, path, { skip = () => false } = {}) {
   const out = { written: [], deleted: [], conflicts: [] };
   if (!to || from === to) return out;
-  const d = spawnSync('git', ['-C', home, 'diff', '--raw', '-z', '--no-renames', '--no-abbrev', from ?? emptyTree(home), to, '--', path], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const d = spawnSync('git', [...LONG_PATHS, '-C', home, 'diff', '--raw', '-z', '--no-renames', '--no-abbrev', from ?? emptyTree(home), to, '--', path], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   if (d.status !== 0) return out;
   const parts = d.stdout.split('\0');
   for (let i = 0; i + 1 < parts.length; i += 2) {
@@ -260,7 +263,7 @@ export function keptOutOfCommits(file, home = null) {
 
 /** Remove from a temporary index each path under `paths` that stays out of the commits. */
 function dropLocalOnly(home, index, paths) {
-  const ls = spawnSync('git', ['-C', home, 'ls-files', '-z', '--cached', '--', ...paths], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const ls = spawnSync('git', [...LONG_PATHS, '-C', home, 'ls-files', '-z', '--cached', '--', ...paths], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   const out = (ls.stdout ?? '').split('\0').filter((f) => f && keptOutOfCommits(f, home));
   if (out.length) gitIn(home, ['rm', '-q', '--cached', '--ignore-unmatch', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${out.join('\0')}\0` });
 }
@@ -279,7 +282,7 @@ function buildCommit(home, { ref, base, paths, message, fill }) {
       const parent = current ?? (base ? sha(home, base) : null);
       const read = parent ? gitIn(home, ['read-tree', parent], { index }) : gitIn(home, ['read-tree', '--empty'], { index });
       if (read.status !== 0) return null;
-      fill(index);
+      if (fill(index) === false) return null;
       dropLocalOnly(home, index, paths);
       const tree = gitIn(home, ['write-tree'], { index });
       if (tree.status !== 0) return null;
@@ -310,8 +313,10 @@ export function commitPaths(home, { ref, base = null, paths, message }) {
         // A file above the size limit is not even hashed: git add skips it.
         const large = largeFiles(home, p);
         const specs = [p, ...large.map((f) => `:(exclude,literal)${f}`)];
-        gitIn(home, ['add', '-A', '-f', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${specs.join('\0')}\0` });
+        // A failed add is a failed commit, never a commit that leaves the files out.
+        if (gitIn(home, ['add', '-A', '-f', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${specs.join('\0')}\0` }).status !== 0) return false;
       }
+      return true;
     },
   });
 }
@@ -323,7 +328,7 @@ function commitFrom(home, { ref, source, paths, message }) {
     fill: (index) => {
       for (const p of paths) {
         gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p], { index });
-        const ls = spawnSync('git', ['-C', home, 'ls-tree', '-r', '-z', '--full-tree', source, '--', p], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+        const ls = spawnSync('git', [...LONG_PATHS, '-C', home, 'ls-tree', '-r', '-z', '--full-tree', source, '--', p], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
         if (ls.status === 0 && ls.stdout) gitIn(home, ['update-index', '-z', '--index-info'], { index, input: ls.stdout });
       }
     },
@@ -605,7 +610,7 @@ function commitPending(root, project, home, label = `the records of ${machineNam
     if (c) gitIn(home, ['read-tree', c]);
   }
   // The folders that differ from the main branch: the open workflows, and a closed one with a new file.
-  const st = spawnSync('git', ['-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${project}/`], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const st = spawnSync('git', [...LONG_PATHS, '-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${project}/`], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   const slugs = new Set();
   for (const row of (st.stdout ?? '').split('\0')) {
     const file = row.slice(3);
@@ -1020,7 +1025,7 @@ function uncommittedOf(home, project, slug) {
   const index = join(home, '.git', `wf-status-${process.pid}`);
   try {
     if ((tip ? gitIn(home, ['read-tree', tip], { index }) : gitIn(home, ['read-tree', '--empty'], { index })).status !== 0) return [];
-    const st = spawnSync('git', ['-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${key}/`], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+    const st = spawnSync('git', [...LONG_PATHS, '-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${key}/`], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
     return (st.stdout ?? '').split('\0').filter((row) => row.length > 3 && (row[1] !== ' ' || row.startsWith('??')))
       .map((row) => row.slice(3)).filter((f) => !keptOutOfCommits(f, home)).map((f) => f.slice(key.length + 1));
   } finally { rmSync(index, { force: true }); }
