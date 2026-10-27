@@ -224,13 +224,11 @@ test('a route back without an answer is ignored, and a route back that repeats s
   assert.equal(loop.calls.filter((c) => c.stage === 'verify').length, 3);
 });
 
-test('the slice and slug outcomes carry the chain route and the questions; the slug-wide review stops on questions', () => {
+test('the slice and slug outcomes carry the chain route and the questions; the slug-wide review sends nothing back', () => {
   assert.ok(src.includes("route = chain.route || `address the gate at '${chain.at}'"), 'slice mode');
-  assert.ok(src.includes("route: chain.route || `address the gate at '${chain.at}' on slice"), 'slug mode');
-  assert.ok(src.includes("...(chain.questions ? { questions: chain.questions } : {})"), 'both modes carry the questions');
-  assert.ok(src.includes("const reviewAnswer = answeredFor(ANSWERED, 'review', null)\n  let rev = await driveReview(null, idx, { answered: reviewAnswer })"), 'the slug-wide review carries its answer');
+  assert.ok(src.includes("...(chain.questions ? { questions: chain.questions } : {})"), 'the slice mode carries the questions');
   assert.ok(src.includes("? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }"), 'slug-wide review');
-  assert.doesNotMatch(src, /amendFindings|amendStopReason/);
+  assert.doesNotMatch(src, /amendFindings|amendStopReason|routeBackSlices|findings questions/);
 });
 
 test('a run that waits on questions ends as waiting, with the resume command and the relaunch route', () => {
@@ -241,12 +239,12 @@ test('a run that waits on questions ends as waiting, with the resume command and
 });
 
 // The slug-wide review with its dispatches stubbed: `reviews` is the list of the review results
-// in order, and `chains` maps a slice to the result of its driveChain.
-function slugWideHarness(reviews, chains = {}, answered = []) {
-  const calls = { review: [], chain: [] };
+// in order. headCommit returns h1, h2, ... in order.
+function slugWideHarness(reviews, { opt = {}, answered = [] } = {}) {
+  const calls = { review: [], stage: [], chain: [], heads: 0 };
   const build = new Function('stubs', `
-    const { driveReview, driveChain, headCommit, log, slug, ANSWERED } = stubs
-    const MAX_ROUTE_BACKS = 2
+    const { driveReview, runStage, driveChain, headCommit, log, slug, ANSWERED, OPT } = stubs
+    const REVIEW_CHECK_PASSES = 2
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('sliceOf')}
@@ -258,58 +256,59 @@ function slugWideHarness(reviews, chains = {}, answered = []) {
     return slugWideReview
   `);
   let n = 0;
+  const next = () => { const r = reviews[n]; n += 1; return r === undefined ? CLEAN_REVIEW : r; };
   const fn = build({
     slug: 'demo',
     ANSWERED: answered,
+    OPT: opt,
     log: () => {},
-    driveReview: async (slice, idx, extra) => { calls.review.push(extra); const r = reviews[n]; n += 1; return r === undefined ? CLEAN_REVIEW : r; },
-    driveChain: async (stages, slice, idx, opts) => { calls.chain.push({ stages, slice, opts }); return chains[slice] || { stopped: false, slice, ran: [] }; },
-    headCommit: async () => 'abc1234',
+    driveReview: async (slice, idx, extra) => { calls.review.push(extra); return next(); },
+    runStage: async (stage, slice, idx, extra) => { calls.stage.push({ stage, extra }); return next(); },
+    driveChain: async (stages, slice) => { calls.chain.push({ stages, slice }); return { stopped: false, slice, ran: [] }; },
+    headCommit: async () => { calls.heads += 1; return `h${calls.heads}`; },
   });
   return { slugWideReview: fn, calls };
 }
-const CLEAN_REVIEW = { stage: 'review', status: 'complete', artifactPath: '', terminal: { verdict: 'ship', blockerCount: 0 } };
+const CLEAN_REVIEW = { stage: 'review', status: 'complete', artifactPath: '', terminal: { verdict: 'ship', blockerCount: 0, couldNotFixBlockers: 0 } };
 const ROSTER = { slices: [{ slice: 'auth', stages: {} }, { slice: 'feed', stages: {} }], priorDeferrals: [] };
 
-test('a slug-wide review that routes back runs plan, implement and verify of each named slice, then reviews again', async () => {
-  const answer = { key: 'review:empty', stage: 'review', answer: 'show a sign-up link', by: 'person' };
-  const back = { ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'auth', key: 'review:empty' }, { slice: 'feed', note: 'the feed misses its empty state' }] };
-  const h = slugWideHarness([back, CLEAN_REVIEW], {}, [answer]);
+test('a slug-wide review fixes its findings, returns no stop and no route-back, then checks only its fix commits', async () => {
+  const h = slugWideHarness([{ ...CLEAN_REVIEW, fixCommits: ['c1', 'c2', 'c3'] }, { ...CLEAN_REVIEW, fixCommits: ['c4'] }, { ...CLEAN_REVIEW, fixCommits: ['c5'] }, CLEAN_REVIEW]);
   const out = await h.slugWideReview(ROSTER, []);
-  assert.deepEqual([out.ok, out.route, out.routedBack], [true, '/wf ship demo', 1]);
-  assert.deepEqual(h.calls.chain.map((c) => [c.slice, c.stages.join(','), c.opts.forceFrom]), [['auth', 'plan,implement,verify', 'plan'], ['feed', 'plan,implement,verify', 'plan']]);
-  assert.equal(h.calls.chain[0].opts.carried.key, 'review:empty', 'the answer goes to its slice');
-  assert.deepEqual([h.calls.chain[1].opts.carried.residual, h.calls.chain[1].opts.carried.answer], [true, 'the feed misses its empty state'], 'a residual item carries its note');
-  assert.equal(h.calls.review.length, 2);
-  assert.equal(h.calls.review[1].answered.routedBack, 'plan', 'the second review knows the walk routed back');
+  assert.deepEqual([out.ok, out.stopped, out.route, h.calls.chain.length], [true, false, '/wf ship demo', 0]);
+  assert.deepEqual(h.calls.review.map((r) => r.diffRange), [undefined, 'h1...HEAD', 'h2...HEAD'], 'each check pass scans the fix commits of the pass before');
+  assert.equal(h.calls.review.length, 3, 'at most 2 check passes');
 });
 
-test('a slug-wide route back stops at a stopped chain, at the limit, and at a slice that is not in the roster', async () => {
-  const back = { ...CLEAN_REVIEW, routeBack: 'implement', routeBackSlices: [{ slice: 'auth', note: 'x' }] };
-  const stop = slugWideHarness([back], { auth: { stopped: true, at: 'verify', slice: 'auth', ran: [], reason: 'verify did not clear' } });
-  const s = await stop.slugWideReview(ROSTER, []);
-  assert.deepEqual([s.ok, s.stopped, s.stoppedAt, s.stoppedSlice], [false, true, 'verify', 'auth']);
-  assert.doesNotMatch(s.route, /\/wf ship/);
-  const loop = slugWideHarness([back, back, back]);
-  const l = await loop.slugWideReview(ROSTER, []);
-  assert.equal(l.stopped, true);
-  assert.match(l.reason, /routed back to implement 3 times — the answer does not settle; ask the person again/);
-  const none = slugWideHarness([{ ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'ghost', note: 'x' }] }]);
-  const g = await none.slugWideReview(ROSTER, []);
-  assert.deepEqual([g.stopped, none.calls.chain.length], [true, 0]);
-  assert.match(g.reason, /named no slice of the roster/);
+test('a review with no fix commit runs no check pass, and an empty check pass keeps the last review', async () => {
+  const none = slugWideHarness([CLEAN_REVIEW]);
+  assert.equal((await none.slugWideReview(ROSTER, [])).ok, true);
+  assert.equal(none.calls.review.length, 1);
+  const first = { ...CLEAN_REVIEW, fixCommits: ['c1'], artifactPath: 'first' };
+  const empty = slugWideHarness([first, { stage: 'review', status: 'complete', emptyDiff: true, terminal: {} }]);
+  const out = await empty.slugWideReview(ROSTER, []);
+  assert.deepEqual([out.ok, out.slugWide.artifactPath], [true, 'first']);
 });
 
-test('a slug-wide review that fixes a small answered finding itself routes nothing back', async () => {
-  const answer = { key: 'finding:DES-6', stage: 'review', answer: 'label it Cancel sign-in', by: 'person' };
-  const h = slugWideHarness([CLEAN_REVIEW], {}, [answer]);
+test('the review stops only on a BLOCKER that it could not fix', async () => {
+  const stuck = slugWideHarness([{ ...CLEAN_REVIEW, terminal: { verdict: 'dont-ship', blockerCount: 1, couldNotFixBlockers: 1 } }]);
+  const s = await stuck.slugWideReview(ROSTER, []);
+  assert.deepEqual([s.ok, s.stopped, s.stoppedAt], [false, true, 'review']);
+  assert.match(s.reason, /could not fix 1 BLOCKER finding/);
+  // A BLOCKER that waits on runtime evidence is a deferral, not a stop.
+  const deferred = slugWideHarness([{ ...CLEAN_REVIEW, terminal: { verdict: 'dont-ship', blockerCount: 1, couldNotFixBlockers: 0 } }]);
+  assert.equal((await deferred.slugWideReview(ROSTER, [])).ok, true);
+});
+
+test('with findings from the walk, the review fixes the ledger and scans only its own fix commits', async () => {
+  const h = slugWideHarness([{ ...CLEAN_REVIEW, fixCommits: ['c1'] }, CLEAN_REVIEW], { opt: { reviewFindings: true } });
   const out = await h.slugWideReview(ROSTER, []);
-  assert.deepEqual([out.ok, out.route, h.calls.chain.length], [true, '/wf ship demo', 0]);
-  assert.equal(h.calls.review.length, 1);
-  assert.equal(h.calls.review[0].answered.key, 'finding:DES-6', 'the review gets the answer');
+  assert.equal(out.ok, true);
+  assert.deepEqual(h.calls.stage.map((s) => [s.stage, s.extra.ledgerOnly]), [['review', true]]);
+  assert.deepEqual(h.calls.review.map((r) => r.diffRange), ['h1...HEAD'], 'no scan of the whole packet');
 });
 
-test('an answered review or verify fixes a small change, and routes back only a change that is not small', () => {
+test('an answered verify fixes a small change and routes back only a change that is not small; the review has no such clause', () => {
   const build = new Function(`
     const referenceRoot = '/plugin/skills/wf/reference'
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
@@ -321,40 +320,27 @@ test('an answered review or verify fixes a small change, and routes back only a 
     return answeredClause
   `);
   const answeredClause = build();
-  const a = { key: 'finding:DES-6', question: 'Rename the button?', answer: 'Cancel sign-in', by: 'person' };
-  const review = answeredClause(a, 'review', null);
+  const a = { key: 'verify:auth', question: 'Rename the button?', answer: 'Cancel sign-in', by: 'person' };
+  const verify = answeredClause(a, 'verify', 'auth');
   for (const criterion of [
     /\(1\) it changes only files that the slug's diff already changes, plus their tests/,
     /\(2\) it adds no schema change, no migration, no new dependency and no new module/,
     /\(3\) it changes no public contract/,
     /\(4\) it changes the acceptance checks of one slice only/,
     /\(5\) one fix round can make it and check it/,
-  ]) assert.match(review, criterion);
-  assert.match(review, /class 'implementation-detail', and name the criterion that fails/);
-  assert.match(review, /rule 5 of \/plugin\/skills\/wf\/reference\/_decisions\.md, and name the rewritten records with --rewrote/);
-  assert.match(review, /findings set "\/repo" demo <id> fixed/);
-  assert.match(review, /Return no routeBack for a small change that passes its checks/);
-  assert.match(review, /When the change is NOT small and the answer changes the slice's design, adds plan steps or adds files, change no code: write route-back: plan/);
-  assert.match(review, /When the change is NOT small and the current plan already describes the work, change no code: write route-back: implement/);
-  assert.match(review, /return routeBackSlices/, 'a slug-wide review still names its slices');
-  const verify = answeredClause(a, 'verify', 'auth');
-  assert.match(verify, /\(5\) one fix round can make it and check it/);
-  assert.doesNotMatch(verify, /findings set/);
+  ]) assert.match(verify, criterion);
+  assert.match(verify, /rule 5 of \/plugin\/skills\/wf\/reference\/_decisions\.md, and name the rewritten records with --rewrote/);
+  assert.match(verify, /Return no routeBack for a small change that passes its checks/);
+  assert.match(verify, /When the change is NOT small and the current plan already describes the work, change no code: write route-back: implement/);
+  assert.doesNotMatch(verify, /findings set|routeBackSlices/);
+  const review = answeredClause(a, 'review', null);
+  assert.doesNotMatch(review, /SMALL|route-back|routeBack/);
   assert.doesNotMatch(answeredClause(a, 'implement', 'auth'), /SMALL/, 'implement keeps its own rule');
 });
 
-test('the review after a route-back scans the commits of the route-back, then runs the writer with the answer', async () => {
-  const answer = { key: 'review:empty', stage: 'review', answer: 'show a sign-up link', by: 'person' };
-  const back = { ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'auth', key: 'review:empty' }] };
-  const h = slugWideHarness([back, CLEAN_REVIEW], {}, [answer]);
-  await h.slugWideReview(ROSTER, []);
-  assert.equal(h.calls.review[0].diffRange, undefined, 'the first review has no route-back range');
-  assert.equal(h.calls.review[1].diffRange, 'abc1234...HEAD');
-  assert.equal(h.calls.review[1].answered.routedBack, 'plan');
-});
-
-// driveReview with every agent stubbed: 'selection' is what the rubric selection returns.
-function reviewHarness(selection) {
+// driveReview with every agent stubbed: 'selection' is what the rubric selection returns, and
+// 'found' the findings of each scout.
+function reviewHarness(selection, found = []) {
   const calls = { agents: [], stages: [] };
   const build = new Function('stubs', `
     const { agent, parallel, runStage, log } = stubs
@@ -373,6 +359,7 @@ function reviewHarness(selection) {
     const steer = () => ''
     const stopCheck = () => ''
     const REC = (verb) => 'wf record ' + verb
+    ${extractFn('repoPath')}
     ${extractFn('refuteGroups')}
     ${extractFn('driveReview')}
     return driveReview
@@ -383,7 +370,7 @@ function reviewHarness(selection) {
     agent: async (prompt, opts) => {
       calls.agents.push({ label: opts.label, prompt });
       if (opts.label === 'select-rubrics') return selection;
-      if (opts.label.startsWith('scout:')) return { findings: [] };
+      if (opts.label.startsWith('scout:')) return { findings: found };
       return { verdicts: [] };
     },
     runStage: async (stage, slice, idx, extra) => { calls.stages.push(extra); return { stage, status: 'complete' }; },
@@ -392,28 +379,43 @@ function reviewHarness(selection) {
 }
 const REVIEW_IDX = { branch: { base: 'main' }, slices: [] };
 
-test('an answered review with a route-back range scans that range and gives the writer the scan and the answer', async () => {
+test('a check pass scans the fix commits of the last pass and tells the writer so', async () => {
   const h = reviewHarness({ rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false });
-  const answered = { key: 'review:empty', answer: 'x', routedBack: 'plan' };
-  await h.driveReview(null, REVIEW_IDX, { answered, diffRange: 'abc1234...HEAD' });
+  await h.driveReview(null, REVIEW_IDX, { diffRange: 'abc1234...HEAD' });
   const select = h.calls.agents.find((a) => a.label === 'select-rubrics');
-  assert.match(select.prompt, /This scan reads only the commits of a route-back, abc1234\.\.\.HEAD/);
+  assert.match(select.prompt, /This scan reads only the fix commits of the last review pass, abc1234\.\.\.HEAD/);
   assert.match(select.prompt, /return rubrics: \[\] and emptyDiff: true/);
   assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /git -C \/repo diff abc1234\.\.\.HEAD/);
   assert.equal(h.calls.stages.length, 1);
-  assert.deepEqual(h.calls.stages[0].scan.dimensions, ['correctness']);
-  assert.equal(h.calls.stages[0].answered, answered);
+  assert.deepEqual([h.calls.stages[0].scan.dimensions, h.calls.stages[0].scan.checkPass], [['correctness'], 'abc1234...HEAD']);
 });
 
-test('an answered review with an empty route-back range runs only the writer, and with no range runs no scan', async () => {
+test('an empty check pass runs no writer, and an answered review with no range runs no scan', async () => {
   const empty = reviewHarness({ rubrics: [], emptyDiff: true, stopped: false });
-  await empty.driveReview(null, REVIEW_IDX, { answered: { key: 'k' }, diffRange: 'abc1234...HEAD' });
+  const r = await empty.driveReview(null, REVIEW_IDX, { diffRange: 'abc1234...HEAD' });
   assert.deepEqual(empty.calls.agents.map((a) => a.label), ['select-rubrics']);
-  assert.equal(empty.calls.stages[0].scan, undefined);
-  assert.equal(empty.calls.stages[0].answered.key, 'k');
+  assert.deepEqual([r.emptyDiff, empty.calls.stages.length], [true, 0]);
   const plain = reviewHarness({ rubrics: [], stopped: false });
   await plain.driveReview(null, REVIEW_IDX, { answered: { key: 'k' } });
-  assert.equal(plain.calls.agents.length, 0, 'an answer without a route-back runs the writer only');
+  assert.equal(plain.calls.agents.length, 0, 'an answer runs the writer only');
+});
+
+test('the scouts look only in the work packet, and a finding outside it gets no refuter', async () => {
+  const selection = { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], affectedFiles: ['/repo/src/a.js', 'src\\b.js'], stopped: false };
+  const found = [
+    { id: '1', severity: 'HIGH', file: 'src/a.js', line: '3', issue: 'in the packet' },
+    { id: '2', severity: 'MED', file: '/repo/src/c.js', line: '9', issue: 'old debt elsewhere' },
+  ];
+  const h = reviewHarness(selection, found);
+  await h.driveReview(null, REVIEW_IDX, {});
+  const select = h.calls.agents.find((a) => a.label === 'select-rubrics');
+  assert.match(select.prompt, /Return affectedFiles: every file that `git -C \/repo diff --name-only main\.\.\.HEAD` prints, and each file that calls, imports or tests code that the diff changes/);
+  assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /Look for issues ONLY in the files of the work packet: \["src\/a\.js","src\/b\.js"\]/);
+  const refuters = h.calls.agents.filter((a) => a.label.startsWith('refute:'));
+  assert.equal(refuters.length, 1);
+  assert.doesNotMatch(refuters[0].prompt, /src\/c\.js/);
+  assert.deepEqual(h.calls.stages[0].scan.affectedFiles, ['src/a.js', 'src/b.js']);
+  assert.deepEqual(h.calls.stages[0].scan.findings.map((f) => f.file), ['src/a.js']);
 });
 
 test('a slug-wide review that returns nothing stops as a transient stop that a re-run retries', async () => {

@@ -17,15 +17,16 @@ edit `findings.yaml` by hand, and never copy its rows into a second ledger.
 
 | Command | What it does |
 |---|---|
-| `wf.mjs findings add <root> <slug> <found.json> --source <s> [--slice <x>] --dimensions <a,b>` | Merges the findings of one run by the merge law below. |
-| `wf.mjs findings set <root> <slug> <id> <status> [--reason <r>]` | Records a triage decision or a fix outcome on one entry. |
+| `wf.mjs findings add <root> <slug> <found.json> --source <s> [--slice <x>] --dimensions <a,b> [--files <a,b>]` | Merges the findings of one run by the merge law below. |
+| `wf.mjs findings set <root> <slug> <id> <status> [--reason <r>] [--commit <sha>] [--decision <D-id>]` | Records a triage decision or a fix outcome on one entry. `--commit` names the commit of a fix step. `--decision` dismisses a finding that goes against a live answer, steer or approval of the person. |
 | `wf.mjs findings table <root> <slug> [--source <s>] [--slice <x>]` | Prints the verdict and the findings table of a review file. |
 | `wf.mjs findings metrics <root> <slug> [--source <s>] [--slice <x>]` | Prints the verdict, `commands-run` and the `metric-*` fields of a review file. |
-| `wf.mjs findings questions <root> <slug>` | Prints the open findings whose fix changes an acceptance check, as questions. |
 | `wf.mjs findings list <root> <slug> [--open] [--json]` | Prints the entries. |
 
 `<s>` is `review`, `audit` or `pr-bot`. A run with no `--slice` is a run of the whole work
-packet. `found.json` is `{ "dimensions": [...], "findings": [...] }`. Each finding has
+packet. `found.json` is `{ "dimensions": [...], "affectedFiles": [...], "findings": [...] }`.
+`affectedFiles` (or `--files`) is the scope of the run: the files of the work packet. The merge
+drops a finding in any other file and counts it as `out-of-scope` in the `runs` entry. Each finding has
 `dimension`, `severity` (BLOCKER, HIGH, MED, LOW or NIT), `file`, `line`, `issue`, and can have
 `confidence`, `evidence`, `fix`, `key`, `preExisting`, `refuted` (the refuter's reason),
 `changesAcceptance` and `needsRuntimeEvidence` (the experiment that settles the finding). Write `found.json` to `.ai/workflows/<slug>/.draft/found.json`; the next run
@@ -63,10 +64,10 @@ change made. A pre-existing finding is debt and is not a verdict input:
 ## A fix that changes an acceptance check
 
 When the fix of a finding changes an acceptance check of the slice, or a confirmed design board
-or `02c-craft.md` line, set `changesAcceptance: true` on the finding. The run does not apply
-such a fix. `wf.mjs findings questions` returns it as a question with the key
-`finding:<id>`. The person answers it, and the answer is recorded with `wf.mjs decide add` per
-[_decisions.md](_decisions.md). Then record the outcome with `wf.mjs findings set`.
+or `02c-craft.md` line, set `changesAcceptance: true` on the finding. The review does not ask
+the person. It applies the fix and rewrites the check and the plan step in the same fix step,
+per rule 5 of [_decisions.md](_decisions.md). When the fix goes against a decision of the person,
+the review dismisses the finding with `wf.mjs findings set <id> dismissed --decision <D-id>`.
 
 ## The review file
 

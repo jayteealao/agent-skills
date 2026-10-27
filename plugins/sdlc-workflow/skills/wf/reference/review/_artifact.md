@@ -30,7 +30,7 @@ metric-findings-pre-existing: <N>
 metric-findings-resolved: <N>
 metric-findings-fixed: <N>       # ship's release notes read it
 metric-findings-total-ever: <N>
-fix-commit: "<SHA | null>"       # the review-time fix commit of this run, if any
+fix-commit: "<SHA | null>"       # the last fix commit of this run, if any
 modes: [select]                  # the modes of THIS run (review.md ## Requires); omit the key when none applies
 tags: []
 refs:
@@ -93,21 +93,13 @@ One section per open BLOCKER and HIGH finding of this scope, from its ledger ent
 **Fix:** {fix}
 **Confidence:** {confidence} | **Surfaced:** {surfaced-at} | **Last seen:** {last-seen-at}
 
-## Pre-existing Debt
-
-The open findings with `pre-existing: true`: the defect is on the base branch, on lines this diff did not touch. They do NOT count toward the verdict or the blocker gate but are real debt. Route each to `/wf intake fix <description>` (defects) or `/wf intake refactor <description>` (structural). Omit this section when there are none.
-
-| ID | Sev | Source | File:Line | Issue | Suggested routing |
-|----|-----|--------|-----------|-------|-------------------|
-| {ID} | {SEV} | {dimension} | {file}:{line} | {one-line issue} | `/wf intake fix\|refactor <desc>` |
-
 ## Fix Status
 
-Present once any finding of this scope has status `fixed` or `could-not-fix`. One row per such entry of the ledger.
+Present once any finding of this scope has status `fixed` or `could-not-fix`. One row per fix step, in commit order: the finding, its commit and the check that passed. The person can revert a single fix, because each fix is its own commit.
 
-| ID | Sev | Status | Commit | Notes |
-|----|-----|--------|--------|-------|
-| {ID} | {SEV} | fixed / could-not-fix | {SHA or —} | {the reason of a could-not-fix, or a one-line summary} |
+| ID | Sev | Status | Commit | Check | Notes |
+|----|-----|--------|--------|-------|-------|
+| {ID} | {SEV} | fixed / could-not-fix | {SHA or —} | {the test or suite that passed} | {the reason of a could-not-fix, or a one-line summary} |
 
 ## Soft Findings
 

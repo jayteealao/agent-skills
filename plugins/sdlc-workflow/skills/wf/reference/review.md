@@ -25,13 +25,15 @@ You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 
 ## Card
 
-- Fix every BLOCKER, HIGH and MED finding. Fix a LOW or NIT finding only when it is in this diff, local and safe. Otherwise defer it, with the reason.
-- Dismiss a finding only when it is a false positive, with the reason.
+- Look for issues only in the work packet: the changed files, and the files that call, import or test the changed code.
+- Ask the person nothing about a finding. Fix every finding, at every severity, or dismiss it: dismiss a false positive with the reason, and a finding that goes against a decision of the person with `--decision <id>`.
+- Fix the findings yourself, one after another, in your own session: one step and one commit for each finding. Dispatch no fix sub-agent. A finding never becomes a new slice or a route back.
+- When a fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step.
+- When the tests of a fix step fail twice, revert the step, set the finding `could-not-fix`, and continue.
 - Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`; never edit `findings.yaml` by hand.
-- A finding whose fix changes an acceptance check, an approved screen or a `02c-craft.md` line is a question for the person (`wf.mjs findings questions`). Do not apply that fix before the answer.
-- After the fix loop, run the full and heavy suites of the test profile once for the packet. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time.
+- After the fix steps, run the full and heavy suites of the test profile once for the packet. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time and the HEAD that it passed at. When you fix code after a packet suite passed, run again only the suites that read the files of the fix.
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
-- Stop on a `dont-ship` verdict, or on an open security or data-loss BLOCKER that the fix loop did not fix.
+- Stop only on a BLOCKER that is `could-not-fix`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 - To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
 

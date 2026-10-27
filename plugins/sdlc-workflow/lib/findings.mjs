@@ -9,7 +9,9 @@
 //   3. an open entry of a dimension that the run checked and did not find again is resolved
 //   4. an entry of a dimension that the run did not check stays as it is
 // A finding that its refuter refuted is kept with status `refuted` and the refuter's reason,
-// so a reader can tell a checked surface from an unread one. Rows are never deleted. Each
+// so a reader can tell a checked surface from an unread one. A run that names the files of
+// the work packet (the changed files and the files that call, import or test them) drops a
+// finding in any other file: the review looks only at the packet. Rows are never deleted. Each
 // merge appends one `runs` entry. The review file of a run is written whole from the ledger,
 // so the ledger, not the file, keeps the history.
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -71,15 +73,26 @@ const rank = (s) => SEVERITIES.indexOf(s);
  * needsRuntimeEvidence? }. `needsRuntimeEvidence` names the experiment that settles a finding
  * that reading cannot settle.
  * `refuted` is the refuter's reason. A finding with `changesAcceptance` has a fix that
- * changes an acceptance check, so the person decides it (see questionsOf). A `preExisting`
+ * changes an acceptance check: the review rewrites the check with the fix. A `preExisting`
  * finding is on lines that the change did not touch: it is debt, not a verdict input.
  * `dimensions` names every dimension that the run checked, also the ones that found nothing.
  * `slice` scopes the run: a per-slice run matches and resolves only the entries of its slice,
  * and a run of the whole packet (slice null) only the entries with no slice.
- * Returns { ledger, added, resurfaced, resolved, verdict } and writes nothing.
+ * `files`, when it is not empty, is the scope of the run: a finding with a file outside it is
+ * dropped and listed in `outOfScope`. A finding with no file stays.
+ * Returns { ledger, added, resurfaced, resolved, outOfScope, verdict } and writes nothing.
  */
-export function mergeRun(ledger, found, { source = 'review', dimensions = [], slice = null, run = null, now = nowIso() } = {}) {
+export function mergeRun(ledger, found, { source = 'review', dimensions = [], slice = null, run = null, files = null, now = nowIso() } = {}) {
   if (!SOURCES.includes(source)) throw new Error(`source must be one of ${SOURCES.join(', ')}`);
+  const inPacket = Array.isArray(files) && files.length ? new Set(files.map(norm)) : null;
+  const outOfScope = [];
+  if (inPacket) {
+    found = found.filter((f) => {
+      if (!f.file || inPacket.has(norm(f.file))) return true;
+      outOfScope.push(`${norm(f.file)}${f.line != null ? `:${f.line}` : ''}`);
+      return false;
+    });
+  }
   const findings = ledger.findings.map((f) => ({ ...f }));
   const checked = new Set([...dimensions, ...found.map((f) => f.dimension)].filter(Boolean));
   const seen = new Set();
@@ -156,35 +169,29 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
     resolved.push(e.id);
   }
   const verdict = verdictOf({ findings }, { source, slice });
-  const runs = [...ledger.runs, { at: now, source, slice, run, dimensions: [...checked].sort(), raw: found.length, added: added.length, resurfaced: resurfaced.length, resolved: resolved.length, verdict }];
-  return { ledger: { findings, runs }, added, resurfaced, resolved, verdict };
+  const runs = [...ledger.runs, { at: now, source, slice, run, dimensions: [...checked].sort(), raw: found.length + outOfScope.length, added: added.length, resurfaced: resurfaced.length, resolved: resolved.length, ...(outOfScope.length ? { 'out-of-scope': outOfScope.length } : {}), verdict }];
+  return { ledger: { findings, runs }, added, resurfaced, resolved, outOfScope, verdict };
 }
 
 /**
- * The questions of the open findings whose fix changes an acceptance check: the run does not
- * apply such a fix, the person decides it. Each question has the shape that `decide drop`
- * and the stage agents use: { key, question, options, recommended }.
+ * Set the triage status of one entry, with its reason. `commit` is the commit of a fix step;
+ * `decision` is the id of the decision of the person that a dismissed finding goes against,
+ * and it is the reason. Returns the entry.
  */
-export function questionsOf(ledger) {
-  return ledger.findings
-    .filter((f) => f.status === 'open' && f['changes-acceptance'])
-    .map((f) => ({
-      key: `finding:${f.id}`,
-      question: `${f.id} (${f.severity}): ${f.issue} The fix changes an acceptance check${f.fix ? `: ${f.fix}` : ''}. Apply it?`,
-      options: ['apply the fix and change the check', 'keep the check, defer the finding', 'dismiss the finding'],
-      recommended: f.severity === 'BLOCKER' || f.severity === 'HIGH' ? 'apply the fix and change the check' : 'keep the check, defer the finding',
-    }));
-}
-
-/** Set the triage status of one entry, with its reason. Returns the entry. */
-export function setStatus(ledger, id, status, reason = null, { now = nowIso() } = {}) {
+export function setStatus(ledger, id, status, reason = null, { now = nowIso(), commit = null, decision = null } = {}) {
   if (!STATUSES.includes(status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
   const e = ledger.findings.find((f) => f.id === id);
   if (!e) throw new Error(`no finding ${id}`);
+  if (decision && status !== 'dismissed') throw new Error('only a dismissed finding names a decision');
+  if (decision) reason = reason ? `decision ${decision}: ${reason}` : `decision ${decision}`;
   if (TRIAGED.has(status) && status !== 'fixed' && !reason) throw new Error(`a ${status} finding needs a reason`);
   e.status = status;
   e.reason = reason;
   e['resolved-at'] = OPEN_STATUSES.has(status) ? null : now;
+  if (commit) e.commit = String(commit);
+  else if (status !== 'fixed') delete e.commit;
+  if (decision) e.decision = decision;
+  else delete e.decision;
   return e;
 }
 

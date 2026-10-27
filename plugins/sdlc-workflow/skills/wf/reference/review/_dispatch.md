@@ -1,6 +1,6 @@
 # Review stage — the scout and refuter prompts (Steps 3 and 3b of `_stage.md`)
 
-Load this file from `_stage.md` Step 3, in mode `select` only. It holds the prompt that every review scout receives (Step 3) and the prompt of a refuter (Step 3b). A scout and a refuter write no file: each returns its result in its reply, and the coordinator merges the results into the ledger of [_findings-ledger.md](../_findings-ledger.md). The fix sub-agent prompt of Step 4c is in [_fix-prompt.md](_fix-prompt.md).
+Load this file from `_stage.md` Step 3, in mode `select` only. It holds the prompt that every review scout receives (Step 3) and the prompt of a refuter (Step 3b). A scout and a refuter write no file: each returns its result in its reply, and the coordinator merges the results into the ledger of [_findings-ledger.md](../_findings-ledger.md). The review agent fixes the findings itself at Step 4c; it dispatches no fix sub-agent.
 
 ## Step 3 — the scout prompt
 
@@ -17,9 +17,13 @@ Workflow slug: {slug}
 Review scope: {review-scope}
 Selected slice: {slice or "(none — slug-wide)"}
 Acceptance checks: {the acceptance criteria of the slices in scope, from the brief}
+Work packet files: {the affected files of Step 1}
 
 Read the rubric. When Focus names sections, read those `###` sections of `# What to look for`
 plus `# Severity calibration`; otherwise read every section. Perform the review for the scope.
+
+WORK PACKET: look for issues ONLY in the work packet files above. Report only an issue that the
+change makes or touches. Do not report debt that the change did not cause.
 
 PRE-EXISTING determination (per finding, mandatory): check whether the flagged line(s) appear
 in the diff above. Lines untouched by the diff → `preExisting: true` (the defect was already on
@@ -27,8 +31,8 @@ the base branch); lines the diff added or modified → `preExisting: false`. For
 code where the diff test is ambiguous, use `git blame` as the tiebreaker.
 
 ACCEPTANCE CHECKS: when the fix of a finding changes an acceptance check above, or an approved
-screen (`.ai/design/screens/`) or a `02c-craft.md` line, set `changesAcceptance: true`. Do not
-soften the finding to avoid the question.
+screen (`.ai/design/screens/`) or a `02c-craft.md` line, set `changesAcceptance: true`. The
+review then rewrites the check with the fix. Do not soften the finding.
 
 Write no file. Return only this JSON object:
 { "dimension": "{command-name}",

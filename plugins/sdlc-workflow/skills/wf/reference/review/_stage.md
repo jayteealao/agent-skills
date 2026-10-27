@@ -10,13 +10,13 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 | Requires | See [review.md ## Requires](../review.md#requires). |
 | Produces (slug-wide mode, the default) | `07-review.md`, one review file for the work packet, written whole on every run from the findings ledger `findings.yaml` ([_findings-ledger.md](../_findings-ledger.md)). The ledger keeps the history: a re-run merges into the ledger, never into the file. |
 | Produces (per-slice mode) | `07-review-<slice-slug>.md`, written whole from the entries of that slice in `findings.yaml`. A run on one slice never changes the entries of another slice. |
-| Next | `/wf ship <slug>` (when `verdict: ship`/`ship-with-caveats` and no OPEN blocker findings remain + all slices complete). If OPEN blockers remain: re-invoke `/wf review <slug> [<slice>]` (a normal accumulating re-run that re-checks the fixed code and merges fresh findings), or escalate to `/wf implement <slug> [<slice>] reviews` as a manual escape. Also: `/wf plan <slug> <next-slice>` (if more slices remain), or `/wf intake <slug> from-review` (if the review surfaced new scope — adds net-new slices via extension; a wrong spec becomes a new slice too, since there is no in-place amend). |
+| Next | `/wf ship <slug>` (when no BLOCKER finding is `could-not-fix` and all slices are complete). When a BLOCKER is `could-not-fix`: re-invoke `/wf review <slug> [<slice>]` after the person removes the cause, or escalate to `/wf implement <slug> [<slice>] reviews` as a manual escape. Also: `/wf plan <slug> <next-slice>` (if more slices remain). A finding never becomes a new slice. |
 
 # Role
 You are a **review dispatch orchestrator that owns the findings ledger of the work packet and its own triage→fix loop**.
 - Do not run reviews yourself — **select review commands and dispatch scouts**. Each scout runs one command independently and returns its findings. A refuter tries to refute every finding before it enters the ledger. `wf.mjs findings add` merges the survivors and the refuted findings into `findings.yaml` by the merge law of [_findings-ledger.md](../_findings-ledger.md); the law is in code, so never apply it by hand and never restate it.
-- Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`. Do not improvise fixes while sub-agents are running; the fix loop runs only at Step 4c, AFTER the merge and AFTER triage at Step 4b. At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. Record each outcome with `wf.mjs findings set`. Do not ship — that is a later stage.
-- Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → dispatch fix sub-agents → record outcomes → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix loop, outcomes recorded before the review file. Reading and dispatch may interleave freely.
+- The review asks the person nothing about a finding, and a finding never becomes a new slice or a route back to plan or implement. At Step 4b, every finding is fixed or dismissed. At Step 4c, YOU fix the findings, one after another, in your own session: one fix step and one commit for each finding. Dispatch no fix sub-agent. Do not fix code while the scouts or the refuters run. Do not ship — that is a later stage.
+- Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → fix each finding as one step → check the fix commits once more → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix steps, outcomes recorded before the review file. Reading and dispatch may interleave freely.
 
 # Triage mode
 
@@ -28,7 +28,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - a rubric or alias key from [_ad-hoc.md](_ad-hoc.md) → the **user focus override** of Step 2, in either review scope.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` ([_records.md](../_records.md)). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
 3. **Resolve `review-scope`** from `00-index.md`. Default: `slug-wide`, one review per work packet.
-   - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect all code on the branch; the verdict is "ship this branch", not "ship this slice".
+   - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect the code of the work packet on the branch; the verdict is "ship this branch", not "ship this slice".
    - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
 4. **Resolve the slice-slug** (per-slice mode only; skip if `review-scope: slug-wide`): Use the passed slug; else `selected-slice` from the index; else ask.
 5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
@@ -75,7 +75,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 | `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
 | `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
 
-Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). Route a finding against a confirmed board to `/wf design <slug> amend` as a question; do not redraw the board.
+Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). When the build goes against a confirmed board, fix the build to match the board at Step 4c; do not redraw the board and do not ask.
 
 **Verify inputs.** Use these values from each `06-verify-*.md` record in scope (`record list` names them):
 - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
@@ -94,7 +94,7 @@ After writing files, return per [_chat-return.md](../_chat-return.md). Lead with
 - `slug: <slug>`
 - `wrote: <paths>` (list all review files written)
 - `verdict: <Ship / Ship with caveats / Don't Ship>`
-- `findings: <O open / R resolved-this-run / F fixed-this-run>` — the merged-ledger snapshot, plus a one-line "what the merge did" note: how many net-new findings were added, how many prior findings were re-confirmed, how many a re-run cleared (`resolved`), and how many the fix loop patched (e.g., "merged 2 new, re-confirmed 3, resolved 1 cleared; fix loop patched 2 of 2; 4 open").
+- `findings: <O open / R resolved-this-run / F fixed-this-run>` — the merged-ledger snapshot, plus a one-line "what the merge did" note: how many net-new findings were added, how many prior findings were re-confirmed, how many a re-run cleared (`resolved`), and how many the fix steps fixed (e.g., "merged 2 new, re-confirmed 3, resolved 1 cleared; fixed 2 of 2 in 2 commits; 0 open").
 - `options:` (list all viable next options — see Adaptive routing below)
 - ≤3 short blocker bullets if needed (remaining OPEN BLOCKERs only — anything fixed/dismissed/resolved is no longer a blocker)
 
@@ -103,14 +103,16 @@ After writing files, return per [_chat-return.md](../_chat-return.md). Lead with
 Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track these items:
 
 - one item per selected review command (independent — they run as parallel sub-agents);
-- the five bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the review file;
-- inside Step 4c, one item per `Fix` decision (`Fix [{ID}] {SEV}: {title}`).
+- the six bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix steps (Step 4c; dropped when Step 4b yields zero `Fix` decisions); check pass; write the review file;
+- inside Step 4c, one item per fix step (`Fix [{ID}] {SEV}: {title}`).
 
 Mark each item done as its outcome is recorded. A `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
 
 # Step 1: Gather Change Statistics
 
 From the relevant implement record(s), extract files changed and nature of changes. **Diff scope depends on `review-scope`:** per-slice mode diffs the working tree (`git diff --name-only HEAD`, `git diff --stat HEAD`, `git diff HEAD`); slug-wide mode diffs the entire branch since divergence (`git diff --name-only <base-branch>...HEAD`, `git diff --stat <base-branch>...HEAD`, `git diff <base-branch>...HEAD`). Substitute `<base-branch>` from `00-index.md` frontmatter (typically `main` or `master`).
+
+**The work packet files.** List every changed file, and each file that calls, imports or tests code that the diff changes (find them with `git grep` on the changed exports and names). Give each path relative to the project root. The scouts look for issues only in these files, and Step 4 drops a finding in any other file. So the review makes no finding about debt that the change did not cause.
 
 Extract:
 - **File types changed** — extensions and directory patterns
@@ -157,92 +159,70 @@ Every finding gets a refuter before it enters the ledger. Group the findings of 
 
 # Step 4: Merge into the ledger
 
-1. **Write `found.json`** to `.ai/workflows/<slug>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, and `dimensions` = every command of this run, also the clean ones.
+1. **Write `found.json`** to `.ai/workflows/<slug>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, `dimensions` = every command of this run, also the clean ones, and `affectedFiles` = the work packet files of Step 1.
 2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.draft/found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
 3. **Read the ledger.** Run `wf.mjs findings table` and `wf.mjs findings metrics` with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
 
 Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
 
-# Step 4b: Triage findings needing a decision
+# Step 4b: Triage — fix or dismiss
 
-First run `wf.mjs findings questions "<root>" <slug>`. Each question is an open finding whose fix changes an acceptance check, an approved screen or a craft line. Do not fix such a finding at Step 4c before the person answers. Before you ask, run `wf.mjs decide answered "<root>" <slug> --key finding:<id>`: a live answer settles the question. Otherwise ask the question as a gate question per [_gate-question.md](../_gate-question.md), with the recommended option first. Record the answer with `wf.mjs decide add --kind answer --key finding:<id>` per [_decisions.md](../_decisions.md). Then record the outcome on the finding with `wf.mjs findings set`.
+The review asks the person nothing. Every open finding gets one of two outcomes, at every severity from BLOCKER to NIT: fix or dismiss. A refuted finding needs no triage.
 
-When the answer asks for a change, decide the size of the change. The change is **small** when all five criteria hold:
+1. Run `wf.mjs decide list "<root>" <slug>` and read the live decisions of the person: each `answer`, `steer` and `approval` entry.
+2. Run `wf.mjs findings list "<root>" <slug> --open` for the open findings.
+3. Triage each open finding by the first rule that applies:
+   - **The fix goes against a decision of the person.** Dismiss the finding with `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`. The command refuses an entry that is not a live answer, steer or approval of the person.
+   - **The build goes against a decision of the person or a confirmed board.** Fix the build to match the decision or the board.
+   - **A reading cannot settle the finding, and it needs runtime evidence that this run cannot get** (`needs-runtime-evidence`, a recorded wall). Keep it as a deferral with `wf.mjs findings set <id> deferred --reason "<the wall>"`. Code cannot fix it.
+   - **In all other cases, fix the finding.**
+4. A deferral keeps its reason only when you check the reason in the code at HEAD. A reason that names a later fix is not a reason: fix the finding now.
 
-1. It changes only files that the slug's diff already changes, plus their tests.
-2. It adds no schema change, no migration, no new dependency and no new module.
-3. It changes no public contract: no API, no rules file, no stored format and no event that another slice reads.
-4. It changes the acceptance checks of one slice only.
-5. One fix round can make it and check it.
-
-Record the size as an `implementation-detail` decision. When the change is not small, name the criterion that fails.
-
-- **A small change is fixed in this review.** Rewrite the acceptance check and the plan step that the answer changes, per rule 5 of [_decisions.md](../_decisions.md), and name the rewritten records with `--rewrote`. Fix the finding at Step 4c. Run the checks of the rewritten acceptance check. When a check fails, the change is not small. When the checks pass, set the finding to `fixed`.
-- **A change that is not small routes back.** When the plan already describes the work, the next step is `/wf implement <slug> <slice>`. When the answer adds plan steps, files or design, the next step is `/wf plan <slug> <slice>`. Record the route in the review frontmatter as `route-back`.
-
-Then present the other findings that **need a decision** as a gate question per [_gate-question.md](../_gate-question.md): net-new findings, findings that opened again, and `open` (untriaged) findings. A refuted finding needs no decision. **Skip pre-existing findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. Record each `Defer` and `Dismiss` with `wf.mjs findings set <id> deferred|dismissed --reason "<the reason>"`. **`Fix` decisions execute in Step 4c.**
-
-**For BLOCKER and HIGH findings** — present each individually:
-
-Ask one gate question per finding ([_gate-question.md](../_gate-question.md)), batching up to 4 findings per round:
-- **header**: the finding ID (e.g., "CR-1", "CS-2", "SEC-3")
-- **question**: `"{Source command}: {one-line issue description} at {file}:{line}"`
-- Options:
-  - `Fix` / label: "Fix now", description: "Spawn a sub-agent to apply the minimal patch in this run (Step 4c)."
-  - `Defer` / label: "Defer", description: "Record but do not fix — revisit later via `/wf review <slug> triage`."
-  - `Dismiss` / label: "Not an issue", description: "False positive or intentional — record the reason."
-
-**For MED findings** — present as a batch:
-
-Ask a gate question per [_gate-question.md](../_gate-question.md) with `multiSelect: true`:
-- **header**: "MED findings"
-- **question**: "Select which MED findings to fix now (Step 4c will spawn fix sub-agents for selected ones)"
-- Options: one per MED finding, label `{ID}: {title}`, description `{file}:{line} — {one-line description}`
-
-Unselected MED findings default to `Defer`.
-
-**For LOW and NIT findings** — list in the report; do NOT prompt and do NOT fix in this run.
+Findings already `deferred` or `dismissed` keep that status. Re-triage them with `/wf review <slug> triage`.
 
 If all commands returned clean, skip Steps 4b and 4c.
 
-# Step 4c: Review-owned fix loop
+# Step 4c: Fix each finding as one step
 
-Runs only if Step 4b produced at least one `Fix` decision. Dispatch fix sub-agents **once** this invocation, record each outcome onto its finding, then stop. **No round counter and no `convergence` state** — a further pass is a fresh `/wf review`. The dispatch conforms to [_fix-loop.md](../_fix-loop.md); everything below is review-specific parameterization. Before dispatching, note the count of findings triaged `Fix` at Step 4b (transient — not persisted to frontmatter). If 0, skip to Step 5.
+Runs only if Step 4b gave at least one finding to fix. YOU fix the findings, one after another, in your own session. Dispatch no fix sub-agent. There is no size gate and no route back to plan or implement: a large fix is several steps of this review.
 
-## Fix dispatch (parallel, write-isolated)
+1. **Write the fix steps.** Take the findings in severity order, BLOCKER first. Write one step for each finding into the step ledger with `wf.mjs step` ([implement/_steps.md](../implement/_steps.md)). Split a large fix into several steps.
+2. **Confirm the failure.** For each step, first confirm the failure in the code at HEAD. When you cannot confirm it, run `wf.mjs findings set <id> dismissed --reason "<why, with file:line>"`, make no change, and go to the next step.
+3. **Apply the patch.** When the fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step, per rule 5 of [_decisions.md](../_decisions.md). Record an `implementation-detail` decision with `--rewrote` for the rewritten records.
+4. **Run the tests of the step.** Run the tests that cover the files of the step, and the `affected` suite of the test profile for the slices that the step touches.
+5. **Commit the step.** Use a conventional commit about the product, per [implement/_steps.md](../implement/_steps.md): `<type>: <what the fix does>`. Name no slug and no finding id ([_output-boundary.md](../_output-boundary.md)).
+6. **Record the outcome.** Run `wf.mjs findings set <id> fixed --commit <sha>`.
+7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf.mjs findings set <id> could-not-fix --reason "<the failure>"`, and continue with the next step.
 
-Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (one wave) with write isolation, per [_subagents.md](../_subagents.md) — concurrent patches cannot collide (fixes that must touch the same file run serially, in severity order); the step-3 sanity check is the merge gate. For each finding:
-1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](../_subagents.md) (REQUIRED — both; the tier pin follows [_fix-loop.md](../_fix-loop.md) rule 3). Send the fix prompt in [_fix-prompt.md](_fix-prompt.md) unchanged. `/wf implement reviews` sends the same prompt. The child returns `Method: as-prescribed | deviated` first, then its self-check exit status.
-2. As each sub-agent completes, take its patch through step 3 before accepting it. Under a worktree host, accept by merging the child's branch result; under a partition host (no worktree flag, per [_subagents.md](../_subagents.md)) the edit is already in the working tree, so step 3 reviews the diff first and `git checkout -- <files>` discards a rejected one. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
-3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
-4. **Record the outcome ON the finding** with `wf.mjs findings set`: fixed → `findings set <id> fixed` (drops out of OPEN counts and verdict); could not fix → `findings set <id> could-not-fix --reason "<reason>"` (stays OPEN; still counts against verdict).
+## The check pass
 
-## After the fix dispatch (no re-review this invocation)
+After the last fix step, scan only the commits of your fix steps (`git diff <the HEAD before Step 4c>...HEAD`) with the scouts and the refuters of Steps 3 and 3b. Merge the findings at Step 4 and fix them the same way. Stop after 2 check passes, and report what is still open. Do not scan the work packet again. When a driver runs the review, the driver runs the check passes and tells you so.
 
-Do **not** re-dispatch reviews this invocation — re-checking the fixed code is a fresh `/wf review` run. `fixed` findings drop out of OPEN counts → verdict recomputes from remaining open. `could-not-fix` findings stay OPEN and surface under `## Recommendations → Must Fix (remaining)` with the sub-agent's reason.
+## What the review returns
 
-## Commit (only when fixes landed)
+- The commit of each fix step, in order (`fixCommits`).
+- The count of BLOCKER findings that are `could-not-fix`. Only such a BLOCKER stops the run.
 
-If at least one `Fix` sub-agent successfully modified files: follow the shared commit discipline ([_fix-loop.md](../_fix-loop.md) rule 7) with message `fix(<slug>): review-time fixes for <slice-slug>` (per-slice mode) or `fix(<slug>): review-time fixes` (slug-wide mode), and record the commit SHA in the review file's `## Fix Status` section AND as `fix-commit` in its frontmatter. The fix sub-agents and commit replace the manual `/wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode remains as a manual escape (e.g., `could-not-fix` findings remain, or the user prefers the per-finding fix UI).
+The review file lists each fix step: the finding, the commit and the check that passed. The person can revert a single fix, because each fix is its own commit.
 
 # Step 5: Write the review file whole
 
-Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix loop. Load [_artifact.md](_artifact.md) and write the draft `.ai/workflows/<slug>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix steps. Load [_artifact.md](_artifact.md) and write the draft `.ai/workflows/<slug>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
 Write the whole draft on every run, also when the record exists. Keep only `created-at` from the old record (`record get`). Do not merge into the old body: the ledger holds the history. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 # Step 6: Update Index and Return
 
-1. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> review [<slice-slug>]`: with no slice for a slug-wide review, with the slice for a per-slice review. It writes `current-stage=review`, `progress.review=complete` (also on every accumulating re-run), `next-command` and `next-invocation`, and adds the review record and `findings.yaml` to `workflow-files` once. The default route is the plan of the next open slice, else `/wf ship <slug>`. When the verdict asks for another route (Option B, C, E or F below), add `--next "<invocation>"`. Then set `status=active` with `record set "<root>" <slug> index status=active`.
+1. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> review [<slice-slug>]`: with no slice for a slug-wide review, with the slice for a per-slice review. It writes `current-stage=review`, `progress.review=complete` (also on every accumulating re-run), `next-command` and `next-invocation`, and adds the review record and `findings.yaml` to `workflow-files` once. The default route is the plan of the next open slice, else `/wf ship <slug>`. When the verdict asks for another route (Option B or C below), add `--next "<invocation>"`. Then set `status=active` with `record set "<root>" <slug> index status=active`.
 2. Return the compact chat summary with verdict and options.
 
 # Adaptive routing — evaluate what's actually next
 
-Routing is **driven by OPEN findings** plus `verdict:`. The fix loop is owned by this stage; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After completing the fix loop, evaluate the (open-findings) verdict and present the user with ALL viable options; write ALL viable options into the `recommended-routes` frontmatter.
+Routing is **driven by the `could-not-fix` findings**. The review fixes or dismisses every finding itself; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After the fix steps and the check passes, present the user with ALL viable options; write ALL viable options into the `recommended-routes` frontmatter.
 
-- **Option A: Ship** → `/wf ship <slug>`. Use when `verdict: ship` (or ship-with-caveats where caveats are not blockers) AND no OPEN blockers remain AND all intended slices are complete. Its PR phase aggregates all complete slices automatically. If more slices remain, use Option D first, then run `/wf ship <slug>` once for the full PR.
-- **Option B: Re-invoke review (accumulating re-run)** → `/wf review <slug> [<slice>]`. Use when OPEN blocker or `could-not-fix` findings remain. Re-invocation re-checks the fixed code, merges fresh findings, and resolve-sweeps what the fixes cleared (no round counter, no `convergence` state). State unresolved findings clearly before recommending. Compact recommended before re-invoking — fix sub-agent chatter and triage UI is noise for the next pass; tell the user that workflow state lives in the artifact files on disk, so nothing is lost by compacting.
-- **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`. Use when remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — that is, re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding fix UI.
-- **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`. Use when this slice is approved AND more slices remain. Check `03-slice.md`. Compact recommended — prior slice lifecycle is noise for the next slice.
-- **Option E: Extend scope** → `/wf intake <slug> from-review`. Use when findings reveal **missing capability** rather than broken implementation (never built, not wrong). Signal: "X should also do Y" / "no handler for Z" rather than "X does Y incorrectly".
-- **Option F: Correct an unbuilt slice** → `/wf plan <slug> <slice> <correction>` (built work → new slice via E). Use when findings reveal the **slice definition or ACs were wrong** — the implementation did what it was told, but what it was told was incorrect. Signal: multiple findings stem from the same incorrect spec assumption, or the approach is fundamentally wrong rather than buggy.
+- **Option A: Ship** → `/wf ship <slug>`. Use when no BLOCKER finding is `could-not-fix` AND all intended slices are complete. Its PR phase aggregates all complete slices automatically. If more slices remain, use Option D first, then run `/wf ship <slug>` once for the full PR.
+- **Option B: Re-invoke review (accumulating re-run)** → `/wf review <slug> [<slice>]`. Use when a BLOCKER is `could-not-fix` and the person removes its cause. Re-invocation re-checks the fixed code, merges fresh findings, and resolve-sweeps what the fixes cleared (no round counter, no `convergence` state). State the `could-not-fix` findings and their failures before recommending.
+- **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`. Use when a `could-not-fix` finding needs a design rethink that the person must make. Also when the user prefers stage 5's per-finding fix UI.
+- **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`. Use when this slice is approved AND more slices remain. Check `03-slice.md`.
+
+A finding never becomes a new slice, and the review never routes a finding to `/wf intake <slug> from-review`. New scope that the person names is a new work packet or an extension that the person asks for.

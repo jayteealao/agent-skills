@@ -49,6 +49,9 @@ export const meta = {
 //                 Workflow tool), 'pi' (pi-subagents' workflow runner) or 'codex' (wf.mjs drive)
 //   runId         (optional) the run id of this run, from a caller that has a clock (wf.mjs
 //                 drive); absent, the orient agent mints one
+//   reviewFindings (optional, default false) the walk put defects of a fidelity row or a
+//                 try-out in the findings ledger: the slug-wide review fixes them and scans
+//                 only its own fix commits
 // args may arrive as a JSON object or — depending on how the caller encodes the
 // Workflow invocation — as a JSON string. Tolerate both so a stringified payload
 // doesn't silently fail the object check (the Workflow runtime can hand a
@@ -104,6 +107,8 @@ function stageModel(stage) {
 const SPLIT_AFTER_STOPS = 2
 // An answered stage can send the slice back to its plan or its implement at most this often in one run.
 const MAX_ROUTE_BACKS = 2
+// After its fix steps, the slug-wide review scans only its own fix commits, at most this often.
+const REVIEW_CHECK_PASSES = 2
 
 // WF-SYSTEM-REVIEW C5: the charter checkpoint runs only after work that touched the charter:
 // a stage result with an intent-bearing decision, or a decision that names a charter id.
@@ -398,6 +403,8 @@ function evaluateGate(stage, res) {
     return verifyClean(t, res && res.residual) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
   }
   if (stage === 'review') {
+    // The review fixes every finding itself: only a BLOCKER that it could not fix stops the run.
+    if (typeof t.couldNotFixBlockers === 'number') return t.couldNotFixBlockers === 0 ? 'proceed' : 'hard-stop'
     return (t.verdict === 'ship' || t.verdict === 'ship-with-caveats') && (t.blockerCount || 0) === 0 ? 'proceed' : 'hard-stop'
   }
   return res && res.status === 'complete' ? 'proceed' : 'hard-stop'   // plan / implement / shape
@@ -728,13 +735,6 @@ function answeredClause(a, stage, sliceArg = null) {
   if (!a) return ''
   const by = a.by || 'person'
   const quote = (s) => JSON.stringify(String(s || '').slice(0, 600))
-  // A slice that the slug-wide review sent back on a residual item, with no question behind it.
-  if (a.residual) {
-    return `\n\nRESIDUAL OF THE SLUG-WIDE REVIEW (MANDATORY). The slug-wide review sent this slice back to ` +
-      `${a.routedBack || 'plan'} with this residual item: ${quote(a.answer)}. Settle it in this stage: the plan ` +
-      `covers it, the code does it, the verify checks it. Record what you changed for it as a decision with class ` +
-      `'implementation-detail'. Do not route back again: settle the stage on the work as it is.`
-  }
   const head = a.all
     ? `\n\nANSWERED QUESTIONS (MANDATORY). The last run of this stage stopped on ${a.all.length} questions. The ` +
       `answers are in the decision store: ` +
@@ -755,18 +755,13 @@ function answeredClause(a, stage, sliceArg = null) {
         `acceptedByPerson: true. When the answer asks for a small fix inside this slice's plan, make it, verify ` +
         `again, and return acceptedByPerson: false.`
       : '') +
-    (stage === 'verify' || stage === 'review'
+    (stage === 'verify'
       ? smallChangeClause(stage) +
         ` When the change is NOT small and the answer changes the slice's design, adds plan steps or adds files, ` +
         `change no code: write route-back: plan in the ${stage} frontmatter, and return routeBack: 'plan'. When ` +
         `the change is NOT small and the current plan already describes the work, change no code: write ` +
         `route-back: implement and return routeBack: 'implement'. The driver then runs that stage and every later ` +
-        `stage of the slice again, with this answer.` +
-        (stage === 'review' && !sliceArg
-          ? ` This review is slug-wide: with routeBack, return routeBackSlices, one entry for each slice that the ` +
-            `answer or a residual item sends back: { slice, key } for an answer (its key), or { slice, note } for a ` +
-            `residual item (one line that says what the slice must do). Name only slices of the roster.`
-          : '')
+        `stage of the slice again, with this answer.`
       : '') +
     (stage === 'implement'
       ? ` When the answer changes the slice's design, its acceptance criteria or its plan, do not revise or undo ` +
@@ -779,8 +774,8 @@ function answeredClause(a, stage, sliceArg = null) {
       : '')
 }
 
-// An answered verify or review fixes a small change itself. Only a change that is not small
-// routes back, so a label or one screen row does not run plan, implement and verify again.
+// An answered verify fixes a small change itself. Only a change that is not small routes back,
+// so a label or one screen row does not run plan, implement and verify again.
 function smallChangeClause(stage) {
   return ` First decide the size of the change that the answer asks for. The change is SMALL when all five ` +
     `criteria hold: (1) it changes only files that the slug's diff already changes, plus their tests; (2) it adds ` +
@@ -792,9 +787,6 @@ function smallChangeClause(stage) {
     `${referenceRoot}/_decisions.md, and name the rewritten records with --rewrote when you record the decision; ` +
     `(b) make the change in your fix round; (c) run the checks of the rewritten acceptance check. When a check ` +
     `fails, the change is not small: continue with the route-back rules below. ` +
-    (stage === 'review'
-      ? `(d) set the finding to fixed with \`${WF_CMD} findings set "${projectRoot}" ${slug} <id> fixed\`. `
-      : '') +
     `Return no routeBack for a small change that passes its checks.`
 }
 
@@ -1008,11 +1000,11 @@ function questionContract(stage) {
         `pass or a partial with at least one recorded deferral; otherwise return status 'hard-stop'.`
       : '') +
     (stage === 'review'
-      ? ` RETURN CONTRACT (review): a clean verdict (ship, or ship-with-caveats with metric-findings-blocker 0) ` +
-        `is the endpoint: return status 'complete'. Each open finding that ` +
-        `\`${WF_CMD} findings questions "${projectRoot}" ${slug}\` prints and no live answer settles is a ` +
-        `question with the key it prints. Return status 'hard-stop' only on a dont-ship verdict, or on an open ` +
-        `security or data-loss BLOCKER that the fix loop did not fix.`
+      ? ` RETURN CONTRACT (review): the review asks the person nothing and routes nothing back. It fixes or ` +
+        `dismisses every finding at Steps 4b and 4c of review/_stage.md, one fix step and one commit at a time, in ` +
+        `your own session. Return status 'complete' with fixCommits (the commit of each fix step, in order) and ` +
+        `terminal.couldNotFixBlockers (the BLOCKER findings set could-not-fix). Return status 'hard-stop' only ` +
+        `when a BLOCKER is could-not-fix. Never return status 'questions' or routeBack.`
       : '') +
     (stage === 'plan' || stage === 'implement'
       ? ` RETURN CONTRACT (${stage}): status 'complete' when the artifact is status: complete; 'hard-stop' on a ` +
@@ -1198,11 +1190,10 @@ const STAGE_RESULT = {
     },
     // An answered verify that accepts the slice with its failing or residual items.
     acceptedByPerson: { type: 'boolean' },
-    // An answered implement, verify or review that needs a new plan or new code.
+    // An answered implement or verify that needs a new plan or new code.
     routeBack: { enum: ['plan', 'implement'] },
-    // A slug-wide review that routes back names each slice that goes back, with the answer
-    // key or the residual note that sends it.
-    routeBackSlices: { type: 'array', items: { type: 'object', required: ['slice'], properties: { slice: { type: 'string' }, key: { type: 'string' }, note: { type: 'string' } } } },
+    // The review: the commit of each fix step, in order. The driver scans them once more.
+    fixCommits: { type: 'array', items: { type: 'string' } },
     // E4: the slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
     stopReason: { type: 'string' },
@@ -1215,6 +1206,7 @@ const STAGE_RESULT = {
         result: { type: 'string' },         // verify → pass | fail | partial | blocked-runtime-evidence-missing
         verdict: { type: 'string' },        // review → ship | ship-with-caveats | dont-ship
         blockerCount: { type: 'number' },   // review → metric-findings-blocker (OPEN)
+        couldNotFixBlockers: { type: 'number' },   // review → BLOCKER findings set could-not-fix
         // verify → user-observable ACs DEFERRED because the environment genuinely
         // could not produce runtime evidence (each written as verify/_deferrals.md's
         // `interactive-verification: deferred` escape hatch + registered in
@@ -1346,8 +1338,11 @@ const RUBRIC_SELECTION = {
     // The stop-request check runs here, at the review boundary, before any scout starts.
     stopped: { type: 'boolean' },
     stopReason: { type: 'string' },
-    // A scan of the commits of a route-back: true when that range has no change.
+    // A check pass over the fix commits of the review: true when that range has no change.
     emptyDiff: { type: 'boolean' },
+    // The files of the work packet: the changed files, and the files that call, import or test
+    // the changed code. The scouts look only there, and the merge drops a finding elsewhere.
+    affectedFiles: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -1704,11 +1699,21 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     ? `\n\nREVIEW SCAN GIVEN. A parallel scan per rubric has ALREADY run (${scan.dimensions.join(', ')}), and a ` +
       `refuter checked every finding. Skip Steps 2, 3 and 3b of review/_stage.md. At Step 4, write ` +
       `${DRAFT_DIR}/found.json as { "dimensions": ${JSON.stringify(scan.dimensions)}, ` +
+      `"affectedFiles": ${JSON.stringify(scan.affectedFiles || [])}, ` +
       `"findings": <the list below, unchanged> } and run \`${WF_CMD} findings add "${projectRoot}" ${slug} ` +
       `${DRAFT_DIR}/found.json --source review --run ${RUN_ID}` +
       `${sliceArg ? ` --slice ${sliceArg}` : ''}\`. A finding with \`refuted\` stays refuted; re-check a ` +
-      `survivor you doubt, but do not drop it. Findings: ${JSON.stringify(scan.findings)}` +
+      `survivor you doubt, but do not drop it.` +
+      (scan.checkPass
+        ? ` This is a CHECK PASS: the scan read only the commits of your last fix steps, ${scan.checkPass}. Fix ` +
+          `its findings the same way, at Steps 4b and 4c, and do not scan the work packet again.`
+        : '') +
+      ` Findings: ${JSON.stringify(scan.findings)}` +
       promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run \`${REC('put')}\` after you write it)`)
+    : stage === 'review' && extra.ledgerOnly
+    ? `\n\nFINDINGS FROM THE WALK. The walk put the defects of a fidelity row or a try-out in the findings ` +
+      `ledger. Skip Steps 1 to 4 of review/_stage.md: scan nothing. Start at Step 4b with the open findings that ` +
+      `\`${WF_CMD} findings list "${projectRoot}" ${slug} --open\` prints, and fix them at Step 4c.`
     : ''
   const label = `${stage}${sliceArg ? ':' + sliceArg : ''}`
   const briefCmd = `${WF_CMD} brief "${projectRoot}" ${slug} ${stage}${sliceArg ? ` ${sliceArg}` : ''}`
@@ -1757,7 +1762,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `${extra.stopCheck === true ? ", 'stopped' when the stop-request check stopped you" : ''}), the primary ` +
     `artifactPath, and terminal fields — plan/implement: statusField; verify: convergence + result + deferrals ` +
     `([{ac, reason, probe}]; [] if none) + substantiveResidual; review: verdict + blockerCount ` +
-    `(= metric-findings-blocker, OPEN) — plus the questions, the class-stamped decisions you recorded, any ` +
+    `(= metric-findings-blocker, OPEN) + couldNotFixBlockers, and fixCommits — plus the questions, the class-stamped decisions you recorded, any ` +
     `residual (could-not-fix) notes, your recovered-error list, acceptedByPerson or routeBack when the answered ` +
     `question asks for one, and steeringHonored (plus steeringConflict when a steering entry stopped you) when a ` +
     `steer entry exists.` +
@@ -2025,6 +2030,14 @@ async function classifyDecisions(res, idx) {
   return res
 }
 
+// A path of a finding or of the work packet: relative to the project root, with forward slashes.
+function repoPath(p) {
+  const root = String(projectRoot).replace(/\\/g, '/').replace(/\/+$/, '')
+  let s = String(p || '').trim().replace(/\\/g, '/')
+  if (root && s.toLowerCase().startsWith(`${root.toLowerCase()}/`)) s = s.slice(root.length + 1)
+  return s.replace(/^\.\//, '')
+}
+
 // driveReview() — default (reviewFanout, on unless args pass false): hoist the
 // dimension scan to the workflow for true parallelism, give every finding a refuter,
 // then hand the merge, triage and fix loop to a wrapped review.md writer. The writer
@@ -2040,10 +2053,9 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const beat = (label) => heartbeatClause(label, 'Review', 'review', sliceArg) +
     ` The two journal lines are the only writes of this agent.`
   const base = idx.branch.base || '<base>'
-  // After a route-back, the scan reads only the commits of the route-back (extra.diffRange).
+  // A check pass reads only the fix commits of the last review pass (extra.diffRange).
   const diffRange = extra.diffRange || (sliceArg ? 'HEAD' : `${base}...HEAD`)
   // An answered review runs the writer again with the answer, over the ledger of the last run.
-  // After a route-back, the rubrics first scan the new commits, so no code goes unreviewed.
   if (extra.answered && !extra.diffRange) {
     return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered })
   }
@@ -2059,9 +2071,12 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}` +
-    `${extra.diffRange ? ` This scan reads only the commits of a route-back, ${diffRange}: select the rubrics for ` +
-      `that diff. When \`git -C ${projectRoot} diff --stat ${diffRange}\` prints nothing, return rubrics: [] and ` +
-      `emptyDiff: true.` : ''}\n\n` +
+    `${extra.diffRange ? ` This scan reads only the fix commits of the last review pass, ${diffRange}: select the ` +
+      `rubrics for that diff. When \`git -C ${projectRoot} diff --stat ${diffRange}\` prints nothing, return ` +
+      `rubrics: [] and emptyDiff: true.` : ''}\n\n` +
+    `Return affectedFiles: every file that \`git -C ${projectRoot} diff --name-only ${diffRange}\` prints, and each ` +
+    `file that calls, imports or tests code that the diff changes (find them with \`git -C ${projectRoot} grep\` ` +
+    `on the changed exports and names). Give each path relative to the project root, with forward slashes. ` +
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
@@ -2073,11 +2088,18 @@ async function driveReview(sliceArg, idx, extra = {}) {
   if (selection && selection.stopped === true) {
     return { stage: 'review', slice: sliceArg || undefined, status: 'stopped', stopReason: selection.stopReason || 'stop request', artifactPath: '', terminal: {} }
   }
-  // A route-back that committed nothing gets no scan: the writer settles the answer as before.
+  // A check pass whose range holds no change has nothing to scan: the last pass stands.
   if (extra.diffRange && selection && selection.emptyDiff === true) {
-    log(`review: the route-back committed nothing in ${diffRange} — no rubric scan`)
-    return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered || null })
+    log(`review: no change in ${diffRange} — no check pass`)
+    return { stage: 'review', slice: sliceArg || undefined, status: 'complete', emptyDiff: true, artifactPath: '', terminal: {} }
   }
+  // The work packet: the scouts look only in these files, and a finding elsewhere is dropped.
+  const affected = (selection && Array.isArray(selection.affectedFiles) ? selection.affectedFiles : []).map(repoPath).filter(Boolean)
+  const inPacket = new Set(affected)
+  const packetLine = affected.length
+    ? ` Look for issues ONLY in the files of the work packet: ${JSON.stringify(affected)}. Report only an issue that ` +
+      `the change makes or touches; do not report debt that the change did not cause.`
+    : ''
   const rubrics =(selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
     ? selection.rubrics.filter(r => r && r.rubric && r.file)
     : [...new Set([idx.reviewDimension, 'correctness', 'security', 'performance', 'architecture'].filter(Boolean))]
@@ -2093,7 +2115,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
     `${r.focus ? ` — the '${r.focus}' section and '# Severity calibration'` : ' in full'}, and apply it as the ` +
     `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
-    `findings the diff supports, with dimension '${r.rubric}'. ${shape}\n\n${EOB}` + steer('context') +
+    `findings the diff supports, with dimension '${r.rubric}'.${packetLine} ${shape}\n\n${EOB}` + steer('context') +
     beat(`scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
   ).then(s => (s && Array.isArray(s.findings) ? s.findings : []).map(f => ({ ...f, dimension: f.dimension || r.rubric })))))
@@ -2102,15 +2124,18 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const steeringScout = selection && selection.steeringPresent === true
     ? await agent(
         `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
-        `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'. ` +
-        `${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
+        `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'.` +
+        `${packetLine} ${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
         { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
       )
     : null
-  const raw = [
+  const scanned = [
     ...scouts.filter(Boolean).flat(),
     ...((steeringScout && steeringScout.findings) || []).map(f => ({ ...f, dimension: 'steering' })),
   ]
+  // A finding outside the work packet gets no refuter: the merge would drop it anyway.
+  const raw = inPacket.size ? scanned.filter(f => !f || !f.file || inPacket.has(repoPath(f.file))) : scanned
+  if (raw.length < scanned.length) log(`review fan-out: ${scanned.length - raw.length} finding(s) outside the work packet dropped`)
   // 2. Every finding gets a refuter. One refuter checks up to REFUTE_GROUP_SIZE findings
   //    of one rubric. A refuted finding stays, with the refuter's reason: the ledger keeps it.
   const withIds = raw.map((f, i) => ({ ...f, id: f && f.id ? `${f.dimension}:${f.id}` : `f${i + 1}`, rubric: f.dimension }))
@@ -2137,7 +2162,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const dimensions = [...new Set([...rubrics.map(r => r.rubric), ...(steeringScout ? ['steering'] : [])])]
   // 3. Wrapped writer — review.md owns the ledger merge, triage, fix loop and review file.
   return await runStage('review', sliceArg, idx, {
-    scan: { dimensions, findings, files: [...new Set(rubrics.map(r => r.file))] },
+    scan: { dimensions, findings, affectedFiles: affected, files: [...new Set(rubrics.map(r => r.file))], ...(extra.diffRange ? { checkPass: extra.diffRange } : {}) },
     ...(extra.answered ? { answered: extra.answered } : {}),
   })
 }
@@ -2473,58 +2498,30 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   return { stopped: false, slice: sliceArg, ran }
 }
 
-// The slug-wide review, the run's target after every slice verified. An answer or a residual
-// item that needs a new plan or new code sends its slices back through plan → implement →
-// verify (driveChain with forceFrom), then the review runs again. Returns the slug outcome.
+// The slug-wide review, the run's target after every slice verified. The review fixes every
+// finding itself, one step and one commit at a time; it asks nothing and sends nothing back.
+// Then up to REVIEW_CHECK_PASSES passes scan only the fix commits of the pass before, and fix
+// what they find the same way. Returns the slug outcome.
 async function slugWideReview(idx, results) {
   log(`yolo → review ${slug} (slug-wide)`)
-  const reviewAnswer = answeredFor(ANSWERED, 'review', null)
-  let rev = await driveReview(null, idx, { answered: reviewAnswer })
-  // An answer or a residual item of the slug-wide review that needs a new plan or new code
-  // sends its slices back through plan → implement → verify, then the review runs again.
-  let reviewBacks = 0
-  let backStop = null
-  while (rev && rev.status !== 'questions' && rev.status !== 'stopped' && (rev.routeBack === 'plan' || rev.routeBack === 'implement')) {
-    if (reviewBacks >= MAX_ROUTE_BACKS) {
-      backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: `the slug-wide review routed back to ${rev.routeBack} ${reviewBacks + 1} times — the answer does not settle; ask the person again`, results, slugWide: rev, route: `ask the person again, then re-run /wf yolo ${slug}` }
-      break
-    }
-    reviewBacks++
-    const roster = idx.slices.map(s => s.slice)
-    const named = Array.isArray(rev.routeBackSlices) ? rev.routeBackSlices.filter(t => t && t.slice) : []
-    for (const t of named.filter(t => !roster.includes(t.slice))) log(`the slug-wide review sent back '${t.slice}', which is not in the roster — skipped`)
-    const targets = named.filter(t => roster.includes(t.slice))
-    if (!targets.length) {
-      backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: `the slug-wide review routed back to ${rev.routeBack} but named no slice of the roster`, results, slugWide: rev, route: `re-run /wf yolo ${slug}; the review must name the slices that go back` }
-      break
-    }
-    log(`slug-wide review routes back to ${rev.routeBack}: ${targets.map(t => t.slice).join(', ')}`)
-    // The commit before the route-back: the review after it scans only the new commits.
-    const backFrom = await headCommit(`head:route-back-${reviewBacks}`)
-    for (const t of targets) {
-      const hits = reviewAnswer ? (reviewAnswer.all || [reviewAnswer]) : []
-      const carried = t.key
-        ? hits.find(a => a && a.key === t.key) || { key: t.key, question: 'an answer of the slug-wide review', answer: t.note || t.key, by: (reviewAnswer && reviewAnswer.by) || 'person' }
-        : { key: null, residual: true, answer: t.note || 'a residual item of the slug-wide review' }
-      const chain = await driveChain(['plan', 'implement', 'verify'], t.slice, idx, { forceFrom: rev.routeBack, carried })
-      results.push(chain)
-      if (chain.stopped) {
-        backStop = { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: chain.at, stoppedSlice: t.slice, reason: chain.reason, results, slugWide: rev, route: chain.route || `address the gate at '${chain.at}' on slice '${t.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) }
-        break
-      }
-    }
-    if (backStop) break
-    log(`yolo → review ${slug} (slug-wide, after the route back)`)
-    if (!backFrom) log('review: the commit before the route-back is unknown — the writer runs without a rubric scan')
-    rev = await driveReview(null, idx, {
-      answered: reviewAnswer ? { ...reviewAnswer, routedBack: rev.routeBack } : null,
-      ...(backFrom ? { diffRange: `${backFrom}...HEAD` } : {}),
-    })
+  let from = await headCommit('head:review-start')
+  // The walk put the defects of a fidelity row or a try-out in the ledger: the review fixes
+  // them and scans only its own fix commits, not the work packet again.
+  let rev = OPT.reviewFindings === true
+    ? await runStage('review', null, idx, { stopCheck: true, ledgerOnly: true })
+    : await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })
+  for (let pass = 1; pass <= REVIEW_CHECK_PASSES && rev && rev.status === 'complete' && from; pass++) {
+    const fixes = Array.isArray(rev.fixCommits) ? rev.fixCommits.filter(Boolean) : []
+    if (!fixes.length) break
+    const next = await headCommit(`head:review-pass-${pass}`)
+    log(`yolo → review ${slug} (check pass ${pass}: the ${fixes.length} fix commit(s) in ${from}...HEAD)`)
+    const again = await driveReview(null, idx, { diffRange: `${from}...HEAD` })
+    if (!again || again.emptyDiff === true) break
+    rev = again
+    from = next
   }
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
-  return backStop
-    ? backStop
-    : !rev
+  return !rev
     // A null return = the review subagent was skipped or died on a transient error: a re-run retries it.
     ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', transient: true, reason: 'the slug-wide review did not return (subagent skipped or hit a transient API error) — re-run to retry it; resume skips completed stages', results, route: `/wf yolo ${slug}` }
     : rev.status === 'stopped'
@@ -2532,8 +2529,8 @@ async function slugWideReview(idx, results) {
     : rev.status === 'questions'
     ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
     : stopped
-    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: rev.hardStopReason || 'slug-wide review did not clear the gate', results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-    : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}`, ...(reviewBacks ? { routedBack: reviewBacks } : {}) }
+    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: rev.hardStopReason || ((rev.terminal || {}).couldNotFixBlockers ? `the review could not fix ${rev.terminal.couldNotFixBlockers} BLOCKER finding(s)` : 'slug-wide review did not clear the gate'), results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
+    : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
 }
 
 // CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).

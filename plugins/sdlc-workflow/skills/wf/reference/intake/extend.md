@@ -59,7 +59,7 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 
 1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
-   - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is read; missing capability typically spans slices).
+   - `from-review` — extract new scope that the person names from the review records. Only the person starts this seed: a review never routes a finding here, and a defect of built work is fixed by a review run, never by a new slice.
    - `from-retro` — extract new scope from `10-retro.md` findings.
    - `from-probe` — extract new scope from the workflow's probe slices (`03-slice-probe-*.md`): findings whose remediation is net-new capability rather than a fix of built work.
    - `from-simplify` — extract new scope from `/wf intake simplify` findings routed here (the finding entry — id, files, rationale, severity — travels in the invocation text).
@@ -87,14 +87,11 @@ Depending on the seed:
 
 ## `from-review` seed
 
-Read `## Recommendations` of every review record (`07-review.md`, and each `07-review-<slice-slug>.md`; `record get` each), and the open findings of the ledger (`wf.mjs findings list "<root>" <slug> --source review --open`). Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
+Read `## Recommendations` of every review record (`07-review.md`, and each `07-review-<slice-slug>.md`; `record get` each). Take only the new scope that the person names: a capability that was never in the scope of this workflow. A defect of built work is not extension scope: the review fixes it in place.
 
-Signs that a finding warrants a new slice (not a bug fix):
-- Finding says "this feature should also do X, but X was never scoped"
-- Finding describes a gap in the system that requires new code paths, not correction of existing ones
-- Multiple related findings that together describe an unimplemented capability
-- Finding with status `deferred` (deferred findings often become extension scope)
-- Finding describes a non-functional requirement (performance, security, scalability) that requires architectural additions
+Signs of new scope that the person names:
+- The person says "this feature should also do X, but X was never scoped"
+- The person describes a gap that requires new code paths, not correction of existing ones
 
 Signs that a finding is a bug fix, NOT extension scope:
 - Finding points to incorrect logic, wrong output, missing validation

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { findingsTable, mergeRun, metricsOf, prefixOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../../lib/findings.mjs';
+import { findingsTable, mergeRun, metricsOf, prefixOf, readLedger, setStatus, verdictOf, writeLedger } from '../../lib/findings.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const EMPTY = { findings: [], runs: [] };
@@ -78,13 +78,23 @@ test('a refuted finding is kept with the reason of its refuter and does not coun
   assert.equal(two.ledger.findings[0].status, 'open');
 });
 
-test('questionsOf: an open finding whose fix changes an acceptance check is a question', () => {
-  const r = mergeRun(EMPTY, [{ ...sqlInjection, changesAcceptance: true, fix: 'reject a quote' }, slowLoop], { now: T1 });
-  const q = questionsOf(r.ledger);
-  assert.equal(q.length, 1);
-  assert.equal(q[0].key, 'finding:SEC-1');
-  assert.match(q[0].question, /changes an acceptance check: reject a quote/);
-  assert.equal(q[0].recommended, 'apply the fix and change the check');
+test('a run with the files of the work packet drops a finding in another file', () => {
+  const r = mergeRun(EMPTY, [sqlInjection, slowLoop, { ...slowLoop, file: null, line: null, issue: 'No file.' }], { files: ['./src/db.js'], now: T1 });
+  assert.deepEqual(r.added, ['SEC-1', 'PER-1']);
+  assert.equal(r.ledger.findings[1].issue, 'No file.');
+  assert.deepEqual(r.outOfScope, ['src/list.js:12']);
+  assert.equal(r.ledger.runs[0]['out-of-scope'], 1);
+  assert.equal(r.ledger.runs[0].raw, 3);
+  // No files: every finding stays.
+  assert.equal(mergeRun(EMPTY, [sqlInjection, slowLoop], { files: [], now: T1 }).added.length, 2);
+});
+
+test('setStatus: a fix keeps its commit, and a dismissal by a decision names the decision', () => {
+  const one = mergeRun(EMPTY, [sqlInjection, slowLoop], { now: T1 }).ledger;
+  assert.equal(setStatus(one, 'SEC-1', 'fixed', null, { commit: '1a2b3c', now: T2 }).commit, '1a2b3c');
+  const per = setStatus(one, 'PER-1', 'dismissed', null, { decision: 'D-012', now: T2 });
+  assert.deepEqual([per.status, per.reason, per.decision], ['dismissed', 'decision D-012', 'D-012']);
+  assert.throws(() => setStatus(one, 'PER-1', 'fixed', null, { decision: 'D-012' }), /only a dismissed finding/);
 });
 
 test('findingsTable: open rows first, and verdictOf filters by source', () => {
@@ -130,7 +140,7 @@ test('readLedger and writeLedger keep the ledger on disk', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('wf.mjs findings add, list, set, table and questions', () => {
+test('wf.mjs findings add, list, set, table and metrics', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'sdlc-findings-cli-'));
   const dir = path.join(root, '.ai', 'workflows', 'demo');
   mkdirSync(dir, { recursive: true });
@@ -141,11 +151,30 @@ test('wf.mjs findings add, list, set, table and questions', () => {
     assert.equal(cli('add', root, 'demo', found, '--run', 'r1').stdout.trim(), 'added 1, seen again 0, resolved 0: ship-with-caveats');
     assert.match(readFileSync(path.join(dir, 'findings.yaml'), 'utf8'), /type: findings/);
     assert.match(cli('list', root, 'demo', '--open').stdout, /^SEC-1 HIGH open src\/db.js:40: The query joins user input\.$/m);
-    assert.match(cli('questions', root, 'demo').stdout, /^finding:SEC-1: /);
-    assert.equal(cli('set', root, 'demo', 'SEC-1', 'fixed').stdout.trim(), 'SEC-1 fixed');
+    assert.match(cli('questions', root, 'demo').stderr, /findings has no form questions/);
+    assert.equal(cli('set', root, 'demo', 'SEC-1', 'fixed', '--commit', '1a2b3c').stdout.trim(), 'SEC-1 fixed');
+    assert.match(readFileSync(path.join(dir, 'findings.yaml'), 'utf8'), /commit: 1a2b3c/);
     assert.match(cli('table', root, 'demo').stdout, /^Verdict: ship\n/);
     assert.match(cli('metrics', root, 'demo').stdout, /^metric-findings-fixed: 1$/m);
     assert.equal(cli('list', root, 'demo', '--open').stdout.trim(), 'no findings');
     assert.equal(cli('set', root, 'demo', 'SEC-1', 'dismissed').status, 1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('wf.mjs findings set --decision dismisses only by a live decision of the person', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'sdlc-findings-decision-'));
+  const dir = path.join(root, '.ai', 'workflows', 'demo');
+  mkdirSync(dir, { recursive: true });
+  const cli = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), ...a], { encoding: 'utf8' });
+  try {
+    const found = path.join(root, 'found.json');
+    writeFileSync(found, JSON.stringify({ dimensions: ['security', 'performance'], affectedFiles: ['src/db.js'], findings: [sqlInjection, slowLoop] }));
+    assert.match(cli('findings', 'add', root, 'demo', found).stdout, /dropped 1 outside the work packet/);
+    assert.equal(cli('decide', 'add', root, 'demo', '--kind', 'answer', '--key', 'db-quoting', '--question', 'Quote the input?', '--answer', 'no, the input is a constant').status, 0);
+    assert.equal(cli('decide', 'add', root, 'demo', '--kind', 'delegate', '--key', 'other', '--question', 'Other?', '--answer', 'yes', '--by', 'delegate').status, 0);
+    assert.match(cli('findings', 'set', root, 'demo', 'SEC-1', 'dismissed', '--decision', 'D-002').stderr, /not an answer, steer or approval of the person/);
+    assert.match(cli('findings', 'set', root, 'demo', 'SEC-1', 'dismissed', '--decision', 'D-009').stderr, /no decision D-009/);
+    assert.equal(cli('findings', 'set', root, 'demo', 'SEC-1', 'dismissed', '--decision', 'D-001').stdout.trim(), 'SEC-1 dismissed');
+    assert.match(readFileSync(path.join(dir, 'findings.yaml'), 'utf8'), /reason: decision D-001/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

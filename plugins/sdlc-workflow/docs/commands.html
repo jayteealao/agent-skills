@@ -1440,7 +1440,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       w: ["intake.yaml#simplify"], n: "the routed commands", t: "cleanup duplication tidy debt" },
 
     { g: "grow", id: "intake-extend", name: "intake <slug> <scope>", b: ["slug"], syn: ["intake <slug> <new scope>", "intake <slug> from-review", "intake <slug> from-retro"],
-      d: "An existing slug plus free text adds full new slices to that workflow. Built work is never re-specified in place: a correction is always a new slice. from-review, from-retro, from-probe and from-simplify take the scope from findings. Extending a closed workflow revives it.",
+      d: "An existing slug plus free text adds full new slices to that workflow. Built work is never re-specified in place. A defect that a review finds is fixed by the review, not by a new slice. from-review takes new scope that the person names; from-retro, from-probe and from-simplify take the scope from findings. Extending a closed workflow revives it.",
       w: ["slice-<new>.yaml#slice"], n: "plan <slug> <new-slice>", t: "extension extend add more scope follow-on" },
     { g: "grow", id: "intake-attach", name: "intake <slug> <mode>", b: ["slug"], syn: ["intake <slug> <mode> <description>"],
       d: "An existing slug plus a mode word runs that mode as one compressed slice on the workflow: no new workflow and no new branch. Every mode can attach this way except adopt and optimize.",

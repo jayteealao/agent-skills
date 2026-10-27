@@ -185,22 +185,21 @@
  *             the plan sections of the stage, and the live decisions in scope
  *             Example: wf.mjs brief . demo implement api
  *   findings add <root> <slug> <found.json> [--source review|audit|pr-bot] [--slice x]
- *                [--dimensions a,b] [--run id] [--json]
- *             merge the findings of one run into findings.yaml by the merge law
+ *                [--dimensions a,b] [--files a,b] [--run id] [--json]
+ *             merge the findings of one run into findings.yaml by the merge law; --files (or
+ *             affectedFiles of found.json) is the scope: a finding in another file is dropped
  *             Example: wf.mjs findings add . demo .ai/workflows/demo/.draft/found.json --source review --slice api
  *   findings list <root> <slug> [--source s] [--slice x] [--open] [--json]
  *             the entries of the ledger (--open: open, deferred and could-not-fix only)
  *             Example: wf.mjs findings list . demo --open
- *   findings set <root> <slug> <id> <status> [--reason r]
- *             the triage status of one entry
- *             Example: wf.mjs findings set . demo F-3 fixed --reason "commit 1a2b3c"
+ *   findings set <root> <slug> <id> <status> [--reason r] [--commit sha] [--decision D-n]
+ *             the triage status of one entry; --commit names the commit of a fix step;
+ *             --decision dismisses a finding that goes against a live decision of the person
+ *             Example: wf.mjs findings set . demo F-3 fixed --commit 1a2b3c
  *   findings table|metrics <root> <slug> [--source s] [--slice x] [--json]
  *             the verdict and the findings table, or the metric fields, of a review file
  *             (the source defaults to review, the scope to the whole packet)
  *             Example: wf.mjs findings table . demo --slice api
- *   findings questions <root> <slug> [--json]
- *             the open findings whose fix changes an acceptance check, as questions
- *             Example: wf.mjs findings questions . demo
  *   record   put <root> <slug> [<draft>...] [--json]
  *             check each draft (.draft/<old name>.md, or every draft) and write it into its
  *             section of the record files; a draft with errors stays, and exit 1
@@ -293,7 +292,7 @@ import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-workt
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
-import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, questionsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
+import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
@@ -772,7 +771,7 @@ export function runProfile(pos, opt) {
 
 export function runFindings(pos, opt) {
   const [verb, root, slug, a, b] = pos;
-  if (!verb || !root || !slug) throw new Error('findings: <add|list|set|table|metrics|questions> <root> <slug> are required');
+  if (!verb || !root || !slug) throw new Error('findings: <add|list|set|table|metrics> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw new Error(`findings: no workflow folder ${dir}`);
   const ledger = readLedger(dir);
@@ -785,9 +784,10 @@ export function runFindings(pos, opt) {
       const doc = JSON.parse(readFileSync(resolve(a), 'utf8'));
       const found = Array.isArray(doc) ? doc : doc.findings ?? [];
       const dimensions = opt.dimensions ? String(opt.dimensions).split(',').map((d) => d.trim()).filter(Boolean) : (doc.dimensions ?? []);
-      const r = mergeRun(ledger, found, { ...scope, dimensions, run: opt.run ?? null });
+      const files = opt.files ? String(opt.files).split(',').map((f) => f.trim()).filter(Boolean) : (Array.isArray(doc.affectedFiles) ? doc.affectedFiles : null);
+      const r = mergeRun(ledger, found, { ...scope, dimensions, files, run: opt.run ?? null });
       writeLedger(dir, r.ledger);
-      out(opt.json ? { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, verdict: r.verdict } : `added ${r.added.length}, seen again ${r.resurfaced.length}, resolved ${r.resolved.length}: ${r.verdict}`);
+      out(opt.json ? { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, outOfScope: r.outOfScope, verdict: r.verdict } : `added ${r.added.length}, seen again ${r.resurfaced.length}, resolved ${r.resolved.length}${r.outOfScope.length ? `, dropped ${r.outOfScope.length} outside the work packet` : ''}: ${r.verdict}`);
       return 0;
     }
     case 'metrics': {
@@ -802,18 +802,20 @@ export function runFindings(pos, opt) {
     }
     case 'set': {
       if (!a || !b) throw new Error('findings set: <id> <status> are required');
-      const e = setStatus(ledger, a, b, opt.reason ?? null);
+      if (opt.decision) {
+        // A dismissal by a decision names a live answer, steer or approval of the person.
+        const d = decisionsOf(dir).find((x) => x.id === opt.decision);
+        if (!d) throw new Error(`findings set: no decision ${opt.decision}`);
+        if (d['superseded-by']) throw new Error(`findings set: decision ${d.id} is superseded by ${d['superseded-by']}`);
+        if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw new Error(`findings set: decision ${d.id} is not an answer, steer or approval of the person`);
+      }
+      const e = setStatus(ledger, a, b, opt.reason ?? null, { commit: opt.commit ?? null, decision: opt.decision ?? null });
       writeLedger(dir, ledger);
       out(opt.json ? e : `${e.id} ${e.status}`);
       return 0;
     }
     case 'table': {
       process.stdout.write(`Verdict: ${verdictOf(ledger, scope)}\n\n${findingsTable(ledger, scope)}\n`);
-      return 0;
-    }
-    case 'questions': {
-      const q = questionsOf(ledger);
-      out(opt.json ? { questions: q } : q.length ? q.map((x) => `${x.key}: ${x.question}`).join('\n') : 'no questions');
       return 0;
     }
     default:
