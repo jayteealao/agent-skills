@@ -3,7 +3,7 @@ export const meta = {
   description: 'The driver of /wf loop optimize. It runs the metric loop of one optimize slug: each trial is a fresh proposer that reads only the digest of its trunk or branch, a fresh editor, and a bookkeeping agent that runs optimize.mjs trial. optimize.mjs owns every git write, measurement and keep or revert; this script only sequences agents. Branch rounds open on the fixed schedule and on a plateau; in a round, every branch proposes and edits in its own worktree at the same time, and the trials measure one at a time. Never pushes, never opens a PR.',
   phases: [
     { title: 'Orient', detail: 'the status of the loop and the agent ceiling' },
-    { title: 'Loop', detail: 'trials on the trunk and on the branches of each round; round-open, round-close and checkpoints when optimize.mjs names them' },
+    { title: 'Loop', detail: 'trials on the trunk and on the branches of each round; round-open, round-close, the merge step and checkpoints when optimize.mjs names them' },
     { title: 'Finish', detail: 'the squash, when the kept value reached the target' },
   ],
 }
@@ -163,6 +163,25 @@ async function runTrial(n, h, lane, on) {
   return await book('trial', rest, `trial:${n}`, 'Loop', h.prepared ? '' : trialPre(lane, h))
 }
 
+/** The consider step after a round: one agent decides which other kept branches to merge into the trunk. */
+function considerPrompt(mg) {
+  const shown = (mg.candidates || []).filter(c => !c.conflict).map(c => ({ name: c.name, short: `b${c.k}`, commit: c.commit, gain: c.gain, hypotheses: c.hypotheses, paths: c.paths, sharedWithWinner: c.shared }))
+  return `MERGE CONSIDER for round ${mg.round} of the optimize loop of '${slug}'. The round chose its winner, and the trunk ` +
+    `now holds the winner's code. These other branches kept a gain over the round base, and each one merges cleanly onto the trunk:\n` +
+    `${JSON.stringify(shown, null, 2)}\n` +
+    `For each candidate, decide try or skip:\n` +
+    `1. Read its diff against the round base: \`git -C "${mg.worktree || '<the trunk worktree>'}" diff ${mg.from || '<round base>'} <commit>\`. Read the winner's ` +
+    `change in the trunk worktree too. Read nothing else: not the optimize folder, not the ledger.\n` +
+    `2. Skip a candidate whose change removes the same cost as the winner's change: the gains do not add, and the ` +
+    `measurement only confirms that. Try a candidate whose change is independent of the winner's.\n` +
+    `3. Put the tries in order, the largest expected added gain first. Each try is measured as one trial against the budget.\n` +
+    `Then run exactly one command, with every candidate in --try or in one --skip:\n` +
+    `  ${cmd('merge-consider', '--try <b2,b4> --skip "<b3>:<one-line reason>"')}\n` +
+    `(leave out --try when you skip all; repeat --skip for each skipped branch). Return { ok, result } where result is the ` +
+    `JSON object that the command printed, parsed. When the command exits non-zero it still prints JSON: return it as ` +
+    `result with ok false. Do not edit any file and do not run any other git command than the diffs.` + heartbeat(`merge-consider:${mg.round}`, 'Loop')
+}
+
 /** The proposer and the editor of one branch trial. They change no file that a measurement reads. */
 async function prepare(lane, n) {
   const p = await call(proposePrompt(n, 1, lane), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
@@ -184,7 +203,9 @@ if (!st || st.ok === false) return { ok: false, stopped: true, slug, reason: `st
 if (!CEILING_ARG) {
   const trials = Number(st.budget && st.budget.trials) || 60
   const rounds = Number(st.budget && st.budget.roundsMax) || 5
-  CEILING = 3 * trials + 2 * rounds + 10
+  // The merge step adds one consider agent and at most branches - 1 merge trials for each round.
+  const branches = Number(st.budget && st.budget.branches) || 4
+  CEILING = 3 * trials + 2 * rounds + 10 + branches * rounds
 }
 const width = Math.max(1, Number(st.budget && st.budget.width) || 1)
 log(`optimize '${slug}': ${st.state}, next ${(st.next && st.next.action) || 'none'}; agent ceiling ${CEILING}`)
@@ -209,13 +230,28 @@ while (st && st.state === 'running') {
     await drain()
     prepared.length = 0
   }
-  if (next.action === 'round-open' || next.action === 'round-close' || next.action === 'checkpoint') {
+  if (['round-open', 'round-close', 'checkpoint', 'merge-trial', 'merge-close'].includes(next.action)) {
     queue.length = 0
-    const r = await book(next.action, '', next.action, 'Loop')
-    events.push({ event: next.action, ok: r.ok !== false, why: next.why || '', winner: r.winner || null })
+    const isMerge = next.action === 'merge-trial'
+    const r = await book(next.action, isMerge ? `--branch ${next.branch}` : '', isMerge ? `merge:${laneTag(next.branch)}` : next.action, 'Loop')
+    events.push({ event: next.action, ok: r.ok !== false, why: next.why || '', winner: r.winner || null, ...(isMerge ? { branch: next.branch, verdict: r.verdict, median: r.median ?? null } : {}) })
     if (r.ok === false) { stoppedAt = 'bookkeeping'; reason = `${next.action}: ${r.error || 'failed'}`; break }
-    log(`${next.action}: ${next.why || ''}${r.winner ? ` → winner ${typeof r.winner === 'string' ? r.winner : r.winner.name}` : ''}`)
+    log(isMerge
+      ? `merge of ${next.branch}: ${r.verdict}${r.median !== null && r.median !== undefined ? ` (${r.median})` : ''}${r.reason ? ` — ${r.reason}` : ''}`
+      : `${next.action}: ${next.why || ''}${r.winner ? ` → winner ${typeof r.winner === 'string' ? r.winner : r.winner.name}` : ''}`)
     st = r.state ? r : await book('status', '', 'status', 'Loop')
+    continue
+  }
+  if (next.action === 'merge-consider') {
+    queue.length = 0
+    if (!st.merge) st = await book('status', '', 'status', 'Loop')
+    const mg = st.merge || { round: '?', candidates: [] }
+    const r = await call(considerPrompt(mg), { schema: BOOK_SCHEMA, label: `merge-consider:${mg.round}`, phase: 'Loop', ...OPUS })
+    const res = r && r.result ? r.result : { ok: false, error: (r && r.error) || 'merge-consider: no result' }
+    events.push({ event: 'merge-consider', ok: res.ok !== false, try: res.try || [] })
+    if (res.ok === false) { stoppedAt = 'bookkeeping'; reason = `merge-consider: ${res.error || 'failed'}`; break }
+    log(`merge-consider: round ${mg.round}, try ${(res.try || []).join(', ') || 'none'}`)
+    st = res.state ? res : await book('status', '', 'status', 'Loop')
     continue
   }
   if (next.action !== 'trial') { stoppedAt = 'unknown-action'; reason = `status names the action '${next.action}'`; break }

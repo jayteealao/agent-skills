@@ -71,7 +71,8 @@ function makeRepo(over) {
   git(parent, 'init', '-q', '-b', 'main', root);
   git(root, 'config', 'user.email', 'o@test');
   git(root, 'config', 'user.name', 'o');
-  writeFileSync(path.join(root, 'metric.js'), "const fs = require('fs'); console.log('measuring'); console.log(fs.readFileSync('src/value.txt', 'utf8').trim());\n");
+  // The metric is src/value.txt, or src/alt.txt in its place, plus src/extra.txt: two branches can gain in two files.
+  writeFileSync(path.join(root, 'metric.js'), "const fs = require('fs'); const n = (f) => (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8').trim()) : null); console.log('measuring'); console.log((n('src/alt.txt') ?? n('src/value.txt')) + (n('src/extra.txt') ?? 0));\n");
   // With a shared build folder, the guard leaves the path of its worktree there.
   writeFileSync(path.join(root, 'guard.js'), "const fs = require('fs'); if (process.env.OPT_BUILD) fs.writeFileSync(require('path').join(process.env.OPT_BUILD, 'built'), process.cwd()); process.exit(fs.existsSync('src/broken') ? 1 : 0);\n");
   writeFileSync(path.join(root, 'src', 'value.txt'), '100\n');
@@ -132,8 +133,11 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     assert.equal(close.ok, true, JSON.stringify(close));
     assert.equal(close.winner.name, `optimize/${S}--r1b1`);
     assert.equal(close.best.value, 80);
+    assert.deepEqual(close.candidates, [{ name: `optimize/${S}--r1b2`, conflict: true }], 'branch 2 kept a gain in the same line: its test merge conflicts');
+    assert.equal(close.merge, null, 'a merge step with only conflicts ends at once');
     assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '', 'the round branches are deleted');
     assert.deepEqual([existsSync(`${wt}--r1b1`), existsSync(`${wt}--r1b2`)], [false, false], 'the branch worktrees are removed');
+    assert.equal(git(wt, 'status', '--porcelain'), '', 'the test merge touches no worktree');
 
     const t1 = step(root, wt, 'h5', 85);
     assert.deepEqual(t1.ctx.digest.trials.map((x) => x.trial), [1, 3], 'the trunk digest restarts from the trials of the winner');
@@ -178,7 +182,8 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
 
     const results = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
     assert.equal(results.filter((r) => r.event === 'trial').length, 10);
-    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'round-open', 'round-close', 'finish']);
+    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'finish']);
+    assert.deepEqual(results.find((r) => r.event === 'merge-close').skipped, [{ name: `optimize/${S}--r1b2`, reason: 'conflict' }]);
 
     const cl = run(root, 'cleanup');
     assert.equal(cl.ok, true, JSON.stringify(cl));
@@ -385,6 +390,91 @@ test('a round that an older version opened runs on the trunk worktree until it c
     assert.equal(close.ok, true, JSON.stringify(close));
     assert.equal(close.best.value, 90);
     assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+/** A round of two branches: branch 1 keeps 80 in src/value.txt, branch 2 keeps the change `b2`, then each branch reverts one trial. */
+function roundWithTwoKeeps(root, wt, b2) {
+  assert.equal(run(root, 'baseline').ok, true);
+  assert.equal(run(root, 'round-open').ok, true);
+  assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+  assert.equal(step(root, wt, 'h2', 100, b2).t.verdict, 'kept');
+  assert.equal(step(root, wt, 'h3', 120).t.verdict, 'reverted');
+  assert.equal(step(root, wt, 'h4', 130).t.verdict, 'reverted');
+  const close = run(root, 'round-close');
+  assert.equal(close.ok, true, JSON.stringify(close));
+  assert.equal(close.winner.name, B1);
+  return close;
+}
+const ledger = (root) => readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
+
+test('the merge step: a branch that gained in another file is merged into the trunk and measured, and finish lists its trials', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    const close = roundWithTwoKeeps(root, wt, { 'src/extra.txt': '-10' });
+    assert.equal(close.next.action, 'merge-consider');
+    assert.deepEqual(close.merge.candidates.map((c) => [c.name, c.conflict, c.paths, c.shared, c.gain]), [[B2, false, ['src/extra.txt'], [], 10]]);
+    assert.notEqual(git(root, 'branch', '--list', B2), '', 'a candidate keeps its branch until the merge step ends');
+
+    assert.match(run(root, 'merge-consider').error, /no decision for/);
+    assert.match(run(root, 'merge-consider', '--try', 'b9').error, /is not a candidate/);
+    const mc = run(root, 'merge-consider', '--try', 'b2');
+    assert.equal(mc.ok, true, JSON.stringify(mc));
+    assert.deepEqual([mc.next.action, mc.next.branch], ['merge-trial', B2]);
+
+    const mt = run(root, 'merge-trial', '--branch', 'b2');
+    assert.deepEqual([mt.ok, mt.verdict, mt.median], [true, 'kept', 70], JSON.stringify(mt));
+    assert.equal(mt.best.value, 70, 'the trunk best moves to the merge');
+    assert.equal(mt.next.action, 'trial');
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '', 'the merge step deletes the candidate branches');
+    const lines = ledger(root);
+    assert.deepEqual(lines.find((l) => l.event === 'merge-consider').try, [B2]);
+    assert.deepEqual(lines.find((l) => l.merge).merge, { round: 1, branch: B2 });
+    assert.deepEqual(lines.find((l) => l.event === 'merge-close').merged, [B2]);
+
+    const ctx = run(root, 'propose-context');
+    assert.deepEqual(ctx.digest.trials.map((t) => t.trial), [1, 2, 3, 5], 'the trunk digest holds the winner, the kept trials of the merged branch, and the merge');
+
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.equal(fin.kept, 3, 'the kept trial of each branch and the merge');
+    assert.deepEqual([readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), readFileSync(path.join(root, 'src', 'extra.txt'), 'utf8').trim()], ['80', '-10']);
+    assert.match(readDoc(path.join(root, '.ai', 'workflows', S), '05-implement-optimize.md').body, /merge of optimize\/speed--r1b2/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a merge that fails the keep rule resets the trunk worktree to the trunk best', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    const close = roundWithTwoKeeps(root, wt, { 'src/alt.txt': '85' });
+    assert.equal(run(root, 'merge-consider', '--try', `optimize/${S}--r1b2`).ok, true);
+    const mt = run(root, 'merge-trial', '--branch', 'r1b2');
+    assert.equal(mt.verdict, 'reverted', JSON.stringify(mt));
+    assert.equal(git(wt, 'rev-parse', 'HEAD'), close.best.commit);
+    assert.equal(existsSync(path.join(wt, 'src', 'alt.txt')), false);
+    assert.equal(mt.best.value, 80);
+    assert.deepEqual(ledger(root).find((l) => l.event === 'merge-close').merged, []);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a candidate that the consider step skips is not merged, and its reason is in the ledger', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    roundWithTwoKeeps(root, wt, { 'src/extra.txt': '-10' });
+    const mc = run(root, 'merge-consider', '--skip', 'b2:the same mechanism as the winner');
+    assert.equal(mc.ok, true, JSON.stringify(mc));
+    assert.equal(mc.next.action, 'trial');
+    assert.equal(mc.best.value, 80);
+    const lines = ledger(root);
+    assert.deepEqual(lines.find((l) => l.event === 'merge-consider').skip, [{ name: B2, reason: 'the same mechanism as the winner' }]);
+    assert.equal(lines.some((l) => l.merge), false);
+    assert.equal(git(root, 'branch', '--list', B2), '');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

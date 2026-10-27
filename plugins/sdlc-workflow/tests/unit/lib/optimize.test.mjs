@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, newState, nextAction, noiseOf,
+  buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
 } from '../../../lib/optimize.mjs';
 
@@ -150,6 +150,40 @@ test('a round whose branches have their own worktrees names every branch that ca
   const d = buildDigest({ spec, specProse: '', state: { ...s, round: { n: 1, branches: [branch(1, 0, true)] } }, results: [], lane: 'b1' });
   assert.equal(d.worktree, '/wt--r1b1');
   assert.equal(buildDigest({ spec, specProse: '', state: s, results: [], lane: 'trunk' }).worktree, '/wt');
+});
+
+test('the merge step: the candidates, the order of its actions, and a budget that ends it', () => {
+  assert.equal(specOf().rounds.merge, 'consider');
+  assert.equal(specOf({ 'branch-rounds': { merge: 'off' } }).rounds.merge, 'off');
+  assert.ok(parseSpec(fm({ 'branch-rounds': { merge: 'always' } })).errors.some((e) => /branch-rounds\.merge/.test(e)));
+  const spec = specOf();
+  const b = (k, value, keeps) => ({ k, name: `b${k}`, best: { commit: `c${k}`, value }, keeps });
+  const round = { branches: [b(1, 80, 1), b(2, 99, 1), b(3, 90, 1), b(4, 90, 0)] };
+  assert.deepEqual(mergeCandidates(round, round.branches[0], spec, 100, 0).map((x) => x.name), ['b3'], 'a gain of 1% is under the threshold, and a branch with no keep is no candidate');
+  assert.deepEqual(mergeCandidates(round, null, spec, 100, 0), [], 'no winner, no merge');
+  assert.deepEqual(mergeCandidates(round, round.branches[0], specOf({ 'branch-rounds': { merge: 'off' } }), 100, 0), []);
+
+  const s = stateOf({ schedule: { used: [0] } });
+  const cand = (name, extra = {}) => ({ name, k: Number(name.slice(1)), ...extra });
+  const merge = (over) => ({ round: 1, considered: false, order: [], candidates: [cand('b2'), cand('b3', { conflict: true, decision: 'skip', verdict: 'skipped' })], ...over });
+  assert.equal(nextAction({ state: { ...s, merge: merge() }, spec }).next.action, 'merge-consider');
+  const two = merge({ considered: true, order: ['b2'], candidates: [cand('b2', { decision: 'try' })] });
+  assert.deepEqual([nextAction({ state: { ...s, merge: two }, spec }).next.action, nextAction({ state: { ...s, merge: two }, spec }).next.branch], ['merge-trial', 'b2']);
+  two.candidates[0].verdict = 'kept';
+  assert.equal(nextAction({ state: { ...s, merge: two }, spec }).next.action, 'merge-close');
+  const late = nextAction({ state: { ...s, merge: merge(), counters: { ...s.counters, trials: 60 } }, spec });
+  assert.deepEqual([late.next.action, /budget/.test(late.next.why)], ['merge-close', true], 'the budget skips the candidates that are left');
+});
+
+test('the trunk digest holds the kept trials of a merged branch', () => {
+  const results = [
+    { event: 'trial', trial: 1, round: 1, branch: 'b1', hypothesis: { text: 'w' }, verdict: 'kept' },
+    { event: 'trial', trial: 2, round: 1, branch: 'b2', hypothesis: { text: 'm' }, verdict: 'kept' },
+    { event: 'trial', trial: 3, round: 1, branch: 'b2', hypothesis: { text: 'x' }, verdict: 'reverted' },
+    { event: 'trial', trial: 4, round: null, branch: null, merge: { round: 1, branch: 'b2' }, hypothesis: { text: 'merge of b2' }, verdict: 'kept' },
+  ];
+  const s = stateOf({ digestFrom: { trial: 3, round: 1, branch: 'b1', merged: ['b2'] } });
+  assert.deepEqual(digestTrials(results, s, 'trunk').map((t) => t.trial), [1, 2, 4]);
 });
 
 test('D7: the holdout regresses past its tolerance', () => {

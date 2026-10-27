@@ -10,6 +10,10 @@
  *                                                     judge the change in the worktree of the lane: kept, reverted, rejected, crashed, timeout
  *   round-open      <root> <slug> [schedule|plateau]  open a branch round (4.4): one branch and one worktree for each branch
  *   round-close     <root> <slug>                     pick the winner, fast-forward the trunk, remove the branch worktrees and branches
+ *   merge-consider  <root> <slug> --try b2,b4 --skip "b3:<reason>"
+ *                                                     record which candidates of the closed round to merge into the trunk
+ *   merge-trial     <root> <slug> --branch <name>     merge one candidate into the trunk, and judge it as a trial
+ *   merge-close     <root> <slug>                     end the merge step: skip the rest, delete the branches, checkpoint
  *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline (D7)
  *   finish          <root> <slug> [--message m]       squash the kept trials onto the slug branch; write the slice artifacts; clean up
  *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
@@ -34,12 +38,12 @@ import { fileURLToPath } from 'node:url';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   SPEC_FILE, buildDigest, commandFiles, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
-  STATE_VERSION, laneWorktree, nextAction, parseMetricLine, parseSpec, pathViolations, pickWinner, branchNameOf,
+  STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseSpec, pathViolations, pickWinner, branchNameOf,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|checkpoint|finish|cleanup> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -276,6 +280,7 @@ export function optimizeStatus(root, slug) {
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
+    merge: state.merge ?? null,
     rounds: state.rounds.length,
   };
 }
@@ -537,12 +542,29 @@ function roundClose(root, slug) {
   assertWorktree(root, state);
   const r = state.round;
   const winner = pickWinner(r, spec.metric.direction);
+  // The value of the round base: the trunk does not move while a round is open.
+  const base = r.fromValue ?? state.best.value;
   checkout(root, state, state.trunk);
   if (winner) {
     gitOk(state.worktree, ['merge', '-q', '--ff-only', winner.best.commit], 'fast-forward');
     state.best = { ...winner.best };
-    state.digestFrom = { trial: state.counters.trials, round: r.n, branch: winner.name };
+    state.digestFrom = { trial: state.counters.trials, round: r.n, branch: winner.name, merged: [] };
   }
+  // The merge step (F): each other branch whose kept gain passes the threshold is a candidate. A
+  // test merge onto the new trunk, which touches no worktree, finds the candidates that conflict.
+  const results = readResults(root, slug);
+  const changed = (commit) => git(root, ['diff', '--name-only', r.from, commit]).out.split(/\r?\n/).filter(Boolean);
+  const winnerPaths = winner ? changed(winner.best.commit) : [];
+  const candidates = mergeCandidates(r, winner, spec, base, state.baseline.noise).map((b) => {
+    const paths = changed(b.best.commit);
+    const conflict = !git(root, ['merge-tree', '--write-tree', state.best.commit, b.best.commit]).ok;
+    return {
+      name: b.name, k: b.k, commit: b.best.commit, value: b.best.value, gain: gainOf(spec.metric.direction, base, b.best.value),
+      hypotheses: results.filter((x) => x.event === 'trial' && x.round === r.n && x.branch === b.name && x.verdict === 'kept').map((x) => x.hypothesis?.text ?? ''),
+      paths, shared: paths.filter((p) => winnerPaths.includes(p)), conflict,
+      ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
+    };
+  });
   // The branch worktrees go first: git does not delete a branch that a worktree holds. A prepared
   // trial that was not measured is discarded with its worktree.
   const removed = [];
@@ -554,19 +576,164 @@ function roundClose(root, slug) {
     else (state.leftovers ??= []).push({ path: b.worktree, branch: b.name, reason: res.reason });
   }
   // CAUTION: delete only the branches that state.json lists for this round, by their exact names.
+  // A candidate keeps its branch until the merge step ends.
   const deleted = [];
   for (const b of r.branches) {
+    if (candidates.some((c) => c.name === b.name)) continue;
     if (git(root, ['branch', '-D', b.name]).ok) deleted.push(b.name);
   }
   state.counters.streak = 0;
-  const summary = { n: r.n, reason: r.reason, from: r.from, winner: winner ? { k: winner.k, name: winner.name, value: winner.best.value, commit: winner.best.commit } : null, branches: r.branches.map((b) => ({ k: b.k, trials: b.trials, keeps: b.keeps, best: b.best.value })) };
+  const summary = { n: r.n, reason: r.reason, from: r.from, winner: winner ? { k: winner.k, name: winner.name, value: winner.best.value, commit: winner.best.commit } : null, branches: r.branches.map((b) => ({ k: b.k, trials: b.trials, keeps: b.keeps, best: b.best.value })), merged: [] };
   state.rounds.push(summary);
   state.round = null;
   if (!winner && r.reason === 'plateau') state.stopped = { reason: 'plateau', detail: `the trunk found no gain in ${spec.budget.plateau} trials, and no branch of round ${r.n} beat it`, at: nowIso() };
-  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches });
-  const cp = state.stopped ? { ran: false } : runCheckpoint(root, slug, state, spec);
+  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })) });
+  let cp = { ran: false };
+  if (candidates.length) {
+    state.merge = { round: r.n, from: r.from, base, worktree: state.worktree, considered: candidates.every((c) => c.conflict), order: [], candidates };
+    if (state.merge.considered) cp = closeMerge(root, slug, state, spec, 'no candidate merges cleanly');
+  } else if (!state.stopped) cp = runCheckpoint(root, slug, state, spec);
   saveState(root, slug, state);
-  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], checkpoint: cp, ...optimizeStatus(root, slug) };
+  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], candidates: candidates.map((c) => ({ name: c.name, conflict: c.conflict })), checkpoint: cp, ...optimizeStatus(root, slug) };
+}
+
+// ---------------------------------------------------------------------------
+// The merge step after a round (F)
+// ---------------------------------------------------------------------------
+
+/** A candidate by its full branch name, `b<k>` or `r<n>b<k>`. */
+function candidateOf(merge, token) {
+  const t = String(token ?? '').trim();
+  return merge.candidates.find((c) => c.name === t || `b${c.k}` === t || `r${merge.round}b${c.k}` === t) ?? null;
+}
+
+/**
+ * End the merge step: a candidate to try that was not tried is skipped with `why`, the branches
+ * of the candidates are deleted, and the checkpoint runs on the new trunk.
+ */
+function closeMerge(root, slug, state, spec, why, { checkpoint: runCp = true } = {}) {
+  const mg = state.merge;
+  for (const c of mg.candidates) {
+    if (!c.verdict) Object.assign(c, { verdict: 'skipped', reason: c.decision === 'try' ? why : (c.reason ?? why) });
+  }
+  // CAUTION: delete only the candidate branches that state.json lists, by their exact names.
+  for (const c of mg.candidates) git(root, ['branch', '-D', c.name]);
+  const merged = mg.candidates.filter((c) => c.verdict === 'kept').map((c) => c.name);
+  const summary = state.rounds.find((x) => x.n === mg.round);
+  if (summary) summary.merged = merged;
+  appendResult(root, slug, { event: 'merge-close', round: mg.round, merged, skipped: mg.candidates.filter((c) => c.verdict !== 'kept').map((c) => ({ name: c.name, reason: c.reason ?? c.verdict })) });
+  state.merge = null;
+  return runCp && !state.stopped ? runCheckpoint(root, slug, state, spec) : { ran: false };
+}
+
+function mergeConsider(root, slug, f) {
+  requireNext(root, slug, 'merge-consider');
+  const state = readState(root, slug);
+  const { spec } = loadSpec(root, slug);
+  const mg = state.merge;
+  const tries = String(f.try ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const skips = (Array.isArray(f.skip) ? f.skip : f.skip ? [f.skip] : []).map(String);
+  const decided = new Map();
+  const decide = (token, decision, reason) => {
+    const c = candidateOf(mg, token);
+    if (!c) throw new Error(`merge-consider: ${token} is not a candidate; the candidates are: ${mg.candidates.map((x) => x.name).join(', ')}`);
+    if (c.conflict) throw new Error(`merge-consider: ${c.name} conflicts with the trunk; it is skipped already`);
+    if (decided.has(c.name)) throw new Error(`merge-consider: ${c.name} has two decisions`);
+    decided.set(c.name, { decision, reason });
+  };
+  for (const t of tries) decide(t, 'try', null);
+  for (const s of skips) {
+    const i = s.indexOf(':');
+    if (i < 1 || !s.slice(i + 1).trim()) throw new Error(`merge-consider: --skip "${s}" needs the form "<branch>:<reason>"`);
+    decide(s.slice(0, i), 'skip', s.slice(i + 1).trim());
+  }
+  const open = mg.candidates.filter((c) => !c.conflict && !decided.has(c.name));
+  if (open.length) throw new Error(`merge-consider: decide every candidate with --try or --skip; no decision for: ${open.map((c) => c.name).join(', ')}`);
+  for (const [name, d] of decided) Object.assign(mg.candidates.find((c) => c.name === name), d, d.decision === 'skip' ? { verdict: 'skipped' } : {});
+  mg.order = tries.map((t) => candidateOf(mg, t).name);
+  mg.considered = true;
+  appendResult(root, slug, { event: 'merge-consider', round: mg.round, try: mg.order, skip: [...decided].filter(([, d]) => d.decision === 'skip').map(([name, d]) => ({ name, reason: d.reason })) });
+  const cp = mg.order.length ? { ran: false } : closeMerge(root, slug, state, spec, 'not tried');
+  saveState(root, slug, state);
+  return { ...optimizeStatus(root, slug), ok: true, try: mg.order, checkpoint: cp };
+}
+
+function mergeTrial(root, slug, f) {
+  const st = requireNext(root, slug, 'merge-trial');
+  const state = readState(root, slug);
+  const { spec } = loadSpec(root, slug);
+  const mg = state.merge;
+  const cand = f.branch ? candidateOf(mg, f.branch) : mg.candidates.find((c) => c.name === st.next.branch);
+  if (!cand || cand.name !== st.next.branch) throw new Error(`the next merge is ${st.next.branch}, not ${f.branch}`);
+  assertWorktree(root, state);
+  const wt = state.worktree;
+  if (currentBranch(wt) !== state.trunk) throw new Error(`the trunk worktree is on ${currentBranch(wt)}, not on ${state.trunk}`);
+  if (dirtyPaths(wt).length) throw new Error('the trunk worktree has uncommitted changes: a merge starts from the trunk best only');
+  const env = envOf(state, spec);
+  const best = state.best;
+  const n = state.counters.trials + 1;
+  const text = `merge of ${cand.name}: ${cand.hypotheses.join(' | ')}`;
+  const line = { event: 'trial', trial: n, round: null, branch: null, merge: { round: mg.round, branch: cand.name }, hypothesis: { id: `m${n}`, text, expected: String(cand.gain) }, values: [], median: null, delta: null, noise: state.baseline.noise, guard: null };
+  const done = (verdict, extra = {}) => {
+    Object.assign(line, { verdict, ...extra });
+    // A reset also ends a merge that stopped at a conflict.
+    if (verdict !== 'kept') resetTo(root, wt, best.commit);
+    cand.verdict = verdict;
+    if (extra.reason) cand.reason = extra.reason;
+    // A merge trial counts against budget.trials. It is not a hypothesis of the trunk, so the plateau streak does not change.
+    state.counters.trials = n;
+    appendResult(root, slug, line);
+    const left = mg.order.some((name) => !mg.candidates.find((c) => c.name === name).verdict);
+    const cp = left ? { ran: false } : closeMerge(root, slug, state, spec, 'not tried');
+    saveState(root, slug, state);
+    return { ...optimizeStatus(root, slug), ok: true, trial: n, lane: 'trunk', branch: cand.name, verdict, reason: line.reason ?? null, median: line.median, delta: line.delta, threshold: line.threshold ?? null, checkpoint: cp, ...(line.output ? { output: line.output } : {}) };
+  };
+  // The merge commit passes the repo hooks, as a trial commit does.
+  const m = git(wt, ['merge', '--no-ff', '-q', '-m', `experiment merge r${mg.round}b${cand.k}: ${(cand.hypotheses[0] ?? '').split(/\r?\n/)[0].slice(0, 50)}`, cand.commit]);
+  if (!m.ok) return done('rejected', { reason: /CONFLICT/.test(`${m.out}\n${m.err}`) ? 'the merge conflicts' : 'the commit hook refused the merge', output: tail(`${m.out}\n${m.err}`) });
+  line.commit = headOf(wt);
+  const paths = git(wt, ['diff', '--name-only', best.commit, line.commit]).out.split(/\r?\n/).filter(Boolean);
+  line.paths = paths;
+  const auto = commandFiles([spec.metric.command, spec.guard.command, spec.holdout?.command, spec.format], (p) => existsSync(join(wt, p)));
+  const bad = pathViolations(paths, spec, auto);
+  if (bad.length) return done('rejected', { reason: `path check: ${bad.map((b) => `${b.path} (${b.reason})`).join(', ')}` });
+  const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
+  line.guard = g.code === 0 ? 'pass' : 'fail';
+  if (g.timedOut) return done('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
+  if (g.code !== 0) return done('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
+  const first = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
+  if (first.timeout) return done('timeout', { reason: 'the metric timed out', values: first.values, output: first.output });
+  if (first.crashed) return done('crashed', { reason: 'the metric did not print a number', values: first.values, output: first.output });
+  line.values = first.values;
+  line.median = first.median;
+  line.delta = gainOf(spec.metric.direction, best.value, first.median);
+  let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: first.median });
+  line.threshold = d.threshold;
+  if (d.needConfirm) {
+    const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
+    if (c.timeout || c.crashed) return done(c.timeout ? 'timeout' : 'crashed', { reason: 'the confirm run failed', output: c.output });
+    line.confirm = c.values;
+    d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: first.median, confirm: c.median });
+    if (d.kept) {
+      line.median = median([...first.values, ...c.values]);
+      line.delta = gainOf(spec.metric.direction, best.value, line.median);
+    }
+  }
+  if (!d.kept) return done('reverted', { reason: d.wins ? 'the confirm run did not agree' : `the gain ${line.delta} is not above the threshold ${d.threshold}` });
+  state.best = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
+  state.counters.keeps++;
+  if (state.digestFrom?.round === mg.round) state.digestFrom.merged = [...(state.digestFrom.merged ?? []), cand.name];
+  return done('kept');
+}
+
+function mergeClose(root, slug) {
+  const st = requireNext(root, slug, 'merge-close');
+  const state = readState(root, slug);
+  const { spec } = loadSpec(root, slug);
+  const why = /budget/.test(st.next.why ?? '') ? 'budget' : 'not tried';
+  const cp = closeMerge(root, slug, state, spec, why);
+  saveState(root, slug, state);
+  return { ...optimizeStatus(root, slug), ok: true, checkpoint: cp };
 }
 
 function checkpoint(root, slug) {
@@ -591,13 +758,15 @@ function finish(root, slug, f) {
   if (!state) throw new Error('no baseline: nothing to finish');
   if (state.finished) return { ok: true, already: true, finished: state.finished };
   if (state.round) throw new Error('a branch round is open: run round-close first');
+  // A merge step that a stop left open ends here, without its checkpoint: the finish squashes what the trunk holds.
+  if (state.merge) closeMerge(root, slug, state, loadSpec(root, slug).spec, 'finish', { checkpoint: false });
   const { spec } = loadSpec(root, slug);
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) throw new Error(`state-error: ${err}`);
   const at = nowIso();
   // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not in the squash.
-  const winners = new Set(state.rounds.filter((r) => r.winner).map((r) => `${r.n}:${r.winner.name}`));
+  const winners = new Set(state.rounds.flatMap((r) => [...(r.winner ? [`${r.n}:${r.winner.name}`] : []), ...(r.merged ?? []).map((name) => `${r.n}:${name}`)]));
   const lineage = results.filter((r) => r.event !== 'trial' || r.branch === null || winners.has(`${r.round}:${r.branch}`));
   const kept = lineage.filter((r) => r.event === 'trial' && r.verdict === 'kept');
   if (state.best.commit === state.baseCommit) {
@@ -762,8 +931,10 @@ function flags(rest) {
     if (a.startsWith('--')) {
       const k = a.slice(2);
       const v = rest[i + 1];
-      if (v === undefined || v.startsWith('--')) f[k] = true;
-      else { f[k] = v; i++; }
+      let val = true;
+      if (v !== undefined && !v.startsWith('--')) { val = v; i++; }
+      // A repeated flag (`--skip a --skip b`) collects its values.
+      f[k] = k in f ? [].concat(f[k], val) : val;
     } else pos.push(a);
   }
   return { pos, f };
@@ -784,6 +955,9 @@ export function main(argv = process.argv.slice(2)) {
       case 'round-open': out = roundOpen(root, slug); break;
       case 'round-close': out = withLock(root, slug, null, () => roundClose(root, slug)); break;
       case 'checkpoint': out = withLock(root, slug, null, () => checkpoint(root, slug)); break;
+      case 'merge-consider': out = withLock(root, slug, null, () => mergeConsider(root, slug, f)); break;
+      case 'merge-trial': out = withLock(root, slug, null, () => mergeTrial(root, slug, f)); break;
+      case 'merge-close': out = withLock(root, slug, null, () => mergeClose(root, slug)); break;
       case 'finish': out = finish(root, slug, f); break;
       case 'cleanup': out = cleanup(root, slug); break;
       default: out = null;

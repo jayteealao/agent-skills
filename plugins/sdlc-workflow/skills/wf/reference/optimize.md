@@ -22,6 +22,7 @@ You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecyc
 - **The repo hooks run on every trial commit.** A hook that refuses the commit rejects the trial, and the loop continues. The loop never skips the hooks, because the squash at finish must pass them too. The spec's `format` command formats each change before its commit.
 - **The keep rule counts noise.** The baseline runs the metric `repeat` times. A trial is kept only when its gain is larger than `max(min-gain, 2 × noise)`, and a confirm run agrees.
 - **Branch rounds explore.** A round forks the trunk's best code into `branches` branches, `optimize/<slug>--r<n>b<k>`. Each branch proposer reads only the trials of its own branch, and no hypothesis of the trunk. The best branch becomes the trunk. Rounds open on a fixed share of `budget.trials`, and a plateau opens a round early. A plateau stops the loop only when the round that it opened finds no gain.
+- **A round considers a merge of the other branches.** After `round-close`, each other branch whose kept gain passes the keep threshold is a candidate, unless its test merge onto the new trunk conflicts. One consider step decides `try` or `skip` for each candidate and puts the tries in order (`merge-consider`). Each try is merged into the trunk and judged as a trial against the trunk best (`merge-trial`): it counts against `budget.trials` and does not change the plateau streak. Then the step deletes the branches and runs the checkpoint. `branch-rounds.merge: off` keeps only the winner.
 
 CAUTION: do not delete an optimize worktree with a recursive delete. A `node_modules` junction in the worktree points into the main checkout, and the delete follows it. `round-close`, `finish` and `cleanup` remove a worktree only when it holds no link.
 
@@ -71,12 +72,13 @@ To resume, run `/wf loop optimize <slug>` again. The script continues from `stat
 
 On a host with no driver, the goal contract carries the loop: `/wf loop goal <slug>` arms `kind: optimize` ([goal.md](goal.md)). Each worker turn runs one action:
 
-1. Run `status`. When `next.action` is `round-open`, `round-close` or `checkpoint`, run that command, then run `check` of the goal and end the turn.
-2. For a `trial`, run `propose-context`. Its `digest` is all that you may know about the run. Do not read `optimize/` or other branches' history.
-3. Write one hypothesis: what to change, why, and the expected gain.
-4. Make the change in the worktree that the digest names, on the branch that it names. Change nothing outside `allowed-paths`.
-5. Run `trial h<n> --hypothesis "<text>" --expected "<gain>"`. The script judges the change.
-6. Run `check` of the goal, and end the turn.
+1. Run `status`. When `next.action` is `round-open`, `round-close`, `checkpoint` or `merge-close`, run that command; for `merge-trial`, run `merge-trial --branch <next.branch>`. Then run `check` of the goal and end the turn.
+2. When `next.action` is `merge-consider`, read the candidates in `merge` of the status and the diff of each one against `merge.from`. Skip a candidate whose change removes the same cost as the winner's change; try the others, the largest expected added gain first. Run `merge-consider --try <b2,b4> --skip "<b3>:<reason>"`, then run `check` of the goal and end the turn.
+3. For a `trial`, run `propose-context`. Its `digest` is all that you may know about the run. Do not read `optimize/` or other branches' history.
+4. Write one hypothesis: what to change, why, and the expected gain.
+5. Make the change in the worktree that the digest names, on the branch that it names. Change nothing outside `allowed-paths`.
+6. Run `trial h<n> --hypothesis "<text>" --expected "<gain>"`. The script judges the change.
+7. Run `check` of the goal, and end the turn.
 
 ## Step 3 — Finish
 

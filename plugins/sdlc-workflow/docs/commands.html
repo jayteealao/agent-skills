@@ -1173,7 +1173,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">3</span><b>Confirm</b><span class="who you">you</span><p>You confirm the whole spec. The metric choice is the largest risk.</p></li>
           <li class="phase"><span class="pn">4</span><b>Baseline</b><span class="who auto">script</span><p>Runs the metric several times. Half the spread is the noise floor.</p></li>
           <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures one trial at a time and keeps or reverts.</p></li>
-          <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches, each in its own worktree, that see only their own history. They propose and edit at the same time. The best branch wins.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches, each in its own worktree, that see only their own history. They propose and edit at the same time. The best branch wins, and the other kept branches are considered for a merge into it.</p></li>
           <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Kept trials squash into one commit on the slug branch, as one slice.</p></li>
           <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, ship, retro.</p></li>
         </ol>
@@ -1193,6 +1193,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
               <tr data-s><td><code>branch-rounds.at</code></td><td class="num">0%, 33%, 66%</td><td>Budget shares where a round opens</td></tr>
               <tr data-s><td><code>branch-rounds.branches</code></td><td class="num">4</td><td>Branches per round</td></tr>
               <tr data-s><td><code>branch-rounds.max-extra</code></td><td class="num">2</td><td>Extra rounds a plateau can add</td></tr>
+              <tr data-s><td><code>branch-rounds.merge</code></td><td class="num">consider</td><td>Merge the other kept branches after a round, or <code>off</code></td></tr>
               <tr data-s><td><code>checkpoint-every</code></td><td class="num">5</td><td>Trunk trials between holdout checks</td></tr>
               <tr data-s><td><code>format</code></td><td class="num">none</td><td>Formats each change before its commit</td></tr>
               <tr data-s><td><code>shared-build</code></td><td class="num">none</td><td>The variable of one build folder for every worktree</td></tr>

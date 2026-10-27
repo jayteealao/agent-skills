@@ -2409,7 +2409,8 @@
             "at": { "type": "array", "items": { "type": ["string", "number"] } },
             "branches": { "type": "integer", "minimum": 2 },
             "branch-trials": { "type": ["integer", "null"], "minimum": 1 },
-            "max-extra": { "type": "integer", "minimum": 0 }
+            "max-extra": { "type": "integer", "minimum": 0 },
+            "merge": { "enum": ["consider", "off"], "description": "consider: after a round, the other kept branches are considered for a merge into the trunk, and each merge is measured as a trial. off: only the winner is kept." }
           }
         },
         "width": { "type": "integer", "minimum": 1 },

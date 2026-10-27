@@ -211,6 +211,62 @@ test('the trials of the overlap pass --on and the hypothesis file of their lane'
   assert.ok(calls.filter((c) => c.label.startsWith('propose:')).some((c) => /propose-context "\/repo" s --on optimize\/s--r1b1/.test(c.prompt)));
 });
 
+test('after a round, one consider agent chooses the merges, and the merge trials run in its order', async () => {
+  const S = { closed: false, considered: false, merged: [], trunk: 0 };
+  const merge = { round: 1, from: 'base0', worktree: '/wt', candidates: [
+    { name: 'optimize/s--r1b2', k: 2, commit: 'c2', gain: 9, hypotheses: ['cache the pitch'], paths: ['src/b.js'], shared: [], conflict: false },
+    { name: 'optimize/s--r1b3', k: 3, commit: 'c3', gain: 5, hypotheses: ['skip idle players'], paths: ['src/c.js'], shared: [], conflict: false },
+    { name: 'optimize/s--r1b4', k: 4, commit: 'c4', gain: 4, hypotheses: ['same as the winner'], paths: ['src/a.js'], shared: ['src/a.js'], conflict: true },
+  ] };
+  const order = ['optimize/s--r1b3', 'optimize/s--r1b2'];
+  const status = () => {
+    const common = { ok: true, counters: { trials: 4 }, budget: { trials: 20, roundsMax: 2, branches: 4, width: 1 } };
+    if (!S.closed) return { ...common, state: 'running', next: { action: 'round-close' } };
+    if (!S.considered) return { ...common, state: 'running', merge, next: { action: 'merge-consider' } };
+    const left = order.filter((b) => !S.merged.includes(b));
+    if (left.length) return { ...common, state: 'running', merge, next: { action: 'merge-trial', branch: left[0] } };
+    if (S.trunk < 1) return { ...common, state: 'running', next: { action: 'trial', on: 'optimize/s' } };
+    return { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } };
+  };
+  const calls = [];
+  const agent = async (prompt, opts) => {
+    calls.push({ label: opts.label, prompt, model: opts.model });
+    const base = opts.label.split(':')[0];
+    if (base === 'status') return { ok: true, result: status() };
+    if (base === 'round-close') { S.closed = true; return { ok: true, result: { ...status(), winner: { name: 'optimize/s--r1b1' } } }; }
+    if (base === 'merge-consider') { S.considered = true; return { ok: true, result: { ...status(), try: order } }; }
+    if (base === 'merge') { S.merged.push(/--branch (\S+)/.exec(prompt)[1]); return { ok: true, result: { ...status(), verdict: 'kept', median: 1 } }; }
+    if (base === 'propose') return { hypotheses: [{ text: 'idea', expected: '1', plan: 'p' }], worktree: '/wt' };
+    if (base === 'edit') return { ok: true, changed: ['src/a.js'] };
+    if (base === 'trial') { S.trunk++; return { ok: true, result: { ok: true, trial: 7, lane: 'trunk', verdict: 'kept', next: status().next } }; }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc' } };
+    throw new Error(`no answer for ${opts.label}`);
+  };
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  const consider = calls.filter((c) => c.label.startsWith('merge-consider'));
+  assert.equal(consider.length, 1);
+  assert.equal(consider[0].model, 'claude-opus-5-5');
+  assert.match(consider[0].prompt, /cache the pitch/);
+  assert.equal(/same as the winner/.test(consider[0].prompt), false, 'a candidate that conflicts is not offered');
+  assert.match(consider[0].prompt, /git -C "\/wt" diff base0 <commit>/);
+  assert.match(consider[0].prompt, /optimize\.mjs" merge-consider "\/repo" s --try/);
+  assert.deepEqual(calls.filter((c) => c.label.startsWith('merge:')).map((c) => /--branch (\S+)/.exec(c.prompt)[1]), order);
+  assert.ok(calls.findIndex((c) => c.label.startsWith('merge:')) > calls.findIndex((c) => c.label.startsWith('merge-consider')));
+});
+
+test('the agent ceiling counts the merge step of each round', async () => {
+  const { agent } = fakeLoop({ trunkTrials: 50 });
+  const out = await run(ARGS, async (prompt, opts) => {
+    const r = await agent(prompt, opts);
+    if (opts.label === 'status' && r.result && r.result.budget) r.result.budget = { trials: 8, roundsMax: 2, branches: 4, width: 2 };
+    return r;
+  });
+  assert.equal(out.stoppedAt, 'agent-ceiling');
+  assert.ok(out.agentsUsed <= 3 * 8 + 2 * 2 + 10 + 4 * 2 + 3, `agents ${out.agentsUsed}`);
+  assert.ok(out.agentsUsed > 3 * 8 + 2 * 2 + 10, 'the ceiling is larger than before the merge step');
+});
+
 test('a stop during a round waits for the editors in flight and does not measure their edits', async () => {
   const { agent, log } = overlapLoop({ stopAt: 1 });
   const out = await run(ARGS, agent);

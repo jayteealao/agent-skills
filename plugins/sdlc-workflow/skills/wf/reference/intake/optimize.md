@@ -107,6 +107,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `branch-rounds.branches` | 4 | Branches of each round |
 | `branch-rounds.branch-trials` | 6% of `budget.trials`, at least 3 | Trials of each branch |
 | `branch-rounds.max-extra` | 2 | The most rounds that a plateau adds after the scheduled ones |
+| `branch-rounds.merge` | `consider` | After a round, consider a merge of the other kept branches into the trunk. `off` keeps only the winner |
 | `width` | 1 | Trunk proposals for each batch. Measurement stays serial |
 | `checkpoint-every` | 5 | Trunk trials between two holdout checks |
 | `format` | `null` | A command that formats each change before its commit. Propose it from the commit hooks |
@@ -147,6 +148,7 @@ branch-rounds:
   branches: 4
   branch-trials: 3
   max-extra: 2
+  merge: consider
 width: 1
 checkpoint-every: 5
 format: null

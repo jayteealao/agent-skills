@@ -7,7 +7,7 @@
 //   - the keep rule: a gain larger than max(min-gain, 2 × noise), and a confirm run that agrees;
 //   - the path check against allowed-paths and off-limits (D5);
 //   - the branch rounds (D12, 4.4): the fixed schedule, the plateau trigger (D14), the
-//     turn of each branch, and the winner;
+//     turn of each branch, the winner, and the candidates of the merge step after a round;
 //   - the two proposer digests (D13, 4.5): the trunk digest and the flushed branch digest;
 //   - the next action that `status` prints (4.6).
 //
@@ -19,6 +19,8 @@ export const SPEC_FILE = '02-optimize-spec.md';
 export const STATE_VERSION = 2;
 export const DIRECTIONS = Object.freeze(['lower', 'higher']);
 export const VERDICTS = Object.freeze(['kept', 'reverted', 'rejected', 'crashed', 'timeout']);
+/** `branch-rounds.merge`: `consider` tries to merge the other kept branches of a round into the trunk; `off` keeps only the winner. */
+export const MERGE_MODES = Object.freeze(['consider', 'off']);
 /** The digest shows at most this many trials (4.5). */
 export const DIGEST_TRIALS = 20;
 
@@ -26,7 +28,7 @@ export const DEFAULT_SPEC = Object.freeze({
   repeat: 5,
   'min-gain': '2%',
   budget: { trials: 60, plateau: 8, 'wall-clock': '6h', tokens: null, 'trial-timeout': '10m' },
-  'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2 },
+  'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider' },
   width: 1,
   'checkpoint-every': 5,
 });
@@ -114,6 +116,8 @@ export function parseSpec(fm) {
   if (!Number.isInteger(branchTrials) || branchTrials < 1) errors.push('branch-rounds.branch-trials must be a positive integer');
   const maxExtra = Number(rRaw['max-extra']);
   if (!Number.isInteger(maxExtra) || maxExtra < 0) errors.push('branch-rounds.max-extra must be an integer of 0 or more');
+  const merge = str(rRaw.merge) || 'consider';
+  if (!MERGE_MODES.includes(merge)) errors.push('branch-rounds.merge must be consider or off');
   const width = Number(fm.width ?? DEFAULT_SPEC.width);
   if (!Number.isInteger(width) || width < 1) errors.push('width must be a positive integer');
   const sharedBuild = str(fm['shared-build']);
@@ -131,7 +135,7 @@ export function parseSpec(fm) {
     allowedPaths: allowed,
     offLimits,
     budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout },
-    rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra },
+    rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra, merge },
     width,
     checkpointEvery,
     worktree: str(fm.worktree) || null,
@@ -278,6 +282,15 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const used = state.counters.trials;
   const overClock = spec.budget.wallClockMs !== null && now - Date.parse(state.startedAt) >= spec.budget.wallClockMs;
   const overTokens = spec.budget.tokens !== null && tokensUsed !== null && tokensUsed >= spec.budget.tokens;
+  // The merge step after a round (F): consider the candidates, measure each merge to try, then close.
+  const mg = state.merge;
+  if (mg) {
+    if (used >= B || overClock || overTokens) return running({ action: 'merge-close', why: 'the budget ran out during the merge step' });
+    if (!mg.considered) return running({ action: 'merge-consider', why: `round ${mg.round}: ${mg.candidates.filter((c) => !c.conflict).length} branch(es) to consider for a merge into the trunk` });
+    const tryNext = (mg.order ?? []).map((name) => mg.candidates.find((c) => c.name === name)).find((c) => c && !c.verdict);
+    if (tryNext) return running({ action: 'merge-trial', branch: tryNext.name, why: `round ${mg.round}: the merge of ${tryNext.name}` });
+    return running({ action: 'merge-close', why: 'every candidate is tried or skipped' });
+  }
   const r = state.round;
   if (r) {
     if (r.branches.some((b) => b.keeps > 0 && reachesTarget(spec, b.best.value))) return running({ action: 'round-close', why: 'a branch reached the target' });
@@ -336,6 +349,16 @@ export function pickWinner(round, direction) {
 }
 
 /**
+ * The branches of a closed round that the merge step considers (F): every branch other than the
+ * winner with a keep whose gain over the round base `base` passes the keep threshold.
+ */
+export function mergeCandidates(round, winner, spec, base, noise) {
+  if (!winner || spec.rounds.merge === 'off') return [];
+  const threshold = keepThreshold(spec, base, noise);
+  return round.branches.filter((b) => b.name !== winner.name && b.keeps > 0 && b.best.value !== null && gainOf(spec.metric.direction, base, b.best.value) > threshold);
+}
+
+/**
  * The trials that a proposer of `lane` sees (4.5). A branch sees only its own trials.
  * The trunk sees its trials since `digestFrom`, and the trials of the branch that
  * last won a round: the history from before that fork is flushed (4.4 step 7).
@@ -348,7 +371,10 @@ export function digestTrials(results, state, lane) {
     mine = trials.filter((r) => r.round === state.round?.n && r.branch === lane);
   } else {
     const from = state.digestFrom ?? { trial: 0, round: null, branch: null };
-    mine = trials.filter((r) => (r.branch === null && r.trial > from.trial) || (from.round !== null && r.round === from.round && r.branch === from.branch));
+    // The trunk also sees the kept trials of each branch that the merge step merged into it.
+    const merged = from.merged ?? [];
+    mine = trials.filter((r) => (r.branch === null && r.trial > from.trial)
+      || (from.round !== null && r.round === from.round && (r.branch === from.branch || (merged.includes(r.branch) && r.verdict === 'kept'))));
   }
   return mine.slice(-DIGEST_TRIALS);
 }
@@ -401,6 +427,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     schedule: { used: [] },
     extraRounds: 0,
     round: null,
+    merge: null,
     rounds: [],
     digestFrom: { trial: 0, round: null, branch: null },
     lastCheckpoint: { trial: 0, ok: true, value: holdoutValue ?? null },
@@ -422,6 +449,6 @@ export function holdoutRegressed(spec, baseline, value) {
 export function keptTable(results, spec) {
   const kept = results.filter((r) => r.event === 'trial' && r.verdict === 'kept');
   const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
-  const rows = kept.map((r) => `| ${r.trial} | ${r.branch ?? 'trunk'} | ${String(r.hypothesis?.text ?? '').replace(/\|/g, '\\|')} | ${r.median}${unit} | ${r.delta}${unit} |`);
+  const rows = kept.map((r) => `| ${r.trial} | ${r.merge ? `merge of ${r.merge.branch}` : r.branch ?? 'trunk'} | ${String(r.hypothesis?.text ?? '').replace(/\|/g, '\\|')} | ${r.median}${unit} | ${r.delta}${unit} |`);
   return ['| Trial | Lane | Hypothesis | Median | Gain |', '|---|---|---|---|---|', ...rows].join('\n');
 }
