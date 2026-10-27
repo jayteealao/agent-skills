@@ -103,8 +103,13 @@
  *             Example: wf.mjs board remove . ideas old-idea
  *   receipt  <root> <slug> <slice> [--suites a,b] [--json]
  *             run the suites of the test profile (the implement suites, or --suites) at HEAD,
- *             and write .test-receipt-<slice>.json only when every suite passed; exit 1 else
+ *             and write .test-receipt-<slice>.json only when every suite passed; exit 1 else.
+ *             A tracked change outside .ai that HEAD lacks goes into its dirty list, with its hash
  *             Example: wf.mjs receipt . demo api
+ *   receipt  <root> <slug> <slice> --check [--json]
+ *             exit 0 when the receipt still names the tree: no code commit after its sha, and the
+ *             changes of its dirty list with the same hashes; exit 1 and the reason else
+ *             Example: wf.mjs receipt . demo api --check
  *   slice    drop <root> <slug> <slice> --reason r [--json]
  *             drop a slice from the roster: the roster, the slice record and the index say
  *             dropped, with the reason; its stage records stay
@@ -312,6 +317,7 @@ import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
+import { receiptState, treeChanges } from '../lib/test-receipt.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
@@ -1596,12 +1602,21 @@ async function runMain(cmd, pos, opt) {
         const projectRoot = resolve(root);
         const dir = join(wfRoot(projectRoot), slug);
         if (!existsSync(dir)) throw new Error(`receipt: no workflow folder ${dir}`);
+        const file = join(dir, `.test-receipt-${slice}.json`);
+        if (opt.check) {
+          // A reader reuses the receipt only while the tree is the one that ran.
+          if (!existsSync(file)) { out(opt.json ? { reusable: false, reason: 'no receipt' } : 'no receipt'); return 1; }
+          const held = JSON.parse(readFileSync(file, 'utf8'));
+          const state = receiptState(projectRoot, held);
+          out(opt.json ? { ...state, receipt: held } : state.reusable ? `receipt reusable: ${held.commands.join(', ')} passed at ${String(held.sha).slice(0, 8)}` : `receipt stale: ${state.reason}`);
+          return state.reusable ? 0 : 1;
+        }
         const g = (args) => spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8', windowsHide: true });
         const head = g(['rev-parse', 'HEAD']);
         if (head.status !== 0) throw new Error(`receipt: ${projectRoot} has no commit`);
-        if (g(['diff', '--quiet', 'HEAD', '--', '.', ':!.ai']).status !== 0) {
-          throw new Error('receipt: the tree has code changes that HEAD lacks; commit them first, so the receipt names the tree that ran');
-        }
+        // A change outside .ai that HEAD lacks does not refuse the receipt: it is named, with the
+        // hash of the file that the suites run with, so a reader can tell when it changes.
+        const dirty = treeChanges(projectRoot);
         const profile = readProfile(projectRoot);
         const names = opt.suites ? String(opt.suites).split(',').map((s) => s.trim()).filter(Boolean) : STAGE_SUITES.implement.filter((s) => profile[s]?.command);
         if (!names.length) throw new Error('receipt: the test profile has no suite for implement; set one with profile set');
@@ -1617,10 +1632,10 @@ async function runMain(cmd, pos, opt) {
           if (r.status !== 0) break;
         }
         const pass = runs.length === names.length && runs.every((r) => r.pass);
-        const file = join(dir, `.test-receipt-${slice}.json`);
-        const receipt = { sha: head.stdout.trim(), commands: runs.map((r) => r.command), result: 'pass', at: nowIso() };
+        const receipt = { sha: head.stdout.trim(), commands: runs.map((r) => r.command), result: 'pass', at: nowIso(), dirty };
         if (pass) writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
-        out(opt.json ? { pass, runs, receipt: pass ? file : null } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}` : `no receipt: ${runs.find((r) => !r.pass)?.suite} failed`);
+        const named = dirty.length ? ` with ${dirty.length} change(s) that HEAD lacks: ${dirty.map((d) => d.path).join(', ')}` : '';
+        out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : `no receipt: ${runs.find((r) => !r.pass)?.suite} failed`);
         return pass ? 0 : 1;
       }
       case 'slice': {

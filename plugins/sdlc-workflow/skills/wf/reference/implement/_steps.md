@@ -43,7 +43,7 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 After the final commit, run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`. It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
 
 ```json
-{ "sha": "<the final commit sha>", "commands": ["<each suite command that ran green on that tree>"], "result": "pass", "at": "<ISO time>" }
+{ "sha": "<the final commit sha>", "commands": ["<each suite command that ran green on that tree>"], "result": "pass", "at": "<ISO time>", "dirty": [{ "path": "<a tracked file outside .ai that HEAD lacks>", "hash": "<its blob hash, or null when deleted>" }] }
 ```
 
-When it exits 1, a suite failed: fix it in a new step, then run `receipt` again. Do not write the receipt file by hand. Verify reuses it when no code changed after `sha` ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").
+A tracked change outside `.ai` that is not yours, such as a stray `.gitignore` edit, does not stop the receipt: the receipt names it in `dirty`. When it exits 1, a suite failed: fix it in a new step, then run `receipt` again. Do not write the receipt file by hand. Verify reuses it while no code changed in a commit after `sha` and each `dirty` file keeps its hash; any other change makes it stale ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").
