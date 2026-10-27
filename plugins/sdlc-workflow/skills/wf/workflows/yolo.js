@@ -1346,6 +1346,8 @@ const RUBRIC_SELECTION = {
     // The stop-request check runs here, at the review boundary, before any scout starts.
     stopped: { type: 'boolean' },
     stopReason: { type: 'string' },
+    // A scan of the commits of a route-back: true when that range has no change.
+    emptyDiff: { type: 'boolean' },
   },
 }
 
@@ -2038,9 +2040,11 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const beat = (label) => heartbeatClause(label, 'Review', 'review', sliceArg) +
     ` The two journal lines are the only writes of this agent.`
   const base = idx.branch.base || '<base>'
-  const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
+  // After a route-back, the scan reads only the commits of the route-back (extra.diffRange).
+  const diffRange = extra.diffRange || (sliceArg ? 'HEAD' : `${base}...HEAD`)
   // An answered review runs the writer again with the answer, over the ledger of the last run.
-  if (extra.answered) {
+  // After a route-back, the rubrics first scan the new commits, so no code goes unreviewed.
+  if (extra.answered && !extra.diffRange) {
     return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered })
   }
   // 0. Select the rubrics the way the wrapped review stage does (review/_stage.md Step 2 +
@@ -2054,7 +2058,10 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `shape and slice records with \`${REC('get')} <name>\`, and \`git -C ${projectRoot} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
-    `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}\n\n` +
+    `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}` +
+    `${extra.diffRange ? ` This scan reads only the commits of a route-back, ${diffRange}: select the rubrics for ` +
+      `that diff. When \`git -C ${projectRoot} diff --stat ${diffRange}\` prints nothing, return rubrics: [] and ` +
+      `emptyDiff: true.` : ''}\n\n` +
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
@@ -2066,7 +2073,12 @@ async function driveReview(sliceArg, idx, extra = {}) {
   if (selection && selection.stopped === true) {
     return { stage: 'review', slice: sliceArg || undefined, status: 'stopped', stopReason: selection.stopReason || 'stop request', artifactPath: '', terminal: {} }
   }
-  const rubrics = (selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
+  // A route-back that committed nothing gets no scan: the writer settles the answer as before.
+  if (extra.diffRange && selection && selection.emptyDiff === true) {
+    log(`review: the route-back committed nothing in ${diffRange} — no rubric scan`)
+    return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered || null })
+  }
+  const rubrics =(selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
     ? selection.rubrics.filter(r => r && r.rubric && r.file)
     : [...new Set([idx.reviewDimension, 'correctness', 'security', 'performance', 'architecture'].filter(Boolean))]
         .map(r => ({ rubric: r, file: `review/${r}.md`, focus: '' }))
@@ -2126,7 +2138,21 @@ async function driveReview(sliceArg, idx, extra = {}) {
   // 3. Wrapped writer — review.md owns the ledger merge, triage, fix loop and review file.
   return await runStage('review', sliceArg, idx, {
     scan: { dimensions, findings, files: [...new Set(rubrics.map(r => r.file))] },
+    ...(extra.answered ? { answered: extra.answered } : {}),
   })
+}
+
+// The commit at HEAD, read by a bookkeeping agent: the script has no shell. Null when the
+// agent returns no commit id.
+async function headCommit(label) {
+  const r = await agent(
+    `READ-ONLY bookkeeping for slug '${slug}'. Run exactly \`git -C ${projectRoot} rev-parse HEAD\` and return ` +
+    `{ head } with the commit id that it prints. Run nothing else, and write nothing.` +
+    heartbeatClause(label, 'Review', 'review', null),
+    { schema: { type: 'object', required: ['head'], properties: { head: { type: 'string' } } }, label, phase: 'Review', ...HAIKU } // mechanical git; pinned per _subagents.md
+  )
+  const head = r && typeof r.head === 'string' ? r.head.trim() : ''
+  return /^[0-9a-f]{7,40}$/.test(head) ? head : null
 }
 
 // runUpdateDepsExec() — the self-managed execution stage for workflow-type
@@ -2473,6 +2499,8 @@ async function slugWideReview(idx, results) {
       break
     }
     log(`slug-wide review routes back to ${rev.routeBack}: ${targets.map(t => t.slice).join(', ')}`)
+    // The commit before the route-back: the review after it scans only the new commits.
+    const backFrom = await headCommit(`head:route-back-${reviewBacks}`)
     for (const t of targets) {
       const hits = reviewAnswer ? (reviewAnswer.all || [reviewAnswer]) : []
       const carried = t.key
@@ -2487,7 +2515,11 @@ async function slugWideReview(idx, results) {
     }
     if (backStop) break
     log(`yolo → review ${slug} (slug-wide, after the route back)`)
-    rev = await driveReview(null, idx, { answered: reviewAnswer ? { ...reviewAnswer, routedBack: rev.routeBack } : null })
+    if (!backFrom) log('review: the commit before the route-back is unknown — the writer runs without a rubric scan')
+    rev = await driveReview(null, idx, {
+      answered: reviewAnswer ? { ...reviewAnswer, routedBack: rev.routeBack } : null,
+      ...(backFrom ? { diffRange: `${backFrom}...HEAD` } : {}),
+    })
   }
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
   return backStop

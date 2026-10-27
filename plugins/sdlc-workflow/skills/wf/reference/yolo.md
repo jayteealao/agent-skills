@@ -188,7 +188,7 @@ The answer reaches only the stage and the slice that asked it. A stage that stop
 
 - It settles the decision and continues.
 - A verify accepts the slice with its failing or residual items on the answer. The slice passes, and the verify frontmatter records `accepted-by`.
-- The answer needs a new plan or new code. The stage routes back to `plan` or `implement`, and the driver runs that stage and every later stage of the slice again with the answer. A slice routes back at most twice on one answer.
+- The answer needs a new plan or new code. The stage routes back to `plan` or `implement`, and the driver runs that stage and every later stage of the slice again with the answer. A slice routes back at most twice on one answer. After a route-back of the slug-wide review, the rubrics scan only the commits of the route-back, and then the review writer settles the answer.
 
 ## A held question during a run
 

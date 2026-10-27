@@ -245,7 +245,7 @@ test('a run that waits on questions ends as waiting, with the resume command and
 function slugWideHarness(reviews, chains = {}, answered = []) {
   const calls = { review: [], chain: [] };
   const build = new Function('stubs', `
-    const { driveReview, driveChain, log, slug, ANSWERED } = stubs
+    const { driveReview, driveChain, headCommit, log, slug, ANSWERED } = stubs
     const MAX_ROUTE_BACKS = 2
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
@@ -264,6 +264,7 @@ function slugWideHarness(reviews, chains = {}, answered = []) {
     log: () => {},
     driveReview: async (slice, idx, extra) => { calls.review.push(extra); const r = reviews[n]; n += 1; return r === undefined ? CLEAN_REVIEW : r; },
     driveChain: async (stages, slice, idx, opts) => { calls.chain.push({ stages, slice, opts }); return chains[slice] || { stopped: false, slice, ran: [] }; },
+    headCommit: async () => 'abc1234',
   });
   return { slugWideReview: fn, calls };
 }
@@ -340,6 +341,79 @@ test('an answered review or verify fixes a small change, and routes back only a 
   assert.match(verify, /\(5\) one fix round can make it and check it/);
   assert.doesNotMatch(verify, /findings set/);
   assert.doesNotMatch(answeredClause(a, 'implement', 'auth'), /SMALL/, 'implement keeps its own rule');
+});
+
+test('the review after a route-back scans the commits of the route-back, then runs the writer with the answer', async () => {
+  const answer = { key: 'review:empty', stage: 'review', answer: 'show a sign-up link', by: 'person' };
+  const back = { ...CLEAN_REVIEW, routeBack: 'plan', routeBackSlices: [{ slice: 'auth', key: 'review:empty' }] };
+  const h = slugWideHarness([back, CLEAN_REVIEW], {}, [answer]);
+  await h.slugWideReview(ROSTER, []);
+  assert.equal(h.calls.review[0].diffRange, undefined, 'the first review has no route-back range');
+  assert.equal(h.calls.review[1].diffRange, 'abc1234...HEAD');
+  assert.equal(h.calls.review[1].answered.routedBack, 'plan');
+});
+
+// driveReview with every agent stubbed: 'selection' is what the rubric selection returns.
+function reviewHarness(selection) {
+  const calls = { agents: [], stages: [] };
+  const build = new Function('stubs', `
+    const { agent, parallel, runStage, log } = stubs
+    const OPT = {}
+    const slug = 'demo'
+    const projectRoot = '/repo'
+    const referenceRoot = '/plugin/skills/wf/reference'
+    const EOB = 'EOB'
+    const SONNET = {}
+    const RUBRIC_SELECTION = {}
+    const FINDINGS_SCHEMA = {}
+    const REFUTE_GROUP = {}
+    const REFUTE_GROUP_SIZE = 4
+    const phase = () => {}
+    const heartbeatClause = () => ''
+    const steer = () => ''
+    const stopCheck = () => ''
+    const REC = (verb) => 'wf record ' + verb
+    ${extractFn('refuteGroups')}
+    ${extractFn('driveReview')}
+    return driveReview
+  `);
+  const fn = build({
+    log: () => {},
+    parallel: async (fns) => Promise.all(fns.map((f) => f())),
+    agent: async (prompt, opts) => {
+      calls.agents.push({ label: opts.label, prompt });
+      if (opts.label === 'select-rubrics') return selection;
+      if (opts.label.startsWith('scout:')) return { findings: [] };
+      return { verdicts: [] };
+    },
+    runStage: async (stage, slice, idx, extra) => { calls.stages.push(extra); return { stage, status: 'complete' }; },
+  });
+  return { driveReview: fn, calls };
+}
+const REVIEW_IDX = { branch: { base: 'main' }, slices: [] };
+
+test('an answered review with a route-back range scans that range and gives the writer the scan and the answer', async () => {
+  const h = reviewHarness({ rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false });
+  const answered = { key: 'review:empty', answer: 'x', routedBack: 'plan' };
+  await h.driveReview(null, REVIEW_IDX, { answered, diffRange: 'abc1234...HEAD' });
+  const select = h.calls.agents.find((a) => a.label === 'select-rubrics');
+  assert.match(select.prompt, /This scan reads only the commits of a route-back, abc1234\.\.\.HEAD/);
+  assert.match(select.prompt, /return rubrics: \[\] and emptyDiff: true/);
+  assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /git -C \/repo diff abc1234\.\.\.HEAD/);
+  assert.equal(h.calls.stages.length, 1);
+  assert.deepEqual(h.calls.stages[0].scan.dimensions, ['correctness']);
+  assert.equal(h.calls.stages[0].answered, answered);
+});
+
+test('an answered review with an empty route-back range runs only the writer, and with no range runs no scan', async () => {
+  const empty = reviewHarness({ rubrics: [], emptyDiff: true, stopped: false });
+  await empty.driveReview(null, REVIEW_IDX, { answered: { key: 'k' }, diffRange: 'abc1234...HEAD' });
+  assert.deepEqual(empty.calls.agents.map((a) => a.label), ['select-rubrics']);
+  assert.equal(empty.calls.stages[0].scan, undefined);
+  assert.equal(empty.calls.stages[0].answered.key, 'k');
+  const plain = reviewHarness({ rubrics: [], stopped: false });
+  await plain.driveReview(null, REVIEW_IDX, { answered: { key: 'k' } });
+  assert.equal(plain.calls.agents.length, 0, 'an answer without a route-back runs the writer only');
 });
 
 test('a slug-wide review that returns nothing stops as a transient stop that a re-run retries', async () => {
