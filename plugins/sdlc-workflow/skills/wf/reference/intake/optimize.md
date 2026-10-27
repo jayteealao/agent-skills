@@ -89,9 +89,10 @@ next-invocation: "/wf loop optimize <slug>"
 
 1. Read the code that the metric exercises. Propose `allowed-paths` from that code. Propose `off-limits` for the metric, guard and holdout files and their fixtures: the script adds those files, but name them so the person sees them.
 2. Propose the budget and the branch rounds. The defaults follow the table below.
-3. Ask whether a holdout exists. Recommend one when the metric is a score over a fixed data set. The proposer never sees the holdout's output.
-4. Ask the person to confirm or edit the spec, per [_gate-question.md](../_gate-question.md). Show the whole frontmatter.
-5. Write the draft of `02-optimize-spec.md` and put it. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
+3. Read the commit hooks of the project: `lefthook.yml`, `.pre-commit-config.yaml` and `.husky/`. Every trial commit passes these hooks, and a hook that refuses a commit rejects the trial. When a hook checks the format, propose that formatter as `format` (for example `cargo fmt --all` for a `cargo fmt --check` hook). The loop runs it on each change before the commit.
+4. Ask whether a holdout exists. Recommend one when the metric is a score over a fixed data set. The proposer never sees the holdout's output.
+5. Ask the person to confirm or edit the spec, per [_gate-question.md](../_gate-question.md). Show the whole frontmatter.
+6. Write the draft of `02-optimize-spec.md` and put it. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -107,6 +108,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `branch-rounds.max-extra` | 2 | The most rounds that a plateau adds after the scheduled ones |
 | `width` | 1 | Trunk proposals for each batch. Measurement stays serial |
 | `checkpoint-every` | 5 | Trunk trials between two holdout checks |
+| `format` | `null` | A command that formats each change before its commit. Propose it from the commit hooks |
 
 ```yaml
 ---
@@ -145,6 +147,7 @@ branch-rounds:
   max-extra: 2
 width: 1
 checkpoint-every: 5
+format: null
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 tags: [optimize]

@@ -123,6 +123,7 @@ export function parseSpec(fm) {
     guard: { command: str(guard.command) },
     holdout: holdout ? { command: str(holdout.command), tolerance, direction: DIRECTIONS.includes(str(holdout.direction)) ? str(holdout.direction) : direction } : null,
     setup: str(fm.setup) || null,
+    format: str(fm.format) || null,
     allowedPaths: allowed,
     offLimits,
     budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout },

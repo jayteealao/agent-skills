@@ -128,6 +128,11 @@ test('D13: a branch reads a flushed digest; the trunk restarts from the winner o
   assert.equal(JSON.stringify(t).includes('different approach'), false, 'no diversity directive');
 });
 
+test('the spec carries an optional format command', () => {
+  assert.equal(specOf().format, null);
+  assert.equal(specOf({ format: 'cargo fmt --all' }).format, 'cargo fmt --all');
+});
+
 test('D7: the holdout regresses past its tolerance', () => {
   const spec = specOf({ holdout: { command: 'h', tolerance: '1%' } });
   assert.equal(holdoutRegressed(spec, 100, 100.5), false);

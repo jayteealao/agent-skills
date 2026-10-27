@@ -2389,6 +2389,7 @@
           }
         },
         "setup": { "type": ["string", "null"] },
+        "format": { "type": ["string", "null"], "description": "A command that formats the change in the worktree before each trial commit, so the commit hooks of the repo do not refuse it." },
         "allowed-paths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
         "off-limits": { "$ref": "#/$defs/stringArray" },
         "budget": {

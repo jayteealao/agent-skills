@@ -345,13 +345,22 @@ function trial(root, slug, id, f) {
     saveState(root, slug, state);
     return { ok: true, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict, reason: line.reason ?? null, median: line.median, delta: line.delta, threshold: line.threshold ?? null, best: isTrunk ? state.best : branch.best, ...(line.output ? { output: line.output } : {}), next: optimizeStatus(root, slug).next };
   };
+  if (!dirtyPaths(wt).length) return finish('rejected', { reason: 'the worktree holds no change' });
+  // The format command runs before the path check, so the check sees each file that it changes.
+  if (spec.format) {
+    const fr = runCommand(spec.format, wt, spec.budget.trialTimeoutMs);
+    if (fr.code !== 0) return finish('rejected', { reason: `the format command failed (exit ${fr.code})`, output: tail(fr.stdout + fr.stderr) });
+  }
   const paths = dirtyPaths(wt);
-  if (!paths.length) return finish('rejected', { reason: 'the worktree holds no change' });
-  const auto = commandFiles([spec.metric.command, spec.guard.command, spec.holdout?.command], (p) => existsSync(join(wt, p)));
+  if (!paths.length) return finish('rejected', { reason: 'the worktree holds no change after the format command' });
+  const auto = commandFiles([spec.metric.command, spec.guard.command, spec.holdout?.command, spec.format], (p) => existsSync(join(wt, p)));
   const bad = pathViolations(paths, spec, auto);
   if (bad.length) return finish('rejected', { reason: `path check: ${bad.map((b) => `${b.path} (${b.reason})`).join(', ')}`, paths });
   gitOk(wt, ['add', '-A'], 'add');
-  gitOk(wt, ['commit', '-q', '-m', `experiment ${id}${text ? `: ${text.split(/\r?\n/)[0].slice(0, 60)}` : ''}`], 'commit');
+  // The repo hooks run on this commit. A hook that refuses it rejects the trial. The loop never
+  // skips the hooks, because the squash at finish must pass the same hooks.
+  const c = git(wt, ['commit', '-q', '-m', `experiment ${id}${text ? `: ${text.split(/\r?\n/)[0].slice(0, 60)}` : ''}`]);
+  if (!c.ok) return finish('rejected', { reason: 'the commit hook refused the change', paths, output: tail(`${c.out}\n${c.err}`) });
   line.commit = headOf(wt);
   line.paths = paths;
   const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs);

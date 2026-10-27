@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -215,4 +215,52 @@ test('the baseline refuses an unconfirmed spec, a red guard, and the project roo
   try {
     assert.match(run(self.root, 'baseline').error, /not the optimize worktree/);
   } finally { rmSync(self.parent, { recursive: true, force: true }); }
+});
+
+/** A root file committed on the slug branch before the baseline. */
+function commitFile(root, name, text) {
+  writeFileSync(path.join(root, name), text);
+  git(root, 'add', name);
+  git(root, 'commit', '-q', '-m', name);
+}
+
+test('a commit hook that refuses a trial rejects the trial, and the format command runs before the path check', () => {
+  const { parent, root, wt } = makeRepo('format: "node fmt.js"\n');
+  try {
+    // The format command trims the value. A space inside the value stays, and the hook refuses it.
+    commitFile(root, 'fmt.js', "const fs = require('fs'); const f = 'src/value.txt'; fs.writeFileSync(f, fs.readFileSync(f, 'utf8').trim() + '\\n');\n");
+    const hooks = path.join(parent, 'hooks');
+    mkdirSync(hooks);
+    writeFileSync(path.join(hooks, 'pre-commit'), "#!/bin/sh\nif grep -q ' ' src/value.txt; then echo 'format check failed'; exit 1; fi\nexit 0\n");
+    chmodSync(path.join(hooks, 'pre-commit'), 0o755);
+    git(root, 'config', 'core.hooksPath', hooks.replace(/\\/g, '/'));
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+
+    const refused = step(root, wt, 'h1', '9 0').t;
+    assert.equal(refused.verdict, 'rejected', JSON.stringify(refused));
+    assert.equal(refused.reason, 'the commit hook refused the change');
+    assert.match(refused.output, /format check failed/);
+    assert.equal(git(wt, 'status', '--porcelain'), '', 'the refused change is reset');
+
+    const formatted = step(root, wt, 'h2', '  90  ').t;
+    assert.equal(formatted.verdict, 'kept', JSON.stringify(formatted));
+    assert.equal(git(wt, 'show', 'HEAD:src/value.txt'), '90', 'the commit holds the formatted file');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a format command that changes a file outside allowed-paths rejects the trial', () => {
+  const { parent, root, wt } = makeRepo('format: "node fmt.js"\n');
+  try {
+    commitFile(root, 'fmt.js', "require('fs').mkdirSync('lib', { recursive: true }); require('fs').writeFileSync('lib/x.js', 'x');\n");
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    const t = step(root, wt, 'h1', 90).t;
+    assert.equal(t.verdict, 'rejected');
+    assert.match(t.reason, /path check: lib\/x\.js \(outside allowed-paths\)/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
 });
