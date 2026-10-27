@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "10.0.0-next.7",
+  "version": "10.0.0-next.8",
   "description": "One command, `/wf` (`$wf` under Codex), the single SDLC entry point for Claude Code and Codex from one plugin tree. It drives 9 stages, from intake through retro, with per-slice artifacts, runtime-truth verification and PO-confirmed stack fingerprinting. 18 keys: intake, shape, design, slice, plan, implement, verify, review, handoff, ship, retro, probe, yolo, campaign, loop, status, project, docs. Quick and standalone flows are `/wf intake` modes: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`.",
   "author": {
     "name": "jayte"

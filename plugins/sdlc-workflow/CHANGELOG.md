@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.8] - 2026-10-27
+
+- fix(sdlc-workflow): a records push or fetch is not cut after 20 seconds
+- fix(sdlc-workflow): the records commit takes paths longer than 260 characters, and a failed add fails it
+- feat(sdlc-workflow): a record file above the size limit stays on this machine
+- fix(sdlc-workflow): the records link does not wait for a worktree that is a separate record store
+- fix(sdlc-workflow): the campaign commits its writes and migrates into the clone of a linked project
+
 ## [10.0.0-next.7] - 2026-10-27
 
 - feat(sdlc-workflow): optimize harvests its near misses before the clock ends
