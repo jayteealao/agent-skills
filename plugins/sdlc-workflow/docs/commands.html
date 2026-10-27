@@ -1626,6 +1626,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["records.repo", "unset", "The private records repo on GitHub, as owner/name. Unset turns the GitHub layer off."],
       ["records.home", "~/.sdlc/records", "The local clone of the records repo."],
       ["records.machine", "the host name", "The name of this machine in the records."],
+      ["records.max-file-mb", "5", "A record file above this size in MB stays in the clone folder of this machine. No commit holds it and no push sends it."],
       ["design.port", "4711", "The port of the design server, on 127.0.0.1 and the tailnet address."]
     ] },
     { id: "cfg-env-switch", title: "Environment · switches", em: "set to 1", rows: [

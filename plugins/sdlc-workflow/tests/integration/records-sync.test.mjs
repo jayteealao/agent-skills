@@ -274,3 +274,26 @@ test('a project that is not linked here is read from git, and a post to it pushe
     assert.deepEqual(listMessages(a.root, 'w1').map((x) => x.from), ['alpha', 'beta']);
   } finally { w.done(); }
 });
+
+test('a record file above the size limit stays in the clone folder and out of every commit', () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    writeFileSync(join(a.home, 'config.json'), JSON.stringify({ records: { machine: 'alpha', 'max-file-mb': 0.001 } }));
+    workflow(a.root, 'w1');
+    const evidence = join(a.root, '.ai', 'workflows', 'w1', 'verify-evidence');
+    mkdirSync(evidence, { recursive: true });
+    writeFileSync(join(evidence, 'trace.zip'), Buffer.alloc(4096, 1));
+    writeFileSync(join(evidence, 'checks.md'), '# Checks\n');
+    assert.equal(linkProject(a.root, 'notes').ok, true);
+    const clone = join(a.home, 'records');
+    const files = gitIn(clone, ['ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1']).stdout.split('\n');
+    assert.ok(files.includes('notes/w1/verify-evidence/checks.md'));
+    assert.ok(!files.includes('notes/w1/verify-evidence/trace.zip'), 'the large file is in no commit');
+    assert.ok(existsSync(join(workflowDir(a.root, 'w1'), 'verify-evidence', 'trace.zip')), 'the large file stays in the clone folder');
+    // A sync makes no commit for it.
+    const tip = gitIn(clone, ['rev-parse', 'refs/heads/live/notes/w1']).stdout;
+    syncRecords(a.root);
+    assert.equal(gitIn(clone, ['rev-parse', 'refs/heads/live/notes/w1']).stdout, tip);
+  } finally { w.done(); }
+});

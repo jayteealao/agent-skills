@@ -216,18 +216,52 @@ function moveMain(home, from, to) {
 
 // ---------------------------------------------------------------- plumbing commit
 
-/** True for a path of the records home that stays out of every commit: a local-only file, or a generated INDEX.md. */
-export function keptOutOfCommits(file) {
+/**
+ * The size above which a record file stays on this machine, in bytes: `records.max-file-mb` of
+ * ~/.sdlc/config.json, else 5 MB. Such a file (a test trace, a large log) stays in the folder of
+ * the clone, so the workflow still reads it, but no commit holds it and no push sends it.
+ */
+export function maxCommitBytes() {
+  const mb = Number(readMachineConfig().records?.['max-file-mb']);
+  return Math.round((Number.isFinite(mb) && mb > 0 ? mb : 5) * 1024 * 1024);
+}
+
+const tooLarge = (abs, limit = maxCommitBytes()) => {
+  try { return statSync(abs).size > limit; } catch { return false; }
+};
+
+/** The files under `dir` of the records home that are above the size limit, relative to the home. */
+function largeFiles(home, dir) {
+  const limit = maxCommitBytes();
+  const out = [];
+  const walk = (abs, rel) => {
+    let entries = [];
+    try { entries = readdirSync(abs, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const r = `${rel}/${e.name}`;
+      if (e.isDirectory()) walk(join(abs, e.name), r);
+      else if (e.isFile() && tooLarge(join(abs, e.name), limit)) out.push(r);
+    }
+  };
+  walk(join(home, dir), dir.replace(/\\/g, '/'));
+  return out;
+}
+
+/**
+ * True for a path of the records home that stays out of every commit: a local-only file, a
+ * generated INDEX.md, or, when `home` is given, a file above the size limit.
+ */
+export function keptOutOfCommits(file, home = null) {
   const parts = String(file).replace(/\\/g, '/').split('/').filter(Boolean);
   if (parts.length < 2 || parts[0] === '.machines') return false;
   const rel = parts.slice(1).join('/');
-  return rel === 'INDEX.md' || isLocalOnly(rel);
+  return rel === 'INDEX.md' || isLocalOnly(rel) || Boolean(home && tooLarge(join(home, file)));
 }
 
 /** Remove from a temporary index each path under `paths` that stays out of the commits. */
 function dropLocalOnly(home, index, paths) {
   const ls = spawnSync('git', ['-C', home, 'ls-files', '-z', '--cached', '--', ...paths], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-  const out = (ls.stdout ?? '').split('\0').filter((f) => f && keptOutOfCommits(f));
+  const out = (ls.stdout ?? '').split('\0').filter((f) => f && keptOutOfCommits(f, home));
   if (out.length) gitIn(home, ['rm', '-q', '--cached', '--ignore-unmatch', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${out.join('\0')}\0` });
 }
 
@@ -272,7 +306,11 @@ export function commitPaths(home, { ref, base = null, paths, message }) {
     fill: (index) => {
       for (const p of paths) {
         gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', p], { index });
-        if (existsSync(join(home, p))) gitIn(home, ['add', '-A', '-f', '--', p], { index });
+        if (!existsSync(join(home, p))) continue;
+        // A file above the size limit is not even hashed: git add skips it.
+        const large = largeFiles(home, p);
+        const specs = [p, ...large.map((f) => `:(exclude,literal)${f}`)];
+        gitIn(home, ['add', '-A', '-f', '--pathspec-from-file=-', '--pathspec-file-nul'], { index, input: `${specs.join('\0')}\0` });
       }
     },
   });
@@ -572,7 +610,7 @@ function commitPending(root, project, home, label = `the records of ${machineNam
   for (const row of (st.stdout ?? '').split('\0')) {
     const file = row.slice(3);
     const [p, s, rest] = file.split('/');
-    if (p !== project || !s || rest === undefined || s.startsWith('.') || s.startsWith('_') || keptOutOfCommits(file)) continue;
+    if (p !== project || !s || rest === undefined || s.startsWith('.') || s.startsWith('_') || keptOutOfCommits(file, home)) continue;
     slugs.add(s);
   }
   const committed = [];
@@ -984,7 +1022,7 @@ function uncommittedOf(home, project, slug) {
     if ((tip ? gitIn(home, ['read-tree', tip], { index }) : gitIn(home, ['read-tree', '--empty'], { index })).status !== 0) return [];
     const st = spawnSync('git', ['-C', home, 'status', '--porcelain', '-z', '--untracked-files=all', '--', `${key}/`], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index }, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
     return (st.stdout ?? '').split('\0').filter((row) => row.length > 3 && (row[1] !== ' ' || row.startsWith('??')))
-      .map((row) => row.slice(3)).filter((f) => !keptOutOfCommits(f)).map((f) => f.slice(key.length + 1));
+      .map((row) => row.slice(3)).filter((f) => !keptOutOfCommits(f, home)).map((f) => f.slice(key.length + 1));
   } finally { rmSync(index, { force: true }); }
 }
 
