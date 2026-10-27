@@ -15,6 +15,7 @@ import { hashFile } from '../../lib/campaign-records.mjs';
 import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
 import { linkProject } from '../../lib/records-sync.mjs';
+import { commitIdentity, gitSteps, whereOf } from '../../lib/steps.mjs';
 
 const SRC = 'brainstorm-demo';
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -574,6 +575,27 @@ test('12.3: the snapshot commits tracked changes and small untracked files, and 
     for (const f of ['.scratch/src/notes.md', 'lib/big.bin']) assert.ok(!files.includes(f), `${f} is not in the commit`);
     assert.ok(existsSync(path.join(m.wtEng, '.scratch', 'src', 'notes.md')) && existsSync(path.join(m.wtEng, 'lib', 'big.bin')), 'the files left out stay in the worktree');
     assert.equal(readFileSync(path.join(m.root, 'app.txt'), 'utf8').replace(/\r\n/g, '\n'), 'v0\nengine\nchanged\n');
+  } finally { dropOldCampaign(m); }
+});
+
+test('12.3: the one-commit step keeps the step ledger: the done steps of the unit stay done in the squash commit', () => {
+  const m = makeOldCampaign();
+  try {
+    const wtDir = path.join(m.wtEng, '.ai', 'workflows', 'eng');
+    writeFileSync(path.join(wtDir, '04-plan-s1.md'), '---\ntype: plan\n---\n# Plan: s1\n\n## Step-by-Step Plan\n\n1. **Engine** — app.txt.\n2. **Rest** — eng.txt.\n');
+    const sha = git(m.wtEng, 'rev-parse', 'HEAD');
+    writeFileSync(path.join(wtDir, 'steps.jsonl'), `${JSON.stringify({ at: '2026-10-20T10:00:00Z', slice: 's1', event: 'done', step: 1, sha, ...commitIdentity(m.wtEng, sha), branch: m.UNIT })}\n`);
+    migratedList(m);
+    const dir = wf(m.root, 'eng');
+    assert.deepEqual(whereOf(dir, 's1', gitSteps(m.root)).done.map((d) => [d.n, d.state ?? 'done']), [[1, 'done']]);
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, true, JSON.stringify(start));
+    const squashed = start.migration.steps.find((s) => s.squashed);
+    assert.equal(squashed.stepLedger?.commits, 2, JSON.stringify(squashed));
+    const w = whereOf(dir, 's1', gitSteps(m.root));
+    assert.deepEqual(w.done.map((d) => [d.n, d.state, d.oldSha, d.sha]), [[1, 'moved', sha, git(m.root, 'rev-parse', m.UNIT)]], JSON.stringify(w));
+    assert.deepEqual(w.dropped, []);
+    assert.equal(w.next.n, 2);
   } finally { dropOldCampaign(m); }
 });
 

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { STEPS_FILE, appendStep, planSteps, readSteps, whereLine, whereOf } from '../../lib/steps.mjs';
+import { STEPS_FILE, appendSquash, appendStep, lastSlice, planSteps, readSteps, whereLine, whereOf } from '../../lib/steps.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PLAN = '---\ntype: plan\n---\n# Plan: api\n\n## Step-by-Step Plan\n\n1. **Route** — files: `a.js`. Done when: `npm test` passes.\n2. **Store** — files: `b.js`.\n3. Docs - write the readme\n\n## Handover\n\n1. not a step\n';
@@ -65,6 +65,33 @@ test('whereOf: done steps, the running step, the next step, the stop count and a
     w = whereOf(f.dir, 'api', { isAncestor });
     assert.equal(w.complete, true);
     assert.equal(whereLine(w), 'api: complete at s2');
+  } finally { f.done(); }
+});
+
+test('a squash keeps the step ledger: each step whose commit the squash holds is moved to the squash commit', () => {
+  const f = fixture();
+  try {
+    appendStep(f.dir, { slice: 'api', event: 'done', step: 1, sha: 's1', patchId: 'p1', branch: 'unit' });
+    appendStep(f.dir, { slice: 'api', event: 'done', step: 2, noChange: true, head: 's1', branch: 'unit' });
+    appendStep(f.dir, { slice: 'api', event: 'done', step: 3, sha: 's3', patchId: 'p3', branch: 'unit' });
+    assert.throws(() => appendSquash(f.dir, { sha: 'q', commits: [] }), /needs the squash commit/);
+    appendSquash(f.dir, { sha: 'q', patchId: 'pq', commits: ['s3', 's1'], branch: 'unit' });
+    const none = () => null;
+    let w = whereOf(f.dir, 'api', { isAncestor: (sha) => sha === 'q', findMoved: none });
+    assert.deepEqual(w.done, [{ n: 1, sha: 'q', state: 'moved', oldSha: 's1' }, { n: 2, sha: null, noChange: true }, { n: 3, sha: 'q', state: 'moved', oldSha: 's3' }]);
+    assert.equal(w.complete, false);
+    assert.equal(w.next, null);
+    // A rebase gives the squash commit a new sha with the same patch id.
+    const findMoved = (row) => (row.patchId === 'pq' ? 'q2' : null);
+    w = whereOf(f.dir, 'api', { isAncestor: (sha) => sha === 'q2', findMoved });
+    assert.deepEqual(w.done.map((d) => [d.n, d.sha]), [[1, 'q2'], [2, null], [3, 'q2']]);
+    // A second squash takes the first one in.
+    appendSquash(f.dir, { sha: 'r', commits: ['q'] });
+    w = whereOf(f.dir, 'api', { isAncestor: (sha) => sha === 'r', findMoved: none });
+    assert.deepEqual(w.done.map((d) => [d.n, d.sha]), [[1, 'r'], [2, null], [3, 'r']]);
+    w = whereOf(f.dir, 'api', { isAncestor: () => false, findMoved: none });
+    assert.deepEqual(w.dropped.map((d) => d.n), [1, 2, 3], 'a squash commit that left the branch drops its steps');
+    assert.equal(lastSlice(f.dir), 'api', 'a squash row names no slice');
   } finally { f.done(); }
 });
 

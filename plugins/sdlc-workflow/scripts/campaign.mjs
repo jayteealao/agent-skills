@@ -36,6 +36,7 @@ import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
+import { appendSquash, commitIdentity } from '../lib/steps.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { needsPictures } from '../lib/design-boards.mjs';
 import { missingDesignFiles } from '../lib/design-surface.mjs';
@@ -714,6 +715,23 @@ function stageSnapshot(wt) {
   return { ok: true, any: staged.length > 0, files: staged.length, leftOut };
 }
 
+/**
+ * The squash commit at HEAD of `wt` took the place of the commits `fork..backup`. Record it in
+ * the step ledger of the workflow, so every step whose commit it holds stays done. Returns the
+ * number of commits recorded, or null when the workflow has no record folder.
+ */
+function recordSquash(root, wt, slug, fork, backup) {
+  const dir = wfDir(root, slug);
+  if (!existsSync(dir)) return null;
+  const commits = git(wt, ['rev-list', `${fork}..${backup}`]).stdout.split(/\r?\n/).filter(Boolean);
+  const sha = commitOf(wt, 'HEAD');
+  if (!sha || !commits.length) return null;
+  try {
+    appendSquash(dir, { sha, commits, branch: currentBranch(wt), ...commitIdentity(wt, sha) });
+  } catch { return null; }
+  return { squash: sha, commits: commits.length };
+}
+
 /** 12.3: commit the unit's code, rebase it when the earlier waves were squashed, merge it into the list branch. */
 function landMigrated(root, src, packet) {
   const m = packet.migrated ?? {};
@@ -760,7 +778,8 @@ function landMigrated(root, src, packet) {
         git(wt, ['reset', '-q', '--soft', backup]);
         return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}. Nothing changed. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
       }
-      steps.push({ squashed: ahead, backup });
+      const ledger = recordSquash(root, wt, packet['packet-slug'], fork, backup);
+      steps.push({ squashed: ahead, backup, ...(ledger ? { stepLedger: ledger } : {}) });
     }
     const r = git(wt, ['rebase', '--onto', list, waveBase]);
     if (r.status !== 0) {

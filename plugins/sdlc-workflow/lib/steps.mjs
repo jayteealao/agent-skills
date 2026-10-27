@@ -6,13 +6,16 @@
 //   hard-stop { slice, event: 'hard-stop', reason, kind }              the implement agent stopped
 //   retry     { slice, event: 'retry' }                                 the person asked for one more run
 //   complete  { slice, event: 'complete', sha, planHash, skipped }      the last commit of the slice
+//   squash    { event: 'squash', sha, patchId, subject, branch, commits }  one commit took the place of
+//             the commits in `commits`; a step whose commit is one of them is in the squash commit
 //
 // Every line also has `at`. The rows of a slice after its last `complete` row are the current
 // run of that slice. A step is done while its commit is in the history of its branch
 // (`refs/heads/<branch>`, which every worktree of the repo shares), so the answer is the same in
 // every checkout. A commit that a rebase or a history rewrite replaced is found again by its
-// patch id: the step is `moved`, with the new sha. A step whose commit left the branch is
-// `dropped`, and open again. A branch that this machine lacks makes the step `unverified`. A step
+// patch id: the step is `moved`, with the new sha. A commit that a squash took in is found again
+// as the squash commit, by its sha or its patch id: the step is `moved` too. A step whose commit
+// left the branch is `dropped`, and open again. A branch that this machine lacks makes the step `unverified`. A step
 // with no commit is anchored at the HEAD of its start, so a reset past it opens it again. The old
 // record .implement-progress.jsonl (event `step` for done) is read too, in time order.
 import { createHash } from 'node:crypto';
@@ -53,6 +56,17 @@ export function readSteps(slugDir) {
   return [...legacy, ...rows].map((r, i) => ({ r, i, t: Date.parse(r.at ?? '') }))
     .sort((a, b) => (Number.isFinite(a.t) && Number.isFinite(b.t) && a.t !== b.t ? a.t - b.t : a.i - b.i))
     .map((x) => x.r);
+}
+
+/**
+ * Record that one commit, `sha`, took the place of the commits `commits` (a squash). The row
+ * names no slice: every step whose commit is one of `commits` is in the squash commit.
+ */
+export function appendSquash(slugDir, { sha, commits, branch = null, patchId = null, subject = null }, { now = nowIso() } = {}) {
+  if (!sha || !Array.isArray(commits) || !commits.length) throw new Error('a squash row needs the squash commit and the commits it holds');
+  const line = { at: now, event: 'squash', sha, patchId, subject, branch, commits };
+  appendFileSync(join(slugDir, STEPS_FILE), `${JSON.stringify(line)}\n`);
+  return line;
 }
 
 /** Append one row. */
@@ -250,14 +264,41 @@ export function gitSteps(projectRoot, { base = null } = {}) {
 
 // ---------------------------------------------------------------- where
 
+/** The squash rows of a workflow, as a map from each commit they hold to the newest squash row. */
+function squashesOf(rows) {
+  const map = new Map();
+  for (const r of rows) if (r.event === 'squash' && r.sha && Array.isArray(r.commits)) for (const c of r.commits) map.set(c, r);
+  return map;
+}
+
+/**
+ * Where the squash commit that holds `sha` is on `branch` (or on the branch of the squash): its
+ * sha, or the commit with its patch id after a rebase. A squash commit that a later squash took
+ * in is followed. Null when none is on the branch.
+ */
+function squashedInto(sha, branch, squashes, { isAncestor, findMoved }) {
+  const seen = new Set();
+  for (let sq = squashes.get(sha); sq && !seen.has(sq.sha); sq = squashes.get(sq.sha)) {
+    seen.add(sq.sha);
+    for (const b of new Set([branch, sq.branch ?? null])) {
+      if (isAncestor(sq.sha, b)) return sq.sha;
+      const moved = sq.patchId ? findMoved({ patchId: sq.patchId, branch: b }) : null;
+      if (moved) return moved;
+    }
+  }
+  return null;
+}
+
 /** The state of one done row: done, moved (with the new sha), unverified, dropped, or a legacy row with no sha. */
-function stateOf(row, { isAncestor, hasBranch, findMoved }) {
+function stateOf(row, { isAncestor, hasBranch, findMoved }, squashes = new Map()) {
   const anchor = row.noChange ? row.head ?? null : row.sha ?? null;
   if (!anchor) return { state: 'done', legacy: !row.noChange };
   if (row.branch && !hasBranch(row.branch)) return { state: 'unverified' };
   if (isAncestor(anchor, row.branch ?? null)) return { state: 'done' };
   const moved = row.noChange ? null : findMoved(row);
   if (moved) return { state: 'moved', sha: moved, oldSha: row.sha };
+  const squashed = squashes.size ? squashedInto(anchor, row.branch ?? null, squashes, { isAncestor, findMoved }) : null;
+  if (squashed) return row.noChange ? { state: 'done' } : { state: 'moved', sha: squashed, oldSha: row.sha };
   return { state: 'dropped' };
 }
 
@@ -275,6 +316,7 @@ function stateOf(row, { isAncestor, hasBranch, findMoved }) {
 export function whereOf(slugDir, slice, { isAncestor = () => true, hasBranch = () => true, findMoved = () => null } = {}) {
   const resolve = { isAncestor, hasBranch, findMoved };
   const all = readSteps(slugDir);
+  const squashes = squashesOf(all);
   const mine = all.filter((r) => r.slice === slice);
   let from = 0;
   mine.forEach((r, i) => { if (r.event === 'complete') from = i + 1; });
@@ -288,7 +330,7 @@ export function whereOf(slugDir, slice, { isAncestor = () => true, hasBranch = (
     const gone = new Map();
     for (const r of rows) {
       if (r.event !== 'done') continue;
-      const s = stateOf(r, resolve);
+      const s = stateOf(r, resolve, squashes);
       if (s.state === 'dropped') { byStep.delete(r.step); gone.set(r.step, { n: r.step, sha: r.sha ?? r.head ?? null }); continue; }
       gone.delete(r.step);
       const entry = { n: r.step, sha: s.sha ?? r.sha ?? null };
@@ -344,10 +386,9 @@ export function whereOf(slugDir, slice, { isAncestor = () => true, hasBranch = (
   };
 }
 
-/** The slice of the newest row, or null. */
+/** The slice of the newest row that names one, or null. */
 export function lastSlice(slugDir) {
-  const all = readSteps(slugDir);
-  return all.length ? all[all.length - 1].slice : null;
+  return readSteps(slugDir).findLast((r) => r.slice)?.slice ?? null;
 }
 
 /** One line for a person: where the slice stands. */
