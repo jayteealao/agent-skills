@@ -1881,6 +1881,24 @@ async function driveVerify(sliceArg, idx, extra = {}) {
       const sliceAuthorized = Array.isArray(idx.priorDeferrals) &&
         idx.priorDeferrals.some(p => p && p.slice === sliceArg && p.authorized === true)
       const gaps = sliceAuthorized ? [] : probeGaps(t, last.residual)
+      // A missing receipt first gets the wall probe: one short agent. When every wall of the
+      // gap still stands, its fresh receipts go on the deferrals and the clean result stands.
+      // Only a wall that fell, or a probe that did not answer, earns the full verify again.
+      if (gaps.length && !probeCorrection) {
+        const wp = await driveWallProbe(sliceArg, idx, gaps)
+        const walls = (wp && Array.isArray(wp.walls)) ? wp.walls : []
+        const receipt = (g) => walls.find(w => w && acKey(w.ac) === acKey(g.ac) && w.stands === true && typeof w.probe === 'string' && w.probe.trim())
+        if (gaps.every(receipt)) {
+          const attach = (d) => (d && d.ac && !d.probe && receipt(d) ? { ...d, probe: receipt(d).probe } : d)
+          log(`verify:${sliceArg} clean; the wall probe attached fresh receipts to ${gaps.length} deferral(s) (${gaps.map(g => g.ac).join(', ')}) — no second verify`)
+          return {
+            ...last,
+            terminal: { ...t, deferrals: (Array.isArray(t.deferrals) ? t.deferrals : []).map(attach) },
+            residual: Array.isArray(last.residual) ? last.residual.map(attach) : last.residual,
+          }
+        }
+        log(`verify:${sliceArg} the wall probe did not confirm every wall of ${gaps.map(g => g.ac).join(', ')} — the full verify runs again`)
+      }
       if (gaps.length) {
         if (round < 2 && !probeCorrection) {
           probeCorrection = gaps.map(g => g.ac)
@@ -1938,8 +1956,12 @@ const WALL_PROBE_RESULT = {
   },
 }
 
-async function driveWallProbe(sliceArg, idx) {
-  const open = (idx.priorDeferrals || []).filter(d => d && d.slice === sliceArg && d.authorized !== true)
+// `fresh` names the deferrals that a verify of this run recorded with no probe receipt; without
+// it, the probe re-challenges the open deferrals of earlier runs.
+async function driveWallProbe(sliceArg, idx, fresh = null) {
+  const open = Array.isArray(fresh) && fresh.length
+    ? fresh.map(d => ({ slice: sliceArg, ac: d.ac, reason: d.reason }))
+    : (idx.priorDeferrals || []).filter(d => d && d.slice === sliceArg && d.authorized !== true)
   const lines = open.map(d => `    • ${d.ac ? `${d.ac} — ` : ''}${d.reason || '(no reason recorded)'}` +
     `${d.clearingEvent ? ` [clearing event: ${d.clearingEvent}]` : ''}` +
     `${d.clearingProbe ? ` [clearing probe: ${d.clearingProbe}]` : ''}`).join('\n')
@@ -2373,13 +2395,31 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   const forced = new Set()
   let carried = null
   let routeBacks = 0
+  // The stage that the last route back went to, and whether the forced implement after it
+  // moved HEAD. A forced verify at an unchanged HEAD, after a clean verify, runs no checks again.
+  let routedTo = null
+  let headBefore = null
+  let noCodeChange = false
   if (opts.forceFrom && CHAIN_ORDER.includes(opts.forceFrom)) {
     CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(opts.forceFrom)).filter(s => stages.includes(s)).forEach(s => forced.add(s))
     carried = opts.carried ? { ...opts.carried, routedBack: opts.forceFrom } : null
+    routedTo = opts.forceFrom
   }
   while (queue.length) {
     const stage = queue.shift()
     if (done[stage] === 'done' && !forced.has(stage) && !(stage === 'plan' && refresh)) { log(`skip ${stage}:${sliceArg} (already terminal-clean)`); continue }
+    // A verify that a route back to plan or implement forced, when that implement made no
+    // commit and the slice verified clean before: nothing changed, so the clean result stands.
+    // A route back to verify itself always runs it: the answer asks verify to check something new.
+    if (stage === 'verify' && forced.has('verify') && routedTo !== 'verify' && noCodeChange && done.verify === 'done') {
+      log(`skip verify:${sliceArg} (no code change since the clean verify at ${headBefore})`)
+      ran.push({
+        stage: 'verify', slice: sliceArg, status: 'complete', accepted: true, skipped: true, artifactPath: '', terminal: {},
+        decisions: [{ class: 'implementation-detail', decision: `verify of '${sliceArg}' kept its clean result: the implement after the route back made no commit (HEAD ${headBefore})${carried && carried.key ? `; the answer ${carried.key} is carried as accepted` : ''}` }],
+      })
+      continue
+    }
+    if (stage === 'implement' && forced.has('implement')) headBefore = await headCommit(`head:before-implement:${sliceArg}`)
     if (stage === 'implement' && !freshChecked && !ranStages.includes('plan') && codeMoved > 0 && done.plan === 'done') {
       freshChecked = true
       const f = await planFreshness(sliceArg)
@@ -2473,6 +2513,8 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       const again = CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(back)).filter(s => s === back || stages.includes(s))
       log(`${stage}:${sliceArg} routes back to ${back} on the answer ${answered.key || ''} — running ${again.join(' → ')} again`)
       again.forEach(s => forced.add(s))
+      routedTo = back
+      noCodeChange = false
       carried = { ...answered, routedBack: back }
       queue.length = 0
       queue.push(...again)
@@ -2487,6 +2529,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     }
     if (stage === 'plan') refresh = null
     if (stage === 'implement') codeMoved++
+    if (stage === 'implement' && forced.has('implement') && headBefore) {
+      const headAfter = await headCommit(`head:after-implement:${sliceArg}`)
+      noCodeChange = headAfter === headBefore
+    }
   }
   // W5.2 — the chain cleared every gate: record the slice as complete at DRIVE
   // time. Only when this run actually drove something (a chain that skipped every

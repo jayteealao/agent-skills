@@ -43,6 +43,7 @@ stage-number: 6
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 result: <pass|fail|partial|blocked-runtime-evidence-missing>
+verified-head: "<the HEAD sha>"                 # only when the result is clean: pass, or a partial with only deferrals
 metric-checks-run: <N>
 metric-checks-passed: <N>
 metric-acceptance-met: <N>

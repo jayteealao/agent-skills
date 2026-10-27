@@ -41,7 +41,7 @@ function chainHarness(answers, answered = []) {
   const logs = [];
   const writeBacks = [];
   const build = new Function('stubs', `
-    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug, ANSWERED } = stubs
+    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, headCommit, log, slug, ANSWERED } = stubs
     const projectRoot = '/r'
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
     // No implement ran before this chain, so it runs no plan check.
@@ -64,6 +64,7 @@ function chainHarness(answers, answered = []) {
     return driveChain
   `);
   const count = {};
+  let heads = 0;
   const answer = (stage) => {
     count[stage] = (count[stage] || 0) + 1;
     const a = answers[stage];
@@ -80,6 +81,8 @@ function chainHarness(answers, answered = []) {
     driveWallProbe: async () => null,
     classifyDecisions: async (r) => r,
     writeBackSliceStatus: async (slice, idx, stages) => { writeBacks.push(stages); return { ok: true, wrote: [] }; },
+    // Each read of HEAD is a new commit: every implement moves HEAD, so no verify is skipped.
+    headCommit: async () => `h${(heads += 1)}`,
   });
   return { driveChain, calls, logs, writeBacks };
 }

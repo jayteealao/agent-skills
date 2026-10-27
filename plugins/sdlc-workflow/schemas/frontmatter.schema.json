@@ -826,6 +826,7 @@
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 6 },
         "result": { "enum": ["pass", "fail", "partial", "blocked-runtime-evidence-missing"] },
+        "verified-head": { "type": "string", "description": "The commit that a clean verify (pass, or a partial with only deferrals) checked. A later verify of the slice at this HEAD, with the same plan, keeps the clean result." },
         "metric-checks-run":                { "type": "integer", "minimum": 0 },
         "metric-checks-passed":             { "type": "integer", "minimum": 0 },
         "metric-acceptance-met":            { "type": "integer", "minimum": 0 },
