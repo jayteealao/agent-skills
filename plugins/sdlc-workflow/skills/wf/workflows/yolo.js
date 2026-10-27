@@ -1024,7 +1024,7 @@ const ORIENT_RESULT = {
     route: { type: 'string' },
     slug: { type: 'string' },
     mode: { enum: ['slug', 'slice'] },
-    targetSlice: { type: 'string' },
+    targetSlice: { type: ['string', 'null'] },
     reviewScope: { enum: ['per-slice', 'slug-wide'] },
     workflowType: { type: 'string' },
     // single-scope workflow (a forwarded rca, or a one-slice standard workflow): 03-slice.md is absent and
@@ -1032,7 +1032,7 @@ const ORIENT_RESULT = {
     singleScope: { type: 'boolean' },
     // honored default review rubric — an rca whose recommended-next is hotfix → 'security'; empty = standard
     // dimension selection. Threaded into the review stage so yolo respects the RCA's recommended build flavor.
-    reviewDimension: { type: 'string' },
+    reviewDimension: { type: ['string', 'null'] },
     // W1 — the run's own identity, minted by orient because it holds the clock this
     // script does not. Every later heartbeat carries it, so one run's journal entries
     // stay separable from a prior run's in the same append-only file.
@@ -1067,8 +1067,9 @@ const ORIENT_RESULT = {
           slice: { type: 'string' },
           reason: { type: 'string' },
           deferredAt: { type: 'string' },   // iso-8601 from the index
-          clearedBy: { type: 'string' },     // null/absent = still open
-          repeatOf: { type: 'string' },      // earlier slice with the same wall
+          // The brief asks for null on an open deferral, so null and a string both pass.
+          clearedBy: { type: ['string', 'null'] },     // null/absent = still open
+          repeatOf: { type: ['string', 'null'] },      // earlier slice with the same wall
           // true iff the index entry carries ship-override-authorization — the PO's
           // explicit risk-acceptance (recorded via ship step 6.5 route c, never by
           // yolo). An authorized deferral is settled: no re-challenge, no probe-
@@ -1078,14 +1079,14 @@ const ORIENT_RESULT = {
           // authoritative record of what a deferral IS; when the driver's end-of-run
           // re-derivation disagrees, the ledger wins and the disagreement is reported
           // as `reconciled`, never silently re-labeled.
-          ac: { type: 'string' },              // the AC the entry names, when it names one
+          ac: { type: ['string', 'null'] },              // the AC the entry names, when it names one
           wallOwnership: { type: 'string' },   // code-owned | environment-negotiable | external
           // W4 — the one-line, side-effect-free command that answers "has the
           // clearing event happened yet?". Run at the cheap moments (orientation,
           // /wf status) purely as a TRIPWIRE — a hit routes to /wf probe, it never
           // clears the deferral itself (the probe stage still owns evidence).
-          clearingEvent: { type: 'string' },
-          clearingProbe: { type: 'string' },
+          clearingEvent: { type: ['string', 'null'] },
+          clearingProbe: { type: ['string', 'null'] },
           clearingProbeHit: { type: 'boolean' },   // true = the event appears satisfied → route to /wf probe
         },
       },
