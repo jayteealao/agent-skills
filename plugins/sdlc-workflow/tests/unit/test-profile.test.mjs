@@ -43,6 +43,9 @@ test('recordRun writes the measured time and keeps the other settings', () => {
     assert.throws(() => recordRun(f.root, 'full', 10), /no command for the full suite/);
     assert.throws(() => recordRun(f.root, 'slow', 10), /suite must be one of/);
     assert.throws(() => recordRun(f.root, 'fast', -1), /0 or more/);
+    // A passing run records the commit that it checked.
+    assert.equal(recordRun(f.root, 'fast', 12, { passedAt: 'abc1234' }).passedAt, 'abc1234');
+    assert.equal(readProfile(f.root).fast.passedAt, 'abc1234');
   } finally { f.done(); }
 });
 

@@ -73,11 +73,13 @@ export function setSuite(root, suite, { command, estimateSeconds }) {
 }
 
 /** Record a real run of a suite: its time replaces the estimate. Returns the suite entry. */
-export function recordRun(root, suite, seconds, { now = nowIso() } = {}) {
+// `passedAt` is the commit that a passing run checked: a later reader runs the suite again only
+// when a file that the suite reads changed after it.
+export function recordRun(root, suite, seconds, { now = nowIso(), passedAt = null } = {}) {
   if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('seconds must be a number of 0 or more');
   if (!readProfile(root)[suite]?.command) throw new Error(`the test profile has no command for the ${suite} suite`);
-  return updateSuite(root, suite, (s) => ({ ...s, measuredSeconds: Math.round(seconds), measuredAt: now }));
+  return updateSuite(root, suite, (s) => ({ ...s, measuredSeconds: Math.round(seconds), measuredAt: now, ...(passedAt ? { passedAt } : {}) }));
 }
 
 // The suites that each stage runs. Verify reuses the implement results at the same commit.

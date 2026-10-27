@@ -768,8 +768,9 @@ export function runProfile(pos, opt) {
     const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
     const seconds = Math.round((Date.now() - t0) / 100) / 10;
     const pass = r.status === 0;
-    if (!r.error) recordRun(projectRoot, a, seconds);
-    out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status } : `${a}: ${pass ? 'pass' : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
+    const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
+    if (!r.error) recordRun(projectRoot, a, seconds, { passedAt: head });
+    out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status, ...(head ? { passedAt: head } : {}) } : `${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
     return pass ? 0 : 1;
   }
   if (verb === 'timebox') {
