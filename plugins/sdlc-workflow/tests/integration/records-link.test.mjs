@@ -162,6 +162,17 @@ test('a worktree with no config uses the clone; the link waits while a worktree 
     assert.deepEqual(recordsPending({ main: a.root, worktree: wt, manifest }), []);
     writeFileSync(join(wt, '.ai', 'workflows', 'w1', 'a.md'), 'v3\n');
     assert.deepEqual(recordsPending({ main: a.root, worktree: wt, manifest }).map((p) => p.rel), ['workflows/w1/a.md']);
+
+    // The clone commits v3, then moves on to v4: the worktree copy is an older version, in a commit of the clone.
+    writeFileSync(join(a.clone, 'notes', 'w1', 'a.md'), 'v3\n');
+    assert.ok(commitWorkflow(a.root, 'w1', 'w1: v3').commit);
+    writeFileSync(join(a.clone, 'notes', 'w1', 'a.md'), 'v4\n');
+    assert.deepEqual(recordsPending({ main: a.root, worktree: wt, manifest }), [], 'the clone holds a newer version');
+    // CRLF line endings of the same text are the same version.
+    writeFileSync(join(wt, '.ai', 'workflows', 'w1', 'a.md'), 'v3\r\n');
+    assert.deepEqual(recordsPending({ main: a.root, worktree: wt, manifest }), []);
+    writeFileSync(join(wt, '.ai', 'workflows', 'w1', 'a.md'), 'v5\n');
+    assert.deepEqual(recordsPending({ main: a.root, worktree: wt, manifest }).map((p) => p.rel), ['workflows/w1/a.md'], 'a version that no commit of the clone holds is pending');
   } finally { w.done(); }
 });
 

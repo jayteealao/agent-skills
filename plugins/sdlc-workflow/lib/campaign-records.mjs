@@ -13,10 +13,11 @@
 // sides changed a file, the main copy stays, and the worktree copy is kept in
 // the conflict store, so neither version is lost. Every copy goes to a temp
 // file first, its hash is checked, and a rename puts it in place.
+import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { recordPathOf } from './records-root.mjs';
+import { dirname, isAbsolute, join, relative } from 'node:path';
+import { recordPathOf, recordsHome } from './records-root.mjs';
 
 export const MANIFEST_VERSION = 1;
 /** The workflow registry: a both-sides change merges its rows (status.md, INDEX.md). */
@@ -242,23 +243,51 @@ export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = (
   return res;
 }
 
+const lfOf = (buf) => Buffer.from(buf.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+
+/**
+ * True when the records clone holds a newer version of `target`, a file of the clone, and
+ * `bytes` (or their line-ending normal form) were an earlier version of it in the history of
+ * any branch of the clone. The content of `bytes` is then in a commit of the clone.
+ */
+export function olderInClone(target, bytes, home = recordsHome()) {
+  const rel = relative(home, target);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(target)) return false;
+  const run = (args, input) => spawnSync('git', ['-c', 'core.longpaths=true', '-C', home, ...args], { input, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024 });
+  const ids = new Set();
+  for (const b of [bytes, lfOf(bytes)]) {
+    const h = run(['hash-object', '--stdin', '--no-filters'], b);
+    if (h.status === 0) ids.add(h.stdout.trim());
+  }
+  const log = run(['log', '--all', '--format=', '--raw', '--no-abbrev', '--no-renames', '--', posix(rel)]);
+  if (log.status !== 0) return false;
+  return log.stdout.split('\n').some((line) => {
+    const m = /^:\d+ \d+ ([0-9a-f]+) ([0-9a-f]+) /.exec(line);
+    return Boolean(m && (ids.has(m[1]) || ids.has(m[2])));
+  });
+}
+
 /**
  * The worktree files that exist nowhere else: their content is neither in the
- * main checkout at the same path, nor in the conflict store, nor the base copy
- * the worktree received. Removing the worktree with any of them would lose it.
- * For a linked project the main copy of a workflow file is the clone copy, which
- * `recordPathOf` names; the local copy counts until the next adopt moves it.
+ * main checkout at the same path, nor in the conflict store, nor a base copy
+ * (the current one or an earlier one) the worktree received. Removing the
+ * worktree with any of them would lose it. For a linked project the main copy
+ * of a workflow file is the clone copy, which `recordPathOf` names; the local
+ * copy counts until the next adopt moves it. A worktree copy that is an older
+ * version of the clone copy, in a commit of the clone, is not pending either.
  */
-export function recordsPending({ main, worktree, manifest, exclude = () => false }) {
+export function recordsPending({ main, worktree, manifest, exclude = () => false, inClone = olderInClone }) {
   const src = walk(join(worktree, '.ai'));
   const pending = src.links.filter((r) => !isSkipped(r)).map((rel) => ({ rel, reason: 'a link: the sync never follows links' }));
   for (const [rel, abs] of src.files) {
     if (isSkipped(rel) || exclude(rel)) continue;
     const wh = hashFile(abs);
     const local = join(main, '.ai', ...rel.split('/'));
-    if ([recordPathOf(main, local), local].some((t) => existsSync(t) && hashFile(t) === wh)) continue;
+    const record = recordPathOf(main, local);
+    if ([record, local].some((t) => existsSync(t) && hashFile(t) === wh)) continue;
     const e = manifest.files[rel];
-    if (e && (e.base === wh || e.kept.includes(wh))) continue;
+    if (e && (e.base === wh || e.kept?.includes(wh) || e.earlier?.includes(wh))) continue;
+    if (record !== local && inClone(record, readFileSync(abs))) continue;
     pending.push({ rel, reason: 'not in the main checkout' });
   }
   return pending;

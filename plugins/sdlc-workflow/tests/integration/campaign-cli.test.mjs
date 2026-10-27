@@ -746,6 +746,25 @@ test('12.7: the guarded remove refuses a worktree with uncommitted code and neve
   }
 });
 
+test('12.7: remove-worktree finds the records manifest of the unit, so a base copy that main moved past is not pending', () => {
+  const m = makeOldCampaign();
+  try {
+    const wtDir = path.join(m.wtEng, '.ai', 'workflows', 'eng');
+    const mainIdx = path.join(wf(m.root, 'eng'), '00-index.md');
+    // The worktree holds the base copy of the index; the main checkout changed it since.
+    writeFileSync(path.join(wtDir, '00-index.md'), readFileSync(mainIdx));
+    rmSync(path.join(wtDir, '05-implement-s1.md'));
+    appendFileSync(mainIdx, '\nmain moved on\n');
+    git(m.wtEng, 'add', 'eng.txt');
+    git(m.wtEng, 'commit', '-qm', 'eng: the rest');
+    const blind = removeWorktree(m.root, SRC, m.wtEng);
+    assert.deepEqual(blind.pending?.map((p) => p.rel), ['workflows/eng/00-index.md'], 'with no manifest the base copy looks lost');
+    const removed = run(['remove-worktree', m.root, SRC, m.wtEng]);
+    assert.equal(removed.ok, true, JSON.stringify(removed));
+    assert.ok(!existsSync(m.wtEng));
+  } finally { dropOldCampaign(m); }
+});
+
 const FAKE_GH = path.resolve(import.meta.dirname, '..', 'fixtures', 'fake-gh.mjs');
 
 /** Run `fn` with the fake gh, and return its log of calls. */

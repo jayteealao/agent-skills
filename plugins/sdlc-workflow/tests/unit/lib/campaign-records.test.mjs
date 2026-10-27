@@ -150,6 +150,26 @@ test('pending names every worktree file whose content is nowhere else', () => {
   } finally { rmSync(top, { recursive: true, force: true }); }
 });
 
+test('pending: a worktree copy equal to an earlier base is an older version, not pending; an unlinked project never asks the clone', () => {
+  const { top, main, wt } = tree();
+  try {
+    put(main, 'workflows/engine/00-index.md', 'index v1');
+    const manifest = { files: {} };
+    R.recordsIn({ main, worktree: wt, manifest });
+    put(main, 'workflows/engine/00-index.md', 'index v2');
+    R.recordsIn({ main, worktree: wt, manifest });
+    assert.equal(read(wt, 'workflows/engine/00-index.md'), 'index v2');
+    put(main, 'workflows/engine/00-index.md', 'index v3');
+    put(wt, 'workflows/engine/00-index.md', 'index v1');
+    let asked = 0;
+    const inClone = () => { asked += 1; return true; };
+    assert.deepEqual(R.recordsPending({ main, worktree: wt, manifest, inClone }), [], 'v1 was a base before v2');
+    put(wt, 'workflows/engine/00-index.md', 'index v9');
+    assert.deepEqual(R.recordsPending({ main, worktree: wt, manifest, inClone }).map((p) => p.rel), ['workflows/engine/00-index.md']);
+    assert.equal(asked, 0, 'the clone check runs only for a linked project');
+  } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
 // WF-DESIGN-PLAN B2 (DP13): a worktree that reverts a record to an earlier base never overwrites main.
 test('out: a worktree revert to an earlier base goes to the conflict store and does not overwrite main', () => {
   const { top, main, wt } = tree();

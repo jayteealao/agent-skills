@@ -20,7 +20,7 @@
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge
  *   migrate <root> <source> report|apply|regroup|finish [--trunk t] [--dry-run]  the migration of an old campaign (section 12);
  *                                                   regroup gives each shared kept decision one home
- *   remove-worktree <root> <source> <path> [--allow-ignored]  the guarded remove of an old campaign worktree (12.7)
+ *   remove-worktree <root> <source> <path> [--allow-ignored] [--unit <key>]  the guarded remove of an old campaign worktree (12.7)
  *
  * Every command prints one JSON object on stdout. The list has no ledger: its state is
  * the `state` field of each packet file (work/<packet-slug>.md).
@@ -985,6 +985,21 @@ function manifestOf(root, src, unitKey) {
   return null;
 }
 
+/**
+ * The unit key of an old campaign worktree: the unit of the old ledger (or the archived one)
+ * that ran in it. Several units can share a worktree; the one with a records manifest wins.
+ */
+function unitKeyOf(root, src, path) {
+  const keys = [];
+  for (const dir of [oldCampDir(root, src), archivedCampDir(root, src)]) {
+    const ledger = readJson(join(dir, 'ledger.json'));
+    for (const [key, u] of Object.entries(ledger?.units ?? {})) {
+      if (u?.worktree?.path && samePath(u.worktree.path, path) && !keys.includes(key)) keys.push(key);
+    }
+  }
+  return keys.find((k) => manifestOf(root, src, k)) ?? keys[0] ?? null;
+}
+
 export function removeWorktree(root, src, path, { unitKey = null, allowIgnored = false, linkLimit = 5000 } = {}) {
   const entry = worktreeList(root).find((w) => samePath(w.path, path));
   if (!entry) return { ok: false, path, error: `${path} is not a worktree of ${root}` };
@@ -1025,7 +1040,9 @@ export function removeWorktree(root, src, path, { unitKey = null, allowIgnored =
 
 function removeWorktreeCmd(root, src, [path], f) {
   if (!path) throw new Error('remove-worktree: give the worktree path');
-  return removeWorktree(root, src, resolve(path), { allowIgnored: Boolean(f['allow-ignored']) });
+  const at = resolve(path);
+  const unitKey = f.unit ? String(f.unit) : unitKeyOf(root, src, at);
+  return removeWorktree(root, src, at, { unitKey, allowIgnored: Boolean(f['allow-ignored']) });
 }
 
 // ---------------------------------------------------------------- the migration (section 12)
@@ -1366,7 +1383,7 @@ export function migrateFinish(root, src) {
   const removed = [];
   for (const w of rep?.worktrees ?? []) {
     if (!w.old || (w.inflight && !droppedPaths.has(posix(resolve(w.path)).toLowerCase()))) continue;
-    removed.push(removeWorktree(root, src, w.path));
+    removed.push(removeWorktree(root, src, w.path, { unitKey: unitKeyOf(root, src, w.path) }));
   }
   return { ok: true, source: src, moved, strays, worktrees: removed, refused: removed.filter((r) => !r.ok) };
 }
