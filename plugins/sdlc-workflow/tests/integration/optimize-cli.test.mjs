@@ -444,6 +444,44 @@ test('the profiler agent records its profile, or skips it with a reason, and the
   }
 });
 
+test('paired measurement: the baseline measures the paired noise, a trial runs the reference in turns, and finish removes the reference worktree', () => {
+  const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
+  try {
+    const specFile = path.join(root, '.ai', 'workflows', S, '02-optimize-spec.md');
+    writeFileSync(specFile, readFileSync(specFile, 'utf8').replace('  min-gain: 0\n', '  min-gain: 0\n  paired: true\n'));
+    git(root, 'commit', '-q', '-am', 'paired');
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.equal(b.baseline.pairedNoise, 0, 'the A/A block of a steady metric has no noise');
+    assert.equal(existsSync(`${wt}--ref`), true, 'the baseline makes the reference worktree');
+    assert.equal(run(root, 'round-open').ok, true);
+    const ctx = run(root, 'propose-context', '--on', B1);
+    assert.equal(ctx.digest.paired, true);
+    edit(`${wt}--r1b1`, 90);
+    const t = run(root, 'trial', 'h1', '--on', B1, '--hypothesis', 'set the value to 90');
+    assert.equal(t.verdict, 'kept', JSON.stringify(t));
+    assert.equal(t.delta, 10, 'the gain is the median of the pair gains');
+    const line = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.event === 'trial');
+    assert.deepEqual([line.paired.ref, line.paired.gains, line.values, line.paired.confirmGains], [[100, 100], [10, 10], [90, 90], [10, 10]]);
+    edit(`${wt}--r1b2`, 100);
+    const flat = run(root, 'trial', 'h2', '--on', B2, '--hypothesis', 'no change in the value', '--expected', '0');
+    assert.equal(flat.verdict, 'rejected', 'a change of nothing is rejected before a measurement');
+    edit(`${wt}--r1b2`, 101);
+    const worse = run(root, 'trial', 'h3', '--on', B2, '--hypothesis', 'set the value to 101');
+    assert.equal(worse.verdict, 'reverted');
+    assert.match(worse.reason, /paired gain -1 is not above the threshold/);
+    assert.equal(readFileSync(path.join(`${wt}--ref`, 'src', 'value.txt'), 'utf8').trim(), '100', 'the reference worktree holds the best of the lane under test');
+    assert.equal(step(root, wt, 'h4', 85).t.ok, true);
+    assert.equal(run(root, 'round-close').ok, true);
+    if (run(root, 'status').next.action === 'merge-consider') run(root, 'merge-consider', '--skip', 'b2:test');
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.deepEqual([existsSync(`${wt}--ref`), existsSync(`${wt}.build-ref`)], [false, false], 'finish removes the reference worktree and its build folder');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('round-close removes the branch worktrees, a worktree with a link stays, and finish removes the rest and the shared build folder', () => {
   const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
   try {

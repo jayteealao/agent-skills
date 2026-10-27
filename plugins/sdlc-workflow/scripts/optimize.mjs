@@ -54,7 +54,7 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
-  branchNameOf, settleIdea,
+  branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
@@ -313,6 +313,119 @@ function measure(spec, cwd, n, command = spec.metric.command, key = spec.metric.
   return { values, median: median(values), runs };
 }
 
+// ---------------------------------------------------------------------------
+// The reference worktree and paired measurement (G3)
+// ---------------------------------------------------------------------------
+/** The reference worktree: detached at the commit that a trial is compared with. */
+const refPath = (state) => `${state.worktree}--ref`;
+function refEnvOf(state, spec) {
+  if (!spec.sharedBuild || !state.buildDir) return null;
+  mkdirSync(`${state.buildDir}-ref`, { recursive: true });
+  return { [spec.sharedBuild]: `${state.buildDir}-ref` };
+}
+/** Put the reference worktree at `commit`. It has its own build folder, so its binary never replaces the binary of a lane. */
+function ensureRef(root, state, spec, commit) {
+  const wt = refPath(state);
+  if (existsSync(wt)) {
+    assertWorktreePath(root, wt);
+    gitOk(wt, ['checkout', '-q', '--detach', '-f', commit], 'checkout');
+    gitOk(wt, ['clean', '-fd'], 'clean');
+    return { ok: true, worktree: wt };
+  }
+  gitOk(root, ['worktree', 'add', '-q', '--detach', wt, commit], 'worktree add');
+  if (spec.setup) {
+    const s = runCommand(spec.setup, wt, 60 * 60_000, refEnvOf(state, spec));
+    if (s.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${s.code})`, output: tail(s.stdout + s.stderr) };
+  }
+  return { ok: true, worktree: wt };
+}
+
+/**
+ * One paired block: a warm-up run on each side, then `n` pairs in the order A B, B A, A B, …
+ * The gain of a pair is the gain of side B over side A. A is the reference; B is the trial.
+ */
+function pairedBlock(spec, a, b, n) {
+  const one = (side) => {
+    const r = runCommand(spec.metric.command, side.cwd, spec.budget.trialTimeoutMs, side.env);
+    if (r.timedOut) return { timeout: true, output: tail(r.stdout + r.stderr) };
+    const v = r.code === 0 ? parseMetricLine(r.stdout, spec.metric.key) : null;
+    return v === null ? { crashed: true, output: tail(r.stdout + r.stderr) } : { v };
+  };
+  const out = { ref: [], cand: [], gains: [] };
+  for (const side of [a, b]) {
+    const w = one(side);
+    if (w.v === undefined) return { ...out, ...w };
+  }
+  for (let i = 0; i < n; i++) {
+    const got = {};
+    for (const s of pairOrder(i)) {
+      const r = one(s === 'A' ? a : b);
+      if (r.v === undefined) return { ...out, ...r };
+      got[s] = r.v;
+    }
+    out.ref.push(got.A);
+    out.cand.push(got.B);
+    out.gains.push(gainOf(spec.metric.direction, got.A, got.B));
+  }
+  return { ...out, median: median(out.gains) };
+}
+
+/**
+ * Judge a committed change that passed the guard: the metric, the keep rule and the confirm run.
+ * It fills `line` and returns { verdict, extra }. With paired measurement on, each block runs the
+ * reference (the best of the lane) and the trial in turns; otherwise the trial runs alone and is
+ * compared with the best value.
+ */
+function judge(root, state, spec, wt, env, best, line) {
+  if (pairedActive(spec, state)) {
+    const ref = ensureRef(root, state, spec, best.commit);
+    if (!ref.ok) return { verdict: 'crashed', extra: { reason: ref.error, output: ref.output } };
+    const A = { cwd: ref.worktree, env: refEnvOf(state, spec) };
+    const B = { cwd: wt, env };
+    const first = pairedBlock(spec, A, B, spec.metric.repeat);
+    if (first.timeout || first.crashed) return { verdict: first.timeout ? 'timeout' : 'crashed', extra: { reason: `the metric ${first.timeout ? 'timed out' : 'did not print a number'} in a paired block`, values: first.cand, output: first.output } };
+    line.values = first.cand;
+    line.median = median(first.cand);
+    line.delta = first.median;
+    line.paired = { ref: first.ref, gains: first.gains };
+    let d = pairedDecision({ spec, best: best.value, noise: state.baseline.pairedNoise, gains: first.gains });
+    line.threshold = d.threshold;
+    if (d.needConfirm) {
+      const c = pairedBlock(spec, A, B, spec.metric.repeat);
+      if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm block failed', output: c.output } };
+      line.confirm = c.cand;
+      Object.assign(line.paired, { confirmRef: c.ref, confirmGains: c.gains });
+      d = pairedDecision({ spec, best: best.value, noise: state.baseline.pairedNoise, gains: first.gains, confirm: c.gains });
+      if (d.kept) {
+        line.median = median([...first.cand, ...c.cand]);
+        line.delta = median([...first.gains, ...c.gains]);
+      }
+    }
+    if (!d.kept) return { verdict: 'reverted', extra: { reason: d.wins ? 'the confirm block did not agree' : `the paired gain ${line.delta} is not above the threshold ${d.threshold}, or fewer than ${Math.max(1, first.gains.length - 1)} pairs gained` } };
+    return { verdict: 'kept' };
+  }
+  const m = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
+  if (m.timeout) return { verdict: 'timeout', extra: { reason: 'the metric timed out', values: m.values, output: m.output } };
+  if (m.crashed) return { verdict: 'crashed', extra: { reason: 'the metric did not print a number', values: m.values, output: m.output } };
+  line.values = m.values;
+  line.median = m.median;
+  line.delta = gainOf(spec.metric.direction, best.value, m.median);
+  let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median });
+  line.threshold = d.threshold;
+  if (d.needConfirm) {
+    const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
+    if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm run failed', output: c.output } };
+    line.confirm = c.values;
+    d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median, confirm: c.median });
+    if (d.kept) {
+      line.median = median([...m.values, ...c.values]);
+      line.delta = gainOf(spec.metric.direction, best.value, line.median);
+    }
+  }
+  if (!d.kept) return { verdict: 'reverted', extra: { reason: d.wins ? 'the confirm run did not agree' : `the gain ${line.delta} is not above the threshold ${d.threshold}` } };
+  return { verdict: 'kept' };
+}
+
 /** state.json and results.jsonl must agree, and the branch must sit where the loop left it (4.6 state-error). */
 function consistency(root, slug, state, results, spec) {
   // A measurement in flight moves its lane and writes the ledger and the state one after the other.
@@ -348,7 +461,7 @@ export function optimizeStatus(root, slug) {
     ok: true,
     ...st,
     best: state.best,
-    baseline: { median: state.baseline.median, noise: state.baseline.noise },
+    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}) },
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
@@ -406,9 +519,20 @@ function baseline(root, slug) {
     if (h.crashed || h.timeout) return { ok: false, error: 'the holdout did not print a number at the baseline', output: h.output };
     holdout = h.median;
   }
-  const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch });
+  // G3: an A/A block of the reference worktree against the trunk worktree, at the same commit,
+  // gives the noise of a paired comparison.
+  let pairedNoise = null;
+  let aa = null;
+  if (spec.metric.paired) {
+    const ref = ensureRef(root, build, spec, base.out);
+    if (!ref.ok) return { ok: false, error: ref.error, output: ref.output };
+    aa = pairedBlock(spec, { cwd: ref.worktree, env: refEnvOf(build, spec) }, { cwd: wt, env }, spec.metric.repeat);
+    if (aa.timeout || aa.crashed) return { ok: false, error: 'the metric failed in the paired A/A block of the baseline', output: aa.output };
+    pairedNoise = noiseOf(aa.gains);
+  }
+  const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise });
   state.buildDir = build.buildDir ?? null;
-  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, median: state.baseline.median, noise: state.baseline.noise, holdout });
+  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}) });
   saveState(root, slug, state);
   return { ok: true, worktree: wt, branch: trunk, baseline: state.baseline, ...optimizeStatus(root, slug) };
 }
@@ -687,25 +811,8 @@ function trial(root, slug, id, f) {
   line.guard = g.code === 0 ? 'pass' : 'fail';
   if (g.timedOut) return finish('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
   if (g.code !== 0) return finish('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
-  const m = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
-  if (m.timeout) return finish('timeout', { reason: 'the metric timed out', values: m.values, output: m.output });
-  if (m.crashed) return finish('crashed', { reason: 'the metric did not print a number', values: m.values, output: m.output });
-  line.values = m.values;
-  line.median = m.median;
-  line.delta = gainOf(spec.metric.direction, best.value, m.median);
-  let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median });
-  line.threshold = d.threshold;
-  if (d.needConfirm) {
-    const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
-    if (c.timeout || c.crashed) return finish(c.timeout ? 'timeout' : 'crashed', { reason: 'the confirm run failed', output: c.output });
-    line.confirm = c.values;
-    d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median, confirm: c.median });
-    if (d.kept) {
-      line.median = median([...m.values, ...c.values]);
-      line.delta = gainOf(spec.metric.direction, best.value, line.median);
-    }
-  }
-  if (!d.kept) return finish('reverted', { reason: d.wins ? 'the confirm run did not agree' : `the gain ${line.delta} is not above the threshold ${d.threshold}` });
+  const j = judge(root, state, spec, wt, env, best, line);
+  if (j.verdict !== 'kept') return finish(j.verdict, j.extra);
   const kept = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
   if (isTrunk) state.best = kept;
   else { branch.best = kept; branch.keeps++; }
@@ -946,25 +1053,8 @@ function mergeTrial(root, slug, f) {
   line.guard = g.code === 0 ? 'pass' : 'fail';
   if (g.timedOut) return done('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
   if (g.code !== 0) return done('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
-  const first = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
-  if (first.timeout) return done('timeout', { reason: 'the metric timed out', values: first.values, output: first.output });
-  if (first.crashed) return done('crashed', { reason: 'the metric did not print a number', values: first.values, output: first.output });
-  line.values = first.values;
-  line.median = first.median;
-  line.delta = gainOf(spec.metric.direction, best.value, first.median);
-  let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: first.median });
-  line.threshold = d.threshold;
-  if (d.needConfirm) {
-    const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
-    if (c.timeout || c.crashed) return done(c.timeout ? 'timeout' : 'crashed', { reason: 'the confirm run failed', output: c.output });
-    line.confirm = c.values;
-    d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: first.median, confirm: c.median });
-    if (d.kept) {
-      line.median = median([...first.values, ...c.values]);
-      line.delta = gainOf(spec.metric.direction, best.value, line.median);
-    }
-  }
-  if (!d.kept) return done('reverted', { reason: d.wins ? 'the confirm run did not agree' : `the gain ${line.delta} is not above the threshold ${d.threshold}` });
+  const j = judge(root, state, spec, wt, env, best, line);
+  if (j.verdict !== 'kept') return done(j.verdict, j.extra);
   state.best = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
   state.counters.keeps++;
   if (state.digestFrom?.round === mg.round) state.digestFrom.merged = [...(state.digestFrom.merged ?? []), cand.name];
@@ -1136,6 +1226,10 @@ function cleanupAll(root, slug, state) {
   const probeLeft = (p) => /--probe-[^\\/]+$/.test(p ?? '');
   for (const l of state.leftovers ?? []) if (!probeLeft(l.path)) drop(l.path, l.branch);
   removeProbes(root, state, probeTags(state), out);
+  if (existsSync(refPath(state))) {
+    try { assertWorktreePath(root, refPath(state)); resetTo(root, refPath(state), 'HEAD'); } catch { /* removeWorktree reports it */ }
+    drop(refPath(state), null);
+  }
   drop(state.worktree, state.trunk);
   // The build folders: the shared one, and the folders of the probes and of the reference worktree.
   const builds = state.buildDir ? [state.buildDir, `${state.buildDir}-probe`, `${state.buildDir}-ref`] : [];

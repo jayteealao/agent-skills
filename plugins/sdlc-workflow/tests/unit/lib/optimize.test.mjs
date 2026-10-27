@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
-  claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea,
+  claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -251,4 +251,24 @@ test('G1: the profile comes before the first trial and before each round, and th
   const d = buildDigest({ spec, specProse: '', state: { ...stateOf(), profile: { commit: 'c0' } }, results: [], lane: 'trunk', ideas: book, profile: { entries } });
   assert.deepEqual(d.ideas.map((i) => [i.id, i.claim]), [['i1', 'optimize/s--r1b1']], 'every lane sees the ideas of every lane');
   assert.equal(d.profile[1].alone, false);
+});
+
+test('G3: the paired rule keeps a small gain that repeats, and refuses a block in which two pairs lose', () => {
+  const spec = specOf({ metric: { command: 'm', direction: 'lower', repeat: 5, 'min-gain': '1%', paired: true } });
+  assert.equal(spec.metric.paired, true);
+  const noise = 0.4;
+  const small = [1.9, 2.1, 2.0, 1.8, 2.2];
+  const first = pairedDecision({ spec, best: 100, noise, gains: small });
+  assert.deepEqual([first.wins, first.needConfirm, first.threshold], [true, true, 1], 'a 2% gain over a paired noise of 0.4 wins, then needs its confirm block');
+  assert.equal(pairedDecision({ spec, best: 100, noise, gains: small, confirm: small }).kept, true);
+  assert.equal(pairedDecision({ spec, best: 100, noise, gains: [3, 3, 3, -1, -1] }).wins, false, 'two pairs that lose refuse the block');
+  assert.equal(pairedDecision({ spec, best: 100, noise, gains: [3, 3, 3, 3, -1] }).wins, true, 'one pair may lose');
+  assert.deepEqual([0, 1, 2].map(pairOrder), [['A', 'B'], ['B', 'A'], ['A', 'B']]);
+  const s = stateOf();
+  assert.equal(pairedActive(spec, s), false, 'paired measurement waits for the paired noise of the baseline');
+  s.baseline.pairedNoise = 0.4;
+  assert.equal(pairedActive(spec, s), true);
+  assert.equal(noiseFor(spec, s), 0.4);
+  assert.equal(buildDigest({ spec, specProse: '', state: s, results: [], lane: 'trunk' }).threshold, 1, 'the digest threshold uses the paired noise');
+  assert.equal(specOf().metric.paired, false, 'an old spec keeps the unpaired rule');
 });

@@ -2376,7 +2376,8 @@
             "unit": { "type": "string" },
             "target": { "type": ["number", "null"] },
             "repeat": { "type": "integer", "minimum": 1 },
-            "min-gain": { "type": ["number", "string"] }
+            "min-gain": { "type": ["number", "string"] },
+            "paired": { "type": "boolean", "description": "true: each trial runs in turns with a reference worktree at the best of its lane, and the keep rule uses the pair gains and the paired noise of the baseline." }
           }
         },
         "guard": { "type": "object", "required": ["command"], "properties": { "command": { "type": "string", "minLength": 1 } } },

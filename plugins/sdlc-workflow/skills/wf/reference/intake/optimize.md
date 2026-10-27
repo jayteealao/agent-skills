@@ -84,6 +84,7 @@ next-invocation: "/wf loop optimize <slug>"
 1. Run the metric command once from the project root. The last line of its standard output must parse as one number, or as JSON with the named key. When the line does not parse, show the output and ask again.
 2. Run the guard once. The guard must exit 0. When the guard fails, report the failure and end the run. A loop cannot start from a red guard.
 3. Record the time of each run. The spec's `trial-timeout` must be larger than the time of the guard plus `repeat` metric runs.
+4. Run the metric 4 more times and show the spread. With `metric.paired`, the noise of a paired block is usually much smaller than this spread. Show the person both numbers beside `metric.min-gain`, so the person sets the smallest gain to keep with them.
 
 # Step 3 — Spec → `02-optimize-spec.md` (`type: optimize-spec`)
 
@@ -100,6 +101,7 @@ next-invocation: "/wf loop optimize <slug>"
 |---|---|---|
 | `metric.repeat` | 5 | Runs for each measurement. The noise floor is half the spread of the baseline runs |
 | `metric.min-gain` | `2%` | The smallest gain to keep, absolute or percent. A keep also needs a gain above 2 × noise |
+| `metric.paired` | `true` for a new spec | Compare each trial with the best of its lane in turns. A block takes `2 × repeat + 2` metric runs, and it cancels the drift of the machine |
 | `metric.target` | `null` | When the kept value reaches it, the loop is complete |
 | `budget.trials` | 60 | Trunk trials and branch trials together |
 | `budget.plateau` | 8 | Trunk trials in a row with no keep that open a branch round |
@@ -133,6 +135,7 @@ metric:
   target: null
   repeat: 5
   min-gain: 2%
+  paired: true
 guard:
   command: "<command>"
 holdout:

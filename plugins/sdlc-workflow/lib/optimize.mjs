@@ -15,8 +15,11 @@
 // Basins in Autoresearch Agents", arXiv 2610.07447.
 
 export const SPEC_FILE = '02-optimize-spec.md';
-/** 2: each branch of a round has its own worktree (`round.branches[k].worktree`). */
-export const STATE_VERSION = 2;
+/**
+ * 2: each branch of a round has its own worktree (`round.branches[k].worktree`).
+ * 3: the profile, the paired noise, the reference worktree, the seeds and the ablation.
+ */
+export const STATE_VERSION = 3;
 export const DIRECTIONS = Object.freeze(['lower', 'higher']);
 export const VERDICTS = Object.freeze(['kept', 'reverted', 'rejected', 'crashed', 'timeout']);
 /** `branch-rounds.merge`: `consider` tries to merge the other kept branches of a round into the trunk; `off` keeps only the winner. */
@@ -129,7 +132,7 @@ export function parseSpec(fm) {
   if (!Number.isInteger(checkpointEvery) || checkpointEvery < 1) errors.push('checkpoint-every must be a positive integer');
   const spec = {
     objective: str(fm.objective),
-    metric: { command: str(metric.command), key: str(metric.key) || null, direction, unit: str(metric.unit), target, repeat, minGain },
+    metric: { command: str(metric.command), key: str(metric.key) || null, direction, unit: str(metric.unit), target, repeat, minGain, paired: metric.paired === true || str(metric.paired) === 'true' },
     guard: { command: str(guard.command) },
     holdout: holdout ? { command: str(holdout.command), tolerance, direction: DIRECTIONS.includes(str(holdout.direction)) ? str(holdout.direction) : direction } : null,
     setup: str(fm.setup) || null,
@@ -206,6 +209,29 @@ export function keepDecision({ spec, best, noise, first, confirm = null }) {
   if (confirm === null) return { wins, kept: false, needConfirm: true, threshold };
   return { wins, kept: gainOf(spec.metric.direction, best, confirm) > threshold, needConfirm: false, threshold };
 }
+
+/**
+ * The paired keep rule (G3). `gains` are the gains of the trial run over the reference run next
+ * to it, one for each pair. A block passes when the median pair gain is above the threshold and
+ * at least all but one of the pairs gain. A trial that wins gets a second block as its confirm.
+ */
+export function pairedDecision({ spec, best, noise, gains, confirm = null }) {
+  const threshold = keepThreshold(spec, best, noise);
+  const passes = (g) => {
+    const v = (g ?? []).filter(Number.isFinite);
+    return v.length > 0 && median(v) > threshold && v.filter((x) => x > 0).length >= Math.max(1, v.length - 1);
+  };
+  const wins = passes(gains);
+  if (!wins) return { wins, kept: false, needConfirm: false, threshold };
+  if (confirm === null) return { wins, kept: false, needConfirm: true, threshold };
+  return { wins, kept: passes(confirm), needConfirm: false, threshold };
+}
+/** The side that runs first in pair `i`: A B, then B A, so that a drift adds equally to both sides. */
+export const pairOrder = (i) => (i % 2 === 0 ? ['A', 'B'] : ['B', 'A']);
+/** Paired measurement is on when the spec asks for it and the baseline measured the paired noise. */
+export const pairedActive = (spec, state) => !!spec.metric.paired && Number.isFinite(state?.baseline?.pairedNoise);
+/** The noise that the keep rule of a trial uses. */
+export const noiseFor = (spec, state) => (pairedActive(spec, state) ? state.baseline.pairedNoise : state.baseline.noise);
 
 /** True when the value reaches the target in the metric's direction. */
 export const reachesTarget = (spec, value) => spec.metric.target !== null && value !== null && (spec.metric.direction === 'lower' ? value <= spec.metric.target : value >= spec.metric.target);
@@ -505,7 +531,7 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
   const isBranch = lane && lane !== 'trunk' && lane !== state.trunk;
   const trials = digestTrials(results, state, lane);
   const best = laneBest(state, isBranch ? lane : state.trunk);
-  const threshold = best ? keepThreshold(spec, best.value, state.baseline.noise) : null;
+  const threshold = best ? keepThreshold(spec, best.value, noiseFor(spec, state)) : null;
   const brief = (r) => ({ trial: r.trial, hypothesis: r.hypothesis?.text ?? '', verdict: r.verdict, median: r.median, delta: r.delta });
   return {
     lane: isBranch ? lane : 'trunk',
@@ -516,7 +542,8 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
     allowedPaths: spec.allowedPaths,
     offLimits: spec.offLimits,
     best: best ? { value: best.value, commit: best.commit } : null,
-    baseline: { value: state.baseline.median, noise: state.baseline.noise },
+    baseline: { value: state.baseline.median, noise: state.baseline.noise, ...(pairedActive(spec, state) ? { pairedNoise: state.baseline.pairedNoise } : {}) },
+    paired: pairedActive(spec, state),
     threshold,
     trials: trials.map(brief),
     ideas: ideas ? ideas.ideas.slice(-40).map((i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled })) : [],
@@ -536,7 +563,7 @@ export function laneWorktree(state, lane) {
 }
 
 /** A new state after the baseline. */
-export function newState({ slug, worktree, baseCommit, values, holdoutValue, startedAt, slugBranch }) {
+export function newState({ slug, worktree, baseCommit, values, holdoutValue, startedAt, slugBranch, pairedNoise = null }) {
   const med = median(values);
   return {
     version: STATE_VERSION,
@@ -546,7 +573,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     slugBranch: slugBranch ?? null,
     baseCommit,
     startedAt,
-    baseline: { values, median: med, noise: noiseOf(values), holdout: holdoutValue ?? null },
+    baseline: { values, median: med, noise: noiseOf(values), holdout: holdoutValue ?? null, ...(pairedNoise !== null ? { pairedNoise } : {}) },
     best: { commit: baseCommit, value: med, trial: 0, reachedAt: 0 },
     counters: { trials: 0, trunkTrials: 0, streak: 0, sinceCheckpoint: 0, keeps: 0 },
     schedule: { used: [] },
