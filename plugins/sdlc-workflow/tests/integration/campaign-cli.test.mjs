@@ -163,6 +163,49 @@ test('6.1: a built packet that can be tried waits for the try-out record', () =>
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('delegate mode: the next packet starts while a built packet waits on its fidelity rows', () => {
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+      { key: 'api', title: 'Api', shape: 'intake', slug: 'demo-api', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it serves the engine', items: ['d-two'], goal: 'Serve it.', 'acceptance-criteria': ['It serves.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(run(['write', dir]).ok, true);
+    assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+    run(['land', root, SRC]);
+    assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+    writeFileSync(path.join(root, 'app.txt'), 'v1 engine\n');
+    git(root, 'commit', '-qam', 'engine');
+    const built = run(['built', root, SRC, 'engine']);
+    assert.equal(built.endBranch, `packets/${SRC}--engine`, 'built marks the end branch on the flat shape');
+    const engineEnd = git(root, 'rev-parse', 'HEAD');
+    review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
+
+    // Without delegate mode the walk waits on the person.
+    let st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current.step], ['engine', 'fidelity']);
+    assert.equal(st.waiting, undefined);
+
+    // The run takes the recommended option: the next packet starts, and the engine waits.
+    addDecision(wf(root, 'demo-engine'), { kind: 'steer', key: 'run-decisions', question: 'q', answer: 'Take the recommended option and show me each one at the end' });
+    st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current.step], ['api', 'open']);
+    assert.deepEqual(st.waiting.map((w) => [w.key, w.step, w.rows.map((r) => r.key)]), [['engine', 'fidelity', ['d-one']]]);
+    assert.equal(st.packets.find((p) => p.key === 'engine').state, 'built', 'the waiting packet stays built');
+    assert.equal(run(['open', root, SRC, 'api']).ok, true);
+    assert.equal(run(['start', root, SRC, 'api']).base, `packets/${SRC}--engine`, 'the next packet reviews from the built end branch');
+    writeFileSync(path.join(root, 'api.txt'), 'api\n');
+    git(root, 'add', 'api.txt');
+    git(root, 'commit', '-qm', 'api');
+
+    // The person approves the row later: done keeps the end branch at the built commit.
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-one', answer: 'approved', question: 'fine' });
+    const done = run(['done', root, SRC, 'engine']);
+    assert.equal(done.ok, true, JSON.stringify(done));
+    assert.equal(git(root, 'rev-parse', `packets/${SRC}--engine`), engineEnd);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 /** A list of one build packet, opened, started and built on the list branch. */
 function builtPacket(items) {
   const root = makeRepo();

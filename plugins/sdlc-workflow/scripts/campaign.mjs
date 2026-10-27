@@ -30,7 +30,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFile
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
-import { DECISIONS_FILE, appendEntry, decisionsOf, storeText } from '../lib/decisions.mjs';
+import { DECISIONS_FILE, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
@@ -336,6 +336,16 @@ function nextStep(root, src, packet) {
   return { step: 'done' };
 }
 
+/**
+ * True when a built packet waits only on the person, and its run settles the decisions of the
+ * person by the recommended option (the `run-decisions` steer): the walk can start the next packet.
+ */
+function canWait(root, packet, step) {
+  if (packet.state !== 'built') return false;
+  if (!((step.step === 'fidelity' && Array.isArray(step.rows) && step.rows.length && !step.reason) || step.step === 'try-out')) return false;
+  return runDelegatedIn(wfDir(root, packet['packet-slug']));
+}
+
 function routeOf(src, packet) {
   const slug = packet['packet-slug'];
   switch (packet.form) {
@@ -362,7 +372,24 @@ function statusCmd(root, src) {
   }
   const branch = listBranch(src);
   const rows = packets.map((p) => ({ key: p.key, slug: p['packet-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null, ...(p.migrated ? { migrated: true } : {}) }));
-  const current = packets.find((p) => !['done', 'dropped'].includes(p.state)) ?? null;
+  // In delegate mode, a built packet that waits only on the person (its fidelity rows or its
+  // try-out) does not hold the walk: the next packet starts, and the walk asks the waiting
+  // questions while that run works. The waiting packet stays built. Only the flat shape: a
+  // stacked layer starts from the layer below it when that layer is done.
+  const waiting = [];
+  let current = null;
+  for (const p of packets.filter((x) => !['done', 'dropped'].includes(x.state))) {
+    const step = nextStep(root, src, p);
+    if (canWait(root, p, step) && shapeOf(root) !== 'stacked') { waiting.push({ key: p.key, slug: p['packet-slug'], ...step }); continue; }
+    current = { packet: p, step };
+    break;
+  }
+  if (!current && waiting.length) {
+    // Every open packet waits on the person: the first of them is the current packet.
+    const first = packets.find((p) => p.key === waiting[0].key);
+    current = { packet: first, step: nextStep(root, src, first) };
+    waiting.shift();
+  }
   const needDesign = packets
     .filter((p) => BUILD_FORMS.includes(p.form) && !['done', 'dropped'].includes(p.state))
     .map((p) => {
@@ -377,7 +404,8 @@ function statusCmd(root, src) {
     branch,
     onListBranch: currentBranch(root) === branch,
     packets: rows,
-    current: current ? { key: current.key, slug: current['packet-slug'], state: current.state, ...nextStep(root, src, current) } : null,
+    current: current ? { key: current.packet.key, slug: current.packet['packet-slug'], state: current.packet.state, ...current.step } : null,
+    ...(waiting.length ? { waiting } : {}),
     needDesign,
     finished: !current,
   };
@@ -811,8 +839,9 @@ function startCmd(root, src, [key], f) {
     migration = landMigrated(root, src, packet);
     if (!migration.ok) return { ok: false, key: packet.key, ...migration };
   }
-  // 6.2: the end branch of the build packet before, when HEAD holds it; else the trunk.
-  const before = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === 'done').pop();
+  // 6.2: the end branch of the build packet before, when HEAD holds it; else the trunk. A built
+  // packet before counts: in delegate mode it can wait on the person while this packet starts.
+  const before = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && ['done', 'built'].includes(p.state)).pop();
   let base = trunk;
   if (before) {
     const end = endBranch(src, before.key);
@@ -828,7 +857,12 @@ function builtCmd(root, src, [key], f = {}) {
   const { packet } = packetOf(root, src, key);
   if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open` };
   setPacketState(packet, 'built');
-  return { ok: true, key: packet.key, state: 'built', publish: publish(root, src, trunkOf(root, f), f) };
+  // The flat shape: the end branch marks the built work, so a packet that starts while this one
+  // waits reviews from it. done moves it again.
+  let endAt = null;
+  const end = endBranch(src, packet.key);
+  if (shapeOf(root) !== 'stacked' && currentBranch(root) !== end && git(root, ['branch', '-f', end, 'HEAD']).status === 0) endAt = end;
+  return { ok: true, key: packet.key, state: 'built', ...(endAt ? { endBranch: endAt } : {}), publish: publish(root, src, trunkOf(root, f), f) };
 }
 
 /** 6.1 step 13: a fix slice was added to a built packet, so the packet is open again until the driver builds it. */
@@ -841,7 +875,7 @@ function reopenCmd(root, src, [key]) {
 }
 
 function doneCmd(root, src, [key], f) {
-  const { packet } = packetOf(root, src, key);
+  const { packets, packet } = packetOf(root, src, key);
   if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)` };
   const slug = packet['packet-slug'];
   const unbuilt = openSlices(root, slug);
@@ -875,8 +909,13 @@ function doneCmd(root, src, [key], f) {
     merged = true;
   }
   const end = endBranch(src, packet.key);
-  const b = git(root, ['branch', '-f', end, 'HEAD']);
-  if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
+  // A later packet started while this one waited: its work is on HEAD, so the end branch stays at
+  // the commit where this packet was built.
+  const later = packets.some((p) => (p.order ?? 0) > (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && ['open', 'built'].includes(p.state));
+  if (!(later && commitOf(root, `refs/heads/${end}`))) {
+    const b = git(root, ['branch', '-f', end, 'HEAD']);
+    if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
+  }
   if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'base-branch': trunk, 'updated-at': nowIso() });
   setPacketState(packet, 'done');
   let removed = null;
