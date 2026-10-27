@@ -100,6 +100,12 @@ test('a stage agent records its progress, reads its brief, and returns an intent
   assert.match(plan, /QUESTION CONTRACT/);
   assert.match(plan, /decide answered "\/repo" demo --key <key>/);
   assert.match(plan, /return status 'questions'/);
+  assert.match(plan, /decide hold "\/repo" demo --key <key> --question "<the question>" --stage plan/);
+  assert.match(plan, /Before you return status 'questions', look again for each question that you held: \(1\) run `decide answered` with its key again/);
+  assert.match(plan, /decide list "\/repo" demo --kind answer --json/);
+  assert.match(plan, /made after the held-at time/);
+  assert.match(plan, /cite its id/);
+  assert.match(plan, /only the questions that are still open/);
   assert.doesNotMatch(plan, /DELEGATE MODE/);
 });
 

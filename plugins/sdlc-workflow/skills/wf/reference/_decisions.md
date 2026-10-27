@@ -45,6 +45,7 @@ The kind of a common word:
 | The live entries in a scope | `<wf> decide list "<projectRoot>" <slug> [--slice s] [--packet p] [--files f,g] [--kind k]` |
 | Whether a key has a live answer | `<wf> decide answered "<projectRoot>" <slug> --key k [--slice s]` (exit 0 and the entry, or exit 1) |
 | The questions that are still open | `<wf> decide drop "<projectRoot>" <slug> <questions.json> [--slice s]` |
+| Publish a question that a running stage holds | `<wf> decide hold "<projectRoot>" <slug> --key k --question "<q>" --stage <stage> [--slice s] [--options "a\|b"] [--recommended a]`: the question goes into `open-questions` of the index under its exact key |
 | Record an answer | `<wf> decide add "<projectRoot>" <slug> --key k --question "<q>" --answer "<a>" --stage <stage> [--slice s] [--files f,g] [--rewrote f,g]` |
 | Record several answers in one call | `<wf> decide add "<projectRoot>" <slug> --file <answers.json>`: a JSON list of `{ key, question, answer, by, stage, slice }` |
 | Record standing steer | `<wf> decide add "<projectRoot>" <slug> --kind steer --answer "<exact words>"` |

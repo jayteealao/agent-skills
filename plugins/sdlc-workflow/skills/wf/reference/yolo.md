@@ -175,16 +175,29 @@ The command stages the driver itself (Step 0.4), runs each agent as one `codex e
 A stage agent never asks the person. It returns each intent-bearing decision as a question: `{ key, question, options, recommended, why }`. The run stops, and `outcome.questions` holds every question with its `stage` and `slice`. The main session asks them and relaunches:
 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
-2. Ask the questions with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call. Put the `recommended` option first.
-3. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf.mjs decide add "<projectRoot>" <slug> --file <file>` once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is the one record of them.
-4. Repeat Step 0.4.
-5. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
+2. Drop the questions that the store already answers:
+   1. Write `outcome.questions` to `.ai/workflows/<slug>/.draft/questions.json`.
+   2. Run `wf.mjs decide drop "<projectRoot>" <slug> .ai/workflows/<slug>/.draft/questions.json --json`. It prints `{ ask, answered }`.
+   3. Put each question of `answered` into the relaunch `answered` list of step 5, with the decision id and the answer that the command prints. Do not ask it again.
+3. Ask the questions of `ask` with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call. Put the `recommended` option first. When `ask` is empty, go to step 5.
+4. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf.mjs decide add "<projectRoot>" <slug> --file <file>` once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is the one record of them.
+5. Repeat Step 0.4.
+6. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
 
 The answer reaches only the stage and the slice that asked it. A stage that stopped on several questions gets every answer. A slug-wide stage has no slice: give its answers no slice. Orientation skips every stage that is already terminal-clean, so the relaunch starts at the stage that asked. An answered stage can settle in three ways:
 
 - It settles the decision and continues.
 - A verify accepts the slice with its failing or residual items on the answer. The slice passes, and the verify frontmatter records `accepted-by`.
 - The answer needs a new plan or new code. The stage routes back to `plan` or `implement`, and the driver runs that stage and every later stage of the slice again with the answer. A slice routes back at most twice on one answer.
+
+## A held question during a run
+
+A stage that reaches an intent-bearing decision can hold it and continue with work that does not depend on it. The stage publishes the held question in `open-questions` of the index with `decide hold`, under its exact key. A look-in names each held question with its key ([yolo/_commentary.md](yolo/_commentary.md) C7). Before the stage returns, it looks for an answer again.
+
+1. When a look-in names a held question, ask it with the host question tool ([_gate-question.md](_gate-question.md)).
+2. Record the answer with `decide add` and the held key, exactly as `open-questions` shows it. Add `--stage` and `--slice` as the held entry shows them.
+3. Tell the person that the stage reads the answer before it returns.
+4. Do not stop or relaunch the driver. When the stage still returns the question, step 2 of the list above moves it to `answered`.
 
 **Delegate mode.** When the person says that the run decides for them, launch with `delegate: true`. Each stage settles an intent-bearing decision by the option it recommends, and records it with `--by delegate`. The run returns no questions. At the end, run `outcome.delegate.digest` (`decide list --by delegate`). Show each delegate decision to the person, who confirms or reverses it. A reversal is a `decide add --by person` with the same key: it supersedes the delegate entry. Then relaunch with that answer in `answered`.
 

@@ -962,11 +962,22 @@ function questionContract(stage) {
     `\`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\` first: a live answer settles it. ` +
     (DELEGATE
       ? `Otherwise follow DELEGATE MODE below.`
-      : `Otherwise do not settle it: finish the artifact honestly (status: awaiting-input, the open question ` +
-        `recorded), and return status 'questions' with the question in questions: { key (a short stable name), ` +
-        `question (one sentence the person can answer without the artifact), options (2 to 4), recommended (one ` +
-        `of the options), why (one line) }. Batch every open question of this stage in that one return. ` +
-        `Questions are not a failure: the main session asks them, and the next run carries the answers.`) +
+      : `Otherwise do not settle it yet. When other work of this stage does not depend on the decision, hold ` +
+        `the question and continue with that work. To hold it, run \`${WF_CMD} decide hold "${projectRoot}" ` +
+        `${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended ` +
+        `"<a>"\`, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
+        `the person can answer it while you work. Before you return status 'questions', look again for each ` +
+        `question that you held: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
+        `run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, with --slice <your slice> ` +
+        `when you run on a slice, and find an entry made after the held-at time of the question that answers the ` +
+        `same question under another key. Settle the question by that entry, and cite its id in the decision ` +
+        `that you record. (3) Settle each answered question in this run when its work fits this stage. When the ` +
+        `answer changes the plan, use the route-back rules of this stage. Then finish the artifact honestly ` +
+        `(status: awaiting-input, each open question recorded), and return status 'questions' with only the ` +
+        `questions that are still open, in questions: { key (a short stable name), question (one sentence the ` +
+        `person can answer without the artifact), options (2 to 4), recommended (one of the options), why (one ` +
+        `line) }. Batch every open question of this stage in that one return. Questions are not a failure: the ` +
+        `main session asks them, and the next run carries the answers.`) +
     (stage === 'verify'
       ? ` RETURN CONTRACT (verify): set the terminal state honestly — convergence: not-needed | converged | ` +
         `escalated; result: pass | fail | partial | blocked-runtime-evidence-missing. Record each deferral ` +

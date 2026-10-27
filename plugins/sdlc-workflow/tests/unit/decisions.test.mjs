@@ -134,6 +134,43 @@ test('wf.mjs decide add takes the answered key out of open-questions of the inde
   } finally { f.done(); }
 });
 
+test('wf.mjs decide hold publishes a held question; a second hold replaces it; an answer settles it', () => {
+  const f = fixture();
+  const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });
+  try {
+    writeFileSync(path.join(f.dir, 'state.yaml'), 'schema: sdlc/v1\ntype: index\nslug: demo\nstatus: active\nupdated-at: "2026-10-25T10:00:00Z"\nopen-questions:\n  - finding:SEC-1\n');
+    const open = () => parse(readFileSync(path.join(f.dir, 'state.yaml'), 'utf8'))['open-questions'];
+    let r = cli('hold', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse a restart below the floor?', '--stage', 'implement', '--slice', 'rules', '--options', 'refuse|clamp', '--recommended', 'refuse');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /^held restart-floor: Refuse a restart below the floor\?/);
+    let q = open();
+    assert.equal(q.length, 2);
+    assert.equal(q[0], 'finding:SEC-1');
+    assert.equal(q[1].key, 'restart-floor');
+    assert.equal(q[1].stage, 'implement');
+    assert.equal(q[1].slice, 'rules');
+    assert.deepEqual(q[1].options, ['refuse', 'clamp']);
+    assert.equal(q[1].recommended, 'refuse');
+    assert.match(q[1]['held-at'], /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    r = cli('hold', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse or clamp a restart below the floor?', '--stage', 'implement', '--json');
+    assert.equal(JSON.parse(r.stdout).replaced, true);
+    q = open();
+    assert.equal(q.length, 2, 'a second hold of the key replaces the entry');
+    assert.equal(q[1].question, 'Refuse or clamp a restart below the floor?');
+    const qf = path.join(f.root, 'q.json');
+    writeFileSync(qf, JSON.stringify({ questions: [{ key: 'restart-floor' }, { key: 'other' }] }));
+    r = cli('add', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse a restart below the floor?', '--answer', 'refuse', '--stage', 'implement', '--json');
+    assert.equal(JSON.parse(r.stdout).settled, true);
+    assert.deepEqual(open(), ['finding:SEC-1']);
+    const d = JSON.parse(cli('drop', f.root, 'demo', qf, '--json').stdout);
+    assert.deepEqual(d.ask, [{ key: 'other' }]);
+    assert.equal(d.answered[0].key, 'restart-floor');
+    assert.equal(d.answered[0].answer, 'refuse');
+    assert.match(d.answered[0].decision, /^D-\d{3}$/);
+    assert.match(cli('hold', f.root, 'demo', '--key', 'k').stderr, /--question is required/);
+  } finally { f.done(); }
+});
+
 test('wf.mjs decide: add, list, answered, drop and import from the command line', () => {
   const f = fixture();
   const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });

@@ -43,6 +43,27 @@ export function settleQuestion(dir, key) {
   return true;
 }
 
+// A stage that holds a question and continues with other work publishes it in `open-questions`
+// of the index, so the watch and a look-in can name its exact key. A second hold of the same key
+// replaces the entry. `settleQuestion` removes it when an answer with that key is recorded.
+export function holdQuestion(dir, q) {
+  if (!q?.key) throw new Error('decide hold: --key is required');
+  if (!q.question) throw new Error('decide hold: --question is required');
+  const fm = frontmatterOfDoc(dir, INDEX_NAME);
+  if (!fm) throw new Error(`decide hold: the workflow has no ${INDEX_NAME}`);
+  const open = Array.isArray(fm['open-questions']) ? fm['open-questions'] : [];
+  const entry = {
+    key: q.key, question: q.question, stage: q.stage ?? null,
+    ...(q.slice && q.slice !== 'slug-wide' ? { slice: q.slice } : {}),
+    ...(q.options?.length ? { options: q.options } : {}),
+    ...(q.recommended ? { recommended: q.recommended } : {}),
+    'held-at': q.heldAt ?? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+  };
+  const kept = open.filter((x) => (x && typeof x === 'object' ? x.key ?? x.id : x) !== q.key);
+  setFields(dir, INDEX_NAME, { 'open-questions': [...kept, entry] });
+  return { entry, replaced: kept.length !== open.length };
+}
+
 // The short names of a record for `record get` and `record set`.
 const RECORD_ALIASES = { index: INDEX_NAME, state: INDEX_NAME, meta: INDEX_NAME };
 // A name without `.md` (`05-implement-api`) names the same record.

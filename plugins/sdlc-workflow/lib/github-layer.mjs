@@ -113,7 +113,7 @@ const isClosed = (fm) => TERMINAL_WORKFLOW_STATUSES.has(String(fm?.status ?? '')
 /** The status block of a workflow: the JSON at the end of its issue body, which other projects parse. */
 export function statusBlock(project, slug, fm) {
   const tasks = Array.isArray(fm['person-tasks']) ? fm['person-tasks'].map((t) => String(t?.task ?? t)) : [];
-  const questions = Array.isArray(fm['open-questions']) ? fm['open-questions'].map(String) : [];
+  const questions = Array.isArray(fm['open-questions']) ? fm['open-questions'].map((q) => (q && typeof q === 'object' ? String(q.question ?? q.key) : String(q))) : [];
   return {
     schema: STATUS_SCHEMA,
     project,

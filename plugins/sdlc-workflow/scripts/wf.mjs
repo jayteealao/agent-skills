@@ -124,6 +124,12 @@
  *             exit 0 and the entry when a live entry answers the key, exit 1 when none does.
  *             Use it before a question is asked; use decide list to read every decision
  *             Example: wf.mjs decide answered . demo --key db
+ *   decide   hold <root> <slug> --key k --question q --stage s [--slice s]
+ *                [--options "a|b"] [--recommended a] [--json]
+ *             publish a question that a running stage holds while it continues: the entry goes
+ *             into open-questions of the index, so a look-in can ask it by its exact key; a
+ *             second hold of the key replaces it, and decide add with the key settles it
+ *             Example: wf.mjs decide hold . demo --key db --question "Which database?" --stage implement
  *   decide   drop <root> <slug> <questions.json> [--packet p] [--slice s] [--json]
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
  *             Example: wf.mjs decide drop . demo .ai/workflows/demo/.draft/questions.json
@@ -303,7 +309,7 @@ import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
-import { decideAdd, defOfType, noRecord, pick, recordName, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
+import { decideAdd, defOfType, holdQuestion, noRecord, pick, recordName, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
 
 // The status and record bodies live in lib/, so the library calls the same functions.
@@ -573,7 +579,7 @@ const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice, files: opt.fil
 
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
-  if (!verb || !root || !slug) throw new Error('decide: <add|list|answered|drop|import> <root> <slug> are required');
+  if (!verb || !root || !slug) throw new Error('decide: <add|list|answered|hold|drop|import> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw new Error(`decide: no workflow folder ${dir}`);
   switch (verb) {
@@ -609,6 +615,15 @@ export function runDecide(pos, opt) {
       const hit = answeredBy(decisionsOf(dir), opt.key, scopeOf(opt));
       out(opt.json ? { answered: Boolean(hit), entry: hit } : hit ? decisionLine(hit) : `not answered: ${opt.key}`);
       return hit ? 0 : 1;
+    }
+    case 'hold': {
+      const r = holdQuestion(dir, {
+        key: opt.key, question: opt.question, stage: opt.stage, slice: opt.slice,
+        options: opt.options ? String(opt.options).split('|').map((s) => s.trim()).filter(Boolean) : [],
+        recommended: opt.recommended,
+      });
+      out(opt.json ? r : `${r.replaced ? 'held again' : 'held'} ${r.entry.key}: ${r.entry.question}`);
+      return 0;
     }
     case 'drop': {
       if (!arg) throw new Error('decide drop: <questions.json> is required');
@@ -1231,7 +1246,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;

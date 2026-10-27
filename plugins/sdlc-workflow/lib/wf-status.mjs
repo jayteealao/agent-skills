@@ -121,7 +121,7 @@ export async function statusBrief(root, slug) {
     const w = whereOf(dir, slice, stepGit(root, dir));
     step = { slice, done: w.done.length, total: w.total, next: w.next?.n ?? null, current: w.current?.n ?? null, complete: w.complete, line: whereLine(w) };
   }
-  const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key ?? q?.question ?? JSON.stringify(q)));
+  const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key && q?.question ? `${q.key}: ${q.question}` : q?.key ?? q?.question ?? JSON.stringify(q)));
   const deferrals = openDeferrals(dir).map((d) => d.id ?? d.ac ?? d.slice ?? 'deferral');
   const outcome = readDriverOutcome(dir);
   const progress = s.workflow.progress;
