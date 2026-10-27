@@ -627,7 +627,7 @@ test('B2: a watch ends itself after its lifetime, silent without --once and with
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('B4: --once exits after the first poll that gives events, and the next watch goes on from there', async () => {
+test('B4: --once exits after the first poll that gives news, and the next watch goes on from there', async () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
@@ -636,88 +636,194 @@ test('B4: --once exits after the first poll that gives events, and the next watc
     const stamp = (min) => new Date(Date.now() + min * 60000).toISOString();
     // The line comes after the watch start: once the first poll saved the state.
     const afterFirstPoll = (write) => () => { const t = setInterval(() => { if (existsSync(W.statePath(root, SLUG))) { clearInterval(t); write(); } }, 20); };
+    // A stage start is not news: the watch prints it and polls on until the stage end.
     const first = await runCli([root, SLUG, '--once'], env, {
-      onSpawn: afterFirstPoll(() => journal(root, { at: stamp(0), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' })),
+      onSpawn: afterFirstPoll(() => {
+        journal(root, { at: stamp(0), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' });
+        setTimeout(() => journal(root, { at: stamp(1), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' }), 400);
+      }),
     });
     assert.equal(first.code, 0);
-    assert.deepEqual(first.lines.map((l) => l.event), ['stage-start']);
+    assert.deepEqual(first.lines.map((l) => l.event), ['stage-start', 'stage-end']);
     const second = await runCli([root, SLUG, '--once'], env, {
-      onSpawn: () => setTimeout(() => journal(root, { at: stamp(1), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' }), 400),
+      onSpawn: () => setTimeout(() => journal(root,
+        { at: stamp(2), seq: 2, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' },
+        { at: stamp(3), seq: 2, event: 'agent-end', agent: 'implement:auth', status: 'complete' }), 400),
     });
-    assert.deepEqual(second.lines.map((l) => l.event), ['stage-end'], 'the stage start is not given again');
+    assert.deepEqual(second.lines.map((l) => `${l.event}:${l.stage}`), ['stage-start:implement', 'stage-end:implement'], 'the plan lines are not given again');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-// ---------------------------------------------------------------- the look-in
-// The PO, 2026-10-19: the campaign session reported only on events, so a long stage gave
-// no word for an hour. After 15 minutes with no full note, the watch asks the session to look in.
+test('--once: a commit and no other event keeps the watch polling; the commit goes to commentary.md', async () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    const afterFirstPoll = (write) => () => { const t = setInterval(() => { if (existsSync(W.statePath(root, SLUG))) { clearInterval(t); write(); } }, 20); };
+    const r = await runCli([root, SLUG, '--once', '--max-minutes', '0.05'], env, {
+      onSpawn: afterFirstPoll(() => {
+        writeFileSync(path.join(root, 'notes.txt'), 'v2\n');
+        git(root, 'commit', '-q', '-am', 'feat: a step');
+      }),
+    });
+    assert.equal(r.code, 0);
+    assert.deepEqual(r.lines.map((l) => l.event), ['commit', 'watch-timeout'], 'the commit did not end the watch: the lifetime did');
+    assert.match(readFileSync(W.commentaryPath(root, SLUG), 'utf8'), /commit `[0-9a-f]+` · feat: a step/);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
 
-test('look-in: 15 quiet minutes give one look-in with the running agents; a stage start does not restart the clock', () => {
+test('news: a commit and a stage start are not news; a stage end, a question, a stop and a look-in are', () => {
+  assert.equal(W.isNews({ event: 'commit' }), false);
+  assert.equal(W.isNews({ event: 'stage-start' }), false);
+  for (const event of ['stage-end', 'decision', 'stop', 'stale', 'protected-change', 'run-end', 'look-in']) assert.equal(W.isNews({ event }), true, event);
+  assert.equal(W.isNews({ event: 'look-in', quiet: true }), false, 'a delegated run is not woken by a look-in');
+});
+
+// ---------------------------------------------------------------- the look-in
+// SoccerManager, 2026-10: a fixed 15-minute look-in fired for nearly every emulator and
+// cargo stage, all night. A stage now gives a look-in only past its expected time.
+
+test('look-in: a stage under its expected time gives no look-in; past it one, and the next only past twice that time', () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
-    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir });
-    assert.deepEqual(w.pollLookIn([]), [], 'the first poll starts the clock');
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir });
+    assert.deepEqual(w.pollLookIn(), [], 'nothing runs');
     now = T0 + 2 * 60000;
     journal(root, { at: at(2), seq: 1, event: 'agent-start', agent: 'implement:board', stage: 'implement', slice: 'board' });
-    const started = w.pollJournals();
-    assert.deepEqual(started.map((e) => e.event), ['stage-start']);
-    assert.deepEqual(w.pollLookIn(started), [], 'a stage start is one line, not a full note');
-    now = T0 + 14 * 60000;
-    assert.deepEqual(w.pollLookIn([]), []);
-    now = T0 + 15 * 60000;
-    const ev = w.pollLookIn([]);
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-start']);
+    // No test profile: the stage expects 30 minutes.
+    now = T0 + 31 * 60000;
+    assert.deepEqual(w.pollLookIn(), [], 'a stage under its expected time gives no look-in');
+    now = T0 + 32 * 60000;
+    const ev = w.pollLookIn();
     assert.equal(ev.length, 1);
     assert.equal(ev[0].event, 'look-in');
-    assert.equal(ev[0].sinceMinutes, 15);
-    assert.deepEqual(ev[0].running, [{ slug: SLUG, agent: 'implement:board', stage: 'implement', slice: 'board', startedAt: at(2), minutes: 13, root, journal: W.journalPath(root, SLUG), transcript: null }]);
-    now = T0 + 29 * 60000;
-    assert.deepEqual(w.pollLookIn([]), [], 'the next look-in comes 15 minutes after this one');
-    now = T0 + 30 * 60000;
-    assert.deepEqual(w.pollLookIn([]).map((e) => e.event), ['look-in']);
+    assert.equal(ev[0].quiet, undefined);
+    assert.deepEqual(ev[0].running, [{ slug: SLUG, agent: 'implement:board', stage: 'implement', slice: 'board', startedAt: at(2), minutes: 30,
+      expectedMinutes: 30, due: true, root, journal: W.journalPath(root, SLUG), transcript: null }]);
+    now = T0 + 61 * 60000;
+    assert.deepEqual(w.pollLookIn(), [], 'one look-in past the expected time');
+    w.save();
+    // A re-armed watch keeps the count: the next look-in comes past twice the expected time.
+    const b = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir });
+    b.pollJournals();
+    assert.deepEqual(b.pollLookIn(), []);
+    now = T0 + 62 * 60000;
+    assert.deepEqual(b.pollLookIn().map((e) => e.event), ['look-in']);
+    now = T0 + 121 * 60000;
+    assert.deepEqual(b.pollLookIn(), [], 'then past four times');
+    now = T0 + 122 * 60000;
+    assert.deepEqual(b.pollLookIn().map((e) => e.event), ['look-in']);
+    // The stage ends: nothing runs, and no look-in comes.
+    journal(root, { at: at(123), seq: 1, event: 'agent-end', agent: 'implement:board', status: 'complete' });
+    now = T0 + 123 * 60000;
+    b.pollJournals();
+    now = T0 + 600 * 60000;
+    assert.deepEqual(b.pollLookIn(), []);
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('look-in: a full note restarts the clock, the clock survives a restart, and 0 turns it off', () => {
+test('look-in: the expected time is the stage time box from the test profile, else 30 minutes', () => {
+  const profile = { fast: { command: 'npm test', measuredSeconds: 300 }, affected: { command: 'npm run t', estimateSeconds: 200 } };
+  // The time box: 3 times the suites' 500 seconds.
+  assert.equal(W.stageExpectedMs(profile, 'implement'), 1500 * 1000);
+  assert.equal(W.stageExpectedMs(profile, 'verify'), 1500 * 1000);
+  assert.equal(W.stageExpectedMs(profile, 'review'), 30 * 60000, 'the profile gives no time for the full and heavy suites');
+  assert.equal(W.stageExpectedMs(profile, 'plan'), 30 * 60000, 'plan runs no suite');
+  assert.equal(W.stageExpectedMs({}, 'implement'), 30 * 60000);
+  assert.equal(W.stageExpectedMs({ fast: { command: 'x', estimateSeconds: 10 } }, 'implement'), 600 * 1000, 'never under the time-box floor');
+  assert.equal(W.lookInsPassed(29 * 60000, 30 * 60000, 0), 0);
+  assert.equal(W.lookInsPassed(30 * 60000, 30 * 60000, 0), 1);
+  assert.equal(W.lookInsPassed(59 * 60000, 30 * 60000, 1), 1);
+  assert.equal(W.lookInsPassed(60 * 60000, 30 * 60000, 1), 2);
+  assert.equal(W.lookInsPassed(200 * 60000, 30 * 60000, 0), 3, 'a watch that starts late gives one look-in, not three');
+});
+
+test('look-in: the profile sets the expected time of a running stage', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ testProfile: { fast: { command: 'npm test', measuredSeconds: 1200 } } }));
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir });
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'verify:board', stage: 'verify', slice: 'board' });
+    w.pollJournals();
+    // 3 times 20 minutes: a 60-minute stage.
+    now = T0 + 59 * 60000;
+    assert.deepEqual(w.pollLookIn(), []);
+    now = T0 + 60 * 60000;
+    const ev = w.pollLookIn();
+    assert.equal(ev[0].running[0].expectedMinutes, 60);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('look-in: given minutes replace the expected time of every stage, and 0 turns it off', () => {
+  assert.equal(W.lookInMsOf({}, {}), null, 'unset: each stage has its own expected time');
+  assert.equal(W.lookInMsOf({ 'look-in': '5' }, {}), 5 * 60000);
+  assert.equal(W.lookInMsOf({ 'look-in': '0' }, {}), 0);
+  assert.equal(W.lookInMsOf({}, { SDLC_WATCH_LOOK_IN_MINUTES: '30' }), 30 * 60000);
+  assert.equal(W.lookInMsOf({ 'look-in': 'soon' }, {}), null, 'a bad value keeps the stage time');
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
     const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir };
-    const a = W.createWatcher({ ...opts, lookInMs: 15 * 60000 });
-    a.pollLookIn([]);
-    now = T0 + 10 * 60000;
-    assert.deepEqual(a.pollLookIn([{ event: 'stage-end' }]), [], 'the session gives a full note now');
-    a.save();
-    // A re-armed watch keeps the clock: the look-in comes 15 minutes after the stage end.
-    now = T0 + 24 * 60000;
-    const b = W.createWatcher({ ...opts, lookInMs: 15 * 60000 });
-    assert.deepEqual(b.pollLookIn([]), []);
-    now = T0 + 25 * 60000;
-    assert.deepEqual(b.pollLookIn([]).map((e) => e.event), ['look-in']);
+    const five = W.createWatcher({ ...opts, lookInMs: 5 * 60000 });
     const off = W.createWatcher({ ...opts, lookInMs: 0 });
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'plan:board', stage: 'plan', slice: 'board' });
+    five.pollJournals();
+    off.pollJournals();
+    now = T0 + 5 * 60000;
+    assert.deepEqual(five.pollLookIn().map((e) => e.event), ['look-in']);
     now = T0 + 300 * 60000;
-    assert.deepEqual(off.pollLookIn([]), []);
+    assert.deepEqual(off.pollLookIn(), []);
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('look-in: 15 minutes by default, or the given minutes; 0 turns it off', () => {
-  assert.equal(W.lookInMsOf({}, {}), 15 * 60000);
-  assert.equal(W.lookInMsOf({ 'look-in': '5' }, {}), 5 * 60000);
-  assert.equal(W.lookInMsOf({ 'look-in': '0' }, {}), 0);
-  assert.equal(W.lookInMsOf({}, { SDLC_WATCH_LOOK_IN_MINUTES: '30' }), 30 * 60000);
-  assert.equal(W.lookInMsOf({ 'look-in': 'soon' }, {}), 15 * 60000, 'a bad value keeps the default');
+test('look-in: a delegated run gets a quiet look-in, written to commentary.md, that wakes no session', async () => {
+  const D = await import(new URL('../../lib/decisions.mjs', import.meta.url));
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    const dir = path.join(root, '.ai', 'workflows', SLUG);
+    assert.equal(W.runDelegated(root, SLUG), false, 'no steer: the run stops and waits');
+    D.addDecision(dir, { kind: 'steer', key: 'run-decisions', answer: 'stop and wait' });
+    assert.equal(W.runDelegated(root, SLUG), false);
+    D.addDecision(dir, { kind: 'steer', key: 'run-decisions', answer: 'take the recommended option' });
+    assert.equal(W.runDelegated(root, SLUG), true);
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir });
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:board', stage: 'implement', slice: 'board' });
+    w.pollJournals();
+    now = T0 + 30 * 60000;
+    const ev = w.pollLookIn();
+    assert.equal(ev.length, 1);
+    assert.equal(ev[0].quiet, true);
+    assert.equal(W.isNews(ev[0]), false);
+    w.recordFacts(ev);
+    assert.match(readFileSync(W.commentaryPath(root, SLUG), 'utf8'), /look-in · implement · slice board · 30 min, expected 30 min/);
+    // The CLI prints no quiet look-in, and a --once watch does not end on one.
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    rmSync(W.statePath(root, SLUG), { force: true });
+    const r = await runCli([root, SLUG, '--once', '--look-in', '0.001', '--max-minutes', '0.03'], env);
+    assert.deepEqual(r.lines.map((l) => l.event), ['watch-timeout']);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('look-in: a quiet --once watch wakes the session with a look-in, not after 110 minutes', async () => {
+test('look-in: a --once watch over a stage past its time wakes the session with a look-in, not after 110 minutes', async () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
   try {
     const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    journal(root, { at: new Date(Date.now() - 60000).toISOString(), seq: 1, event: 'agent-start', agent: 'implement:board', stage: 'implement', slice: 'board' });
     const r = await runCli([root, SLUG, '--once', '--look-in', '0.01'], env);
     assert.equal(r.code, 0);
     assert.deepEqual(r.lines.map((l) => l.event), ['look-in']);
@@ -813,7 +919,7 @@ test('look-in: a run that ended is not running, even with an agent that never en
     const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir };
     const a = W.createWatcher(opts);
     a.pollJournals();
-    a.pollLookIn([]);
+    a.pollLookIn();
     journal(root, { at: at(1), seq: 1, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' });
     now = T0 + 1 * 60000;
     a.pollJournals();
@@ -825,11 +931,9 @@ test('look-in: a run that ended is not running, even with an agent that never en
     now = T0 + 30 * 60000;
     const b = W.createWatcher(opts);
     b.pollJournals();
-    assert.deepEqual(b.pollLookIn([]), [], 'a watch after the run end starts a new clock');
-    now = T0 + 45 * 60000;
-    const ev = b.pollLookIn([]);
-    assert.deepEqual(ev.map((e) => e.event), ['look-in']);
-    assert.deepEqual(ev[0].running, [], 'the stopped agent is not running');
+    assert.deepEqual(b.pollLookIn(), [], 'the stopped agent is past its 15 minutes, but it is not running');
+    now = T0 + 300 * 60000;
+    assert.deepEqual(b.pollLookIn(), [], 'a run that ended gives no look-in');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 

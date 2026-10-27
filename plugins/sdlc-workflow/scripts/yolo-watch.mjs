@@ -10,9 +10,11 @@
  *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>] [--look-in <n>]
  *       Watch the runs. Exit after the run-end event of every slug, or after the
  *       lifetime (31 minutes; 110 with --once). --once: exit after the first poll
- *       that gives events, for a background shell task when the Monitor tool gives
- *       no output; a lifetime end then prints a watch-timeout line. --look-in: the
- *       minutes with no full note before a look-in event (15; 0 turns it off).
+ *       that gives news, for a background shell task when the Monitor tool gives
+ *       no output; a commit or a stage start is not news. A lifetime end then prints
+ *       a watch-timeout line. --look-in: the minutes a stage runs before a look-in
+ *       event, for every stage (default: the stage's time box from the test profile,
+ *       else 30; 0 turns it off). In a delegated run, a look-in goes to commentary.md only.
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
@@ -68,8 +70,9 @@ import { fileURLToPath } from 'node:url';
 import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
-import { decisionsOf, liveDecisions } from '../lib/decisions.mjs';
+import { answeredBy, decisionsOf, liveDecisions } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
+import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, workflowDir } from '../lib/records-root.mjs';
 import { stringify } from '../lib/yaml.mjs';
@@ -81,8 +84,12 @@ export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify
 export { STALE_FLOOR_MS };
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 const STATE_FILE = '.watch-state.json';
-// The events whose chat reply is a full note (_commentary.md). One of them restarts the look-in clock.
-export const FULL_NOTE_EVENTS = Object.freeze(['stage-end', 'decision', 'protected-change', 'stale', 'stop', 'run-end', 'look-in']);
+// The events that are not news: they go to commentary.md, and a --once watch keeps polling
+// after them. Every other event (stage-end, decision, stop, stale, protected-change,
+// run-end, look-in) ends a --once watch.
+export const NOT_NEWS_EVENTS = Object.freeze(['stage-start', 'commit']);
+/** True when an event wakes the session: news, and not a look-in that goes to commentary.md only. */
+export const isNews = (ev) => Boolean(ev) && !ev.quiet && !NOT_NEWS_EVENTS.includes(ev.event);
 const STATE_VERSION = 1;
 
 export const journalPath = (root, slug) => path.join(workflowDir(root, slug), '.driver-journal.jsonl');
@@ -316,6 +323,57 @@ export function readConfig(root) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// The look-in clock: the expected time of a stage, and whether the person is away.
+// ---------------------------------------------------------------------------
+/** The expected minutes of a stage that runs no test suite, or whose suites have no time. */
+export const DEFAULT_STAGE_MINUTES = 30;
+
+/**
+ * The expected time of a stage, in ms: the time box of the stage from the test profile
+ * (the time box that the stage brief gives), or 30 minutes when the profile gives no time
+ * for the suites that the stage runs.
+ */
+export function stageExpectedMs(profile, stage) {
+  const suites = STAGE_SUITES[stage];
+  if (suites) {
+    const box = timeBox(profile || {}, suites);
+    if (box.from.length) return box.seconds * 1000;
+  }
+  return DEFAULT_STAGE_MINUTES * 60 * 1000;
+}
+
+/**
+ * The next look-in of a stage: once past its expected time, then each time it runs past
+ * twice the time of the last one (T, 2T, 4T ...). `sent` counts the thresholds passed.
+ * Returns the new count: higher than `sent` when a look-in is due now.
+ */
+export function lookInsPassed(elapsedMs, expectedMs, sent = 0) {
+  let n = sent;
+  while (elapsedMs >= expectedMs * 2 ** n) n++;
+  return n;
+}
+
+/** The key of the steer entry that says how a run settles the person's decisions. */
+export const RUN_DECISIONS_KEY = 'run-decisions';
+
+/** True when a run-decisions answer says: take the recommended option, do not stop and wait. */
+export function delegatesDecisions(answer) {
+  const a = String(answer ?? '').trim().toLowerCase();
+  return /recommend|delegat/.test(a) && !/^(stop|wait)\b/.test(a);
+}
+
+/**
+ * True when the run of the slug decides for the person: the live `run-decisions` steer of
+ * its decision store, which the launch reads to set `delegate`, takes the recommended option.
+ */
+export function runDelegated(root, slug) {
+  try {
+    const entry = answeredBy(decisionsOf(workflowDir(root, slug)), RUN_DECISIONS_KEY);
+    return Boolean(entry) && delegatesDecisions(entry.answer);
+  } catch { return false; }
+}
+
 export function dirtyFiles(root) {
   const out = git(root, ['status', '--porcelain', '--untracked-files=no'], { raw: true });
   if (!out) return [];
@@ -356,7 +414,7 @@ export function protectedSet(root, slugs, cfg) {
 function freshSlugState() {
   return {
     version: STATE_VERSION, offset: 0, run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0,
-    newest: null, ended: false, endedRun: null, staleFor: null, decisionsSeen: [], openStages: {},
+    newest: null, ended: false, endedRun: null, staleFor: null, decisionsSeen: [], openStages: {}, lookIns: {},
   };
 }
 
@@ -408,11 +466,13 @@ export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 // ---------------------------------------------------------------------------
 export function createWatcher({
   projectRoot, slugs, since = null, now = () => Date.now(),
-  projectsDir = null, lockDir = null, lockId = null, lookInMs = 0,
+  projectsDir = null, lockDir = null, lockId = null, lookInMs = null,
 }) {
   const root = path.resolve(projectRoot);
   const watchStartMs = now();
   const cfg = readConfig(root);
+  let profile = {};
+  try { profile = readProfile(root); } catch { /* an unreadable config gives every stage 30 minutes */ }
   const states = new Map();
   const activity = createActivityFinder({
     projectsDir: projectsDir || process.env.SDLC_CLAUDE_PROJECTS_DIR || path.join(os.homedir(), '.claude', 'projects'),
@@ -610,33 +670,54 @@ export function createWatcher({
     for (const ev of events) {
       if (ev.event === 'stage-start') fact([ev.slug], `stage start · ${ev.stage}${ev.slice ? ` · slice ${ev.slice}` : ''}`, ev.at);
       else if (ev.event === 'commit') fact(Array.isArray(ev.slugs) ? ev.slugs : [], `commit \`${ev.sha}\` · ${ev.subject}`, ev.committedAt);
+      // A look-in of a delegated run wakes no session: its record is this line.
+      else if (ev.event === 'look-in' && ev.quiet) {
+        for (const r of ev.running || []) {
+          if (!r.due) continue;
+          fact([r.slug], `look-in · ${r.stage || r.agent}${r.slice ? ` · slice ${r.slice}` : ''} · ${r.minutes} min, expected ${r.expectedMinutes} min`, ev.at);
+        }
+      }
     }
   }
 
-  // The look-in: when the session gave no full note for lookInMs, the watch asks it to
-  // look in and tell the person what is happening. The clock lives in the saved state,
-  // so a watch restart does not reset it. A poll that gives a full note restarts it.
-  function pollLookIn(events) {
-    if (!(lookInMs > 0)) return [];
+  // The look-in: when a stage runs past its expected time, the watch asks the session to
+  // look in and tell the person what is happening. The expected time is the stage's time
+  // box from the test profile, or 30 minutes; a given lookInMs replaces it for every stage,
+  // and 0 turns the look-in off. A stage gives one look-in past its expected time, and the
+  // next only past twice that time. The counts live in the saved state, so a watch
+  // restart does not repeat a look-in. In a delegated run the look-in is quiet: it goes to
+  // commentary.md, and the session is not woken.
+  function pollLookIn() {
+    if (lookInMs === 0) return [];
     const t = now();
-    const noted = events.some((ev) => FULL_NOTE_EVENTS.includes(ev.event));
-    if (noted || !Number.isFinite(lead.repo.lookInAt)) { lead.repo.lookInAt = t; return []; }
-    if (t - lead.repo.lookInAt < lookInMs) return [];
-    const since = lead.repo.lookInAt;
-    lead.repo.lookInAt = t;
     const running = [];
+    const dueSlugs = new Set();
     for (const [slug, { st }] of states) {
+      const before = st.lookIns || {};
+      const after = {};
       // A run that ended runs nothing: an agent-start with no agent-end is a stopped agent.
-      if (st.ended || (st.run && st.endedRun === st.run)) continue;
-      for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
-        const { stage, slice } = stageOf({ agent });
-        const startMs = Date.parse(startedAt || '');
-        // C7 — the look-in reader reads these paths and does not search for them.
-        running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null,
-          root, journal: st.source || journalPath(root, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
+      if (!(st.ended || (st.run && st.endedRun === st.run))) {
+        for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
+          const { stage, slice } = stageOf({ agent });
+          const startMs = Date.parse(startedAt || '');
+          const expectedMs = lookInMs > 0 ? lookInMs : stageExpectedMs(profile, stage);
+          // A count saved for an earlier agent with the same label starts again at 0.
+          const sent = before[agent] && before[agent].startedAt === startedAt ? Number(before[agent].sent) || 0 : 0;
+          const passed = Number.isFinite(startMs) ? lookInsPassed(t - startMs, expectedMs, sent) : sent;
+          const due = passed > sent;
+          after[agent] = { startedAt, sent: passed };
+          if (due) dueSlugs.add(slug);
+          // C7 — the look-in reader reads these paths and does not search for them.
+          running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null,
+            expectedMinutes: Math.round(expectedMs / 60000), due,
+            root, journal: st.source || journalPath(root, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
+        }
       }
+      st.lookIns = after;
     }
-    return [{ event: 'look-in', slugs: [...states.keys()], running, sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
+    if (!dueSlugs.size) return [];
+    const quiet = [...dueSlugs].every((slug) => runDelegated(root, slug));
+    return [{ event: 'look-in', slugs: [...states.keys()], running, ...(quiet ? { quiet: true } : {}), at: iso(t) }];
   }
 
   const allEnded = () => [...states.values()].every(({ st }) => st.ended);
@@ -804,16 +885,16 @@ export function lifetimeMs(flags, env = process.env) {
 }
 
 /**
- * The look-in: after this many minutes with no full note, the watch emits `look-in`, and
- * the session looks at the run and tells the person what is happening. 15 minutes by
- * default; --look-in or SDLC_WATCH_LOOK_IN_MINUTES sets it, and 0 turns it off.
+ * The look-in: when a stage runs past this many minutes, the watch emits `look-in`, and
+ * the session looks at the run and tells the person what is happening. --look-in or
+ * SDLC_WATCH_LOOK_IN_MINUTES sets the minutes for every stage, and 0 turns it off.
+ * Returns null when neither gives a number: each stage then has its own expected time
+ * (stageExpectedMs).
  */
-export const DEFAULT_LOOK_IN_MINUTES = 15;
 export function lookInMsOf(flags, env = process.env) {
   const raw = flags['look-in'] ?? env.SDLC_WATCH_LOOK_IN_MINUTES;
   const given = raw === undefined || raw === '' ? NaN : Number(raw);
-  const minutes = Number.isFinite(given) && given >= 0 ? given : DEFAULT_LOOK_IN_MINUTES;
-  return minutes * 60 * 1000;
+  return Number.isFinite(given) && given >= 0 ? given * 60 * 1000 : null;
 }
 
 async function watch(root, slugs, flags) {
@@ -841,14 +922,16 @@ async function watch(root, slugs, flags) {
       if (t - lastGit >= gitMs) { lastGit = t; events.push(...w.pollCommits(), ...w.pollProtected()); }
       // The journal goes last, so a run-end follows the commits the run made.
       events.push(...w.pollJournals());
-      events.push(...w.pollLookIn(events));
+      events.push(...w.pollLookIn());
       w.recordFacts(events);
-      for (const ev of events) out(ev);
+      // A quiet look-in (a delegated run) is in commentary.md: on stdout it would wake the session.
+      for (const ev of events) if (!ev.quiet) out(ev);
       w.save();
       if (w.allEnded()) break;
-      // B4 — --once: the first poll with events ends the watch. The session reads the
+      // B4 — --once: the first poll with news ends the watch. The session reads the
       // lines, acts, and starts the watch again; the offsets keep every later event.
-      if (flags.once && events.length) break;
+      // A commit or a stage start is not news: it is printed, and the watch polls on.
+      if (flags.once && events.some(isNews)) break;
       if (Date.now() - startedAt >= maxMs) {
         // With --once, the session waits on this process: say why it ends.
         if (flags.once) out({ event: 'watch-timeout', minutes: Math.round(maxMs / 60000), slugs, at: new Date().toISOString() });

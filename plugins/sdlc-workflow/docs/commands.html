@@ -1638,7 +1638,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["SDLC_CLAUDE_PROJECTS_DIR", "~/.claude/projects", "Where the watch reads session transcripts."],
       ["SDLC_WATCH_LOCK_DIR", "unset", "A folder for the watch's locks."],
       ["SDLC_WATCH_MAX_MINUTES", "31", "How long one watch lives. 110 with --once."],
-      ["SDLC_WATCH_LOOK_IN_MINUTES", "15", "Minutes with no full note before the watch asks the session to look in. 0 turns it off."],
+      ["SDLC_WATCH_LOOK_IN_MINUTES", "unset", "Minutes a stage runs before the watch asks the session to look in, for every stage. Unset: the stage's time box from the test profile, else 30. 0 turns it off."],
       ["SDLC_WATCH_JOURNAL_MS · SDLC_WATCH_GIT_MS", "5000 · 20000", "How often the watch reads the driver journal and git."],
       ["SDLC_BROWSER", "auto", "The Chromium that checks the screens and takes the approval pictures. none turns the checks off."]
     ] },
