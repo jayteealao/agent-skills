@@ -5,6 +5,22 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.7] - 2026-10-27
+
+- feat(sdlc-workflow): optimize harvests its near misses before the clock ends
+- feat(sdlc-workflow): optimize checks each kept change alone before the squash
+- feat(sdlc-workflow): the optimize schedule follows the wall clock, and skips a round that does not fit
+- feat(sdlc-workflow): optimize ports kept changes, bundles marginal ideas, and prunes a trailing branch
+- feat(sdlc-workflow): optimize can measure each trial in turns with its reference
+- feat(sdlc-workflow): optimize lanes share a profile and an ideas ledger
+- fix(sdlc-workflow): an optimize proposer builds and benchmarks only in a probe, under the measure lock
+- feat(sdlc-workflow): an optimize round considers a merge of its other kept branches into the trunk
+- feat(sdlc-workflow): optimize branches edit at the same time in their own worktrees, and the loop removes its worktrees
+- fix(sdlc-workflow): a commit hook that refuses a trial rejects the trial, and the loop formats each change
+- fix(sdlc-workflow): the review after a route-back scans the new commits with its rubrics
+- fix(sdlc-workflow): an answered review fixes a small change itself and routes back only a larger one
+- fix(sdlc-workflow): an answer that the person gives while a stage runs reaches that stage
+
 ## [10.0.0-next.6] - 2026-10-26
 
 - feat(sdlc-workflow): the stage references point to wf.mjs run for several records
