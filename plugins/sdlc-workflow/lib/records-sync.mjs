@@ -24,7 +24,21 @@ import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { otherLease } from './leases.mjs';
 
+// A call that only asks the remote (ls-remote) ends after 20 seconds, so an offline machine goes
+// on quickly. A transfer (push, fetch) runs as long as data moves: git itself stops a transfer
+// that moves less than 1 KB a second for 60 seconds. A kill by the timeout is the last resort:
+// on Windows it ends `git push` but leaves its upload running, and the next try starts the same
+// upload again beside it.
 const NET_TIMEOUT_MS = 20_000;
+const TRANSFER_TIMEOUT_MS = 60 * 60_000;
+const LOCAL_TIMEOUT_MS = 10 * 60_000;
+const STALL_LIMIT = ['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=60'];
+
+/** The timeout of one git call in the records home, in milliseconds. */
+export function timeoutOf(args, net) {
+  if (!net) return LOCAL_TIMEOUT_MS;
+  return args[0] === 'push' || args[0] === 'fetch' ? TRANSFER_TIMEOUT_MS : NET_TIMEOUT_MS;
+}
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const MAX_DROPPED = 200;
 
@@ -41,7 +55,7 @@ const LONG_PATHS = ['-c', 'core.longpaths=true'];
 /** One git call in the records home. `index` names a temporary index file. */
 export function gitIn(home, args, { input, index, net = false } = {}) {
   const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', ...(index ? { GIT_INDEX_FILE: index } : {}) };
-  const r = spawnSync('git', [...LONG_PATHS, '-C', home, ...args], { input, env, encoding: 'utf8', windowsHide: true, timeout: net ? NET_TIMEOUT_MS : 60_000, maxBuffer: 32 * 1024 * 1024 });
+  const r = spawnSync('git', [...LONG_PATHS, ...(net ? STALL_LIMIT : []), '-C', home, ...args], { input, env, encoding: 'utf8', windowsHide: true, timeout: timeoutOf(args, net), maxBuffer: 32 * 1024 * 1024 });
   return { status: r.error ? 127 : r.status ?? 1, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? r.error?.message ?? '').trim() };
 }
 const sha = (home, ref) => {
