@@ -24,7 +24,8 @@ You are running `/wf implement`, **stage 5 of 9**: 1·intake → 2·design → 3
 - Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
 - Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
-- Run only the fast and affected suites of the test profile. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time.
+- After each step, run only the tests that cover the files of that step. Run the fast and affected suites of the test profile once, at the end, with `wf.mjs receipt` ([implement/_steps.md](implement/_steps.md)).
+- Do not run a `full` or `heavy` command, or a command that takes longer than the time box of the profile. When an acceptance criterion needs one, or names a push hook, record it under `## Packet Checks` of the implement record: the review runs it once for the packet.
 - Done when the code is committed and `05-implement-<slice>.md` has `status: complete`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 - To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).

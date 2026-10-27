@@ -22,6 +22,7 @@ You are running `/wf plan`, **stage 4 of 9**: 1·intake → 2·design → 3·sli
 - A slice has fewer than 40 steps. At 40 or more, route back to slice.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
 - Record each choice that you settle in `## Assumptions`, with the reason.
+- A step check runs only the tests of the step, or the `fast` and `affected` suites of the test profile. Do not plan a `full` or `heavy` command, a push hook, or a command that takes longer than the time box of the profile as a slice check. Name it under `## Packet Checks` of the plan: the review runs it once for the packet.
 - Do not write product code.
 - Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
