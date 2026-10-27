@@ -15,7 +15,7 @@
  *   merge-trial     <root> <slug> --branch <name>     merge one candidate into the trunk, and judge it as a trial
  *   merge-close     <root> <slug>                     end the merge step: skip the rest, delete the branches, checkpoint
  *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline (D7)
- *   finish          <root> <slug> [--message m] [--no-ablate]
+ *   finish          <root> <slug> [--message m] [--no-ablate] [--no-holdout] [--stash]
  *                                                     squash the kept trials onto the slug branch; write the slice artifacts; clean up
  *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
@@ -53,7 +53,7 @@ import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
-  ablationDue, ablationTable, ablationVerdict,
+  ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
@@ -137,6 +137,13 @@ function appendResult(root, slug, line) {
 // The ideas ledger (G2). Proposers claim ideas while a trial runs, so each change of the file
 // holds a short lock of its own: a read, the change, and an atomic write.
 const ideasPath = (root, slug) => join(optDir(root, slug), 'ideas.json');
+/**
+ * Whether the saved diffs (absolute paths) apply together, in order, on the committed code of a
+ * worktree. The check reads the index, so an edit in the worktree does not change the answer.
+ */
+function diffsApply(wt, files) {
+  return !!wt && existsSync(wt) && files.length > 0 && files.every((f) => existsSync(f)) && git(wt, ['apply', '--check', '--cached', ...files]).ok;
+}
 const patchesDir = (root, slug) => join(optDir(root, slug), 'patches');
 const profileFile = (root, slug) => join(optDir(root, slug), 'profile.json');
 const profilePatch = (root, slug) => join(optDir(root, slug), 'profile.patch');
@@ -508,11 +515,16 @@ export function optimizeStatus(root, slug) {
   const err = consistency(root, slug, state, results, spec);
   if (err) return { ok: true, state: 'stopped', reason: 'state-error', detail: err, next: { action: 'person', why: 'report; do not repair' } };
   const ideas = readIdeas(root, slug);
-  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas, pace: paceOf(results) });
-  // A port or a bundle has no proposer: the editor gets the hypothesis and the kept diff.
+  // G9: a bundle of the ideas ledger joins only ideas whose last diffs apply together on the trunk.
+  const canApply = (trials) => diffsApply(state.worktree, trials.map((t) => join(patchesDir(root, slug), `${t}.patch`)));
+  const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas, pace: paceOf(results), canApply });
+  // A port or a bundle has no proposer: the script applies the kept diffs, and the editor makes them by hand when they do not apply.
   if (st.next?.port) {
     const c = state.merge?.candidates.find((x) => x.name === st.next.port);
-    if (c) st.next.portOf = { trial: c.trial, branch: c.branch, idea: c.idea ?? null, hypothesis: c.hypothesis, gain: c.gain, patch: join(optDir(root, slug), c.patch) };
+    if (c?.kind === 'bundle') {
+      st.next.portOf = { kind: 'bundle', trials: c.trials, trial: c.trials[0], branch: c.branch, ideas: c.ideas, hypotheses: c.hypotheses, hypothesis: c.hypotheses.join(' | '), gain: c.gain, patches: c.patches.map((x) => join(optDir(root, slug), x)) };
+      st.next.portOf.patch = st.next.portOf.patches[0];
+    } else if (c) st.next.portOf = { trial: c.trial, branch: c.branch, idea: c.idea ?? null, hypothesis: c.hypothesis, gain: c.gain, patch: join(optDir(root, slug), c.patch), patches: [join(optDir(root, slug), c.patch)] };
   }
   if (st.next?.bundle) {
     const results = readResults(root, slug);
@@ -529,12 +541,28 @@ export function optimizeStatus(root, slug) {
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
-    merge: state.merge ? { ...state.merge, candidates: state.merge.candidates.map((c) => (c.kind === 'port' ? { ...c, patchFile: join(optDir(root, slug), c.patch) } : c)) } : null,
+    merge: state.merge ? { ...state.merge, candidates: state.merge.candidates.map((c) => mergeView(root, slug, c, ideas, results)) } : null,
     rounds: state.rounds.length,
     metric: { command: spec.metric.command, unit: spec.metric.unit, direction: spec.metric.direction },
     worktree: state.worktree,
     profile: spec.profile ? { mode: spec.profile === 'agent' ? 'agent' : 'command', last: state.profile ?? null, patch: existsSync(profilePatch(root, slug)) ? profilePatch(root, slug) : null } : null,
   };
+}
+
+/**
+ * A merge candidate as the consider step reads it (G9): a port or a bundle names its diff files, its
+ * targets, and every idea of the ledger on those targets, with the lanes of their trials and their status.
+ */
+function mergeView(root, slug, c, ideas, results) {
+  if (!c.kind) return c;
+  const own = c.kind === 'port' ? [c.idea] : c.ideas ?? [];
+  const targets = [...new Set(own.map((id) => ideas.ideas.find((i) => i.id === id)?.target).filter(Boolean))];
+  const laneOfTrial = (t) => results.find((x) => x.event === 'trial' && x.trial === t)?.branch ?? 'trunk';
+  const ledger = ideas.ideas.filter((i) => targets.some((t) => normTarget(t) === normTarget(i.target)))
+    .map((i) => ({ id: i.id, target: i.target, status: i.status, pooled: i.pooled, trials: i.trials.map((t) => ({ trial: t, lane: laneOfTrial(t) })) }));
+  return c.kind === 'port'
+    ? { ...c, patchFile: join(optDir(root, slug), c.patch), targets, ledger }
+    : { ...c, patchFiles: c.patches.map((x) => join(optDir(root, slug), x)), targets, ledger };
 }
 
 function requireNext(root, slug, action) {
@@ -832,16 +860,32 @@ function trial(root, slug, id, f) {
   const mg = state.merge;
   const port = st.next.port ? mg?.candidates.find((c) => c.name === st.next.port) ?? null : null;
   const bundle = Array.isArray(st.next.bundle) ? st.next.bundle : null;
-  if (port) line.port = { round: mg.round, trial: port.trial, branch: port.branch };
+  // G9: the near misses of the winner are a port of several diffs.
+  const nearSet = port?.kind === 'bundle';
+  if (port) line.port = nearSet ? { round: mg.round, trials: port.trials, branch: port.branch, kind: 'bundle' } : { round: mg.round, trial: port.trial, branch: port.branch };
   if (bundle) line.bundle = bundle;
+  // G9: `--apply` makes the change of a port or a bundle from its saved diffs. A diff that does not
+  // apply leaves the worktree as it was and records no trial: the editor then makes the change by hand.
+  if (f.apply === true && (port || bundle) && !dirtyPaths(wt).length) {
+    const book = bundle ? readIdeas(root, slug) : null;
+    const files = port
+      ? (port.patches ?? [port.patch]).map((x) => join(optDir(root, slug), x))
+      : bundle.map((id) => book.ideas.find((i) => i.id === id)?.patches?.at(-1)).filter((t) => t !== undefined).map((t) => join(patchesDir(root, slug), `${t}.patch`));
+    const a = files.length && files.every((x) => existsSync(x)) ? git(wt, ['apply', '--3way', ...files]) : { ok: false, err: 'a saved diff is missing' };
+    if (!a.ok) {
+      resetTo(root, wt, best.commit);
+      return { ok: false, apply: 'failed', error: `the saved diffs do not apply: ${tail(`${a.out ?? ''}\n${a.err ?? ''}`)}`, next: st.next };
+    }
+    line.applied = files.map((x) => basename(x));
+  }
   const bundleSum = bundle ? Number(readIdeas(root, slug).ideas.filter((i) => bundle.includes(i.id)).reduce((s, i) => s + (i.pooled?.mean ?? 0), 0).toPrecision(6)) : null;
   // The idea of the trial: --idea, the idea of a port, or the claim in flight of its lane (a trial that waited through a stop).
-  const ideaId = port ? port.idea : bundle ? null
+  const ideaId = port ? (nearSet ? null : port.idea) : bundle ? null
     : typeof f.idea === 'string' && f.idea ? f.idea : readIdeas(root, slug).ideas.find((i) => i.claim === laneName)?.id ?? null;
   if (ideaId) line.idea = ideaId;
   const finish = (verdict, extra = {}) => {
     Object.assign(line, { verdict, ...extra });
-    if (verdict === 'kept' && port) line.additive = { measured: line.delta, alone: port.gain };
+    if (verdict === 'kept' && port) line.additive = nearSet ? { measured: line.delta, sum: port.gain } : { measured: line.delta, alone: port.gain };
     if (verdict === 'kept' && bundle) line.additive = { measured: line.delta, sum: bundleSum };
     // A kept change, and a reverted change with a real gain, keep their diff: a port or a bundle can use it (G4).
     const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
@@ -851,7 +895,10 @@ function trial(root, slug, id, f) {
       line.patch = `patches/${n}.patch`;
     }
     if (ideaId) withIdeas(root, slug, (book) => settleIdea(book, ideaId, { trial: n, verdict, gain: line.delta, patch: keepPatch }));
-    if (bundle && verdict === 'kept') withIdeas(root, slug, (book) => { for (const i of book.ideas) if (bundle.includes(i.id)) { i.status = 'bundled'; i.trials.push(n); } });
+    const together = bundle ?? (nearSet ? port.ideas ?? [] : null);
+    if (together?.length && verdict === 'kept') withIdeas(root, slug, (book) => { for (const i of book.ideas) if (together.includes(i.id)) { i.status = 'bundled'; i.trials.push(n); } });
+    // A set of ideas that was tried together is not tried again as a bundle of the trunk.
+    if (nearSet && port.ideas?.length) state.bundlesTried = [...(state.bundlesTried ?? []), [...port.ideas].sort().join(',')];
     if (verdict !== 'kept') resetTo(root, wt, best.commit);
     state.counters.trials = n;
     if (port) {
@@ -1060,6 +1107,16 @@ function roundClose(root, slug) {
       ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
     };
   });
+  // G9: the near misses of the winner: its reverted trials with a gain above 0. They were measured
+  // on the code that is now the trunk, so their saved diffs apply as they are, and together they can pass.
+  const near = winner && spec.rounds.merge !== 'off'
+    ? nearMisses(results, r.n, winner.name, (patches) => diffsApply(state.worktree, patches.map((x) => join(optDir(root, slug), x))))
+    : [];
+  const bundles = near.length ? [{
+    kind: 'bundle', name: `n${r.n}`, trials: near.map((x) => x.trial), branch: winner.name, ideas: near.map((x) => x.idea).filter(Boolean),
+    hypotheses: near.map((x) => x.hypothesis?.text ?? ''), patches: near.map((x) => x.patch), gains: near.map((x) => x.delta),
+    gain: Number(near.reduce((s, x) => s + x.delta, 0).toPrecision(6)), paths: [...new Set(near.flatMap((x) => x.paths ?? []))], conflict: false,
+  }] : [];
   // The branch worktrees go first: git does not delete a branch that a worktree holds. A prepared
   // trial that was not measured is discarded with its worktree.
   const removed = [];
@@ -1086,15 +1143,15 @@ function roundClose(root, slug) {
   state.rounds.push(summary);
   state.round = null;
   if (!winner && r.reason === 'plateau') state.stopped = { reason: 'plateau', detail: `the trunk found no gain in ${spec.budget.plateau} trials, and no branch of round ${r.n} beat it`, at: nowIso() };
-  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, gain: c.gain, conflict: c.conflict })) });
+  appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, gain: c.gain, conflict: c.conflict })), bundles: bundles.map((c) => ({ name: c.name, trials: c.trials, gain: c.gain })) });
   let cp = { ran: false };
-  const all = [...candidates, ...ports];
+  const all = [...candidates, ...ports, ...bundles];
   if (all.length && !state.stopped) {
     state.merge = { round: r.n, from: r.from, base, worktree: state.worktree, considered: all.every((c) => c.conflict), order: [], candidates: all };
     if (state.merge.considered) cp = closeMerge(root, slug, state, spec, 'no candidate applies cleanly');
   } else if (!state.stopped) cp = runCheckpoint(root, slug, state, spec);
   saveState(root, slug, state);
-  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], candidates: candidates.map((c) => ({ name: c.name, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, conflict: c.conflict })), checkpoint: cp, ...optimizeStatus(root, slug) };
+  return { ok: true, round: r.n, winner: summary.winner ?? 'trunk', deleted, removed, leftovers: state.leftovers ?? [], candidates: candidates.map((c) => ({ name: c.name, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, conflict: c.conflict })), bundles: bundles.map((c) => ({ name: c.name, trials: c.trials })), checkpoint: cp, ...optimizeStatus(root, slug) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1104,7 +1161,7 @@ function roundClose(root, slug) {
 /** A candidate by its full branch name, `b<k>` or `r<n>b<k>`. */
 function candidateOf(merge, token) {
   const t = String(token ?? '').trim();
-  return merge.candidates.find((c) => c.name === t || (c.kind !== 'port' && (`b${c.k}` === t || `r${merge.round}b${c.k}` === t))) ?? null;
+  return merge.candidates.find((c) => c.name === t || (!c.kind && (`b${c.k}` === t || `r${merge.round}b${c.k}` === t))) ?? null;
 }
 
 /**
@@ -1117,8 +1174,8 @@ function closeMerge(root, slug, state, spec, why, { checkpoint: runCp = true } =
     if (!c.verdict) Object.assign(c, { verdict: 'skipped', reason: c.decision === 'try' ? why : (c.reason ?? why) });
   }
   // CAUTION: delete only the candidate branches that state.json lists, by their exact names.
-  for (const c of mg.candidates) if (c.kind !== 'port') git(root, ['branch', '-D', c.name]);
-  const merged = mg.candidates.filter((c) => c.kind !== 'port' && c.verdict === 'kept').map((c) => c.name);
+  for (const c of mg.candidates) if (!c.kind) git(root, ['branch', '-D', c.name]);
+  const merged = mg.candidates.filter((c) => !c.kind && c.verdict === 'kept').map((c) => c.name);
   const summary = state.rounds.find((x) => x.n === mg.round);
   if (summary) summary.merged = merged;
   appendResult(root, slug, { event: 'merge-close', round: mg.round, merged, skipped: mg.candidates.filter((c) => c.verdict !== 'kept').map((c) => ({ name: c.name, reason: c.reason ?? c.verdict })) });
@@ -1256,6 +1313,12 @@ function finish(root, slug, f) {
     state.ablation = runAblation(root, slug, state, spec);
     saveState(root, slug, state);
   }
+  // G9: a change kept after the last checkpoint is checked on the holdout before the squash.
+  if (spec.holdout && f['no-holdout'] !== true && state.best.commit !== state.baseCommit && (state.lastCheckpoint?.trial ?? 0) < (state.best.trial ?? 0)) {
+    const cp = runCheckpoint(root, slug, state, spec);
+    saveState(root, slug, state);
+    if (!cp.ok) throw new Error(`the holdout regressed before finish: ${state.stopped?.detail ?? `it reads ${cp.value}`}. Look at the trials since the last good checkpoint; finish --no-holdout squashes anyway`);
+  }
   const at = nowIso();
   // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not in the squash.
   const winners = new Set(state.rounds.flatMap((r) => [...(r.winner ? [`${r.n}:${r.winner.name}`] : []), ...(r.merged ?? []).map((name) => `${r.n}:${name}`)]));
@@ -1269,74 +1332,134 @@ function finish(root, slug, f) {
   }
   const branch = state.slugBranch;
   if (branch && currentBranch(root) !== branch) throw new Error(`the main checkout is on ${currentBranch(root) || 'a detached HEAD'}, not on the slug branch ${branch}: switch to it, then finish again`);
-  const tracked = git(root, ['status', '--porcelain', '--untracked-files=no']).out;
-  if (tracked) throw new Error('the main checkout has uncommitted changes to tracked files: commit or stash them, then finish again');
-  const m = git(root, ['merge', '--squash', state.trunk]);
-  if (!m.ok) {
-    git(root, ['reset', '--merge']);
-    throw new Error(`the squash of ${state.trunk} does not apply cleanly: ${m.err || m.out}`);
+  // G9: --stash puts the person's uncommitted tracked files aside for the squash, and restores them after it.
+  const stash = stashForFinish(root, slug, state, f);
+  let out;
+  try {
+    out = squash();
+  } catch (e) {
+    if (stash) e.message += `; ${JSON.stringify(popFinishStash(root, stash))}`;
+    throw e;
   }
-  const gain = gainOf(spec.metric.direction, state.baseline.median, state.best.value);
-  const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
-  const message = String(f.message ?? '').trim() || `${spec.objective}: ${state.baseline.median}${unit} to ${state.best.value}${unit}`;
-  gitOk(root, ['commit', '-q', '-m', message], 'commit');
-  const sha = headOf(root);
-  const files = gitOk(root, ['diff', '--name-only', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean);
-  const stat = gitOk(root, ['diff', '--numstat', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
-  const added = stat.reduce((s, x) => s + (Number(x[0]) || 0), 0);
-  const removed = stat.reduce((s, x) => s + (Number(x[1]) || 0), 0);
-  const dir = wfDir(root, slug);
-  const next = { 'next-command': 'wf-verify', 'next-invocation': `/wf verify ${slug} ${SLICE}` };
-  if (!hasDoc(dir, '03-slice.md')) {
-    writeDoc(dir, '03-slice.md', {
+  if (stash) out.stash = popFinishStash(root, stash);
+  return out;
+
+  function squash() {
+    const m = git(root, ['merge', '--squash', state.trunk]);
+    if (!m.ok) {
+      git(root, ['reset', '--merge']);
+      throw new Error(`the squash of ${state.trunk} does not apply cleanly: ${m.err || m.out}`);
+    }
+    const gain = gainOf(spec.metric.direction, state.baseline.median, state.best.value);
+    const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
+    const message = String(f.message ?? '').trim() || `${spec.objective}: ${state.baseline.median}${unit} to ${state.best.value}${unit}`;
+    gitOk(root, ['commit', '-q', '-m', message], 'commit');
+    const sha = headOf(root);
+    const files = gitOk(root, ['diff', '--name-only', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean);
+    const stat = gitOk(root, ['diff', '--numstat', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
+    const added = stat.reduce((s, x) => s + (Number(x[0]) || 0), 0);
+    const removed = stat.reduce((s, x) => s + (Number(x[1]) || 0), 0);
+    const dir = wfDir(root, slug);
+    const next = { 'next-command': 'wf-verify', 'next-invocation': `/wf verify ${slug} ${SLICE}` };
+    if (!hasDoc(dir, '03-slice.md')) {
+      writeDoc(dir, '03-slice.md', {
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'slice-index', slug, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
+          'total-slices': 1, 'best-first-slice': SLICE, tags: ['optimize'], slices: [{ slug: SLICE, status: 'complete', complexity: 'm', 'depends-on': [] }],
+          refs: { index: '00-index.md', spec: SPEC_FILE }, ...next,
+        },
+        body: ['# Slice Index', '', `One slice, \`${SLICE}\`: the kept trials of the optimize loop, squashed into one commit.`, ''].join('\n'),
+      });
+    }
+    const holdoutAc = spec.holdout ? `\n3. When the holdout runs, \`${spec.holdout.command}\` is within ${spec.holdout.tolerance.percent !== undefined ? `${spec.holdout.tolerance.percent}%` : spec.holdout.tolerance.absolute} of the baseline holdout ${state.baseline.holdout}.` : '';
+    writeDoc(dir, `03-slice-${SLICE}.md`, {
       frontmatter: {
-        schema: 'sdlc/v1', type: 'slice-index', slug, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
-        'total-slices': 1, 'best-first-slice': SLICE, tags: ['optimize'], slices: [{ slug: SLICE, status: 'complete', complexity: 'm', 'depends-on': [] }],
-        refs: { index: '00-index.md', spec: SPEC_FILE }, ...next,
+        schema: 'sdlc/v1', type: 'slice', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
+        complexity: 'm', 'depends-on': [], tags: ['optimize'], 'ux-impact': 'none',
+        refs: { index: '00-index.md', 'slice-index': '03-slice.md', implement: `05-implement-${SLICE}.md` }, ...next,
       },
-      body: ['# Slice Index', '', `One slice, \`${SLICE}\`: the kept trials of the optimize loop, squashed into one commit.`, ''].join('\n'),
+      body: [
+        `# Slice: ${SLICE}`, '', `The kept trials of the loop toward: ${spec.objective}`, '',
+        '## Acceptance Criteria', '',
+        `1. \`${spec.metric.command}\`, ${spec.metric.repeat} runs, reaches ${state.best.value}${unit} within the noise floor ${state.baseline.noise}${unit} (median; direction ${spec.metric.direction}).`,
+        `2. \`${spec.guard.command}\` exits 0.${holdoutAc}`, '',
+      ].join('\n'),
     });
+    writeDoc(dir, `05-implement-${SLICE}.md`, {
+      frontmatter: {
+        schema: 'sdlc/v1', type: 'implement', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 5, 'created-at': at, 'updated-at': at,
+        'metric-files-changed': files.length, 'metric-lines-added': added, 'metric-lines-removed': removed, 'metric-deviations-from-plan': 0, 'metric-review-fixes-applied': 0,
+        'commit-sha': sha, 'files-modified': files, tags: ['optimize'],
+        'optimize-baseline': state.baseline.median, 'optimize-kept-value': state.best.value, 'optimize-noise': state.baseline.noise,
+        'optimize-trials': state.counters.trials, 'optimize-kept': kept.length, 'optimize-rounds': state.rounds.length,
+        refs: { index: '00-index.md', 'slice-def': `03-slice-${SLICE}.md`, verify: `06-verify-${SLICE}.md`, results: 'optimize/results.jsonl' }, ...next,
+      },
+      body: [
+      `# Implement: ${SLICE}`, '', '## Summary of Changes', '',
+      `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
+      `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
+    ...(spec.holdout && state.lastCheckpoint?.value !== null && state.lastCheckpoint?.value !== undefined ? [`- The holdout moved from ${state.baseline.holdout} to ${state.lastCheckpoint.value} (checked at trial ${state.lastCheckpoint.trial}).`] : []),
+      `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '',
+      ...(state.ablation ? ['## Ablation', '',
+        `Each kept change, reverted alone on the final code and measured in pairs against it. A change whose removal costs no more than ${state.ablation.threshold}${unit} is weak; decide at verify whether it stays.`, '',
+        ablationTable(state.ablation, spec), ''] : []),
+      '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
+      ].join('\n'),
+    });
+    state.finished = { commit: sha, at, gain, kept: kept.length };
+    appendResult(root, slug, { event: 'finish', commit: sha, gain, kept: kept.length });
+    saveState(root, slug, state);
+    // The loop is done: its worktrees, its trunk branch and its build folder go. A cleanup that
+    // cannot remove a worktree never fails the finish; the result names what is left.
+    return { ok: true, commit: sha, gain, kept: kept.length, ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}), files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` } };
   }
-  const holdoutAc = spec.holdout ? `\n3. When the holdout runs, \`${spec.holdout.command}\` is within ${spec.holdout.tolerance.percent !== undefined ? `${spec.holdout.tolerance.percent}%` : spec.holdout.tolerance.absolute} of the baseline holdout ${state.baseline.holdout}.` : '';
-  writeDoc(dir, `03-slice-${SLICE}.md`, {
-    frontmatter: {
-      schema: 'sdlc/v1', type: 'slice', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 3, 'created-at': at, 'updated-at': at,
-      complexity: 'm', 'depends-on': [], tags: ['optimize'], 'ux-impact': 'none',
-      refs: { index: '00-index.md', 'slice-index': '03-slice.md', implement: `05-implement-${SLICE}.md` }, ...next,
-    },
-    body: [
-      `# Slice: ${SLICE}`, '', `The kept trials of the loop toward: ${spec.objective}`, '',
-      '## Acceptance Criteria', '',
-      `1. \`${spec.metric.command}\`, ${spec.metric.repeat} runs, reaches ${state.best.value}${unit} within the noise floor ${state.baseline.noise}${unit} (median; direction ${spec.metric.direction}).`,
-      `2. \`${spec.guard.command}\` exits 0.${holdoutAc}`, '',
-    ].join('\n'),
+}
+
+/**
+ * The stash of finish (G9). Without --stash, uncommitted changes to tracked files stop the finish. With
+ * it, each such file is copied to optimize/finish-stash/ and stashed. A file that the squash or the
+ * records of finish also write is refused: its pop would conflict.
+ */
+function stashForFinish(root, slug, state, f) {
+  const tracked = git(root, ['status', '--porcelain', '--untracked-files=no']).out;
+  if (!tracked) return null;
+  if (f.stash !== true) throw new Error('the main checkout has uncommitted changes to tracked files: commit or stash them, or run finish --stash, then finish again');
+  const files = git(root, ['diff', '--name-only', 'HEAD']).out.split(/\r?\n/).filter(Boolean);
+  const squashed = new Set(git(root, ['diff', '--name-only', 'HEAD', state.trunk]).out.split(/\r?\n/).filter(Boolean));
+  const records = relative(root, wfDir(root, slug)).split('\\').join('/');
+  const overlap = files.filter((x) => squashed.has(x) || x === records || x.startsWith(`${records}/`));
+  if (overlap.length) throw new Error(`finish --stash: ${overlap.join(', ')} also change in the squash or in the records of finish; commit them first`);
+  const dir = join(optDir(root, slug), 'finish-stash');
+  rmSync(dir, { recursive: true, force: true });
+  const copies = files.map((x) => {
+    const from = join(root, x);
+    const to = join(dir, x);
+    mkdirSync(dirname(to), { recursive: true });
+    if (!existsSync(from)) return { path: x, deleted: true };
+    writeFileSync(to, readFileSync(from));
+    return { path: x, deleted: false };
   });
-  writeDoc(dir, `05-implement-${SLICE}.md`, {
-    frontmatter: {
-      schema: 'sdlc/v1', type: 'implement', slug, 'slice-slug': SLICE, status: 'complete', 'stage-number': 5, 'created-at': at, 'updated-at': at,
-      'metric-files-changed': files.length, 'metric-lines-added': added, 'metric-lines-removed': removed, 'metric-deviations-from-plan': 0, 'metric-review-fixes-applied': 0,
-      'commit-sha': sha, 'files-modified': files, tags: ['optimize'],
-      'optimize-baseline': state.baseline.median, 'optimize-kept-value': state.best.value, 'optimize-noise': state.baseline.noise,
-      'optimize-trials': state.counters.trials, 'optimize-kept': kept.length, 'optimize-rounds': state.rounds.length,
-      refs: { index: '00-index.md', 'slice-def': `03-slice-${SLICE}.md`, verify: `06-verify-${SLICE}.md`, results: 'optimize/results.jsonl' }, ...next,
-    },
-    body: [
-    `# Implement: ${SLICE}`, '', '## Summary of Changes', '',
-    `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
-    `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
-    `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '',
-    ...(state.ablation ? ['## Ablation', '',
-      `Each kept change, reverted alone on the final code and measured in pairs against it. A change whose removal costs no more than ${state.ablation.threshold}${unit} is weak; decide at verify whether it stays.`, '',
-      ablationTable(state.ablation, spec), ''] : []),
-    '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
-    ].join('\n'),
-  });
-  state.finished = { commit: sha, at, gain, kept: kept.length };
-  appendResult(root, slug, { event: 'finish', commit: sha, gain, kept: kept.length });
-  saveState(root, slug, state);
-  // The loop is done: its worktrees, its trunk branch and its build folder go. A cleanup that
-  // cannot remove a worktree never fails the finish; the result names what is left.
-  return { ok: true, commit: sha, gain, kept: kept.length, ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}), files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` } };
+  gitOk(root, ['stash', 'push', '-q', '-m', `optimize finish ${slug}`, '--', ...files], 'stash');
+  return { files, copies, dir };
+}
+
+/**
+ * Pop the stash of finish. The pop gives back the index; the copies then give back the exact bytes,
+ * because a checkout can change the line ends of a file. A failed pop keeps the stash and the copies.
+ */
+function popFinishStash(root, stash) {
+  const pop = git(root, ['stash', 'pop', '-q', '--index']);
+  if (!pop.ok) return { restored: false, files: stash.files, copies: stash.dir, error: `git stash pop failed: ${pop.err || pop.out}. The stash stays in git stash list, and the copies stay in ${stash.dir}` };
+  const missing = [];
+  for (const c of stash.copies) {
+    const at = join(root, c.path);
+    if (c.deleted) { if (existsSync(at)) missing.push(c.path); continue; }
+    if (!existsSync(at)) { missing.push(c.path); continue; }
+    writeFileSync(at, readFileSync(join(stash.dir, c.path)));
+  }
+  if (missing.length) return { restored: false, files: stash.files, copies: stash.dir, error: `${missing.join(', ')} did not come back from the stash; the copies stay in ${stash.dir}` };
+  rmSync(stash.dir, { recursive: true, force: true });
+  return { restored: true, files: stash.files };
 }
 
 /** A junction or a symbolic link under the worktree: a recursive delete can follow one into the main checkout. */

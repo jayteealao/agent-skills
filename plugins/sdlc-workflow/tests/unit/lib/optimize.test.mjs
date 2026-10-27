@@ -8,7 +8,7 @@ import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
-  bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict,
+  bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -280,17 +280,28 @@ test('G4: a bundle joins marginal ideas with a kept diff and other targets, once
     const c = claimIdea(book, { lane: 'trunk', target: t, again: 'x' });
     settleIdea(book, c.idea.id, { trial: book.next, verdict: 'reverted', gain: g, patch: true });
   }
-  const b = bundleOf(book, 0.0885);
-  assert.deepEqual(b.ids, ['i2', 'i1', 'i3'], 'the largest pooled gains first, one idea for each target');
+  const b = bundleOf(book);
+  assert.deepEqual(b.ids, ['i2', 'i1', 'i3'], 'the largest pooled gains first, one idea for each target; the gains need not add past the threshold');
   assert.equal(b.sum, 0.095);
-  assert.equal(bundleOf(book, 0.0885, [b.key]), null, 'a bundle that was tried is not tried again');
-  assert.equal(bundleOf(book, 1), null, 'gains that cannot pass make no bundle');
+  assert.equal(bundleOf(book, { tried: [b.key] }), null, 'a bundle that was tried is not tried again');
+  const seen = [];
+  const last = book.ideas.find((i) => i.id === 'i3').patches.at(-1);
+  const only = bundleOf(book, { canApply: (trials) => { seen.push(trials); return !trials.includes(last); } });
+  assert.deepEqual(only.ids, ['i2', 'i1'], 'an idea whose diff does not apply with the others is left out');
+  assert.equal(seen.at(-1).length, 3, 'the check gets the last diff of each idea of the set');
+  // The numbers of the SoccerManager run: two near misses of 0.0439 under a threshold of 0.0885 make a bundle.
+  const run = emptyIdeas();
+  for (const t of ['central_distance', 'back_line']) {
+    const c = claimIdea(run, { lane: 'b2', target: t });
+    settleIdea(run, c.idea.id, { trial: run.next, verdict: 'reverted', gain: 0.0439, patch: true });
+  }
+  assert.deepEqual(bundleOf(run).ids, ['i1', 'i2']);
 
   const spec = specOf({ budget: { plateau: 4 } });
   const s = { ...newState({ slug: 's', worktree: '/wt', baseCommit: 'c0', values: [2.5, 2.5, 2.5], startedAt: new Date().toISOString() }), schedule: { used: [0, 1, 2] }, counters: { trials: 5, trunkTrials: 5, streak: 2, sinceCheckpoint: 0, keeps: 0 } };
   const next = nextAction({ state: s, spec, ideas: book });
   assert.equal(next.next.action, 'trial');
-  assert.deepEqual(next.next.bundle, ['i2', 'i1']);
+  assert.deepEqual(next.next.bundle, ['i2', 'i1', 'i3']);
   assert.match(next.next.why, /^bundle/);
   assert.equal(nextAction({ state: { ...s, counters: { ...s.counters, streak: 1 } }, spec, ideas: book }).next.bundle, undefined, 'a bundle waits for half a plateau');
 
@@ -370,4 +381,51 @@ test('G7: the ablation is due before finish at the target, once, and a change th
   const table = ablationTable({ threshold: 2, changes: [{ commit: 'abcdef0123456789', subject: 'a | b', trial: 4, gain: 1, verdict: 'weak' }, { commit: '0123456789abcdef', subject: 'm', trial: null, gain: null, verdict: 'not checked', reason: 'the revert conflicts with a later change' }] }, specOf());
   assert.match(table, /^\| 4 \| abcdef012345 \| a \\| b \| 1 \| weak \|$/m);
   assert.match(table, /^\| — \| 0123456789ab \| m \| — \| not checked: the revert conflicts with a later change \|$/m);
+});
+
+test('G9: the end of the clock is kept for the harvest: a round closes early, and the last trunk trial is a bundle or a stop', () => {
+  const at = (min) => new Date(Date.UTC(2026, 0, 1, 0, min)).toISOString();
+  const spec = specOf({ budget: { trials: 60, 'wall-clock': '6h' } });
+  const pace = { trialMs: 600_000, measureMs: 300_000 };
+  const counters = { trials: 20, trunkTrials: 10, streak: 0, sinceCheckpoint: 0, keeps: 2 };
+  const s = stateOf({ startedAt: at(0), schedule: { used: [0, 1, 2] }, counters });
+  // 5 minutes a measurement, 2 keeps and the ablation: 20 minutes are kept back.
+  const round = { n: 2, branchTrials: 3, branches: [1, 2].map((k) => ({ k, name: `b${k}`, worktree: `/w${k}`, best: { commit: 'c', value: 100, reachedAt: 0 }, trials: 1, keeps: 0 })) };
+  assert.equal(nextAction({ state: { ...s, round }, spec, now: Date.parse(at(330)), pace }).next.action, 'trial', '30 minutes are left');
+  const close = nextAction({ state: { ...s, round }, spec, now: Date.parse(at(345)), pace });
+  assert.equal(close.next.action, 'round-close');
+  assert.match(close.next.why, /^the rest of the wall clock \(15 min\) is kept for the merge step, the ablation and finish$/);
+
+  const book = emptyIdeas();
+  for (const t of ['a', 'b']) {
+    const c = claimIdea(book, { lane: 'optimize/s', target: t });
+    settleIdea(book, c.idea.id, { trial: 1, verdict: 'reverted', gain: 0.5, patch: true });
+  }
+  const harvest = nextAction({ state: s, spec, now: Date.parse(at(335)), pace, ideas: book });
+  assert.deepEqual([harvest.next.action, harvest.next.bundle], ['trial', ['i1', 'i2']], 'no time for one more proposed trial: the bundle runs with no wait');
+  assert.match(harvest.next.why, /^harvest: the ideas i1, i2 together/);
+  const stop = nextAction({ state: s, spec, now: Date.parse(at(335)), pace });
+  assert.deepEqual([stop.state, stop.reason], ['stopped', 'budget']);
+  assert.match(stop.detail, /kept for the merge step, the ablation and finish/);
+  assert.equal(nextAction({ state: s, spec: { ...spec, ablate: 'off' }, now: Date.parse(at(335)), pace }).next.action, 'trial', 'with no ablation, 10 minutes are kept back');
+
+  // A round opens only when its 12 measurements and the reserve fit: 60 + 20 minutes.
+  const due = { ...s, schedule: { used: [0, 1] }, counters: { ...counters, trials: 40 } };
+  const fast = { trialMs: 120_000, measureMs: 300_000 };
+  assert.equal(nextAction({ state: due, spec, now: Date.parse(at(270)), pace: fast }).next.action, 'round-open', '90 minutes are left');
+  assert.equal(nextAction({ state: due, spec, now: Date.parse(at(285)), pace: fast }).next.skipRound, 2, '75 minutes are left');
+});
+
+test('G9: the near misses of a lane: reverted trials with a gain, the largest first, on separate paths, that apply together', () => {
+  const lines = [
+    { event: 'trial', trial: 3, round: 1, branch: 'b2', verdict: 'reverted', delta: 0.0439, patch: 'patches/3.patch', paths: ['sim.rs'] },
+    { event: 'trial', trial: 5, round: 1, branch: 'b2', verdict: 'reverted', delta: 0.05, patch: 'patches/5.patch', paths: ['sim.rs', 'a.rs'] },
+    { event: 'trial', trial: 7, round: 1, branch: 'b2', verdict: 'reverted', delta: 0.0439, patch: 'patches/7.patch', paths: ['team.rs'] },
+    { event: 'trial', trial: 8, round: 1, branch: 'b2', verdict: 'reverted', delta: -0.1, patch: null, paths: ['x.rs'] },
+    { event: 'trial', trial: 9, round: 1, branch: 'b1', verdict: 'reverted', delta: 0.2, patch: 'patches/9.patch', paths: ['y.rs'] },
+    { event: 'trial', trial: 10, round: 1, branch: 'b2', verdict: 'kept', delta: 0.3, patch: 'patches/10.patch', paths: ['z.rs'] },
+  ];
+  assert.deepEqual(nearMisses(lines, 1, 'b2').map((x) => x.trial), [5, 7], 'trial 3 shares sim.rs with trial 5');
+  assert.deepEqual(nearMisses(lines, 1, 'b2', (p) => !p.includes('patches/7.patch')).map((x) => x.trial), [], 'one near miss alone is not a bundle');
+  assert.deepEqual(nearMisses(lines, 2, 'b2'), []);
 });

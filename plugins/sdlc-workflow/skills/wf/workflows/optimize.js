@@ -177,7 +177,7 @@ const trialPre = (lane, h) => `First write the text ${JSON.stringify(h.text)} to
 
 /** One trial: the bookkeeping agent writes the hypothesis file and runs `trial`. `on` names the lane in a round with branch worktrees. */
 async function runTrial(n, h, lane, on) {
-  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}${h.idea ? ` --idea ${h.idea}` : ''}`
+  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}${h.idea ? ` --idea ${h.idea}` : ''}${h.apply ? ' --apply' : ''}`
   return await book('trial', rest, `trial:${n}`, 'Loop', h.prepared ? '' : trialPre(lane, h))
 }
 
@@ -185,20 +185,28 @@ async function runTrial(n, h, lane, on) {
 function considerPrompt(mg) {
   const open = (mg.candidates || []).filter(c => !c.conflict)
   const shown = open.filter(c => c.kind !== 'port').map(c => ({ name: c.name, short: `b${c.k}`, commit: c.commit, gain: c.gain, hypotheses: c.hypotheses, paths: c.paths, sharedWithWinner: c.shared }))
-  const ports = open.filter(c => c.kind === 'port').map(c => ({ name: c.name, branch: c.branch, gain: c.gain, hypothesis: c.hypothesis, paths: c.paths, diff: c.patchFile }))
+  const ports = open.filter(c => c.kind === 'port').map(c => ({ name: c.name, branch: c.branch, gain: c.gain, hypothesis: c.hypothesis, paths: c.paths, diff: c.patchFile, targets: c.targets || [], ledger: c.ledger || [] }))
+  const bundles = open.filter(c => c.kind === 'bundle').map(c => ({ name: c.name, branch: c.branch, trials: c.trials, gains: c.gains, hypotheses: c.hypotheses, paths: c.paths, diffs: c.patchFiles, targets: c.targets || [], ledger: c.ledger || [] }))
   return `MERGE CONSIDER for round ${mg.round} of the optimize loop of '${slug}'. The round chose its winner, and the trunk ` +
     `now holds the winner's code. These other branches kept a gain over the round base, and each one merges cleanly onto the trunk:\n` +
     `${JSON.stringify(shown, null, 2)}\n` +
-    (ports.length ? `These kept trials of the other branches are ports: the editor makes the same change again on the trunk code. ` +
+    (ports.length ? `These kept trials of the other branches are ports: their saved diff is applied again on the trunk code. ` +
       `Use a port when its branch as a whole is not worth a merge, but this one change is:\n${JSON.stringify(ports, null, 2)}\n` : '') +
+    (bundles.length ? `This bundle holds near misses of the winner: trials of the winning branch that gained, but less than the keep ` +
+      `threshold. They were measured on the code that the trunk now holds, their diffs touch different files, and they apply together. ` +
+      `Near the noise floor one result says little, and together they can pass. Try it first, unless two of its changes remove the same cost:\n` +
+      `${JSON.stringify(bundles, null, 2)}\n` : '') +
+    `Each port and bundle names its targets and the ideas of the shared ledger on those targets, with the lane of each trial and its ` +
+    `status. Skip a port whose target already has a kept or marginal idea on the winner or the trunk, unless its mechanism differs: ` +
+    `it repeats a change that the trunk holds or tried.\n` +
     `For each candidate, decide try or skip:\n` +
     `1. Read its diff against the round base: \`git -C "${mg.worktree || '<the trunk worktree>'}" diff ${mg.from || '<round base>'} <commit>\`. Read the winner's ` +
-    `change in the trunk worktree too. For a port, read the file that its diff names. Read nothing else: not the rest of the optimize folder, not the ledger.\n` +
+    `change in the trunk worktree too. For a port or a bundle, read the files that its diffs name. Read nothing else: not the rest of the optimize folder, not the ledger.\n` +
     `2. Skip a candidate whose change removes the same cost as the winner's change: the gains do not add, and the ` +
     `measurement only confirms that. Try a candidate whose change is independent of the winner's. Do not try a branch and a port of the same branch.\n` +
     `3. Put the tries in order, the largest expected added gain first. Each try is measured as one trial against the budget.\n` +
     `Then run exactly one command, with every candidate in --try or in one --skip:\n` +
-    `  ${cmd('merge-consider', '--try <b2,t7> --skip "<b3>:<one-line reason>"')}\n` +
+    `  ${cmd('merge-consider', '--try <n1,b2,t7> --skip "<b3>:<one-line reason>"')}\n` +
     `(leave out --try when you skip all; repeat --skip for each skipped branch). Return { ok, result } where result is the ` +
     `JSON object that the command printed, parsed. When the command exits non-zero it still prints JSON: return it as ` +
     `result with ok false. Do not edit any file and do not run any other git command than the diffs.` + heartbeat(`merge-consider:${mg.round}`, 'Loop')
@@ -206,11 +214,16 @@ function considerPrompt(mg) {
 
 /** The hypothesis of a port or a bundle: the kept diffs, made again on the current trunk code. */
 function reuseHypothesis(next, worktree) {
+  const po = next.portOf || null
   const items = next.port
-    ? [{ text: (next.portOf && next.portOf.hypothesis) || `trial ${next.port}`, patches: next.portOf ? [next.portOf.patch] : [] }]
+    ? (po && po.kind === 'bundle'
+      ? po.trials.map((t, k) => ({ text: (po.hypotheses || [])[k] || `trial ${t}`, patches: [(po.patches || [])[k]].filter(Boolean) }))
+      : [{ text: (po && po.hypothesis) || `trial ${next.port}`, patches: po ? [po.patch] : [] }])
     : (next.bundleOf || []).map(b => ({ text: (b.hypotheses || []).filter(Boolean).slice(-1)[0] || `${b.target}: ${b.family}`, patches: (b.patches || []).slice(-1) }))
   const text = next.port
-    ? `Port of trial ${next.portOf ? next.portOf.trial : next.port} of ${next.portOf ? next.portOf.branch : 'a branch'}: ${items[0].text}`
+    ? (po && po.kind === 'bundle'
+      ? `Near misses ${po.trials.map(t => `t${t}`).join(', ')} of ${po.branch}, together: ${items.map(i => i.text).join(' | ')}`
+      : `Port of trial ${po ? po.trial : next.port} of ${po ? po.branch : 'a branch'}: ${items[0].text}`)
     : `Bundle of ${(next.bundle || []).join(', ')}: ${items.map(i => i.text).join(' | ')}`
   const plan = `Make the change of each diff below again in the current code. The code may have moved since the diff was made: ` +
     `where a diff does not apply as it is, make the same change by hand. Read each diff file; do not edit it.\n` +
@@ -349,13 +362,12 @@ while (st && st.state === 'running') {
     if (item.error) { stoppedAt = 'proposer'; reason = item.error; break }
     n = item.n; h = item.h; lane = item.lane; on = item.lane
   } else if (next.port || next.bundle) {
-    // G4: a port or a bundle has no proposer. The editor makes the change of the kept diffs again on the trunk code.
+    // G4, G9: a port or a bundle has no proposer. The trial applies the kept diffs itself (--apply);
+    // only when they do not apply does the editor make the change by hand.
     queue.length = 0
     n = ++SEQ_T
     lane = next.on
-    h = reuseHypothesis(next, st.worktree)
-    const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
-    if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+    h = { ...reuseHypothesis(next, st.worktree), apply: true }
   } else {
     n = ++SEQ_T
     lane = next.on
@@ -379,7 +391,14 @@ while (st && st.state === 'running') {
       if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
     }
   }
-  const t = await runTrial(n, h, lane, on)
+  let t = await runTrial(n, h, lane, on)
+  if (t.ok === false && t.apply === 'failed') {
+    log(`trial ${n}: the saved diffs do not apply; the editor makes the change by hand`)
+    h = { ...h, apply: false }
+    const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
+    if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+    t = await runTrial(n, h, lane, on)
+  }
   if (t.ok === false) { stoppedAt = 'bookkeeping'; reason = `trial ${n}: ${t.error || 'failed'}`; break }
   events.push({ event: 'trial', trial: t.trial ?? n, lane: t.lane, verdict: t.verdict, median: t.median ?? null })
   log(`trial ${t.trial ?? n} on ${t.lane}: ${t.verdict}${t.median !== null && t.median !== undefined ? ` (${t.median})` : ''}${t.reason ? ` — ${t.reason}` : ''}`)
@@ -401,7 +420,8 @@ if (st && st.state === 'complete') {
     const weak = ((a && a.ablation && a.ablation.changes) || []).filter(c => c.verdict === 'weak').length
     log(a.ok === false ? `ablate failed: ${a.error}; finish runs it again` : `ablation: ${weak} weak change(s) of ${((a.ablation && a.ablation.changes) || []).length}`)
   }
-  finish = await book('finish', '', 'finish', 'Finish')
+  // G9: --stash puts the person's uncommitted files aside for the squash and restores them byte for byte.
+  finish = await book('finish', '--stash', 'finish', 'Finish')
   log(finish.ok === false ? `finish failed: ${finish.error}` : `finished: ${finish.commit || 'no commit'}; next /wf verify ${slug} optimize`)
 }
 const last = finish && finish.ok !== false ? null : await book('status', '', 'status', 'Finish')

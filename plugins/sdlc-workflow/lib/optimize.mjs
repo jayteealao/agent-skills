@@ -332,7 +332,7 @@ export function projectTrials(spec, state, pace, now) {
 
 const minutes = (ms) => `${Math.round(ms / 60_000)} min`;
 
-export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null, pace = null }) {
+export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null, pace = null, canApply = null }) {
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
   if (state.finished) return { state: 'finished', reason: 'finished', detail: `squashed as ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
@@ -343,6 +343,11 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const used = state.counters.trials;
   const overClock = spec.budget.wallClockMs !== null && now - Date.parse(state.startedAt) >= spec.budget.wallClockMs;
   const overTokens = spec.budget.tokens !== null && tokensUsed !== null && tokensUsed >= spec.budget.tokens;
+  const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - (now - Date.parse(state.startedAt));
+  // G9: the end of the clock is kept for the harvest: 2 measurements for the merge step or a bundle,
+  // and one more for each keep when the ablation runs.
+  const reserveMs = timeLeft !== null && pace?.measureMs ? pace.measureMs * (2 + (spec.ablate !== 'off' ? state.counters.keeps : 0)) : 0;
+  const keptFor = `the rest of the wall clock (${minutes(Math.max(0, timeLeft ?? 0))}) is kept for the merge step, the ablation and finish`;
   // The merge step after a round (F): consider the candidates, measure each merge to try, then close.
   const mg = state.merge;
   if (mg) {
@@ -350,7 +355,9 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     if (!mg.considered) return running({ action: 'merge-consider', why: `round ${mg.round}: ${mg.candidates.filter((c) => !c.conflict).length} branch(es) to consider for a merge into the trunk` });
     const tryNext = (mg.order ?? []).map((name) => mg.candidates.find((c) => c.name === name)).find((c) => c && !c.verdict);
     // G4: a port applies one kept idea of a branch that was not merged again, on the trunk code.
+    // G9: a bundle applies the near misses of the winner together.
     if (tryNext?.kind === 'port') return running({ action: 'trial', on: state.trunk, port: tryNext.name, why: `round ${mg.round}: the port of trial ${tryNext.trial} of ${tryNext.branch}` });
+    if (tryNext?.kind === 'bundle') return running({ action: 'trial', on: state.trunk, port: tryNext.name, why: `round ${mg.round}: the near misses ${tryNext.trials.map((t) => `t${t}`).join(', ')} of ${tryNext.branch}, together` });
     if (tryNext) return running({ action: 'merge-trial', branch: tryNext.name, why: `round ${mg.round}: the merge of ${tryNext.name}` });
     return running({ action: 'merge-close', why: 'every candidate is tried or skipped' });
   }
@@ -358,6 +365,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (r) {
     if (r.branches.some((b) => b.keeps > 0 && reachesTarget(spec, b.best.value))) return running({ action: 'round-close', why: 'a branch reached the target' });
     if (used >= B || overClock || overTokens) return running({ action: 'round-close', why: 'the budget ran out during the round' });
+    if (reserveMs && timeLeft < reserveMs) return running({ action: 'round-close', why: keptFor });
     const open = r.branches.filter((b) => !b.pruned && b.trials < (b.limit ?? r.branchTrials));
     if (!open.length) return running({ action: 'round-close', why: `every branch ran ${r.branchTrials} trials` });
     // G5: a branch that trails the leader with no keep gives its other trials to a new fork of the leader.
@@ -380,9 +388,8 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const S = projected === null ? B : Math.min(B, projected);
   const allows = S < B ? `; the wall clock allows about ${S} trials` : '';
   const remaining = S - used;
-  const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - (now - Date.parse(state.startedAt));
-  // A round opens only when its measurements fit in the time left.
-  const fits = timeLeft === null || !pace?.measureMs || need * pace.measureMs <= timeLeft;
+  // A round opens only when its measurements, and the reserve after them, fit in the time left.
+  const fits = timeLeft === null || !pace?.measureMs || need * pace.measureMs + reserveMs <= timeLeft;
   const roundTime = pace?.measureMs ? `its ${need} measurements take about ${minutes(need * pace.measureMs)}, and ${minutes(Math.max(0, timeLeft ?? 0))} are left` : '';
   const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i));
   // G1: the first profile comes before any trial, and a round opens only on a profile of the trunk best.
@@ -395,6 +402,13 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   // A due round that does not fit is skipped: the next trunk trial records it, and the trunk continues.
   const skip = due && remaining >= need && !fits ? { point: due.i, why: `the round of ${Math.round(due.p * 100)}% is skipped: ${roundTime}` } : null;
   const trunk = (next) => running({ ...next, ...(skip ? { skipRound: skip.point } : {}), why: `${skip ? `${skip.why}; ` : ''}${next.why}${allows}` });
+  const tryBundle = () => bundleOf(ideas, { tried: state.bundlesTried ?? [], canApply });
+  // G9: no time for one more proposed trial before the reserve: a bundle runs now, with no wait; otherwise the loop stops.
+  if (reserveMs && pace?.trialMs && timeLeft < pace.trialMs + reserveMs) {
+    const bundle = tryBundle();
+    if (bundle) return trunk({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `harvest: the ideas ${bundle.ids.join(', ')} together, before the clock ends` });
+    return { state: 'stopped', reason: 'budget', detail: keptFor, next: { action: 'person', why: personNext('budget') } };
+  }
   if (state.counters.streak >= spec.budget.plateau) {
     // D14: a plateau opens the next scheduled round early, or adds one, up to max-extra.
     const later = points.find(({ p }) => used < Math.ceil(p * S));
@@ -405,9 +419,9 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
   if (spec.holdout && state.counters.sinceCheckpoint >= spec.checkpointEvery) return running({ action: 'checkpoint', why: `${state.counters.sinceCheckpoint} trunk trials since the last checkpoint` });
-  // G4: half a plateau with no keep, and marginal ideas whose gains add up past the threshold: try them together.
+  // G4: half a plateau with no keep, and marginal ideas on other targets whose diffs apply together: try them together.
   if (state.counters.streak >= Math.ceil(spec.budget.plateau / 2)) {
-    const bundle = bundleOf(ideas, keepThreshold(spec, state.best.value, noiseFor(spec, state)), state.bundlesTried ?? []);
+    const bundle = tryBundle();
     if (bundle) return trunk({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `bundle: the ideas ${bundle.ids.join(', ')} gain ${bundle.sum} together` });
   }
   return trunk({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
@@ -533,27 +547,49 @@ export function settleIdea(book, id, { trial, verdict, gain, patch = false }) {
 const brief = (i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled, trials: i.trials });
 
 /**
- * A bundle (G4): marginal ideas with a kept diff and different targets, the largest pooled gain
- * first, until their gains add up to more than the threshold. At most 4 ideas; null when the
- * gains cannot pass, or when the same set was tried before.
+ * A bundle (G4, G9): 2 to 4 marginal ideas with a saved diff, a gain above 0 and different targets,
+ * the largest pooled gain first. The gains need not add past the threshold: near the noise floor one
+ * result says little, and the combined trial is the test. `canApply(trials)` is the check of the
+ * script: an idea joins only when the last diff of each idea applies together on the trunk. null
+ * when fewer than 2 ideas join, or when the same set was tried before.
  */
-export function bundleOf(book, threshold, tried = []) {
+export function bundleOf(book, { tried = [], canApply = null } = {}) {
   const pool = (book?.ideas ?? []).filter((i) => i.status === 'marginal' && (i.patches ?? []).length && i.pooled?.mean > 0)
     .sort((a, b) => b.pooled.mean - a.pooled.mean);
   const set = [];
   const targets = new Set();
-  let sum = 0;
   for (const i of pool) {
-    if (targets.has(normTarget(i.target))) continue;
-    set.push(i.id);
-    targets.add(normTarget(i.target));
-    sum += i.pooled.mean;
-    if (set.length >= 2 && sum > threshold) break;
     if (set.length >= 4) break;
+    if (targets.has(normTarget(i.target))) continue;
+    if (canApply && !canApply([...set, i].map((x) => x.patches.at(-1)))) continue;
+    set.push(i);
+    targets.add(normTarget(i.target));
   }
-  if (set.length < 2 || !(sum > threshold)) return null;
-  const key = [...set].sort().join(',');
-  return tried.includes(key) ? null : { ids: set, key, sum: Number(sum.toPrecision(6)) };
+  if (set.length < 2) return null;
+  const ids = set.map((i) => i.id);
+  const key = [...ids].sort().join(',');
+  const sum = set.reduce((s, i) => s + i.pooled.mean, 0);
+  return tried.includes(key) ? null : { ids, key, sum: Number(sum.toPrecision(6)) };
+}
+
+/**
+ * The near misses of a lane in a round (G9): its reverted trials with a gain above 0 and a saved
+ * diff, the largest gain first, each on paths that no other member touches, while `canApply(patches)`
+ * says that the diffs apply together. At most 4; an empty list when fewer than 2 join.
+ */
+export function nearMisses(results, round, branch, canApply = null) {
+  const pool = (results ?? []).filter((x) => x.event === 'trial' && x.round === round && x.branch === branch && x.verdict === 'reverted' && Number.isFinite(x.delta) && x.delta > 0 && x.patch)
+    .sort((a, b) => b.delta - a.delta);
+  const set = [];
+  const paths = new Set();
+  for (const x of pool) {
+    if (set.length >= 4) break;
+    if ((x.paths ?? []).some((p) => paths.has(p))) continue;
+    if (canApply && !canApply([...set, x].map((y) => y.patch))) continue;
+    set.push(x);
+    for (const p of x.paths ?? []) paths.add(p);
+  }
+  return set.length >= 2 ? set : [];
 }
 
 /**

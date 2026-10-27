@@ -690,7 +690,7 @@ test('a bundle: two marginal ideas on other targets are tried together after hal
     const b = run(root, 'idea-claim', '--target', 'extra');
     writeFileSync(path.join(wt, 'src', 'extra.txt'), '-6');
     const m2 = run(root, 'trial', 'm2', '--idea', b.idea.id, '--hypothesis', 'extra -6');
-    assert.equal(m2.verdict, 'reverted');
+    assert.equal(m2.verdict, 'reverted', JSON.stringify(m2));
     assert.deepEqual(m2.next.bundle, [b.idea.id, a.idea.id], JSON.stringify(m2.next));
     assert.deepEqual(run(root, 'status').next.bundleOf.map((x) => x.id), [b.idea.id, a.idea.id]);
 
@@ -766,6 +766,125 @@ test('ablate: off, or finish --no-ablate, squashes with no ablation', () => {
     assert.equal(fin.ok, true, JSON.stringify(fin));
     assert.equal(fin.weak, undefined);
     assert.equal(ledger(root).some((l) => l.event === 'ablate'), false);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+/** A branch trial of branch 1 in the order of the driver: the digest, the claim of an idea, the edit, the trial. */
+function claimed(root, wt, id, target, extra) {
+  assert.equal(run(root, 'propose-context', '--on', B1).ok, true);
+  assert.equal(run(root, 'idea-claim', '--on', B1, '--target', target).ok, true);
+  edit(`${wt}--r1b1`, 80, extra);
+  return run(root, 'trial', id, '--on', B1, '--hypothesis', `${target} down`);
+}
+
+test('the near misses of the winner: round-close offers them as one bundle, and trial --apply makes it from the saved diffs', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'min-gain: 0', 'min-gain: 10', 'branch-trials: 2', 'branch-trials: 3', 'max-extra: 1\n', 'max-extra: 1\n  prune: off\n');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 95).t.verdict, 'reverted');
+    assert.equal(claimed(root, wt, 'h3', 'extra', { 'src/extra.txt': '-6' }).verdict, 'reverted', 'a gain of 6 is under the threshold of 10');
+    assert.equal(step(root, wt, 'h4', 120).t.verdict, 'reverted');
+    assert.equal(claimed(root, wt, 'h5', 'alt', { 'src/alt.txt': '75' }).verdict, 'reverted', 'a gain of 5 on another file');
+    assert.equal(step(root, wt, 'h6', 130).t.verdict, 'reverted');
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.deepEqual(close.bundles, [{ name: 'n1', trials: [3, 5] }], 'the largest gain first; trial 2 is a near miss of a branch that lost');
+    const n1 = close.merge.candidates.find((c) => c.name === 'n1');
+    assert.deepEqual([n1.kind, n1.gain, n1.patchFiles.length, n1.conflict], ['bundle', 11, 2, false]);
+    assert.deepEqual([n1.targets, n1.ledger.map((i) => [i.target, i.status, i.trials])], [['extra', 'alt'], [['extra', 'marginal', [{ trial: 3, lane: B1 }]], ['alt', 'marginal', [{ trial: 5, lane: B1 }]]]], 'the consider step sees the ideas of the ledger on the targets');
+    assert.equal(run(root, 'merge-consider', '--try', 'n1').ok, true);
+    const st = run(root, 'status');
+    assert.deepEqual([st.next.action, st.next.port, st.next.portOf.trials], ['trial', 'n1', [3, 5]]);
+
+    // A saved diff that does not apply records no trial and leaves the worktree clean.
+    const p5 = path.join(root, '.ai', 'workflows', S, 'optimize', 'patches', '5.patch');
+    const good = readFileSync(p5, 'utf8');
+    writeFileSync(p5, good.replace(/\+75/, '+75\n+76').replace(/@@ .* @@/, '@@ -1,9 +1,9 @@'));
+    const bad = run(root, 'trial', 'n1', '--apply', '--hypothesis', 'the near misses of r1b1');
+    assert.deepEqual([bad.ok, bad.apply], [false, 'failed'], JSON.stringify(bad));
+    assert.equal(run(root, 'status').counters.trials, 6);
+    assert.equal(git(wt, 'status', '--porcelain'), '');
+    writeFileSync(p5, good);
+
+    const t = run(root, 'trial', 'n1', '--apply', '--hypothesis', 'the near misses of r1b1');
+    assert.deepEqual([t.ok, t.verdict, t.median], [true, 'kept', 69], JSON.stringify(t));
+    const line = ledger(root).find((l) => l.port);
+    assert.deepEqual([line.port, line.additive, line.applied], [{ round: 1, trials: [3, 5], branch: B1, kind: 'bundle' }, { measured: 11, sum: 11 }, ['3.patch', '5.patch']]);
+    assert.equal(run(root, 'status').next.action, 'trial', 'the merge step closes when no try is left');
+    const ideas = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'ideas.json'), 'utf8'));
+    assert.deepEqual(ideas.ideas.map((i) => i.status), ['bundled', 'bundled'], 'a kept bundle marks its ideas');
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'state.json'), 'utf8')).bundlesTried, ['i1,i2']);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+const HOLDOUT = 'holdout:\n  command: "node holdout.js"\n  tolerance: 5%\n';
+function withHoldout(root) {
+  writeFileSync(path.join(root, 'holdout.js'), "const fs = require('fs'); const n = (f) => (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8').trim()) : null); console.log(n('src/hold.txt') ?? ((n('src/alt.txt') ?? n('src/value.txt')) + (n('src/extra.txt') ?? 0)));\n");
+  git(root, 'add', 'holdout.js');
+  git(root, 'commit', '-q', '-m', 'holdout');
+  respec(root, 'at: ["0%"]', 'at: []');
+}
+
+test('finish runs the holdout when a change was kept after the last checkpoint, and writes it into the implement record', () => {
+  const { parent, root, wt } = makeRepo(HOLDOUT);
+  try {
+    withHoldout(root);
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.deepEqual(ledger(root).filter((l) => l.event === 'checkpoint').map((l) => [l.trial, l.value, l.ok]), [[1, 90, true]]);
+    assert.match(readDoc(path.join(root, '.ai', 'workflows', S), '05-implement-optimize.md').body, /- The holdout moved from 100 to 90 \(checked at trial 1\)\./);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a holdout that regresses stops the finish, and finish --no-holdout squashes anyway', () => {
+  const { parent, root, wt } = makeRepo(HOLDOUT);
+  try {
+    withHoldout(root);
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90, { 'src/hold.txt': '200' }).t.verdict, 'kept', 'the metric does not read the holdout file');
+    const stop = run(root, 'finish');
+    assert.equal(stop.ok, false);
+    assert.match(stop.error, /^the holdout regressed before finish: the holdout is 200 against the baseline 100/);
+    assert.equal(run(root, 'status').reason, 'holdout-regression');
+    const fin = run(root, 'finish', '--no-holdout');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('finish --stash puts the uncommitted tracked files aside for the squash and restores them; a file in the squash is refused', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    const mine = `${readFileSync(path.join(root, '.gitignore'), 'utf8')}my-notes/\n`;
+    writeFileSync(path.join(root, '.gitignore'), mine);
+    assert.match(run(root, 'finish').error, /run finish --stash/);
+
+    writeFileSync(path.join(root, 'src', 'value.txt'), '42\n');
+    assert.match(run(root, 'finish', '--stash').error, /^finish --stash: src\/value\.txt also change in the squash/);
+    git(root, 'checkout', '--', 'src/value.txt');
+
+    const fin = run(root, 'finish', '--stash');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.deepEqual(fin.stash, { restored: true, files: ['.gitignore'] });
+    assert.equal(readFileSync(path.join(root, '.gitignore'), 'utf8'), mine, 'the file comes back byte for byte');
+    assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '90', 'the squash landed');
+    assert.equal(git(root, 'stash', 'list'), '');
+    assert.equal(git(root, 'show', '--name-only', '--format=', 'HEAD').split(/\r?\n/).includes('.gitignore'), false, 'the person\'s file is not in the squash');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

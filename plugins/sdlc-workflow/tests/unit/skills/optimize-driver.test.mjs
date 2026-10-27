@@ -315,13 +315,15 @@ test('the profile step: the profiler agent in agent mode, the bookkeeping in com
   assert.match(b.calls.find((c) => c.label === 'profile').prompt, /^BOOKKEEPING[\s\S]*optimize\.mjs" profile "\/repo" s/);
 });
 
-test('a prune is bookkeeping, and a port and a bundle go to the editor with the kept diffs and no proposer', async () => {
+test('a prune is bookkeeping; a port and a bundle apply their kept diffs with no proposer, and the editor runs only when a diff does not apply', async () => {
   const steps = [
     { action: 'prune', branch: 'optimize/s--r1b2', why: 'trails' },
-    { action: 'trial', on: 'optimize/s', port: 't2', portOf: { trial: 2, branch: 'optimize/s--r1b2', hypothesis: 'cache the table', gain: 10, patch: '/repo/opt/patches/2.patch' } },
+    { action: 'trial', on: 'optimize/s', port: 't2', portOf: { trial: 2, branch: 'optimize/s--r1b2', hypothesis: 'cache the table', gain: 10, patch: '/repo/opt/patches/2.patch', patches: ['/repo/opt/patches/2.patch'] } },
+    { action: 'trial', on: 'optimize/s', port: 'n1', portOf: { kind: 'bundle', trials: [6, 14], branch: 'optimize/s--r1b2', hypotheses: ['memo the bisection', 'cache the back line'], gain: 0.088, patches: ['/repo/opt/patches/6.patch', '/repo/opt/patches/14.patch'] } },
     { action: 'trial', on: 'optimize/s', bundle: ['i1', 'i3'], bundleOf: [{ id: 'i1', target: 'value', family: 'smaller', hypotheses: ['value 95'], patches: ['/repo/opt/patches/4.patch'] }, { id: 'i3', target: 'extra', family: 'x', hypotheses: [], patches: ['/repo/opt/patches/5.patch'] }] },
   ];
   let at = 0;
+  let failedOnce = false;
   const calls = [];
   const common = { ok: true, counters: { trials: at }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 }, metric: { command: 'node m.js' }, profile: null, worktree: '/wt' };
   const status = () => (at < steps.length ? { ...common, state: 'running', next: steps[at] } : { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } });
@@ -331,7 +333,12 @@ test('a prune is bookkeeping, and a port and a bundle go to the editor with the 
     if (base === 'status') return { ok: true, result: status() };
     if (base === 'prune') { at++; return { ok: true, result: { ...status(), pruned: 'optimize/s--r1b2' } }; }
     if (base === 'edit') return { ok: true, changed: ['src/a.js'] };
-    if (base === 'trial') { at++; return { ok: true, result: { ok: true, trial: at, lane: 'optimize/s', verdict: 'kept', median: 1, next: status().next } }; }
+    if (base === 'trial') {
+      // The diff of the port does not apply the first time: no trial is recorded.
+      if (steps[at].port === 't2' && !failedOnce) { failedOnce = true; return { ok: true, result: { ok: false, apply: 'failed', error: 'the saved diffs do not apply' } }; }
+      at++;
+      return { ok: true, result: { ok: true, trial: at, lane: 'optimize/s', verdict: 'kept', median: 1, next: status().next } };
+    }
     if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc' } };
     throw new Error(`no answer for ${opts.label}`);
   };
@@ -340,12 +347,18 @@ test('a prune is bookkeeping, and a port and a bundle go to the editor with the 
   const labels = calls.map((c) => c.label);
   assert.match(calls.find((c) => c.label === 'prune').prompt, /optimize\.mjs" prune "\/repo" s/);
   assert.equal(labels.some((l) => l.startsWith('propose:')), false, 'a port and a bundle run no proposer');
-  const [port, bundle] = calls.filter((c) => c.label.startsWith('edit:')).map((c) => c.prompt);
-  assert.match(port, /Port of trial 2 of optimize\/s--r1b2: cache the table/);
-  assert.match(port, /diff: \/repo\/opt\/patches\/2\.patch/);
-  assert.match(bundle, /Bundle of i1, i3: value 95 \| extra: x/);
-  assert.match(bundle, /diff: \/repo\/opt\/patches\/4\.patch[\s\S]*diff: \/repo\/opt\/patches\/5\.patch/);
-  assert.ok(labels.includes('finish'));
+  const trials = calls.filter((c) => c.label.startsWith('trial:')).map((c) => c.prompt);
+  assert.equal(trials.length, 4, 'the port trial runs twice: --apply, then after the editor');
+  assert.match(trials[0], / --apply/);
+  assert.equal(/ --apply/.test(trials[1]), false, 'after the editor, the trial judges the edit');
+  assert.ok(trials.slice(2).every((t) => / --apply/.test(t)));
+  const edits = calls.filter((c) => c.label.startsWith('edit:')).map((c) => c.prompt);
+  assert.equal(edits.length, 1, 'the editor runs only for the diff that did not apply');
+  assert.match(edits[0], /Port of trial 2 of optimize\/s--r1b2: cache the table/);
+  assert.match(edits[0], /diff: \/repo\/opt\/patches\/2\.patch/);
+  assert.match(trials[2], /Near misses t6, t14 of optimize\/s--r1b2, together: memo the bisection \| cache the back line/);
+  assert.match(trials[3], /Bundle of i1, i3: value 95 \| extra: x/);
+  assert.match(calls.find((c) => c.label === 'finish').prompt, /optimize\.mjs" finish "\/repo" s --stash/);
 });
 
 test('a branch proposer reads the seed of its branch', async () => {
@@ -371,4 +384,32 @@ test('at the target, the driver runs the ablation before finish', async () => {
   const labels = calls.map((c) => c.label);
   assert.ok(labels.indexOf('ablate') > 0 && labels.indexOf('ablate') < labels.indexOf('finish'), labels.join(' '));
   assert.match(calls.find((c) => c.label === 'ablate').prompt, /optimize\.mjs" ablate "\/repo" s/);
+});
+
+test('the consider step lists the bundle of near misses first, and the targets and ledger of each port and bundle', async () => {
+  const merge = {
+    round: 1, from: 'c0', worktree: '/wt', considered: false, order: [],
+    candidates: [
+      { kind: 'port', name: 't7', branch: 'optimize/s--r1b3', gain: 0.1, hypothesis: 'memo the bisection', paths: ['sim.rs'], patchFile: '/o/patches/7.patch', targets: ['central_distance'], ledger: [{ id: 'i2', target: 'central_distance', status: 'kept', trials: [{ trial: 6, lane: 'optimize/s--r1b2' }, { trial: 7, lane: 'optimize/s--r1b3' }] }], conflict: false },
+      { kind: 'bundle', name: 'n1', branch: 'optimize/s--r1b2', trials: [6, 14], gains: [0.0439, 0.0439], hypotheses: ['memo', 'back line'], paths: ['sim.rs', 'team.rs'], patchFiles: ['/o/patches/6.patch', '/o/patches/14.patch'], targets: [], ledger: [], conflict: false },
+    ],
+  };
+  const calls = [];
+  let considered = false;
+  const agent = async (prompt, opts) => {
+    calls.push({ label: opts.label, prompt });
+    const base = opts.label.split(':')[0];
+    const common = { ok: true, counters: { trials: 16 }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 }, metric: { command: 'node m.js' }, profile: null };
+    if (base === 'status') return { ok: true, result: considered ? { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } } : { ...common, state: 'running', next: { action: 'merge-consider' }, merge } };
+    if (base === 'merge-consider') { considered = true; return { ok: true, result: { ok: true, try: [] } }; }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc' } };
+    throw new Error(`no answer for ${opts.label}`);
+  };
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  const p = calls.find((c) => c.label.startsWith('merge-consider')).prompt;
+  assert.match(p, /This bundle holds near misses of the winner[\s\S]*"name": "n1"[\s\S]*"diffs": \[\s*"\/o\/patches\/6\.patch"/);
+  assert.match(p, /"targets": \[\s*"central_distance"\s*\][\s\S]*"lane": "optimize\/s--r1b2"/);
+  assert.match(p, /Skip a port whose target already has a kept or marginal idea on the winner or the trunk, unless its mechanism differs/);
+  assert.match(p, /--try <n1,b2,t7>/);
 });
