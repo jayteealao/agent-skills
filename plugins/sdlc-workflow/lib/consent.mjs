@@ -4,14 +4,27 @@
 // event to answers.jsonl (lib/answers.mjs), and `grantConsent` writes the consent into the index
 // only when that event exists and its answer is a yes. A work packet workflow also runs under
 // the consent of its list: the workflow that holds the packet file.
-import { findAnswer } from './answers.mjs';
+import { findAnswer, norm } from './answers.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 export const CONSENT_FIELD = 'model-invocation';
 
-/** The question that the person answers. `grantConsent` looks for this exact text. */
+/** The question that the person answers. */
 export const consentQuestion = (slug) => `May I start the next steps of ${slug} on my own, without a /wf command from you each time?`;
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Whether a question asks the consent for `slug`: after `norm()`, it holds the words "start the
+ * next steps" and the slug as a whole word. A question with added words still counts; a question
+ * about another slug, or one without those words, does not.
+ */
+export function isConsentQuestion(text, slug) {
+  const t = norm(text).toLowerCase();
+  if (!t.includes('start the next steps')) return false;
+  return new RegExp(`(?:^|[^a-z0-9_-])${escapeRe(String(slug).toLowerCase())}(?:$|[^a-z0-9_-])`).test(t);
+}
 
 /** The list workflow of a work packet workflow, from its `origin-packet` path, or null. */
 export function listOf(index) {
@@ -47,7 +60,7 @@ export function grantConsent(projectRoot, slug, { since = null, now = new Date()
   const dir = workflowDir(projectRoot, slug);
   if (!frontmatterOfDoc(dir, INDEX_NAME)) return { ok: false, reason: `no workflow ${slug}` };
   const question = consentQuestion(slug);
-  const answer = findAnswer(projectRoot, question, { since });
+  const answer = findAnswer(projectRoot, (text) => isConsentQuestion(text, slug), { since });
   if (!answer) return { ok: false, reason: 'no answer event for the consent question', question };
   if (!/^\s*yes\b/i.test(answer.answer)) return { ok: false, reason: `the person answered: ${answer.answer}`, question };
   const consent = { granted: true, by: 'person', at: now.toISOString().replace(/\.\d{3}Z$/, 'Z'), answer: answer.answer, 'answered-at': answer.at, host: answer.host };

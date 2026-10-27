@@ -64,18 +64,20 @@ export function readAnswerEvents(projectRoot) {
   });
 }
 
-const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+export const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
 /**
- * The newest answer to a question with this exact text (white space aside), or null. With
+ * The newest answer to a question, or null. `question` is the exact text (white space aside),
+ * or a function that takes the normalized text of a question and says whether it matches. With
  * `since`, an older event does not count.
  */
 export function findAnswer(projectRoot, question, { since = null } = {}) {
-  const want = norm(question);
+  const want = typeof question === 'function' ? null : norm(question);
+  const matches = typeof question === 'function' ? question : (text) => text === want;
   const after = since ? Date.parse(since) : null;
   for (const ev of readAnswerEvents(projectRoot).reverse()) {
     if (after != null && Date.parse(ev.at) < after) continue;
-    const hit = (ev.questions ?? []).find((q) => norm(q.question) === want);
+    const hit = (ev.questions ?? []).find((q) => matches(norm(q.question)));
     if (hit) return { at: ev.at, host: ev.host ?? null, session: ev.session ?? null, ...hit };
   }
   return null;

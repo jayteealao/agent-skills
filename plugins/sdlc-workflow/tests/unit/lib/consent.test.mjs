@@ -75,6 +75,22 @@ test('consent: no answer event, no consent; a yes grants it; a packet runs under
   }
 });
 
+test('consent: a question with an added sentence still grants it; another slug or question does not', () => {
+  const root = project({ list: 'status: active', 'list-two': 'status: active' });
+  try {
+    const t = (iso) => ({ now: new Date(iso) });
+    appendAnswerEvent(root, answerEventOf(claudeAnswer('Shall I start the next steps of list-two now?', 'Yes')), t('2026-10-25T10:00:00Z'));
+    appendAnswerEvent(root, answerEventOf(claudeAnswer('May I run list on my own?', 'Yes')), t('2026-10-25T10:01:00Z'));
+    assert.equal(grantConsent(root, 'list').ok, false, 'another slug or other words do not count');
+    appendAnswerEvent(root, answerEventOf(claudeAnswer(`${consentQuestion('list')} The walk has 4 packets left.`, 'Yes — go')), t('2026-10-25T10:02:00Z'));
+    assert.equal(grantConsent(root, 'list').ok, true);
+    assert.equal(checkConsent(root, 'list').ok, true);
+    assert.equal(checkConsent(root, 'list-two').ok, false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('the hook appends the event; the pre-write check refuses an agent write of the log', () => {
   const root = project({ a: 'status: active' });
   try {
