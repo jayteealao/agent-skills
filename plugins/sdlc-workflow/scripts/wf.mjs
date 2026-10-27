@@ -364,7 +364,7 @@ async function runDrive(pos, opt) {
   const [root, slug, slice] = pos;
   if (!root || !slug) throw new Error('drive: <root> <slug> are required');
   const projectRoot = resolve(root);
-  const staged = stageYoloDriver(projectRoot);
+  const staged = stageYoloDriver(projectRoot, { slug });
   const answered = opt.answered ? JSON.parse(readFileSync(resolve(opt.answered), 'utf8')) : null;
   if (answered && !Array.isArray(answered)) throw new Error('drive: --answered must name a JSON array of answers');
   const run = opt.resume || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
@@ -372,7 +372,7 @@ async function runDrive(pos, opt) {
   if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
   const args = {
     projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
-    ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate ? { delegate: true } : {}),
+    ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate || staged.delegate ? { delegate: true } : {}),
   };
   const r = await driveScript({
     source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,

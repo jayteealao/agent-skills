@@ -70,7 +70,7 @@ import { fileURLToPath } from 'node:url';
 import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
-import { answeredBy, decisionsOf, liveDecisions } from '../lib/decisions.mjs';
+import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
 import { clearStopRequest } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
@@ -355,24 +355,14 @@ export function lookInsPassed(elapsedMs, expectedMs, sent = 0) {
   return n;
 }
 
-/** The key of the steer entry that says how a run settles the person's decisions. */
-export const RUN_DECISIONS_KEY = 'run-decisions';
-
-/** True when a run-decisions answer says: take the recommended option, do not stop and wait. */
-export function delegatesDecisions(answer) {
-  const a = String(answer ?? '').trim().toLowerCase();
-  return /recommend|delegat/.test(a) && !/^(stop|wait)\b/.test(a);
-}
+export { RUN_DECISIONS_KEY, delegatesDecisions };
 
 /**
  * True when the run of the slug decides for the person: the live `run-decisions` steer of
  * its decision store, which the launch reads to set `delegate`, takes the recommended option.
  */
 export function runDelegated(root, slug) {
-  try {
-    const entry = answeredBy(decisionsOf(workflowDir(root, slug)), RUN_DECISIONS_KEY);
-    return Boolean(entry) && delegatesDecisions(entry.answer);
-  } catch { return false; }
+  try { return runDelegatedIn(workflowDir(root, slug)); } catch { return false; }
 }
 
 export function dirtyFiles(root) {

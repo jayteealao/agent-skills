@@ -792,10 +792,19 @@ function smallChangeClause(stage) {
     `Return no routeBack for a small change that passes its checks.`
 }
 
+// A repeated question: an earlier stage asked it under another key, and the person answered it.
+function sameQuestionClause() {
+  return `When it prints no answer, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, ` +
+    `with --slice <your slice> when you run on a slice. When an entry answers the same question in substance under ` +
+    `another key (the same choice in other words), that entry settles it: cite its id in the decision that you ` +
+    `record, and do not ask again. `
+}
+
 // Delegate mode: the person delegated the intent-bearing decisions of this run.
 function delegateClause(wfCmd) {
   return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. When you reach one, ` +
     `run \`${wfCmd} decide answered "${projectRoot}" ${slug} --key <key>\` first: a live answer settles it. ` +
+    sameQuestionClause() +
     `Otherwise settle it by the option you would recommend, record it with \`${wfCmd} decide add "${projectRoot}" ` +
     `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
     `<stage>\`, and continue. Return no questions. The person reads every delegate decision at the end of the run ` +
@@ -974,6 +983,7 @@ function questionContract(stage) {
     `DO NOT ask. Settle an implementation-detail decision yourself by the card of your brief, and record it. ` +
     `For an intent-bearing decision (per ${referenceRoot}/_decision-classes.md), run ` +
     `\`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\` first: a live answer settles it. ` +
+    sameQuestionClause() +
     (DELEGATE
       ? `Otherwise follow DELEGATE MODE below.`
       : `Otherwise do not settle it yet. When other work of this stage does not depend on the decision, hold ` +

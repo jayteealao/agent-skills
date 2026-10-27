@@ -274,6 +274,31 @@ export function decisionsOf(slugDir) {
   return list;
 }
 
+// ---------------------------------------------------------------- run decisions
+
+/** The key of the steer entry that says how a run settles the decisions of the person. */
+export const RUN_DECISIONS_KEY = 'run-decisions';
+
+/** The question that the launch of a driver asks, recorded under RUN_DECISIONS_KEY. */
+export const RUN_DECISIONS_QUESTION = 'When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?';
+
+/** The 2 answers of the run-decisions question. */
+export const RUN_DECISIONS_OPTIONS = ['Stop and wait for me', 'Take the recommended option and show me each one at the end'];
+
+/** True when a run-decisions answer says: take the recommended option, do not stop and wait. */
+export function delegatesDecisions(answer) {
+  const a = String(answer ?? '').trim().toLowerCase();
+  return /recommend|delegat/.test(a) && !/^(stop|wait)/.test(a);
+}
+
+/** True when the live run-decisions steer of a workflow folder takes the recommended option. */
+export function runDelegatedIn(slugDir) {
+  try {
+    const entry = answeredBy(decisionsOf(slugDir), RUN_DECISIONS_KEY);
+    return Boolean(entry) && delegatesDecisions(entry.answer);
+  } catch { return false; }
+}
+
 // ---------------------------------------------------------------- text
 
 /** One line per entry, for a brief or a list. */

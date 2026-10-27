@@ -29,9 +29,11 @@
  *
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot>
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --driver optimize
+ *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --slug <slug>
  *
  * `--driver` stages another Workflow script of skills/wf/workflows/ the same
- * way, beside yolo.js.
+ * way, beside yolo.js. `--slug` adds `delegate`: true when the live `run-decisions`
+ * steer of the workflow takes the recommended option, so the launch passes `delegate: true`.
  *   → {"scriptPath":"…/.scratch/wf/yolo.js","version":"9.154.0","sha256":"…","overwroteHotPatch":false}
  */
 import { createHash } from 'node:crypto';
@@ -40,7 +42,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { modelsOf } from '../lib/campaign.mjs';
-import { workflowsRoot } from '../lib/records-root.mjs';
+import { runDelegatedIn } from '../lib/decisions.mjs';
+import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
@@ -108,19 +111,24 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   let models = {};
   try { models = modelsOf(JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'))); } catch { /* no config: every stage on Opus */ }
   // The session passes `recordsRoot` on too: a linked project keeps its records in the records home.
-  return { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot) };
+  const staged = { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot) };
+  // The launch asks how the run settles the decisions of the person; the answer sets `delegate`.
+  if (opts.slug) staged.delegate = runDelegatedIn(workflowDir(projectRoot, opts.slug));
+  return staged;
 }
 
 function main() {
   const projectRoot = process.argv[2];
   const at = process.argv.indexOf('--driver');
   const driver = at > -1 ? process.argv[at + 1] : 'yolo';
+  const slugAt = process.argv.indexOf('--slug');
+  const slug = slugAt > -1 ? process.argv[slugAt + 1] : undefined;
   if (!projectRoot) {
     console.error('usage: node scripts/stage-yolo-driver.mjs <absolute projectRoot>');
     process.exit(2);
   }
   try {
-    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver })));
+    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver, slug })));
   } catch (err) {
     console.error(err.message);
     process.exit(1);

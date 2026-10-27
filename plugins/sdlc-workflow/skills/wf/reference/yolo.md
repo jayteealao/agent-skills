@@ -127,10 +127,17 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run it at every launch and resume (on Codex, `wf.mjs drive` runs it):
 
    ```
-   node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
+   node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>" --slug <slug>
    ```
 
-   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`, `models` and `recordsRoot`. Pass `models` and `recordsRoot` on in the args of Step 1. A `CAUTION` on stderr means a hot-patched copy was overwritten.
+   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`, `models`, `recordsRoot` and `delegate`. Pass `models` and `recordsRoot` on in the args of Step 1, and `delegate: true` when `delegate` is true. A `CAUTION` on stderr means a hot-patched copy was overwritten.
+5. **Ask how the run settles your decisions.** Ask at each launch from `/wf yolo` or the campaign walk. A relaunch of the same run after a hand-back does not ask again: Step 0.4 reads the recorded answer. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
+
+   ```
+   node "<pluginRoot>/scripts/wf.mjs" decide add "<projectRoot>" <slug> --kind steer --key run-decisions --question "<the question>" --answer "<the answer>"
+   ```
+
+   The newest entry supersedes the answer of an earlier launch. When the answer is "Take the recommended option and show me each one at the end", pass `delegate: true` in Step 1. On Codex, `wf.mjs drive` reads the recorded answer itself.
 
 # Step 1 — Start the driver
 
@@ -200,7 +207,7 @@ A stage that reaches an intent-bearing decision can hold it and continue with wo
 3. Tell the person that the stage reads the answer before it returns.
 4. Do not stop or relaunch the driver. When the stage still returns the question, step 2 of the list above moves it to `answered`.
 
-**Delegate mode.** When the person says that the run decides for them, launch with `delegate: true`. Each stage settles an intent-bearing decision by the option it recommends, and records it with `--by delegate`. The run returns no questions. At the end, run `outcome.delegate.digest` (`decide list --by delegate`). Show each delegate decision to the person, who confirms or reverses it. A reversal is a `decide add --by person` with the same key: it supersedes the delegate entry. Then relaunch with that answer in `answered`.
+**Delegate mode.** When the `run-decisions` answer of Step 0.5 takes the recommended option, or the person says that the run decides for them, launch with `delegate: true`. Each stage settles an intent-bearing decision by the option it recommends, and records it with `--by delegate`. The run returns no questions. Before a stage settles a decision, it looks in the store for an answer to the same question in substance, also under another key, and reuses it. At the end, run `outcome.delegate.digest` (`decide list --by delegate`). Show the delegate decisions together, with the host question tool: up to four in each question, each with its key, the question and the option the run took. The person confirms or reverses each one. A reversal is a `decide add --by person` with the same key: it supersedes the delegate entry. Then relaunch with that answer in `answered`.
 
 # Hot-patching the driver mid-run
 

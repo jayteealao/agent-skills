@@ -128,3 +128,30 @@ test('CLI --driver: the wave driver is gone (WF-PIECES-PLAN), so campaign-wave i
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('--slug: the run-decisions answer of the launch sets delegate', async () => {
+  const { addDecision, RUN_DECISIONS_KEY, RUN_DECISIONS_OPTIONS, RUN_DECISIONS_QUESTION } = await import('../../lib/decisions.mjs');
+  const root = scratchRepo();
+  const dir = join(root, '.ai', 'workflows', 'demo');
+  mkdirSync(dir, { recursive: true });
+  const cli = () => JSON.parse(spawnSync(process.execPath, [SCRIPT, root, '--slug', 'demo'], { encoding: 'utf8' }).stdout);
+  try {
+    assert.equal(stageYoloDriver(root).delegate, undefined, 'no slug: no delegate field');
+    assert.equal(cli().delegate, false, 'no answer: the run stops and waits');
+    addDecision(dir, { kind: 'steer', key: RUN_DECISIONS_KEY, question: RUN_DECISIONS_QUESTION, answer: RUN_DECISIONS_OPTIONS[1] });
+    assert.equal(cli().delegate, true);
+    addDecision(dir, { kind: 'steer', key: RUN_DECISIONS_KEY, question: RUN_DECISIONS_QUESTION, answer: RUN_DECISIONS_OPTIONS[0] });
+    assert.equal(stageYoloDriver(root, { slug: 'demo' }).delegate, false, 'the newest answer of a later launch wins');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the stage briefs reuse an answer to the same question under another key', () => {
+  const yolo = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+  assert.match(yolo, /When an entry answers the same question in substance under ` \+\n\s+`another key/);
+  assert.equal((yolo.match(/sameQuestionClause\(\) \+/g) || []).length, 2, 'the question contract and delegate mode');
+  const ref = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'reference', 'yolo.md'), 'utf8');
+  assert.match(ref, /--kind steer --key run-decisions/);
+  assert.match(ref, /up to four in each question/);
+});
