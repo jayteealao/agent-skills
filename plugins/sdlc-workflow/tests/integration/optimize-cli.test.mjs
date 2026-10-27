@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,9 +72,10 @@ function makeRepo(over) {
   git(root, 'config', 'user.email', 'o@test');
   git(root, 'config', 'user.name', 'o');
   writeFileSync(path.join(root, 'metric.js'), "const fs = require('fs'); console.log('measuring'); console.log(fs.readFileSync('src/value.txt', 'utf8').trim());\n");
-  writeFileSync(path.join(root, 'guard.js'), "process.exit(require('fs').existsSync('src/broken') ? 1 : 0);\n");
+  // With a shared build folder, the guard leaves the path of its worktree there.
+  writeFileSync(path.join(root, 'guard.js'), "const fs = require('fs'); if (process.env.OPT_BUILD) fs.writeFileSync(require('path').join(process.env.OPT_BUILD, 'built'), process.cwd()); process.exit(fs.existsSync('src/broken') ? 1 : 0);\n");
   writeFileSync(path.join(root, 'src', 'value.txt'), '100\n');
-  writeFileSync(path.join(root, '.gitignore'), '.ai/workflows/*/optimize/\n');
+  writeFileSync(path.join(root, '.gitignore'), '.ai/workflows/*/optimize/\nnode_modules\n');
   const wf = path.join(root, '.ai', 'workflows', S);
   mkdirSync(wf, { recursive: true });
   writeFileSync(path.join(wf, '00-index.md'), `---\nschema: sdlc/v1\ntype: index\nslug: ${S}\nworkflow-type: optimize\nbranch: main\nreview-scope: per-slice\n---\n`);
@@ -87,11 +88,13 @@ const edit = (wt, value, extra = {}) => {
   writeFileSync(path.join(wt, 'src', 'value.txt'), `${value}\n`);
   for (const [p, t] of Object.entries(extra)) { mkdirSync(path.dirname(path.join(wt, p)), { recursive: true }); writeFileSync(path.join(wt, p), t); }
 };
-function step(root, wt, id, value, extra) {
-  const ctx = run(root, 'propose-context');
+/** One trial as the driver runs it: the proposer reads the digest, the editor writes into the worktree that the digest names. */
+function step(root, wt, id, value, extra, on = null) {
+  const lane = on ? ['--on', on] : [];
+  const ctx = run(root, 'propose-context', ...lane);
   assert.equal(ctx.ok, true, JSON.stringify(ctx));
-  if (value !== null) edit(wt, value, extra);
-  const t = run(root, 'trial', id, '--hypothesis', `set the value to ${value}`);
+  if (value !== null) edit(ctx.digest.worktree, value, extra);
+  const t = run(root, 'trial', id, ...lane, '--hypothesis', `set the value to ${value}`);
   assert.equal(t.ok, true, JSON.stringify(t));
   return { ctx, t };
 }
@@ -121,13 +124,16 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     assert.equal(step(root, wt, 'h3', 80).t.verdict, 'kept');
     const out = step(root, wt, 'h4', 70, { 'lib/x.js': 'x' });
     assert.equal(out.t.verdict, 'rejected', 'D5: lib/x.js is outside allowed-paths');
-    assert.equal(readFileSync(path.join(wt, 'src', 'value.txt'), 'utf8').trim(), '95', 'the rejected change is reset');
+    assert.equal(out.ctx.digest.worktree, `${wt}--r1b2`, 'each branch has its own worktree');
+    assert.equal(readFileSync(path.join(`${wt}--r1b2`, 'src', 'value.txt'), 'utf8').trim(), '95', 'the rejected change is reset');
+    assert.equal(readFileSync(path.join(wt, 'src', 'value.txt'), 'utf8').trim(), '100', 'the trunk worktree stays at the trunk best');
 
     const close = run(root, 'round-close');
     assert.equal(close.ok, true, JSON.stringify(close));
     assert.equal(close.winner.name, `optimize/${S}--r1b1`);
     assert.equal(close.best.value, 80);
     assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '', 'the round branches are deleted');
+    assert.deepEqual([existsSync(`${wt}--r1b1`), existsSync(`${wt}--r1b2`)], [false, false], 'the branch worktrees are removed');
 
     const t1 = step(root, wt, 'h5', 85);
     assert.deepEqual(t1.ctx.digest.trials.map((x) => x.trial), [1, 3], 'the trunk digest restarts from the trials of the winner');
@@ -241,11 +247,11 @@ test('a commit hook that refuses a trial rejects the trial, and the format comma
     assert.equal(refused.verdict, 'rejected', JSON.stringify(refused));
     assert.equal(refused.reason, 'the commit hook refused the change');
     assert.match(refused.output, /format check failed/);
-    assert.equal(git(wt, 'status', '--porcelain'), '', 'the refused change is reset');
+    assert.equal(git(`${wt}--r1b1`, 'status', '--porcelain'), '', 'the refused change is reset');
 
     const formatted = step(root, wt, 'h2', '  90  ').t;
     assert.equal(formatted.verdict, 'kept', JSON.stringify(formatted));
-    assert.equal(git(wt, 'show', 'HEAD:src/value.txt'), '90', 'the commit holds the formatted file');
+    assert.equal(git(`${wt}--r1b2`, 'show', 'HEAD:src/value.txt'), '90', 'the commit holds the formatted file');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
@@ -260,6 +266,125 @@ test('a format command that changes a file outside allowed-paths rejects the tri
     const t = step(root, wt, 'h1', 90).t;
     assert.equal(t.verdict, 'rejected');
     assert.match(t.reason, /path check: lib\/x\.js \(outside allowed-paths\)/);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+const B1 = `optimize/${S}--r1b1`;
+const B2 = `optimize/${S}--r1b2`;
+
+test('each branch has its own worktree: a ready branch takes a trial out of turn, and a prepared edit is measured', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    const st = run(root, 'status');
+    assert.deepEqual(st.next.ready, [B1, B2]);
+    assert.equal(git(`${wt}--r1b2`, 'branch', '--show-current'), B2);
+    assert.match(run(root, 'trial', 'hx', '--on', `optimize/${S}`).error, /cannot take a trial now/);
+
+    const out = step(root, wt, 'h1', 90, undefined, B2);
+    assert.equal(out.ctx.digest.worktree, `${wt}--r1b2`);
+    assert.deepEqual([out.t.lane, out.t.verdict], [B2, 'kept']);
+    assert.equal(readFileSync(path.join(`${wt}--r1b1`, 'src', 'value.txt'), 'utf8').trim(), '100', 'branch 1 is untouched');
+
+    // An edit that waited in its worktree through a stop: the proposer sees it, and trial measures it.
+    edit(`${wt}--r1b1`, 85);
+    assert.deepEqual(run(root, 'propose-context', '--on', B1).prepared, { paths: ['src/value.txt'] });
+    const t = run(root, 'trial', 'h2', '--on', B1, '--hypothesis-file', path.join(parent, 'absent.txt'), '--hypothesis', 'set the value to 85');
+    assert.equal(t.verdict, 'kept', JSON.stringify(t));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('the measure lock: a trial while another process measures is busy; a stale lock is taken and released', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    const lock = path.join(root, '.ai', 'workflows', S, 'optimize', '.measure.lock');
+    writeFileSync(lock, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), lane: B2 }));
+    edit(`${wt}--r1b1`, 90);
+    const busy = run(root, 'trial', 'h1', '--hypothesis', 'set the value to 90');
+    assert.deepEqual([busy.ok, busy.busy], [false, true], JSON.stringify(busy));
+    assert.match(busy.error, /one at a time/);
+    assert.equal(run(root, 'status').state, 'running', 'the lane check waits while another process measures');
+
+    writeFileSync(lock, JSON.stringify({ pid: 999999, at: new Date().toISOString() }));
+    assert.equal(run(root, 'trial', 'h1', '--hypothesis', 'set the value to 90').verdict, 'kept', 'the lock of a dead process is stale');
+    assert.equal(existsSync(lock), false, 'the lock is released');
+
+    writeFileSync(lock, JSON.stringify({ pid: process.pid, at: '2000-01-01T00:00:00Z' }));
+    edit(`${wt}--r1b2`, 95);
+    assert.equal(run(root, 'trial', 'h2', '--hypothesis', 'set the value to 95').verdict, 'kept', 'a lock older than three trial timeouts is stale');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('round-close removes the branch worktrees, a worktree with a link stays, and finish removes the rest and the shared build folder', () => {
+  const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    const bd = `${wt}.build`;
+    assert.ok(existsSync(path.join(bd, 'built')), 'the baseline guard runs with the shared build folder');
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    assert.match(readFileSync(path.join(bd, 'built'), 'utf8'), /r1b1$/, 'a branch trial builds into the same folder');
+    assert.equal(step(root, wt, 'h2', 120).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h3', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h4', 130).t.verdict, 'reverted');
+
+    const outside = path.join(parent, 'outside');
+    mkdirSync(outside);
+    writeFileSync(path.join(outside, 'keep.txt'), 'x');
+    const link = path.join(`${wt}--r1b2`, 'node_modules');
+    symlinkSync(outside, link, 'junction');
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.deepEqual(close.leftovers.map((l) => l.branch), [B2]);
+    assert.deepEqual([existsSync(`${wt}--r1b1`), existsSync(`${wt}--r1b2`)], [false, true]);
+
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.deepEqual(fin.cleanup.kept.map((k) => k.branch), [B2], 'a cleanup that cannot remove a worktree does not fail the finish');
+    assert.deepEqual([existsSync(wt), existsSync(bd)], [false, false], 'finish removes the trunk worktree and the build folder');
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}`), '');
+
+    rmSync(link, { force: true });
+    const cl = run(root, 'cleanup');
+    assert.equal(cl.ok, true, JSON.stringify(cl));
+    assert.equal(existsSync(`${wt}--r1b2`), false);
+    assert.equal(git(root, 'branch', '--list', B2), '');
+    assert.ok(existsSync(path.join(outside, 'keep.txt')), 'no delete followed the link');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a round that an older version opened runs on the trunk worktree until it closes', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    const file = path.join(root, '.ai', 'workflows', S, 'optimize', 'state.json');
+    const state = JSON.parse(readFileSync(file, 'utf8'));
+    for (const name of [B1, B2]) git(root, 'branch', name, state.best.commit);
+    state.version = 1;
+    state.schedule.used = [0];
+    state.round = { n: 1, reason: 'schedule', point: 0, why: 'old', branchTrials: 1, openedAtTrial: 0, from: state.best.commit, branches: [1, 2].map((k) => ({ k, name: k === 1 ? B1 : B2, best: { ...state.best, reachedAt: 0 }, trials: 0, keeps: 0 })) };
+    writeFileSync(file, JSON.stringify(state, null, 2));
+
+    assert.equal(run(root, 'status').next.ready, undefined);
+    const a = step(root, wt, 'h1', 90);
+    assert.equal(a.ctx.digest.worktree, wt);
+    assert.equal(a.t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 95).t.lane, B2);
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.equal(close.best.value, 90);
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--*`), '');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

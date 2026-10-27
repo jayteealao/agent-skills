@@ -88,11 +88,14 @@ test('D13: the proposer reads only the digest, and never the ledger or the histo
   assert.equal(/different approach/.test(p), false, 'no diversity directive (arXiv 2610.07447: no measured effect)');
 });
 
-test('the trial bookkeeping writes the hypothesis to a file and passes it with --hypothesis-file', async () => {
+test('the trial bookkeeping writes the hypothesis to the file of its lane and passes it with --hypothesis-file', async () => {
   const { agent, calls } = fakeLoop();
   await run(ARGS, agent);
   const t = calls.find((c) => c.label === 'trial:1').prompt;
-  assert.match(t, /\/repo\/\.scratch\/optimize\/s\/h1\.txt/);
+  assert.match(t, /\/repo\/\.scratch\/optimize\/s\/r1b1\.txt/);
+  const e = calls.find((c) => c.label === 'edit:1').prompt;
+  assert.match(e, /write the hypothesis text above to the file \/repo\/\.scratch\/optimize\/s\/r1b1\.txt/, 'the editor writes it too, so a resume can measure the edit');
+  assert.match(e, /Do not build, compile, test, format, or run the metric/);
   assert.match(t, /optimize\.mjs" trial "\/repo" s h1 --hypothesis-file/);
 });
 
@@ -116,4 +119,103 @@ test('missing args return a stop, not a throw', async () => {
   const out = await run({ projectRoot: '/repo' }, async () => ({}));
   assert.equal(out.ok, false);
   assert.match(out.reason, /required arg 'referenceRoot'/);
+});
+
+// A round whose branches have their own worktrees: status names every ready branch. The agents
+// take time, so the test sees which of them run at the same time.
+function overlapLoop({ branches = 2, branchTrials = 2, trunkTrials = 1, stopAt = null } = {}) {
+  const lanes = Array.from({ length: branches }, (_, i) => `optimize/s--r1b${i + 1}`);
+  const S = { opened: false, closed: false, trials: 0, trunk: 0, done: Object.fromEntries(lanes.map((l) => [l, 0])) };
+  const next = () => {
+    if (!S.opened) return { action: 'round-open', point: 0 };
+    if (!S.closed) {
+      const open = lanes.filter((l) => S.done[l] < branchTrials);
+      return open.length ? { action: 'trial', on: open[0], ready: open } : { action: 'round-close' };
+    }
+    if (S.trunk < trunkTrials) return { action: 'trial', on: 'optimize/s' };
+    return null;
+  };
+  const status = () => {
+    if (stopAt !== null && S.trials >= stopAt) return { ok: true, state: 'stopped', reason: 'stop-request', next: { action: 'person' }, counters: { trials: S.trials } };
+    const n = next();
+    const common = { ok: true, counters: { trials: S.trials }, budget: { trials: 8, roundsMax: 2, width: 1 } };
+    return n ? { ...common, state: 'running', next: n } : { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } };
+  };
+  const log = [];
+  let measuring = 0;
+  let most = 0;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const agent = async (prompt, opts) => {
+    const base = opts.label.split(':')[0];
+    if (base === 'status') return { ok: true, result: status() };
+    if (base === 'round-open') { S.opened = true; return { ok: true, result: { ok: true, next: next() } }; }
+    if (base === 'round-close') { S.closed = true; return { ok: true, result: { ...status(), winner: 'trunk' } }; }
+    if (base === 'propose') {
+      const lane = (/propose-context "\/repo" s --on (\S+)`/.exec(prompt) || [])[1] ?? 'optimize/s';
+      log.push(['propose', lane]);
+      await sleep(5);
+      return { hypotheses: [{ text: `idea for ${lane}`, expected: '1', plan: 'edit src/a.js' }], lane, worktree: `/wt/${lane}` };
+    }
+    if (base === 'edit') {
+      const lane = /, on (\S+)\. The optimize worktree/.exec(prompt)[1];
+      log.push(['edit', lane]);
+      await sleep(5);
+      return { ok: true, changed: ['src/a.js'] };
+    }
+    if (base === 'trial') {
+      const lane = (/ --on (\S+) /.exec(prompt) || [])[1] ?? 'optimize/s';
+      measuring++;
+      most = Math.max(most, measuring);
+      log.push(['trial-start', lane]);
+      await sleep(25);
+      S.trials++;
+      if (S.closed) S.trunk++; else S.done[lane]++;
+      measuring--;
+      log.push(['trial-end', lane]);
+      return { ok: true, result: { ok: true, trial: S.trials, lane, verdict: 'kept', median: 1, next: status().next } };
+    }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc' } };
+    throw new Error(`no answer for ${opts.label}`);
+  };
+  return { agent, log, S, most: () => most };
+}
+
+test('in a round with branch worktrees, the branches propose and edit while another branch is measured; the trials never overlap', async () => {
+  const { agent, log, most } = overlapLoop();
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  assert.equal(most(), 1, 'one measurement at a time');
+  const at = (kind, lane, from = 0) => log.findIndex((e, i) => i >= from && e[0] === kind && e[1] === lane);
+  const firstEnd = log.findIndex((e) => e[0] === 'trial-end');
+  const measured = log[firstEnd][1];
+  const other = measured === 'optimize/s--r1b1' ? 'optimize/s--r1b2' : 'optimize/s--r1b1';
+  assert.ok(at('edit', other) < firstEnd, 'the other branch is edited before the first trial ends');
+  const start = log.findIndex((e) => e[0] === 'trial-start' && e[1] === other);
+  const end = at('trial-end', other, start);
+  assert.ok(start > firstEnd && end > start);
+  const proposeAgain = at('propose', measured, firstEnd);
+  const editAgain = at('edit', measured, firstEnd);
+  assert.ok(proposeAgain < end && editAgain < end, 'a branch proposes and edits its next trial while the other branch is measured');
+  assert.equal(log.filter((e) => e[0] === 'trial-end').length, 5, '2 trials on each of 2 branches, then 1 trunk trial');
+  // The trunk stays serial: its proposer starts only after every branch trial ended.
+  const lastBranchEnd = log.map((e) => (e[0] === 'trial-end' && e[1] !== 'optimize/s' ? 1 : 0)).lastIndexOf(1);
+  assert.ok(at('propose', 'optimize/s') > lastBranchEnd);
+});
+
+test('the trials of the overlap pass --on and the hypothesis file of their lane', async () => {
+  const calls = [];
+  const { agent } = overlapLoop();
+  await run(ARGS, async (prompt, opts) => { calls.push({ label: opts.label, prompt }); return agent(prompt, opts); });
+  const t = calls.filter((c) => c.label.startsWith('trial:')).map((c) => c.prompt);
+  assert.ok(t.some((p) => /trial "\/repo" s h\d+ --on optimize\/s--r1b2 --hypothesis-file "\/repo\/\.scratch\/optimize\/s\/r1b2\.txt"/.test(p)));
+  assert.ok(calls.filter((c) => c.label.startsWith('propose:')).some((c) => /propose-context "\/repo" s --on optimize\/s--r1b1/.test(c.prompt)));
+});
+
+test('a stop during a round waits for the editors in flight and does not measure their edits', async () => {
+  const { agent, log } = overlapLoop({ stopAt: 1 });
+  const out = await run(ARGS, agent);
+  assert.equal(out.stoppedAt, 'stop-request');
+  assert.equal(log.filter((e) => e[0] === 'trial-start').length, 1);
+  const lastEdit = log.map((e) => e[0]).lastIndexOf('edit');
+  assert.ok(lastEdit >= 0 && log.length - 1 >= lastEdit, 'the edit in flight finished before the driver returned');
 });

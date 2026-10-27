@@ -1,6 +1,6 @@
 export const meta = {
   name: 'wf-optimize',
-  description: 'The driver of /wf loop optimize. It runs the metric loop of one optimize slug: each trial is a fresh proposer that reads only the digest of its trunk or branch, a fresh editor, and a bookkeeping agent that runs optimize.mjs trial. optimize.mjs owns every git write, measurement and keep or revert; this script only sequences agents. Branch rounds open on the fixed schedule and on a plateau. Never pushes, never opens a PR.',
+  description: 'The driver of /wf loop optimize. It runs the metric loop of one optimize slug: each trial is a fresh proposer that reads only the digest of its trunk or branch, a fresh editor, and a bookkeeping agent that runs optimize.mjs trial. optimize.mjs owns every git write, measurement and keep or revert; this script only sequences agents. Branch rounds open on the fixed schedule and on a plateau; in a round, every branch proposes and edits in its own worktree at the same time, and the trials measure one at a time. Never pushes, never opens a PR.',
   phases: [
     { title: 'Orient', detail: 'the status of the loop and the agent ceiling' },
     { title: 'Loop', detail: 'trials on the trunk and on the branches of each round; round-open, round-close and checkpoints when optimize.mjs names them' },
@@ -76,9 +76,10 @@ const PROPOSE_SCHEMA = {
   type: 'object', required: ['hypotheses'],
   properties: {
     hypotheses: {
-      type: 'array', minItems: 1,
+      type: 'array',
       items: { type: 'object', required: ['text', 'expected', 'plan'], properties: { text: { type: 'string' }, expected: { type: 'string' }, plan: { type: 'string' } } },
     },
+    prepared: { type: 'boolean' },
     lane: { type: 'string' },
     worktree: { type: 'string' },
   },
@@ -114,13 +115,20 @@ async function book(sub, rest, label, phaseName, pre = '') {
   return res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
 }
 
-function proposePrompt(n, width) {
+// The hypothesis of the trial in flight on each lane: the editor writes it before its edit, so a
+// resume can measure an edit that waited through a stop; the bookkeeping writes it again.
+const laneTag = (lane) => { const m = /--(r\d+b\d+)$/.exec(String(lane || '')); return m ? m[1] : 'trunk' }
+const laneFile = (lane) => `${HYP_DIR}/${laneTag(lane)}.txt`
+const isBranchLane = (lane) => /--r\d+b\d+$/.test(String(lane || ''))
+
+function proposePrompt(n, width, on = null) {
   return `PROPOSER for trial ${n} of the optimize loop of '${slug}'. You write ${width === 1 ? 'one hypothesis' : `${width} different hypotheses`}; ` +
     `you edit nothing.\n` +
-    `1. Run \`${cmd('propose-context')}\`. Its "digest" is everything you may know about the run: the objective, the ` +
+    `1. Run \`${cmd('propose-context', on ? `--on ${on}` : '')}\`. Its "digest" is everything you may know about the run: the objective, the ` +
     `spec prose, the metric and its direction, the best value and the number to beat (threshold), allowed-paths, ` +
-    `off-limits, the trials of your own trunk or branch, and the hypotheses that failed there. It also checks out ` +
-    `the branch in the worktree ("worktree" and "branch").\n` +
+    `off-limits, the trials of your own trunk or branch, and the hypotheses that failed there. It also names ` +
+    `the worktree of your lane and its branch ("worktree" and "branch"). When "prepared" is not null, the worktree ` +
+    `already holds an edit from before a stop: read nothing more and return { hypotheses: [], prepared: true, lane, worktree }.\n` +
     `2. Read the code in the worktree that the metric exercises. Read only inside the worktree.\n` +
     `3. Do NOT read the optimize folder of the workflow, the results ledger, or the git history of other branches. ` +
     `When digest.flushed is true, you are a branch of a branch round: work out the intent of the code from the ` +
@@ -137,14 +145,35 @@ function editPrompt(n, h, lane) {
   return `EDITOR for trial ${n} of the optimize loop of '${slug}', on ${lane}. The optimize worktree is ` +
     `${h.worktree || 'the "worktree" that propose-context prints'}; it has ${lane} checked out. Make this change ` +
     `there, and only this change:\n  hypothesis: ${JSON.stringify(h.text)}\n  plan: ${JSON.stringify(h.plan)}\n` +
+    `First write the hypothesis text above to the file ${laneFile(lane)} with the file-write tool (create the folder ` +
+    `when absent). That file is the one file outside the worktree that you write.\n` +
     `Rules: edit files only inside the worktree; never edit an off-limits path or the metric, guard or holdout ` +
-    `files; do not commit, do not reset, do not run the metric. optimize.mjs commits, measures, and keeps or ` +
-    `reverts the change. When the plan cannot be done inside allowed-paths, change nothing and return ok false ` +
-    `with the reason in note.\n` + EOB +
+    `files; do not commit, do not reset. Do not build, compile, test, format, or run the metric or any other command ` +
+    `of the project: another trial can be measuring on this machine, and a build corrupts its numbers. optimize.mjs ` +
+    `formats, commits, checks, measures, and keeps or reverts the change. When the plan cannot be done inside ` +
+    `allowed-paths, change nothing and return ok false with the reason in note.\n` + EOB +
     `\nReturn { ok, changed, note } with changed listing the paths you edited, relative to the worktree.` + steering + heartbeat(`edit:${n}`, 'Loop')
 }
 
-const trialPre = (n, h) => `First write the text ${JSON.stringify(h.text)} to the file ${HYP_DIR}/h${n}.txt with the file-write tool (create the folder when absent). Then `
+const trialPre = (lane, h) => `First write the text ${JSON.stringify(h.text)} to the file ${laneFile(lane)} with the file-write tool (create the folder when absent). Then `
+
+/** One trial: the bookkeeping agent writes the hypothesis file and runs `trial`. `on` names the lane in a round with branch worktrees. */
+async function runTrial(n, h, lane, on) {
+  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}`
+  return await book('trial', rest, `trial:${n}`, 'Loop', h.prepared ? '' : trialPre(lane, h))
+}
+
+/** The proposer and the editor of one branch trial. They change no file that a measurement reads. */
+async function prepare(lane, n) {
+  const p = await call(proposePrompt(n, 1, lane), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
+  if (p && p.prepared) return { lane, n, h: { text: '', prepared: true } }
+  const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)
+  if (!hs.length) return { lane, n, error: `the proposer of trial ${n} returned no hypothesis` }
+  const h = { ...hs[0], worktree: (p && p.worktree) || '' }
+  const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
+  if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+  return { lane, n, h }
+}
 
 // ---------------------------------------------------------------------------
 // The loop
@@ -164,9 +193,22 @@ phase('Loop')
 let stoppedAt = null
 let reason = null
 const queue = []
+// The trial ids continue from the ledger, so a resumed run does not reuse them.
+let SEQ_T = Number(st.counters && st.counters.trials) || 0
+// A round whose branches have their own worktrees overlaps the work that is not a measurement:
+// every ready branch proposes and edits at the same time, and the trials measure one at a time.
+const inflight = new Map()
+const prepared = []
+const drain = async () => { if (inflight.size) await Promise.all([...inflight.values()]) }
 while (st && st.state === 'running') {
   const next = st.next || {}
   if (AGENTS + 3 > CEILING) { stoppedAt = 'agent-ceiling'; reason = `${AGENTS} of the ceiling of ${CEILING} agents are used: start the driver again, and the loop continues from state.json`; break }
+  const overlap = next.action === 'trial' && Array.isArray(next.ready) && next.ready.length > 0 && isBranchLane(next.on)
+  if (!overlap) {
+    // A boundary waits for the editors in flight. round-close discards an edit that was not measured.
+    await drain()
+    prepared.length = 0
+  }
   if (next.action === 'round-open' || next.action === 'round-close' || next.action === 'checkpoint') {
     queue.length = 0
     const r = await book(next.action, '', next.action, 'Loop')
@@ -177,29 +219,58 @@ while (st && st.state === 'running') {
     continue
   }
   if (next.action !== 'trial') { stoppedAt = 'unknown-action'; reason = `status names the action '${next.action}'`; break }
-  const n = (Number(st.counters && st.counters.trials) || 0) + 1
-  const onTrunk = !/--r\d+b\d+$/.test(String(next.on || ''))
-  // A queued trunk hypothesis is used only while the next trial stays on the trunk.
-  let h = onTrunk && queue.length ? queue.shift() : null
-  if (!h) {
-    queue.length = 0
-    const p = await call(proposePrompt(n, onTrunk ? width : 1), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
-    const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)
-    if (!hs.length) { stoppedAt = 'proposer'; reason = `the proposer of trial ${n} returned no hypothesis`; break }
-    for (const x of hs) x.worktree = (p && p.worktree) || ''
-    h = hs.shift()
-    if (onTrunk) queue.push(...hs)
+  let n, h, lane, on = null
+  if (overlap) {
+    for (const l of next.ready) {
+      if (inflight.has(l) || prepared.some(x => x.lane === l)) continue
+      const k = ++SEQ_T
+      inflight.set(l, prepare(l, k).then(r => {
+        inflight.delete(l)
+        prepared.push(r || { lane: l, n: k, error: `the agents of trial ${k} returned nothing` })
+      }))
+    }
+    if (!prepared.length) {
+      if (!inflight.size) { stoppedAt = 'proposer'; reason = 'no branch of the round can take a trial'; break }
+      await Promise.race([...inflight.values()])
+      continue
+    }
+    const item = prepared.shift()
+    if (item.error) { stoppedAt = 'proposer'; reason = item.error; break }
+    n = item.n; h = item.h; lane = item.lane; on = item.lane
+  } else {
+    n = ++SEQ_T
+    lane = next.on
+    const onTrunk = !isBranchLane(lane)
+    // A queued trunk hypothesis is used only while the next trial stays on the trunk.
+    h = onTrunk && queue.length ? queue.shift() : null
+    if (!h) {
+      queue.length = 0
+      const p = await call(proposePrompt(n, onTrunk ? width : 1), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
+      if (p && p.prepared) h = { text: '', prepared: true }
+      else {
+        const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)
+        if (!hs.length) { stoppedAt = 'proposer'; reason = `the proposer of trial ${n} returned no hypothesis`; break }
+        for (const x of hs) x.worktree = (p && p.worktree) || ''
+        h = hs.shift()
+        if (onTrunk) queue.push(...hs)
+      }
+    }
+    if (!h.prepared) {
+      const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
+      if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+    }
   }
-  const e = await call(editPrompt(n, h, next.on), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
-  if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
-  const t = await book('trial', `h${n} --hypothesis-file "${HYP_DIR}/h${n}.txt"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}`, `trial:${n}`, 'Loop', trialPre(n, h))
+  const t = await runTrial(n, h, lane, on)
   if (t.ok === false) { stoppedAt = 'bookkeeping'; reason = `trial ${n}: ${t.error || 'failed'}`; break }
-  events.push({ event: 'trial', trial: n, lane: t.lane, verdict: t.verdict, median: t.median ?? null })
-  log(`trial ${n} on ${t.lane}: ${t.verdict}${t.median !== null && t.median !== undefined ? ` (${t.median})` : ''}${t.reason ? ` — ${t.reason}` : ''}`)
-  st = t.next && t.next.action ? { ...st, state: 'running', next: t.next, counters: { ...(st.counters || {}), trials: n } } : await book('status', '', 'status', 'Loop')
+  events.push({ event: 'trial', trial: t.trial ?? n, lane: t.lane, verdict: t.verdict, median: t.median ?? null })
+  log(`trial ${t.trial ?? n} on ${t.lane}: ${t.verdict}${t.median !== null && t.median !== undefined ? ` (${t.median})` : ''}${t.reason ? ` — ${t.reason}` : ''}`)
+  const done = Number(t.trial) || ((Number(st.counters && st.counters.trials) || 0) + 1)
+  st = t.next && t.next.action ? { ...st, state: 'running', next: t.next, counters: { ...(st.counters || {}), trials: done } } : await book('status', '', 'status', 'Loop')
   // The next action of a trial is computed without a stop; read the full status at a round boundary or a stop.
   if (st.next && st.next.action !== 'trial') st = await book('status', '', 'status', 'Loop')
 }
+// An editor in flight finishes its edit; a stop leaves that edit in its worktree for the resume to measure.
+await drain()
 if (!stoppedAt && st && st.state !== 'running') { stoppedAt = st.state === 'complete' ? null : st.reason; reason = st.detail || st.reason }
 
 let finish = null

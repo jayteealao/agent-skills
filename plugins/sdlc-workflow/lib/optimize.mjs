@@ -15,7 +15,8 @@
 // Basins in Autoresearch Agents", arXiv 2610.07447.
 
 export const SPEC_FILE = '02-optimize-spec.md';
-export const STATE_VERSION = 1;
+/** 2: each branch of a round has its own worktree (`round.branches[k].worktree`). */
+export const STATE_VERSION = 2;
 export const DIRECTIONS = Object.freeze(['lower', 'higher']);
 export const VERDICTS = Object.freeze(['kept', 'reverted', 'rejected', 'crashed', 'timeout']);
 /** The digest shows at most this many trials (4.5). */
@@ -115,6 +116,8 @@ export function parseSpec(fm) {
   if (!Number.isInteger(maxExtra) || maxExtra < 0) errors.push('branch-rounds.max-extra must be an integer of 0 or more');
   const width = Number(fm.width ?? DEFAULT_SPEC.width);
   if (!Number.isInteger(width) || width < 1) errors.push('width must be a positive integer');
+  const sharedBuild = str(fm['shared-build']);
+  if (sharedBuild && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(sharedBuild)) errors.push('shared-build must be the name of an environment variable, for example CARGO_TARGET_DIR');
   const checkpointEvery = Number(fm['checkpoint-every'] ?? DEFAULT_SPEC['checkpoint-every']);
   if (!Number.isInteger(checkpointEvery) || checkpointEvery < 1) errors.push('checkpoint-every must be a positive integer');
   const spec = {
@@ -124,6 +127,7 @@ export function parseSpec(fm) {
     holdout: holdout ? { command: str(holdout.command), tolerance, direction: DIRECTIONS.includes(str(holdout.direction)) ? str(holdout.direction) : direction } : null,
     setup: str(fm.setup) || null,
     format: str(fm.format) || null,
+    sharedBuild: str(fm['shared-build']) || null,
     allowedPaths: allowed,
     offLimits,
     budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout },
@@ -282,7 +286,10 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     if (!open.length) return running({ action: 'round-close', why: `every branch ran ${r.branchTrials} trials` });
     // The branches take trials in turn: the one with the fewest trials, first in order.
     const turn = [...open].sort((a, b) => a.trials - b.trials || a.k - b.k)[0];
-    return running({ action: 'trial', on: turn.name, why: `round ${r.n}, branch ${turn.k}, trial ${turn.trials + 1} of ${r.branchTrials}` });
+    // A round whose branches have their own worktrees names every branch that can take a trial:
+    // the driver prepares them at the same time, and measures them one at a time.
+    const ready = r.branches.every((b) => b.worktree) ? open.map((b) => b.name) : undefined;
+    return running({ action: 'trial', on: turn.name, ...(ready ? { ready } : {}), why: `round ${r.n}, branch ${turn.k}, trial ${turn.trials + 1} of ${r.branchTrials}` });
   }
   if (reachesTarget(spec, state.best.value)) return { state: 'complete', reason: 'complete', next: { action: 'finish' } };
   if (used >= B) return { state: 'stopped', reason: 'budget', detail: `${used} of ${B} trials used`, next: { action: 'person', why: personNext('budget') } };
@@ -366,9 +373,15 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
     trials: trials.map(brief),
     failed: trials.filter((r) => r.verdict !== 'kept').map((r) => r.hypothesis?.text ?? '').filter(Boolean),
     solutions: isBranch ? [] : solutions,
-    worktree: state.worktree,
+    worktree: laneWorktree(state, isBranch ? lane : state.trunk),
     branch: isBranch ? lane : state.trunk,
   };
+}
+
+/** The worktree of a lane: a branch of a version 2 round has its own; every other lane uses the trunk worktree. */
+export function laneWorktree(state, lane) {
+  if (!lane || lane === 'trunk' || lane === state.trunk) return state.worktree;
+  return state.round?.branches.find((b) => b.name === lane)?.worktree || state.worktree;
 }
 
 /** A new state after the baseline. */
@@ -391,6 +404,8 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     rounds: [],
     digestFrom: { trial: 0, round: null, branch: null },
     lastCheckpoint: { trial: 0, ok: true, value: holdoutValue ?? null },
+    buildDir: null,
+    leftovers: [],
     stopped: null,
     finished: null,
   };

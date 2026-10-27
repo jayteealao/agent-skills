@@ -133,6 +133,25 @@ test('the spec carries an optional format command', () => {
   assert.equal(specOf({ format: 'cargo fmt --all' }).format, 'cargo fmt --all');
 });
 
+test('the spec names the variable of a shared build folder', () => {
+  assert.equal(specOf().sharedBuild, null);
+  assert.equal(specOf({ 'shared-build': 'CARGO_TARGET_DIR' }).sharedBuild, 'CARGO_TARGET_DIR');
+  assert.ok(parseSpec(fm({ 'shared-build': 'not a name' })).errors.some((e) => /shared-build/.test(e)));
+});
+
+test('a round whose branches have their own worktrees names every branch that can take a trial', () => {
+  const spec = specOf();
+  const branch = (k, trials, worktree) => ({ k, name: `b${k}`, ...(worktree ? { worktree: `/wt--r1b${k}` } : {}), best: { commit: 'c0', value: 100 }, trials, keeps: 0 });
+  const s = stateOf({ schedule: { used: [0] } });
+  const v2 = nextAction({ state: { ...s, round: { n: 1, branchTrials: 3, branches: [branch(1, 3, true), branch(2, 1, true), branch(3, 0, true)] } }, spec });
+  assert.deepEqual([v2.next.on, v2.next.ready], ['b3', ['b2', 'b3']], 'a branch with all its trials is not ready');
+  const v1 = nextAction({ state: { ...s, round: { n: 1, branchTrials: 3, branches: [branch(1, 0), branch(2, 0)] } }, spec });
+  assert.equal(v1.next.ready, undefined, 'a round of an older version takes its trials in turn');
+  const d = buildDigest({ spec, specProse: '', state: { ...s, round: { n: 1, branches: [branch(1, 0, true)] } }, results: [], lane: 'b1' });
+  assert.equal(d.worktree, '/wt--r1b1');
+  assert.equal(buildDigest({ spec, specProse: '', state: s, results: [], lane: 'trunk' }).worktree, '/wt');
+});
+
 test('D7: the holdout regresses past its tolerance', () => {
   const spec = specOf({ holdout: { command: 'h', tolerance: '1%' } });
   assert.equal(holdoutRegressed(spec, 100, 100.5), false);

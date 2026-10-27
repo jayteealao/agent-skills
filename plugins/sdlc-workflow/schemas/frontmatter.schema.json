@@ -2390,6 +2390,7 @@
         },
         "setup": { "type": ["string", "null"] },
         "format": { "type": ["string", "null"], "description": "A command that formats the change in the worktree before each trial commit, so the commit hooks of the repo do not refuse it." },
+        "shared-build": { "type": ["string", "null"], "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "The environment variable that moves the build folder, for example CARGO_TARGET_DIR. The loop sets it to one folder beside the trunk worktree for every command, so a new branch worktree does not start with a cold build." },
         "allowed-paths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
         "off-limits": { "$ref": "#/$defs/stringArray" },
         "budget": {

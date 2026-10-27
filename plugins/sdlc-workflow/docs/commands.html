@@ -1172,8 +1172,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">2</span><b>Prove the commands</b><span class="who auto">agent</span><p>The metric's last line must parse as a number. The guard must exit 0.</p></li>
           <li class="phase"><span class="pn">3</span><b>Confirm</b><span class="who you">you</span><p>You confirm the whole spec. The metric choice is the largest risk.</p></li>
           <li class="phase"><span class="pn">4</span><b>Baseline</b><span class="who auto">script</span><p>Runs the metric several times. Half the spread is the noise floor.</p></li>
-          <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures and keeps or reverts.</p></li>
-          <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches that see only their own history. The best branch wins.</p></li>
+          <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures one trial at a time and keeps or reverts.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches, each in its own worktree, that see only their own history. They propose and edit at the same time. The best branch wins.</p></li>
           <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Kept trials squash into one commit on the slug branch, as one slice.</p></li>
           <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, ship, retro.</p></li>
         </ol>
@@ -1195,13 +1195,14 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
               <tr data-s><td><code>branch-rounds.max-extra</code></td><td class="num">2</td><td>Extra rounds a plateau can add</td></tr>
               <tr data-s><td><code>checkpoint-every</code></td><td class="num">5</td><td>Trunk trials between holdout checks</td></tr>
               <tr data-s><td><code>format</code></td><td class="num">none</td><td>Formats each change before its commit</td></tr>
+              <tr data-s><td><code>shared-build</code></td><td class="num">none</td><td>The variable of one build folder for every worktree</td></tr>
             </tbody>
           </table>
         </div>
         <ul class="rules">
           <li data-s><b>The keep rule</b><span>A trial is kept only when its gain is larger than both the minimum gain and twice the noise, and a confirm run agrees.</span></li>
           <li data-s><b>The script decides</b><span><code>optimize.mjs</code> makes every git write, measurement, keep and revert. The agent only proposes and edits.</span></li>
-          <li data-s><b>Your tree stays yours</b><span>Trials run in one separate worktree on the trunk <code>optimize/&lt;slug&gt;</code>. Measurement is serial, so runs do not disturb each other.</span></li>
+          <li data-s><b>Your tree stays yours</b><span>Trials run in separate worktrees: the trunk <code>optimize/&lt;slug&gt;</code>, and one for each branch of a round. Measurement is serial, so runs do not disturb each other. Finish removes the worktrees.</span></li>
           <li data-s><b>The spec is fenced</b><span>A trial that touches the metric, the guard, the holdout or their files is rejected before it is measured. The proposer never sees the holdout's output.</span></li>
           <li data-s><b>When it stops early</b><span>You choose: raise the budget and continue, finish with what was kept, or start a new optimize slug.</span></li>
         </ul>

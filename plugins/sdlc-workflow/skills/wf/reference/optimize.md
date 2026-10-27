@@ -15,12 +15,15 @@ You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecyc
 
 - **The script decides.** `optimize.mjs` makes every git write, every measurement, and every keep or revert. It writes the ledger. You propose and edit only. Do not run `git reset`, `git revert` or `git checkout` for the loop.
 - **The person owns the spec.** The person confirmed the metric, the guard, `allowed-paths` and the budget at intake. The loop does not edit the spec, the metric command, the guard, the holdout, or their files. A trial that touches one of them is rejected before it is measured.
-- **The trials run in one separate worktree.** The trunk is the branch `optimize/<slug>`. The person's own working tree is not reset. Measurement is serial, because two measured runs on one machine corrupt each other's numbers.
+- **The trials run in separate worktrees.** The trunk is the branch `optimize/<slug>`, in the worktree `<root>.optimize/<slug>`. Each branch of a round gets its own worktree beside it, `<slug>--r<n>b<k>`. The person's own working tree is not reset.
+- **Only the measurement is serial.** Two measured runs on one machine corrupt each other's numbers, so a lock lets one guard and one measurement run at a time. In a round, the driver proposes and edits on every ready branch at the same time, and measures the edited branches one after the other. The trunk stays serial, because each trunk proposer reads the verdict of the trial before it. An editor never builds, tests or formats.
+- **The spec can share one build folder.** `shared-build: <VARIABLE>` (for example `CARGO_TARGET_DIR`) sets that variable to `<root>.optimize/<slug>.build` for every command of the loop, so a new branch worktree does not start with a cold build.
+- **The loop removes its worktrees when it is done.** `round-close` removes the worktrees of the round. `finish` removes the trunk worktree, the trunk branch and the build folder. A worktree that holds a link, or that git refuses to remove, stays, and the result names it. The worktrees stay while the loop is stopped, because a resume needs them.
 - **The repo hooks run on every trial commit.** A hook that refuses the commit rejects the trial, and the loop continues. The loop never skips the hooks, because the squash at finish must pass them too. The spec's `format` command formats each change before its commit.
 - **The keep rule counts noise.** The baseline runs the metric `repeat` times. A trial is kept only when its gain is larger than `max(min-gain, 2 × noise)`, and a confirm run agrees.
 - **Branch rounds explore.** A round forks the trunk's best code into `branches` branches, `optimize/<slug>--r<n>b<k>`. Each branch proposer reads only the trials of its own branch, and no hypothesis of the trunk. The best branch becomes the trunk. Rounds open on a fixed share of `budget.trials`, and a plateau opens a round early. A plateau stops the loop only when the round that it opened finds no gain.
 
-CAUTION: do not delete the optimize worktree with a recursive delete. A `node_modules` junction in the worktree points into the main checkout, and the delete follows it. Use `optimize.mjs cleanup`, which refuses while the worktree holds a link.
+CAUTION: do not delete an optimize worktree with a recursive delete. A `node_modules` junction in the worktree points into the main checkout, and the delete follows it. `round-close`, `finish` and `cleanup` remove a worktree only when it holds no link.
 
 ## Step 0 — Resolve
 
@@ -78,8 +81,8 @@ On a host with no driver, the goal contract carries the loop: `/wf loop goal <sl
 ## Step 3 — Finish
 
 1. Confirm that the main checkout is on the slug branch and that it has no uncommitted changes to tracked files. Otherwise ask the person to commit or stash them.
-2. Run `finish --message "<one-line commit message in product language>"`. The script squashes the kept trials of the trunk and the round winners onto the slug branch as one commit. It writes `03-slice.md`, `03-slice-optimize.md` with the acceptance criteria, and `05-implement-optimize.md` with the table of kept trials.
-3. When the person agrees, run `cleanup`. It removes the worktree and the trunk branch.
+2. Run `finish --message "<one-line commit message in product language>"`. The script squashes the kept trials of the trunk and the round winners onto the slug branch as one commit. It writes `03-slice.md`, `03-slice-optimize.md` with the acceptance criteria, and `05-implement-optimize.md` with the table of kept trials. Then it removes the worktrees, the trunk branch and the shared build folder.
+3. When the result of `finish` names a worktree in `cleanup.kept`, show its reason. After the person removes the link, run `cleanup` again.
 
 ## Step 4 — Hand back
 
