@@ -116,6 +116,8 @@ The person can stop the run at a stage boundary, for example "stop after the cur
    node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug> clear
    ```
 
+   The clear keeps a request that the person made after the run ended: that request is for the next run. When the person withdraws a request, add `force`.
+
    Then report where the run stopped and the resume command, `outcome.route`.
 
 ## When the Workflow returns

@@ -72,6 +72,7 @@ import {
 } from '../lib/live-events.mjs';
 import { answeredBy, decisionsOf, liveDecisions } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
+import { clearStopRequest } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, workflowDir } from '../lib/records-root.mjs';
@@ -766,7 +767,7 @@ export function writeFact(file, name, text, nowMs) {
 
 export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
   const file = controlPath(root, slug);
-  if (action === 'clear') { rmSync(file, { force: true }); return null; }
+  if (action === 'clear') return clearStopRequest(file, journalPath(root, slug), { force: rest.includes('force') }).kept || null;
   if (action === 'show') return readJson(file);
   let value;
   if (action === 'stop') {
@@ -975,7 +976,9 @@ export async function main(argv = process.argv.slice(2)) {
   if (first === 'control') {
     const [, root, slug, action, ...rest] = pos;
     const v = writeControl(path.resolve(root), slug, action, rest, Date.now());
-    process.stderr.write(`yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n`);
+    process.stderr.write(action === 'clear'
+      ? `yolo-watch: control clear: ${v ? `kept the request made after the run ended: ${JSON.stringify(v)}` : 'no stop request'}\n`
+      : `yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n`);
     return 0;
   }
   if (first === 'end') {

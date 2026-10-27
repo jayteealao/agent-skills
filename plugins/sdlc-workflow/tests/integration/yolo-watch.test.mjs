@@ -283,6 +283,13 @@ test('control: a stop request names a stage or current; there is no pause', () =
     assert.throws(() => W.writeControl(root, SLUG, 'pause', ['2026-10-03T15:00:00Z']), /the action is stop, clear, or show/);
     W.writeControl(root, SLUG, 'clear', []);
     assert.equal(existsSync(W.controlPath(root, SLUG)), false);
+    // A request made after the last run end waits for the next run; force clears it.
+    writeFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ event: 'run-end', at: at(0) })}\n`);
+    const later = W.writeControl(root, SLUG, 'stop', ['current'], T0 + 60_000);
+    assert.deepEqual(W.writeControl(root, SLUG, 'clear', []), later);
+    assert.equal(existsSync(W.controlPath(root, SLUG)), true);
+    assert.equal(W.writeControl(root, SLUG, 'clear', ['force']), null);
+    assert.equal(existsSync(W.controlPath(root, SLUG)), false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
