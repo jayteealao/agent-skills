@@ -15,7 +15,8 @@
  *   merge-trial     <root> <slug> --branch <name>     merge one candidate into the trunk, and judge it as a trial
  *   merge-close     <root> <slug>                     end the merge step: skip the rest, delete the branches, checkpoint
  *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline (D7)
- *   finish          <root> <slug> [--message m]       squash the kept trials onto the slug branch; write the slice artifacts; clean up
+ *   finish          <root> <slug> [--message m] [--no-ablate]
+ *                                                     squash the kept trials onto the slug branch; write the slice artifacts; clean up
  *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
@@ -26,15 +27,11 @@
  *   profile-record  <root> <slug> --file <json> | --skip "<reason>"
  *                                                     record the profile of the profiler agent
  *   prune           <root> <slug>                     give the trials of a trailing branch to a new fork of the leader
- *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
- *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
- *                                                     run one command in the probe worktree, under the measure lock
+ *   ablate          <root> <slug>                     revert each kept change alone and measure what it still gives (finish runs it too)
  *
  * `--on <lane>` names a branch that status lists in `next.ready`. A round whose branches have
  * their own worktrees lets the driver edit them at the same time; `trial` holds the measure
  * lock (optimize/.measure.lock), so one guard and one measurement run at a time. A proposer
- * builds and runs benchmarks only with `probe`, which takes the same lock: a build during a
- * measurement corrupts its numbers. A proposer
  * builds and runs benchmarks only with `probe`, which takes the same lock: a build during a
  * measurement corrupts its numbers.
  *
@@ -56,11 +53,12 @@ import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
+  ablationDue, ablationTable, ablationVerdict,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune|ablate> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -425,6 +423,58 @@ function judge(root, state, spec, wt, env, best, line) {
   }
   if (!d.kept) return { verdict: 'reverted', extra: { reason: d.wins ? 'the confirm run did not agree' : `the gain ${line.delta} is not above the threshold ${d.threshold}` } };
   return { verdict: 'kept' };
+}
+
+/**
+ * The ablation (G7): each kept change of the trunk, reverted alone in the reference worktree on
+ * top of the final code, and a paired block of the code without it against the final code. A
+ * change whose removal costs no more than the keep threshold is weak. A revert that conflicts, or
+ * a block that fails, is not checked. Nothing is removed: the person decides at verify.
+ */
+function runAblation(root, slug, state, spec) {
+  checkout(root, state, state.trunk);
+  const threshold = keepThreshold(spec, state.best.value, noiseFor(spec, state));
+  const results = readResults(root, slug);
+  const commits = git(root, ['rev-list', '--first-parent', '--reverse', `${state.baseCommit}..${state.best.commit}`]).out.split(/\r?\n/).filter(Boolean);
+  const final = { cwd: state.worktree, env: envOf(state, spec) };
+  const changes = [];
+  for (const commit of commits) {
+    const parents = git(root, ['rev-list', '--parents', '-n', '1', commit]).out.split(' ').length - 1;
+    const subject = git(root, ['log', '-1', '--format=%s', commit]).out;
+    const trial = results.find((x) => x.event === 'trial' && x.commit === commit)?.trial ?? null;
+    const c = { commit, subject, trial, gain: null };
+    changes.push(c);
+    const ref = ensureRef(root, state, spec, state.best.commit);
+    if (!ref.ok) { Object.assign(c, { verdict: 'not checked', reason: ref.error }); continue; }
+    const rv = git(ref.worktree, ['revert', '--no-commit', ...(parents > 1 ? ['-m', '1'] : []), commit]);
+    if (!rv.ok) {
+      git(ref.worktree, ['revert', '--abort']);
+      Object.assign(c, { verdict: 'not checked', reason: 'the revert conflicts with a later change' });
+      continue;
+    }
+    git(ref.worktree, ['revert', '--quit']);
+    const blk = pairedBlock(spec, { cwd: ref.worktree, env: refEnvOf(state, spec) }, final, spec.metric.repeat);
+    if (blk.timeout || blk.crashed) { Object.assign(c, { verdict: 'not checked', reason: `the metric ${blk.timeout ? 'timed out' : 'did not print a number'}` }); continue; }
+    c.gain = blk.median;
+    c.verdict = ablationVerdict(c.gain, threshold);
+  }
+  const ablation = { at: nowIso(), threshold, changes };
+  appendResult(root, slug, { event: 'ablate', threshold, changes: changes.map(({ commit, trial, gain, verdict }) => ({ commit, trial, gain, verdict })) });
+  return ablation;
+}
+
+function ablate(root, slug) {
+  const state = readState(root, slug);
+  if (!state) throw new Error('no baseline: nothing to check');
+  if (state.finished) throw new Error('the loop is finished');
+  if (state.round) throw new Error('a branch round is open: run round-close first');
+  if (state.merge) throw new Error('the merge step is open: run merge-close first');
+  const { spec } = loadSpec(root, slug);
+  const err = consistency(root, slug, state, readResults(root, slug), spec);
+  if (err) throw new Error(`state-error: ${err}`);
+  state.ablation = runAblation(root, slug, state, spec);
+  saveState(root, slug, state);
+  return { ...optimizeStatus(root, slug), ok: true, ablation: state.ablation };
 }
 
 /** state.json and results.jsonl must agree, and the branch must sit where the loop left it (4.6 state-error). */
@@ -1201,6 +1251,11 @@ function finish(root, slug, f) {
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) throw new Error(`state-error: ${err}`);
+  // G7: the ablation runs before the squash, while the trunk worktree holds the final code.
+  if (ablationDue(spec, state) && f['no-ablate'] !== true) {
+    state.ablation = runAblation(root, slug, state, spec);
+    saveState(root, slug, state);
+  }
   const at = nowIso();
   // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not in the squash.
   const winners = new Set(state.rounds.flatMap((r) => [...(r.winner ? [`${r.n}:${r.winner.name}`] : []), ...(r.merged ?? []).map((name) => `${r.n}:${name}`)]));
@@ -1269,7 +1324,11 @@ function finish(root, slug, f) {
     `# Implement: ${SLICE}`, '', '## Summary of Changes', '',
     `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
     `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
-    `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '', '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
+    `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '',
+    ...(state.ablation ? ['## Ablation', '',
+      `Each kept change, reverted alone on the final code and measured in pairs against it. A change whose removal costs no more than ${state.ablation.threshold}${unit} is weak; decide at verify whether it stays.`, '',
+      ablationTable(state.ablation, spec), ''] : []),
+    '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
     ].join('\n'),
   });
   state.finished = { commit: sha, at, gain, kept: kept.length };
@@ -1277,7 +1336,7 @@ function finish(root, slug, f) {
   saveState(root, slug, state);
   // The loop is done: its worktrees, its trunk branch and its build folder go. A cleanup that
   // cannot remove a worktree never fails the finish; the result names what is left.
-  return { ok: true, commit: sha, gain, kept: kept.length, files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` } };
+  return { ok: true, commit: sha, gain, kept: kept.length, ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}), files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` } };
 }
 
 /** A junction or a symbolic link under the worktree: a recursive delete can follow one into the main checkout. */
@@ -1403,7 +1462,8 @@ export function main(argv = process.argv.slice(2)) {
       case 'merge-consider': out = withLock(root, slug, null, () => mergeConsider(root, slug, f)); break;
       case 'merge-trial': out = withLock(root, slug, null, () => mergeTrial(root, slug, f)); break;
       case 'merge-close': out = withLock(root, slug, null, () => mergeClose(root, slug)); break;
-      case 'finish': out = finish(root, slug, f); break;
+      case 'finish': out = withLock(root, slug, null, () => finish(root, slug, f)); break;
+      case 'ablate': out = withLock(root, slug, null, () => ablate(root, slug)); break;
       case 'cleanup': out = cleanup(root, slug); break;
       case 'probe-open': out = probeOpen(root, slug, f); break;
       case 'probe': out = probe(root, slug, f); break;

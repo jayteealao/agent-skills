@@ -34,6 +34,7 @@ export const DEFAULT_SPEC = Object.freeze({
   'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider', prune: 'on' },
   width: 1,
   'checkpoint-every': 5,
+  ablate: 'on',
 });
 
 const str = (v) => String(v ?? '').trim();
@@ -130,6 +131,8 @@ export function parseSpec(fm) {
   const sharedBuild = str(fm['shared-build']);
   if (sharedBuild && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(sharedBuild)) errors.push('shared-build must be the name of an environment variable, for example CARGO_TARGET_DIR');
   const profile = str(fm.profile) || null;
+  const ablate = str(fm.ablate) || DEFAULT_SPEC.ablate;
+  if (!['on', 'off'].includes(ablate)) errors.push('ablate must be on or off');
   const checkpointEvery = Number(fm['checkpoint-every'] ?? DEFAULT_SPEC['checkpoint-every']);
   if (!Number.isInteger(checkpointEvery) || checkpointEvery < 1) errors.push('checkpoint-every must be a positive integer');
   const spec = {
@@ -147,6 +150,7 @@ export function parseSpec(fm) {
     rounds: { at: [...at].sort((x, y) => x - y), branches, branchTrials, maxExtra, merge, prune },
     width,
     checkpointEvery,
+    ablate,
     worktree: str(fm.worktree) || null,
     tags: Array.isArray(fm.tags) ? fm.tags.map(str).filter(Boolean) : [],
     confirmedBy: str(fm['confirmed-by']) || null,
@@ -366,7 +370,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     const ready = r.branches.filter((b) => !b.pruned).every((b) => b.worktree) ? open.map((b) => b.name) : undefined;
     return running({ action: 'trial', on: turn.name, ...(ready ? { ready } : {}), why: `round ${r.n}, branch ${turn.k}, trial ${turn.trials + 1} of ${turn.limit ?? r.branchTrials}` });
   }
-  if (reachesTarget(spec, state.best.value)) return { state: 'complete', reason: 'complete', next: { action: 'finish' } };
+  if (reachesTarget(spec, state.best.value)) return { state: 'complete', reason: 'complete', next: ablationDue(spec, state) ? { action: 'ablate', why: 'a check of each kept change before finish' } : { action: 'finish' } };
   if (used >= B) return { state: 'stopped', reason: 'budget', detail: `${used} of ${B} trials used`, next: { action: 'person', why: personNext('budget') } };
   if (overClock) return { state: 'stopped', reason: 'budget', detail: 'the wall-clock budget is used', next: { action: 'person', why: personNext('budget') } };
   if (overTokens) return { state: 'stopped', reason: 'budget', detail: 'the token budget is used', next: { action: 'person', why: personNext('budget') } };
@@ -409,6 +413,24 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   return trunk({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
 }
 const running = (next) => ({ state: 'running', reason: 'running', next });
+
+/** The ablation (G7) runs before finish: on in the spec, not run yet, and a kept change to check. */
+export function ablationDue(spec, state) {
+  return spec.ablate !== 'off' && !state.ablation && state.best.commit !== state.baseCommit;
+}
+
+/** The verdict of one ablation: the gain that the change still gives at the end, against the keep threshold. */
+export function ablationVerdict(gain, threshold) {
+  if (gain === null || !Number.isFinite(gain)) return 'not checked';
+  return gain > threshold ? 'ok' : 'weak';
+}
+
+/** The markdown table of the ablation, for the implement artifact. */
+export function ablationTable(ablation, spec) {
+  const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
+  const rows = ablation.changes.map((c) => `| ${c.trial ?? '—'} | ${c.commit.slice(0, 12)} | ${String(c.subject ?? '').replace(/\|/g, '\\|')} | ${c.gain === null ? '—' : `${c.gain}${unit}`} | ${c.verdict}${c.reason ? `: ${c.reason}` : ''} |`);
+  return ['| Trial | Commit | Change | Gain at the end | Verdict |', '|---|---|---|---|---|', ...rows].join('\n');
+}
 
 /** What the person does after a stop (4.6). */
 export function personNext(reason) {
@@ -684,6 +706,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     lastCheckpoint: { trial: 0, ok: true, value: holdoutValue ?? null },
     buildDir: null,
     profile: null,
+    ablation: null,
     leftovers: [],
     stopped: null,
     finished: null,

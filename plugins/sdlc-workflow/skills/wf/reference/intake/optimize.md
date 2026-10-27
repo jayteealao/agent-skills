@@ -115,6 +115,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `branch-rounds.prune` | `on` | A branch with no keep that trails the leader gives its other trials to a new fork of the leader. `off` keeps every branch to the end of the round |
 | `width` | 1 | Trunk proposals for each batch. Measurement stays serial |
 | `checkpoint-every` | 5 | Trunk trials between two holdout checks |
+| `ablate` | `on` | Before the squash, revert each kept change alone and measure what it still gives. `off` squashes with no check |
 | `format` | `null` | A command that formats each change before its commit. Propose it from the commit hooks |
 | `shared-build` | `null` | The variable that moves the build folder. The loop sets it to one folder for every worktree |
 | `profile` | `null` | A command that prints the profile as JSON lines, or `agent` for the profiler agent. The proposers start from it |
@@ -160,6 +161,7 @@ branch-rounds:
   prune: on
 width: 1
 checkpoint-every: 5
+ablate: on
 format: null
 shared-build: null
 profile: agent

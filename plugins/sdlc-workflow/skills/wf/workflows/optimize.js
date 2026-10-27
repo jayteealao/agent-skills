@@ -395,6 +395,12 @@ if (!stoppedAt && st && st.state !== 'running') { stoppedAt = st.state === 'comp
 let finish = null
 if (st && st.state === 'complete') {
   phase('Finish')
+  if (st.next && st.next.action === 'ablate') {
+    // G7: each kept change is reverted alone and measured against the final code, before the squash.
+    const a = await book('ablate', '', 'ablate', 'Finish')
+    const weak = ((a && a.ablation && a.ablation.changes) || []).filter(c => c.verdict === 'weak').length
+    log(a.ok === false ? `ablate failed: ${a.error}; finish runs it again` : `ablation: ${weak} weak change(s) of ${((a.ablation && a.ablation.changes) || []).length}`)
+  }
   finish = await book('finish', '', 'finish', 'Finish')
   log(finish.ok === false ? `finish failed: ${finish.error}` : `finished: ${finish.commit || 'no commit'}; next /wf verify ${slug} optimize`)
 }

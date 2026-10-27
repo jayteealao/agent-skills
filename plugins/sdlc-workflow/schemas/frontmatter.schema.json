@@ -2419,6 +2419,7 @@
         },
         "width": { "type": "integer", "minimum": 1 },
         "checkpoint-every": { "type": "integer", "minimum": 1 },
+        "ablate": { "enum": ["on", "off"], "description": "on: before the squash, each kept change is reverted alone on the final code and measured in pairs against it; a change that gives no more than the keep threshold is listed as weak. off: no check." },
         "worktree": { "type": ["string", "null"] },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },

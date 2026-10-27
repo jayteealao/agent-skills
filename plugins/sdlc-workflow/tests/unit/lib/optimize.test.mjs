@@ -8,7 +8,7 @@ import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
-  bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials,
+  bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -354,4 +354,20 @@ test('G6: the pace comes from the ledger, the schedule follows the trials that t
   const stop = nextAction({ state: plateau, spec, now: later, pace: { trialMs: 60_000, measureMs: 1_800_000 } });
   assert.deepEqual([stop.state, stop.reason], ['stopped', 'plateau']);
   assert.match(stop.detail, /^no round fits in the time left/);
+});
+
+test('G7: the ablation is due before finish at the target, once, and a change that gives no more than the threshold is weak', () => {
+  const spec = specOf({ metric: { command: 'node m.js', direction: 'lower', repeat: 3, 'min-gain': '2%', target: 50 } });
+  const s = stateOf({ best: { commit: 'c9', value: 40, trial: 3, reachedAt: 3 } });
+  assert.deepEqual(nextAction({ state: s, spec }).next.action, 'ablate');
+  assert.equal(nextAction({ state: { ...s, ablation: { changes: [] } }, spec }).next.action, 'finish');
+  assert.equal(nextAction({ state: s, spec: { ...spec, ablate: 'off' } }).next.action, 'finish');
+  assert.equal(ablationDue(spec, { ...s, best: { ...s.best, commit: s.baseCommit } }), false, 'no kept change, no ablation');
+  assert.equal(specOf({ ablate: 'off' }).ablate, 'off');
+  assert.equal(specOf().ablate, 'on');
+  assert.deepEqual(parseSpec(fm({ ablate: 'sometimes' })).errors, ['ablate must be on or off']);
+  assert.deepEqual([ablationVerdict(3, 2), ablationVerdict(2, 2), ablationVerdict(-1, 2), ablationVerdict(null, 2)], ['ok', 'weak', 'weak', 'not checked']);
+  const table = ablationTable({ threshold: 2, changes: [{ commit: 'abcdef0123456789', subject: 'a | b', trial: 4, gain: 1, verdict: 'weak' }, { commit: '0123456789abcdef', subject: 'm', trial: null, gain: null, verdict: 'not checked', reason: 'the revert conflicts with a later change' }] }, specOf());
+  assert.match(table, /^\| 4 \| abcdef012345 \| a \\| b \| 1 \| weak \|$/m);
+  assert.match(table, /^\| — \| 0123456789ab \| m \| — \| not checked: the revert conflicts with a later change \|$/m);
 });

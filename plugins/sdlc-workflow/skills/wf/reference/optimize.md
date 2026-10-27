@@ -26,6 +26,7 @@ You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecyc
 - **`metric.paired: true` compares each trial with its reference in turns.** The baseline makes a reference worktree, `<slug>--ref`, with its own build folder, and runs an A/A block of the reference against the trunk: half the range of those pair gains is the paired noise. A trial then runs a block of `repeat` pairs, the best of its lane against the trial, in the order A B, B A, …, after one warm-up run on each side. The trial is kept when the median pair gain is above `max(min-gain, 2 × paired noise)`, at least all but one of the pairs gain, and a second block agrees. Drift on the machine then adds to both sides, so a gain of about 2% can pass.
 - **Branch rounds explore.** A round forks the trunk's best code into `branches` branches, `optimize/<slug>--r<n>b<k>`. Each branch proposer reads only the trials of its own branch, and no hypothesis of the trunk. The best branch becomes the trunk. Rounds open on a fixed share of `budget.trials`, and a plateau opens a round early. A plateau stops the loop only when the round that it opened finds no gain.
 - **The schedule follows the budget that ends the run first.** `status` projects the trials that `budget.wall-clock` allows: the trials used, plus the time left over the median time between the last 6 trials. The schedule points use the smaller of `budget.trials` and that projection, and `why` shows it. A round opens only when its `branches × branch-trials` measurements fit in the time left, at the mean time of the guard and the measurement of the last 5 trials (`ms` on each trial line). A round that does not fit is skipped: the trunk continues, and the next trunk trial line records `skippedRound`.
+- **Finish checks each kept change.** Before the squash, `ablate` reverts each kept change of the trunk alone in the reference worktree, on top of the final code, and runs a paired block of the code without the change against the final code. A change whose removal costs no more than the keep threshold is `weak`; a revert that conflicts is `not checked`. `05-implement-optimize.md` lists each change with its verdict. Nothing is removed: the person decides at verify. The ablation does not count against `budget.trials`. `finish` runs it when it did not run, and `ablate: off` in the spec, or `finish --no-ablate`, turns it off.
 - **A round considers a merge of the other branches.** After `round-close`, each other branch whose kept gain passes the keep threshold is a candidate, unless its test merge onto the new trunk conflicts. One consider step decides `try` or `skip` for each candidate and puts the tries in order (`merge-consider`). Each try is merged into the trunk and judged as a trial against the trunk best (`merge-trial`): it counts against `budget.trials` and does not change the plateau streak. Then the step deletes the branches and runs the checkpoint. `branch-rounds.merge: off` keeps only the winner.
 - **A kept change of a branch can come back alone.** When a branch cannot be merged whole, because its merge conflicts or its branch did not win, each kept trial of that branch whose diff applies to the new trunk is a port candidate (`t<n>`). The consider step decides `try` or `skip` for a port as for a branch. A port trial runs on the trunk with no proposer: the editor reads the hypothesis and the kept diff, and makes the same change on the trunk code. Its ledger line holds `port` and `additive`, the measured gain against the gain of the trial alone.
 - **Marginal ideas are tried together.** When the trunk streak reaches half of `budget.plateau`, and two or more `marginal` ideas with kept diffs and different targets have pooled gains that add up past the threshold, the next trunk trial is a bundle of those ideas, with no proposer. A kept bundle marks its ideas `bundled`. The same set of ideas is not tried twice.
@@ -54,7 +55,7 @@ CAUTION: do not delete an optimize worktree with a recursive delete. A `node_mod
 |---|---|
 | `stopped` · `baseline` | Step 1. |
 | `running` · any action | Step 2. |
-| `complete` · `finish` | Step 3. |
+| `complete` · `ablate` or `finish` | Step 3. |
 | `stopped` · `person` | Show `reason`, `detail` and `next.why`. The person chooses. A raised `budget` or `branch-rounds.max-extra` in the spec continues the loop when `status` then shows `running`. Otherwise the choice is `finish` (Step 3) or a new optimize slug. For `state-error`, report and do not repair. |
 | `finished` · `verify` | The loop is done. The next step is `/wf verify <slug> optimize`. |
 
@@ -90,8 +91,9 @@ On a host with no driver, the goal contract carries the loop: `/wf loop goal <sl
 ## Step 3 — Finish
 
 1. Confirm that the main checkout is on the slug branch and that it has no uncommitted changes to tracked files. Otherwise ask the person to commit or stash them.
-2. Run `finish --message "<one-line commit message in product language>"`. The script squashes the kept trials of the trunk and the round winners onto the slug branch as one commit. It writes `03-slice.md`, `03-slice-optimize.md` with the acceptance criteria, and `05-implement-optimize.md` with the table of kept trials. Then it removes the worktrees, the trunk branch and the shared build folder.
-3. When the result of `finish` names a worktree in `cleanup.kept`, show its reason. After the person removes the link, run `cleanup` again.
+2. Run `finish --message "<one-line commit message in product language>"`. The script runs the ablation when it did not run. It squashes the kept trials of the trunk and the round winners onto the slug branch as one commit. It writes `03-slice.md`, `03-slice-optimize.md` with the acceptance criteria, and `05-implement-optimize.md` with the table of kept trials and the ablation. Then it removes the worktrees, the trunk branch and the shared build folder.
+3. When `weak` in the result of `finish` is more than 0, name the weak changes in the hand-back. Verify decides whether they stay.
+4. When the result of `finish` names a worktree in `cleanup.kept`, show its reason. After the person removes the link, run `cleanup` again.
 
 ## Step 4 — Hand back
 
@@ -103,7 +105,7 @@ End with the dispatcher's summary block (SKILL.md Step 2). The narrative says th
 |---|---|---|
 | `02-optimize-spec.md` | intake, with the person | The objective, metric, guard, holdout, `allowed-paths`, budget, `branch-rounds`, and `confirmed-by` |
 | `optimize/state.json` | the optimize script | The trunk best, the open round and the best of each branch, the counters, the stop |
-| `optimize/results.jsonl` | the optimize script | One line for each trial, probe, profile, round-open, round-close, checkpoint and finish. Append-only |
+| `optimize/results.jsonl` | the optimize script | One line for each trial, probe, profile, prune, round-open, round-close, checkpoint, ablate and finish. Append-only |
 | `optimize/ideas.json` | the optimize script | The ideas ledger of every lane |
 | `optimize/profile.json`, `optimize/profile.patch` | the optimize script | The last profile, and the counters of the profiler agent |
 | `optimize/patches/<trial>.patch` | the optimize script | The diff of each kept trial, and of each reverted trial with a positive gain |

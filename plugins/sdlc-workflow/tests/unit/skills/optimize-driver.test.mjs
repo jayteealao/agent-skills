@@ -353,3 +353,22 @@ test('a branch proposer reads the seed of its branch', async () => {
   await run(ARGS, agent);
   assert.match(calls.find((c) => c.label === 'propose:1').prompt, /SEED: when digest\.seed is not null, it names the part of the profile where your branch starts/);
 });
+
+test('at the target, the driver runs the ablation before finish', async () => {
+  let ablated = false;
+  const calls = [];
+  const common = { ok: true, counters: { trials: 3 }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 }, metric: { command: 'node m.js' }, profile: null };
+  const agent = async (prompt, opts) => {
+    calls.push({ label: opts.label, prompt });
+    const base = opts.label.split(':')[0];
+    if (base === 'status') return { ok: true, result: { ...common, state: 'complete', reason: 'complete', next: ablated ? { action: 'finish' } : { action: 'ablate' } } };
+    if (base === 'ablate') { ablated = true; return { ok: true, result: { ok: true, ablation: { changes: [{ verdict: 'weak' }, { verdict: 'ok' }] } } }; }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc', weak: 1 } };
+    throw new Error(`no answer for ${opts.label}`);
+  };
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  const labels = calls.map((c) => c.label);
+  assert.ok(labels.indexOf('ablate') > 0 && labels.indexOf('ablate') < labels.indexOf('finish'), labels.join(' '));
+  assert.match(calls.find((c) => c.label === 'ablate').prompt, /optimize\.mjs" ablate "\/repo" s/);
+});

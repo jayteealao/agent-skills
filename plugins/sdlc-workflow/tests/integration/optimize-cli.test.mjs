@@ -182,7 +182,7 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
 
     const results = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
     assert.equal(results.filter((r) => r.event === 'trial').length, 10);
-    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'finish']);
+    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'ablate', 'finish'], 'finish checks each kept change before the squash');
     assert.deepEqual(results.find((r) => r.event === 'merge-close').skipped, [{ name: `optimize/${S}--r1b2`, reason: 'conflict' }, { name: 't2', reason: 'conflict' }], 'the merge conflicts, and the port of its kept trial t2 conflicts too');
 
     const cl = run(root, 'cleanup');
@@ -726,6 +726,46 @@ test('a prune: a branch with no keep that trails the leader gives its trials to 
     assert.deepEqual(p.next.ready, [B1, B3]);
     assert.equal(step(root, wt, 'h5', 60, undefined, B3).t.verdict, 'kept');
     assert.deepEqual(ledger(root).find((l) => l.event === 'prune'), { event: 'prune', round: 1, branch: B2, into: B3, from: B1, trials: 1, at: ledger(root).find((l) => l.event === 'prune').at });
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('the ablation: each kept change is reverted alone on the final code, a change that a later change replaced is weak, and finish lists them', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 90, { 'src/alt.txt': '80' }).t.verdict, 'kept', 'src/alt.txt replaces src/value.txt in the metric');
+    const a = run(root, 'ablate');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.deepEqual(a.ablation.changes.map((c) => [c.trial, c.gain, c.verdict]), [[1, 0, 'weak'], [2, 10, 'ok']]);
+    assert.ok(existsSync(`${wt}--ref`), 'the ablation runs in the reference worktree');
+
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.equal(fin.weak, 1);
+    assert.equal(ledger(root).filter((l) => l.event === 'ablate').length, 1, 'finish does not run a second ablation');
+    const body = readDoc(path.join(root, '.ai', 'workflows', S), '05-implement-optimize.md').body;
+    assert.match(body, /## Ablation[\s\S]*\| 1 \| [0-9a-f]{12} \| experiment h1: set the value to 90 \| 0 \| weak \|/);
+    assert.match(body, /\| 2 \| [0-9a-f]{12} \| [^|]+ \| 10 \| ok \|/);
+    assert.equal(existsSync(`${wt}--ref`), false, 'finish removes the reference worktree');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('ablate: off, or finish --no-ablate, squashes with no ablation', () => {
+  const { parent, root, wt } = makeRepo('ablate: off\n');
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.equal(fin.weak, undefined);
+    assert.equal(ledger(root).some((l) => l.event === 'ablate'), false);
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
