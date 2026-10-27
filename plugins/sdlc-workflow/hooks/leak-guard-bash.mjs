@@ -18,10 +18,9 @@
  * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
  */
 
-import { loadConfig } from '../lib/config.mjs';
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';
-import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
-import { outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
+import { blockToolCall, hookConfig, isEntry, runStandalone } from '../lib/hook-runner.mjs';
+import { outputSystemMessage } from '../lib/hook-utils.mjs';
 
 const PUBLISH_COMMANDS = /\bgit\s+commit\b|\bgit\s+tag\b|\bgh\s+pr\s+create\b|\bgh\s+release\s+(?:create|edit)\b/;
 // Flags whose value is outward-facing text.
@@ -55,8 +54,7 @@ export async function run(input) {
   const command = input?.tool_input?.command;
   if (!command || !PUBLISH_COMMANDS.test(String(command))) return;
 
-  const projectRoot = projectRootFromInput(input);
-  const config = await loadConfig(projectRoot);
+  const config = await hookConfig(input);
   if (config.semantic?.enabled !== true) return;
 
   const texts = extractOutwardText(command);

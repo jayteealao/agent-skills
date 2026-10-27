@@ -14,10 +14,9 @@
  * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
  */
 
-import { loadConfig } from '../lib/config.mjs';
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';
-import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
-import { normalizePathForMatch, outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
+import { blockToolCall, hookConfig, isEntry, runStandalone } from '../lib/hook-runner.mjs';
+import { normalizePathForMatch, outputSystemMessage } from '../lib/hook-utils.mjs';
 
 export function isPublicDocPath(filePath, roots) {
   const n = normalizePathForMatch(filePath);
@@ -47,8 +46,7 @@ export async function run(input) {
   if (!filePath || !parts.length) return;
   const content = parts.join('\n');
 
-  const projectRoot = projectRootFromInput(input);
-  const config = await loadConfig(projectRoot);
+  const config = await hookConfig(input);
   if (config.semantic?.enabled !== true) return;
 
   const lexicon = buildLexicon();

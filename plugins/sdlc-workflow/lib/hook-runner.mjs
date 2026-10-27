@@ -25,8 +25,9 @@
 // are deleted one release after the fold (plan §14.2.6 step 4).
 
 import { basename } from 'node:path';
+import { loadConfig } from './config.mjs';
 import { logError } from './error-log.mjs';
-import { beginSystemMessages, flushSystemMessages, outputSystemMessage } from './hook-utils.mjs';
+import { beginSystemMessages, flushSystemMessages, outputSystemMessage, projectRootFromInput } from './hook-utils.mjs';
 import { readStdinJson } from './stdin.mjs';
 
 export class HookBlock extends Error {
@@ -53,6 +54,38 @@ export function refuseWrite(mode, reason) {
   }
   process.stderr.write(`${reason.trimEnd()}\nSet checks: warn in .ai/sdlc-config.json to let such a write stand with a warning.\n`);
   blockToolCall();
+}
+
+// The checks of one tool event share its project root and its config. Each is read once per
+// payload: the root can cost a git process, and on a busy Windows machine a git process takes
+// a second or more. The key is the payload object and the directory it names, so a caller that
+// changes either gets a fresh read.
+const contextMemo = new WeakMap();
+function contextOf(input) {
+  const key = input && typeof input === 'object' ? input : null;
+  const dir = `${key?.cwd ?? ''}`;
+  let byDir = key ? contextMemo.get(key) : null;
+  if (!byDir && key) contextMemo.set(key, (byDir = new Map()));
+  let ctx = byDir?.get(dir);
+  if (!ctx) {
+    ctx = {};
+    byDir?.set(dir, ctx);
+  }
+  return ctx;
+}
+
+/** The project root of a hook payload, resolved once per payload. */
+export function hookProjectRoot(input) {
+  const ctx = contextOf(input);
+  if (!('root' in ctx)) ctx.root = projectRootFromInput(input ?? {});
+  return ctx.root;
+}
+
+/** The config of the project of a hook payload, loaded once per payload. */
+export function hookConfig(input) {
+  const ctx = contextOf(input);
+  if (!ctx.config) ctx.config = loadConfig(hookProjectRoot(input));
+  return ctx.config;
 }
 
 /**

@@ -17,9 +17,8 @@
  */
 
 import { isAbsolute, resolve } from 'node:path';
-import { checksModeOf, loadConfig } from '../lib/config.mjs';
-import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
-import { projectRootFromInput } from '../lib/hook-utils.mjs';
+import { checksModeOf } from '../lib/config.mjs';
+import { hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import { recordPathOf } from '../lib/records-root.mjs';
 
 const WORD = String.raw`("[^"]*"|'[^']*'|[^\s;&|<>()]+)`;
@@ -72,8 +71,10 @@ export function shellWriteRefusal(command, cwd, projectRoot) {
 export async function run(input) {
   const command = input?.tool_input?.command;
   if (typeof command !== 'string' || !command.trim()) return;
-  const projectRoot = projectRootFromInput(input);
-  const mode = checksModeOf(await loadConfig(projectRoot));
+  // A command that writes no file has nothing to guard: no project root, no config.
+  if (!shellWriteTargets(command).length) return;
+  const projectRoot = hookProjectRoot(input);
+  const mode = checksModeOf(await hookConfig(input));
   if (mode === 'off') return;
   const refusal = shellWriteRefusal(command, input?.cwd ?? projectRoot, projectRoot);
   if (refusal) refuseWrite(mode, refusal);

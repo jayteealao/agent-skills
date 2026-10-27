@@ -32,7 +32,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-all.mjs\"",
-            "timeout": 5
+            "timeout": 10
           }
         ]
       }

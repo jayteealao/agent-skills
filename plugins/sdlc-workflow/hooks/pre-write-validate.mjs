@@ -23,12 +23,12 @@
 
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { checksModeOf, loadConfig } from '../lib/config.mjs';
+import { checksModeOf } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
-import { isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
+import { hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
@@ -40,7 +40,6 @@ import {
   isWorkSetPath,
   outputSystemMessage,
   projectContextPathInfo,
-  projectRootFromInput,
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo,
@@ -82,8 +81,8 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
 }
 
 export async function run(input) {
-  const projectRoot = projectRootFromInput(input);
-  const config = await loadConfig(projectRoot);
+  const projectRoot = hookProjectRoot(input);
+  const config = await hookConfig(input);
   if (checksModeOf(config) === 'off') return;
 
   const filePath = input?.tool_input?.file_path;

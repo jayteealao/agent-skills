@@ -11,21 +11,22 @@
  */
 
 import { runFolded } from '../lib/hook-runner.mjs';
-import { run as leakGuardBash } from './leak-guard-bash.mjs';
-import { run as leakGuardWrite } from './leak-guard-write.mjs';
-import { run as preWriteValidate } from './pre-write-validate.mjs';
-import { run as shellWriteGuard } from './shell-write-guard.mjs';
+
+// Each check loads when the payload selects it, so a shell command does not load the write
+// checks, and a write does not load the shell checks. The start of a Node process dominates the
+// time of this hook on Windows, and every module that it reads adds to it.
+const lazy = (file) => async (input) => (await import(file)).run(input);
 
 export function planPreToolUse(input) {
   const ti = input?.tool_input ?? {};
   const stages = [];
   if (typeof ti.file_path === 'string') {
-    stages.push(['pre-write-validate', preWriteValidate]);
-    stages.push(['leak-guard-write', leakGuardWrite]);
+    stages.push(['pre-write-validate', lazy('./pre-write-validate.mjs')]);
+    stages.push(['leak-guard-write', lazy('./leak-guard-write.mjs')]);
   }
   if (typeof ti.command === 'string') {
-    stages.push(['shell-write-guard', shellWriteGuard]);
-    stages.push(['leak-guard-bash', leakGuardBash]);
+    stages.push(['shell-write-guard', lazy('./shell-write-guard.mjs')]);
+    stages.push(['leak-guard-bash', lazy('./leak-guard-bash.mjs')]);
   }
   return stages;
 }

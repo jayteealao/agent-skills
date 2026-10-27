@@ -47,3 +47,21 @@ test('a fail-closed stage that passes does not block', () => {
   const res = runPlan(`[['gate', ok, { failClosed: true }]]`);
   assert.equal(res.status, 0, res.stderr);
 });
+
+test('the checks of one payload share one project root and one config; another directory resolves again', async () => {
+  const { hookConfig, hookProjectRoot } = await import(RUNNER);
+  const a = mkdtempSync(join(tmpdir(), 'hook-ctx-a-'));
+  const b = mkdtempSync(join(tmpdir(), 'hook-ctx-b-'));
+  try {
+    const input = { cwd: a, tool_input: { command: 'echo hi > x.txt' } };
+    const root = hookProjectRoot(input);
+    assert.equal(hookProjectRoot(input), root);
+    assert.equal(hookConfig(input), hookConfig(input), 'one config load per payload');
+    assert.equal((await hookConfig(input)).checks, 'strict');
+    input.cwd = b;
+    assert.notEqual(hookProjectRoot(input), root, 'a changed directory resolves again');
+  } finally {
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+  }
+});
