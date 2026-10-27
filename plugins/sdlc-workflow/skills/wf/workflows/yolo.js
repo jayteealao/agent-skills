@@ -141,7 +141,9 @@ function implementStepsClause(wfCmd, slice, retry) {
   const step = (rest) => `\`${wfCmd} step ${rest}\``
   return `\n\nSTEP COMMITS. Before any step, run ${step(`where "${projectRoot}" ${slug} ${slice}`)}: continue at ` +
     `the next open step it names, and never redo a done step. Before each plan step, run ` +
-    `${step(`start "${projectRoot}" ${slug} ${slice} <n> --title "<the step title>"`)}. After you commit it, run ` +
+    `${step(`start "${projectRoot}" ${slug} ${slice} <n> --title "<the step title>"`)}. Commit each step with a ` +
+    `conventional commit about the product, \`<type>: <what the step does>\` (feat, fix, test, refactor or docs), ` +
+    `that names no slug, slice, step number or finding id. After you commit it, run ` +
     `${step(`done "${projectRoot}" ${slug} ${slice} <n> --sha HEAD`)}. When you hard-stop, run ` +
     `${step(`stop "${projectRoot}" ${slug} ${slice} --reason "<one line>"`)}. After the final commit of the slice, ` +
     `run ${step(`complete "${projectRoot}" ${slug} ${slice} --sha HEAD`)}.` +
