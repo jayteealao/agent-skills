@@ -32,7 +32,7 @@ function markSlice(dir, slice, change) {
   }
   // The selected slice moves to the next open slice of the roster, or is cleared.
   if (index['selected-slice'] === slice) {
-    const next = roster.find((s) => s.slug !== slice && !['complete', 'skipped', 'dropped'].includes(String(s.status)));
+    const next = roster.find((s) => s.slug !== slice && !['complete', 'deferred', 'skipped', 'dropped'].includes(String(s.status)));
     fields['selected-slice'] = next?.slug ?? null;
   }
   if (Object.keys(fields).length) setFields(dir, INDEX_NAME, fields);

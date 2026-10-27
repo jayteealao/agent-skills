@@ -225,7 +225,7 @@
             "properties": {
               "slug": { "type": "string" },
               "status": {
-                "enum": ["defined", "in-progress", "complete", "skipped", "dropped"]
+                "enum": ["defined", "in-progress", "complete", "deferred", "skipped", "dropped"]
               },
               "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
               "depends-on": { "$ref": "#/$defs/stringArray" },
@@ -610,7 +610,7 @@
             "properties": {
               "slug": { "type": "string" },
               "status": {
-                "enum": ["defined", "in-progress", "complete", "skipped", "dropped"]
+                "enum": ["defined", "in-progress", "complete", "deferred", "skipped", "dropped"]
               },
               "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
               "depends-on": { "$ref": "#/$defs/stringArray" },
@@ -641,7 +641,7 @@
         "next-invocation": {"type":"string"},
         "type": { "const": "slice" },
         "slice-slug": { "type": "string" },
-        "status": { "enum": ["defined", "in-progress", "complete", "skipped", "dropped"] },
+        "status": { "enum": ["defined", "in-progress", "complete", "deferred", "skipped", "dropped"] },
         "drop-reason": { "type": "string", "description": "Why the slice left the roster: slice drop or slice move." },
         "moved-to": { "type": "string", "description": "The workflow that took the slice: slice move." },
         "moved-from": { "type": "string", "description": "The workflow that gave the slice: slice move." },

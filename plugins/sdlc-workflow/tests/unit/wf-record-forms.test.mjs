@@ -49,7 +49,7 @@ test('record set changes a roster item by slug, refuses a value outside the sche
     assert.deepEqual(frontmatterOfDoc(f.dir, '03-slice.md').slices.map((s) => s.status), ['defined', 'in-progress', 'defined']);
     const bad = run(['record', 'set', f.root, 'demo', '03-slice', 'slices[ui].status=finished']);
     assert.equal(bad.status, 1);
-    assert.match(bad.stderr, /the values are: defined, in-progress, complete, skipped/);
+    assert.match(bad.stderr, /the values are: defined, in-progress, complete, deferred, skipped/);
     assert.match(bad.stderr, /list\[<slug>\]\.field=v/);
     assert.equal(run(['record', 'set', f.root, 'demo', 'index', 'workflow-files+=03-slice.md']).status, 0);
     assert.deepEqual(frontmatterOfDoc(f.dir, INDEX_NAME)['workflow-files'], ['00-index.md', '03-slice.md']);

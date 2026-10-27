@@ -304,7 +304,7 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
 }
 
 /** The roster slices of a workflow that are not finished, from 00-index.md `slices[]`. */
-function openSlices(root, slug) {
+export function openSlices(root, slug) {
   const slices = recordFm(wfDir(root, slug), INDEX_NAME)?.slices;
   if (!Array.isArray(slices)) return [];
   return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));

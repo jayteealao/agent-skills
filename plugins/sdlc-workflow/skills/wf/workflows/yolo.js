@@ -1135,7 +1135,7 @@ const ORIENT_RESULT = {
         properties: {
           slice: { type: 'string' },
           // roster status from 00-index.md slices[] (defined | in-progress |
-          // complete | skipped). Slug-mode skips 'skipped' entries instead of
+          // complete | deferred | skipped). Slug-mode skips 'skipped' entries instead of
           // driving them into a HARD-STOP (Waypoint 2026-07-14: a 6.7-h run
           // died on an already-skipped slice with a conforming skip record).
           status: { type: 'string' },
@@ -1418,7 +1418,7 @@ async function orient() {
     `2. Read the roster from the slices[] of the status output (slice, roster). Run \`${REC('get')} 03-slice.md\` ` +
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
-    `skipped | dropped) as slices[].status — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
+    `deferred | skipped | dropped) as slices[].status — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
     `(selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
@@ -1787,15 +1787,16 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // This agent runs only as the fallback, when no verify agent of the chain confirmed it.
 function sliceStatusClause(sliceArg) {
   return `\n\nLAST STEP — SLICE STATUS MIRROR (only for slice '${sliceArg}'). After you write the verify artifact, ` +
-    `when it records \`result: pass\`: (1) get the index with \`${REC('get')} index\`, set this slice's entry ` +
-    `in \`slices[]\` to status: complete, refresh the \`progress\` block (completed/total counts) to match the roster, ` +
-    `write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`; (2) in the roster record, set ` +
-    `this slice's \`status:\` to complete when it is not already: for 03-slice.md, get it, change the entry, write ` +
-    `its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
-    `\`${REC('set')} 03-slice-${sliceArg}.md status=complete\`. Never change an entry that close set to \`skipped\`, another ` +
+    `take <status>: complete when it records \`result: pass\`; deferred when it records \`result: partial\` and its ` +
+    `only residue is open runtime-evidence deferrals. Then: (1) get the index with \`${REC('get')} index\`, set this ` +
+    `slice's entry in \`slices[]\` to status: <status>, refresh the \`progress\` block (completed/total counts) to ` +
+    `match the roster, write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`; (2) in the ` +
+    `roster record, set this slice's \`status:\` to <status> when it is not already: for 03-slice.md, get it, change ` +
+    `the entry, write its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
+    `\`${REC('set')} 03-slice-${sliceArg}.md status=<status>\`. Never change an entry that close set to \`skipped\`, another ` +
     `slice's entry, or \`current-stage\`, and never mark the WORKFLOW complete. For any other result, write nothing ` +
-    `here. Return sliceWriteBack: { ok, wrote: [<the records you changed>], note } (ok: false with a note when the ` +
-    `result is not pass).`
+    `here. Return sliceWriteBack: { ok, wrote: [<the records you changed>], note } (ok: false with a note when you ` +
+    `wrote nothing).`
 }
 
 async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
@@ -1804,18 +1805,19 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `slice through ${stagesRun.join(' → ')} and every gate cleared. Mirror the recorded outcome into the control ` +
     `files so the index tells the truth without anyone re-deriving it from artifacts.\n\n` +
     `${EOB}\n\n` +
-    `ONE-WRITER RULE: /wf verify is the one writer of a roster \`status: complete\`. You only MIRROR it. Read ` +
-    `the frontmatter of this slice's verify record with \`${REC('get')} <name>\` (06-verify-${sliceArg}.md, or ` +
-    `06-verify.md for an un-suffixed change-mode workflow). Mirror \`complete\` ONLY when it records \`result: pass\`. Any other ` +
-    `result (a deferral-only \`partial\` included) is not complete: write nothing and say so in note.\n` +
+    `ONE-WRITER RULE: /wf verify is the one writer of a roster \`status: complete\` or \`deferred\`. You only ` +
+    `MIRROR it. Read the frontmatter of this slice's verify record with \`${REC('get')} <name>\` ` +
+    `(06-verify-${sliceArg}.md, or 06-verify.md for an un-suffixed change-mode workflow). Take <status>: ` +
+    `\`complete\` when it records \`result: pass\`; \`deferred\` when it records \`result: partial\` and its only ` +
+    `residue is open runtime-evidence deferrals. Any other result: write nothing and say so in note.\n` +
     `1. Get the index with \`${REC('get')} index\`. Set this slice's entry in \`slices[]\` to ` +
-    `status: complete, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
+    `status: <status>, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
     `state. Write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`.\n` +
     `2. In the roster record (03-slice.md, or the per-slice ` +
     `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), when verify did not already set ` +
-    `this slice's \`status:\` to complete, set it to complete: for 03-slice.md, get it, change the entry, write ` +
+    `this slice's \`status:\` to <status>, set it to <status>: for 03-slice.md, get it, change the entry, write ` +
     `its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
-    `\`${REC('set')} 03-slice-${sliceArg}.md status=complete\`. If the roster records no per-slice status field, ` +
+    `\`${REC('set')} 03-slice-${sliceArg}.md status=<status>\`. If the roster records no per-slice status field, ` +
     `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
@@ -2490,12 +2492,15 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   // time. Only when this run actually drove something (a chain that skipped every
   // stage as already-done has nothing new to write back).
   // E4: the verify agent of this chain did the mirror as its last step; the agent below is the fallback.
-  const mirrored = ran.find(r => r && r.sliceWriteBack && r.sliceWriteBack.ok === true)
+  // A write-back that reports ok but names no record wrote nothing: that is a failure, not a success.
+  const wroteSome = (w) => w && w.ok === true && Array.isArray(w.wrote) && w.wrote.length > 0
+  const mirrored = ran.find(r => r && wroteSome(r.sliceWriteBack))
   if (ranStages.length && mirrored) {
-    log(`slice '${sliceArg}' complete → the verify agent wrote status back to ${(mirrored.sliceWriteBack.wrote || ['(nothing)']).join(', ')}`)
+    log(`slice '${sliceArg}' complete → the verify agent wrote status back to ${mirrored.sliceWriteBack.wrote.join(', ')}`)
   } else if (ranStages.length) {
     const wb = await writeBackSliceStatus(sliceArg, idx, ranStages)
-    if (wb && wb.ok) log(`slice '${sliceArg}' complete → wrote status back to ${(wb.wrote || ['(nothing)']).join(', ')}`)
+    if (wroteSome(wb)) log(`slice '${sliceArg}' complete → wrote status back to ${wb.wrote.join(', ')}`)
+    else if (wb && wb.ok) log(`slice '${sliceArg}' complete but the write-back wrote nothing${wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
     else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
   }
   return { stopped: false, slice: sliceArg, ran }
