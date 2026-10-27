@@ -554,6 +554,29 @@ test('12.3: start after a rebase by hand does not rebase again', () => {
   } finally { dropOldCampaign(m); }
 });
 
+test('12.3: the snapshot commits tracked changes and small untracked files, and names the scratch and large files it leaves out', () => {
+  const m = makeOldCampaign();
+  try {
+    migratedList(m);
+    writeFileSync(path.join(m.wtEng, 'app.txt'), 'v0\nengine\nchanged\n');
+    mkdirSync(path.join(m.wtEng, '.scratch', 'src'), { recursive: true });
+    writeFileSync(path.join(m.wtEng, '.scratch', 'src', 'notes.md'), 'scratch\n');
+    mkdirSync(path.join(m.wtEng, 'lib'), { recursive: true });
+    writeFileSync(path.join(m.wtEng, 'lib', 'big.bin'), Buffer.alloc(1024 * 1024 + 1, 1));
+    writeFileSync(path.join(m.wtEng, 'lib', 'small [1].txt'), 'small\n');
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, true, JSON.stringify(start));
+    const snap = start.migration.steps[0];
+    assert.equal(snap.snapshot, 3, JSON.stringify(snap));
+    assert.deepEqual(snap.leftOut.map((f) => [f.path, f.reason]).sort(), [['.scratch/src/notes.md', 'scratch'], ['lib/big.bin', '1 MB or more']]);
+    const files = git(m.root, 'ls-tree', '-r', '--name-only', 'HEAD').split('\n');
+    for (const f of ['app.txt', 'eng.txt', 'lib/small [1].txt']) assert.ok(files.includes(f), `${f} is in the commit`);
+    for (const f of ['.scratch/src/notes.md', 'lib/big.bin']) assert.ok(!files.includes(f), `${f} is not in the commit`);
+    assert.ok(existsSync(path.join(m.wtEng, '.scratch', 'src', 'notes.md')) && existsSync(path.join(m.wtEng, 'lib', 'big.bin')), 'the files left out stay in the worktree');
+    assert.equal(readFileSync(path.join(m.root, 'app.txt'), 'utf8').replace(/\r\n/g, '\n'), 'v0\nengine\nchanged\n');
+  } finally { dropOldCampaign(m); }
+});
+
 test('12.3: a squashed unit whose commits are all in the wave base is refused before the snapshot', () => {
   const m = makeOldCampaign();
   try {

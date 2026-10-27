@@ -677,6 +677,43 @@ function requireListBranch(root, src) {
   return branch;
 }
 
+/** An untracked file of this size or more stays out of the migration snapshot. */
+const SNAPSHOT_MAX_BYTES = 1024 * 1024;
+
+/**
+ * Stage the uncommitted work of an old unit for the snapshot commit: every change to a tracked
+ * file, and each untracked file outside `.scratch/` and `.ai/` under 1 MB. Returns the count of
+ * staged files and the untracked files left out, each with its reason. The files left out stay
+ * in the worktree, untracked.
+ */
+function stageSnapshot(wt) {
+  const u = git(wt, ['add', '-u', '--', '.']);
+  if (u.status !== 0) return { ok: false, error: `git add -u failed in ${wt}: ${u.stderr}` };
+  // The records are not code: a tracked .ai/ change stays out of the commit.
+  git(wt, ['reset', '-q', '--', '.ai']);
+  const others = git(wt, ['ls-files', '--others', '--exclude-standard', '-z']);
+  if (others.status !== 0) return { ok: false, error: `git ls-files failed in ${wt}: ${others.stderr}` };
+  const add = [];
+  const leftOut = [];
+  for (const rel of others.stdout.split('\0').filter(Boolean)) {
+    const parts = rel.split('/');
+    if (parts[0] === '.ai') continue;
+    if (parts.includes('.scratch')) { leftOut.push({ path: rel, reason: 'scratch' }); continue; }
+    let st;
+    try { st = lstatSync(join(wt, rel)); } catch { continue; }
+    // git lists a nested repo as its folder.
+    if (st.isDirectory()) { leftOut.push({ path: rel, reason: 'a nested repo' }); continue; }
+    if (st.size >= SNAPSHOT_MAX_BYTES) { leftOut.push({ path: rel, reason: '1 MB or more', bytes: st.size }); continue; }
+    add.push(rel);
+  }
+  for (let i = 0; i < add.length; i += 100) {
+    const r = git(wt, ['--literal-pathspecs', 'add', '--', ...add.slice(i, i + 100)]);
+    if (r.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${r.stderr}` };
+  }
+  const staged = git(wt, ['diff', '--cached', '--name-only', '-z']).stdout.split('\0').filter(Boolean);
+  return { ok: true, any: staged.length > 0, files: staged.length, leftOut };
+}
+
 /** 12.3: commit the unit's code, rebase it when the earlier waves were squashed, merge it into the list branch. */
 function landMigrated(root, src, packet) {
   const m = packet.migrated ?? {};
@@ -699,13 +736,14 @@ function landMigrated(root, src, packet) {
   if (wt) {
     const dirty = dirtyOutsideAi(wt) ?? [];
     if (dirty.length) {
-      // An exclude pathspec of an ignored .ai/ makes git add fail, so add all, then unstage .ai/.
-      const add = git(wt, ['add', '-A', '--', '.']);
-      if (add.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${add.stderr}` };
-      git(wt, ['reset', '-q', '--', '.ai']);
-      const c = git(wt, ['commit', ...message(SUBJECTS.snapshot, `The campaign migration saved the uncommitted files of the work packet ${packet['packet-slug']}.`)]);
-      if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}. The files are staged. Ask the person to commit them by hand with a message that the repo accepts, then start again.` };
-      steps.push({ snapshot: dirty.length });
+      const staged = stageSnapshot(wt);
+      if (!staged.ok) return { ok: false, error: staged.error };
+      const leftOut = staged.leftOut.length ? { leftOut: staged.leftOut } : {};
+      if (staged.any) {
+        const c = git(wt, ['commit', ...message(SUBJECTS.snapshot, `The campaign migration saved the uncommitted files of the work packet ${packet['packet-slug']}.`)]);
+        if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, ...leftOut, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}. The files are staged. Ask the person to commit them by hand with a message that the repo accepts, then start again.` };
+      }
+      steps.push({ snapshot: staged.files, ...leftOut });
     }
   }
   if (needsRebase) {
