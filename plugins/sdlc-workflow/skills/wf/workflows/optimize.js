@@ -77,7 +77,7 @@ const PROPOSE_SCHEMA = {
   properties: {
     hypotheses: {
       type: 'array',
-      items: { type: 'object', required: ['text', 'expected', 'plan'], properties: { text: { type: 'string' }, expected: { type: 'string' }, plan: { type: 'string' } } },
+      items: { type: 'object', required: ['text', 'expected', 'plan'], properties: { text: { type: 'string' }, expected: { type: 'string' }, plan: { type: 'string' }, idea: { type: 'string' } } },
     },
     prepared: { type: 'boolean' },
     lane: { type: 'string' },
@@ -142,11 +142,19 @@ function proposePrompt(n, width, on = null) {
     `3. Do NOT read the optimize folder of the workflow, the results ledger, or the git history of other branches. ` +
     `When digest.flushed is true, you are a branch of a branch round: work out the intent of the code from the ` +
     `code itself. That fresh start is the purpose of the round.\n` +
+    `   PROFILE: when digest.profile is not null, start from it. Each entry gives the share of the work, and maxGain, ` +
+    `the gain if that cost went to zero. An entry with alone: false cannot pass the threshold by itself: do not ` +
+    `propose a change to it alone.\n` +
+    `   IDEAS: digest.ideas lists the idea of every trial of every lane: its target, status and pooled gain. Do not ` +
+    `repeat a target that failed, or that another lane claims now.\n` +
     `4. Write each hypothesis: text (what to change and why, in one or two sentences), expected (the expected gain, ` +
     `in the metric's unit), and plan (the exact files and the change, for the editor). Every file must be inside ` +
     `allowed-paths and outside off-limits. Never propose a change to the metric command, the guard, the holdout, ` +
     `or their fixtures, and never special-case the inputs that the metric measures: a gain that only the metric ` +
     `sees is worthless. Prefer a simpler change at equal gain.\n` +
+    `5. CLAIM each hypothesis before you return it: run \`${cmd('idea-claim', `--on ${on || 'trunk'} --target "<the function or profile entry that the change targets>" --family "<a few words, for example memoize>"`)}\`. ` +
+    `When it refuses, choose another target; or, when you have a new reason to try that target again, add ` +
+    `--again "<the reason>". Put the id that it prints (idea.id) in the hypothesis as idea.\n` +
     `Return { hypotheses, lane, worktree } with lane and worktree copied from the digest.` + steering + heartbeat(`propose:${n}`, 'Loop')
 }
 
@@ -168,7 +176,7 @@ const trialPre = (lane, h) => `First write the text ${JSON.stringify(h.text)} to
 
 /** One trial: the bookkeeping agent writes the hypothesis file and runs `trial`. `on` names the lane in a round with branch worktrees. */
 async function runTrial(n, h, lane, on) {
-  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}`
+  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}${h.idea ? ` --idea ${h.idea}` : ''}`
   return await book('trial', rest, `trial:${n}`, 'Loop', h.prepared ? '' : trialPre(lane, h))
 }
 
@@ -189,6 +197,28 @@ function considerPrompt(mg) {
     `(leave out --try when you skip all; repeat --skip for each skipped branch). Return { ok, result } where result is the ` +
     `JSON object that the command printed, parsed. When the command exits non-zero it still prints JSON: return it as ` +
     `result with ok false. Do not edit any file and do not run any other git command than the diffs.` + heartbeat(`merge-consider:${mg.round}`, 'Loop')
+}
+
+/** The profiler: it measures where the work of the metric goes on the trunk best, with probes only. */
+function profilerPrompt(st) {
+  const metric = (st.metric && st.metric.command) || 'the metric command of the spec'
+  const patch = st.profile && st.profile.patch
+  return `PROFILER for the optimize loop of '${slug}'. You measure where the work of the metric goes, on the best code ` +
+    `of the trunk. Every proposer reads your profile, so it must be measured, not guessed. You change no file of a lane.\n` +
+    `1. Run \`${cmd('probe-open', '--on trunk')}\`. It prints the path of the probe worktree of the trunk. Work only there.\n` +
+    (patch ? `2. Apply the counters of the last profile: \`git -C "<the probe worktree>" apply "${patch}"\`. When the patch does not ` +
+      `apply, add the counters again by hand.\n` : `2. Read the code that the metric command runs: ${metric}\n`) +
+    `3. Add timer counters, and call counters where they help, around the main parts of that code: the top-level ` +
+    `steps and the largest functions under them. Print, at the end of the run, one JSON line for each part: ` +
+    `{"name": "<function or part>", "share": <its part of the total time, 0 to 1>, "calls": <calls for each unit of the metric>, "where": "<file:first-last line>"}.\n` +
+    `4. Build and run only with probes: \`${cmd('probe', '--on trunk --label "profile" --cmd "<command>"')}\`. Never build or ` +
+    `run anything outside a probe: another command can be measuring on this machine.\n` +
+    `5. Write the entries, at least the 10 largest, as one JSON array to ${HYP_DIR}/profile.json with the file-write tool. ` +
+    `The shares need not add up to 1.\n` +
+    `6. Run \`${cmd('profile-record', `--file "${HYP_DIR}/profile.json"`)}\`. When you cannot make a profile in 30 minutes, run ` +
+    `\`${cmd('profile-record', '--skip "<the reason>"')}\` instead.\n` +
+    `Return { ok, result } where result is the JSON object that profile-record printed, parsed. When it exits non-zero it ` +
+    `still prints JSON: return it as result with ok false.` + EOB + heartbeat('profile', 'Loop')
 }
 
 /** The proposer and the editor of one branch trial. They change no file that a measurement reads. */
@@ -214,7 +244,8 @@ if (!CEILING_ARG) {
   const rounds = Number(st.budget && st.budget.roundsMax) || 5
   // The merge step adds one consider agent and at most branches - 1 merge trials for each round.
   const branches = Number(st.budget && st.budget.branches) || 4
-  CEILING = 3 * trials + 2 * rounds + 10 + branches * rounds
+  // A profile before the first trial and before each round adds one profiler agent and one status agent each.
+  CEILING = 3 * trials + 2 * rounds + 10 + branches * rounds + 2 * (rounds + 1)
 }
 const width = Math.max(1, Number(st.budget && st.budget.width) || 1)
 log(`optimize '${slug}': ${st.state}, next ${(st.next && st.next.action) || 'none'}; agent ceiling ${CEILING}`)
@@ -248,6 +279,21 @@ while (st && st.state === 'running') {
     log(isMerge
       ? `merge of ${next.branch}: ${r.verdict}${r.median !== null && r.median !== undefined ? ` (${r.median})` : ''}${r.reason ? ` — ${r.reason}` : ''}`
       : `${next.action}: ${next.why || ''}${r.winner ? ` → winner ${typeof r.winner === 'string' ? r.winner : r.winner.name}` : ''}`)
+    st = r.state ? r : await book('status', '', 'status', 'Loop')
+    continue
+  }
+  if (next.action === 'profile') {
+    queue.length = 0
+    if (!st.profile) st = await book('status', '', 'status', 'Loop')
+    const agentMode = st.profile && st.profile.mode === 'agent'
+    let r
+    if (agentMode) {
+      const a = await call(profilerPrompt(st), { schema: BOOK_SCHEMA, label: 'profile', phase: 'Loop', ...OPUS })
+      r = a && a.result ? a.result : { ok: false, error: (a && a.error) || 'profile: no result' }
+    } else r = await book('profile', '', 'profile', 'Loop')
+    events.push({ event: 'profile', ok: r.ok !== false, entries: r.entries ?? 0, skipped: !!r.skipped })
+    if (r.ok === false) { stoppedAt = 'bookkeeping'; reason = `profile: ${r.error || 'failed'}`; break }
+    log(r.skipped ? 'profile: skipped' : `profile: ${r.entries ?? '?'} entries`)
     st = r.state ? r : await book('status', '', 'status', 'Loop')
     continue
   }

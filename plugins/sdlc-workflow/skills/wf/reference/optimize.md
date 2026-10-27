@@ -20,6 +20,8 @@ You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecyc
 - **The spec can share one build folder.** `shared-build: <VARIABLE>` (for example `CARGO_TARGET_DIR`) sets that variable to `<root>.optimize/<slug>.build` for every command of the loop, so a new branch worktree does not start with a cold build.
 - **The loop removes its worktrees when it is done.** `round-close` removes the worktrees of the round. `finish` removes the trunk worktree, the trunk branch and the build folder. A worktree that holds a link, or that git refuses to remove, stays, and the result names it. The worktrees stay while the loop is stopped, because a resume needs them.
 - **The repo hooks run on every trial commit.** A hook that refuses the commit rejects the trial, and the loop continues. The loop never skips the hooks, because the squash at finish must pass them too. The spec's `format` command formats each change before its commit.
+- **The proposers share a profile.** When the spec has `profile`, a profile of the trunk best runs before the first trial and before each round. `profile: <command>` runs a command that prints one JSON line for each part of the work (`name`, `share`, and optionally `calls` and `where`). `profile: agent` runs a profiler agent that adds counters in the probe worktree of the trunk, runs them with `probe`, and records them with `profile-record`; its counters are kept as a patch for the next profile. Every digest holds the 15 largest entries, with `maxGain` (the gain if that cost went to zero) and `alone: false` for an entry that cannot pass the threshold by itself.
+- **The lanes share an ideas ledger.** `optimize/ideas.json` holds one record for each idea of every lane: its target, status (`open`, `failed`, `marginal`, `kept`, `bundled`), trials and pooled gain. A proposer claims each idea with `idea-claim` before it returns. A claim of another lane on the same target is refused, and a target that was tried is refused unless `--again` gives a new reason. A branch sees the ideas of every lane, but never the hypothesis text of another lane. A kept trial, and a reverted trial with a positive gain, keep their diff in `optimize/patches/`.
 - **The keep rule counts noise.** The baseline runs the metric `repeat` times. A trial is kept only when its gain is larger than `max(min-gain, 2 × noise)`, and a confirm run agrees.
 - **Branch rounds explore.** A round forks the trunk's best code into `branches` branches, `optimize/<slug>--r<n>b<k>`. Each branch proposer reads only the trials of its own branch, and no hypothesis of the trunk. The best branch becomes the trunk. Rounds open on a fixed share of `budget.trials`, and a plateau opens a round early. A plateau stops the loop only when the round that it opened finds no gain.
 - **A round considers a merge of the other branches.** After `round-close`, each other branch whose kept gain passes the keep threshold is a candidate, unless its test merge onto the new trunk conflicts. One consider step decides `try` or `skip` for each candidate and puts the tries in order (`merge-consider`). Each try is merged into the trunk and judged as a trial against the trunk best (`merge-trial`): it counts against `budget.trials` and does not change the plateau streak. Then the step deletes the branches and runs the checkpoint. `branch-rounds.merge: off` keeps only the winner.
@@ -72,12 +74,12 @@ To resume, run `/wf loop optimize <slug>` again. The script continues from `stat
 
 On a host with no driver, the goal contract carries the loop: `/wf loop goal <slug>` arms `kind: optimize` ([goal.md](goal.md)). Each worker turn runs one action:
 
-1. Run `status`. When `next.action` is `round-open`, `round-close`, `checkpoint` or `merge-close`, run that command; for `merge-trial`, run `merge-trial --branch <next.branch>`. Then run `check` of the goal and end the turn.
+1. Run `status`. When `next.action` is `profile`, run `profile` for a command, or make the profile as the profiler of `profile: agent` does and run `profile-record`. When `next.action` is `round-open`, `round-close`, `checkpoint` or `merge-close`, run that command; for `merge-trial`, run `merge-trial --branch <next.branch>`. Then run `check` of the goal and end the turn.
 2. When `next.action` is `merge-consider`, read the candidates in `merge` of the status and the diff of each one against `merge.from`. Skip a candidate whose change removes the same cost as the winner's change; try the others, the largest expected added gain first. Run `merge-consider --try <b2,b4> --skip "<b3>:<reason>"`, then run `check` of the goal and end the turn.
 3. For a `trial`, run `propose-context`. Its `digest` is all that you may know about the run. Do not read `optimize/` or other branches' history.
 4. Write one hypothesis: what to change, why, and the expected gain.
 5. Make the change in the worktree that the digest names, on the branch that it names. Change nothing outside `allowed-paths`.
-6. Run `trial h<n> --hypothesis "<text>" --expected "<gain>"`. The script judges the change.
+6. Before the edit, claim the idea with `idea-claim --target "<target>" --family "<family>"`. Then run `trial h<n> --idea <id> --hypothesis "<text>" --expected "<gain>"`. The script judges the change.
 7. Run `check` of the goal, and end the turn.
 
 ## Step 3 — Finish
@@ -96,5 +98,8 @@ End with the dispatcher's summary block (SKILL.md Step 2). The narrative says th
 |---|---|---|
 | `02-optimize-spec.md` | intake, with the person | The objective, metric, guard, holdout, `allowed-paths`, budget, `branch-rounds`, and `confirmed-by` |
 | `optimize/state.json` | the optimize script | The trunk best, the open round and the best of each branch, the counters, the stop |
-| `optimize/results.jsonl` | the optimize script | One line for each trial, round-open, round-close, checkpoint and finish. Append-only |
+| `optimize/results.jsonl` | the optimize script | One line for each trial, probe, profile, round-open, round-close, checkpoint and finish. Append-only |
+| `optimize/ideas.json` | the optimize script | The ideas ledger of every lane |
+| `optimize/profile.json`, `optimize/profile.patch` | the optimize script | The last profile, and the counters of the profiler agent |
+| `optimize/patches/<trial>.patch` | the optimize script | The diff of each kept trial, and of each reverted trial with a positive gain |
 | `03-slice-optimize.md`, `05-implement-optimize.md` | the optimize script at finish | The one slice of the loop, for verify and review |

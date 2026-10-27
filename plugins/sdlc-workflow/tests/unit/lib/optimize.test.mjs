@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
+  claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -194,4 +195,60 @@ test('D7: the holdout regresses past its tolerance', () => {
   assert.equal(holdoutRegressed(spec, 100, 100.5), false);
   assert.equal(holdoutRegressed(spec, 100, 102), true);
   assert.equal(holdoutRegressed(spec, 100, 90), false, 'lower is better: 90 is a gain');
+});
+
+test('G2: a claim of an idea refuses a target that another lane claims, and a tried target without a new reason', () => {
+  const book = emptyIdeas();
+  const a = claimIdea(book, { lane: 'b1', target: 'Team::back_line', family: 'stack arrays' });
+  assert.equal(a.ok, true);
+  assert.equal(a.idea.id, 'i1');
+  const busy = claimIdea(book, { lane: 'b2', target: 'team::back_line ', family: 'bitmask' });
+  assert.equal(busy.ok, false, 'the target is matched without case');
+  assert.match(busy.reason, /b1 has a claim on this target in flight/);
+  assert.equal(claimIdea(book, { lane: 'b1', target: 'Team::back_line' }).idea.id, 'i1', 'the same lane gets its own claim back');
+  assert.equal(claimIdea(book, { lane: 'b1', target: 'sim::central_distance' }).idea.id, 'i2');
+  assert.deepEqual(book.ideas.map((i) => i.id), ['i2'], 'a new claim of a lane releases its older claim with no trial');
+
+  settleIdea(book, 'i2', { trial: 6, verdict: 'reverted', gain: 0.044, patch: true });
+  assert.deepEqual([book.ideas[0].status, book.ideas[0].claim, book.ideas[0].patches], ['marginal', null, [6]]);
+  const tried = claimIdea(book, { lane: 'b3', target: 'sim::central_distance' });
+  assert.equal(tried.ok, false);
+  assert.match(tried.reason, /was tried \(i2: marginal, pooled gain 0\.044 over 1\)/);
+  const again = claimIdea(book, { lane: 'b3', target: 'sim::central_distance', again: 'memoize deeper levels too' });
+  assert.equal(again.ok, true);
+  assert.deepEqual(again.idea.again, [{ lane: 'b3', reason: 'memoize deeper levels too' }]);
+  settleIdea(book, 'i2', { trial: 7, verdict: 'kept', gain: 0.1 });
+  settleIdea(book, 'i2', { trial: 9, verdict: 'reverted', gain: 0.05 });
+  assert.equal(book.ideas[0].status, 'kept', 'a kept idea stays kept');
+  assert.deepEqual(book.ideas[0].pooled, { mean: 0.0646667, n: 3 }, 'the gains are pooled');
+  assert.equal(ideaStatusOf('reverted', -0.02), 'failed');
+  assert.equal(ideaStatusOf('rejected', null), 'failed');
+  assert.equal(claimIdea(book, { lane: 'b1', target: '' }).ok, false, 'a claim needs a target');
+});
+
+test('G1: the profile comes before the first trial and before each round, and the digest marks an entry that cannot pass alone', () => {
+  const spec = specOf({ profile: 'agent' });
+  const s = stateOf();
+  assert.equal(nextAction({ state: s, spec }).next.action, 'profile', 'the first profile comes before the 0% round');
+  s.profile = { commit: 'c0' };
+  assert.equal(nextAction({ state: s, spec }).next.action, 'round-open');
+  const later = { ...s, schedule: { used: [0] }, counters: { ...s.counters, trials: 20 }, best: { commit: 'c9', value: 90, trial: 19 } };
+  const p = nextAction({ state: later, spec });
+  assert.equal(p.next.action, 'profile', 'the trunk best moved: a new profile before the round');
+  assert.match(p.next.why, /before the round/);
+  assert.equal(nextAction({ state: { ...later, profile: { commit: 'c9' } }, spec }).next.action, 'round-open');
+  assert.equal(nextAction({ state: stateOf(), spec: specOf() }).next.action, 'round-open', 'a spec without a profile has no profile step');
+
+  const { entries, errors } = parseProfile([{ name: 'decide', share: 0.32 }, { name: 'place_threat', share: 0.002, calls: 0.48 }, { name: 'bad', share: 2 }]);
+  assert.equal(errors.length, 1);
+  assert.deepEqual(entries.map((e) => e.name), ['decide', 'place_threat']);
+  assert.deepEqual(profileLines('noise\n{"name":"a","share":0.5}\n{broken\n'), [{ name: 'a', share: 0.5 }]);
+  const view = profileView(entries, 2.5, 0.0885);
+  assert.deepEqual(view.map((e) => [e.maxGain, e.alone]), [[0.8, true], [0.005, false]]);
+
+  const book = emptyIdeas();
+  claimIdea(book, { lane: 'optimize/s--r1b1', target: 'decide' });
+  const d = buildDigest({ spec, specProse: '', state: { ...stateOf(), profile: { commit: 'c0' } }, results: [], lane: 'trunk', ideas: book, profile: { entries } });
+  assert.deepEqual(d.ideas.map((i) => [i.id, i.claim]), [['i1', 'optimize/s--r1b1']], 'every lane sees the ideas of every lane');
+  assert.equal(d.profile[1].alone, false);
 });

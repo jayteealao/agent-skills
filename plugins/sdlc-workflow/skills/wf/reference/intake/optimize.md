@@ -91,9 +91,10 @@ next-invocation: "/wf loop optimize <slug>"
 2. Propose the budget and the branch rounds. The defaults follow the table below.
 3. Read the commit hooks of the project: `lefthook.yml`, `.pre-commit-config.yaml` and `.husky/`. Every trial commit passes these hooks, and a hook that refuses a commit rejects the trial. When a hook checks the format, propose that formatter as `format` (for example `cargo fmt --all` for a `cargo fmt --check` hook). The loop runs it on each change before the commit.
 4. When the build of the stack writes to a folder that one environment variable moves, propose `shared-build` with that variable: `CARGO_TARGET_DIR` for a Rust workspace. Each branch of a round has its own worktree, and the shared folder spares each new worktree a cold build. Leave it out for other stacks.
-5. Ask whether a holdout exists. Recommend one when the metric is a score over a fixed data set. The proposer never sees the holdout's output.
-6. Ask the person to confirm or edit the spec, per [_gate-question.md](../_gate-question.md). Show the whole frontmatter.
-7. Write the draft of `02-optimize-spec.md` and put it. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
+5. Propose `profile`. When the project has a profiler or timer counters that print the share of each part of the work, write that command. Otherwise propose `profile: agent`: a profiler agent then adds counters in a probe worktree before the first trial and before each round. Leave it out only when the person declines.
+6. Ask whether a holdout exists. Recommend one when the metric is a score over a fixed data set. The proposer never sees the holdout's output.
+7. Ask the person to confirm or edit the spec, per [_gate-question.md](../_gate-question.md). Show the whole frontmatter.
+8. Write the draft of `02-optimize-spec.md` and put it. Write `confirmed-by` with the person's name only after the person confirms. Until then, write `status: draft` and `confirmed-by: null`, and end the run.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -113,6 +114,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `checkpoint-every` | 5 | Trunk trials between two holdout checks |
 | `format` | `null` | A command that formats each change before its commit. Propose it from the commit hooks |
 | `shared-build` | `null` | The variable that moves the build folder. The loop sets it to one folder for every worktree |
+| `profile` | `null` | A command that prints the profile as JSON lines, or `agent` for the profiler agent. The proposers start from it |
 
 ```yaml
 ---
@@ -155,6 +157,7 @@ width: 1
 checkpoint-every: 5
 format: null
 shared-build: null
+profile: agent
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 tags: [optimize]

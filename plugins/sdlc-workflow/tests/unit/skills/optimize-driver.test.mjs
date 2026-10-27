@@ -14,9 +14,10 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const driver = new AsyncFunction('args', 'agent', 'log', 'phase', 'parallel', src.replace('export const meta', 'const meta'));
 const ARGS = { projectRoot: '/repo', referenceRoot: '/plugin/skills/wf/reference', slug: 's' };
 
-function fakeLoop({ stopAt = null, trunkTrials = 2 } = {}) {
-  const S = { trials: 0, opened: false, round: null, trunk: 0 };
+function fakeLoop({ stopAt = null, trunkTrials = 2, profile = null } = {}) {
+  const S = { trials: 0, opened: false, round: null, trunk: 0, profiled: false };
   const next = () => {
+    if (profile && !S.profiled) return { action: 'profile', why: 'the first profile' };
     if (!S.opened) return { action: 'round-open', point: 0, why: 'scheduled at 0%' };
     if (S.round && S.round.done < 4) return { action: 'trial', on: `optimize/s--r1b${(S.round.done % 2) + 1}` };
     if (S.round) return { action: 'round-close' };
@@ -26,7 +27,7 @@ function fakeLoop({ stopAt = null, trunkTrials = 2 } = {}) {
   const status = () => {
     if (stopAt !== null && S.trials >= stopAt) return { ok: true, state: 'stopped', reason: 'stop-request', detail: 'the person asked', next: { action: 'person' }, counters: { trials: S.trials } };
     const n = next();
-    const common = { ok: true, counters: { trials: S.trials }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 } };
+    const common = { ok: true, counters: { trials: S.trials }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 }, metric: { command: 'node m.js' }, profile: profile ? { mode: profile, patch: null } : null };
     return n ? { ...common, state: 'running', next: n } : { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } };
   };
   const calls = [];
@@ -35,11 +36,12 @@ function fakeLoop({ stopAt = null, trunkTrials = 2 } = {}) {
     calls.push({ label, prompt, model: opts.model });
     const base = label.split(':')[0];
     if (base === 'status') return { ok: true, result: status() };
+    if (base === 'profile') { S.profiled = true; return { ok: true, result: { ...status(), entries: 3 } }; }
     if (base === 'round-open') { S.opened = true; S.round = { done: 0 }; return { ok: true, result: { ok: true, round: 1, next: next() } }; }
     if (base === 'round-close') { S.round = null; return { ok: true, result: { ...status(), winner: { name: 'optimize/s--r1b1' } } }; }
     if (base === 'propose') {
       const many = /2 different hypotheses/.test(prompt);
-      return { hypotheses: (many ? [1, 2] : [1]).map((i) => ({ text: `idea ${calls.length}.${i}`, expected: '1 s', plan: 'edit src/a.js' })), lane: 'x', worktree: '/wt' };
+      return { hypotheses: (many ? [1, 2] : [1]).map((i) => ({ text: `idea ${calls.length}.${i}`, expected: '1 s', plan: 'edit src/a.js', idea: `i${calls.length}${i}` })), lane: 'x', worktree: '/wt' };
     }
     if (base === 'edit') return { ok: true, changed: ['src/a.js'] };
     if (base === 'trial') {
@@ -267,7 +269,7 @@ test('after a round, one consider agent chooses the merges, and the merge trials
   assert.ok(calls.findIndex((c) => c.label.startsWith('merge:')) > calls.findIndex((c) => c.label.startsWith('merge-consider')));
 });
 
-test('the agent ceiling counts the merge step of each round', async () => {
+test('the agent ceiling counts the merge step and the profiles of each round', async () => {
   const { agent } = fakeLoop({ trunkTrials: 50 });
   const out = await run(ARGS, async (prompt, opts) => {
     const r = await agent(prompt, opts);
@@ -275,8 +277,8 @@ test('the agent ceiling counts the merge step of each round', async () => {
     return r;
   });
   assert.equal(out.stoppedAt, 'agent-ceiling');
-  assert.ok(out.agentsUsed <= 3 * 8 + 2 * 2 + 10 + 4 * 2 + 3, `agents ${out.agentsUsed}`);
-  assert.ok(out.agentsUsed > 3 * 8 + 2 * 2 + 10, 'the ceiling is larger than before the merge step');
+  assert.ok(out.agentsUsed <= 3 * 8 + 2 * 2 + 10 + 4 * 2 + 2 * 3 + 3, `agents ${out.agentsUsed}`);
+  assert.ok(out.agentsUsed > 3 * 8 + 2 * 2 + 10 + 4 * 2, 'the ceiling is larger than before the profile step');
 });
 
 test('a stop during a round waits for the editors in flight and does not measure their edits', async () => {
@@ -286,4 +288,29 @@ test('a stop during a round waits for the editors in flight and does not measure
   assert.equal(log.filter((e) => e[0] === 'trial-start').length, 1);
   const lastEdit = log.map((e) => e[0]).lastIndexOf('edit');
   assert.ok(lastEdit >= 0 && log.length - 1 >= lastEdit, 'the edit in flight finished before the driver returned');
+});
+
+test('a proposer claims each idea in the shared ledger, and the trial passes the idea', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  const p = calls.find((c) => c.label === 'propose:1').prompt;
+  assert.match(p, /optimize\.mjs" idea-claim "\/repo" s --on optimize\/s--r1b1 --target/);
+  assert.match(p, /digest\.ideas lists the idea of every trial of every lane/);
+  assert.match(p, /An entry with alone: false cannot pass the threshold by itself/);
+  assert.match(calls.find((c) => c.label === 'trial:1').prompt, / --idea i\d+/);
+});
+
+test('the profile step: the profiler agent in agent mode, the bookkeeping in command mode, before the first round', async () => {
+  const a = fakeLoop({ profile: 'agent' });
+  const outA = await run(ARGS, a.agent);
+  assert.equal(outA.ok, true, JSON.stringify(outA));
+  const prof = a.calls.find((c) => c.label === 'profile');
+  assert.match(prof.prompt, /^PROFILER for the optimize loop/);
+  assert.match(prof.prompt, /probe-open "\/repo" s --on trunk/);
+  assert.match(prof.prompt, /profile-record "\/repo" s --file "\/repo\/\.scratch\/optimize\/s\/profile\.json"/);
+  assert.equal(prof.model, 'claude-opus-5-5');
+  assert.ok(a.calls.findIndex((c) => c.label === 'profile') < a.calls.findIndex((c) => c.label === 'round-open'));
+  const b = fakeLoop({ profile: 'command' });
+  await run(ARGS, b.agent);
+  assert.match(b.calls.find((c) => c.label === 'profile').prompt, /^BOOKKEEPING[\s\S]*optimize\.mjs" profile "\/repo" s/);
 });

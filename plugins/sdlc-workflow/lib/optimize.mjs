@@ -124,6 +124,7 @@ export function parseSpec(fm) {
   if (!Number.isInteger(width) || width < 1) errors.push('width must be a positive integer');
   const sharedBuild = str(fm['shared-build']);
   if (sharedBuild && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(sharedBuild)) errors.push('shared-build must be the name of an environment variable, for example CARGO_TARGET_DIR');
+  const profile = str(fm.profile) || null;
   const checkpointEvery = Number(fm['checkpoint-every'] ?? DEFAULT_SPEC['checkpoint-every']);
   if (!Number.isInteger(checkpointEvery) || checkpointEvery < 1) errors.push('checkpoint-every must be a positive integer');
   const spec = {
@@ -134,6 +135,7 @@ export function parseSpec(fm) {
     setup: str(fm.setup) || null,
     format: str(fm.format) || null,
     sharedBuild: str(fm['shared-build']) || null,
+    profile,
     allowedPaths: allowed,
     offLimits,
     budget: { trials, plateau, wallClockMs: wallClock, tokens, trialTimeoutMs: trialTimeout, proposeTimeMs: proposeTime },
@@ -313,13 +315,18 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const need = spec.rounds.branches * spec.rounds.branchTrials;
   const remaining = B - used;
   const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i));
+  // G1: the first profile comes before any trial, and a round opens only on a profile of the trunk best.
+  if (spec.profile && !state.profile) return running({ action: 'profile', why: 'the first profile of the code, before any trial' });
+  const open = (next) => (spec.profile && state.profile?.commit !== state.best.commit
+    ? running({ action: 'profile', why: `a profile of the trunk best before the round (${next.why})` })
+    : running(next));
   const due = points.find(({ p }) => used >= Math.ceil(p * B));
-  if (due && remaining >= need) return running({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of budget.trials` });
+  if (due && remaining >= need) return open({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of budget.trials` });
   if (state.counters.streak >= spec.budget.plateau) {
     // D14: a plateau opens the next scheduled round early, or adds one, up to max-extra.
     const later = points.find(({ p }) => used < Math.ceil(p * B));
-    if (later && remaining >= need) return running({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
-    if (state.extraRounds < spec.rounds.maxExtra && remaining >= need) return running({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
+    if (later && remaining >= need) return open({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
+    if (state.extraRounds < spec.rounds.maxExtra && remaining >= need) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
     const detail = state.extraRounds >= spec.rounds.maxExtra ? `max-extra (${spec.rounds.maxExtra}) is used` : `${remaining} trials are left, and a round needs ${need}`;
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
@@ -360,6 +367,115 @@ export function mergeCandidates(round, winner, spec, base, noise) {
   return round.branches.filter((b) => b.name !== winner.name && b.keeps > 0 && b.best.value !== null && gainOf(spec.metric.direction, base, b.best.value) > threshold);
 }
 
+// ---------------------------------------------------------------------------
+// The ideas ledger (G2): one record for each idea of every lane. A branch sees the target,
+// the status and the gains of each idea, never the hypothesis text of another lane.
+// ---------------------------------------------------------------------------
+export const IDEA_STATUSES = Object.freeze(['open', 'failed', 'marginal', 'kept', 'bundled']);
+const IDEA_RANK = { open: 0, failed: 1, marginal: 2, kept: 3, bundled: 3 };
+export const normTarget = (t) => str(t).toLowerCase().replace(/\s+/g, ' ');
+export const emptyIdeas = () => ({ next: 1, ideas: [] });
+
+/** The status that one verdict gives an idea: a revert with a real but small gain is marginal. */
+export function ideaStatusOf(verdict, gain) {
+  if (verdict === 'kept') return 'kept';
+  if (verdict === 'reverted' && Number.isFinite(gain) && gain > 0) return 'marginal';
+  return 'failed';
+}
+
+/** The mean of the measured gains of an idea, and their count. */
+export function pooledOf(gains) {
+  const g = (gains ?? []).filter(Number.isFinite);
+  if (!g.length) return { mean: null, n: 0 };
+  return { mean: Number((g.reduce((s, x) => s + x, 0) / g.length).toPrecision(6)), n: g.length };
+}
+
+/**
+ * Claim an idea for a lane. A lane has one claim in flight: its older claim with no trial is
+ * released. A claim of another lane on the same target is refused. A target that a record holds
+ * already is refused unless `again` gives a reason, which goes into the record.
+ *   → { ok: true, idea } | { ok: false, reason, idea }
+ */
+export function claimIdea(book, { lane, target, family, again = null }) {
+  const t = normTarget(target);
+  if (!t) return { ok: false, reason: 'idea-claim needs --target: the function or the profile entry that the change targets' };
+  book.ideas = book.ideas.filter((i) => !(i.claim === lane && i.status === 'open' && !i.trials.length && normTarget(i.target) !== t));
+  for (const i of book.ideas) if (i.claim === lane && normTarget(i.target) !== t) i.claim = null;
+  const same = book.ideas.filter((i) => normTarget(i.target) === t);
+  const busy = same.find((i) => i.claim && i.claim !== lane);
+  if (busy) return { ok: false, reason: `${busy.claim} has a claim on this target in flight (${busy.id}): choose another target`, idea: brief(busy) };
+  const mine = same.find((i) => i.claim === lane);
+  if (mine) return { ok: true, idea: mine };
+  const tried = same.find((i) => i.status !== 'open' || i.trials.length);
+  const why = str(again);
+  if (tried && !why) return { ok: false, reason: `this target was tried (${tried.id}: ${tried.status}, pooled gain ${tried.pooled.mean ?? 'none'} over ${tried.pooled.n}): choose another target, or give a new reason with --again`, idea: brief(tried) };
+  if (tried) {
+    tried.claim = lane;
+    tried.again = [...(tried.again ?? []), { lane, reason: why }];
+    return { ok: true, idea: tried };
+  }
+  const idea = { id: `i${book.next++}`, target: str(target), family: str(family), status: 'open', claim: lane, trials: [], gains: [], pooled: { mean: null, n: 0 }, patches: [] };
+  book.ideas.push(idea);
+  return { ok: true, idea };
+}
+
+/** Record the verdict of a trial on its idea. The status keeps the best result: a kept idea stays kept. */
+export function settleIdea(book, id, { trial, verdict, gain, patch = false }) {
+  const idea = book.ideas.find((i) => i.id === id);
+  if (!idea) return null;
+  idea.claim = null;
+  idea.trials.push(trial);
+  if (Number.isFinite(gain)) idea.gains.push(gain);
+  idea.pooled = pooledOf(idea.gains);
+  if (patch) idea.patches = [...(idea.patches ?? []), trial];
+  const next = ideaStatusOf(verdict, gain);
+  if (IDEA_RANK[next] >= IDEA_RANK[idea.status]) idea.status = next;
+  return idea;
+}
+
+const brief = (i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled, trials: i.trials });
+
+// ---------------------------------------------------------------------------
+// The profile (G1): where the work of the metric goes, from a profile command or a profiler agent.
+// ---------------------------------------------------------------------------
+/** Parse the entries of a profile: objects with `name` and `share` (0 to 1), and optional `calls` and `where`. */
+export function parseProfile(input) {
+  const raw = Array.isArray(input) ? input : Array.isArray(input?.entries) ? input.entries : null;
+  if (!raw) return { entries: [], errors: ['the profile holds no entries'] };
+  const errors = [];
+  const entries = [];
+  for (const e of raw) {
+    const name = str(e?.name);
+    const share = Number(e?.share);
+    if (!name || !Number.isFinite(share) || share < 0 || share > 1) { errors.push(`an entry needs a name and a share from 0 to 1: ${JSON.stringify(e).slice(0, 80)}`); continue; }
+    entries.push({ name, share, ...(Number.isFinite(Number(e.calls)) && e.calls !== null && e.calls !== undefined ? { calls: Number(e.calls) } : {}), ...(str(e.where) ? { where: str(e.where) } : {}) });
+  }
+  entries.sort((a, b) => b.share - a.share);
+  return { entries, errors };
+}
+
+/** JSON lines on stdout, one entry each; other lines are ignored. */
+export function profileLines(stdout) {
+  const out = [];
+  for (const line of String(stdout ?? '').split(/\r?\n/)) {
+    const l = line.trim();
+    if (!l.startsWith('{')) continue;
+    try { out.push(JSON.parse(l)); } catch { /* not an entry */ }
+  }
+  return out;
+}
+
+/**
+ * The 15 largest entries for a digest. `maxGain` is the gain when the cost of the entry went to
+ * zero. An entry whose maxGain is not above the threshold cannot pass alone: `alone: false`.
+ */
+export function profileView(entries, best, threshold) {
+  return (entries ?? []).slice(0, 15).map((e) => {
+    const maxGain = Number((e.share * Math.abs(best)).toPrecision(4));
+    return { ...e, maxGain, alone: threshold === null ? true : maxGain > threshold };
+  });
+}
+
 /**
  * The trials that a proposer of `lane` sees (4.5). A branch sees only its own trials.
  * The trunk sees its trials since `digestFrom`, and the trials of the branch that
@@ -381,11 +497,15 @@ export function digestTrials(results, state, lane) {
   return mine.slice(-DIGEST_TRIALS);
 }
 
-/** The digest of section 4.5. `solutions` is used on the trunk only. */
-export function buildDigest({ spec, specProse, state, results, lane, solutions = [] }) {
+/**
+ * The digest of section 4.5. `solutions` is used on the trunk only. `ideas` (G2) and `profile`
+ * (G1) are shared by every lane.
+ */
+export function buildDigest({ spec, specProse, state, results, lane, solutions = [], ideas = null, profile = null }) {
   const isBranch = lane && lane !== 'trunk' && lane !== state.trunk;
   const trials = digestTrials(results, state, lane);
   const best = laneBest(state, isBranch ? lane : state.trunk);
+  const threshold = best ? keepThreshold(spec, best.value, state.baseline.noise) : null;
   const brief = (r) => ({ trial: r.trial, hypothesis: r.hypothesis?.text ?? '', verdict: r.verdict, median: r.median, delta: r.delta });
   return {
     lane: isBranch ? lane : 'trunk',
@@ -397,8 +517,10 @@ export function buildDigest({ spec, specProse, state, results, lane, solutions =
     offLimits: spec.offLimits,
     best: best ? { value: best.value, commit: best.commit } : null,
     baseline: { value: state.baseline.median, noise: state.baseline.noise },
-    threshold: best ? keepThreshold(spec, best.value, state.baseline.noise) : null,
+    threshold,
     trials: trials.map(brief),
+    ideas: ideas ? ideas.ideas.slice(-40).map((i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled })) : [],
+    profile: profile?.entries ? profileView(profile.entries, best?.value ?? state.baseline.median, threshold) : null,
     failed: trials.filter((r) => r.verdict !== 'kept').map((r) => r.hypothesis?.text ?? '').filter(Boolean),
     solutions: isBranch ? [] : solutions,
     worktree: laneWorktree(state, isBranch ? lane : state.trunk),
@@ -435,6 +557,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     digestFrom: { trial: 0, round: null, branch: null },
     lastCheckpoint: { trial: 0, ok: true, value: holdoutValue ?? null },
     buildDir: null,
+    profile: null,
     leftovers: [],
     stopped: null,
     finished: null,

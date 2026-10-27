@@ -378,6 +378,72 @@ test('a probe runs in its own worktree and build folder under the lock, a trial 
   }
 });
 
+test('the profile command runs before the first round, every digest holds the profile and the ideas, and a trial settles its idea', () => {
+  const { parent, root, wt } = makeRepo('profile: "node prof.js"\n');
+  try {
+    writeFileSync(path.join(root, 'prof.js'), "console.log('warm'); console.log(JSON.stringify({ name: 'value', share: 0.9, where: 'src/value.txt:1-1' })); console.log(JSON.stringify({ name: 'extra', share: 0.01 }));\n");
+    git(root, 'add', 'prof.js');
+    git(root, 'commit', '-q', '-m', 'profile');
+    const b = run(root, 'baseline');
+    assert.equal(b.next.action, 'profile', JSON.stringify(b.next));
+    assert.equal(b.profile.mode, 'command');
+    assert.equal(run(root, 'round-open').ok, false, 'no round before the first profile');
+    const p = run(root, 'profile');
+    assert.equal(p.ok, true, JSON.stringify(p));
+    assert.equal(p.entries, 2);
+    assert.equal(p.next.action, 'round-open');
+    assert.equal(run(root, 'round-open').ok, true);
+
+    const ctx = run(root, 'propose-context', '--on', B1);
+    assert.deepEqual(ctx.digest.profile.map((e) => e.name), ['value', 'extra'], 'a branch reads the profile too');
+    const claim = run(root, 'idea-claim', '--on', B1, '--target', 'value', '--family', 'smaller');
+    assert.equal(claim.ok, true, JSON.stringify(claim));
+    const other = run(root, 'idea-claim', '--on', B2, '--target', 'Value');
+    assert.deepEqual([other.ok, other.refused], [false, true], 'another lane cannot claim the target in flight');
+    assert.deepEqual(run(root, 'propose-context', '--on', B2).digest.ideas.map((i) => [i.id, i.claim]), [[claim.idea.id, B1]], 'every lane sees the ideas of every lane');
+
+    edit(`${wt}--r1b1`, 90);
+    const t = run(root, 'trial', 'h1', '--on', B1, '--idea', claim.idea.id, '--hypothesis', 'set the value to 90');
+    assert.equal(t.verdict, 'kept', JSON.stringify(t));
+    const ideas = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'ideas.json'), 'utf8'));
+    assert.deepEqual([ideas.ideas[0].status, ideas.ideas[0].trials, ideas.ideas[0].pooled.mean, ideas.ideas[0].claim], ['kept', [1], 10, null]);
+    assert.match(readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'patches', '1.patch'), 'utf8'), /^-100\n\+90$/m, 'a kept trial keeps its diff');
+    const again = run(root, 'idea-claim', '--on', B2, '--target', 'value');
+    assert.equal(again.ok, false, 'a tried target needs a new reason');
+    assert.equal(run(root, 'idea-claim', '--on', B2, '--target', 'value', '--again', 'a smaller step').ok, true);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('the profiler agent records its profile, or skips it with a reason, and the profile command is refused in agent mode', () => {
+  const { parent, root } = makeRepo('profile: agent\n');
+  try {
+    assert.equal(run(root, 'baseline').next.action, 'profile');
+    assert.match(run(root, 'profile').error, /profiler agent/);
+    const file = path.join(parent, 'p.json');
+    writeFileSync(file, JSON.stringify([{ name: 'step', share: 0.6 }, { name: 'x', share: 7 }]));
+    const open = run(root, 'probe-open');
+    writeFileSync(path.join(open.worktree, 'src', 'counter.txt'), 'timer\n');
+    git(open.worktree, 'add', '-N', 'src/counter.txt');
+    const r = run(root, 'profile-record', '--file', file);
+    assert.deepEqual([r.ok, r.entries, r.ignored], [true, 1, 1], JSON.stringify(r));
+    assert.match(readFileSync(r.profile.patch, 'utf8'), /\+timer/, 'the counters of the agent are kept as a patch for the next profile');
+    assert.equal(r.next.action, 'round-open');
+    assert.equal(run(root, 'profile-record', '--skip', 'late').ok, false, 'the profile is recorded already');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+  const second = makeRepo('profile: agent\n');
+  try {
+    run(second.root, 'baseline');
+    const s = run(second.root, 'profile-record', '--skip', 'no profiler on this machine');
+    assert.deepEqual([s.ok, s.skipped, s.next.action], [true, true, 'round-open']);
+  } finally {
+    rmSync(second.parent, { recursive: true, force: true });
+  }
+});
+
 test('round-close removes the branch worktrees, a worktree with a link stays, and finish removes the rest and the shared build folder', () => {
   const { parent, root, wt } = makeRepo('shared-build: OPT_BUILD\n');
   try {

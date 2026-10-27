@@ -20,6 +20,11 @@
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
  *                                                     run one command in the probe worktree, under the measure lock
+ *   idea-claim      <root> <slug> [--on <lane>] --target t [--family f] [--again "<reason>"]
+ *                                                     claim an idea in the shared ideas ledger before the edit
+ *   profile         <root> <slug>                     run the profile command of the spec on the trunk best
+ *   profile-record  <root> <slug> --file <json> | --skip "<reason>"
+ *                                                     record the profile of the profiler agent
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
  *                                                     run one command in the probe worktree, under the measure lock
@@ -41,19 +46,20 @@
  * tree destroys uncommitted work.
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
-  SPEC_FILE, buildDigest, commandFiles, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
-  STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseSpec, pathViolations, pickWinner, branchNameOf,
+  SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
+  STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
+  branchNameOf, settleIdea,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -129,6 +135,39 @@ function appendResult(root, slug, line) {
   mkdirSync(optDir(root, slug), { recursive: true });
   appendFileSync(resultsPath(root, slug), `${JSON.stringify({ at: nowIso(), ...line })}\n`);
 }
+// The ideas ledger (G2). Proposers claim ideas while a trial runs, so each change of the file
+// holds a short lock of its own: a read, the change, and an atomic write.
+const ideasPath = (root, slug) => join(optDir(root, slug), 'ideas.json');
+const patchesDir = (root, slug) => join(optDir(root, slug), 'patches');
+const profileFile = (root, slug) => join(optDir(root, slug), 'profile.json');
+const profilePatch = (root, slug) => join(optDir(root, slug), 'profile.patch');
+function readIdeas(root, slug) {
+  const f = ideasPath(root, slug);
+  if (!existsSync(f)) return emptyIdeas();
+  try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return emptyIdeas(); }
+}
+function withIdeas(root, slug, fn) {
+  const lock = join(optDir(root, slug), '.ideas.lock');
+  mkdirSync(dirname(lock), { recursive: true });
+  const until = Date.now() + 10_000;
+  for (;;) {
+    try { writeFileSync(lock, String(process.pid), { flag: 'wx' }); break; } catch {
+      let stale = false;
+      try { stale = Date.now() - statSync(lock).mtimeMs > 30_000; } catch { /* gone */ }
+      if (stale) rmSync(lock, { force: true });
+      else if (Date.now() >= until) throw new Error('the ideas ledger is locked by another command: try again');
+      else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+    }
+  }
+  try {
+    const book = readIdeas(root, slug);
+    const out = fn(book);
+    writeAtomic(ideasPath(root, slug), `${JSON.stringify(book, null, 2)}\n`);
+    return out;
+  } finally { rmSync(lock, { force: true }); }
+}
+const readProfile = (root, slug) => (existsSync(profileFile(root, slug)) ? JSON.parse(readFileSync(profileFile(root, slug), 'utf8')) : null);
+
 function readControl(root, slug) {
   const f = controlPath(root, slug);
   if (!existsSync(f)) return null;
@@ -315,6 +354,8 @@ export function optimizeStatus(root, slug) {
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
     merge: state.merge ?? null,
     rounds: state.rounds.length,
+    metric: { command: spec.metric.command, unit: spec.metric.unit, direction: spec.metric.direction },
+    profile: spec.profile ? { mode: spec.profile === 'agent' ? 'agent' : 'command', last: state.profile ?? null, patch: existsSync(profilePatch(root, slug)) ? profilePatch(root, slug) : null } : null,
   };
 }
 
@@ -413,9 +454,15 @@ function proposeContext(root, slug, f = {}) {
   const wt = laneWorktree(state, on);
   if (wt === state.worktree) checkout(root, state, on);
   const lane = on === state.trunk ? 'trunk' : on;
-  const digest = buildDigest({ spec, specProse: prose, state, results: readResults(root, slug), lane, solutions: lane === 'trunk' ? solutionsFor(root, spec) : [] });
   // A worktree that holds an edit from before a stop is a prepared trial: `trial` measures it.
   const paths = dirtyPaths(wt);
+  // A new proposer of a lane releases the claims that the last proposer of the lane left with no trial.
+  const ideas = paths.length ? readIdeas(root, slug) : withIdeas(root, slug, (book) => {
+    book.ideas = book.ideas.filter((i) => !(i.claim === on && i.status === 'open' && !i.trials.length));
+    for (const i of book.ideas) if (i.claim === on) i.claim = null;
+    return book;
+  });
+  const digest = buildDigest({ spec, specProse: prose, state, results: readResults(root, slug), lane, solutions: lane === 'trunk' ? solutionsFor(root, spec) : [], ideas, profile: readProfile(root, slug) });
   // The start of the proposer of this lane: `trial` records the time from here to the measurement.
   // Each lane has a file of its own, because proposers run while a trial writes state.json.
   if (!paths.length) writeAtomic(proposeStamp(root, slug, laneTagOf(state, on)), `${JSON.stringify({ at: Date.now() })}\n`);
@@ -438,7 +485,7 @@ function probeLane(state, f) {
   return lane;
 }
 
-function probeOpen(root, slug, f) {
+function probeOpen(root, slug, f, { locked = false } = {}) {
   const state = readState(root, slug);
   if (!state) throw new Error('no baseline: run baseline first');
   const { spec } = loadSpec(root, slug);
@@ -453,13 +500,13 @@ function probeOpen(root, slug, f) {
   }
   gitOk(root, ['worktree', 'add', '-q', '--detach', wt, best.commit], 'worktree add');
   if (spec.setup) {
-    // The setup loads the machine, so it runs under the lock too.
-    const l = waitLock(root, slug, spec, lane, 'probe', () => true);
+    // The setup loads the machine, so it runs under the lock too. A caller that holds the lock passes locked.
+    const l = locked ? { ok: true } : waitLock(root, slug, spec, lane, 'probe', () => true);
     if (!l.ok) return l;
     try {
       const r = runCommand(spec.setup, wt, 60 * 60_000, probeEnvOf(state, spec));
       if (r.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${r.code})`, output: tail(r.stdout + r.stderr) };
-    } finally { dropLock(root, slug); }
+    } finally { if (!locked) dropLock(root, slug); }
   }
   return { ok: true, lane, worktree: wt, commit: best.commit, fresh: true };
 }
@@ -482,6 +529,67 @@ function probe(root, slug, f) {
     appendResult(root, slug, { event: 'probe', lane: tag, label, code: r.code, ms: r.ms, ...(r.timedOut ? { timedOut: true } : {}) });
     return { ok: true, lane, worktree: wt, code: r.code, timedOut: r.timedOut, ms: r.ms, output: tail(r.stdout + r.stderr, 80) };
   } finally { dropLock(root, slug); }
+}
+
+// ---------------------------------------------------------------------------
+// ideas and the profile (G1, G2)
+// ---------------------------------------------------------------------------
+function ideaClaim(root, slug, f) {
+  const state = readState(root, slug);
+  if (!state) throw new Error('no baseline: run baseline first');
+  const lane = probeLane(state, f);
+  const res = withIdeas(root, slug, (book) => claimIdea(book, { lane, target: f.target === true ? '' : f.target, family: f.family === true ? '' : f.family, again: typeof f.again === 'string' ? f.again : null }));
+  return res.ok ? { ok: true, lane, idea: res.idea } : { ok: false, refused: true, error: res.reason, idea: res.idea ?? null };
+}
+
+/** Write the profile, and keep the instrumentation of the trunk probe worktree as a patch for the next profile. */
+function saveProfile(root, slug, state, entries, source) {
+  const at = nowIso();
+  writeAtomic(profileFile(root, slug), `${JSON.stringify({ commit: state.best.commit, at, trial: state.counters.trials, source, entries }, null, 2)}\n`);
+  const wt = probePath(state, 'trunk');
+  if (source === 'agent' && existsSync(wt)) {
+    const d = git(wt, ['diff']).out;
+    if (d) writeFileSync(profilePatch(root, slug), `${d}\n`);
+  }
+  state.profile = { commit: state.best.commit, at, trial: state.counters.trials, source, entries: entries.length };
+  appendResult(root, slug, { event: 'profile', commit: state.best.commit, source, entries: entries.length, top: entries.slice(0, 5).map((e) => `${e.name} ${Math.round(e.share * 1000) / 10}%`) });
+  saveState(root, slug, state);
+}
+
+/** `profile`: run the profile command of the spec in the probe worktree of the trunk. */
+function profileRun(root, slug) {
+  requireNext(root, slug, 'profile');
+  const state = readState(root, slug);
+  const { spec } = loadSpec(root, slug);
+  if (spec.profile === 'agent') throw new Error('the spec names the profiler agent: the agent writes the profile with profile-record');
+  const open = probeOpen(root, slug, { on: 'trunk' }, { locked: true });
+  if (!open.ok) return open;
+  const r = runCommand(spec.profile, open.worktree, spec.budget.trialTimeoutMs, probeEnvOf(state, spec));
+  if (r.code !== 0) return { ok: false, error: `the profile command failed (exit ${r.code})`, output: tail(r.stdout + r.stderr) };
+  const { entries, errors } = parseProfile(profileLines(r.stdout));
+  if (!entries.length) return { ok: false, error: `the profile command printed no entry${errors.length ? `: ${errors[0]}` : ''}`, output: tail(r.stdout) };
+  saveProfile(root, slug, state, entries, 'command');
+  return { ...optimizeStatus(root, slug), ok: true, entries: entries.length, top: entries.slice(0, 5) };
+}
+
+/** `profile-record`: the profiler agent writes its profile, or skips it with a reason. */
+function profileRecord(root, slug, f) {
+  requireNext(root, slug, 'profile');
+  const state = readState(root, slug);
+  if (typeof f.skip === 'string' && f.skip.trim()) {
+    state.profile = { commit: state.best.commit, at: nowIso(), trial: state.counters.trials, source: 'skipped', entries: 0, skipped: f.skip.trim() };
+    appendResult(root, slug, { event: 'profile', commit: state.best.commit, source: 'skipped', reason: f.skip.trim() });
+    saveState(root, slug, state);
+    return { ...optimizeStatus(root, slug), ok: true, skipped: true };
+  }
+  const file = typeof f.file === 'string' ? resolve(root, f.file) : null;
+  if (!file || !existsSync(file)) throw new Error('profile-record needs --file <json> with the entries, or --skip "<reason>"');
+  let input;
+  try { input = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { throw new Error(`the profile file does not parse: ${e.message}`); }
+  const { entries, errors } = parseProfile(input);
+  if (!entries.length) return { ok: false, error: `the profile holds no valid entry${errors.length ? `: ${errors[0]}` : ''}` };
+  saveProfile(root, slug, state, entries, 'agent');
+  return { ...optimizeStatus(root, slug), ok: true, entries: entries.length, ignored: errors.length };
 }
 
 /** Remove the probe worktree of each tag. The instrumentation in it is reset first, so git removes it without --force. */
@@ -531,8 +639,19 @@ function trial(root, slug, id, f) {
     try { line.prepareMs = Date.now() - JSON.parse(readFileSync(stamp, 'utf8')).at; } catch { /* no time */ }
     rmSync(stamp, { force: true });
   }
+  // The idea of the trial: --idea, or the claim in flight of its lane (a trial that waited through a stop).
+  const ideaId = typeof f.idea === 'string' && f.idea ? f.idea : readIdeas(root, slug).ideas.find((i) => i.claim === laneName)?.id ?? null;
+  if (ideaId) line.idea = ideaId;
   const finish = (verdict, extra = {}) => {
     Object.assign(line, { verdict, ...extra });
+    // A kept change, and a reverted change with a real gain, keep their diff: a port or a bundle can use it (G4).
+    const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
+    if (keepPatch) {
+      mkdirSync(patchesDir(root, slug), { recursive: true });
+      writeFileSync(join(patchesDir(root, slug), `${n}.patch`), git(wt, ['diff', `${line.commit}~1`, line.commit]).out + '\n');
+      line.patch = `patches/${n}.patch`;
+    }
+    if (ideaId) withIdeas(root, slug, (book) => settleIdea(book, ideaId, { trial: n, verdict, gain: line.delta, patch: keepPatch }));
     if (verdict !== 'kept') resetTo(root, wt, best.commit);
     state.counters.trials = n;
     if (isTrunk) {
@@ -1092,6 +1211,9 @@ export function main(argv = process.argv.slice(2)) {
       case 'cleanup': out = cleanup(root, slug); break;
       case 'probe-open': out = probeOpen(root, slug, f); break;
       case 'probe': out = probe(root, slug, f); break;
+      case 'idea-claim': out = ideaClaim(root, slug, f); break;
+      case 'profile': out = withLock(root, slug, null, () => profileRun(root, slug)); break;
+      case 'profile-record': out = profileRecord(root, slug, f); break;
       default: out = null;
     }
   } catch (e) {
