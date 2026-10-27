@@ -58,6 +58,69 @@ test('setSuite writes the command and the estimate, keeps a measured time, and m
   } finally { f.done(); }
 });
 
+test('discoverHookCommands reads a lefthook.yml pre-push command and the other hook sources', async () => {
+  const { discoverHookCommands, suiteOfCommand } = await import('../../lib/repo-hooks.mjs');
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'lefthook.yml'), [
+      'pre-push:',
+      '  parallel: true',
+      '  commands:',
+      '    coverage:',
+      '      run: npm run coverage -- --ci',
+      '    off:',
+      '      skip: true',
+      '      run: npm run never',
+      '  jobs:',
+      '    - group:',
+      '        jobs:',
+      '          - run: npm run e2e',
+      'pre-commit:',
+      '  commands:',
+      '    fmt:',
+      '      run: npx prettier --check {staged_files}',
+      '',
+    ].join('\n'));
+    mkdirSync(path.join(f.root, '.husky'));
+    writeFileSync(path.join(f.root, '.husky', 'pre-push'), '#!/usr/bin/env sh\n. "$(dirname -- "$0")/_/husky.sh"\n\nnpm run lint \\\n  --max-warnings 0\n');
+    writeFileSync(path.join(f.root, '.pre-commit-config.yaml'), 'repos:\n  - repo: local\n    hooks:\n      - id: tests\n        entry: pytest -q\n        language: system\n        stages: [pre-push]\n      - id: black\n');
+    mkdirSync(path.join(f.root, '.git', 'hooks'), { recursive: true });
+    writeFileSync(path.join(f.root, '.git', 'hooks', 'pre-push'), '#!/bin/sh\nset -e\n./gradlew check\nexit 0\n');
+    writeFileSync(path.join(f.root, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\n# lefthook writes this file\nlefthook run pre-commit\n');
+    assert.deepEqual(discoverHookCommands(f.root), [
+      { hook: 'pre-push', command: 'npm run coverage -- --ci', source: 'lefthook.yml' },
+      { hook: 'pre-push', command: 'npm run e2e', source: 'lefthook.yml' },
+      { hook: 'pre-commit', command: 'npx prettier --check {staged_files}', source: 'lefthook.yml' },
+      { hook: 'pre-push', command: 'npm run lint --max-warnings 0', source: '.husky/pre-push' },
+      { hook: 'pre-push', command: 'pre-commit run --hook-stage pre-push --all-files tests', source: '.pre-commit-config.yaml' },
+      { hook: 'pre-commit', command: 'pre-commit run --hook-stage pre-commit --all-files black', source: '.pre-commit-config.yaml' },
+      { hook: 'pre-push', command: './gradlew check', source: '.git/hooks/pre-push' },
+    ]);
+    const profile = { fast: { command: 'npm test' }, heavy: { command: 'npm run e2e && npm run  coverage -- --ci' } };
+    assert.equal(suiteOfCommand(profile, 'npm run coverage -- --ci'), 'heavy');
+    assert.equal(suiteOfCommand(profile, 'npm test'), 'fast');
+    assert.equal(suiteOfCommand(profile, './gradlew check'), null);
+    const empty = fixture();
+    try { assert.deepEqual(discoverHookCommands(empty.root), []); } finally { empty.done(); }
+  } finally { f.done(); }
+});
+
+test('wf.mjs profile hooks and doctor: a pre-push command in no suite warns; in a suite it does not', () => {
+  const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 30 } } });
+  const cli = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), ...a], { encoding: 'utf8' });
+  try {
+    assert.equal(cli('doctor', f.root).stdout.trim(), 'ok: every pre-push command is in a suite');
+    assert.equal(cli('profile', 'hooks', f.root).stdout.trim(), 'no push or commit hook');
+    writeFileSync(path.join(f.root, 'lefthook.yml'), 'pre-push:\n  commands:\n    unit:\n      run: npm test\n    cov:\n      run: npm run coverage\n');
+    assert.equal(cli('profile', 'hooks', f.root).stdout.trim(), 'pre-push: `npm test` (lefthook.yml) — in fast\npre-push: `npm run coverage` (lefthook.yml) — in no suite');
+    const doc = cli('doctor', f.root);
+    assert.equal(doc.status, 0);
+    assert.equal(doc.stdout.trim(), 'warn: the pre-push command `npm run coverage` of lefthook.yml is in no suite of the test profile; add it to the heavy suite with profile set');
+    cli('profile', 'set', f.root, 'heavy', '--command', 'npm run coverage', '--estimate', '10800');
+    assert.deepEqual(JSON.parse(cli('doctor', f.root, '--json').stdout), { ok: true, warnings: [] });
+  } finally { f.done(); }
+});
+
 test('wf.mjs profile: show, record and timebox', () => {
   const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 30 }, affected: { command: 'npm test -- {files}', estimateSeconds: 300 } } });
   const cli = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', ...a], { encoding: 'utf8' });

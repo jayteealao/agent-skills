@@ -25,6 +25,8 @@ const SYNCED = {
 };
 // Dot files of the plugin that live outside the workflow folders.
 const ELSEWHERE = new Set(['.release.json', '.v10-cleanup.json', '.meta.json', '.campaign-journal.jsonl']);
+// Dot files of the repo that the plugin reads and never writes: the hook configs (lib/repo-hooks.mjs).
+const READ_ONLY = new Set(['.lefthook.yaml', '.pre-commit-config.yaml']);
 
 function sources(dir, out = []) {
   for (const e of readdirSync(dir)) {
@@ -44,7 +46,7 @@ test('every dot file that the plugin writes is on the local list, on the synced 
     }
   }
   for (const n of names) {
-    const known = Object.hasOwn(LOCAL_ONLY_ENTRIES, n) || Object.hasOwn(SYNCED, n) || ELSEWHERE.has(n);
+    const known = Object.hasOwn(LOCAL_ONLY_ENTRIES, n) || Object.hasOwn(SYNCED, n) || ELSEWHERE.has(n) || READ_ONLY.has(n);
     assert.ok(known, `${n}: add it to LOCAL_ONLY_ENTRIES (lib/records-root.mjs) or to SYNCED here, with its reason`);
   }
   for (const n of Object.keys(LOCAL_ONLY_ENTRIES)) assert.equal(isLocalOnly(`w1/${n}`), true, n);

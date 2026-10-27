@@ -57,6 +57,10 @@
  *             queue one progress edit for each workflow of the project, so a workflow from
  *             before the layer gets its issue; an issue that another machine made is reused
  *             Example: wf.mjs gh backfill .
+ *   doctor   <root> [--json]
+ *             the checks of a project: a warn: line for each pre-push command that is in no suite
+ *             of the test profile; exit 0
+ *             Example: wf.mjs doctor .
  *   setup    <root> [--about "<one line>"] [--ignore] [--json]
  *             the first-run setup: the .ai/ tree, the project line, the merge method and the gaps
  *             of ship (--ignore: add .ai/ to .gitignore, after the person said yes)
@@ -168,6 +172,10 @@
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
  *             Example: wf.mjs profile timebox . verify
+ *   profile  hooks <root> [--json]
+ *             each command of the pre-push and pre-commit hooks of the repo (lefthook.yml,
+ *             .husky/, .pre-commit-config.yaml, .git/hooks), its file and the suite that runs it
+ *             Example: wf.mjs profile hooks .
  *   progress set <root> <slug> [--stage s] [--slice x] [--status running|waiting|stopped|done]
  *                [--run id] [--driver d] [--reason r] [--resume cmd]
  *             write progress.json: where a run stands
@@ -303,6 +311,7 @@ import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
 import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
+import { hookSuites } from '../lib/repo-hooks.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
@@ -724,7 +733,7 @@ export function runStep(pos, opt) {
 
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
-  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox> <root> are required');
+  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox|hooks> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'show') {
     const p = readProfile(projectRoot);
@@ -762,6 +771,12 @@ export function runProfile(pos, opt) {
     const suites = STAGE_SUITES[a] ?? [];
     const box = timeBox(readProfile(projectRoot), suites, { workSeconds: Number(opt.work ?? 0) || 0 });
     out(opt.json ? { stage: a, suites, ...box } : `${a}: ${Math.round(box.seconds / 60)} minutes${box.from.length ? ` (${box.from.join(', ')})` : ' (no suite time; the floor)'}`);
+    return 0;
+  }
+  if (verb === 'hooks') {
+    const hooks = hookSuites(projectRoot, readProfile(projectRoot));
+    const line = (h) => `${h.hook}: \`${h.command}\` (${h.source}) — ${h.suite ? `in ${h.suite}` : 'in no suite'}`;
+    out(opt.json ? hooks : hooks.length ? hooks.map(line).join('\n') : 'no push or commit hook');
     return 0;
   }
   throw new Error(`profile: unknown verb ${verb}`);
@@ -1439,6 +1454,16 @@ async function runMain(cmd, pos, opt) {
           ...Object.entries(r.renamed).map(([k, v]) => `${r.check ? 'would set' : 'set'} ${k}=${v === null ? '(removed)' : v}`),
         ];
         out(lines.join('\n') || 'nothing to convert');
+        return 0;
+      }
+      case 'doctor': {
+        // The checks of a project. A pre-push command that no suite runs is first seen at the push.
+        const [root] = pos;
+        if (!root) throw new Error('doctor: <root> is required');
+        const projectRoot = resolve(root);
+        const loose = hookSuites(projectRoot, readProfile(projectRoot)).filter((h) => h.hook === 'pre-push' && !h.suite);
+        const warnings = loose.map((h) => `the pre-push command \`${h.command}\` of ${h.source} is in no suite of the test profile; add it to the heavy suite with profile set`);
+        out(opt.json ? { ok: !warnings.length, warnings } : warnings.length ? warnings.map((w) => `warn: ${w}`).join('\n') : 'ok: every pre-push command is in a suite');
         return 0;
       }
       case 'setup': {

@@ -4,11 +4,13 @@ description: The first-run setup of a repo. The first /wf key in a repo with no 
 
 # First-run setup
 
-The dispatch prints `first-run: reference/setup.md` when the repo has no `.ai/` folder. Run these steps once, then run the key that the person typed. Keep the setup short: two questions at most, then one more for each of Steps 5 and 6 that applies.
+The dispatch prints `first-run: reference/setup.md` when the repo has no `.ai/` folder. Run these steps once, then run the key that the person typed. Keep the setup short: one question round of two questions, three when the repo has a push hook, then one more question for each of Steps 5 and 6 that applies.
 
 ## Step 1 — Read the repo
 
 Read the manifests and the test tooling of the repo, per [intake/default/_stack-fingerprint.md](intake/default/_stack-fingerprint.md). From them, write one line about what the repo is, and estimate the commands of the four suites, per the table of [intake/default.md](intake/default.md) Step 0.6. Run no suite.
+
+Then run `node "<skill-dir>/scripts/wf.mjs" profile hooks "<projectRoot>"`. It reads `lefthook.yml`, `.husky/`, `.pre-commit-config.yaml` and `.git/hooks/`, and prints each command of the pre-push and pre-commit hooks, with its file and the suite that runs it. For each `pre-push:` line that says `in no suite`, estimate the time of the command from what it runs: a coverage pass or an end-to-end run takes minutes or hours. Run no hook command. A command that is the same as one of your estimated suite commands is that suite already: do not add it again.
 
 ## Step 2 — Ask the person
 
@@ -16,15 +18,18 @@ Ask in one question round, per [_gate-question.md](_gate-question.md):
 
 1. "This repo is <your line>. Is that right?" The answers are your line and a field for the person's own line.
 2. "These commands test the repo: <fast>, <affected>, <full>, <heavy>. Are they right?" The answers are the commands and a field for corrections. Omit a suite that the repo does not have.
+3. Only when Step 1 found a pre-push command in no suite: "The push hook runs <command> (<file>, about <estimate>). Add it to the `heavy` suite, so that the review runs it once per packet before the push?" Name each such command with its estimate. The answers are yes, no, and a field for corrections.
 
 ## Step 3 — Write the setup
 
 1. Run `node "<skill-dir>/scripts/wf.mjs" setup "<projectRoot>" --about "<the confirmed line>"`. The command makes `.ai/workflows/` and `.ai/sdlc-config.json`, then prints the merge method of GitHub, the gaps of ship, and whether git ignores `.ai/`.
-2. For each confirmed suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`.
+2. For each confirmed suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. When the person said yes to the push hook, the `heavy` command is the heavy command of question 2, when there is one, and each confirmed pre-push command, joined by ` && `. Its estimate is the sum of their estimates.
 
 ## Step 4 — Report the facts
 
 Tell the person the merge method in one line. Give each `gap:` line as a task for the person, with the command that closes it. A gap does not stop the key: ship asks again before it needs the fact.
+
+Then run `node "<skill-dir>/scripts/wf.mjs" doctor "<projectRoot>"`. Each `warn:` line names a pre-push command that no suite runs, because the person said no to it. Tell the person in one line that the push runs it, and that no stage runs it before the push.
 
 ## Step 5 — The `.ai/` folder and git
 
