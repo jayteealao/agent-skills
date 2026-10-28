@@ -5,6 +5,30 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.9] - 2026-10-28
+
+- feat(sdlc-workflow): a delegated campaign walk starts the next packet while one waits on the person
+- feat(sdlc-workflow): each yolo launch asks how the run settles the decisions of the person
+- feat(sdlc-workflow): an xs or s slice verifies in its implement agent
+- fix(sdlc-workflow): the watch clear keeps a stop request made after the run ended
+- fix(sdlc-workflow): the write and shell guard runs faster and has 10 seconds
+- fix(sdlc-workflow): an optimize proposer past twice its propose-time gets no more probes
+- fix(sdlc-workflow): the clear after a stop keeps a stop request made after the run ended
+- fix(sdlc-workflow): the consent check accepts a question with added words
+- feat(sdlc-workflow): a passing suite run records the commit that it checked
+- perf(sdlc-workflow): slice stages run only their own checks and reuse runtime evidence
+- perf(sdlc-workflow): verify does not run again when nothing changed
+- feat(sdlc-workflow): a slice that only waits on runtime evidence counts as built
+- fix(sdlc-workflow): a step commit names the product change, not the internal work
+- fix(sdlc-workflow): the orient schema accepts null for an open deferral
+- fix(sdlc-workflow): a squash in the campaign migration keeps the step ledger
+- fix(sdlc-workflow): remove-worktree knows an older copy of a record
+- fix(sdlc-workflow): the campaign migration commits no scratch files
+- feat(sdlc-workflow): the test receipt names unrelated changes instead of refusing
+- feat(sdlc-workflow): setup reads the repo's push hooks into the heavy suite
+- fix(sdlc-workflow): the yolo watch wakes the session only for news
+- feat(sdlc-workflow): the review fixes every finding in place, one commit at a time
+
 ## [10.0.0-next.8] - 2026-10-27
 
 - fix(sdlc-workflow): a records push or fetch is not cut after 20 seconds
