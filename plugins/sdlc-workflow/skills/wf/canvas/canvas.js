@@ -119,7 +119,12 @@
     const pos = {};
     const labels = [];
     const groupKey = ui.view === 'flow' ? (s) => s.flow || 'No flow' : (s) => s.area || 'No area';
-    const groups = [...new Set(list.map(groupKey))];
+    // Areas follow the manifest's list, the order of the product's navigation. A flow follows
+    // the area of its first screen. A screen with no area or no flow goes last.
+    const areaRank = (a) => { const i = (data.areas || []).indexOf(a); return i < 0 ? (a ? 1e6 : 2e6) : i; };
+    const first = (g) => list.filter((s) => groupKey(s) === g).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))[0];
+    const rank = (g) => (ui.view === 'flow' ? (g === 'No flow' ? 3e6 : areaRank(first(g).area) * 1000 + (first(g).order ?? 999)) : areaRank(g === 'No area' ? null : g));
+    const groups = [...new Set(list.map(groupKey))].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
     groups.forEach((g, gi) => {
       const members = list.filter((s) => groupKey(s) === g).sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.key.localeCompare(b.key));
       if (ui.view === 'flow') {
@@ -135,6 +140,8 @@
   }
 
   function render() {
+    // A resize can come before the data does.
+    if (!data) return;
     const board = $('#board');
     const edges = $('#edges');
     board.replaceChildren(edges);
@@ -249,21 +256,34 @@
     ui.y = pad - y0 * ui.zoom;
     place();
   }
+  // A drag pans from anywhere on the board, a screen too: only a card's caption moves the card.
+  // A press that moves less than PAN_SLOP px stays a click, so a tap on a screen still opens it.
+  const PAN_SLOP = 4;
   function panZoom() {
     const stage = $('#stage');
     const pointers = new Map();
     let start = null;
+    let panned = false;
     stage.addEventListener('pointerdown', (e) => {
-      if (phone() || e.target.closest('.card')) return;
-      stage.setPointerCapture(e.pointerId);
+      if (phone() || e.target.closest('.card .cap') || (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1)) return;
+      // No text selection and no native drag: they show the not-allowed cursor and steal the move.
+      if (e.pointerType === 'mouse') e.preventDefault();
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       start = { x: ui.x, y: ui.y, zoom: ui.zoom, pts: [...pointers.values()].map((p) => ({ ...p })) };
-      stage.classList.add('panning');
+      panned = false;
     });
     stage.addEventListener('pointermove', (e) => {
       if (!pointers.has(e.pointerId) || !start) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const pts = [...pointers.values()];
+      if (!panned) {
+        const far = pts.length > 1 || Math.hypot(pts[0].x - start.pts[0].x, pts[0].y - start.pts[0].y) >= PAN_SLOP;
+        if (!far) return;
+        // Capture only once the press is a drag, so a click on a screen still reaches it.
+        panned = true;
+        for (const id of pointers.keys()) { try { stage.setPointerCapture(id); } catch { /* it ended */ } }
+        stage.classList.add('panning');
+      }
       if (pts.length === 1 && start.pts.length === 1) {
         ui.x = start.x + pts[0].x - start.pts[0].x;
         ui.y = start.y + pts[0].y - start.pts[0].y;
@@ -280,11 +300,24 @@
     };
     stage.addEventListener('pointerup', end);
     stage.addEventListener('pointercancel', end);
+    // The click that ends a pan opens nothing.
+    stage.addEventListener('click', (e) => { if (panned) { e.stopPropagation(); e.preventDefault(); panned = false; } }, true);
+    stage.addEventListener('dragstart', (e) => e.preventDefault());
+    // The wheel and a two-finger trackpad move pan; a pinch or Ctrl or Cmd with the wheel zooms.
     stage.addEventListener('wheel', (e) => {
       if (phone()) return;
       e.preventDefault();
       const r = stage.getBoundingClientRect();
-      zoomTo(ui.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+      if (e.ctrlKey || e.metaKey) {
+        // A pinch sends small steps, a mouse wheel large ones: both zoom at a similar pace.
+        const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+        zoomTo(ui.zoom * Math.exp(-dy * (Math.abs(dy) < 50 ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+        return;
+      }
+      const k = e.deltaMode === 1 ? 16 : 1;
+      ui.x -= (e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * k;
+      ui.y -= (e.shiftKey && !e.deltaX ? 0 : e.deltaY) * k;
+      place();
     }, { passive: false });
   }
 
@@ -292,6 +325,7 @@
   function dragCard(handle, card, s) {
     handle.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
+      if (e.pointerType === 'mouse') e.preventDefault();
       handle.setPointerCapture(e.pointerId);
       const sx = e.clientX; const sy = e.clientY;
       const ox = parseFloat(card.style.left); const oy = parseFloat(card.style.top);
@@ -302,12 +336,14 @@
       const up = () => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
         s.position = { x: Math.round(parseFloat(card.style.left)), y: Math.round(parseFloat(card.style.top)) };
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveLayout, 600);
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
     });
   }
   /** Put every screen back in its column, and save those places. */
@@ -336,6 +372,27 @@
     drawFocus();
     $('#focus').hidden = false;
     $('#focus .close')?.focus();
+  }
+  /**
+   * The screens in the order of the board: by area column (or flow row), then in flow order.
+   * With a filter, only the screens that match it; the open screen always stays in the walk.
+   */
+  function walk() {
+    const { pos } = autoLayout(data.screens);
+    const shown = data.screens.filter((s) => matches(s) || s.key === focusState?.key);
+    const list = shown.length > 1 ? shown : data.screens;
+    const by = ui.view === 'flow' ? ['y', 'x'] : ['x', 'y'];
+    return [...list].sort((a, b) => pos[a.key][by[0]] - pos[b.key][by[0]] || pos[a.key][by[1]] - pos[b.key][by[1]]);
+  }
+  /** Open the screen `step` places away in the walk, with the same viewport, state and toggles. */
+  function step(by) {
+    const list = walk();
+    if (list.length < 2) return;
+    const i = list.findIndex((s) => s.key === focusState.key);
+    const next = list[(i + by + list.length) % list.length];
+    focusState = { ...focusState, key: next.key, compare: '', commenting: false };
+    drawFocus();
+    $(`#focus [data-step="${by}"]`)?.focus();
   }
   function closeFocus() {
     $('#focus').hidden = true;
@@ -406,6 +463,17 @@
       newThread({ x, y, selector, state: f.state, viewport: f.viewport });
     });
     view.append(live);
+    // On a touch screen, a sideways swipe over the screens walks to the next or the previous one.
+    let swipe = null;
+    view.addEventListener('pointerdown', (e) => { swipe = e.pointerType !== 'mouse' && !f.commenting ? { x: e.clientX, y: e.clientY } : null; });
+    view.addEventListener('pointercancel', () => { swipe = null; });
+    view.addEventListener('pointerup', (e) => {
+      if (!swipe) return;
+      const dx = e.clientX - swipe.x;
+      const dy = e.clientY - swipe.y;
+      swipe = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+    });
     if (f.compare) view.append(shot(`At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
     if (f.capture) {
       const approval = (s.approvals || []).at(-1);
@@ -415,8 +483,16 @@
     }
     const versions = [...(s.approvals || []).map((a) => [a.commit, `Approved ${String(a.at).slice(0, 10)}`]),
       ...(s.history || []).filter((c) => !(s.approvals || []).some((a) => a.commit === c.commit)).map((c) => [c.commit, `${String(c.at).slice(0, 10)}: ${c.subject}`])];
+    const order = walk();
+    const at = order.findIndex((x) => x.key === s.key);
+    const near = (by) => order[(at + by + order.length) % order.length];
+    const stepper = order.length > 1 ? h('div', { class: 'stepper', role: 'group', 'aria-label': 'Screens' },
+      h('button', { type: 'button', 'data-step': '-1', 'aria-label': `Previous screen: ${near(-1).title}`, title: `${near(-1).title} (←)`, onclick: () => step(-1) }, '‹'),
+      h('span', { class: 'pos' }, `${at + 1} of ${order.length}`),
+      h('button', { type: 'button', 'data-step': '1', 'aria-label': `Next screen: ${near(1).title}`, title: `${near(1).title} (→)`, onclick: () => step(1) }, '›')) : null;
     const header = h('header', {},
       h('h2', {}, s.title, h('small', {}, metaOf(s))),
+      stepper,
       h('button', { type: 'button', class: 'close', onclick: closeFocus, 'aria-label': 'Close' }, '×'));
     const tools = h('div', { class: 'tools' },
       segOf(Object.keys(data.viewports), f.viewport, (v) => { f.viewport = v; drawFocus(); }, 'Viewport'),
@@ -619,6 +695,13 @@
     $('#arrange').addEventListener('click', arrange);
     document.addEventListener('click', (e) => { if (!e.target.closest('#filters')) $('#filters').open = false; });
     document.addEventListener('keydown', (e) => {
+      // The arrow keys walk the screens in the screen view, unless a field or a control has the key.
+      if (focusState && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey && !e.ctrlKey && !e.metaKey
+        && !e.target.closest?.('input, textarea, select, [contenteditable]')) {
+        e.preventDefault();
+        step(e.key === 'ArrowLeft' ? -1 : 1);
+        return;
+      }
       if (e.key !== 'Escape') return;
       if (focusState) closeFocus();
       else if ($('#filters').open) $('#filters').open = false;

@@ -71,7 +71,7 @@ Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the r
 
 Draw the whole feature, not one slice. Every surface in the brief's content inventory is a screen, and every screen has the five states of [_surface.md](_surface.md). The `worst` state holds the worst-case content of [harden.md](harden.md) → Worst-case content. For a terminal surface (command-line output or a terminal interface), the `worst` state holds the height budget of `_platforms.md` → Terminal.
 
-1. For each new screen, run `<wf> design screen add <root> <key> --title "<title>" --area <area> --flow <flow> --order <n> --workflow <slug> [--slice <slice>]`, then write the page. For each existing screen that this workflow changes, run `<wf> design screen add <root> <key> --workflow <slug>`, then change the page in place.
+1. Choose the area, flow and order of each new screen per [_surface.md](_surface.md) → Arranging the screens. When the workflow adds an area, set the order of the areas with `<wf> design areas`. For each new screen, run `<wf> design screen add <root> <key> --title "<title>" --area <area> --flow <flow> --order <n> --workflow <slug> [--slice <slice>]`, then write the page. For each existing screen that this workflow changes, run `<wf> design screen add <root> <key> --workflow <slug>`, then change the page in place.
 2. Make every step of a flow a link between screens, so the person can click through it. For `ux-impact: flow`, the flow of states is the form.
 3. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory. The inventory names the screen keys.
 

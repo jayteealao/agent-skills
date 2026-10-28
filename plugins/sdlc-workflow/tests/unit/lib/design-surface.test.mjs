@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addScreen, initSurface, linksOf, listScreens, readDesignRepos, screenTemplate, statesOf, tokensFromDesign, trackSurface } from '../../../lib/design-surface.mjs';
+import { addScreen, initSurface, linksOf, listScreens, readDesignRepos, readManifest, screenTemplate, setAreas, statesOf, tokensFromDesign, trackSurface } from '../../../lib/design-surface.mjs';
 import { addComment, commentsBrief, openThreads } from '../../../lib/design-records.mjs';
 
 const PLUGIN_ROOT = join(import.meta.dirname, '..', '..', '..');
@@ -54,6 +54,20 @@ test('a screen has the five states and links; the list filters one workflow', ()
     addScreen(root, 'basket', { workflow: 'w2', slice: 's1' });
     assert.deepEqual(listScreens(root, { workflow: 'w2' }).map((s) => [s.key, s.workflows]), [['basket', ['w1', 'w2']], ['pay', ['w2']]]);
     assert.throws(() => addScreen(root, 'Bad Key'), /kebab-case/);
+  } finally { done(); }
+});
+
+test('the order of the areas: the named areas first, then each area that a screen uses', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', { area: 'checkout' });
+    addScreen(root, 'home', { area: 'browse' });
+    addScreen(root, 'login', { area: 'shared' });
+    assert.deepEqual(readManifest(root).areas, ['checkout', 'browse', 'shared'], 'the order of the first screen of each area');
+    assert.deepEqual(setAreas(root, ['browse', 'orders', 'browse', ' ']), ['browse', 'orders', 'checkout', 'shared']);
+    assert.deepEqual(readManifest(root).areas, ['browse', 'orders', 'checkout', 'shared']);
+    assert.throws(() => setAreas(root, []), /at least one area/);
   } finally { done(); }
 });
 

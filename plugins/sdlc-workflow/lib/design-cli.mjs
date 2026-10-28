@@ -5,7 +5,7 @@ import { canvasState, snapshotHtml } from './design-state.mjs';
 import { failureLines, runChecks } from './design-check.mjs';
 import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
-import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
+import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, openThreads } from './design-records.mjs';
 import { migrateDesign } from './design-migrate.mjs';
@@ -17,9 +17,10 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   explore add <root> <key> [--title t] [--link slug]
   tokens <root>                                 write tokens.css from DESIGN.md
   track <root> [--check]                        keep .ai/design/ tracked in git
-  check <root> [key...] [--workflow slug]       contrast, target size, viewport fit, worst case, in each viewport and state
+  check <root> [key...] [--workflow slug]       the screen checks, in each viewport and state
   approve <root> <slug> [key...] [--slice s]    record the approval from the answer event: commit, pictures, 02c-craft.md
   viewports <root> [name=WxH...]                the viewports of the surface; with pairs, set them
+  areas <root> [area...]                        the areas in the order of the navigation; with names, set the order
   refs check <root>                             exit 1 when a reference is not a readable file in the repo
   refs add <root> <key> --file f [--kind k] [--link l] [--note n]
   comments <root> [key...] [--workflow slug]    the open comment threads, as untrusted data for a round
@@ -97,6 +98,12 @@ export async function runDesign(pos, opt, out) {
       const pairs = rest.slice(1);
       const v = pairs.length ? setViewports(projectRoot, Object.fromEntries(pairs.map((p) => { const i = p.indexOf('='); return i > 0 ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; }))) : readManifest(projectRoot).viewports;
       out(opt.json ? v : Object.entries(v).map(([n, s]) => `${n}=${s}`).join(' '));
+      return 0;
+    }
+    case 'areas': {
+      const names = rest.slice(1);
+      const a = names.length ? setAreas(projectRoot, names) : readManifest(projectRoot).areas ?? [];
+      out(opt.json ? a : a.join(' ') || 'no areas');
       return 0;
     }
     case 'refs': {

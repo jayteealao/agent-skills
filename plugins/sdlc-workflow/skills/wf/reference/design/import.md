@@ -47,7 +47,7 @@ Write `SOURCE.md` in the import folder for every import: what it is, where it ca
 
 ## Step 3 — Make the screens
 
-1. For each mapped screen, run `<wf> design screen add <root> <key> --title "<title>" --area <area> --flow <flow> --order <n> --workflow <slug>`.
+1. For each mapped screen, run `<wf> design screen add <root> <key> --title "<title>" --area <area> --flow <flow> --order <n> --workflow <slug>`, with the area, flow and order of [_surface.md](_surface.md) → Arranging the screens. Then set the order of the areas with `<wf> design areas`.
 2. An HTML page: copy its content into the state sections of the screen page, and keep its links to other screens working. A picture: put it in the state section as an image of the reference file, and say so in the caption; draw it as HTML before the approval when the person wants to click through it.
 3. Make sure each screen has the five states.
 4. Run `<wf> design check <root> --workflow <slug>`. Do not change an imported page beyond the five states. Name each check failure and each finding of the craft floor to the person at Step 5, with its screen key.

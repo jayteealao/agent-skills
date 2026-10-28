@@ -157,6 +157,20 @@ export function setViewports(root, viewports) {
   return m.viewports;
 }
 
+/**
+ * Set the order of the areas: the order of the product's main navigation. The canvas shows its
+ * columns in this order. An area that a screen uses and the list leaves out goes after the list.
+ */
+export function setAreas(root, areas) {
+  const list = [...new Set((areas ?? []).map((a) => String(a).trim()).filter(Boolean))];
+  if (!list.length) throw new Error('name at least one area, in the order of the navigation');
+  const m = readManifest(root);
+  const used = Object.values(m.screens).map((s) => s.area).filter(Boolean);
+  m.areas = [...list, ...[...new Set([...(m.areas ?? []), ...used])].filter((a) => !list.includes(a))];
+  writeManifest(root, m);
+  return m.areas;
+}
+
 /** The screens that `02c-craft.md` `screens:` approves but that have no page on the surface. */
 export function missingScreens(root, contract) {
   const keys = Array.isArray(contract?.screens) ? contract.screens : [];
