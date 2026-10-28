@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../../lib/design-surface.mjs';
+import { writeChecks } from '../../../lib/design-records.mjs';
 import { AUDIT_MODEL, auditPath, auditPrompt, buildAuditArgs, normalizeAudit, parseAuditAnswer, readAudit, startAudit } from '../../../lib/design-audit.mjs';
 
 function repo() {
@@ -37,8 +38,13 @@ test('the agent is Sonnet 5.5 with read tools only, no MCP server and the plan p
 test('the prompt names the screens, carries the audit rules and the platform map, and asks for JSON', () => {
   const { root, done } = repo();
   try {
+    assert.doesNotMatch(auditPrompt(root, { workflow: 'w1' }), /## The measured checks/, 'no section with no check run');
+    writeChecks(root, { at: '2026-10-28T10:00:00Z', passed: false, failures: [{ screen: 'basket', check: 'token', viewport: 'phone', state: 'default', message: 'The color #1a74e8 of .total is not a token', rect: null, move: 'colorize' }] });
     const p = auditPrompt(root, { workflow: 'w1' });
     assert.match(p, /`basket` \(Basket\): `\.ai\/design\/screens\/basket\.html`/);
+    assert.match(p, /## The measured checks[\s\S]*basket \(phone, default\): token: The color #1a74e8/);
+    assert.match(p, /`Color\(0xFF…\)` in Compose/);
+    assert.match(p, /`undefined`, `null`, `NaN`/);
     assert.match(p, /## Diagnostic Scan/);
     assert.match(p, /platform map/);
     assert.match(p, /```json/);

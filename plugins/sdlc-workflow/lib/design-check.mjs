@@ -1,6 +1,7 @@
-// The checks of the screens, before an approval: contrast, target size, viewport fit and
-// worst-case content, in each viewport and each state. A headless Chromium opens each screen
-// page over the DevTools protocol, and a script in the page measures it.
+// The checks of the screens, before an approval: contrast, target size, viewport fit,
+// worst-case content, display bugs, overlapping text, script errors and colors that are not
+// tokens, in each viewport and each state. A headless Chromium opens each screen page over the
+// DevTools protocol, and a script in the page measures it.
 //
 // Each failure names its screen, check, viewport and state, a message, the box of the element
 // on the page, and the move that fixes it. The result goes to `_design/checks.json` in the
@@ -12,10 +13,17 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { browserCandidates } from '../scripts/design-boards.mjs';
 import { readChecks, writeChecks } from './design-records.mjs';
-import { STATES, listScreens, parseViewport, readManifest, screenFile } from './design-surface.mjs';
+import { tokensOf } from './design-state.mjs';
+import { STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenFile, surfaceDir } from './design-surface.mjs';
 
-/** The check of a failure → the move that fixes it (design/<move>.md). */
-export const CHECK_MOVES = Object.freeze({ contrast: 'colorize', 'target-size': 'adapt', 'viewport-fit': 'layout', 'worst-case': 'harden', states: 'harden' });
+/**
+ * The check of a failure → the move that fixes it (design/<move>.md). A script error names no
+ * move: the screen page itself is broken.
+ */
+export const CHECK_MOVES = Object.freeze({
+  contrast: 'colorize', 'target-size': 'adapt', 'viewport-fit': 'layout', 'worst-case': 'harden', states: 'harden',
+  display: 'harden', overlap: 'layout', token: 'colorize', script: null,
+});
 /** One rule for target size: a pointer target is at least 24 by 24 CSS pixels. */
 export const MIN_TARGET = 24;
 const START_MS = 15000;
@@ -24,8 +32,9 @@ const MAX_PER_PAGE = 40;
 
 /* ───────────────────────── the page script ───────────────────────── */
 
-// Runs in the screen page. It returns `[{ check, message, rect, selector }]`.
-function pageChecks(minTarget, worst) {
+// Runs in the screen page. It returns `[{ check, message, rect, selector }]`. `tokens` are the
+// color tokens of the token sheet, `[{ name, value }]`, for the token check; empty skips it.
+function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
   const out = [];
   const canvas = document.createElement('canvas');
   canvas.width = 1; canvas.height = 1;
@@ -136,6 +145,89 @@ function pageChecks(minTarget, worst) {
       if (clipX || clipY) add('worst-case', el, `The content is cut off: ${el.scrollWidth}×${el.scrollHeight} px in a ${el.clientWidth}×${el.clientHeight} px box with hidden overflow`);
     }
   }
+
+  // Display bugs: the text of a missing value, and an image that does not load.
+  const texts = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+    const el = t.parentElement;
+    if (!el || !t.textContent.trim() || /^(SCRIPT|STYLE|CODE|PRE|KBD|SAMP|TEXTAREA)$/.test(el.tagName) || !shown(el)) continue;
+    texts.push(t);
+  }
+  const missing = new Set();
+  for (const t of texts) {
+    const m = /(^|[^\w])(undefined|null|NaN)(?!\w)|\[object Object\]/.exec(t.textContent);
+    if (m && !missing.has(t.parentElement)) {
+      missing.add(t.parentElement);
+      add('display', t.parentElement, `The text shows "${m[0].replace(/^[^\w[]/, '')}", the text of a missing value`);
+    }
+  }
+  for (const img of document.body.querySelectorAll('img[src]')) {
+    if (!img.getClientRects().length || !img.complete || img.naturalWidth > 0) continue;
+    add('display', img, `The image ${img.getAttribute('src').slice(0, 80)} does not load`);
+  }
+
+  // Overlap: two pieces of text whose lines cross. Each line of a text is its own box, so a
+  // text that wraps around another never counts.
+  const lines = texts.slice(0, 400).map((t) => {
+    const range = document.createRange();
+    range.selectNodeContents(t);
+    return { t, rects: [...range.getClientRects()].filter((r) => r.width > 1 && r.height > 1) };
+  });
+  const crossed = new Set();
+  for (let i = 0; i < lines.length && crossed.size < 10; i += 1) {
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const hit = lines[i].rects.some((a) => lines[j].rects.some((b) => {
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const hgt = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return w > 2 && hgt > 2 && w * hgt > 0.25 * Math.min(a.width * a.height, b.width * b.height);
+      }));
+      if (!hit || crossed.has(lines[j].t.parentElement)) continue;
+      crossed.add(lines[j].t.parentElement);
+      const words = (t) => `"${t.textContent.trim().slice(0, 30)}"`;
+      add('overlap', lines[j].t.parentElement, `The text ${words(lines[j].t)} overlaps the text ${words(lines[i].t)}`);
+      break;
+    }
+  }
+
+  // Tokens: a color written in the page, not taken from the token sheet.
+  const swatches = tokens.map((t) => ({ ...t, c: rgba(t.value) })).filter((t) => !/^var\(/.test(t.value));
+  if (swatches.length) {
+    const COLOR = /^(color|background-color|border-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)-color|outline-color|fill|stroke|box-shadow|text-shadow|text-decoration-color|caret-color|accent-color|column-rule-color)$/;
+    const RAW = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)/i;
+    const nearest = (c) => swatches.reduce((best, t) => {
+      const d = Math.hypot(c[0] - t.c[0], c[1] - t.c[1], c[2] - t.c[2], (c[3] - t.c[3]) * 255);
+      return !best || d < best.d ? { t, d } : best;
+    }, null).t;
+    const told = new Set();
+    const scan = (style, where, el) => {
+      for (let i = 0; i < style.length; i += 1) {
+        const prop = style[i];
+        const value = style.getPropertyValue(prop);
+        if (!COLOR.test(prop) || !value || value.includes('var(')) continue;
+        const raw = RAW.exec(value)?.[0];
+        if (!raw || told.has(`${where}|${raw}`)) continue;
+        told.add(`${where}|${raw}`);
+        // The browser writes every color as rgb(); an opaque one reads back as hex.
+        const c = rgba(raw);
+        const n = nearest(c);
+        add('token', el, `The ${prop} ${c[3] >= 1 ? hex(c) : raw} of ${where} is not a token; the nearest token is ${n.name} (${n.value})`);
+      }
+    };
+    const flat = (list) => [...list].flatMap((r) => (r.cssRules && !r.selectorText ? flat(r.cssRules) : [r]));
+    for (const sheet of document.styleSheets) {
+      if (sheet.href && /tokens\.css$/.test(sheet.href)) continue;
+      let list;
+      try { list = sheet.cssRules; } catch { continue; }
+      for (const r of flat(list)) {
+        if (!r.selectorText || !r.style) continue;
+        let el = null;
+        try { el = [...document.querySelectorAll(r.selectorText)].find(shown) ?? null; } catch { el = null; }
+        if (el) scan(r.style, r.selectorText, el);
+      }
+    }
+    for (const el of document.body.querySelectorAll('[style]')) if (shown(el)) scan(el.style, `the style of ${selector(el)}`, el);
+  }
   return out;
 }
 
@@ -186,6 +278,7 @@ class Cdp {
     this.id = 0;
     this.calls = new Map();
     this.waits = [];
+    this.listeners = [];
     ws.addEventListener('message', (e) => {
       const m = JSON.parse(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString('utf8'));
       if (m.id && this.calls.has(m.id)) {
@@ -194,6 +287,7 @@ class Cdp {
         if (m.error) no(new Error(m.error.message)); else ok(m.result);
         return;
       }
+      for (const l of this.listeners) l(m);
       this.waits = this.waits.filter((w) => !(w.method === m.method && w.session === m.sessionId && (w.ok(m.params), true)));
     });
   }
@@ -230,9 +324,22 @@ export async function openBrowser(root, { browser = checkBrowser(root) } = {}) {
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
     return r.result.value;
   };
+  // The errors of the page's own scripts since the last open: uncaught exceptions and console.error.
+  let errors = [];
+  cdp.listeners.push((m) => {
+    if (m.sessionId !== sessionId) return;
+    if (m.method === 'Runtime.exceptionThrown') {
+      const d = m.params.exceptionDetails;
+      errors.push(String(d.exception?.description ?? d.text ?? 'an uncaught exception').split('\n')[0].slice(0, 300));
+    } else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+      errors.push(m.params.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 300) || 'console.error');
+    }
+  });
   return {
     browser,
+    errors: () => errors.slice(),
     async open(url, { width, height }) {
+      errors = [];
       await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 }, sessionId);
       const loaded = cdp.once('Page.loadEventFired', sessionId);
       await cdp.send('Page.navigate', { url }, sessionId);
@@ -285,14 +392,25 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
   if (!b) {
     return { at: now.toISOString(), ran: false, reason: 'no browser can run the checks: install Chrome, Edge or Chromium, or set SDLC_BROWSER', passed: false, screens: screens.map((s) => s.key), failures };
   }
+  // The color tokens of the token sheet. The token check runs in the default state only: the
+  // styles of a page are the same in every state.
+  let tokens = [];
+  try { tokens = tokensOf(readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8')); } catch { tokens = []; }
   try {
     const script = `(${pageChecks.toString()})`;
     for (const s of screens.filter((x) => x.exists)) {
+      const scriptErrors = new Set();
       for (const vp of surfaceViewports(root)) {
         for (const state of s.states) {
           await b.open(screenUrl(root, s.key, state), vp);
-          const found = await b.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify(state === 'worst')})`);
+          const found = await b.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: state === 'default' ? tokens : [] })})`);
           for (const f of (found ?? []).slice(0, MAX_PER_PAGE)) failures.push({ screen: s.key, viewport: vp.name, state, ...f, move: CHECK_MOVES[f.check] ?? null });
+          // A script error is one failure of the screen, at the first viewport and state that shows it.
+          for (const message of b.errors?.() ?? []) {
+            if (scriptErrors.has(message)) continue;
+            scriptErrors.add(message);
+            failures.push({ screen: s.key, viewport: vp.name, state, check: 'script', message: `The page script fails: ${message}`, rect: null, selector: null, move: null });
+          }
         }
       }
     }

@@ -33,7 +33,10 @@
   const CAPTION_H = 64;
   const cap = (s) => (s ? `${String(s)[0].toUpperCase()}${String(s).slice(1)}` : '');
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-  const CHECK_NAMES = { contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states' };
+  const CHECK_NAMES = {
+    contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states',
+    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', script: 'Script error',
+  };
   const DIMENSION_NAMES = { accessibility: 'Accessibility', performance: 'Performance', theming: 'Theming', responsive: 'Responsive', integrity: 'Integrity' };
   /** The audit findings of one screen, when the last audit is done. */
   const auditOf = (key) => (audit?.status === 'done' ? (audit.findings || []).filter((f) => f.screen === key) : []);
@@ -441,7 +444,7 @@
       failures.length ? failures.map((x) => h('div', { class: 'check' },
         h('b', {}, CHECK_NAMES[x.check] || x.check),
         h('p', {}, x.message),
-        h('small', {}, `${list(x.viewports)}, ${x.state} state.${x.move ? ` The ${x.move} move fixes it.` : ''}`)))
+        h('small', {}, `${list(x.viewports)}, ${x.state} state.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
       findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));

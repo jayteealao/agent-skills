@@ -12,7 +12,8 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildClaudeEnv } from '../skills/consult/scripts/isolate.mjs';
-import { openBrowser, surfaceViewports } from './design-check.mjs';
+import { failureLines, openBrowser, surfaceViewports } from './design-check.mjs';
+import { readChecks } from './design-records.mjs';
 import { KEY_RE, STATES, listScreens, readManifest, screenFile, screenRel } from './design-surface.mjs';
 import { sdlcHomeDir } from './home.mjs';
 import { readDoc } from './records.mjs';
@@ -26,6 +27,7 @@ const MAX_TURNS = 80;
 const TIMEOUT_MS = 20 * 60 * 1000;
 const MAX_FINDINGS = 60;
 const MAX_CONTRACT = 24 * 1024;
+const MAX_MEASURED = 40;
 const DESIGN_REF = fileURLToPath(new URL('../skills/wf/reference/design/', import.meta.url));
 
 /** The report of one repo: under the SDLC home, never in the repo or its records. */
@@ -75,6 +77,8 @@ const readText = (file) => { try { return readFileSync(file, 'utf8'); } catch { 
 export function auditPrompt(root, { workflow = null } = {}) {
   const screens = listScreens(root, { workflow }).filter((s) => s.exists);
   const contract = workflow && existsSync(workflowDir(root, workflow)) ? readDoc(workflowDir(root, workflow), '02c-craft.md')?.body ?? '' : '';
+  const keys = new Set(screens.map((s) => s.key));
+  const measured = (readChecks(root)?.failures ?? []).filter((f) => keys.has(f.screen)).slice(0, MAX_MEASURED);
   return [
     'You audit the design of one product repo. You are read-only: you read files and change nothing. Write no file.',
     '',
@@ -87,12 +91,26 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '3. Read each screen page below. Each screen is an HTML mock with the states default, empty, loading, error and worst, each an element with `data-state`.',
     '4. Find the built UI code of each screen in the repo with Glob and Grep, and read it. When no built code exists, audit the screens only.',
     '5. Run the Diagnostic Scan of the audit rules below, sections 1 to 5, over the screens and the built code. Weigh most: a value that does not use a token, a target under the minimum of the platform, and drift from `DESIGN.md`.',
-    '6. Do not write the report of the audit rules. Return the JSON below instead.',
+    '6. Also find these faults in the built code, which the screen check measures only on the mocks:',
+    '   - a color written as a value, not taken from a token (a hex or rgb() literal in CSS, `Color(0xFF…)` in Compose, a hex brush in XAML); name the nearest token;',
+    '   - a value from data that can be missing and is shown with no fallback, so the UI can show `undefined`, `null`, `NaN` or `[object Object]`;',
+    '   - an image or asset path that names no file in the repo (check it with Glob);',
+    '   - text that can overlap other text: an absolute position, a negative margin, or a fixed height over content that can grow;',
+    '   - a script error: a call to a name that nothing defines, or an error that the code logs on a normal path.',
+    '7. Do not write the report of the audit rules. Return the JSON below instead.',
     '',
     '## The screens',
     '',
     ...(screens.length ? screens.map((s) => `- \`${s.key}\` (${s.title || s.key}): \`${screenRel(s.key)}\``) : ['- No screen page exists. Audit the built UI only.']),
     '',
+    ...(measured.length ? [
+      '## The measured checks',
+      '',
+      '`wf design check` measured these failures on the screens. Do not report them again. When the built code has the same fault, report it at its file and line.',
+      '',
+      ...failureLines(measured).map((l) => `- ${l}`),
+      '',
+    ] : []),
     ...(contract ? ['## The visual contract of the workflow (`02c-craft.md`)', '', contract.slice(0, MAX_CONTRACT), ''] : []),
     '## The audit rules (`design/audit.md`)',
     '',

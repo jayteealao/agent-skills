@@ -13,7 +13,7 @@ import { appendAnswerEvent } from '../../lib/answers.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
 import { CHECK_MOVES, checkBrowser, runChecks } from '../../lib/design-check.mjs';
 import { approvalPicture, readChecks } from '../../lib/design-records.mjs';
-import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile } from '../../lib/design-surface.mjs';
+import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile, writeTokens } from '../../lib/design-surface.mjs';
 import { designGateRefusal, designSettled } from '../../lib/design-lane.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 
@@ -112,5 +112,34 @@ test('in a browser: each check finds its fault with a box and a move, and the ap
     assert.equal(contractOf(root)['image-gate'], 'pass');
     assert.equal(contractOf(root)['check-failures'], r.failures.length);
     assert.ok(existsSync(approvalPicture(root, a.commit, 'basket')));
+  } finally { done(); }
+});
+
+test('in a browser: missing values, a broken image, overlapping text, a script error and a raw color fail', { skip: browser ? false : 'no Chromium on this machine' }, async () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), '# Design\n\n## Colors\n\n| Role | Token | Value |\n|---|---|---|\n| accent | --accent | #1a73e8 |\n| text | --text | #111111 |\n');
+    writeTokens(root);
+    addScreen(root, 'pay', { title: 'Pay', area: 'checkout', workflow: 'w1', slice: 's1' });
+    const page = readFileSync(screenFile(root, 'pay'), 'utf8')
+      .replace('</style>', '  .price { color: #1a74e8; }\n</style>')
+      .replace('<section data-state="default"><h1>Pay</h1></section>', `<section data-state="default"><h1>Pay</h1>
+<p>Delivery: undefined</p><p class="price">Total 4</p><img src="missing.png" alt="" width="40" height="40">
+<div style="position:relative"><span>First label</span><span style="position:absolute;left:0;top:0">Second label</span></div>
+<script>window.notThere()</script></section>`);
+    writeFileSync(screenFile(root, 'pay'), page);
+    const r = await runChecks(root, { keys: ['pay', 'basket'] });
+    const of = (screen, check) => r.failures.filter((f) => f.screen === screen && f.check === check);
+    assert.ok(of('pay', 'display').some((f) => /"undefined"/.test(f.message)), 'the text of a missing value');
+    assert.ok(of('pay', 'display').some((f) => /missing\.png does not load/.test(f.message)), 'the broken image');
+    assert.ok(of('pay', 'overlap').some((f) => /"Second label" overlaps the text "First label"/.test(f.message)));
+    const token = of('pay', 'token').find((f) => /\.price/.test(f.message));
+    assert.match(token.message, /#1a74e8 .* nearest token is --accent \(#1a73e8\)/);
+    assert.equal(token.move, 'colorize');
+    assert.ok(token.rect.width > 0);
+    assert.ok(of('pay', 'token').every((f) => f.state === 'default'), 'the token check runs in the default state only');
+    assert.equal(of('pay', 'script').length, 1, 'one script error per screen');
+    assert.equal(of('pay', 'script')[0].move, null);
+    for (const check of ['display', 'overlap', 'script']) assert.deepEqual(of('basket', check), [], `no ${check} failure on a clean screen`);
   } finally { done(); }
 });
