@@ -23,7 +23,9 @@
   const params = new URLSearchParams(location.search);
   const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false };
   let data = null;
-  const phone = () => matchMedia('(max-width: 720px)').matches;
+  // The last design audit of the repo (./audit.json): a read-only agent's report, not a check.
+  let audit = null;
+  const phone =() => matchMedia('(max-width: 720px)').matches;
   // On a phone the card is the width of the page less its gutters (canvas.css).
   const CARD_W = () => (phone() ? window.innerWidth - 32 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 300);
   const GAP_X = 64;
@@ -32,6 +34,9 @@
   const cap = (s) => (s ? `${String(s)[0].toUpperCase()}${String(s).slice(1)}` : '');
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const CHECK_NAMES = { contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states' };
+  const DIMENSION_NAMES = { accessibility: 'Accessibility', performance: 'Performance', theming: 'Theming', responsive: 'Responsive', integrity: 'Integrity' };
+  /** The audit findings of one screen, when the last audit is done. */
+  const auditOf = (key) => (audit?.status === 'done' ? (audit.findings || []).filter((f) => f.screen === key) : []);
 
   function say(text) {
     const s = $('#status');
@@ -51,6 +56,7 @@
 
   async function load() {
     data = window.WF_STATE || await (await fetch(`${BASE}state.json`, { cache: 'no-store' })).json();
+    if (!SNAP) { await fetchAudit(); pollAudit(); }
     $('#repo').textContent = data.repo || 'Design canvas';
     document.title = `${data.repo || 'Design'} canvas`;
     const names = Object.keys(data.viewports);
@@ -158,6 +164,7 @@
           h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
             s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
             failures.length ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures.length, 'issue')) : null,
+            auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
             approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
           h('div', { class: 'meta', title: metaOf(s) }, metaOf(s))));
       if (!phone() && data.writable && ui.view === 'grid') dragCard(card.querySelector('.cap'), card, s);
@@ -322,7 +329,7 @@
     const s = data.screens.find((x) => x.key === key);
     if (!s) return;
     focusFrom = document.activeElement;
-    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, commenting: false, compare: '', capture: false, all: false };
+    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false };
     drawFocus();
     $('#focus').hidden = false;
     $('#focus .close')?.focus();
@@ -375,6 +382,13 @@
         overlay.append(h('div', { class: 'box', title: x.message, style: `left:${x.rect.x * scale}px;top:${x.rect.y * scale}px;width:${x.rect.width * scale}px;height:${x.rect.height * scale}px` }, h('span', {}, CHECK_NAMES[x.check] || x.check)));
       }
     }
+    const findings = auditOf(s.key);
+    if (f.audit) {
+      for (const x of findings.filter((q) => q.state === f.state && q.rects?.[f.viewport])) {
+        const r = x.rects[f.viewport];
+        overlay.append(h('div', { class: 'box audit', title: x.message, style: `left:${r.x * scale}px;top:${r.y * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }, h('span', {}, x.rule || 'Audit')));
+      }
+    }
     s.threads.forEach((t, i) => {
       if (!f.all && !t.open) return;
       if ((t.anchor?.state || 'default') !== f.state || t.anchor?.x === null || t.anchor?.x === undefined) return;
@@ -406,6 +420,7 @@
       segOf(data.states, f.state, (v) => { f.state = v; drawFocus(); }, 'State'),
       h('span', { class: 'gap' }),
       toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
+      findings.length ? toggle('Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }) : null,
       data.writable ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; drawFocus(); }) : null,
       toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
@@ -427,7 +442,8 @@
         h('b', {}, CHECK_NAMES[x.check] || x.check),
         h('p', {}, x.message),
         h('small', {}, `${list(x.viewports)}, ${x.state} state.${x.move ? ` The ${x.move} move fixes it.` : ''}`)))
-        : h('p', { class: 'none' }, 'No check fails.'));
+        : h('p', { class: 'none' }, 'No check fails.'),
+      findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
   }
   function sel(values, value, on, labels = {}) {
@@ -443,6 +459,76 @@
         h('button', { type: 'button', class: 'btn primary', onclick: () => post(s.key, { thread: t.id, text: reply.value }) }, 'Reply'),
         h('button', { type: 'button', class: 'btn quiet', onclick: () => post(s.key, { thread: t.id, text: reply.value, resolve: t.open, reopen: !t.open }) }, t.open ? 'Resolve' : 'Reopen'))) : null);
   }
+  /** One audit finding. In the panel, it also names its screen, which opens the screen. */
+  function findingView(x, inPanel = false) {
+    const s = x.screen ? data.screens.find((q) => q.key === x.screen) : null;
+    const where = [
+      inPanel && s ? h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key, { state: x.state }) }, `${s.title}, ${x.state} state`) : null,
+      x.file ? h('code', {}, `${x.file}${x.line ? `:${x.line}` : ''}`) : null,
+    ].filter(Boolean);
+    return h('div', { class: 'check audit' },
+      h('b', {}, x.rule || DIMENSION_NAMES[x.dimension] || 'Finding'), h('span', { class: `sev ${x.severity}` }, x.severity),
+      h('p', {}, x.message),
+      x.fix ? h('small', {}, `Fix: ${x.fix}`) : null,
+      where.length ? h('small', {}, ...where.flatMap((w, i) => (i ? [' · ', w] : [w]))) : null);
+  }
+
+  async function fetchAudit() {
+    try {
+      const r = await fetch(`${BASE}audit.json`, { cache: 'no-store' });
+      audit = r.ok ? await r.json() : null;
+    } catch { audit = null; }
+  }
+  /** While an audit runs, read its report again every 5 seconds. */
+  function pollAudit() {
+    clearTimeout(pollAudit.t);
+    if (audit?.status !== 'running') return;
+    pollAudit.t = setTimeout(async () => {
+      await fetchAudit();
+      if (audit?.status !== 'running') {
+        say(audit?.status === 'done' ? 'The audit is done' : 'The audit failed');
+        render();
+        if (focusState) drawFocus();
+      }
+      if (ui.panel === 'audit') panel('audit', true);
+      pollAudit();
+    }, 5000);
+  }
+  async function runAudit() {
+    const r = await fetch(`${BASE}audit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ workflow: ui.workflow || null }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { say(`The audit did not start: ${body.reason || r.status}`); return; }
+    audit = body;
+    panel('audit', true);
+    pollAudit();
+  }
+  function auditPanel() {
+    const head = [h('h2', {}, 'Design audit'), h('p', { class: 'lede' }, 'A read-only Sonnet agent checks the screens and the built code against DESIGN.md and the audit rules. It changes no file and writes no record.')];
+    if (SNAP) return [...head, h('p', {}, 'The audit runs only on the design server.')];
+    const runningNow = audit?.status === 'running';
+    const scope = ui.workflow ? `the screens of ${ui.workflow}` : 'every screen';
+    const run = h('div', { class: 'audit-run' },
+      h('button', { type: 'button', class: 'btn primary', disabled: runningNow || !data.writable, onclick: runAudit }, runningNow ? 'Running…' : 'Run audit'),
+      h('span', { class: 'sub' }, `Audits ${scope}. The workflow filter sets the scope.`));
+    const when = (t) => (t ? new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
+    if (!audit || audit.status === 'none') return [...head, run, h('p', { class: 'none' }, 'No audit has run.')];
+    if (runningNow) return [...head, run, h('p', {}, `The audit of ${audit.workflow || 'every screen'} started at ${when(audit.startedAt)}. A run takes a few minutes. The report shows here when it is done.`)];
+    if (audit.status === 'failed') return [...head, run, h('div', { class: 'check' }, h('b', {}, 'The audit failed'), h('p', {}, audit.error || 'No reason.'), h('small', {}, when(audit.endedAt || audit.startedAt)))];
+    const sc = audit.scores || {};
+    const bySev = (n) => (audit.findings || []).filter((x) => x.severity === n).length;
+    const counts = ['blocker', 'high', 'medium', 'low'].map((n) => [n, bySev(n)]).filter(([, c]) => c).map(([n, c]) => `${c} ${n}`).join(', ');
+    return [...head, run,
+      h('p', {}, audit.summary || ''),
+      h('p', { class: 'sub' }, `${audit.workflow || 'Every screen'}, ${audit.platform && audit.platform !== 'unknown' ? `${audit.platform}, ` : ''}${when(audit.endedAt)}${typeof audit.costUsd === 'number' ? `, $${audit.costUsd.toFixed(2)}` : ''}.`),
+      h('h3', {}, 'Scores (0 to 4)'),
+      h('div', { class: 'scores' }, ...Object.keys(DIMENSION_NAMES).flatMap((d) => [
+        h('span', {}, DIMENSION_NAMES[d]),
+        h('span', { class: 'bar', role: 'img', 'aria-label': `${DIMENSION_NAMES[d]}: ${sc[d] ?? 'no score'} of 4` }, ...[1, 2, 3, 4].map((i) => h('i', { class: sc[d] >= i ? 'on' : null }))),
+        h('b', {}, sc[d] === null || sc[d] === undefined ? '–' : String(sc[d]))])),
+      h('h3', {}, 'Findings', counts ? h('span', { class: 'sub' }, ` ${counts}`) : null),
+      ...((audit.findings || []).length ? audit.findings.map((x) => findingView(x, true)) : [h('p', { class: 'none' }, 'No finding.')])];
+  }
+
   function newThread(anchor) {
     const text = window.prompt('Comment on this point of the screen');
     if (text && text.trim()) post(focusState.key, { text, anchor });
@@ -501,6 +587,7 @@
           ` (${r.kind || 'other'})${r.note ? `: ${r.note}` : ''} `, r.readable ? h('span', { class: 'mark ok' }, 'Readable') : h('span', { class: 'mark issue', title: r.problem }, r.problem)))) : h('p', {}, 'No reference yet.')],
       explore: () => [h('h2', {}, 'Explore'), h('p', { class: 'lede' }, 'Sketches from brainstorms and intakes, before any screen.'),
         data.explore.length ? h('ul', {}, ...data.explore.map((x) => h('li', {}, SNAP ? x.title || x.key : h('a', { href: `${BASE}s/explore/${x.key}.html`, target: '_blank', rel: 'noopener' }, x.title || x.key), x.link ? `, for ${x.link}` : ''))) : h('p', {}, 'No explore sketch yet.')],
+      audit: auditPanel,
     }[name];
     p.replaceChildren(close, ...body());
     p.hidden = false;
@@ -516,7 +603,7 @@
       render();
     }));
     document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => panel(b.dataset.panel)));
-    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); render(); });
+    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); render(); if (ui.panel === 'audit') panel('audit', true); });
     filter('#area', 'area', (t) => t.value);
     filter('#workflow', 'workflow', (t) => t.value);
     filter('#open', 'open', (t) => t.checked);

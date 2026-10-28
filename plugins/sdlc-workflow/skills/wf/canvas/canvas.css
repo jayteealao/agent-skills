@@ -6,6 +6,7 @@
   --ground: #e4e8e5; --dot: #c3cbc6; --surface: #fbfcfb; --sunk: #f0f3f1;
   --ink: #1d2421; --pencil: #5b6762; --line: #d2d8d4; --focus: #2a63c4;
   --issue: #c0392b; --issue-tint: rgb(192 57 43 / 12%); --note: #f2c94c; --note-ink: #3a2f05; --ok: #2c7a52;
+  --audit: #5b45b0; --audit-tint: rgb(91 69 176 / 12%);
   --lift: 0 0 0 1px rgb(29 36 33 / 6%), 0 1px 2px rgb(29 36 33 / 8%), 0 8px 24px -6px rgb(29 36 33 / 18%);
   --raise: 0 0 0 1px rgb(29 36 33 / 8%), 0 12px 40px -8px rgb(29 36 33 / 28%);
   --card-w: 300px;
@@ -19,6 +20,7 @@
     --ground: #191e1c; --dot: #2b3430; --surface: #222826; --sunk: #1b201e;
     --ink: #e5ebe8; --pencil: #98a49f; --line: #343c38; --focus: #8fb2ff;
     --issue: #ff7a6b; --issue-tint: rgb(255 122 107 / 14%); --ok: #6cc497;
+    --audit: #b6a4ff; --audit-tint: rgb(182 164 255 / 14%);
     --lift: 0 0 0 1px rgb(255 255 255 / 6%), 0 10px 28px -8px rgb(0 0 0 / 60%);
     --raise: 0 0 0 1px rgb(255 255 255 / 8%), 0 16px 48px -8px rgb(0 0 0 / 70%);
   }
@@ -176,6 +178,23 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .check b { color: var(--issue); }
 .check p { margin: 2px 0 0; }
 .check small { display: block; margin-top: 4px; color: var(--pencil); }
+
+/* The design audit: its own colour, so an agent's finding never reads as a measured check. */
+.mark.audit { color: var(--audit); background: var(--audit-tint); }
+.box.audit { border-color: var(--audit); border-style: dashed; background: var(--audit-tint); }
+.box.audit span { background: var(--audit); }
+.check.audit { background: var(--audit-tint); }
+.check.audit b { color: var(--audit); }
+.sev { margin-left: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--pencil); }
+.sev.blocker, .sev.high { color: var(--issue); }
+.check code { font-size: 12px; overflow-wrap: anywhere; }
+.scores { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 10px; margin: 4px 0 8px; }
+.scores .bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+.scores .bar i { height: 8px; border-radius: 2px; background: var(--line); }
+.scores .bar i.on { background: var(--audit); }
+.scores b { font-weight: 600; font-size: 12.5px; }
+.audit-run { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.audit-run .sub { font-size: 12.5px; }
 
 #status { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 20; padding: 8px 14px; border-radius: 10px; background: var(--ink); color: var(--surface); opacity: 0; transition: opacity .2s; pointer-events: none; }
 #status.show { opacity: 1; }

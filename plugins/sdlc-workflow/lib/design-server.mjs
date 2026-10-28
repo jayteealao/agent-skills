@@ -4,9 +4,10 @@
 //
 // The server is static: it reads the files of each request, and it keeps no version state, no
 // render queue and no reap. It writes in two cases only: a comment on a screen that exists, and
-// the saved positions of the canvas layout. Each write names a listed repo, and every other path
-// is refused. It listens on 127.0.0.1 and on the tailnet address only; the tailnet is its only
-// protection.
+// the saved positions of the canvas layout. It starts one process: the read-only design audit
+// agent of the Audit button (design-audit.mjs), one run per repo at a time. Each write names a
+// listed repo, and every other path is refused. It listens on 127.0.0.1 and on the tailnet
+// address only; the tailnet is its only protection.
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
@@ -16,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { CANVAS_DIR, canvasState } from './design-state.mjs';
 import { addComment, approvalPicture, capturePicture } from './design-records.mjs';
+import { readAudit, startAudit } from './design-audit.mjs';
 import { KEY_RE, LAYOUT_FILE, SURFACE_REL, readDesignRepos, readManifest, surfaceDir } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { PAGE_REL } from './brainstorm-page.mjs';
@@ -143,8 +145,11 @@ function atCommit(root, sha, rel) {
   return r.status === 0 ? r.stdout : null;
 }
 
-/** The request handler. `repos` is read for each request, so a new repo needs no restart. */
-export function designHandler({ repos = readDesignRepos } = {}) {
+/**
+ * The request handler. `repos` is read for each request, so a new repo needs no restart.
+ * `audit` starts and reads the design audit; a test passes its own.
+ */
+export function designHandler({ repos = readDesignRepos, audit = { start: startAudit, read: readAudit } } = {}) {
   return async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
@@ -179,6 +184,12 @@ export function designHandler({ repos = readDesignRepos } = {}) {
             return r.ok === false ? fail(res, 400, r.reason) : json(res, 200, { ...r, ok: true });
           }
           if (kind === 'layout' && rest.length === 0) return json(res, 200, { ok: true, ...saveLayout(root, body.positions) });
+          if (kind === 'audit' && rest.length === 0) {
+            const workflow = body.workflow ? String(body.workflow) : null;
+            if (workflow !== null && !KEY_RE.test(workflow)) return fail(res, 400, 'a bad workflow');
+            const r = audit.start(root, { workflow, repo: repo.name });
+            return r.started ? json(res, 202, { ok: true, ...r.report }) : fail(res, 409, r.reason);
+          }
         } catch (e) { return fail(res, 400, e.message); }
         return fail(res, 404, 'no such write route');
       }
@@ -187,6 +198,7 @@ export function designHandler({ repos = readDesignRepos } = {}) {
         return file(res, join(CANVAS_DIR, 'index.html'));
       }
       if (kind === 'state.json' && rest.length === 0) return json(res, 200, canvasState(root, { repo: repo.name, writable: true }));
+      if (kind === 'audit.json' && rest.length === 0) return json(res, 200, audit.read(root));
       if (kind === 's') return file(res, inside(surfaceDir(root), rest.join('/')));
       if (kind === 'at' && rest.length >= 2) {
         if (!SHA_RE.test(rest[0])) return fail(res, 400, 'a bad commit');

@@ -1,4 +1,4 @@
-// The design server: the routes of the canvas and the brainstorm pages, the two write routes,
+// The design server: the routes of the canvas and the brainstorm pages, the two write routes, the audit routes,
 // and the refusals. The server listens on 127.0.0.1 with a free port.
 
 import { execFileSync } from 'node:child_process';
@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus } from '../../lib/design-server.mjs';
+import { designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -84,6 +84,35 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
   } finally {
     for (const s of servers) s.close();
     if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});
+
+test('the audit routes start one run per repo and serve its report', async () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-server-audit-'));
+  const root = join(top, 'Shop');
+  mkdirSync(root);
+  let servers = [];
+  try {
+    const calls = [];
+    let report = { status: 'none' };
+    const audit = {
+      start: (r, opts) => { calls.push([r, opts]); if (report.status === 'running') return { started: false, reason: 'an audit of this repo runs now' }; report = { status: 'running', ...opts }; return { started: true, report }; },
+      read: () => report,
+    };
+    const live = await listenDesignServer({ port: 0, hosts: ['127.0.0.1'], handler: designHandler({ repos: () => [{ name: 'shop', root }], audit }) });
+    servers = live.servers;
+    const { port } = live;
+    assert.equal(JSON.parse((await raw(port, '/r/shop/audit.json')).text).status, 'none');
+    const started = await post(port, '/r/shop/audit', { workflow: 'w1' });
+    assert.equal(started.status, 202);
+    assert.deepEqual(calls, [[root, { workflow: 'w1', repo: 'shop' }]]);
+    assert.equal((await post(port, '/r/shop/audit', {})).status, 409, 'one run per repo');
+    assert.equal((await post(port, '/r/shop/audit', { workflow: '../x' })).status, 400);
+    assert.equal((await post(port, '/r/shop/audit', {}, { origin: 'http://evil.test' })).status, 403, 'a run from another page is refused');
+    assert.equal(JSON.parse((await raw(port, '/r/shop/audit.json')).text).status, 'running');
+  } finally {
+    for (const s of servers) s.close();
     rmSync(top, { recursive: true, force: true });
   }
 });
