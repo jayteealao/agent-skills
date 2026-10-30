@@ -99,6 +99,8 @@ Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it pr
 
 For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
 
+Also list the known long runs of the repo with an estimate, per "The known long runs" of [../_check-budget.md](../_check-budget.md). When `wf.mjs profile budget` prints `no budget`, add the budget question of that file to Batch B. Record the answer with `wf.mjs profile budget`.
+
 # Step 0.7 — Bounded research pass (ground the questions in the code — conditional)
 
 Intake questions asked blind push ambiguities the codebase would resolve for free onto the PO, or

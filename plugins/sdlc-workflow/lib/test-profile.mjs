@@ -85,11 +85,95 @@ export function recordRun(root, suite, seconds, { now = nowIso(), passedAt = nul
 // The suites that each stage runs. Verify reuses the implement results at the same commit.
 export const STAGE_SUITES = { implement: SLICE_SUITES, verify: SLICE_SUITES, review: PACKET_SUITES, 'update-deps': ['full'] };
 
-/** One line per suite, for a brief or a status. */
+// The check budget of a project: `testProfile.budget`. The person chooses it once per repo.
+//   slice     the longest check that a slice stage may run, in seconds; a longer command is a
+//             long run. Without it, the time box of the stage is the limit.
+//   long      the longest single long run (a fit, a proof, a calibration, a coverage pass)
+//             before the agent must offer the faster paths; null is no limit
+//   machines  the machines that the person allows for split runs, by name
+export const BUDGET_PRESETS = {
+  'fast-loop': { slice: 120, long: 3600 },
+  balanced: { slice: 600, long: 3600 },
+  thorough: { slice: null, long: null },
+};
+
+/** The budget of a profile, or null when the person did not choose one. */
+export function readBudget(profile) {
+  const b = profile?.budget;
+  return b && typeof b === 'object' && !Array.isArray(b) ? b : null;
+}
+
+/**
+ * The longest check that a stage may run, in seconds: `budget.slice` for a slice stage when it
+ * is set, else the time box of the stage. Returns { seconds, from }.
+ */
+export function checkLimit(profile, stage) {
+  const b = readBudget(profile);
+  if (b && Number.isInteger(b.slice) && (stage === 'implement' || stage === 'verify')) return { seconds: b.slice, from: 'budget' };
+  const box = timeBox(profile, STAGE_SUITES[stage] ?? []);
+  return { seconds: box.seconds, from: 'time box' };
+}
+
+/** True when a command of this many seconds is a long run: longer than `budget.slice`, or than the time box floor. */
+export function isLongRun(profile, seconds) {
+  if (!Number.isFinite(seconds)) return false;
+  const b = readBudget(profile);
+  const limit = b && Number.isInteger(b.slice) ? b.slice : TIME_BOX_FLOOR_SECONDS;
+  return seconds > limit;
+}
+
+/** True when a long run of this many seconds is over `budget.long`. No budget or no limit is never over. */
+export function overLongBudget(profile, seconds) {
+  const b = readBudget(profile);
+  return Boolean(b && Number.isInteger(b.long) && Number.isFinite(seconds) && seconds > b.long);
+}
+
+/**
+ * Set the budget. A preset gives slice and long; --slice, --long and --machines change one
+ * field. Keeps the suites and the other settings. Returns the budget.
+ */
+export function setBudget(root, { preset = null, slice, long, machines } = {}) {
+  if (preset != null && !BUDGET_PRESETS[preset]) throw new Error(`the preset must be one of ${Object.keys(BUDGET_PRESETS).join(', ')}`);
+  const secs = (v, name) => {
+    if (v === undefined) return undefined;
+    if (v === null || v === 'none') return null;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a whole number of seconds, or none`);
+    return n;
+  };
+  const file = configFile(root);
+  const cfg = readConfig(root);
+  const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
+  const next = { ...(readBudget(profile) ?? {}), ...(preset ? { preset, ...BUDGET_PRESETS[preset] } : {}) };
+  const s = secs(slice, 'slice'); if (s !== undefined) next.slice = s;
+  const l = secs(long, 'long'); if (l !== undefined) next.long = l;
+  if (machines !== undefined) next.machines = String(machines).split(',').map((m) => m.trim()).filter(Boolean);
+  if (!Array.isArray(next.machines)) next.machines = [];
+  next.setAt = nowIso();
+  profile.budget = next;
+  cfg.testProfile = profile;
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  writeFileSync(`${file}.tmp`, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
+  renameSync(`${file}.tmp`, file);
+  return next;
+}
+
+/** One line for the budget, or null when the person did not choose one. */
+export function budgetLine(profile) {
+  const b = readBudget(profile);
+  if (!b) return null;
+  const t = (v) => (Number.isInteger(v) ? `${v}s` : 'no limit');
+  return `budget${b.preset ? ` (${b.preset})` : ''}: slice checks up to ${t(b.slice)}; one long run up to ${t(b.long)}; machines: ${(b.machines ?? []).join(', ') || 'this one'}`;
+}
+
+/** One line per suite, and the budget, for a brief or a status. */
 export function profileLines(profile) {
-  return SUITES.filter((s) => profile[s]).map((s) => {
+  const lines = SUITES.filter((s) => profile[s]).map((s) => {
     const p = profile[s];
     const t = Number.isInteger(p.measuredSeconds) ? `${p.measuredSeconds}s measured` : Number.isInteger(p.estimateSeconds) ? `${p.estimateSeconds}s estimated` : 'no time';
     return `${s}: \`${p.command}\` (${t})`;
   });
+  const b = budgetLine(profile);
+  return b ? [...lines, b] : lines;
 }

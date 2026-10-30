@@ -1618,6 +1618,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["testProfile.<suite>.command", "unset", "The command that runs the suite. In the affected suite, {files} stands for the changed files. A slice runs fast and affected; full and heavy run once per packet, after the review fixes."],
       ["testProfile.<suite>.estimateSeconds", "unset", "The time that intake estimates without a run."],
       ["testProfile.<suite>.measuredSeconds", "null", "The time of the last real run. It replaces the estimate. wf.mjs profile record writes it. The time box of a stage agent comes from these times."],
+      ["testProfile.budget.preset", "unset", "The check budget that you chose once for the repo: fast-loop, balanced or thorough. The first stage that finds no budget asks you. wf.mjs profile budget writes it."],
+      ["testProfile.budget.slice", "null", "The longest check that a slice stage may run, in seconds. A longer command is a long run: the agent measures it with a pilot, moves it to the packet end, or makes it faster. Null: the time box of the stage."],
+      ["testProfile.budget.long", "null", "The longest single long run, in seconds, before the agent offers you the faster paths: a pilot, a sample, a split across machines, or the packet end. Null: no limit."],
+      ["testProfile.budget.machines", "[]", "The machines that a long run may split across, by name."],
       ["devices.test", "[]", "The physical devices that verify may drive. Verify uses an emulator by default, and never drives a device that is not named here."]
     ] },
     { id: "cfg-yolo", title: "Per repo · yolo watch", rows: [

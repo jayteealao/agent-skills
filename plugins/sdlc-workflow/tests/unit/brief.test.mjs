@@ -60,7 +60,7 @@ test('buildBrief: card, slice sections, the plan sections of the stage, and the 
     assert.match(b.parts.plan, /### Handover/);
     assert.doesNotMatch(b.parts.plan, /Current State/);
     assert.deepEqual(b.parts.decisions.split('\n').map((l) => l.slice(2, 7)), ['D-001', 'D-003']);
-    assert.equal(b.parts.tests, '- fast: `npm test` (120s measured)\n- affected: `npm test -- {files}` (60s estimated)\n\nTime box: 10 minutes.');
+    assert.equal(b.parts.tests, '- fast: `npm test` (120s measured)\n- affected: `npm test -- {files}` (60s estimated)\n- budget: not chosen; the person chooses it once for the repo (_check-budget.md)\n\nTime box: 10 minutes. Longest check of this stage: 600s (from the time box). A longer command is a long run: follow _long-runs.md.');
     assert.match(b.text, /^# Brief: implement demo api\n\n## Card\n/);
   } finally { f.done(); }
 });
@@ -73,7 +73,7 @@ test('buildBrief: a stage with no plan sections, no slice, and the missing parts
     assert.doesNotMatch(b.text, /## Plan\n/);
     assert.doesNotMatch(b.text, /## Tests\n/, 'plan runs no suite');
     const r = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'review' });
-    assert.match(r.parts.tests, /^- full: `npm run test:all` \(900s estimated\)\n\nTime box: 45 minutes\.$/);
+    assert.match(r.parts.tests, /^- full: `npm run test:all` \(900s estimated\)\n- budget: not chosen.*\n\nTime box: 45 minutes\. Longest check of this stage: 2700s \(from the time box\)\./);
     assert.ok(r.missing.includes('the ## Card section of reference/review.md'));
     assert.match(b.parts.slice, /Acceptance Criteria \(02-shape\.md\)\n\n- The list shows\./);
     assert.deepEqual(b.missing, ['the ## Card section of reference/plan.md']);

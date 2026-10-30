@@ -32,8 +32,10 @@ You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 - When the tests of a fix step fail twice, revert the step, set the finding `could-not-fix`, and continue.
 - Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`; never edit `findings.yaml` by hand.
 - After the fix steps, run the full and heavy suites of the test profile once for the packet, and each check that a plan, implement or verify record names under `## Packet Checks`. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time and the HEAD that it passed at. When you fix code after a packet suite passed, run again only the suites that read the files of the fix.
+- A command longer than the longest check of your brief is a long run. Follow [_long-runs.md](_long-runs.md): measure it first with a pilot, check that a later change does not make its result stale, take the fastest path that gives a valid answer, and run it in the background.
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
 - Stop only on a BLOCKER that is `could-not-fix`.
+- Before you return or ask a question, run `wf.mjs decide list --kind steer` and `wf.mjs decide list --by person`. When a standing answer covers the kind of the question, or an answer of the person settles the same question in substance under another key, reuse it, record which one you used, and do not ask.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 - To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
 

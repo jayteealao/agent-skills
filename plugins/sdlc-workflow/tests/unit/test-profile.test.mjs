@@ -138,3 +138,45 @@ test('wf.mjs profile: show, record and timebox', () => {
     try { assert.equal(cli('show', empty.root).stdout.trim(), 'no test profile'); } finally { empty.done(); }
   } finally { f.done(); }
 });
+
+test('the check budget: presets, the longest check of a stage, long runs, and the CLI', async () => {
+  const { setBudget, checkLimit, isLongRun, overLongBudget, budgetLine } = await import('../../lib/test-profile.mjs');
+  const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 60 } } });
+  try {
+    const p0 = readProfile(f.root);
+    assert.deepEqual(checkLimit(p0, 'implement'), { seconds: TIME_BOX_FLOOR_SECONDS, from: 'time box' }, 'no budget: the time box');
+    assert.equal(budgetLine(p0), null);
+    const b = setBudget(f.root, { preset: 'fast-loop', machines: 'desk-1, laptop' });
+    assert.equal(b.slice, 120);
+    assert.equal(b.long, 3600);
+    assert.deepEqual(b.machines, ['desk-1', 'laptop']);
+    const p = readProfile(f.root);
+    assert.equal(p.fast.command, 'npm test', 'the suites stay');
+    assert.deepEqual(checkLimit(p, 'implement'), { seconds: 120, from: 'budget' });
+    assert.deepEqual(checkLimit(p, 'verify'), { seconds: 120, from: 'budget' });
+    assert.equal(checkLimit(p, 'review').from, 'time box', 'the review runs the packet suites');
+    assert.equal(isLongRun(p, 300), true, 'over budget.slice');
+    assert.equal(isLongRun(p, 90), false);
+    assert.equal(overLongBudget(p, 4000), true);
+    assert.equal(overLongBudget(p, 3000), false);
+    assert.match(budgetLine(p), /^budget \(fast-loop\): slice checks up to 120s; one long run up to 3600s; machines: desk-1, laptop$/);
+    setBudget(f.root, { long: 'none' });
+    assert.equal(overLongBudget(readProfile(f.root), 99999), false, 'no limit');
+    assert.throws(() => setBudget(f.root, { preset: 'fast' }), /preset must be one of/);
+    assert.throws(() => setBudget(f.root, { slice: 1.5 }), /whole number/);
+    const show = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'show', f.root], { encoding: 'utf8' });
+    assert.match(show.stdout, /^budget \(fast-loop\): slice checks up to 120s; one long run up to no limit/m);
+    const set = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'budget', f.root, '--preset', 'balanced', '--json'], { encoding: 'utf8' });
+    assert.equal(set.status, 0, set.stderr);
+    assert.equal(JSON.parse(set.stdout).slice, 600);
+  } finally { f.done(); }
+});
+
+test('profile run warns when a run is over the long-run budget', () => {
+  const f = fixture({ testProfile: { heavy: { command: 'node -e "setTimeout(()=>{},1200)"', estimateSeconds: 1 }, budget: { slice: 0, long: 0, machines: [] } } });
+  try {
+    const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'run', f.root, 'heavy', '--json'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /^WARNING: the heavy suite took [\d.]+s, over the long-run budget of 0s/m);
+  } finally { f.done(); }
+});

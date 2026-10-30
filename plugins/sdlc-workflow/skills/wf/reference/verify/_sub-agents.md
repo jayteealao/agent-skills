@@ -17,11 +17,11 @@ Prompt the agent with all of the following.
 
 **Build.** Run the project build (`npm run build`, `go build ./...`, `cargo build`, `make`); report success/failure, warnings, and the output artifact.
 
-**Default performance gate (every slice, with or without the `benchmark` augmentation).**
+**Performance gate (only with the `benchmark` augmentation or a performance acceptance criterion).** Without one of them, do not build the base branch and do not compare build times. Record `metric-bundle-size-delta-pct: skipped — no performance criterion`.
 - **Bundle size (web):** compare the output artifact size against the base branch in a scratch worktree, per the scratch worktree rule of [_workflow-rules.md](../_workflow-rules.md): `wf.mjs worktree add "<root>" <slug> base-<slice-slug> <base-branch>`, build there, `du -sh` both outputs, then `wf.mjs worktree remove "<root>" <slug> base-<slice-slug>`. The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is HIGH. Record `metric-bundle-size-delta-pct`.
 - **Build time delta:** wall-clock time of the current build vs the base-branch build (from the worktree comparison, else CI cache statistics). An increase ≥ 30% is a WARN.
 - **Startup time (service/CLI):** measure cold start (`time curl -s localhost:<port>/health` after a fresh start). An increase ≥ 15% vs the base branch is HIGH.
-- If the worktree comparison is impossible, record `metric-bundle-size-delta-pct: skipped — <reason>` and the absolute artifact size. This gate is the lightweight floor; the `benchmark` augmentation adds profiling.
+- If the worktree comparison is impossible, record `metric-bundle-size-delta-pct: skipped — <reason>` and the absolute artifact size.
 
 **Security scanning (every slice).**
 - **Dependency CVEs:** `npm audit --audit-level=high`, `cargo audit`, `pip-audit`, `go list -json -m all | nancy sleuth`, or the project's equivalent. New critical/high CVEs introduced by this slice are BLOCKER.
@@ -37,15 +37,15 @@ Prompt the agent with all of the following.
 
 **Test receipt.** Run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug> --check`. When it prints `receipt reusable:` (the receipt passed, no code changed in a commit after its `sha`, and each change of its `dirty` list keeps its hash), the commands it names count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. When it prints `receipt stale:` or `no receipt`, ignore the receipt.
 
-**Unit tests.** Identify the test files covering the slice's affected modules (grep imports); run them first with verbose output; then run the full unit suite for regressions, unless the receipt covers it. Report total/passed/failed/skipped, failures with full error output, and duration.
+**Unit tests.** Identify the test files covering the slice's affected modules (grep imports); run them with verbose output. Do not run the whole unit suite: the receipt and the fast and affected suites cover regressions, and the `full` suite runs once at the packet end. Report total/passed/failed/skipped, failures with full error output, and duration.
 
-**Integration tests.** Identify and run the suites covering the affected area with verbose output; report the same counts; note flaky tests (recent skip/unskip patterns in git log).
+**Integration tests.** Run an integration suite only when the `affected` suite of the test profile names it (`wf.mjs profile show`). Run it with verbose output; report the same counts; note flaky tests (recent skip/unskip patterns in git log).
 
-**Coverage (when configured).** Report coverage for the files this slice changed; flag new code paths at 0%.
+**Coverage (when a run already made it).** Report coverage for the files this slice changed from a coverage report that a run of this slice already wrote; flag new code paths at 0%. Do not start a coverage pass in verify.
 
 **Skipped-gating-spec mapping (a skip is a missing-evidence event, not a green).** A spec that did not execute (guard exit, `.skip`/`.todo`, missing env or secret, filtered out) produced no evidence for the AC it gates and cannot inherit the suite's green. Map every skipped spec to its AC and record `skipped-gating-specs: [{spec, ac, precondition}]` (`precondition` = the unmet reason, such as `E2E_ADMIN_USER_EMAIL` unset). The AC gate (Step 7.5) routes each such AC through another rung, a deferral with a probe receipt, or `blocked-runtime-evidence-missing`.
 
-**Cross-slice regression check (when sibling slices were verified).** Read `06-verify.md` with `wf.mjs record get "<root>" <slug> 06-verify.md`; collect every other slice with `result: pass` or `partial`. For each sibling, read `files-modified` from `05-implement-<sibling-slug>.md` (`wf.mjs record get`); an overlap with this slice's `files-modified` marks a regression target. Re-run the suite scoped to the overlapping files (or the sibling's recorded command from `06-verify-<sibling-slug>.md` `## Automated Checks Run`). Report `cross-slice-regressions-found: <N>` and pass/fail per sibling; a newly failing sibling is BLOCKER. No siblings → `cross-slice-regressions-found: 0` and "no prior verified slices."
+**Other slices.** Do not run the suites of other slices again. The `full` suite runs once at the packet end and finds a regression in an earlier slice. Record `cross-slice-regressions-found: 0`.
 
 ### Web research sub-agent 5 — Freshness: Dependencies, AC Staleness, and Standards Drift
 

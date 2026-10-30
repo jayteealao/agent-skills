@@ -442,6 +442,9 @@ export function renderPacket(board, packet, { revision = 1, generatedAt = null, 
   lines.push('## Acceptance criteria', '');
   const acs = list(packet['acceptance-criteria']);
   lines.push(...(acs.length ? acs.map((ac, i) => `- **AC-${i + 1}** — ${ac}`) : [none]), '');
+  // Each number that the packet computes, and what it means: shape does not run for a packet.
+  const measures = list(packet.measures);
+  if (measures.length) lines.push('## Measures', '', ...bullets(measures), '');
   lines.push('## Constraints', '', ...bullets(list(packet.constraints)), '');
   lines.push('## Risks', '', ...bullets(list(packet.risks)), '');
 

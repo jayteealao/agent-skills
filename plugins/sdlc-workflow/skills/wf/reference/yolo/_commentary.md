@@ -86,6 +86,15 @@ Scout, classifier, and bookkeeping agents give no event.
 
   The sub-agent changes no file. Tell the person its answer, and append the answer with `--event look-in`. When the sub-agent gives no answer, say in one line that the look-in failed, and wait for the next event.
 
+## A delegate run
+
+While a delegate run is live (yolo.md, "Delegate mode"), the person gets notes, not questions.
+
+1. Do not ask the person about a delegate decision. Do not use the question tool for it, and do not ask "confirm D-<n>?".
+2. When a look-in, a commit or a `decision` event shows a delegate decision that changes product behaviour, defers a failing check, accepts a verify item or starts a long run, write one chat line: what the run chose, the measured effect, and the words that reverse it. Append the line with `--event decision`.
+3. When the person reverses a decision in chat, record `decide add --kind answer --by person` with the same key and the person's words. Do not stop the driver.
+4. Delegate mode ends only when the person asks the run to stop deciding for them, or gives a new `run-decisions` answer. "I'm back" does not end it. Do not keep a note of an away mode: the `run-decisions` steer is the only state.
+
 ## Quiet
 
 When the person says "quiet", stop the notes for every event except `stop`, `stale`, and `run-end`. Record the change, so that it survives a compaction:

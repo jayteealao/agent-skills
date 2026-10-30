@@ -69,13 +69,16 @@ evidence-run-count: <N>                         # 1 for the first run; prior evi
 security-scan-result: <pass | fail | skipped>  # BLOCKER if fail; skipped only when no tooling is installed
 metric-a11y-violations-new: <N>                # new WCAG AA violations in slice-modified UI components
 a11y-result: <pass | fail | not-automatable>   # HIGH if fail; not-automatable surfaces as a gap
-cross-slice-regressions-found: <N>             # sibling slices that newly fail; 0 if first slice
+accepted-by: <decision id | delegate>          # only when a live decision accepts a failing item
+accepted-at: <ISO 8601>
+accepted-items: []                             # the accepted items, one line each
+cross-slice-regressions-found: 0               # verify runs no sibling suite; the packet-end full suite covers it
 stack-source: <confirmed | unconfirmed-auto-detect>   # Step 0.5 stack gate; downstream stages may refuse unconfirmed-auto-detect
 skipped-gating-specs: []                       # [{spec, ac, precondition}] from sub-agent 2
 debt-markers-found: <N>                        # sdlc-debt: markers in this slice's diff (sub-agent 1)
 debt-markers-malformed: <N>                    # no ceiling or no upgrade path
 debt-markers-unrecorded: <N>                   # absent from the implement record
-metric-bundle-size-delta-pct: <N | "skipped">  # % change vs. base branch; HIGH if ≥ 20%
+metric-bundle-size-delta-pct: <N | "skipped">  # only with benchmark or a performance AC; % change vs. base branch; HIGH if ≥ 20%
 ac-staleness-checked: <true | false>
 ac-stale-count: <N>
 longitudinal-baseline-compared: <true | false | "skipped — <reason>">

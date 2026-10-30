@@ -198,3 +198,25 @@ test('wf.mjs decide: add, list, answered, drop and import from the command line'
     assert.equal(existsSync(path.join(f.dir, `${DECISIONS_FILE}.tmp`)), false);
   } finally { f.done(); }
 });
+
+test('a standing answer settles each later question of its kind, and no other kind', () => {
+  const f = fixture();
+  try {
+    const steer = addDecision(f.dir, { kind: 'steer', key: 'standing:margin-floor', question: 'The margin of band 3 is under its floor. Widen it?', answer: 'Widen, provisional, at every band under its floor' }).entry;
+    const list = readDecisions(f.dir);
+    assert.equal(answeredBy(list, 'margin-floor:band-7')?.id, steer.id, 'a later case of the kind');
+    assert.equal(answeredBy(list, 'refit:wave-2'), null, 'another kind');
+    assert.equal(answeredBy(list, 'margin-floor'), null, 'a key with no case');
+    assert.deepEqual(dropAnswered(list, [{ key: 'margin-floor:band-9' }, { key: 'db' }]).ask.map((q) => q.key), ['db']);
+    // A key of its own wins over the standing answer.
+    addDecision(f.dir, { key: 'margin-floor:band-7', answer: 'keep the floor' });
+    assert.equal(answeredBy(readDecisions(f.dir), 'margin-floor:band-7').answer, 'keep the floor');
+    // A case that the standing answer settled names it, and list --by standing finds it.
+    addDecision(f.dir, { key: 'margin-floor:band-9', answer: 'widen', by: `standing:${steer.id}` });
+    assert.deepEqual(liveDecisions(readDecisions(f.dir), {}, { by: 'standing' }).map((e) => e.key), ['margin-floor:band-9']);
+    assert.throws(() => addDecision(f.dir, { key: 'k', answer: 'x', by: 'standing:none' }), /by must be one of/);
+    const r = spawnSync(process.execPath, [wf, 'decide', 'answered', f.root, 'demo', '--key', 'margin-floor:band-12'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, new RegExp(steer.id));
+  } finally { f.done(); }
+});

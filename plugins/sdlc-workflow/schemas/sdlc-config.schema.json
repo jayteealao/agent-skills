@@ -163,6 +163,37 @@
         },
         "heavy": {
           "$ref": "#/$defs/suite"
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The check budget of the repo, chosen once by the person: how long a check may take before an agent moves it or makes it faster.",
+          "properties": {
+            "preset": {
+              "enum": ["fast-loop", "balanced", "thorough"],
+              "description": "The option that the person chose. fast-loop: slice checks up to 120 s, a long run up to 1 h. balanced: slice checks up to 600 s, a long run up to 1 h. thorough: no limit."
+            },
+            "slice": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "description": "The longest check that a slice stage may run, in seconds. A longer command is a long run. Null: the time box of the stage is the limit."
+            },
+            "long": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "description": "The longest single long run, in seconds, before the agent must offer the faster paths. Null: no limit."
+            },
+            "machines": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "default": [],
+              "description": "The machines that the person allows for split runs, by name."
+            },
+            "setAt": {
+              "type": "string",
+              "description": "When the person chose the budget."
+            }
+          }
         }
       }
     },

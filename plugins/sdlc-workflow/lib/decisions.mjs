@@ -11,7 +11,7 @@
 //   key            a stable question key, or null for a free steer
 //   question       the question as asked, or null
 //   answer         the answer, exact
-//   by             person | policy | delegate
+//   by             person | policy | delegate | standing:<id> (a case that a standing answer settled)
 //   scope          { packet, slice, files } — an absent field means every packet, slice or file
 //   stage          the stage that asked, or null
 //   source         where the entry came from (a stage, or the file an import read)
@@ -84,17 +84,39 @@ export function inScope(entry, query = {}) {
 
 export const isLive = (e) => !e['superseded-by'];
 
-/** The live entries in a scope, in the order of writing. */
+/** The prefix of the key of a standing answer: `standing:<kind>` settles each question `<kind>:<case>`. */
+export const STANDING_PREFIX = 'standing:';
+
+/** True when an entry was settled by a standing answer: its `by` is `standing:<id>`. */
+const bySteer = (by) => typeof by === 'string' && by.startsWith(STANDING_PREFIX);
+
+/** The live entries in a scope, in the order of writing. `by: 'standing'` takes the cases that a standing answer settled. */
 export function liveDecisions(list, query = {}, { by = null, kind = null } = {}) {
   return list.filter((e) => isLive(e) && inScope(e, query)
-    && (!by || e.by === by) && (!kind || e.kind === kind));
+    && (!by || (by === 'standing' ? bySteer(e.by) : e.by === by)) && (!kind || e.kind === kind));
 }
 
-/** The live entry that answers a question key in a scope, or null. */
+/** The kind of a question key: the part before the first colon, or null for a key with no colon. */
+export function kindOfKey(key) {
+  const k = String(key ?? '');
+  if (k.startsWith(STANDING_PREFIX)) return null;
+  const i = k.indexOf(':');
+  return i > 0 ? k.slice(0, i) : null;
+}
+
+/**
+ * The live entry that answers a question key in a scope, or null. With no entry for the key
+ * itself, a live standing answer `standing:<kind>` answers a key `<kind>:<case>`.
+ */
 export function answeredBy(list, key, query = {}) {
   if (!key) return null;
-  const hits = liveDecisions(list, query).filter((e) => e.key === key);
-  return hits.length ? hits[hits.length - 1] : null;
+  const live = liveDecisions(list, query);
+  const hits = live.filter((e) => e.key === key);
+  if (hits.length) return hits[hits.length - 1];
+  const kind = kindOfKey(key);
+  if (!kind) return null;
+  const standing = live.filter((e) => e.kind === 'steer' && e.key === `${STANDING_PREFIX}${kind}`);
+  return standing.length ? standing[standing.length - 1] : null;
 }
 
 /** Drop the questions that a live entry already answers. Returns { ask, answered }. */
@@ -119,7 +141,7 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
   if (!KINDS.includes(kind)) {
     throw new Error(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`);
   }
-  if (!BY.includes(by)) throw new Error(`by must be one of ${BY.join(', ')}`);
+  if (!BY.includes(by) && !/^standing:D-\d+$/.test(by)) throw new Error(`by must be one of ${BY.join(', ')}, or standing:<id> of a standing answer`);
   if (input.answer == null || String(input.answer).trim() === '') throw new Error('an answer is required');
   if (kind !== 'steer' && !input.key) throw new Error(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`);
   const max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);

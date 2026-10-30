@@ -10,8 +10,11 @@ human-gated run, or is a stop condition in an autonomous run. This file is the s
 
 A decision is intent-bearing if it does ANY of the following:
 
-1. **Touches a ledgered RIM** — resolves, narrows, or depends on an `intent-risks` entry
-   (00-index) that is still `open` or `carried`.
+1. **Goes against a ledgered RIM** — goes against the recorded `decision:` of an
+   `intent-risks` entry (00-index) that is still `open` or `carried`, or removes the protection
+   that the risk names. For an `open` entry with no recorded decision, a decision that resolves
+   or narrows it counts. A decision that follows or applies the risk's recorded decision is
+   implementation-detail.
 2. **Alters or narrows a PO directive** — changes, drops, or reinterprets anything in intake's
    Known Constraints, the Restated Request, or a recorded PO answer (a *narrowing* counts, per
    `_question-craft.md`'s scope-of-authority rule — a vendor answer is not authority to drop the
@@ -53,3 +56,16 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
   policy overstepped.
 - A standing `steer` entry ([_decisions.md](_decisions.md)) may pre-answer a *named* intent-bearing question (that is
   ratification in advance); it may not blanket-authorize the class.
+- **A standing answer settles a named kind.** When the person chose an option "…and the same at
+  each later case" ([_question-craft.md](_question-craft.md) rule 8), the answer is a steer with
+  the key `standing:<kind>`. It settles each later question of that kind, in every mode, and no
+  other kind. A question of a kind has a key `<kind>:<case>`, so `decide answered` finds the
+  standing answer. Record each settled case with `--by standing:<the steer's id>`.
+- **The doubtful case.** When a decision is hard to classify and it can be undone inside this
+  packet (no push, no deleted data, no change to a contract line that a later packet reads),
+  settle it by the recommended option, record it as implementation-detail with `contested: true`,
+  and continue. The hand-back lists each contested decision in chat. Only a doubtful decision that
+  cannot be undone inside the packet is intent-bearing.
+- **A reservation needs the person's words.** A plan or a slice may reserve a decision "for the
+  person" only when an answer of the person says so for that case, and the record quotes that
+  answer's id. A reservation that an agent wrote on its own is an implementation-detail decision.

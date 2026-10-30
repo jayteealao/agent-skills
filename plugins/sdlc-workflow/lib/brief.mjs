@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
-import { STAGE_SUITES, profileLines, readProfile, timeBox } from './test-profile.mjs';
+import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
 import { linkedProject, workflowDir, workflowRel } from './records-root.mjs';
 
@@ -133,7 +133,14 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     if (!Object.keys(mine).length) missing.push(`the testProfile suites ${suites.join(', ')} in .ai/sdlc-config.json`);
     else {
       const box = timeBox(profile, suites);
-      testsText = [...profileLines(mine).map((l) => `- ${l}`), '', `Time box: ${Math.round(box.seconds / 60)} minutes.`].join('\n');
+      const budget = budgetLine(profile);
+      const limit = checkLimit(profile, stage);
+      testsText = [
+        ...profileLines(mine).map((l) => `- ${l}`),
+        `- ${budget ?? 'budget: not chosen; the person chooses it once for the repo (_check-budget.md)'}`,
+        '',
+        `Time box: ${Math.round(box.seconds / 60)} minutes. Longest check of this stage: ${limit.seconds}s (from the ${limit.from}). A longer command is a long run: follow _long-runs.md.`,
+      ].join('\n');
     }
   }
 

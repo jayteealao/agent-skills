@@ -149,9 +149,11 @@ test('--slug: the run-decisions answer of the launch sets delegate', async () =>
 
 test('the stage briefs reuse an answer to the same question under another key', () => {
   const yolo = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-  assert.match(yolo, /When an entry answers the same question in substance under ` \+\n\s+`another key/);
+  assert.match(yolo, /When an entry answers the same question in substance under another key/);
+  assert.match(yolo, /or a standing answer \(key standing:<kind>\) covers the kind of the question/);
   assert.equal((yolo.match(/sameQuestionClause\(\) \+/g) || []).length, 2, 'the question contract and delegate mode');
   const ref = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'reference', 'yolo.md'), 'utf8');
   assert.match(ref, /--kind steer --key run-decisions/);
-  assert.match(ref, /up to four in each question/);
+  assert.match(ref, /"Reverse any of these\?"/, 'the end digest is one list and one question');
+  assert.match(ref, /"None, keep them all \(Recommended\)"/);
 });

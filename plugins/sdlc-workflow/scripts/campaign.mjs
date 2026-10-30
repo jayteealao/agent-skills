@@ -456,6 +456,7 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
   const acs = sectionList(packetText, 'Acceptance criteria');
   const constraints = sectionList(packetText, 'Constraints');
   const risks = sectionList(packetText, 'Risks');
+  const measures = sectionList(packetText, 'Measures');
   const ux = packet['ux-impact'] ?? 'none';
   const stack = { ...(list?.stack ?? {}), 'user-confirmed': true };
   const index = {
@@ -543,6 +544,7 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
     '## Problem Statement', '', goal || packet.title || slug, '',
     '## Desired Behavior', '', ...(inScope.length ? inScope.map((s) => `- ${s}`) : ['- See Acceptance Criteria.']), '',
     '## Acceptance Criteria', '', ...(acs.length ? acs.map((a) => `- ${a}`) : ['- None.']), '',
+    ...(measures.length ? ['## Measures', '', ...measures.map((m) => `- ${m}`), ''] : []),
     '## Out of Scope', '', ...(outScope.length ? outScope.map((o) => `- ${o}`) : ['- None.']), '',
     '## Unknowns / Open Questions', '',
     ...(risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** (carried to the slug-wide review) — ${r}`) : ['- None.']), '',

@@ -2223,6 +2223,7 @@
               "acceptance-criteria": { "$ref": "#/$defs/stringArray", "description": "Each checkable criterion; the packet file numbers them AC-1, AC-2, …" },
               "constraints": { "$ref": "#/$defs/stringArray" },
               "risks": { "$ref": "#/$defs/stringArray", "description": "campaign.mjs open seeds intent-risks from these." },
+              "measures": { "$ref": "#/$defs/stringArray", "description": "Each number that the packet computes or judges, and what it means to the user. No shape runs for a packet, so the person confirms the meaning here; campaign.mjs open copies it into the shape." },
               "ux-impact-confirmed": { "type": "boolean", "description": "The person confirmed ux-impact at done (D20)." },
               "try-out": { "enum": ["yes", "no"], "description": "D37: yes when ux-impact is not none or the packet adds a user-facing command." },
               "estimated-slices": { "type": "integer", "minimum": 1, "description": "The brainstorm's estimate of the capability slices (D15: a target of 10, a band of 6 to 14)." },

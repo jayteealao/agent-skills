@@ -54,6 +54,30 @@ quantities instead of abstract statements.
    the lived consequence is what lets a non-technical PO catch it before it
    ships.
 
+8. **Offer a standing option for a question that can come again.** When the
+   question is of a kind that can come again in this work (a floor, a match
+   count, a refit, a long run, a missed target), give one option that says
+   "<the recommended choice>, and the same at each later case". The option
+   description names the kind, for example "every band whose margin is under
+   its floor". Give the question the key `<kind>:<case>`. When the person
+   takes the standing option, record the answer and also a steer:
+   `decide add --kind steer --key standing:<kind> --question "<the question>"
+   --answer "<the choice and its scope in one line>"`. A later question of the
+   kind is settled by the steer ([_decision-classes.md](_decision-classes.md)).
+9. **State the time of a check.** An option that starts, repeats or skips a
+   check or a long run states its wall time, the date of the measurement and
+   the machine, for example "about 4 min (measured 2026-10-22 on desk-1)". A
+   time from before the last code change is not a measurement: say
+   "not measured" and offer a pilot. When the options differ in time, the
+   question text says so.
+10. **Recommend the fastest valid path.** Recommend the option that reaches a
+   valid answer soonest, inside the check budget of the test profile
+   (`wf.mjs profile show`). Recommend a slower option only when the faster one
+   cannot give a valid answer, and say why in one clause. When the
+   recommended option is over `budget.long`, the options include at least one
+   faster path of [_long-runs.md](_long-runs.md): a pilot, a split across
+   machines, a sample, or the move to the packet end.
+
 **Scope of authority — a PO answer decides only the question it was asked.**
 When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*
 that approach served does NOT silently degrade into being dropped. The stage must either (a) show
@@ -72,6 +96,6 @@ If not, rewrite the framing. The fix is more context, not a simpler decision.
 framing (it can be 2–3 sentences); option `label`s stay short; option
 `description`s carry the consequence text and glosses. When a round needs more setup, put it in the `question`
 field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
-Freeform chat questions follow the same seven requirements in prose.
+Freeform chat questions follow the same ten requirements in prose.
 
-**Never ask a decided question again.** Before a question, check the decision store per rule 2 of [_decisions.md](_decisions.md). When a live entry covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.
+**Never ask a decided question again.** Before a question, check the decision store per rule 2 of [_decisions.md](_decisions.md). When a live entry covers the question, use it, name it, and do not ask. A standing answer (`standing:<kind>`) covers every later question of its kind. Ask again only when a fact changed, and say which fact.

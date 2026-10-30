@@ -33,6 +33,7 @@ The brainstorm writes each build work packet (form `intake`, `fix`, `hotfix`, `e
 | `goal` | One or two plain sentences: the outcome of the work packet. |
 | `in-scope`, `out-of-scope` | One line per item. The items left for later and the cut items of the work packet's threads belong in `out-of-scope`. |
 | `acceptance-criteria` | One checkable criterion per entry. The work packet file numbers them `AC-1`, `AC-2`, and so on. |
+| `measures` | Each number that the work packet computes or judges, and what it means to the user, one line each, for example "ability: how many goals a player adds over a season, not the goal difference of the team". Write it when an acceptance criterion names a number. The person confirms it with the work packet: no shape runs for a work packet, so this line is where the meaning is asked. |
 | `constraints` | The constraints that are not carried decisions. `open` copies each carried decision into the Known Constraints by itself, so do not repeat one here. |
 | `risks` | Each way the work packet can be misread or fail, one line each. `open` seeds the intent-risks of the work packet from them. |
 | `ux-impact`, `ux-impact-confirmed` | Propose `none`, `visual`, `flow` or `new-surface` per `design/_lane.md`. The person confirms it. Then write `ux-impact-confirmed: true`. |

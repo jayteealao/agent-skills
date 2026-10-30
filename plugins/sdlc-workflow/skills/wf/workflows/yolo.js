@@ -346,6 +346,12 @@ function deadDriverClause(priorRun) {
 // when at least one ac-bearing deferral exists in EITHER array.
 function verifyClean(t, residual) {
   if (!t) return false
+  // An item that a live decision accepts is cleared, whatever its kind: a decision of the person, a
+  // standing answer, or a delegate accept. The verify agent lists it in acceptedItems with the id of
+  // that decision, and keeps it out of substantiveResidual. Missing evidence that is not deferred is
+  // never accepted this way.
+  if (Array.isArray(t.acceptedItems) && t.acceptedItems.length > 0 && t.substantiveResidual !== true &&
+    t.result !== 'blocked-runtime-evidence-missing') return true
   const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
   if (!converged || t.substantiveResidual === true) return false
   if (t.result === 'pass') return true
@@ -640,10 +646,28 @@ function decisionDigest(o) {
     byClass: groups,
     intentBearing,
     unclassified,
+    // The doubtful decisions that a stage settled because they can be undone inside the packet.
+    contested: chains.flatMap(c => ((c && c.ran) || []).flatMap(r => ((r && r.decisions) || [])
+      .filter(d => d && d.contested === true).map(d => ({ slice: r.slice, stage: r.stage, decision: d.decision || '' })))),
     // The load-bearing qualifier. 'suspect' means the run cannot honestly claim
     // zero intent-bearing escapes — some decisions were never checked.
     intentBearingGuarantee: unclassified.length ? 'suspect' : 'exact',
   }
+}
+
+// The verify items that a live decision accepted this run, from every verify result.
+function acceptedResiduals(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const out = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      const t = (r && r.terminal) || {}
+      for (const a of Array.isArray(t.acceptedItems) ? t.acceptedItems : []) {
+        if (a && a.item) out.push({ slice: r.slice || null, item: String(a.item), by: String(a.by || '?') })
+      }
+    }
+  }
+  return out
 }
 
 // clearingTripwire() — W4.2 rollup. orient ran each open deferral's recorded
@@ -794,10 +818,43 @@ function smallChangeClause(stage) {
 
 // A repeated question: an earlier stage asked it under another key, and the person answered it.
 function sameQuestionClause() {
-  return `When it prints no answer, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, ` +
-    `with --slice <your slice> when you run on a slice. When an entry answers the same question in substance under ` +
-    `another key (the same choice in other words), that entry settles it: cite its id in the decision that you ` +
-    `record, and do not ask again. `
+  return `When it prints no answer, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\` and ` +
+    `\`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer --json\`, with --slice <your slice> when you run on ` +
+    `a slice. When an entry answers the same question in substance under another key (the same choice in other ` +
+    `words), or a standing answer (key standing:<kind>) covers the kind of the question, that entry settles it: ` +
+    `cite its id in the decision that you record (--by standing:<id> for a standing answer), and do not ask again. ` +
+    `Give a question that can come again the key <kind>:<case>, so a standing answer finds it. `
+}
+
+// A failing item that a live decision already settles is accepted, in every mode.
+function settledItemsClause(sliceArg) {
+  const scope = sliceArg ? ` --slice ${sliceArg}` : ''
+  return `\n\nSETTLED ITEMS. Before you fix or report a failing acceptance criterion or residual item, run ` +
+    `\`${WF_CMD} decide list "${projectRoot}" ${slug}${scope} --json\`. When a live decision of the person, a ` +
+    `standing answer or a delegate decision already settles the item in substance (for example "record the miss, ` +
+    `the speed work moves to a later packet"), accept the item: do not fix it, do not stop on it, and do not ask ` +
+    `about it. Write accepted-by: <that decision's id>, accepted-at (UTC now) and accepted-items (the item, one ` +
+    `line each) in the verify frontmatter. Return it in terminal.acceptedItems as { item, by: <that decision's id> }, ` +
+    `and do not count it in substantiveResidual.`
+}
+
+// Delegate mode, last verify round: a failing item is accepted and goes to the review as a finding.
+function delegateAcceptClause(sliceArg) {
+  const s = sliceArg || slug
+  const sliceOpt = sliceArg ? ` --slice ${sliceArg}` : ''
+  return `\n\nDELEGATE ACCEPT (this is the last verify round of a delegate run). When an item still fails after ` +
+    `your fix round, do not stop the run. First, when your own slice moved a measured product behaviour outside ` +
+    `its pinned range and the cause is not known, spend one bounded round on finding the cause, then fix it or ` +
+    `accept it. For each item that still fails: (1) run \`${WF_CMD} decide add "${projectRoot}" ${slug} --kind ` +
+    `answer --by delegate --key verify-accept:${s}:<item> --question "<the item>" --answer "accept, carried to the ` +
+    `review" --stage verify${sliceOpt}\`; (2) write accepted-by: delegate, accepted-at (UTC now) and ` +
+    `accepted-items (the item, one line each) in the verify frontmatter; (3) write { "findings": [{ "dimension": ` +
+    `"residual", "severity": "HIGH", "file": <the main file of the item, or null>, "line": null, "key": "<item>", ` +
+    `"issue": "<the item and its measured gap>" }] } to ${DRAFT_DIR}/residual-${s}.json and run \`${WF_CMD} ` +
+    `findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/residual-${s}.json --source review${sliceOpt} --dimensions ` +
+    `residual\`, so the review tries to fix it. Return each item in terminal.acceptedItems as { item, by: ` +
+    `'delegate' }, set substantiveResidual: false, and return status 'complete'. Missing runtime evidence with ` +
+    `no deferral is not accepted this way.`
 }
 
 // Delegate mode: the person delegated the intent-bearing decisions of this run.
@@ -807,8 +864,10 @@ function delegateClause(wfCmd) {
     sameQuestionClause() +
     `Otherwise settle it by the option you would recommend, record it with \`${wfCmd} decide add "${projectRoot}" ` +
     `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
-    `<stage>\`, and continue. Return no questions. The person reads every delegate decision at the end of the run ` +
-    `and confirms or reverses each.`
+    `<stage>\`, and continue. Return no questions. When your own slice moves a measured product behaviour ` +
+    `outside its pinned range and the cause is not known, do not carry it to later work: spend one bounded round ` +
+    `on finding the cause, then decide. The person gets every delegate decision in one list at the end of the run, ` +
+    `and reverses any of them in one answer.`
 }
 
 
@@ -962,8 +1021,11 @@ const DECISION_CONTRACT =
   `- EVERY decision you record carries a \`class\` stamp per ${referenceRoot}/_decision-classes.md. There are ` +
   `exactly two values: \`implementation-detail\` (yours to settle autonomously) and \`intent-bearing\` (never ` +
   `yours — it is a question, per the question contract). Omitting the stamp is not a neutral act: it silently ` +
-  `weakens the run's "intent-bearing escapes: 0" report into a number nobody can trust. If a decision is ` +
-  `genuinely hard to classify, stamp it \`intent-bearing\` and return it as a question — that is the safe direction.\n` +
+  `weakens the run's "intent-bearing escapes: 0" report into a number nobody can trust. When a decision is ` +
+  `hard to classify and it can be undone inside this packet (no push, no deleted data, no change to a contract ` +
+  `line that a later packet reads), settle it by your recommended option, stamp it \`implementation-detail\` with ` +
+  `contested: true, and continue: the hand-back lists it. Only a doubtful decision that cannot be undone inside ` +
+  `the packet is \`intent-bearing\` and a question.\n` +
   `- Return each decision as an object carrying at least { class, decision } and, where it resolves a specific ` +
   `acceptance criterion, { ac, classification } naming what you concluded that AC is (e.g. ` +
   `classification: 'build-capability' vs 'runtime-evidence'). The run report treats YOUR recorded ` +
@@ -1009,7 +1071,8 @@ function questionContract(stage) {
         `output tail of THIS run; residual carries only what is not a deferral. Set substantiveResidual: true ` +
         `iff an acceptance criterion still fails for a CODE reason after the fix round. Return status ` +
         `'complete' when convergence is not-needed or converged, substantiveResidual is false, and result is ` +
-        `pass or a partial with at least one recorded deferral; otherwise return status 'hard-stop'.`
+        `pass or a partial with at least one recorded deferral. Return status 'complete' also when every item ` +
+        `that still fails is in terminal.acceptedItems. Otherwise return status 'hard-stop'.`
       : '') +
     (stage === 'review'
       ? ` RETURN CONTRACT (review): the review asks the person nothing and routes nothing back. It fixes or ` +
@@ -1259,6 +1322,12 @@ const STAGE_RESULT = {
         // un-producible runtime evidence. This is the load-bearing distinction: a
         // substantive residual still HARD-STOPs; a pure-deferral residual does not.
         substantiveResidual: { type: 'boolean' },
+        // verify → the failing items that a live decision accepts: { item, by } where by is the id
+        // of that decision, or 'delegate' for a delegate accept. An accepted item is cleared.
+        acceptedItems: {
+          type: 'array',
+          items: { type: 'object', required: ['item', 'by'], properties: { item: { type: 'string' }, by: { type: 'string' } } },
+        },
       },
     },
     // Recorded autonomous calls. W3.3: every entry MUST carry a `class` stamp
@@ -1273,6 +1342,8 @@ const STAGE_RESULT = {
         properties: {
           decision: { type: 'string' },
           class: { enum: ['implementation-detail', 'intent-bearing'] },
+          // A doubtful decision that the stage settled because it can be undone inside the packet.
+          contested: { type: 'boolean' },
           ac: { type: 'string' },
           classification: { type: 'string' },
           slice: { type: 'string' },
@@ -1758,6 +1829,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
     `${referenceRoot}/_records.md.` +
     questionContract(stage) + (DELEGATE ? delegateClause(WF_CMD) : '') + answeredClause(extra.answered, stage, sliceArg) +
+    (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
+    (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg) : '') +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
@@ -1810,10 +1883,12 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
     `"${projectRoot}" ${slug} verify ${sliceArg}\`, then read ${referenceRoot}/verify.md IN FULL and follow it ` +
     `VERBATIM: the AC gate, the runtime checks with the evidence reuse of verify/_runtime-evidence.md, the deferral ` +
     `rules, and the verify record 06-verify-${sliceArg}.md. When the verify fails, fix the code as a new step, ` +
-    `commit it, and verify again: at most 2 verify rounds.` + reChallengeClause(idx.priorDeferrals, deferCmd) +
+    `commit it, and verify again: at most 2 verify rounds.` + settledItemsClause(sliceArg) +
+    (DELEGATE ? delegateAcceptClause(sliceArg).replace('(this is the last verify round of a delegate run)', '(on your second verify round, in a delegate run)') : '') +
+    reChallengeClause(idx.priorDeferrals, deferCmd) +
     sliceStatusClause(sliceArg) +
     `\nReturn the verify as \`verify\`: { status, artifactPath, terminal: { convergence, result, deferrals ` +
-    `([{ac, reason, probe}]; [] if none), substantiveResidual }, residual, sliceWriteBack, hardStopReason }. ` +
+    `([{ac, reason, probe}]; [] if none), substantiveResidual, acceptedItems }, residual, sliceWriteBack, hardStopReason }. ` +
     `The top-level fields stay the implement result.`
 }
 
@@ -2985,8 +3060,14 @@ if (waiting) {
   outcome.route = `answer the questions, record each answer with decide add, then re-run ${resumeCmd} with args.answered`
   log(`yolo waits for the person: ${outcome.questions.length} question(s) — ${questionsText(outcome.questions)}`)
 }
-// Delegate mode: the person reads every delegate decision of this run at the end.
+// Delegate mode: the person gets every delegate decision of this run in one list at the end.
 if (DELEGATE) outcome.delegate = { digest: `${WF_CMD} decide list "${projectRoot}" ${slug} --by delegate` }
+// Each verify item that a decision accepted: the hand-back names the slice, the item and who accepted it.
+const accepted = acceptedResiduals(outcome)
+if (accepted.length) {
+  outcome.acceptedResiduals = accepted
+  log(`accepted verify items: ${accepted.map(a => `${a.slice || slug} ${a.item} (by ${a.by})`).join('; ')} — each delegate accept is a residual finding of the review`)
+}
 // W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
 // so the human's post-run inspection is structured, not archaeological.
 const digest = decisionDigest(outcome)

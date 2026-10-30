@@ -415,3 +415,15 @@ test('archive moves closed items and old sessions; the document caps warn', () =
   }
   deepEqual(docCheck('## The Brainstorm\nshort.\n'), []);
 });
+
+test('a packet carries its measures into the packet file and into the shape of its workflow', async () => {
+  const { packetFolderRecords } = await import('../../../scripts/campaign.mjs');
+  const b = board();
+  const packet = { ...b.work[0], measures: ['ability: the goals a player adds over a season, not the goal difference of the team'] };
+  const text = renderPacket(b, packet, { revision: 1 });
+  match(text, /## Measures\n\n- ability: the goals a player adds over a season/);
+  doesNotMatch(renderPacket(b, b.work[0], { revision: 1 }), /## Measures/, 'no measures, no section');
+  const fm = safeParseFrontmatter(text).data;
+  const r = packetFolderRecords({ src: SLUG, packet: { ...fm, file: 'engine-modules.md' }, packetText: text, list: {}, trunk: 'main', now: '2026-10-30T10:00:00Z' });
+  match(r['02-shape.md'].body, /## Measures\n\n- ability: the goals a player adds over a season/);
+});

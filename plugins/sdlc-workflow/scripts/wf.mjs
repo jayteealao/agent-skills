@@ -126,11 +126,13 @@
  *             each record that names it gets superseded-decisions.<old id>: <new id>
  *             Example: wf.mjs decide add . demo --file .ai/workflows/demo/.draft/answers.json
  *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
- *             the live entries in a scope (--all: every entry). Use it to read what is decided;
+ *             the live entries in a scope (--all: every entry; --by standing: the cases that a
+ *             standing answer settled). Use it to read what is decided;
  *             use decide answered to test one key before a question is asked
  *             Example: wf.mjs decide list . demo --slice api
  *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
- *             exit 0 and the entry when a live entry answers the key, exit 1 when none does.
+ *             exit 0 and the entry when a live entry answers the key, exit 1 when none does. A
+ *             standing answer (key standing:<kind>) answers each key <kind>:<case>.
  *             Use it before a question is asked; use decide list to read every decision
  *             Example: wf.mjs decide answered . demo --key db
  *   decide   hold <root> <slug> --key k --question q --stage s [--slice s]
@@ -163,7 +165,7 @@
  *             Only the steps of one slice: status --brief gives where the whole workflow stands
  *             Example: wf.mjs step where . demo api
  *   profile  show <root> [--json]
- *             the suites of the test profile with their commands and times
+ *             the suites of the test profile with their commands and times, and the check budget
  *             Example: wf.mjs profile show .
  *   profile  set <root> <suite> --command c --estimate seconds
  *             the command of a suite and the estimate of intake, with no run
@@ -177,6 +179,10 @@
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
  *             Example: wf.mjs profile timebox . verify
+ *   profile  budget <root> [--preset fast-loop|balanced|thorough] [--slice s] [--long s] [--machines a,b] [--json]
+ *             the check budget of the repo: the longest slice check, the longest long run (none: no
+ *             limit) and the machines for split runs; with no option, show it
+ *             Example: wf.mjs profile budget . --preset fast-loop --machines desk-1,laptop
  *   profile  hooks <root> [--json]
  *             each command of the pre-push and pre-commit hooks of the repo (lefthook.yml,
  *             .husky/, .pre-commit-config.yaml, .git/hooks), its file and the suite that runs it
@@ -315,7 +321,7 @@ import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
 import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
-import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
+import { STAGE_SUITES, budgetLine, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
 import { receiptState, treeChanges } from '../lib/test-receipt.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
@@ -739,7 +745,7 @@ export function runStep(pos, opt) {
 
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
-  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox|hooks> <root> are required');
+  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox|budget|hooks> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'show') {
     const p = readProfile(projectRoot);
@@ -770,6 +776,10 @@ export function runProfile(pos, opt) {
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
     if (!r.error) recordRun(projectRoot, a, seconds, { passedAt: head });
+    const budget = readBudget(readProfile(projectRoot));
+    if (overLongBudget(readProfile(projectRoot), seconds)) {
+      process.stderr.write(`WARNING: the ${a} suite took ${seconds}s, over the long-run budget of ${budget.long}s. Before the next run, offer the faster paths of _long-runs.md: run the touched part, a pilot, a sample, a split, or the packet end.\n`);
+    }
     out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status, ...(head ? { passedAt: head } : {}) } : `${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
     return pass ? 0 : 1;
   }
@@ -778,6 +788,16 @@ export function runProfile(pos, opt) {
     const suites = STAGE_SUITES[a] ?? [];
     const box = timeBox(readProfile(projectRoot), suites, { workSeconds: Number(opt.work ?? 0) || 0 });
     out(opt.json ? { stage: a, suites, ...box } : `${a}: ${Math.round(box.seconds / 60)} minutes${box.from.length ? ` (${box.from.join(', ')})` : ' (no suite time; the floor)'}`);
+    return 0;
+  }
+  if (verb === 'budget') {
+    // The check budget of the repo. With no option, show it; with an option, set it.
+    const change = ['preset', 'slice', 'long', 'machines'].some((k) => opt[k] !== undefined);
+    const b = change
+      ? setBudget(projectRoot, { preset: opt.preset ?? null, slice: opt.slice, long: opt.long, machines: opt.machines })
+      : readBudget(readProfile(projectRoot));
+    const line = budgetLine({ budget: b });
+    out(opt.json ? (b ?? { budget: null }) : line ?? 'no budget: ask the budget question of _check-budget.md once for the repo');
     return 0;
   }
   if (verb === 'hooks') {
@@ -1480,8 +1500,9 @@ async function runMain(cmd, pos, opt) {
         if (opt.json) { out(r); return 0; }
         const lines = [`${r.created ? 'created' : 'kept'} .ai/ and ${r.config}`];
         lines.push(`about: ${r.project.about ?? '(no line yet)'}`);
-        const suites = Object.keys(r.profile);
+        const suites = Object.keys(r.profile).filter((k) => r.profile[k]?.command);
         lines.push(`test profile: ${suites.length ? suites.join(', ') : 'none'}`);
+        lines.push(budgetLine(r.profile) ?? 'budget: not chosen; ask the budget question of _check-budget.md');
         lines.push(`merge: ${r.facts.method ? `${r.facts.repo} ${r.facts.base} merges by ${r.facts.method}` : r.facts.reason ?? 'the repo allows no merge method'}`);
         lines.push(`.ai/ in git: ${r.ignored === true ? `ignored${r.ignoreAdded ? ' (added to .gitignore)' : ''}` : r.ignored === false ? 'tracked' : 'not a git repo'}`);
         for (const g of r.gaps) lines.push(`gap: ${g.task}`);
