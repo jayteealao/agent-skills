@@ -76,7 +76,7 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
 13. **Fix the defect in a review run.** A defect never becomes a new slice, and the walk does not reopen the roster.
     1. Write the problem as one finding in `.ai/workflows/<packet-slug>/.draft/found.json`: `{ "findings": [ { "dimension": "intent-fidelity", "severity": "HIGH", "file": <the file, when known, else null>, "issue": <the problem text>, "fix": <what must change> } ] }`. For a try-out problem, use the dimension `try-out`.
     2. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <packet-slug> .ai/workflows/<packet-slug>/.draft/found.json --source review --dimensions <the dimension>`.
-    3. Launch the driver as step 10 does, with `reviewFindings: true` in the args. The driver skips every built slice. The slug-wide review fixes the finding, one step and one commit, and then scans only its own fix commits.
+    3. Launch the driver as step 10 does, with `reviewFindings: true` in the args. The driver skips every built slice. The slug-wide review fixes the finding, one step and one commit, and stops. It does not scan its own fix commits.
     4. Go to step 11 for a fidelity row, or to step 12 for a try-out problem.
 
     When the problem is new scope and not a defect of this work packet, and the source is a brainstorm, the person can add it to the list as a new work packet with `/wf intake brainstorm <source-slug> add <text>` instead. Then record the approval of step 11 or the try-out of step 12 with the person's words.

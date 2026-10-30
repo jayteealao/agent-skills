@@ -103,7 +103,7 @@ After writing files, return per [_chat-return.md](../_chat-return.md). Lead with
 Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track these items:
 
 - one item per selected review command (independent — they run as parallel sub-agents);
-- the six bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix steps (Step 4c; dropped when Step 4b yields zero `Fix` decisions); check pass; write the review file;
+- the five bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix steps (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the review file;
 - inside Step 4c, one item per fix step (`Fix [{ID}] {SEV}: {title}`).
 
 Mark each item done as its outcome is recorded. A `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
@@ -194,9 +194,9 @@ Runs only if Step 4b gave at least one finding to fix. YOU fix the findings, one
 6. **Record the outcome.** Run `wf.mjs findings set <id> fixed --commit <sha>`.
 7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf.mjs findings set <id> could-not-fix --reason "<the failure>"`, and continue with the next step.
 
-## The check pass
+## One review round
 
-After the last fix step, scan only the commits of your fix steps (`git diff <the HEAD before Step 4c>...HEAD`) with the scouts and the refuters of Steps 3 and 3b. Merge the findings at Step 4 and fix them the same way. Stop after 2 check passes, and report what is still open. Do not scan the work packet again. When a driver runs the review, the driver runs the check passes and tells you so.
+The review runs one round: scan, fix, and stop. After the last fix step, go to Step 5. Do not scan the commits of your fix steps again, and do not start a second round. The person runs `/wf review <slug>` again to review further.
 
 ## What the review returns
 
@@ -218,7 +218,7 @@ Write the whole draft on every run, also when the record exists. Keep only `crea
 
 # Adaptive routing — evaluate what's actually next
 
-Routing is **driven by the `could-not-fix` findings**. The review fixes or dismisses every finding itself; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After the fix steps and the check passes, present the user with ALL viable options; write ALL viable options into the `recommended-routes` frontmatter.
+Routing is **driven by the `could-not-fix` findings**. The review fixes or dismisses every finding itself; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After the fix steps, present the user with ALL viable options; write ALL viable options into the `recommended-routes` frontmatter.
 
 - **Option A: Ship** → `/wf ship <slug>`. Use when no BLOCKER finding is `could-not-fix` AND all intended slices are complete. Its PR phase aggregates all complete slices automatically. If more slices remain, use Option D first, then run `/wf ship <slug>` once for the full PR.
 - **Option B: Re-invoke review (accumulating re-run)** → `/wf review <slug> [<slice>]`. Use when a BLOCKER is `could-not-fix` and the person removes its cause. Re-invocation re-checks the fixed code, merges fresh findings, and resolve-sweeps what the fixes cleared (no round counter, no `convergence` state). State the `could-not-fix` findings and their failures before recommending.

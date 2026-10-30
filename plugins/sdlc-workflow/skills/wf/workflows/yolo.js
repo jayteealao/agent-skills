@@ -107,8 +107,6 @@ function stageModel(stage) {
 const SPLIT_AFTER_STOPS = 2
 // An answered stage can send the slice back to its plan or its implement at most this often in one run.
 const MAX_ROUTE_BACKS = 2
-// After its fix steps, the slug-wide review scans only its own fix commits, at most this often.
-const REVIEW_CHECK_PASSES = 2
 
 // WF-SYSTEM-REVIEW C5: the charter checkpoint runs only after work that touched the charter:
 // a stage result with an intent-bearing decision, or a decision that names a charter id.
@@ -1437,8 +1435,6 @@ const RUBRIC_SELECTION = {
     // The stop-request check runs here, at the review boundary, before any scout starts.
     stopped: { type: 'boolean' },
     stopReason: { type: 'string' },
-    // A check pass over the fix commits of the review: true when that range has no change.
-    emptyDiff: { type: 'boolean' },
     // The files of the work packet: the changed files, and the files that call, import or test
     // the changed code. The scouts look only there, and the merge drops a finding elsewhere.
     affectedFiles: { type: 'array', items: { type: 'string' } },
@@ -1803,10 +1799,6 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `${DRAFT_DIR}/found.json --source review --run ${RUN_ID}` +
       `${sliceArg ? ` --slice ${sliceArg}` : ''}\`. A finding with \`refuted\` stays refuted; re-check a ` +
       `survivor you doubt, but do not drop it.` +
-      (scan.checkPass
-        ? ` This is a CHECK PASS: the scan read only the commits of your last fix steps, ${scan.checkPass}. Fix ` +
-          `its findings the same way, at Steps 4b and 4c, and do not scan the work packet again.`
-        : '') +
       ` Findings: ${JSON.stringify(scan.findings)}` +
       promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run \`${REC('put')}\` after you write it)`)
     : stage === 'review' && extra.ledgerOnly
@@ -2205,10 +2197,9 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const beat = (label) => heartbeatClause(label, 'Review', 'review', sliceArg) +
     ` The two journal lines are the only writes of this agent.`
   const base = idx.branch.base || '<base>'
-  // A check pass reads only the fix commits of the last review pass (extra.diffRange).
-  const diffRange = extra.diffRange || (sliceArg ? 'HEAD' : `${base}...HEAD`)
+  const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
   // An answered review runs the writer again with the answer, over the ledger of the last run.
-  if (extra.answered && !extra.diffRange) {
+  if (extra.answered) {
     return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered })
   }
   // 0. Select the rubrics the way the wrapped review stage does (review/_stage.md Step 2 +
@@ -2223,9 +2214,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}` +
-    `${extra.diffRange ? ` This scan reads only the fix commits of the last review pass, ${diffRange}: select the ` +
-      `rubrics for that diff. When \`git -C ${projectRoot} diff --stat ${diffRange}\` prints nothing, return ` +
-      `rubrics: [] and emptyDiff: true.` : ''}\n\n` +
+    `\n\n` +
     `Return affectedFiles: every file that \`git -C ${projectRoot} diff --name-only ${diffRange}\` prints, and each ` +
     `file that calls, imports or tests code that the diff changes (find them with \`git -C ${projectRoot} grep\` ` +
     `on the changed exports and names). Give each path relative to the project root, with forward slashes. ` +
@@ -2239,11 +2228,6 @@ async function driveReview(sliceArg, idx, extra = {}) {
   )
   if (selection && selection.stopped === true) {
     return { stage: 'review', slice: sliceArg || undefined, status: 'stopped', stopReason: selection.stopReason || 'stop request', artifactPath: '', terminal: {} }
-  }
-  // A check pass whose range holds no change has nothing to scan: the last pass stands.
-  if (extra.diffRange && selection && selection.emptyDiff === true) {
-    log(`review: no change in ${diffRange} — no check pass`)
-    return { stage: 'review', slice: sliceArg || undefined, status: 'complete', emptyDiff: true, artifactPath: '', terminal: {} }
   }
   // The work packet: the scouts look only in these files, and a finding elsewhere is dropped.
   const affected = (selection && Array.isArray(selection.affectedFiles) ? selection.affectedFiles : []).map(repoPath).filter(Boolean)
@@ -2314,7 +2298,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const dimensions = [...new Set([...rubrics.map(r => r.rubric), ...(steeringScout ? ['steering'] : [])])]
   // 3. Wrapped writer — review.md owns the ledger merge, triage, fix loop and review file.
   return await runStage('review', sliceArg, idx, {
-    scan: { dimensions, findings, affectedFiles: affected, files: [...new Set(rubrics.map(r => r.file))], ...(extra.diffRange ? { checkPass: extra.diffRange } : {}) },
+    scan: { dimensions, findings, affectedFiles: affected, files: [...new Set(rubrics.map(r => r.file))] },
     ...(extra.answered ? { answered: extra.answered } : {}),
   })
 }
@@ -2688,28 +2672,17 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   return { stopped: false, slice: sliceArg, ran }
 }
 
-// The slug-wide review, the run's target after every slice verified. The review fixes every
-// finding itself, one step and one commit at a time; it asks nothing and sends nothing back.
-// Then up to REVIEW_CHECK_PASSES passes scan only the fix commits of the pass before, and fix
-// what they find the same way. Returns the slug outcome.
+// The slug-wide review, the run's target after every slice verified. The review runs once: it
+// fixes every finding itself, one step and one commit at a time, and stops. It asks nothing,
+// sends nothing back, and does not scan its own fix commits again; the person runs /wf review
+// again to review further. Returns the slug outcome.
 async function slugWideReview(idx, results) {
   log(`yolo → review ${slug} (slug-wide)`)
-  let from = await headCommit('head:review-start')
   // The walk put the defects of a fidelity row or a try-out in the ledger: the review fixes
-  // them and scans only its own fix commits, not the work packet again.
-  let rev = OPT.reviewFindings === true
+  // them and does not scan the work packet again.
+  const rev = OPT.reviewFindings === true
     ? await runStage('review', null, idx, { stopCheck: true, ledgerOnly: true })
     : await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })
-  for (let pass = 1; pass <= REVIEW_CHECK_PASSES && rev && rev.status === 'complete' && from; pass++) {
-    const fixes = Array.isArray(rev.fixCommits) ? rev.fixCommits.filter(Boolean) : []
-    if (!fixes.length) break
-    const next = await headCommit(`head:review-pass-${pass}`)
-    log(`yolo → review ${slug} (check pass ${pass}: the ${fixes.length} fix commit(s) in ${from}...HEAD)`)
-    const again = await driveReview(null, idx, { diffRange: `${from}...HEAD` })
-    if (!again || again.emptyDiff === true) break
-    rev = again
-    from = next
-  }
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
   return !rev
     // A null return = the review subagent was skipped or died on a transient error: a re-run retries it.
