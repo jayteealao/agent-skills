@@ -6,7 +6,8 @@
  *             Step 0 of SKILL.md: the key, the reference and where the key's arguments start.
  *             Pass a token that does not match ^[A-Za-z0-9#._/-]+$ as @. A `close-ask:` line names
  *             each open workflow whose branch is merged. A `first-run:` line says that the repo has
- *             no .ai/ folder, so the setup runs before the key.
+ *             no .ai/ folder, so the setup runs before the key. It commits and fetches nothing; a
+ *             `records: ask` or `records: stop` line comes only when the records need the person.
  *             Example: wf.mjs dispatch . --host claude -- implement demo api
  *   help     [<command>]
  *             the commands, or the forms and the flags of one command (also <command> --help)
@@ -23,16 +24,21 @@
  *             an alias for one release: the workflows folder, the wf-dir of a workflow or a file
  *             in it. The dispatch prints the wf-dir, and every file of a workflow is in it
  *             Example: wf.mjs path . demo verify-evidence/api/run.txt
- *   records  <link|status|sync|push|close|migrate> [<root>] [<project>|<slug>] [--dry-run] [--json]
- *             the records repo: link a project (its records move into the clone), show the
- *             clone, pull the work of other machines, push the clone, close a workflow (commit,
- *             push, release its lease), and move the live branches of an older version onto the
- *             main branch once (each ref goes to refs/archive/live/)
- *             Example: wf.mjs records status .
+ *   records  <link|status|sync|push|close|retry|dismiss|migrate> [<root>] [<project>|<slug>] [--problems] [--dry-run] [--json]
+ *             the records repo: link a project (its records move into the clone, and each
+ *             workflow gets its issue), show the clone (--problems: only the failed pushes, the
+ *             conflicts and the files in no commit, at most 40 lines), pull the work of other
+ *             machines, push the clone, close a workflow (commit, push, release its lease), the
+ *             two answers to a records question of the dispatch (retry: commit the workflow again
+ *             and push and flush in the background; dismiss: ask again only about a newer
+ *             failure), and move the live branches of an older version onto the main branch once
+ *             Example: wf.mjs records status . --problems
  *             Example: wf.mjs records migrate --dry-run
- *   lease    <claim|release|show> <root> <slug> [--take] [--json]
- *             the lease of a workflow: the one machine that writes its records now (--take: an
- *             expired lease of another machine, after the person said yes)
+ *   lease    <claim|release|show|decline> <root> <slug> [--take] [--json]
+ *             the lease of a workflow: the one machine that writes its records now, when two or
+ *             more machines are registered. A new claim also pulls (--take: an expired lease of
+ *             another machine, after the person said yes; decline: the answer no to a lease
+ *             question, exit 1)
  *             Example: wf.mjs lease claim . demo
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/.
@@ -51,10 +57,13 @@
  *             the page of a brainstorm: the brief of the page agent, the check and move of its
  *             draft (.draft/page.html → page/index.html), or the check of the page in place
  *             Example: wf.mjs page check . demo
- *   gh       <flush|status> [<root>] [--json]
- *             the GitHub layer: send the queued issue edits and comments in order, or show what
- *             is queued and parked. Each state change of a workflow queues one progress edit by
- *             itself. An entry that fails three flushes is parked, so the rest go on
+ *   gh       <flush|status> [<root>] [<slug>] [--json]
+ *             the GitHub layer: send the queued issue edits and comments in order until the
+ *             queue is empty, or show what is queued and parked. Each state change of a workflow
+ *             queues one progress edit by itself. A network error gets one more try after 5 s; an
+ *             entry that fails three flushes is parked, so the rest go on. Each flush writes its
+ *             result to the records log. With <root> <slug>, flush also imports the comments of
+ *             that workflow's issue into its inbox
  *             Example: wf.mjs gh status .
  *   gh       backfill <root> [--json]
  *             queue one progress edit for each workflow of the project, so a workflow from
@@ -328,8 +337,9 @@ import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { afterChange } from '../lib/after-change.mjs';
-import { closeRecords, healthLine, linkProject, machineName, migrateLive, productRepoGapLines, productRepoGaps, pushRecords, recordsStatus, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
-import { claimLease, heldBefore, leaseLostLine, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { closeRecords, commitWorkflow, dismissRecords, inBackground, linkProject, logRecordsEvent, machineName, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
+import { claimAndPull, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { recordsLine } from '../lib/records-line.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
@@ -386,7 +396,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'outline', 'full'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'outline', 'full', 'problems', 'background'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -439,29 +449,28 @@ async function runDispatch(pos, opt) {
   if (!root) throw new Error('dispatch: <root> is required');
   const safe = tokens.map((t) => (t === UNSAFE || SAFE_TOKEN.test(t) ? t : UNSAFE));
   const projectRoot = resolve(root);
-  // A linked project pulls the work of other machines first, so the dispatch sees it.
-  const sync = linkedProject(projectRoot) ? syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true }) : null;
+  // The dispatch commits nothing and fetches nothing: a records commit pushes in the background,
+  // and the pull runs at a claim of the lease, at `records sync` and at `msg list`.
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
-  r.sync = sync;
-  const target = sync ? slugAtDispatch(projectRoot, r, safe) : null;
+  const linked = linkedProject(projectRoot);
+  const layer = layerOf(projectRoot);
+  const target = linked || layer ? slugAtDispatch(projectRoot, r, safe) : null;
   // The folder of the workflow that the call names, status too: every reference path is in it.
   const wfSlug = slugAtDispatch(projectRoot, r, safe, { reads: true });
   r.wfDir = wfSlug ? workflowDir(projectRoot, wfSlug) : null;
-  r.lease = target ? leaseAtDispatch(projectRoot, target, opt.host ?? null) : null;
-  // The registry is generated in the clone: a pull that moved a folder rebuilds it.
-  if (sync?.pulled.length) await reconcileIndex(projectRoot);
-  r.health = target ? healthLine(workflowHealth(projectRoot, target)) : null;
-  // The person's comments on the issue reach the inbox of the workflow that the call acts on.
-  r.imported = target && layerOf(projectRoot) ? importIssueComments(projectRoot, target) : [];
-  r.parked = layerOf(projectRoot) ? layerStatus(projectRoot).parked.length : 0;
-  // A linked project whose product repo tracks or does not ignore the record folder is warned.
-  r.repoGaps = sync ? productRepoGapLines(productRepoGaps(projectRoot)) : [];
+  // One records line, or none when all is well: the lease (two or more computers), the last
+  // push, and the last flush of the GitHub layer.
+  const rec = recordsLine(projectRoot, { target: linked ? target : null, host: opt.host ?? null });
+  r.records = rec.line;
+  // The registry is generated in the clone: a pull at the claim that moved a folder rebuilds it.
+  if (rec.pulled) await reconcileIndex(projectRoot);
   // The open workflows whose branch is merged: the person is asked whether to close each one.
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
   r.firstRun = Boolean(r.key && r.key !== 'status' && needsSetup(projectRoot));
-  // The queued GitHub edits go out in the background, so the call does not wait on the network.
-  if (layerOf(projectRoot) && readOutbox().length) flushInBackground();
+  // The queued GitHub edits and the person's comments on the issue of the workflow come in the
+  // background, so the call does not wait on the network.
+  if (layer && (target || readOutbox().length)) flushInBackground(target ? [projectRoot, target] : []);
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];
   if (r.reason) lines.push(`reason: ${r.reason}`);
@@ -474,14 +483,7 @@ async function runDispatch(pos, opt) {
   if (r.firstRun) lines.push('first-run: reference/setup.md');
   // The one folder of the workflow: each `<wf-dir>/` path of a reference is in it.
   if (r.wfDir) lines.push(`wf-dir: ${r.wfDir}`);
-  if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
-  for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
-  for (const c of r.sync?.fileConflicts ?? []) lines.push(`records-conflict: ${c} has a change of this machine; the pull did not overwrite it`);
-  if (r.health) lines.push(r.health);
-  lines.push(...r.repoGaps);
-  if (r.imported.length) lines.push(`messages: ${r.imported.length} new comment(s) from GitHub in the inbox of ${target}; wf.mjs msg list "${projectRoot}" ${target} --unread`);
-  if (r.parked) lines.push(`github-parked: ${r.parked} entry(ies) failed ${MAX_FAILS} flushes; wf.mjs gh status "${projectRoot}"`);
-  if (r.lease) lines.push(r.lease);
+  if (r.records) lines.push(r.records);
   out(lines.join('\n'));
   return 0;
 }
@@ -1242,19 +1244,6 @@ function slugAtDispatch(projectRoot, r, tokens, { reads = false } = {}) {
   return r.nextOf ?? args.slice(0, 2).find((t) => existsSync(join(wfRoot(projectRoot), t, INDEX_NAME)) || existsSync(join(wfRoot(projectRoot), t, 'state.yaml'))) ?? null;
 }
 
-// The lease of the workflow that a call acts on.
-function leaseAtDispatch(projectRoot, slug, host) {
-  const before = heldBefore(projectRoot, slug);
-  const c = claimLease(projectRoot, slug, { host });
-  if (c.ok) return null;
-  // This machine held the lease, and another machine took it: the session stops writing.
-  if (c.held && before) return leaseLostLine(slug, c.lease);
-  if (c.held) return `lease-held: ${slug} by ${c.lease.machine}${c.lease.host ? ` (${c.lease.host})` : ''} until ${c.lease.expires}`;
-  if (c.expired) return `lease-expired: ${slug} by ${c.lease.machine} since ${c.lease.expires}`;
-  if (c.offline) return `lease-offline: ${slug}`;
-  return `lease-held: ${slug} (${c.reason ?? 'another machine claimed it at the same time'})`;
-}
-
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
   if (verb === 'migrate') {
@@ -1272,16 +1261,13 @@ async function runRecords(pos, opt) {
     ].join('\n'));
     return r.failed.length ? 1 : 0;
   }
-  if (!root) throw new Error('records: <link|status|sync|push|close|migrate> <root> are required');
+  if (!root) throw new Error('records: <link|status|sync|push|close|retry|dismiss|migrate> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'link') {
     if (!arg) throw new Error('records link: <project> is required');
     const r = linkProject(projectRoot, arg);
-    // Each workflow of the project gets its issue when the GitHub layer is on.
-    if (r.ok && layerOf(projectRoot)) {
-      r.queued = backfill(projectRoot, r.moved.filter((s) => s !== '_design')) ?? [];
-      if (r.queued.length) flushInBackground();
-    }
+    // The last step of the link: each workflow of the project gets its issue when the GitHub layer is on.
+    if (r.ok && layerOf(projectRoot)) r.queued = backfillProject(projectRoot);
     if (opt.json) { out(r); return r.ok && !r.conflicts.length ? 0 : 1; }
     if (!r.ok) { out(r.reason); return 1; }
     out([
@@ -1290,8 +1276,38 @@ async function runRecords(pos, opt) {
       ...r.conflicts.map((f) => `records-conflict: ${f}: the clone copy stays; the local copy is in .ai/workflows/.conflicts/${f}. Compare them, then delete the kept copy.`),
       ...(r.tracked.length ? [`tracked: ${r.tracked.slice(0, 10).join(', ')}${r.tracked.length > 10 ? ` and ${r.tracked.length - 10} more` : ''}`] : []),
       ...productRepoGapLines(r),
+      ...(r.queued?.length ? [`github: queued ${r.queued.length} workflow(s) for their issues; the flush runs in the background`] : []),
     ].join('\n'));
     return r.conflicts.length ? 1 : 0;
+  }
+  if (verb === 'status' && opt.problems) {
+    const p = recordsProblems(projectRoot);
+    if (opt.json) { out(p); return 0; }
+    out(!p.linked ? 'records: local in .ai/workflows/' : p.lines.length ? [...p.lines, ...(p.more ? [`and ${p.more} more line(s): wf.mjs records status "${projectRoot}"`] : [])].join('\n') : 'records: no problem');
+    return 0;
+  }
+  if (verb === 'retry') {
+    // The answer yes to a records question of the dispatch: the commit of the workflow again,
+    // then the push and the flush in the background. The next /wf call shows their result.
+    const linked = linkedProject(projectRoot);
+    const done = [];
+    if (linked && arg) {
+      const c = commitWorkflow(projectRoot, arg, `${linked}/${arg}: the records commit again`);
+      if (!c?.commit) { out(`the records commit of ${arg} failed again; wf.mjs records status "${projectRoot}" --problems`); return 1; }
+      done.push(`committed ${arg}; the push runs in the background`);
+    } else if (linked) {
+      inBackground(['records', 'push', projectRoot]);
+      done.push('the push runs in the background');
+    }
+    if (layerOf(projectRoot) && readOutbox().length) { flushInBackground(); done.push('the flush of the GitHub layer runs in the background'); }
+    out(done.length ? `${done.join('; ')}; the next /wf call shows the result` : 'nothing to retry');
+    return 0;
+  }
+  if (verb === 'dismiss') {
+    // The answer no: the dispatch asks again only about a newer failure.
+    const at = dismissRecords();
+    out(`records: the dispatch asks again only about a failure after ${at}`);
+    return 0;
   }
   if (verb === 'status') {
     const s = recordsStatus(projectRoot);
@@ -1308,6 +1324,13 @@ async function runRecords(pos, opt) {
         ]),
         ...s.migrated.slice(-10).map((m) => `moved: ${m.ref} was ${m.sha}; git -C "${s.home}" update-ref ${m.ref} ${m.sha} brings it back`)]
       : [`records: local in .ai/workflows/${s.clone ? `; a clone is at ${s.home}: wf.mjs records link <root> <project>` : ''}`];
+    // The product repo of a linked project must not track or leave open the record folder.
+    if (s.linked) lines.push(...productRepoGapLines(productRepoGaps(projectRoot)));
+    if (layerOf(projectRoot)) {
+      const g = layerStatus(projectRoot);
+      s.github = { queued: g.queued, parked: g.parked.length };
+      lines.push(`github: ${g.queued} queued, ${g.parked.length} parked (failed ${MAX_FAILS} flushes)${g.parked.length ? `; wf.mjs gh status "${projectRoot}"` : ''}`);
+    }
     out(opt.json ? s : lines.join('\n'));
     return 0;
   }
@@ -1334,12 +1357,15 @@ async function runRecords(pos, opt) {
   throw new Error(`records: unknown verb ${verb}`);
 }
 
-function runLease(pos, opt) {
+async function runLease(pos, opt) {
   const [verb, root, slug] = pos;
-  if (!['claim', 'release', 'show'].includes(verb) || !root || !slug) throw new Error('lease: <claim|release|show> <root> <slug> are required');
+  if (!['claim', 'release', 'show', 'decline'].includes(verb) || !root || !slug) throw new Error('lease: <claim|release|show|decline> <root> <slug> are required');
   const projectRoot = resolve(root);
-  const r = verb === 'claim' ? claimLease(projectRoot, slug, { take: Boolean(opt.take), host: opt.host ?? null })
+  // The answer no to a lease question of the dispatch: the key does not run on this computer.
+  if (verb === 'decline') { out(`${slug}: not run on this computer; another computer may write it`); return 1; }
+  const r = verb === 'claim' ? claimAndPull(projectRoot, slug, { take: Boolean(opt.take), host: opt.host ?? null })
     : verb === 'release' ? releaseLease(projectRoot, slug) : showLease(projectRoot, slug);
+  if (verb === 'claim' && r.pull?.ok && r.pull.to !== r.pull.from) await reconcileIndex(projectRoot);
   if (opt.json) { out(r); return r.ok === false ? 1 : 0; }
   if (r.linked === false) { out('records: local; no lease'); return 0; }
   if (verb === 'show') {
@@ -1427,6 +1453,8 @@ function runMsg(pos, opt) {
     return 0;
   }
   if (verb === 'list') {
+    // One of the three points of a pull: the messages of other computers come with it.
+    if (!to && linkedProject(projectRoot)) pullRecords(recordsHome());
     if (!to) importIssueComments(projectRoot, slug);
     const all = listMessages(projectRoot, slug, { to });
     const rows = opt.unread ? all.filter((m) => !m.read) : all;
@@ -1439,10 +1467,17 @@ function runMsg(pos, opt) {
   return 0;
 }
 
-function flushInBackground() {
-  try {
-    spawn(process.execPath, [fileURLToPath(import.meta.url), 'gh', 'flush'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
-  } catch { /* the next call flushes */ }
+/** Start `gh flush` in the background; `[root, slug]` also imports the comments of that workflow's issue. */
+function flushInBackground(target = []) {
+  inBackground(['gh', 'flush', ...target, '--background']);
+}
+
+/** Queue one progress edit for each workflow of the project and start the flush: `gh backfill`, also the last step of a link. */
+function backfillProject(projectRoot) {
+  const slugs = existsSync(wfRoot(projectRoot)) ? readdirSync(wfRoot(projectRoot), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_') && frontmatterOf(join(wfRoot(projectRoot), e.name), INDEX_NAME)).map((e) => e.name) : [];
+  const queued = backfill(projectRoot, slugs) ?? [];
+  if (queued.length) flushInBackground();
+  return queued;
 }
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
@@ -1460,15 +1495,18 @@ function runGh(pos, opt) {
     if (!root) throw new Error('gh backfill: <root> is required');
     const projectRoot = resolve(root);
     if (!layerOf(projectRoot)) throw new Error('gh backfill: the layer is off (records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json)');
-    const slugs = existsSync(wfRoot(projectRoot)) ? readdirSync(wfRoot(projectRoot), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_') && frontmatterOf(join(wfRoot(projectRoot), e.name), INDEX_NAME)).map((e) => e.name) : [];
-    const queued = backfill(projectRoot, slugs) ?? [];
-    if (queued.length) flushInBackground();
+    const queued = backfillProject(projectRoot);
     out(opt.json ? { queued } : queued.length ? `queued ${queued.length} workflow(s): ${queued.join(', ')}` : 'no workflow');
     return 0;
   }
   if (verb === 'flush') {
     const r = flushOutbox();
-    out(opt.json ? r : r.busy ? 'another flush runs' : `sent ${r.sent}, left ${r.left}${r.parked ? `, parked ${r.parked}` : ''}${r.error ? `; stopped: ${r.error}` : ''}`);
+    // The result goes to the records log, so the dispatch sees a flush that failed.
+    if (r.busy || r.sent || r.left || r.error || r.parked) logRecordsEvent({ step: 'flush', background: Boolean(opt.background), sent: r.sent, left: r.left, error: r.error, ...(r.busy ? { busy: true } : {}), ...(r.parked ? { parked: r.parked } : {}) });
+    // The person's comments on the issue of the workflow that a call names reach its inbox here, off the dispatch.
+    const [, , slug] = pos;
+    const imported = root && slug && layerOf(resolve(root)) ? importIssueComments(resolve(root), slug) : [];
+    out(opt.json ? { ...r, imported: imported.length } : `${r.busy ? 'another flush runs' : `sent ${r.sent}, left ${r.left}${r.parked ? `, parked ${r.parked}` : ''}${r.error ? `; stopped: ${r.error}` : ''}`}${imported.length ? `; ${imported.length} new comment(s) in the inbox of ${slug}` : ''}`);
     return r.error ? 1 : 0;
   }
   if (verb === 'status') {
@@ -1625,7 +1663,7 @@ async function runMain(cmd, pos, opt) {
       }
       case 'gh': return runGh(pos, opt);
       case 'records': return await runRecords(pos, opt);
-      case 'lease': return runLease(pos, opt);
+      case 'lease': return await runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
       case 'page': return runPage(pos, opt);
       case 'design': return await runDesign(pos, opt, out);

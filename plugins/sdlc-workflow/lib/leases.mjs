@@ -6,13 +6,19 @@
 // holder renews it at each step and stage boundary. It expires after the longest suite of the
 // test profile plus one hour. An expired lease of another machine is taken only after the
 // person said yes (`--take`).
-import { gitIn, machineName, markHeld, readState } from './records-sync.mjs';
+//
+// The lease runs only when `.machines/` of the clone lists two or more computers. With one
+// computer no other writer exists, so the dispatch claims nothing and asks the remote nothing.
+import { gitIn, machineCount, machineName, markHeld, pullRecords, readState } from './records-sync.mjs';
 import { linkedProject, recordsHome } from './records-root.mjs';
 import { SUITES, readProfile, suiteSeconds } from './test-profile.mjs';
 
 export const LEASE_SLACK_SECONDS = 3600;
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const leaseRefOf = (project, slug) => `refs/leases/${project}/${slug}`;
+
+/** True when the lease runs: `.machines/` of the clone lists two or more computers. */
+export const leasesOn = (home = recordsHome()) => machineCount(home) >= 2;
 
 /** The lifetime of a lease of this project: the longest suite plus one hour, in seconds. */
 export function leaseSeconds(root) {
@@ -33,6 +39,7 @@ export function otherLease(root, slug, { remote = false, now = new Date() } = {}
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
+  if (!leasesOn(home)) return null;
   const ref = leaseRefOf(project, slug);
   const lease = remote ? remoteLease(home, ref).lease ?? null : localLease(home, ref);
   return lease && lease.machine !== machineName() && !expired(lease, now) ? lease : null;
@@ -95,6 +102,17 @@ export function claimLease(root, slug, { take = false, host = null, now = new Da
   gitIn(home, ['update-ref', ref, commit.stdout]);
   markHeld(`${project}/${slug}`, true);
   return { ok: true, lease, renewed: r.lease?.machine === me, took: Boolean(other) };
+}
+
+/**
+ * Claim the lease, and pull the work of other computers when this computer did not hold it: the
+ * pull at the claim takes the place of a pull at each call. Returns the claim, with `pull` (the
+ * result of `pullRecords`) after a new claim.
+ */
+export function claimAndPull(root, slug, opts = {}) {
+  const c = claimLease(root, slug, opts);
+  if (c.ok && c.linked !== false && !c.renewed) c.pull = pullRecords(recordsHome());
+  return c;
 }
 
 /** Release the lease of this machine, so another machine or host can continue the workflow. */

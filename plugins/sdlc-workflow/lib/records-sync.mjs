@@ -8,13 +8,17 @@
 // remote rejects it, the push rebases the local commits on the remote tip and pushes again: two
 // machines write other workflow folders, so the rebase applies. A conflict in one file stops the
 // push, and `records status` names the file. Offline work stays in local commits, and the next
-// push carries it.
+// push carries it. Each push that fails, and the first push that works after it, writes a line
+// to the records log, which the dispatch reads.
+//
+// A pull runs at three points only: when this computer claims the lease of a workflow, at
+// `records sync`, and at `msg list`. The dispatch commits nothing and fetches nothing.
 //
 // The clone of an older version kept each open workflow on a branch `live/<project>/<slug>`.
 // `migrateLive` puts the folder of each such branch on the main branch once, and moves the ref
 // to `refs/archive/live/`, so a person can restore it.
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, cpSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -120,6 +124,43 @@ export function readRecordsLog() {
   try {
     return readFileSync(recordsLogPath(), 'utf8').split(/\r?\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   } catch { return []; }
+}
+
+/** Write one result line into the records log: a push that works after a failure, or a flush of the GitHub layer. */
+export function logRecordsEvent(entry) {
+  try {
+    mkdirSync(sdlcHomeDir(), { recursive: true });
+    appendFileSync(recordsLogPath(), `${JSON.stringify({ at: nowIso(), ...entry })}\n`);
+  } catch { /* a log that cannot be written must not fail the step */ }
+}
+
+const LOG_TAIL_BYTES = 256 * 1024;
+
+/** The last lines of the records log, oldest first. The dispatch reads only the tail, so a long log costs nothing. */
+export function recordsLogTail(bytes = LOG_TAIL_BYTES) {
+  let fd;
+  try {
+    fd = openSync(recordsLogPath(), 'r');
+    const size = fstatSync(fd).size;
+    const start = Math.max(0, size - bytes);
+    const buf = Buffer.alloc(size - start);
+    readSync(fd, buf, 0, buf.length, start);
+    const lines = buf.toString('utf8').split(/\r?\n/);
+    if (start > 0) lines.shift();
+    return lines.filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch { return []; } finally { if (fd !== undefined) closeSync(fd); }
+}
+
+/** The last entry of the records log whose step is one of `steps`, or null. A `busy` flush did no work, so it does not count. */
+export function lastLogged(steps, log = recordsLogTail()) {
+  for (let i = log.length - 1; i >= 0; i -= 1) if (steps.includes(log[i].step) && !log[i].busy) return log[i];
+  return null;
+}
+
+/** The person said no to a records question: the dispatch asks again only about a failure that is newer than this answer. */
+export function dismissRecords(at = nowIso()) {
+  updateState((s) => { s.dismissed = at; });
+  return at;
 }
 
 // ---------------------------------------------------------------- content
@@ -372,6 +413,8 @@ export function pushRecords(home = recordsHome()) {
     } else if (r.conflict) s.pushConflict = { at: nowIso(), files: r.files, reason: r.reason };
   });
   if (!r.pushed && !r.offline) logRecordsFailure({ step: 'push', error: r.reason });
+  // A push that works after a failed one says so in the log, so the dispatch stops asking.
+  else if (r.pushed && lastLogged(['push'])?.error) logRecordsEvent({ step: 'push', ok: true });
   return r;
 }
 
@@ -815,6 +858,10 @@ export function closeRecords(root, slug) {
 export function machineFactsPath(home = recordsHome(), machine = machineName()) {
   return join(home, '.machines', `${machine}.json`);
 }
+/** The number of computers that `.machines/` of the clone lists. The lease runs only from two. */
+export function machineCount(home = recordsHome()) {
+  try { return readdirSync(join(home, '.machines')).filter((f) => f.endsWith('.json')).length; } catch { return 0; }
+}
 export function readMachineFacts(home = recordsHome(), machine = machineName()) {
   try { return JSON.parse(readFileSync(machineFactsPath(home, machine), 'utf8')); } catch { return { machine, projects: {}, reads: {} }; }
 }
@@ -996,20 +1043,6 @@ export function workflowHealth(root, slug) {
   return h;
 }
 
-/** The one warning line of the dispatch for a workflow with a problem in the clone, or null. */
-export function healthLine(h) {
-  if (!h?.problem) return null;
-  const parts = [];
-  if (h.uncommitted.length) parts.push(`${h.uncommitted.length} uncommitted file(s)`);
-  if (h.ahead) parts.push(`${h.ahead} commit(s) not pushed`);
-  if (h.behind) parts.push(`${h.behind} commit(s) of another machine not pulled`);
-  if (h.adoptConflicts.length) parts.push(`local copies kept aside in .ai/workflows/.conflicts/: ${h.adoptConflicts.join(', ')}`);
-  if (h.conflict) parts.push(`a push conflict: ${h.conflict}`);
-  if (h.live) parts.push('a live branch of an older version is not moved yet');
-  if (h.lastFailure) parts.push(`the last ${h.lastFailure.step} failed at ${h.lastFailure.at}: ${h.lastFailure.error}`);
-  return `records-warning: ${h.workflow}: ${parts.join('; ')}. Run wf.mjs records status <root>.`;
-}
-
 /**
  * What the records clone holds for a project on this machine: the commits ahead of and behind
  * the remote, the files at which the last push stopped, the live branches of an older version
@@ -1033,4 +1066,38 @@ export function recordsStatus(root) {
     migrated: (state.migratedLive ?? []).filter((m) => m.ref.startsWith(`${LIVE_PREFIX}${project}/`)),
     workflows,
   };
+}
+
+export const PROBLEM_LINES = 40;
+
+/**
+ * Only the problems of the records of a project on this machine, at most `limit` lines: the push
+ * failures since the last push that worked, the files at which the last push stopped, the
+ * workflows whose last commit failed, and the files of the project folder that no commit holds.
+ */
+export function recordsProblems(root, { limit = PROBLEM_LINES } = {}) {
+  const project = linkedProject(root);
+  if (!project) return { linked: false, lines: [] };
+  const home = recordsHome();
+  const state = readState();
+  const lines = [];
+  const log = recordsLogTail();
+  const okAt = log.findLastIndex((e) => e.step === 'push' && e.ok);
+  for (const e of log.slice(okAt + 1)) if (e.step === 'push' && e.error) lines.push(`push failed: ${e.at}: ${e.error}`);
+  if (state.pushConflict) {
+    const files = state.pushConflict.files ?? [];
+    if (files.length) for (const f of files) lines.push(`conflict: ${f}: the push of ${state.pushConflict.at} stopped at this file`);
+    else lines.push(`conflict: the push of ${state.pushConflict.at} stopped: ${state.pushConflict.reason}`);
+  }
+  for (const [key, f] of Object.entries(state.failures ?? {})) {
+    if (f.step === 'commit' && key.startsWith(`${project}/`)) lines.push(`commit failed: ${key}: ${f.at}: ${f.error}`);
+  }
+  const st = spawnSync('git', [...LONG_PATHS, '-C', home, 'status', '--porcelain', '-z', '--no-renames', '--untracked-files=all', '--', `${project}/`], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  for (const row of (st.stdout ?? '').split('\0')) {
+    if (row.length <= 3) continue;
+    const file = row.slice(3);
+    if (!keptOutOfCommits(file, home)) lines.push(`in no commit: ${file}`);
+  }
+  if (lines.length <= limit) return { linked: true, lines, more: 0 };
+  return { linked: true, lines: lines.slice(0, limit - 1), more: lines.length - (limit - 1) };
 }

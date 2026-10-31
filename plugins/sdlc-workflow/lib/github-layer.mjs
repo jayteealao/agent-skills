@@ -314,56 +314,98 @@ function mergeState(disk, mine) {
   };
 }
 
+/** A gh failure that the network caused: the entry gets one more try after NET_RETRY_MS. */
+export const NET_ERROR = /timeout|timed out|tls|handshake|connect|connection|could not resolve|no such host|network|unreachable|\beof\b|econnreset|etimedout|enotfound|eai_again|offline|http 5\d\d|\b50[234]\b/i;
+export const NET_RETRY_MS = 5_000;
+
+const markPath = () => join(outboxDir(), 'flush.again');
+const writeMark = () => { try { mkdirSync(outboxDir(), { recursive: true }); writeFileSync(markPath(), nowIso()); } catch { /* the next trigger flushes */ } };
+
 /**
- * Send the queued entries to GitHub, in order. An entry that fails stops the flush and stays at
- * the head of the outbox with every entry after it, until it has failed MAX_FAILS flushes: then
- * it moves to the parked file and the flush goes on. Returns `{ sent, left, error, parked }`.
+ * Send the queued entries to GitHub, in order, until the queue is empty. An entry that fails
+ * stops the flush and stays at the head of the outbox with every entry after it, until it has
+ * failed MAX_FAILS flushes: then it moves to the parked file and the flush goes on. A network
+ * error gets one more try after `retryMs` before it counts as a fail.
+ *
+ * One flush runs at a time. A trigger that finds a flush running writes the mark `flush.again`
+ * beside the outbox, and the running flush reads the queue again before it exits, so an entry
+ * that came during the flush goes out with it. Returns `{ sent, left, error, parked }`, or
+ * `busy: true` when another flush runs.
  */
-export function flushOutbox({ run = defaultRun } = {}) {
-  if (!takeLock()) return { sent: 0, left: readOutbox().length, error: null, busy: true, parked: 0 };
-  try {
-    const entries = readOutbox();
-    const state = readState();
-    const save = () => withStateLock(() => writeState(mergeState(readState(), state)));
-    const done = new Set();
-    const parked = [];
-    let sent = 0;
-    let error = null;
-    for (const e of entries) {
-      const id = idOf(e);
-      try {
-        if (e.op === 'sync') applySync(e, state, run, save);
-        else if (e.op === 'comment') applyComment(e, state, run);
-        delete state.fails[id];
-        done.add(id);
-        sent += 1;
-      } catch (err) {
-        const fails = (state.fails[id] ?? 0) + 1;
-        if (fails >= MAX_FAILS) {
-          delete state.fails[id];
-          parked.push({ ...e, parkedAt: nowIso(), error: err.message });
-          done.add(id);
-          continue;
-        }
-        state.fails[id] = fails;
-        error = err.message;
-        break;
-      }
-    }
-    state.error = error ? { at: nowIso(), message: error } : null;
-    // An entry queued during the flush is kept: only the sent and the parked entries leave.
-    const left = withStateLock(() => {
-      writeState(mergeState(readState(), state));
-      if (parked.length) appendFileSync(parkedPath(), parked.map((p) => `${JSON.stringify(p)}\n`).join(''));
-      const now = readOutbox();
-      const keep = now.filter((e) => !done.has(idOf(e)));
-      writeOutbox(keep);
-      return keep.length;
-    });
-    return { sent, left, error, parked: parked.length };
-  } finally {
-    rmSync(lockPath(), { force: true });
+export function flushOutbox({ run = defaultRun, retryMs = NET_RETRY_MS, wait = sleep } = {}) {
+  if (!takeLock()) {
+    writeMark();
+    // The running flush may have ended between the two steps: then this trigger flushes.
+    if (!takeLock()) return { sent: 0, left: readOutbox().length, error: null, busy: true, parked: 0 };
   }
+  const total = { sent: 0, left: 0, error: null, parked: 0 };
+  for (;;) {
+    let pass;
+    try {
+      rmSync(markPath(), { force: true });
+      pass = flushPass(run, retryMs, wait);
+    } finally {
+      rmSync(lockPath(), { force: true });
+    }
+    total.sent += pass.sent;
+    total.parked += pass.parked;
+    total.left = pass.left;
+    total.error = pass.error;
+    if (pass.error || (!pass.left && !existsSync(markPath()))) break;
+    // Another flush took the lock between the passes: it reads the queue itself.
+    if (!takeLock()) break;
+  }
+  return total;
+}
+
+/** One pass over the entries that the outbox holds now. */
+function flushPass(run, retryMs, wait) {
+  const entries = readOutbox();
+  const state = readState();
+  const save = () => withStateLock(() => writeState(mergeState(readState(), state)));
+  const done = new Set();
+  const parked = [];
+  let sent = 0;
+  let error = null;
+  const apply = (e) => {
+    if (e.op === 'sync') applySync(e, state, run, save);
+    else if (e.op === 'comment') applyComment(e, state, run);
+  };
+  for (const e of entries) {
+    const id = idOf(e);
+    try {
+      try { apply(e); } catch (first) {
+        if (!NET_ERROR.test(first.message)) throw first;
+        wait(retryMs);
+        apply(e);
+      }
+      delete state.fails[id];
+      done.add(id);
+      sent += 1;
+    } catch (err) {
+      const fails = (state.fails[id] ?? 0) + 1;
+      if (fails >= MAX_FAILS) {
+        delete state.fails[id];
+        parked.push({ ...e, parkedAt: nowIso(), error: err.message });
+        done.add(id);
+        continue;
+      }
+      state.fails[id] = fails;
+      error = err.message;
+      break;
+    }
+  }
+  state.error = error ? { at: nowIso(), message: error } : null;
+  // An entry queued during the flush is kept: only the sent and the parked entries leave.
+  const left = withStateLock(() => {
+    writeState(mergeState(readState(), state));
+    if (parked.length) appendFileSync(parkedPath(), parked.map((p) => `${JSON.stringify(p)}\n`).join(''));
+    const now = readOutbox();
+    const keep = now.filter((e) => !done.has(idOf(e)));
+    writeOutbox(keep);
+    return keep.length;
+  });
+  return { sent, left, error, parked: parked.length };
 }
 
 /** The comments of a workflow's issue, or null when the layer is off or gh failed. */

@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { flushOutbox, issueBody, layerOf, layerStatus, noteAnswer, noteChange, readOutbox, statusBlock } from '../../../lib/github-layer.mjs';
+import { existsSync } from 'node:fs';
+import { flushOutbox, issueBody, layerOf, layerStatus, noteAnswer, noteChange, outboxPath, readOutbox, statusBlock } from '../../../lib/github-layer.mjs';
 import { setFields } from '../../../lib/records.mjs';
 
 function setup({ machine = { records: { repo: 'me/wf-records', board: 3 } }, project = 'notes' } = {}) {
@@ -81,7 +82,9 @@ test('a failed entry stops the flush and stays at the head, in order', () => {
     noteAnswer(t.root, 'add-tags', { question: 'Which tag store?', answer: 'SQLite', by: 'person' });
     assert.deepEqual(readOutbox().map((e) => e.op), ['sync', 'comment']);
     const off = fakeGh({ fail: 'issue create' });
-    const r = flushOutbox({ run: off.run });
+    const waits = [];
+    const r = flushOutbox({ run: off.run, wait: (ms) => waits.push(ms) });
+    assert.deepEqual(waits, [5000], 'a network error gets one more try after 5 seconds');
     assert.deepEqual([r.sent, r.left], [0, 2]);
     assert.match(layerStatus(t.root).error.message, /offline/);
     const on = fakeGh();
@@ -97,4 +100,58 @@ test('the body lists what needs the person and ends with the status block', () =
   const body = issueBody(block);
   assert.match(body, /## Needs me\n\nAnswer these in the session, not here\.\n\n- Which store\?/);
   assert.equal(JSON.parse(/```json\n([\s\S]+)\n```\n$/.exec(body)[1]).needsMe[0], 'Which store?');
+});
+
+test('entries queued during a flush are sent by the same flush; a trigger during it leaves a mark', () => {
+  const t = setup();
+  try {
+    noteChange(t.root, 'add-tags');
+    const calls = [];
+    let queued = false;
+    let trigger = null;
+    const run = (cmd, args, { input } = {}) => {
+      calls.push(args.slice(0, 2).join(' '));
+      if (args[0] === 'issue' && args[1] === 'create' && !queued) {
+        queued = true;
+        // A change and its trigger arrive while the flush runs.
+        noteAnswer(t.root, 'add-tags', { question: 'Which store?', answer: 'SQLite', by: 'person' });
+        trigger = flushOutbox({ run });
+        assert.ok(existsSync(join(outboxPath(), '..', 'flush.again')), 'the trigger writes the mark');
+      }
+      if (args[0] === 'issue' && args[1] === 'create') return { status: 0, stdout: 'https://github.com/me/wf-records/issues/12', stderr: '' };
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    const r = flushOutbox({ run });
+    assert.equal(trigger.busy, true);
+    assert.deepEqual([r.sent, r.left, r.error], [2, 0, null]);
+    assert.equal(calls.at(-1), 'issue comment', 'the comment queued during the flush went out');
+    assert.equal(readOutbox().length, 0);
+    assert.ok(!existsSync(join(outboxPath(), '..', 'flush.again')), 'the flush removes the mark');
+  } finally { t.done(); }
+});
+
+test('a network error is tried once more after the delay; another error is not', () => {
+  const t = setup();
+  try {
+    noteChange(t.root, 'add-tags');
+    let failed = 0;
+    const waits = [];
+    const run = (cmd, args) => {
+      if (args[0] === 'issue' && args[1] === 'create') {
+        if (!failed) { failed += 1; return { status: 1, stdout: '', stderr: 'net/http: TLS handshake timeout' }; }
+        return { status: 0, stdout: 'https://github.com/me/wf-records/issues/12', stderr: '' };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    assert.deepEqual(flushOutbox({ run, wait: (ms) => waits.push(ms) }), { sent: 1, left: 0, error: null, parked: 0 });
+    assert.deepEqual(waits, [5000]);
+
+    setFields(t.dir, '00-index.md', { 'current-stage': 'shape' });
+    noteChange(t.root, 'add-tags');
+    const none = [];
+    const bad = (cmd, args) => (args[0] === 'issue' && args[1] === 'edit' ? { status: 1, stdout: '', stderr: 'HTTP 422: Validation Failed' } : { status: 0, stdout: '', stderr: '' });
+    const r = flushOutbox({ run: bad, wait: (ms) => none.push(ms) });
+    assert.deepEqual([r.sent, r.left], [0, 1]);
+    assert.deepEqual(none, [], 'no retry for an error that is not of the network');
+  } finally { t.done(); }
 });

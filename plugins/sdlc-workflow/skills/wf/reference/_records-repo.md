@@ -6,25 +6,30 @@ In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>
 
 ## The clone
 
-A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. Each workflow has one folder there, its wf-dir, which the dispatch and the brief print as `wf-dir:`. Every file of the workflow (records, evidence, notes, drafts) is in the wf-dir, so the steps of [_records.md](_records.md) do not change. Git ignores `.draft/`. The pre-write check refuses a write by a path in `.ai/workflows/` and names the wf-dir path. Give a test runner or a shell redirect the wf-dir path too. `wf.mjs` commits the records at each step and stage boundary, pushes them when the network is there, and pulls the work of other computers at each `/wf` call.
+A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. Each workflow has one folder there, its wf-dir, which the dispatch and the brief print as `wf-dir:`. Every file of the workflow (records, evidence, notes, drafts) is in the wf-dir, so the steps of [_records.md](_records.md) do not change. Git ignores `.draft/`. The pre-write check refuses a write by a path in `.ai/workflows/` and names the wf-dir path. Give a test runner or a shell redirect the wf-dir path too. `wf.mjs` commits the records at each step and stage boundary, and pushes them in the background. The dispatch commits nothing and fetches nothing. A pull runs only when this computer claims the lease of a workflow, at `<wf> records sync <root>`, and at `<wf> msg list`.
 
-- One computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first.
+- When two or more computers use the records repo, one computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first. With one computer, there is no lease.
 - Read the records of another project, but do not change them. To ask that project for something, post a message to it.
 
 ## Records lines
 
-Act on each line of the dispatch result as this table says.
+The dispatch prints one records line, or none when the records are in order. In the commands of the line, `wf.mjs` is `<wf>`.
 
 | Line | Action |
 |---|---|
-| `records-conflict: <workflow>: <why>` | Two computers changed the same record. Do not run the key. Tell the person, and give `<wf> records status <root>`. When there are several conflicts and each has a recommended resolution, ask per "A list of items" of [_gate-question.md](_gate-question.md): "Apply each recommendation (Recommended)" or "Go through them one by one". STOP. |
-| `records-warning: <workflow>: <what>` | The clone has files that no commit holds, commits that are not pushed or pulled, a local copy that the link kept aside, or a failed background step. Tell the person in one line, with `<wf> records status <root>`, then run the key. |
-| `lease-lost: <slug> by <machine> until <time>` | This computer held the lease, and another computer took it. Do not run the key, and stop a stage that runs. Tell the person that the other computer writes the workflow now. STOP. |
-| `lease-held: <slug> by <machine> until <time>` | Another computer writes this workflow now. Do not run the key. Tell the person that the work continues here after `<wf> lease release` runs on that computer, or after the time. STOP. |
-| `lease-expired: <slug> by <machine> since <time>` | Ask the person once, per [_gate-question.md](_gate-question.md): "The lease of <machine> on `<slug>` expired at <time>. Take the workflow over on this computer?" On yes, run `<wf> lease claim <root> <slug> --take`, then the key. On no, STOP. |
-| `lease-offline: <slug>` | Ask the person once: "The records repo cannot be reached, so no other computer knows that `<slug>` runs here. Continue?" On yes, run the key. On no, STOP. |
+| `records: ask "<question>" yes=<command> no=<command>` | Ask the question once, per [_gate-question.md](_gate-question.md), with Yes first. Run the command of the answer. When the command exits 0, run the key. When it exits 1, tell the person its output in one line. STOP. |
+| `records: stop <reason>` | Do not run the key, and stop a stage that runs. Tell the person the reason in one line. STOP. |
 
-A command or the pre-write check prints the same `lease-lost:` line when it sees the lease of another computer. Act on it as the table says.
+The script writes each question and its commands:
+- A push of the records, a records commit, or a send of the GitHub layer failed, or GitHub edits wait for more than one day. Yes retries in the background, and the next `/wf` call shows the result. No asks again only about a newer failure.
+- The lease of another computer expired, or the records repo cannot be reached to claim the lease. No means that this computer does not write the workflow now.
+- A stop line names another computer that writes the workflow now, or a conflict. For the details, run `<wf> records status <root> --problems`.
+
+A command or the pre-write check prints a `lease-lost:` line when another computer writes the workflow now. Act on it as on a stop line.
+
+## Link lines
+
+`<wf> records link` prints a `records-conflict: <file>` line for each local file whose clone copy stays. The local copy is in `.ai/workflows/.conflicts/`. Tell the person to compare the two copies, then delete the kept copy. When there are several conflicts and each has a recommended resolution, ask per "A list of items" of [_gate-question.md](_gate-question.md): "Apply each recommendation (Recommended)" or "Go through them one by one".
 
 ## Messages
 
@@ -36,8 +41,8 @@ A message informs; it is never a decision. Each message is one file in the `inbo
 
 ## The GitHub layer
 
-When the records repo is set up, each workflow has one issue in it, with a status block at the end of its body. `wf.mjs` keeps the issues: each command that changes the state of a workflow queues one edit, and each answer that `decide add` records queues one comment. The queue goes out in order at the next `/wf` call.
+When the records repo is set up, each workflow has one issue in it, with a status block at the end of its body. `wf.mjs` keeps the issues: each command that changes the state of a workflow queues one edit, and each answer that `decide add` records queues one comment. The queue goes out in order, in the background: the dispatch starts the send, and the send runs until the queue is empty. The comments of the person come back in the same background send, and at `<wf> msg list`.
 
 - Do not read the issues or the board for the state of a workflow. The records are the truth.
 - Do not write to the issues with `gh`. `wf.mjs` is the only writer. A message goes to the issue as a comment, and a comment of the person comes back as a message.
-- To see what is queued and which issue belongs to each workflow, run `<wf> gh status <root>`.
+- To see what is queued, what is parked and which issue belongs to each workflow, run `<wf> gh status <root>`. `<wf> records status <root>` gives the parked count.
