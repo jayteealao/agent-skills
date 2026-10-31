@@ -5,6 +5,21 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.10] - 2026-10-31
+
+- fix(sdlc-workflow): the dispatch reads only cached PR answers for the close question
+- feat(sdlc-workflow): a quiet dispatch, and a GitHub layer that drains and reports
+- feat(sdlc-workflow): each workflow has one folder, and records commit to one branch
+- refactor(sdlc-workflow): one owner card for each shared rule, and less text on every run
+- feat(sdlc-workflow): record commands that fit the work, scripts keep the index, and run files leave the records clone
+- fix(sdlc-workflow): driver, ship and card bugs found by the simplify review
+- feat(sdlc-workflow): the review runs one round and stops after its fixes
+- feat(sdlc-workflow): runs ask the person less, and checks keep to a time budget
+- feat(sdlc-workflow): the canvas pans from anywhere and walks the screens, and the agent arranges them like the product
+- feat(sdlc-workflow): the screen check finds display bugs, overlapping text, script errors and colors that are not tokens
+- feat(sdlc-workflow): the design canvas runs a read-only design audit, and verify audits design slices
+- docs(sdlc-workflow): the campaign guide says that a review run fixes a problem
+
 ## [10.0.0-next.9] - 2026-10-28
 
 - feat(sdlc-workflow): a delegated campaign walk starts the next packet while one waits on the person

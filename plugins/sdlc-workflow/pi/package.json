@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow-pi",
-  "version": "10.0.0-next.9",
+  "version": "10.0.0-next.10",
   "private": true,
   "description": "The pi package of the sdlc-workflow plugin: the bundled pi packages that run its skills, hooks and workflow driver on pi.",
   "type": "module",
