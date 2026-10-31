@@ -437,3 +437,21 @@ test('rebuild: agentTotalsFromFiles counts each response once across copies; reb
     assert.equal(rebuildLedgerRows(files, new Map()).files.every((f) => !f.changed), true);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test('a month ledger over the part size goes on in parts, and the readers read every part', async () => {
+  const { mkdtempSync, writeFileSync, readdirSync, statSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { basename, join } = await import('node:path');
+  const { appendCostRow, chunkCostFile, costFiles, readCostRows, PART_BYTES } = await import('../../../lib/cost-ledger.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'cost-parts-'));
+  const row = (i) => JSON.stringify({ slug: 's', ts: '2026-10-05T00:00:00Z', i, pad: 'x'.repeat(1000) });
+  const n = Math.ceil((PART_BYTES * 2.5) / 1040);
+  writeFileSync(join(dir, 'cost-2026-10.jsonl'), `${Array.from({ length: n }, (_, i) => row(i)).join('\n')}\n`);
+  const parts = chunkCostFile(join(dir, 'cost-2026-10.jsonl'));
+  assert.equal(parts, 2);
+  for (const f of readdirSync(dir)) assert.ok(statSync(join(dir, f)).size <= PART_BYTES, f);
+  assert.deepEqual(costFiles(dir).map((f) => basename(f)), ['cost-2026-10.jsonl', 'cost-2026-10.2.jsonl', 'cost-2026-10.3.jsonl']);
+  assert.equal(readCostRows(dir).length, n);
+  assert.match(appendCostRow(dir, { slug: 's', ts: '2026-10-06T00:00:00Z' }), /cost-2026-10\.3\.jsonl$/);
+});

@@ -632,8 +632,17 @@ function endsWithNewline(file) {
   } catch { return true; }
 }
 
-/** A monthly ledger file: `cost-<yyyy-mm>.jsonl`. */
-export const MONTH_FILE_RE = /^cost-(\d{4})-(\d{2})\.jsonl$/;
+/** A monthly ledger file: `cost-<yyyy-mm>.jsonl`, and its later parts `cost-<yyyy-mm>.<n>.jsonl`. */
+export const MONTH_FILE_RE = /^cost-(\d{4})-(\d{2})(?:\.(\d+))?\.jsonl$/;
+
+/** A part of a month ledger holds at most this many bytes, so it stays under the size cap of a synced file. */
+export const PART_BYTES = 4 * 1024 * 1024;
+
+const partOf = (name) => Number(MONTH_FILE_RE.exec(name)?.[3] ?? 1);
+const monthOf = (name) => MONTH_FILE_RE.exec(name)?.slice(1, 3).join('-') ?? '';
+const byMonthAndPart = (a, b) => monthOf(a).localeCompare(monthOf(b)) || partOf(a) - partOf(b);
+const partName = (month, part) => (part > 1 ? `cost-${month}.${part}.jsonl` : `cost-${month}.jsonl`);
+const sizeOf = (file) => { try { return statSync(file).size; } catch { return 0; } };
 
 /** The monthly ledger file of a time (an ISO string or a Date; else this month), by UTC month. */
 export function costFileName(ts = new Date()) {
@@ -642,26 +651,65 @@ export function costFileName(ts = new Date()) {
   return `cost-${at.toISOString().slice(0, 7)}.jsonl`;
 }
 
-/** Every ledger file of a slug, oldest first: the old `cost.jsonl`, then the monthly files. */
+/** Every ledger file of a slug, oldest first: the old `cost.jsonl`, then each month and its parts. */
 export function costFiles(slugDir) {
   if (!slugDir) return [];
   let names = [];
   try { names = readdirSync(slugDir); } catch { return []; }
-  const months = names.filter((n) => MONTH_FILE_RE.test(n)).sort();
+  const months = names.filter((n) => MONTH_FILE_RE.test(n)).sort(byMonthAndPart);
   return [...(names.includes(COST_FILE) ? [COST_FILE] : []), ...months].map((n) => join(slugDir, n));
+}
+
+/** The part of the month of `ts` that takes the next row: the last part, or a new one when it is full. */
+function appendTarget(slugDir, ts) {
+  const month = monthOf(costFileName(ts));
+  let names = [];
+  try { names = readdirSync(slugDir).filter((n) => monthOf(n) === month && MONTH_FILE_RE.test(n)); } catch { /* a new folder */ }
+  const last = names.length ? Math.max(...names.map(partOf)) : 1;
+  const file = join(slugDir, partName(month, last));
+  return sizeOf(file) >= PART_BYTES ? join(slugDir, partName(month, last + 1)) : file;
+}
+
+/**
+ * Split a month ledger over `PART_BYTES` into parts of at most that size: the first lines stay
+ * in the file, and the rest go to the next free parts. Returns the number of parts written.
+ */
+export function chunkCostFile(file) {
+  const name = basename(file);
+  if (!MONTH_FILE_RE.test(name) || sizeOf(file) <= PART_BYTES) return 0;
+  const month = monthOf(name);
+  const dir = dirname(file);
+  const lines = readFileSync(file, 'utf-8').split(/\r?\n/).filter(Boolean);
+  const chunks = [[]];
+  let bytes = 0;
+  for (const l of lines) {
+    const n = Buffer.byteLength(l, 'utf-8') + 1;
+    if (bytes + n > PART_BYTES && chunks.at(-1).length) { chunks.push([]); bytes = 0; }
+    chunks.at(-1).push(l);
+    bytes += n;
+  }
+  let part = Math.max(partOf(name), ...readdirSync(dir).filter((n) => monthOf(n) === month).map(partOf));
+  for (const c of chunks.slice(1)) {
+    part += 1;
+    writeFileSync(join(dir, partName(month, part)), `${c.join('\n')}\n`, 'utf-8');
+  }
+  const tmp = `${file}.tmp`;
+  writeFileSync(tmp, `${chunks[0].join('\n')}\n`, 'utf-8');
+  renameSync(tmp, file);
+  return chunks.length - 1;
 }
 
 /**
  * Append one row to the monthly ledger of the slug, `<slugDir>/cost-<yyyy-mm>.jsonl` by the
- * month of `row.ts`, as one O_APPEND write. One file a month keeps each ledger under the size
- * cap of a synced file. Two sessions on one slug each add their own line; a
+ * month of `row.ts`, as one O_APPEND write. A month that reaches `PART_BYTES` goes on in its next
+ * part, so each file stays under the size cap of a synced file. Two sessions on one slug each add their own line; a
  * read-modify-write-rename would let the later writer drop the earlier row. A line torn by a
  * crash mid-write is closed with a newline first and skipped by `readCostRows`. Returns the
  * ledger path.
  */
 export function appendCostRow(slugDir, row) {
-  const file = join(slugDir, costFileName(row?.ts));
   mkdirSync(slugDir, { recursive: true });
+  const file = appendTarget(slugDir, row?.ts);
   appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${JSON.stringify(row)}\n`, 'utf-8');
   return file;
 }
@@ -718,6 +766,7 @@ export function splitCostLedger(slugDir) {
     if (rows.some((l) => !have.has(l))) return { split: false, reason: `${name} does not hold every line of cost.jsonl` };
   }
   rmSync(old, { force: true });
+  for (const name of byFile.keys()) chunkCostFile(join(slugDir, name));
   return { split: true, lines: lines.length, months: Object.fromEntries([...byFile].map(([n, r]) => [n, r.length])) };
 }
 

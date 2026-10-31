@@ -19,7 +19,7 @@ import { hostname } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { readMachineConfig } from './home.mjs';
 import { resolveProjectRoot } from './project-root.mjs';
-import { splitCostLedger } from './cost-ledger.mjs';
+import { MONTH_FILE_RE, chunkCostFile, splitCostLedger } from './cost-ledger.mjs';
 import {
   AI_DIR, EVIDENCE_DIR, RUN_FILES, evidenceDir, linkedProject, recordsRel, runDir, runRoot, workflowDir,
 } from './records-root.mjs';
@@ -130,7 +130,7 @@ function moveFile(src, dst) {
   } catch { return 'kept'; }
 }
 
-const COST_RE = /^cost(?:-\d{4}-\d{2})?\.jsonl$/;
+const COST_RE = /^cost(?:-\d{4}-\d{2}(?:\.\d+)?)?\.jsonl$/;
 
 // The files over the cap under `dir`, relative to it. A draft and a cost ledger stay: the drafts
 // leave with the put, and the cost rows must stay readable.
@@ -198,6 +198,8 @@ export function sweepRunFiles(root, slug, dir, { machine = null } = {}) {
   try {
     if (existsSync(join(dir, 'cost.jsonl'))) out.split = splitCostLedger(dir);
   } catch (e) { out.split = { split: false, reason: e.message }; }
+  // A month ledger over the part size goes on in parts, so no cost file passes the cap.
+  try { for (const n of readdirSync(dir).filter((x) => MONTH_FILE_RE.test(x))) out.chunked = (out.chunked ?? 0) + chunkCostFile(join(dir, n)); } catch { /* the next sweep tries again */ }
   for (const name of RUN_FILES) {
     const src = join(dir, name);
     if (!isFile(src)) continue;
