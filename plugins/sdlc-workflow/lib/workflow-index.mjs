@@ -150,7 +150,6 @@ export async function loadWorkflowIndex(indexPath, {
     // Branch is a per-slug fact authored in frontmatter (the slug's own branch),
     // distinct from the checkout's volatile HEAD. Surfaced here so the registry
     // can key identity off the repo and carry branch as slug metadata instead.
-    // See SLUG-BRANCH-IDENTITY-PLAN §4.1.
     branch: blankToNull(loaded.data?.branch),
     branchStrategy: blankToNull(loaded.data?.['branch-strategy']),
     baseBranch: blankToNull(loaded.data?.['base-branch']),
@@ -175,15 +174,15 @@ export function activeWorkflowIndexes(workflows) {
 
 // The stale check counts only artifact files. Evidence folders directly under
 // the workflow directory (probe-evidence/, verify-evidence/) are free-form and
-// written after the index, so they never mark a workflow stale
-// (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files (index-history.jsonl,
+// written after the index, so they never mark a workflow stale.
+// `.jsonl` files (index-history.jsonl,
 // cost.jsonl) are ignored by the extension filter below.
 // A brainstorm's research/, references/ and work/ get no page, so they never
-// mark a workflow stale either (WF-PIECES-PLAN).
+// mark a workflow stale either.
 // A draft waits for `wf.mjs record put`, and .old/ keeps the files that a migration moved.
 const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR, DRAFT_DIR, OLD_DIR]);
 // The yolo commentary is appended after every watch event, long after the index
-// was written, so it never marks a workflow stale (YOLO-COMMENTARY-PLAN C4).
+// was written, so it never marks a workflow stale.
 const STALE_EXEMPT_FILES = new Set(['commentary.md']);
 
 async function walkWorkflowFiles(root) {

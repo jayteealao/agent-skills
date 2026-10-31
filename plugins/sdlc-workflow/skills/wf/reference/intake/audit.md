@@ -1,20 +1,13 @@
----
-description: Defect-hunting workflow for a named subsystem with no symptom, no hypothesis, and no diff. Takes a concern ("audit the paint-ordering code for wrong assumptions") plus optional paths, resolves the concern to a concrete file surface via parallel enumeration, selects review lenses from the existing rubric set, hunts, adversarially refutes each candidate finding, and merges survivors and refuted candidates into the findings ledger `findings.yaml` (source `audit`), with one review file `07-review.md` written whole. Terminal and route-don't-fix — every accepted finding routes to its own follow-up command; this mode never edits code. Re-runs MERGE into the same ledger. Read-only.
-argument-hint: <concern> [paths…] | <slug> (re-run) | lenses=<a>,<b> override
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is the **findings ledger** `findings.yaml` with source `audit` — the same ledger the review stage writes, governed by the same merge law — and one review file, `07-review.md`.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one draft `.ai/workflows/<slug>/.draft/03-slice-audit-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no ledger entries and no `07-review.md`, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `audit`: it overrides the standalone steps below.
 
-If the first token matched an existing slug whose `workflow-type` IS `audit`, that is a **re-run** of the standalone flow below (Step 0 resume), not slug-mode.
-
-If neither applies, proceed standalone below.
+In slug-mode, write no entry of `findings.yaml` and no `07-review.md`.
 
 # Pipeline
 `0·orient` → `1·resolve-surface` → `[scope gate]` → `2·select-lenses` → `3·hunt` → `4·refute` → `5·merge` → `6·route`
@@ -57,8 +50,8 @@ You are a **read-only defect hunter that owns an accumulating findings ledger**.
 # Step 0 — Orient
 1. **Resolve slug and mode** from the instructions:
    - If the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: audit` → **re-run mode**. This run MERGES into the existing ledger `findings.yaml`. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
-   - Otherwise → **new audit**. Derive a slug: `audit-<short-concern>` (kebab-case, max 5 words, e.g. `audit-paint-ordering`).
-2. **Collision check:** if the index of `<slug>` exists (`record get` exits 0) with a different `workflow-type` → WARN and stop, as `discover` does.
+   - Otherwise → **new audit**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `audit-<short-concern>`.
 3. **Branch posture:** read-only — do not create or switch branches. Record the current branch in the index.
 4. **Lens override:** a `lenses=<a>,<b>` token overrides Step 2's inference entirely. Record that the selection was user-forced.
 5. **Project context (lightweight):** read `README.md` (top 100 lines) so the concern can be grounded in the codebase's own vocabulary.
@@ -163,9 +156,5 @@ The ledger on disk is the state. A killed run resumes by re-invoking `/wf intake
 
 # What this command is NOT
 
-- **Not `rca`** — `rca` starts from a symptom and converges on one cause; `audit` starts from a concern and enumerates unknown defects.
-- **Not `discover`** — `discover` adjudicates a stated hypothesis; `audit` has none.
-- **Not `investigate`** — `investigate` sketches approaches to a decided problem; `audit` decides whether problems exist.
-- **Not the review stage** — the stage reviews a *change* (a diff against ACs, with a fix loop); `audit` reviews a *subsystem*, refutes before landing, and never fixes. It borrows the stage's ledger, not its job.
-- **Not `probe`** — `probe` executes the running artifact; `audit` reads source. Where reading hits its ceiling, `audit` names the experiment and hands it to `probe`.
-- **Not a fixer** — no fix loop exists here. Citing `_fix-loop.md` from this file is the tell that the mode drifted into being a second review stage.
+- **Not a fixer.** No fix loop exists here. A citation of `_fix-loop.md` in this file is the sign that the mode drifted into a second review stage.
+- **Not a runner.** Audit reads source. Where reading reaches its limit, audit names the experiment and hands it to `probe`.

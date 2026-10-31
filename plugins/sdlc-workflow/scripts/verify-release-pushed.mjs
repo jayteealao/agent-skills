@@ -35,9 +35,9 @@
  *   node scripts/verify-release-pushed.mjs --max-age-hours=0   # any unpushed release fails
  *   node scripts/verify-release-pushed.mjs --skip-installed   # skip the installed-version check
  *
- * The `installed` check (WIDE-VIEW-REPAIR-PLAN §14.2.1, W11.1) compares every
+ * The `installed` check compares every
  * plugin install on THIS machine (Claude Code scopes, Codex cache) with the
- * shipped package.json version. A mismatch is the install gap the plan names:
+ * shipped package.json version. A mismatch is the install gap:
  * the tree says one version, the hosts run another. Blocking outside CI;
  * advisory under CI, where no plugin is installed.
  *   node scripts/verify-release-pushed.mjs --branch=main --remote=upstream

@@ -10,7 +10,7 @@ The check budget says how long a check may take before an agent moves it or make
 
 ## When to ask
 
-Ask the budget question when `profile budget` prints `no budget`. The first of these places that runs asks it, and no later place asks it again:
+Ask the budget question when `profile budget` prints `no budget`. The first of these places that runs asks it, and no later place asks it again. Each place cites this section and says where the question sits in its own batch:
 
 - setup ([setup.md](setup.md) Step 2)
 - intake Batch B ([intake/default.md](intake/default.md) Step 0.6)

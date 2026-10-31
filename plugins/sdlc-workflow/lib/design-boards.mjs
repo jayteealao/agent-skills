@@ -1,4 +1,4 @@
-// lib/design-boards.mjs — the design boards of a workflow (docs/internal/DESIGN-BOARDS-PLAN.md).
+// lib/design-boards.mjs — the design boards of a workflow.
 //
 // Every workflow keeps its drawings in one folder, `.ai/workflows/<slug>/design/`:
 //   boards.json                                   the manifest (schema sdlc/design-boards/v1)
@@ -19,7 +19,7 @@ export const DESIGN_DIR = 'design';
 export const MANIFEST = 'boards.json';
 export const SHEET = 'index.html';
 export const METHODS = Object.freeze(['html', 'capture', 'import', 'canvas-export']);
-/** The ux-impact values whose design needs pictures (DESIGN-BOARDS-PLAN D5). */
+/** The ux-impact values whose design needs pictures. */
 const NEEDS_PICTURES = new Set(['visual', 'new-surface']);
 /** `freeze` warns when one revision is larger than this (section 9, repo size). */
 export const REVISION_WARN_BYTES = 5 * 1024 * 1024;
@@ -181,7 +181,7 @@ export function missingBoardFiles(workflowDir, contract) {
 }
 
 /**
- * The frozen boards a contract page shows (DESIGN-BOARDS-PLAN W7): each board of the
+ * The frozen boards a contract page shows: each board of the
  * revision that `boards:` names, with the absolute path of its PNG. Boards without a
  * PNG on disk are left out. Null when the contract names no readable manifest.
  */
@@ -221,7 +221,7 @@ export const safeHref = (s) => (/^https?:\/\//i.test(String(s ?? '')) || isInsid
  * works the same.
  */
 /**
- * The direction sketches of the design stage (DESIGN-CRAFT-PORT-PLAN C10): the files
+ * The direction sketches of the design stage: the files
  * `sketches/direction-<name>.html|png`, one entry per name, sorted. They are not boards,
  * so the manifest does not list them; the working contact sheet shows them.
  * @param {string[]} fileNames - the file names in `design/sketches/`
@@ -294,11 +294,11 @@ ${sections || '<section><p>No boards yet.</p></section>'}
 `;
 }
 
-// ---------------------------------------------------------------- tracking (D9)
+// ---------------------------------------------------------------- tracking
 
-const BLOCK_HEAD = '# sdlc-workflow design record: tracked although .ai/ is ignored (DESIGN-BOARDS-PLAN D9)';
-const SKETCH_HEAD = '# sdlc-workflow design sketches: tracked, the file is the source (WF-DESIGN-PLAN A5)';
-// The sketches are tracked too (WF-DESIGN-PLAN A5, P3): the tracked file is the only source.
+const BLOCK_HEAD = '# sdlc-workflow design record: tracked although .ai/ is ignored';
+const SKETCH_HEAD = '# sdlc-workflow design sketches: tracked, the file is the source';
+// The sketches are tracked too: the tracked file is the only source.
 // design/boards/ (the working boards) stays ignored; only r<N>/ and sketches/ are tracked.
 const STAR_SKETCH = ['!.ai/workflows/*/design/sketches/'];
 const GLOB_SKETCH = ['!.ai/workflows/*/design/sketches/', '!.ai/workflows/*/design/sketches/**'];
@@ -317,7 +317,7 @@ export const TRACK_PROBES = Object.freeze({
 /**
  * How to keep `.ai/design/`, every `design/r<N>/` and every `design/sketches/` tracked
  * in a repo that ignores `.ai/`, from the pattern that ignores `.ai/design/current.md`.
- * W0 proved both blocks with git: the `.ai/*` style and the `.ai/` + `**` + `/*` style.
+ * A probe proved both blocks with git: the `.ai/*` style and the `.ai/` + `**` + `/*` style.
  * A bare `.ai/` must become `.ai/*`, because git does not look inside an ignored folder.
  * @param {string|null} pattern - the ignoring pattern, or null when nothing ignores it
  * @param {boolean} ignored - whether a design path is ignored at all
@@ -332,7 +332,7 @@ export function ignoreAdvice(pattern, ignored = pattern !== null) {
 }
 
 /**
- * The upgrade of a repo that has the D9 block from before WF-DESIGN-PLAN A5: the design
+ * The upgrade of a repo that has the old design-record block, from before sketches were tracked: the design
  * record and the frozen revisions are tracked, but a sketch is still ignored. The advice
  * adds only the sketch lines, after the old block.
  * @param {string|null} pattern - the pattern that ignores the sketch probe, or null
@@ -345,11 +345,11 @@ export function sketchAdvice(pattern) {
   return { change: false, style: 'other', pattern: p, manual: `the pattern '${p}' ignores the design sketches; add an exception for .ai/workflows/*/design/sketches/ by hand` };
 }
 
-// ---------------------------------------------------------------- canvas records (WF-DESIGN-PLAN A5b)
+// ---------------------------------------------------------------- canvas records
 
 const SHA256_RE = /^[0-9a-f]{64}$/i;
 
-/** A sketch or board path without its `#<artboard>` anchor, and the anchor (A6). */
+/** A sketch or board path without its `#<artboard>` anchor, and the anchor. */
 export function splitAnchor(path) {
   const text = String(path ?? '');
   const at = text.indexOf('#');
@@ -372,7 +372,7 @@ export function canvasErrors(c, at = 'canvas') {
 }
 
 /**
- * The `canvas-stale` result (A5b): each recorded canvas whose file changed since it was
+ * The `canvas-stale` result: each recorded canvas whose file changed since it was
  * published, whose file is missing, or whose account is not the given account.
  * @param {Array<{kind:string,key:string,where:string,path:string|null,canvas:object|null,sha256?:string|null}>} entries -
  *   `sha256` is the hash of the file now: null when the file is missing, undefined when the entry has no file
@@ -400,7 +400,7 @@ export function canvasStale(entries, { account = null } = {}) {
   return stale;
 }
 
-// ---------------------------------------------------------------- design modes (WF-DESIGN-PLAN Part III 9.1)
+// ---------------------------------------------------------------- design modes
 
 /** The four design modes. A surface has one; `02c-craft.md` `surface-modes:` maps each surface to it. */
 export const DESIGN_MODES = Object.freeze(['persuade', 'operate', 'read', 'experience']);
@@ -425,7 +425,7 @@ export function designModesOf(fm) {
   return { modes: [], from: null, register };
 }
 
-// ---------------------------------------------------------------- terminal capture (WF-DESIGN-PLAN A8)
+// ---------------------------------------------------------------- terminal capture
 
 const palette = (...hex) => Object.freeze(hex);
 /**
@@ -518,7 +518,7 @@ const ESCAPE_RE = /\x1b\[([0-9;:?<=>]*)[ -/]*([@-~])|\x1b\][\s\S]*?(?:\x07|\x1b\
 
 /**
  * Render terminal output with ANSI SGR colours as one HTML page in a named colour scheme
- * (WF-DESIGN-PLAN A8). The 16 SGR colours (30-37, 90-97, 40-47, 100-107) take the
+ * The 16 SGR colours (30-37, 90-97, 40-47, 100-107) take the
  * scheme's palette, so a board shows how yellow (33) and bright black (90) read on it.
  * 256-colour and true-colour codes keep their own value. Other escapes are dropped.
  * @param {string} text - the captured output

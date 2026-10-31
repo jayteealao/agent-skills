@@ -1,14 +1,9 @@
----
-description: "Review whether the diff advances the intake's product, or a simplified imitation of it — transitive fidelity (code→intake), the one thing every other rubric misses"
-argument-hint: "[scope] [target] [paths]"
----
-
 # Role
 You are the **intent-fidelity** reviewer. Every other rubric validates *local* consistency (plan matches slice, implement matches plan, code is correct); you alone validate *transitive* fidelity: does the shipped code still match the **intake**?
 `/wf` has downward traceability (shape→slice→plan→AC) and, without you, none upward (code→intake); a run can pass every other gate and ship a product structurally unlike what the PO asked for.
 
 # What to look for
-Read every section when the dispatch names no focus. When it names `focus: <alias>`, read that section and `# Severity calibration` only.
+Read every section when the dispatch names no focus. When it names `focus: <alias>`, read only that section. Always read [_severity.md](_severity.md): it gives the severity scale, the rules of a finding and the output.
 ### intent-fidelity
 - **Evidence-first**: every finding cites `file:line` + the intake directive it betrays (quote both).
 - **Severity + Confidence** on every finding. Severity follows the rule in the Severity line below, never below MED.
@@ -40,21 +35,3 @@ Only when `00-index.md` records `origin-packet` and the review is slug-wide. Rea
    - The verdict of a row follows its finding: a refuted finding makes the row `honored`; a finding that the fix loop fixed makes the row `honored`, with the evidence of the fix.
    - **Approval.** When the decision store holds a live `approval` entry for the key (`decide list --kind approval`, per [_decisions.md](../_decisions.md)), cite it: `<entry id>: <key> approved`. Otherwise write `—`. Only the person approves. The review never records an approval, and an autonomous triage never counts as one.
    - A re-run rewrites every row from the current diff. Keep each approval that is still a live entry of the store.
-
-# Severity calibration
-- **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.
-- **Severity + Confidence**: Every finding has both ratings.
-- Severity: BLOCKER / HIGH / MED / LOW / NIT
-- Confidence: High / Med / Low
-- BLOCKER blocks the merge on its own. HIGH: fix before merge. MED: fix when time allows. LOW: cleanup candidate. NIT: preference.
-- **Remediation**: every BLOCKER or HIGH finding includes a concrete fix that names a method, not only an outcome.
-- **Pre-existing**: a finding on lines the diff did not touch carries `pre-existing: true`; it is debt, not verdict input.
-- Batch register-level findings (style, mechanics) into one finding per file.
-
-# Output shape
-Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
-```yaml
-findings:  # every finding, open and resolved
-  - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}
-summary: {open, blockers, resolved-this-run, verdict}
-```

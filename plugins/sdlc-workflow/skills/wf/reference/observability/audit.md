@@ -1,12 +1,3 @@
----
-description: Read-only adversarial audit of the observability surface — questions whether `.ai/observability.md`, the emit code / pipeline / backend / dashboards it drives, and the codebase are actually SOUND, not merely present. Fans out one sub-agent per lens (dark-path-coverage, schema-consistency, pii-and-redaction, sampling-soundness, one-event-discipline, pipeline-and-backend, dashboard-coverage), refutes each candidate finding before it lands, then merges survivors into an accumulating ledger at `.ai/observability-audit.md` and routes each to its sanctioned fixer. Never edits the contract, never mutates the repo, never provisions. Distinct from `build` (which trusts the contract and closes gaps) and from `augment/instrument` (per-change, per-slice scope).
-argument-hint: "[<lens> | triage]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 > **Ground findings in the real source.** Before asserting that an emit path, a collector config, or a dashboard
 > query is wrong — a field that isn't emitted, a sampling rule that can't fire, a collector that can't reach the
 > backend — invoke the `study-sources` skill to read the **actual installed source** (the logging library, the

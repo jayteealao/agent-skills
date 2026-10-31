@@ -16,7 +16,7 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 You are a **review dispatch orchestrator that owns the findings ledger of the work packet and its own triage→fix loop**.
 - Do not run reviews yourself — **select review commands and dispatch scouts**. Each scout runs one command independently and returns its findings. A refuter tries to refute every finding before it enters the ledger. `wf.mjs findings add` merges the survivors and the refuted findings into `findings.yaml` by the merge law of [_findings-ledger.md](../_findings-ledger.md); the law is in code, so never apply it by hand and never restate it.
 - The review asks the person nothing about a finding, and a finding never becomes a new slice or a route back to plan or implement. At Step 4b, every finding is fixed or dismissed. At Step 4c, YOU fix the findings, one after another, in your own session: one fix step and one commit for each finding. Dispatch no fix sub-agent. Do not fix code while the scouts or the refuters run. Do not ship — that is a later stage.
-- Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → fix each finding as one step → check the fix commits once more → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix steps, outcomes recorded before the review file. Reading and dispatch may interleave freely.
+- Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → fix each finding as one step → stop → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix steps, outcomes recorded before the review file. Reading and dispatch may interleave freely.
 
 # Triage mode
 
@@ -32,17 +32,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
 4. **Resolve the slice-slug** (per-slice mode only; skip if `review-scope: slug-wide`): Use the passed slug; else `selected-slice` from the index; else ask.
 5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
-   Read `workflow-type` from `00-index.md`. Recognize these modes:
-   - **Compressed mode** (`workflow-type: quick`): the implement record is `05-implement.md` (no slice slug). Acceptance criteria source is `01-quick.md`. No per-slice plan/slice files exist.
-   - **Forwarded mode** (`workflow-type: rca`): rich context lives in `01-rca.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
-   - **Terminal analysis** (`workflow-type: investigate`): produces option sketches and **no `02-shape.md`** — it is not built or reviewed in place. A chosen option is re-intaked via `/wf intake <option>` as a NEW workflow; a bare `investigate` slug has no implement record to review.
-   - **Change-mode** (`workflow-type: fix` / `hotfix` / `refactor`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.) Default rubric by mode: **hotfix** → `security`, **refactor** → `refactor-safety` (`/wf review <slug> <rubric>`); widen only if the change warrants it.
-   - **update-deps** (`workflow-type: update-deps`): update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered) in its own flow and **routes here** for review. The implement/verify records are the un-suffixed `05-implement.md` / `06-verify.md`; the plan is `04-plan.md`. Review against `01-update-deps.md` (the scan/research brief) + `03-slice.md` (the P0/P1/P2 tiers). `review-scope: slug-wide`.
-   - **Small path** (`workflow-type: small`): one slice named `<slug>`, and `01-small.md` is its plan, implement and verify record. The changed code is the commits in its `commit-sha`. Acceptance checks come from its `## Acceptance Checks`. `review-scope: slug-wide` — one `07-review.md`. A review runs only when `progress.review` is `not-started` or later; `skipped` means the person did not want a PR, so STOP: "This small-path workflow has no PR. Run `/wf review <dimension>` for an ad-hoc review of the commit."
-   - **Task** (`workflow-type: task`): a task self-authors `05-implement.md`/`06-verify.md` in `/wf intake task`'s own flow and is not normally reviewed — there is no `03-slice.md`/`04-plan.md` and never will be. STOP cleanly: "This is a task workflow — resume it with `/wf intake task <slug>`. If the task left a reviewable diff, run ad-hoc `/wf review <dimension>` against it." Never fall through to standard mode.
-   - **Audit** (`workflow-type: audit`): the ledger here holds the audit's own findings (`--source audit`), not a change review — the workflow has no implement record and never will. STOP cleanly: "This is an audit workflow — its ledger belongs to `/wf intake audit <slug>`; re-invoking that merges new findings into it." Never fall through to standard mode.
-   - **Optimize** (`workflow-type: optimize`): the loop's finish wrote one suffixed slice, `optimize`: `03-slice-optimize.md` (the acceptance criteria), `05-implement-optimize.md` (the squash and the table of kept trials), and verify wrote `06-verify-optimize.md`. There is no plan file: the confirmed `02-optimize-spec.md` replaces shape and plan, so review against it. Always add `correctness` with `focus: metric-gaming` (see the core set below).
-   - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
+   Read `workflow-type` from `00-index.md`, and apply its row of [_source-modes.md](../_source-modes.md): the lead record, the acceptance source, the record names and the review action. When the action is STOP, give its message and stop.
 
    In all modes, an implement record (slice or master) must exist. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the names of the records. If missing → STOP: "Run `/wf implement <slug>` first."
 
@@ -103,7 +93,7 @@ After writing files, return per [_chat-return.md](../_chat-return.md). Lead with
 Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track these items:
 
 - one item per selected review command (independent — they run as parallel sub-agents);
-- the five bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix steps (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the review file;
+- the five bookkeeping items, in ledger order: refute; merge into the ledger; triage; fix steps (Step 4c; dropped when no finding is to be fixed); write the review file;
 - inside Step 4c, one item per fix step (`Fix [{ID}] {SEV}: {title}`).
 
 Mark each item done as its outcome is recorded. A `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
@@ -200,8 +190,7 @@ The review runs one round: scan, fix, and stop. After the last fix step, go to S
 
 ## What the review returns
 
-- The commit of each fix step, in order (`fixCommits`).
-- The count of BLOCKER findings that are `could-not-fix`. Only such a BLOCKER stops the run.
+The review returns the count of BLOCKER findings that are `could-not-fix`. Only such a BLOCKER stops the run.
 
 The review file lists each fix step: the finding, the commit and the check that passed. The person can revert a single fix, because each fix is its own commit.
 

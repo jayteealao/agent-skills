@@ -107,7 +107,7 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   const sidecar = { source, version, sha256: digest, stagedAt: new Date().toISOString() };
   writeFileSync(`${scriptPath}.source.json`, `${JSON.stringify(sidecar, null, 2)}\n`);
 
-  // WF-SYSTEM-REVIEW C1: the session passes `models` on as `args.models`.
+  // The session passes `models` on as `args.models`, so each stage runs on the model of the config.
   let models = {};
   try { models = modelsOf(JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'))); } catch { /* no config: every stage on Opus */ }
   // The session passes `recordsRoot` on too: a linked project keeps its records in the records home.

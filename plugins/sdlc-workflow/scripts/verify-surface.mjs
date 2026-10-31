@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/verify-surface.mjs — the surface freeze (WIDE-VIEW-REPAIR-PLAN §11, wave W9).
+// scripts/verify-surface.mjs — the surface freeze.
 //
 // `docs/internal/surface-policy.json` pins six counts of the /wf surface. This
 // gate counts each from the tree and fails when a count exceeds its pin:

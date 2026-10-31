@@ -426,7 +426,7 @@ const brainstormBoard = () => ({
   items: [], work: [], selected: [], log: [], 'consult-runs': [],
 });
 
-// BRAINSTORM-MODE-PLAN P-B4 — the write hook accepts a brainstorm board and its
+// The write hook accepts a brainstorm board and its
 // workflow-index, and demands no sibling fragment (brainstorm is not rich-tier).
 test('post-write-verify accepts a brainstorm board and its workflow-index', () => {
   const tmp = tempDir();
@@ -458,7 +458,7 @@ test('post-write-verify accepts a brainstorm board and its workflow-index', () =
   }
 });
 
-// BRAINSTORM-MODE-PLAN §20 — the agent's JSON board is validated on every write.
+// The agent's JSON board is validated on every write.
 test('post-write-verify blocks a brainstorm board that breaks the schema or does not parse', () => {
   const tmp = tempDir();
   try {
@@ -673,7 +673,7 @@ test('pre-write-validate allows steer.md standing-steering prose without frontma
   const tmp = tempDir();
   try {
     // steer.md is the user-owned standing-steering file — frontmatter-less free
-    // prose by design (W6). Like po-answers.md it must clear BOTH gates: the
+    // prose by design. Like po-answers.md it must clear BOTH gates: the
     // NN-stagename filename convention and the mandatory-frontmatter check.
     const result = runHook(HOOKS.preWriteValidate, {
       cwd: tmp,
@@ -715,9 +715,9 @@ test('post-write-verify skips steer.md standing-steering prose instead of schema
 
 
 
-/* ───────────────────────── R7: verify result gate (AC-VERIFIABILITY) ───────────────────────── */
+/* ───────────────────────── the verify result gate ───────────────────────── */
 
-test('post-write-verify BLOCKS a false-pass verify: result pass with metric-acceptance-met < total (R7 G1)', () => {
+test('post-write-verify BLOCKS a false-pass verify: result pass with metric-acceptance-met < total', () => {
   const tmp = tempDir();
   try {
     // The kanban phone-responsive false pass: result: pass with met:0 / total:2.
@@ -733,7 +733,7 @@ test('post-write-verify BLOCKS a false-pass verify: result pass with metric-acce
   }
 });
 
-test('post-write-verify BLOCKS result: pass with interactive-verification: deferred (R7 G2)', () => {
+test('post-write-verify BLOCKS result: pass with interactive-verification: deferred', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
@@ -751,7 +751,7 @@ test('post-write-verify BLOCKS result: pass with interactive-verification: defer
   }
 });
 
-test('post-write-verify allows a clean passing verify (met == total, no deferral) (R7)', () => {
+test('post-write-verify allows a clean passing verify (met == total, no deferral)', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
@@ -767,7 +767,7 @@ test('post-write-verify allows a clean passing verify (met == total, no deferral
   }
 });
 
-test('post-write-verify allows result: partial with a deferral (the honest path) (R7)', () => {
+test('post-write-verify allows result: partial with a deferral (the honest path)', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
@@ -786,7 +786,7 @@ test('post-write-verify allows result: partial with a deferral (the honest path)
   }
 });
 
-test('post-write-verify rejects the forbidden metric-acceptance-unverified-interactive shadow field (R7 schema)', () => {
+test('post-write-verify rejects the forbidden metric-acceptance-unverified-interactive shadow field', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
@@ -800,7 +800,7 @@ test('post-write-verify rejects the forbidden metric-acceptance-unverified-inter
   }
 });
 
-test('post-write-verify accepts result: blocked-runtime-evidence-missing (R7 enum fix)', () => {
+test('post-write-verify accepts result: blocked-runtime-evidence-missing', () => {
   const tmp = tempDir();
   try {
     // The schema previously rejected this contract-valid result state.
@@ -818,7 +818,7 @@ test('post-write-verify accepts result: blocked-runtime-evidence-missing (R7 enu
   }
 });
 
-test('post-write-verify WARNS (non-blocking) on a prose-only deferral with result: pass (R7 lint)', () => {
+test('post-write-verify WARNS (non-blocking) on a prose-only deferral with result: pass', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
@@ -1070,7 +1070,7 @@ test('skip-record prefix filename clears pre-write, and ship-plan needs only pro
   }
 });
 
-// --- W1 solutions corpus (v9.100.0): .ai/solutions/ validation scope ---------
+// --- the solutions corpus (v9.100.0): .ai/solutions/ validation scope ---------
 
 test('post-write-verify validates .ai/solutions/ category files against the solution schema', () => {
   const tmp = tempDir();
@@ -1154,7 +1154,7 @@ test('post-write-verify skips .ai/solutions/INDEX.md and never demands sibling f
   }
 });
 
-// --- W3.2 leak guards (v9.101.0): advisory-first EOB enforcement -------------
+// --- leak guards (v9.101.0): advisory-first EOB enforcement -------------
 
 const LEAK_HOOKS = {
   bash: join(PLUGIN_ROOT, 'hooks', 'leak-guard-bash.mjs'),
@@ -1294,10 +1294,10 @@ test('leak-guard-write scans MultiEdit edits[] against public-doc paths', () => 
 });
 
 // ---------------------------------------------------------------------------
-// WORK-WITHOUT-A-HOME (task + intake audit) — evidence gate + schema round-trips
+// Work with no workflow of its own (task + intake audit) — evidence gate + schema round-trips
 // ---------------------------------------------------------------------------
 
-test('post-write-verify mock-evidence gate message names the asserted rung (contract §7)', () => {
+test('post-write-verify mock-evidence gate message names the asserted rung', () => {
   const tmp = tempDir();
   try {
     // A task 06-verify.md whose only evidence for an AC is the agent's own
@@ -1323,7 +1323,7 @@ test('schema round-trips: workflow-type task on type:index, audit on type:workfl
   const tmp = tempDir();
   try {
     // task — a full type:index with workflow-type: task and skipped stages
-    // must survive the post-write-verify schema gate (the W0.5 hard blocker).
+    // must survive the post-write-verify schema gate, which once blocked every task index.
     const taskIndex = join(tmp, '.ai', 'workflows', 'task-demo', '00-index.md');
     writeFile(taskIndex, md(minimalIndex({
       slug: 'task-demo',

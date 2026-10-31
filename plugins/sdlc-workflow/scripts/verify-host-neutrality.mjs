@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // scripts/verify-host-neutrality.mjs — the host-neutrality gate over the single-source
-// skill tree (SINGLE-SOURCE-PLAN W6; the inverted successor of the deleted codex
-// tree's verify-claudisms.mjs).
+// skill tree (the inverted successor of the deleted codex tree's verify-claudisms.mjs).
 //
 // One tree serves Claude Code and Codex. Skill prose is written once, host-neutral,
 // and cites a small set of host-contract files for anything a host spells
@@ -9,14 +8,14 @@
 // question tool, a dispatch tool, a model name, an isolation flag, a shell time
 // command, a plugin-root variable, the other host's invocation sigil) fails
 // anywhere under skills/ and reference/ EXCEPT in the permanent exception list
-// below — which IS the §3.3 budget, verbatim. Growing the list means editing this
+// below — which IS the host-contract budget, verbatim. Growing the list means editing this
 // file, so the exception is visible in review instead of silent in a diff.
 //
 // Two lists, deliberately separate:
 //   PERMANENT — the design. The ≤5 host-contract files plus the enumerated data
 //               exceptions (availability annotations).
 //   BURNDOWN  — scripts/host-neutrality-allowlist.json, the temporary per-file list
-//               seeded at the W3 baseline. It may only SHRINK: this gate compares it
+//               seeded when the tree became one. It may only SHRINK: this gate compares it
 //               against the merge base and fails on any added path, on any entry
 //               whose file no longer matches a family (stale), and on any entry whose
 //               file no longer exists. At cutover it is empty, and it stays empty.
@@ -43,7 +42,7 @@ const list = argv.includes('--list');
 const SCAN_DIRS = ['skills', 'reference'];
 const TEXT = /\.md$/i;
 
-// ── The permanent exception list — the §3.3 budget, verbatim ────────────────────
+// ── The permanent exception list — the host-contract budget, verbatim ───────────
 export const CONTRACT_FILES = [
   'skills/wf/reference/_host-invocation.md',
   'skills/wf/reference/_host-surfaces.md',
@@ -53,8 +52,10 @@ export const CONTRACT_FILES = [
   'skills/wf/reference/yolo.md', // the reserve slot: a Claude Code-only key's own reference
 ];
 export const DATA_EXCEPTIONS = {
-  // The dispatch table's availability line + the Hosts paragraph that points at
-  // the contract. Availability is data ("where a key runs"), not mechanics.
+  // The availability lines under the key tables of the router. Availability is
+  // data ("where a key runs"), not mechanics.
+  'skills/wf/reference/route.md': ['host-names'],
+  // The dispatch call of Step 0 names the host value that the script takes.
   'skills/wf/SKILL.md': ['host-names'],
   // consult dispatches EXTERNAL CLIs named codex / claude / gemini as oracle
   // providers. Product names in the provider role are not host mechanics.

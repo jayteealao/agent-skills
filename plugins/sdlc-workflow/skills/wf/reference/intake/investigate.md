@@ -1,18 +1,11 @@
----
-description: Solution-options sketcher. Takes a code-level problem ("checkout is slow", "auth flow is brittle", "we need to support multi-tenant data") and enumerates every genuinely distinct candidate engineering approach grounded in the existing architecture, with tradeoffs (scope, blast radius, effort, risk, reversibility) for each — up to 3 presented as full cards, surplus distinct options recorded as compressed entries. Does NOT pick a winner — the user does; re-invoked as `investigate <slug> <option>` it records that pick and closes the workflow. Does NOT write application code, does NOT diagnose bugs (use `/wf intake rca`), does NOT validate whether the problem is worth solving (it assumes the user already decided). Read-only except the pick bookkeeping.
-argument-hint: <problem-statement-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake investigate`, a **solution-options sketcher** that proposes multiple engineering approaches to a stated problem and characterizes their tradeoffs — without picking a winner.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-investigate-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: investigate`, `compressed: true`, `origin: intake/investigate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `investigate → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `investigate`: it overrides the standalone steps below.
 
 # Pipeline
 `1·problem-intake` → `2·map-and-sketch` → `3·characterize-tradeoffs` → user picks (recorded via `# Pick`) → `/wf intake … from <slug>` | `/wf intake fix … from <slug>`
@@ -70,11 +63,11 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: investigate` → the workflow exists. Read that index, then split on three sub-cases:
-     - **A token after the slug matches an option id (`A`, `B`, …) or an option label** from `01-investigate.md` → **pick mode**. Jump to `# Pick — decision closure` below; any trailing prose after the option token is the decision note. If the token matches more than one label, ask one question to disambiguate. If the index is already `status: closed`, WARN: "Workflow `<slug>` is closed (chosen-option: `<value>`)." and stop.
+     - **A token after the slug matches an option id (`A`, `B`, …) or an option label** from `01-investigate.md` → **pick mode**. Jump to `# Pick — decision closure` below; any trailing prose after the option token is the decision note. If the token matches more than one label, ask one question to disambiguate. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
      - **`01-investigate.md` is complete and no pick token is present** → tell the user the option set is ready and how to record a pick — `/wf intake investigate <slug> <option-id-or-label> [one-line reason]` — and stop.
      - **`01-investigate.md` is incomplete** → **resume mode**: pick up from the missing section.
-   - Otherwise → **new investigate**. Derive a slug: `investigate-<short-problem>` (kebab-case, max 5 words, e.g., `investigate-checkout-latency`).
-2. **Collision check:** If the index of `<slug>` exists (`record get` exits 0) and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
+   - Otherwise → **new investigate**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `investigate-<short-problem>`.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -182,25 +175,7 @@ If `architecture-blocking` tripped, prefix with:
 
 # Pick — decision closure
 
-Runs only from Step 0 pick mode (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`).
-The pick is the workflow's terminus: it records the decision and closes the workflow. It never
-starts the successor — it prints the invocation and stops.
-
-1. **Stamp the artifact.** Add to `01-investigate.md` frontmatter, with one
-   `record set "<root>" <slug> 01-investigate.md` call: `chosen-option: <id> — <label>`;
-   `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
-   `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body (get `01-investigate.md`, add the section, write the draft and put it): which option was picked; why (the
-   user's reason exactly, else "user picked without a stated reason"); which tripwires were live
-   at pick time (from `## Tripwire warnings`, or "none").
-3. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=option-picked
-   superseded-by=pending closed-at=<timestamp> next-command=none
-   "next-invocation=none — decision recorded"`. `superseded-by: pending` is corrected to the successor slug by the downstream
-   mode's link-back (`_intake-provenance-consume.md`); updating that one field on a closed index is
-   additive and safe.
-4. **Print the next invocation** with provenance, per the effort routing in the artifact `## Routing` —
-   `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or
-   `/wf intake "<label> — <one-line mechanism>" from <slug>` (medium+) — and stop. Do not run it.
+Runs only from Step 0 pick mode (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`). Follow "Closure" of [_light-index.md](_light-index.md) with the `investigate` row. Step 4 prints the invocation of the effort routing in `## Routing` of the artifact: `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or `/wf intake "<label> — <one-line mechanism>" from <slug>` (medium+).
 
 A `discover` compressed slice landing on this slug (the `## Routing` escalation ladder) is NOT a pick
 and re-opens nothing: it is drill-down on a still-open decision, and its answer stays in the
@@ -208,8 +183,5 @@ slice — no option-card write-back.
 
 # What this command is NOT
 
-- **Not a chooser** — this command sketches options; the user picks. Recording the pick (`# Pick — decision closure`) is bookkeeping so the decision has provenance, not choosing. If you want a single recommended approach with acceptance criteria, that is the shape phase of `/wf intake`.
-- **Not a problem validator** — this command assumes the problem is real and worth solving. If you're not sure whether the problem is genuine, that requires runtime data, telemetry, or user signal that this command doesn't gather. Run a measurement step first.
-- **Not a diagnostician** — if there is a specific symptom (error, crash, slow request) and you want to know *why*, that is `/wf intake rca <symptom>`. Investigate proposes *how to solve*; rca finds *why it's broken*.
-- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf status recap <slug> [plan|shape|slice|review|findings]` or a plain research conversation outside `/wf`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
-- **Not a substitute for the shape phase of `/wf intake`** — the shape phase produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `/wf intake` deepens the chosen option into an implementable spec in its shape phase.
+- **Not a chooser.** This command sketches options; the user picks. The pick only records the decision.
+- **Not a problem validator.** Investigate assumes that the problem is real. A doubt about the problem needs runtime data, telemetry or user signal first.

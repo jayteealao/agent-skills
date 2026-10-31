@@ -9,7 +9,7 @@
  * - Skip workflow artifact files; implementation commits own those.
  * - Stage with git add only when an active workflow is in implement stage
  *   and branch-strategy is dedicated or shared.
- * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW §14.2.6).
+ * Exports `run(input)` for the folded `post-tool-use-all` entry.
  */
 
 import { existsSync } from 'node:fs';

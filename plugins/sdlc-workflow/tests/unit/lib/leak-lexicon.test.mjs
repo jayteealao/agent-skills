@@ -1,5 +1,5 @@
-// Unit tests for the External Output Boundary leak lexicon (HOOKS-SEMANTIC
-// Phase 1). The lexicon derives its internal roots from the canonical
+// Unit tests for the External Output Boundary leak lexicon of the semantic
+// leak guards. The lexicon derives its internal roots from the canonical
 // _output-boundary.md predicate; the pattern set must catch concrete workflow
 // vocabulary while staying ~0-false-positive on plain product English (the
 // graduation gate for enforce mode).

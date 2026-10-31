@@ -1,4 +1,4 @@
-// DESIGN-LANE-PLAN guard tests: the design lane's human rule — a person confirms
+// Design lane guard tests: the design lane's human rule — a person confirms
 // the design at the human-only `design` stage before any stage a driver runs.
 // Covers the pure predicates (lib/design-lane.mjs), the pre-write hook that
 // refuses a plan write while a needed design is unsettled, and the prose that
@@ -136,7 +136,7 @@ test('hook: refuses a plan while a confirmed design is reopened', () => {
   match(r.stderr, /\/wf design demo amend/);
 });
 
-// Boards (DESIGN-BOARDS-PLAN D5): a contract that names its boards is settled only
+// Boards: a contract that names its boards is settled only
 // when the board files exist, for visual and new-surface changes.
 const BOARDED = fm({ schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', 'image-gate': 'pass', 'direction-confirmed-by': 'in-session', boards: 'design/r1/boards.json', 'design-revision': 1 });
 const MANIFEST_R1 = JSON.stringify({

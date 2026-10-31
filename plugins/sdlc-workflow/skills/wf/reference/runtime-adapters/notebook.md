@@ -1,19 +1,15 @@
 # Adapter: `notebook` (Jupyter / data exploration)
 
-## Detection signals
-- `*.ipynb` files in the repo
-- `requirements.txt` / `pyproject.toml` declaring `jupyter`, `notebook`, `nbconvert`, `papermill`
-- `environment.yml` for a conda env aimed at data work
+The registry ([../runtime-adapters.md](../runtime-adapters.md)) selects this adapter. [_protocols.md](_protocols.md) owns the enumeration and perturbation rules; this file gives only the steps of this platform.
 
 ## Bootstrap
 1. **Ensure the kernel is installed** — `jupyter kernelspec list`.
 2. **For papermill execution (preferred):** `pip install papermill` if not present.
 
 ## Enumerate
-Inventory the executable surface **before** driving (see the enumeration ladder in [_protocols.md](_protocols.md)).
 1. **Recipe rung** — read the cell graph and the papermill parameter cell: every parameter is a surface dimension.
 2. **Static rung** — collect cell boundaries and their declared inputs/outputs.
-3. **Traversal rung** — execute end-to-end and record which cells produced output. The count is a FLOOR.
+3. **Traversal rung** — execute end-to-end and record which cells produced output.
 
 ## Drive
 - **Execute notebooks programmatically** — `papermill <notebook>.ipynb <output>.ipynb -p <param> <value>` to parameterize and run.
@@ -25,7 +21,6 @@ Inventory the executable surface **before** driving (see the enumeration ladder 
 - **Runtime** — record execution time per cell when the criterion is performance-related.
 
 ## Perturb
-Break exactly one dependency, re-observe, restore (see the perturbation protocol in [_protocols.md](_protocols.md)).
 - **Missing input dataset** — point a parameter at an absent path; check the failure is diagnosable, not a bare traceback deep in a cell.
 - **Empty input** — a zero-row frame; check downstream cells degrade rather than emitting `fabricated-value` defaults.
 

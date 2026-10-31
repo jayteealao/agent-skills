@@ -1,4 +1,4 @@
-// WF-PROTOTYPE-PLAN W2/W3 — the pure side of /wf loop prototype (lib/prototype.mjs): the
+// The pure side of /wf loop prototype (lib/prototype.mjs): the
 // ledger rules the schema cannot express, the commit plan of a decide round, and the
 // rolling report. The report has no script, loads nothing, stays under 1 MB, and shows
 // a measured number differently from an estimated one.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/goal.mjs — the disk side of /wf loop goal (WF-GOAL-PLAN 4.2).
+ * scripts/goal.mjs — the disk side of /wf loop goal.
  * skills/wf/scripts/goal.mjs runs this script.
  *
  *   arm       <root> <slug> [--objective t] [--kind lifecycle|optimize|proofs] [--proof cmd]... [--max-checks n] [--host h]
@@ -12,7 +12,7 @@
  *   lifecycle <root> <slug>               the lifecycle verdict of lib/lifecycle-done.mjs (for auto and /wf status)
  *
  * Every command except `check` prints one JSON object. `check` prints text, because
- * the host judge reads the transcript, and its last line is the `GOAL:` line (D3).
+ * the host judge reads the transcript, and its last line is the `GOAL:` line.
  * `check` exits 0 for every verdict: a failing proof is evidence, not an error.
  */
 import { spawnSync } from 'node:child_process';
@@ -102,7 +102,7 @@ function arm(root, slug, f) {
   const condition = conditionText({ script: WRAPPER, root, slug, maxChecks: c['max-checks'] });
   saveContract(root, slug, c);
   const plan = armPlan(host, condition);
-  // The mod reads this request at the end of the turn and submits /goal on Desktop (W3).
+  // The mod reads this request at the end of the turn and submits /goal on Desktop.
   writeAtomic(armPath(root, slug), `${JSON.stringify({ slug, host, arming: c.arming, condition, command: plan.command ?? null, requestedAt: c['armed-at'], state: 'pending' }, null, 2)}\n`);
   return { ok: true, resumed: !!prior, kind, host, arming: c.arming, maxChecks: c['max-checks'], condition, arm: plan, contract: 'goal.md' };
 }

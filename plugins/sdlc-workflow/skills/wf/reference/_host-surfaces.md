@@ -6,6 +6,10 @@ This file is a host-contract file, like [_host-invocation.md](_host-invocation.m
 
 pi has no plugin manifest and no external-command hooks of its own. The `pi-code` extension loads this plugin from the Claude Code plugin cache (`~/.claude/plugins/cache`), runs `hooks/hooks.json` with the Claude Code payload and environment, and presents Claude Code's tool vocabulary to the hooks and to the model. The reference pi setup is the `pi-unified` meta-package: pi-code without its own web and sub-agent extensions, `@tintinweb/pi-subagents` owning the `Agent` tool, and `pi-web-access` owning web search. A pi cell therefore reads "same as Claude Code" unless it says otherwise. Four differences hold: the `PermissionRequest` hook never fires, because pi has no permission layer; the `SubagentStart` and `SubagentStop` hooks never fire, because pi-code bridges them through its own sub-agent extension, which the reference setup excludes, so a child starts with nothing but its prompt; a `PreToolUse` hook that times out fails closed at 60 seconds; and the hub records a pi session's provenance as `claude`, because the host signal is the hooks' own. These rows are verified against pi-code 1.0.64 and pi-subagents 0.19.0 source, not yet against a live pi session.
 
+## Codex invocation policy
+
+The plugin skills other than `wf` are explicit-only in Codex (`policy.allow_implicit_invocation: false` in their `agents/openai.yaml`). Start one only when the user selects it with `$<skill>`, or when a requested workflow requires the step. `wf` is implicit (`true`), as on the other hosts: the model may start it, but only under the consent rule of `SKILL.md` Step 0. The hooks still run on their registered events.
+
 ## Browser and runtime drive
 
 | Concern | Claude Code | Codex | pi |

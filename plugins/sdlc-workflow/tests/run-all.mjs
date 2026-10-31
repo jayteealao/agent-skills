@@ -44,7 +44,7 @@
  *                              one file at a time. Run it locally; CI does not.
  * A test that fails at random is deleted, not retried.
  *
- * MACHINE STATE (WIDE-VIEW-REPAIR-PLAN §14.2.7, W11.7). The suite must never
+ * MACHINE STATE. The suite must never
  * touch the real ~/.sdlc: before it, tests wrote into the real state dir. This script sets SDLC_HOME to a fresh temp directory for the whole
  * run when the caller left it unset, fingerprints the REAL ~/.sdlc first, and
  * runs tests/unit/state-dir-guard.test.mjs AFTER every other file so the
@@ -126,7 +126,7 @@ console.error(
     : `[run-all] ${discovered} test files discovered under tests/`,
 );
 
-// W11.7: one temp state dir for the whole run unless the caller chose one, and
+// One temp state dir for the whole run unless the caller chose one, and
 // the real state dir's fingerprint for the guard to compare against.
 let tempHome = null;
 if (!process.env.SDLC_HOME || !process.env.SDLC_HOME.trim()) {

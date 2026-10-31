@@ -1,6 +1,6 @@
 /**
  * Internal-vocabulary lexicon for the External Output Boundary leak guards
- * (HOOKS-SEMANTIC Phase 1, hooks #1–#3).
+ * (the commit, the public-doc write and the publish checks).
  *
  * The path roots are derived FROM the canonical
  * skills/wf/reference/_output-boundary.md predicate, so the prose rule and the
@@ -22,7 +22,7 @@ export const BOUNDARY_PATH = resolve(
 );
 const DEFAULT_ROOTS = ['.ai/', '.claude/'];
 
-// The 19 live /wf keys, plus the keys that WF-KEY-SURFACE-PLAN removed (brainstorm, simplify,
+// The 19 live /wf keys, plus the keys that a release removed (brainstorm, simplify,
 // task, close, goal, optimize, prototype, recap, ship-plan, observability) and
 // retired skill suffixes, because prompts and old artifacts still print them.
 const WF_KEYS =

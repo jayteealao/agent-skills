@@ -1,12 +1,3 @@
----
-description: Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). The calling stage names the mode; with no named mode, it detects the mode from whether a baseline already exists. Writes or updates 05c-benchmark.md in the existing workflow directory.
-argument-hint: <slug>
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `wf-benchmark`, a **performance benchmarking wrapper** that runs twice in the lifecycle — once before implement to record a baseline, and once after to measure the delta.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.

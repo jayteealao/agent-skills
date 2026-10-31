@@ -1,12 +1,3 @@
----
-description: Reads `.ai/observability.md` and brings the repo's observability surface into compliance with it — realizing the contract across four output classes: (1) emit-layer code, as idiomatic multi-language adapters (one context-rich wide event per unit of work, with the schema, sampling, and redaction the contract specifies); (2) collection-pipeline config (OTel Collector / agent / log-shipping); (3) backend / IaC (self-hosted docker-compose, Helm/Terraform, or vendor config); (4) dashboards-as-code that query the wide-event schema. Creates missing files, adds to existing ones (no file is ever overwritten), and — only when the contract's provisioning ceiling opts in — applies remote/billable steps behind an explicit confirm gate with a print-only fallback. It never enters a vendor credential. Each gap is shown to the user before any write or remote mutation.
-argument-hint: "[--dry-run]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 > **Ground emit code in the real stack.** Before writing an adapter, sampling function, or collector config for a
 > language/framework, reach for the `study-sources` skill to read the **actual installed** logging library, OTel
 > SDK, or collector schema for that stack — not a recalled API. A generated adapter that matches the real
@@ -26,8 +17,7 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 - **Concept-first, adapter-second — never four hardcoded TS blocks.** The contract's schema/sampling/redaction are
   language-agnostic. Realize them per unit in the unit's **own** language, detected from the contract's Block B
   and the repo. Node is the **reference adapter** (the richest examples); Go, Python, JVM, Rust, .NET each get
-  their own idiomatic adapter, or — for an unrecognized stack — a commented `# TODO:` skeleton, never a crash and
-  never JavaScript foisted on a non-JS unit.
+  their own idiomatic adapter, or — for an unrecognized stack — a commented `# TODO:` skeleton, never a crash.
 - **Minimal diff.** Only add what is needed. Do not reorganize or reformat existing code.
 - **Trace insertions.** When adding to an existing file, mark the inserted block with a single-line comment in
   that language's syntax: `Added by wf observability build — plan v<N>, <YYYY-MM-DD>`. Never add this to code the
@@ -46,9 +36,6 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 
 # Safety rails (HARD rules)
 
-- **No credentials, ever.** This command never enters a vendor API key, token, or account secret. It emits config
-  + the exact commands and directs the user to authenticate. (This is the prohibited-actions boundary — entering
-  credentials is always the user's own action.)
 - **Remote / billable = confirm-gated + print-only fallback.** Anything that mutates a remote or provisions a
   billable resource (create a cloud log group, publish a vendor dashboard, `terraform apply`, `helm upgrade`,
   push a collector to a managed endpoint) shows the diff/plan and the exact command, requires an explicit
@@ -133,7 +120,7 @@ now) · **Cancel**.
 # Step 3 — Implement class 1: emit code (Audit A)
 
 Skip if every unit's emit layer is Compliant. For each Missing/Non-compliant unit, detect language + framework
-and emit **idiomatic** code — never a JavaScript block on a non-JS unit. Use the shared doctrine
+and emit **idiomatic** code. Use the shared doctrine
 ([wide-event-observability.md](../augment/wide-event-observability.md)) for the *shape* (one event per unit,
 tail sampling, redaction) and the unit's real library (verified via `study-sources`) for the *syntax*.
 
@@ -186,7 +173,7 @@ backend's dialect:
   flag-rollout-impact — the canonical wide-event queries the doctrine's Query Examples demonstrate.
 - Vendor → the vendor dashboard JSON/API payload.
 Files by default. Publishing to a live backend (Grafana API, Datadog dashboard API) is **confirm-gated** with a
-print-only fallback, and never carries a credential.
+print-only fallback.
 
 ## The gate (classes 3–4, whenever a remote/billable step is reached)
 Show the current-vs-desired diff / plan and the exact command, then ask this gate question ([_gate-question.md](../_gate-question.md)) and WAIT:

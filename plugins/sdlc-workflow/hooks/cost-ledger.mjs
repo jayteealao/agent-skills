@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * hooks/cost-ledger.mjs — Stop hook: append this turn's exact token usage to
- * `.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl`, one file a month (WIDE-VIEW-REPAIR-PLAN §10).
+ * `.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl`, one file a month.
  *
  * Behavior:
  * - Exit 0 for all outcomes; a parse or write failure logs through

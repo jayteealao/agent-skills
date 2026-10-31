@@ -1,6 +1,5 @@
 ---
 template-kind: container-image
-description: Container image published to a registry (GHCR, ECR, Docker Hub). Tag-on-main triggers build + push with signed images.
 ---
 
 # Seed values

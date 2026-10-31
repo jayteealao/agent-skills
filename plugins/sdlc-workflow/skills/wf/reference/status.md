@@ -3,12 +3,6 @@ description: Dashboard across all workflows, plus single-workflow detail and rou
 argument-hint: "[slug|pr#N|branch] [deep] | advise [branch|pr#N|fast]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf status`, the **dashboard, detail view, and router** for all SDLC workflows.
 
 # Pipeline
@@ -26,7 +20,8 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `08-handoff.md` | artifact | mode:roster | |
 | `.driver-journal.jsonl` | artifact | mode:detail | |
-| `status/_renders.md` | procedure | always | |
+| `status/_dashboard.md` | procedure | mode:dashboard | |
+| `status/_detail.md` | procedure | mode:detail | |
 | `status/_deep.md` | procedure | mode:deep | |
 | `02-shape.md` | artifact | mode:advise | |
 | `04-plan-*.md` | artifact | mode:advise | |
@@ -60,19 +55,18 @@ For each list with an unfinished work packet, lead with `node "<skill-dir>/scrip
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
 1b. If the **first** token is `advise`, set **advise-mode** and strip it. The remaining first token (optional) is the advise **scope**: a branch name or `pr#N`/`#N`/bare integer narrows advice to the slugs on that branch; the literal `fast` drops to Tier-0 (frontmatter only — no artifact or code reads). Advise-mode skips the polymorphic resolution in step 2 and, after the always-on Step -1 reconcile, runs the **Advise Mode** section below. Advise does its own bounded code-truth seeking, so it ignores a trailing `deep`.
-2. Resolve the remaining first token (polymorphic, first match wins):
-   - **Exact slug** (`node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <token> index` exits 0) → **detail mode** (single workflow). That output is the index.
-   - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then **roster mode** below.
-   - **Branch name** (matches a `branch:` column in `.ai/workflows/INDEX.md`) → **roster mode** below.
-   - **No token** → **dashboard mode** across all workflows.
+2. Resolve the remaining first token with `node "<skill-dir>/scripts/wf.mjs" target "<projectRoot>" <token> --json` (a slug wins over a branch):
+   - **`scope: slug`** → **detail mode** (single workflow). Read its index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index`.
+   - **`scope: branch`** (a `pr#N` or a branch name) → **roster mode** below.
+   - **An `error`** → show it and STOP.
+   - **No token** → **dashboard mode** across all workflows. Do not run `target`.
 3. If enumeration found **no** workflows (registry empty AND disk listing empty) → tell the user: "No workflows found. Start one with `/wf intake <description>`." STOP.
 
 # Roster Mode (`pr#N` / branch) — read-only branch view
 
 This is the read-only counterpart to batch `/wf ship`: it answers "which slugs on this branch are handoff-ready or ship-ready" **without triggering anything**. It writes nothing beyond the Step -1 registry reconcile.
 
-1. From `.ai/workflows/INDEX.md` (just reconciled), collect every slug whose `branch` column equals the resolved branch — the roster. If none → "No
-   workflows are on branch `<branch>`." STOP.
+1. The roster is the `slugs` of the `target` output: every slug whose `branch` column in `.ai/workflows/INDEX.md` (just reconciled) equals the resolved branch.
 2. For each roster slug, use the frontmatter of the index and (if present) `08-handoff.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <roster-slug> <name>`. Derive, per slug: `current-stage`, per-slug review verdict / open blockers, `readiness-verdict` (from its handoff, if any), `runtime-evidence-status` (same computation as dashboard mode), and `handoff-lead:`.
 3. Read the lead slug's `08-handoff.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <lead> 08-handoff.md` for the branch-level `pr-readiness-verdict` (absent → not yet handed off as a batch).
 4. **Render the roster** and STOP:
@@ -117,7 +111,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 **Staleness:** when `stale` is true, append `(stale)` to the status.
 
-**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf yolo <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
+**Render the dashboard** from [status/_dashboard.md](status/_dashboard.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf yolo <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
 
 **Cost (exact tokens).** For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its `total` row is the slug's input / output / cache read / cache write, with the external in / out pair apart. Copy every integer as written; never estimate or price. Omit a slug whose result is `No cost ledger.`. Omit the table when no slug has one.
 
@@ -130,7 +124,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 2. Read the `workflow-files` list and check which records exist with `node "<skill-dir>/scripts/wf.mjs" record list "<projectRoot>" <slug>`.
 3. Read each existing stage record's frontmatter with `record get` (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below. When `02c-craft.md` names `screens:`, show the screen count and the `approval-commit` in `## Key Metrics`.
 4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
-5. **Render the detail view** from the detail render in [status/_renders.md](status/_renders.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
+5. **Render the detail view** from [status/_detail.md](status/_detail.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
 6. For the **slice progress matrix**, take from `record list` the records `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.
 6b. Show the steps of a slice in progress (detail render).
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.

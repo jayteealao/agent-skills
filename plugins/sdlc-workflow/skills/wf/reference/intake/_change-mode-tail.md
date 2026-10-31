@@ -1,4 +1,4 @@
-# Change-mode shared tail — collision, stack, index, tripwires, gate, rules
+# Change-mode shared tail — stack, index, tripwires, gate, rules
 
 The single source for the blocks the four change-modes (`fix`, `hotfix`, `refactor`,
 `update-deps`) share. Each mode reference cites the
@@ -70,6 +70,7 @@ decision (proceeded / adjusted / escalated / auto-proceeded-low-risk) in the `01
 | `<branch>` | `fix/<slug>` | `hotfix/<slug>` | `refactor/<slug>` | `deps/<slug>` |
 | `<base>` | current base | production branch | current base | current base |
 | `<tags>` | `[]` | `[incident]` | `[refactor]` | `[deps]` |
+| `<shape-tags>` | `[]` | `[incident]` | `[refactor, baseline]` | `[deps]` |
 | `<complexity>` | `xs\|s\|m` | `xs\|s` | `s\|m\|l` | `s\|m\|l` |
 | `<next-command>` | `wf-implement` | `wf-implement` | `wf-implement` | `wf-review` |
 | `<next-invocation>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf review <slug>` |
@@ -78,13 +79,106 @@ decision (proceeded / adjusted / escalated / auto-proceeded-low-risk) in the `01
 
 Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-command` and `next-invocation`: the run's terminus, not the next file. `<routes>` is `[{invocation: "<next-invocation>", reason: "<one phrase>", default: true}, {invocation: "/wf intake \"<description>\" from <slug>", reason: "escalate"}]`.
 
-## Collision check (Step 0)
+## Planning templates (`01-<mode>` to `04-plan`)
 
-If the index of `<slug>` already exists (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0, per [_records.md](../_records.md)) and its `workflow-type` is not this
-mode (or its documented legacy alias) → WARN: "Workflow `<slug>` already exists with type
-`<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue
-the existing workflow." Stop. (An exact slug match in the *first positional* is the
-dispatcher's intentional attach and never reaches this check — see `_intake-context.md`.)
+Every change-mode starts the frontmatter of its four planning records from these templates. `<mode>` is the column name, and the other slots come from the value table. The mode reference names the body of each record and any key that it adds.
+
+`01-<mode>.md` (`type: intake`):
+```yaml
+---
+schema: sdlc/v1
+type: intake
+slug: <slug>
+workflow-type: <mode>       # mirror of the canonical discriminator on 00-index.md
+status: complete            # or awaiting-input if a blocking question remains
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+tags: <tags>
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
+---
+```
+
+`02-shape.md` (`type: shape`):
+```yaml
+---
+schema: sdlc/v1
+type: shape
+slug: <slug>
+status: complete
+stage-number: 2
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+docs-needed: false
+docs-types: []
+tags: <shape-tags>
+refs:
+  index: 00-index.md
+  intake: 01-<mode>.md
+  next: 03-slice.md
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
+---
+```
+
+`03-slice.md` (`type: slice-index`, one slice, because the lifecycle never skips slicing):
+```yaml
+---
+schema: sdlc/v1
+type: slice-index
+slug: <slug>
+status: complete
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+total-slices: 1
+best-first-slice: <slug>
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <complexity>
+tags: <tags>
+refs:
+  index: 00-index.md
+  shape: 02-shape.md
+  next: 04-plan.md
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
+---
+```
+
+`04-plan.md` (`type: plan`):
+```yaml
+---
+schema: sdlc/v1
+type: plan
+slug: <slug>
+slice-slug: <slug>
+status: complete
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-to-touch: <int>
+metric-step-count: <int>
+has-blockers: false
+revision-count: 0
+tags: <tags>
+refs:
+  index: 00-index.md
+  slice: 03-slice.md
+  next: 05-implement.md
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
+---
+```
 
 ## Stack policy (Step 0 — every change-mode and adopt)
 

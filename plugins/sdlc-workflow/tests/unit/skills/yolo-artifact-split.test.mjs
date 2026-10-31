@@ -1,4 +1,4 @@
-// ARTIFACT-SPLIT-PLAN yolo fixes Y4, Y6, Y8 — the read check reaches the stage agent,
+// The read check reaches the stage agent,
 // the run report shows reads, and orient reads only current index state. The question
 // loop: a stage returns questions, the run stops as waiting, and a relaunch carries the
 // answers in args.answered.
@@ -13,20 +13,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { extractFn } from '../../helpers/extract-fn.mjs';
+
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const yoloSrc = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-
-function extractFn(src, name) {
-  const m = new RegExp(`function\\s+${name}\\s*\\(`).exec(src);
-  assert.ok(m, `could not locate function ${name} in yolo.js`);
-  let depth = 0;
-  // Start at the body brace, past a default parameter such as `extra = {}`.
-  for (let j = src.indexOf(') {', m.index) + 2; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(m.index, j + 1);
-  }
-  throw new Error(`unbalanced braces extracting ${name}`);
-}
 
 // ---- whole-script harness ---------------------------------------------------
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -66,9 +56,9 @@ function common(label) {
   return undefined;
 }
 
-// ---- Y6 ---------------------------------------------------------------------
+// ---- the checklist clause -----------------------------------------------------
 
-test('Y6: every stage writer the driver dispatches carries the checklist clause', async () => {
+test('every stage writer the driver dispatches carries the checklist clause', async () => {
   const { calls } = await run({ slice: 'a' }, (label) => {
     if (label === 'orient') return orientResult({ mode: 'slice', targetSlice: 'a', reviewScope: 'per-slice', slices: [slice('a', { plan: 'todo', implement: 'done', verify: 'done', review: 'done' })] });
     if (label === 'plan:a') return { stage: 'plan', slice: 'a', status: 'complete', artifactPath: '/repo/04-plan-a.md', terminal: { statusField: 'complete' } };
@@ -79,9 +69,9 @@ test('Y6: every stage writer the driver dispatches carries the checklist clause'
   assert.match(plan.prompt, /\/plugin\/skills\/wf\/reference\/plan\.md IN FULL/);
 });
 
-// ---- S6 prompt-fed inputs ------------------------------------------------------
+// ---- prompt-fed inputs ---------------------------------------------------------
 
-test('S6: the fan-out review writer names the rubrics it was fed and its output path', async () => {
+test('the fan-out review writer names the rubrics it was fed and its output path', async () => {
   const { calls } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
   const writer = calls.find((c) => c.label === 'review');
   assert.match(writer.prompt, /REQUIRED READS\. The/);
@@ -212,9 +202,9 @@ test('the review fan-out agents write journal lines', async () => {
   }
 });
 
-// ---- Y4 ---------------------------------------------------------------------
+// ---- the run-end line ---------------------------------------------------------
 
-test('A3: the last agent writes the run-end line with the run id, and reads no read ledger', async () => {
+test('the last agent writes the run-end line with the run id, and reads no read ledger', async () => {
   const { calls } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
   const report = calls.find((c) => c.label === 'run-end').prompt;
   assert.match(report, /DRIVER HEARTBEAT/);
@@ -223,9 +213,9 @@ test('A3: the last agent writes the run-end line with the run id, and reads no r
   assert.ok(!yoloSrc.includes('.read-ledger.jsonl'), 'the driver names no read ledger');
 });
 
-// ---- Y8 ---------------------------------------------------------------------
+// ---- orient reads current index state -----------------------------------------
 
-test('Y8: orient reads current index state only, never the index history', () => {
+test('orient reads current index state only, never the index history', () => {
   const body = extractFn(yoloSrc, 'orient');
   assert.match(body, /It is CURRENT STATE only/);
   assert.match(body, /Do NOT read index-history\.jsonl or history\//);
@@ -273,9 +263,9 @@ test('plan freshness: yolo runs no refresh for a plan that still fits', async ()
   assert.ok(!labels.includes('plan:b'));
 });
 
-// ---- WF-SYSTEM-REVIEW C2 ------------------------------------------------------
+// ---- a slice that hard-stops twice --------------------------------------------
 
-test('C2: a slice whose implement hard-stopped twice stops the run with a split question, and no third implement runs', async () => {
+test('a slice whose implement hard-stopped twice stops the run with a split question, and no third implement runs', async () => {
   const { outcome, labels } = await run({}, (label) => (label === 'orient'
     ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'todo', review: 'n-a' }, { implementStops: 2 })] })
     : common(label)));
@@ -284,7 +274,7 @@ test('C2: a slice whose implement hard-stopped twice stops the run with a split 
   assert.match(outcome.reason, /hard-stopped 2 times: split the slice/);
 });
 
-test('E4: the verify agent mirrors the slice status as its last step; the write-back agent runs only as the fallback', async () => {
+test('the verify agent mirrors the slice status as its last step; the write-back agent runs only as the fallback', async () => {
   const verify = (wb) => ({ stage: 'verify', slice: 'a', status: 'complete', artifactPath: '/repo/06-verify-a.md', terminal: { convergence: 'not-needed', result: 'pass' }, deferrals: [], ...(wb ? { sliceWriteBack: wb } : {}) });
   const answer = (wb) => (label) => {
     if (label === 'orient') return orientResult({ slices: [slice('a', { plan: 'done', implement: 'done', verify: 'todo', review: 'n-a' })] });
@@ -295,7 +285,7 @@ test('E4: the verify agent mirrors the slice status as its last step; the write-
   const v = folded.calls.find((c) => c.label === 'verify:a');
   assert.match(v.prompt, /LAST STEP — SLICE STATUS MIRROR \(only for slice 'a'\)/);
   assert.ok(!folded.labels.includes('writeback:a'), 'no separate write-back agent');
-  // E3: the stage prompt gives the preamble rules once.
+  // The stage prompt gives the preamble rules once.
   assert.match(v.prompt, /PREAMBLE GIVEN HERE/);
   assert.ok(folded.logs.some((l) => /the verify agent wrote status back to 00-index\.md/.test(l)));
   const fallback = await run({}, answer(null));

@@ -1,14 +1,3 @@
----
-description: Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
-argument-hint: <task description>
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf intake`, **stage 1 of 9** in the SDLC lifecycle. This file is the brief, the first phase of intake. The shape phase ([shape.md](../shape.md)) follows it in the same run.
 
 # Pipeline
@@ -44,7 +33,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it. When the slug is a reserved name ([_intake-context.md](_intake-context.md)), STOP and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
+1. **New slug:** derive the slug and run the reserved check per "New slug" of [_intake-context.md](_intake-context.md). If `$ARGUMENTS` looks like an existing slug, use it. Sub-step 2 is the collision rule of the default class.
 2. **Registry collision check.** Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
    - **If `INDEX.md` does NOT exist**, no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do not bail out: the put of `00-index.md` writes `.ai/workflows/INDEX.md` with this workflow's row, so the *next* intake gets full collision detection.
    - **If `INDEX.md` exists**, search for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
@@ -99,7 +88,7 @@ The first-run setup asks for the suites once for the project ([../setup.md](../s
 
 For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command. After the answer, run `node "<skill-dir>/scripts/wf.mjs" setup "<projectRoot>"` once: it stamps `project.setupAt`, so no later run asks again, even when the repo has no suite.
 
-Also list the known long runs of the repo with an estimate, per "The known long runs" of [../_check-budget.md](../_check-budget.md). When `wf.mjs profile budget` prints `no budget`, add the budget question of that file to Batch B. Record the answer with `wf.mjs profile budget`.
+Also list the known long runs of the repo with an estimate, per "The known long runs" of [../_check-budget.md](../_check-budget.md). Add the budget question to Batch B, when "When to ask" of that file says to ask it.
 
 # Step 0.7 — Bounded research pass (ground the questions in the code — conditional)
 

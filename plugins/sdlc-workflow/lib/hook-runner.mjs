@@ -1,4 +1,4 @@
-// lib/hook-runner.mjs — one process per tool event (WIDE-VIEW-REPAIR-PLAN §14.2.6).
+// lib/hook-runner.mjs — one process per tool event.
 //
 // Every write-path hook exports `run(input)` and does its own work on an
 // already-parsed payload. Two runners drive those functions:
@@ -22,7 +22,7 @@
 // `isEntry(name)` keeps the single-purpose scripts importable: their module-level
 // `main()` runs only when the process argv names that script, so the folded
 // bundle can import them without re-running each one. The standalone entries
-// are deleted one release after the fold (plan §14.2.6 step 4).
+// are deleted one release after the fold.
 
 import { basename } from 'node:path';
 import { loadConfig } from './config.mjs';
@@ -90,8 +90,7 @@ export function hookConfig(input) {
 
 /**
  * True when no write-path hook may run: a bulk plugin install, or an
- * external-model dispatch whose writes are not SDLC artifacts
- * (EXTERNAL-MODEL-DISPATCH-PLAN §3.1).
+ * external-model dispatch whose writes are not SDLC artifacts.
  */
 export function hookSuppressed(env = process.env) {
   return env.CLAUDE_PLUGIN_INSTALL === '1' || env.SDLC_DISPATCH_ACTIVE === '1';

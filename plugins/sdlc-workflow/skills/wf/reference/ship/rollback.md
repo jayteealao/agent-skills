@@ -1,15 +1,3 @@
----
-description: The rollback phase of `/wf ship` — a runbook-driven, user-gated reversal of a prior completed ship run. Loads the run's recorded steps, authors a reversal runbook with each step marked reversible or irreversible, gates on an explicit Go/No-Go, executes, verifies the prior state is live, and writes `09-rollback-<run-id>.md` (stamping the original run `rolled-back: true`). Invoked via `/wf ship <slug> rollback [<run-id>]`. Manual only — `yolo` never triggers it.
-argument-hint: <slug> rollback [<run-id>]
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running the **rollback phase** of `/wf ship` — the deliberate, runbook-driven reversal of a
 release that already shipped. It mirrors the `announce` re-run shortcut in dispatch shape (a second
 positional token), but where announce writes copy, rollback **reverses recorded release steps** —

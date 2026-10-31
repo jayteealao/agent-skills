@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkForm, formsIn, hasStep, headingSlugs, lintDrift } from '../../scripts/lint-drift.mjs';
+import { PUBLIC_SKIP, checkForm, commentsOf, formsIn, hasStep, headingSlugs, lintDrift, planIdsIn, publicFiles, testTitlesOf } from '../../scripts/lint-drift.mjs';
 import { loadRegistry } from '../../lib/registry.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -38,4 +38,32 @@ test('links: heading slugs and Step pointers', () => {
   const text = '# Step 0 — Orient\n1. a\n3. b\n## Steps 11–14 — Index\n7.5. **Apply the gate**\n# Gate (Step 9)\n';
   for (const s of ['0', '0.3', '12', '7.5', '9']) assert.ok(hasStep(text, s), `Step ${s}`);
   for (const s of ['1', '0.4', '7.6', '15']) assert.ok(!hasStep(text, s), `no Step ${s}`);
+});
+
+test('public: the plan-id pattern finds the ids of internal plans and leaves product words alone', () => {
+  const ids = ['WF-OPTIMIZE-PLAN', 'WIDE-VIEW', 'INTENT-FIDELITY', '§3.3', 'Part L', 'wave R', 'S-B1', 'S-B-22', 'P-B4', 'W4b', 'F6.9', 'T3.5', 'D33', 'R3', 'G9'];
+  for (const id of ids) assert.deepEqual(planIdsIn(`the reason (${id}) in words`), [id], id);
+  const words = ['AC1 and AC-NC1 are criteria', 'an H1 heading', 'ES2022 syntax', 'the V8 engine', 'UTF-8 text', 'a wave of slices', 'sha1 and base64', 'the runner.W3 field', 'a 2026-10-16 result'];
+  for (const w of words) assert.deepEqual(planIdsIn(w), [], w);
+});
+
+test('public: the check reads comments and test titles, not code or strings', () => {
+  // The source is built from parts, so this file does not trip the check itself.
+  const src = [
+    "const url = 'https://x.test/a'; /" + '/ a trailing note on D5',
+    "const s = 'G4 in a string';",
+    '/' + '**',
+    ' * A block that cites W2.',
+    ' */',
+    'te' + "st('F3: a title', () => {});",
+  ].join('\n');
+  assert.deepEqual(commentsOf(src).flatMap((c) => planIdsIn(c.text)), ['D5', 'W2']);
+  assert.deepEqual(testTitlesOf(src).map((t) => t.text), ['F3: a title']);
+});
+
+test('public: the files are the drivers, lib, scripts, hooks and tests, less the temporary skips', () => {
+  const files = publicFiles(pluginRoot);
+  assert.ok(files.includes('skills/wf/workflows/optimize.js') && files.includes('lib/proc.mjs') && files.includes('tests/run-all.mjs'));
+  for (const skipped of PUBLIC_SKIP) assert.ok(!files.includes(skipped), skipped);
+  assert.ok(!files.some((f) => f.endsWith('.md')), 'cards are out of scope');
 });

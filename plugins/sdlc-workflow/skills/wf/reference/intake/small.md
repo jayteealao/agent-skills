@@ -1,8 +1,3 @@
----
-description: The small path of intake. After the substance questions, the person chose it. Implement and verify run now, in this run. The change is one normal commit on the branch that is checked out, and the workflow keeps one note, `01-small.md`. Review and ship run only when the person wants a PR.
-argument-hint: "(loaded by intake/default.md after the path question) | <slug> (resume)"
----
-
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces. A commit message describes the product change only: no slug, stage or `/wf` term.
 

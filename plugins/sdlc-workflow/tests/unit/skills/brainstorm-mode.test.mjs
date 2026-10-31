@@ -13,9 +13,9 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const SCHEMA_PATH = path.join(pluginRoot, 'schemas', 'frontmatter.schema.json');
 
 
-// Fix 2 (BRAINSTORM-MODE-PLAN §20): principles replace quotas.
-// Fix 3 (BRAINSTORM-MODE-PLAN §20): the board is built for the person.
-// Fix 5 (BRAINSTORM-MODE-PLAN §20): one clear role.
+// Principles replace quotas.
+// The board is built for the person.
+// One clear role.
 const doc = () => ({
   schema: 'sdlc/v1',
   type: 'brainstorm',
@@ -113,7 +113,7 @@ test('a workflow-index for a brainstorm validates', () => {
   assert.ok(result.valid);
 });
 
-// BRAINSTORM-MODE-PLAN §21 — choosing inside the conversation. The v9.164.0 live
+// Choosing inside the conversation. The v9.164.0 live
 // session answered 36 of 45 "which belong" questions with every option, never
 // scoped an area, and asked twice to confirm a summary the person could not see.
 
@@ -137,7 +137,7 @@ test('a board with briefs, core items, accepted risks, replaced items, stale wor
   assert.deepEqual(validateFrontmatter({ ...doc(), page: 'https://claude.ai/artifact/example' }, { schemaPath: SCHEMA_PATH }).errors, []);
 });
 
-// BRAINSTORM-MODE-PLAN §22 — cutting, coherence, and briefs. On v9.165.0 every
+// Cutting, coherence, and briefs. On v9.165.0 every
 // one of 24 area closes kept everything, 104 accepted risks piled up, the
 // cross-area check ran only when the person asked, and ten pasted briefs got
 // falling depth (68 exchanges on the first, 14 on the later ones).
@@ -158,7 +158,7 @@ test('a board with budgets, briefs, first-version items, and top risks validates
   assert.ok(!validateBrainstormBoard(bad, { schemaPath: SCHEMA_PATH }).valid, 'a criterion status outside the four validated');
 });
 
-// BRAINSTORM-MODE-PLAN §23 — talk turns and session stories. On v9.166–v9.170
+// Talk turns and session stories. On v9.166–v9.170
 // the agent's voice lived in question forms: a 14-hour session held 5,329 words
 // of chat against 25,955 words of question and option text, research went to
 // the page "so the questions can stay short", and "delve deeper" got a question

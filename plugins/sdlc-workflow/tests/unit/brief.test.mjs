@@ -1,7 +1,7 @@
 // lib/brief.mjs and `wf.mjs brief`: the brief of a stage agent, built from the records.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -61,8 +61,32 @@ test('buildBrief: card, slice sections, the plan sections of the stage, and the 
     assert.doesNotMatch(b.parts.plan, /Current State/);
     assert.deepEqual(b.parts.decisions.split('\n').map((l) => l.slice(2, 7)), ['D-001', 'D-003']);
     assert.equal(b.parts.tests, '- fast: `npm test` (120s measured)\n- affected: `npm test -- {files}` (60s estimated)\n- budget: not chosen; the person chooses it once for the repo (_check-budget.md)\n\nTime box: 10 minutes. Longest check of this stage: 600s (from the time box). A longer command is a long run: follow _long-runs.md.');
-    assert.match(b.text, /^# Brief: implement demo api\n\n## Card\n/);
+    assert.match(b.text, /^# Brief: implement demo api\n\nOutput boundary: [^\n]+\nStanding steer: [^\n]+\n\n## Card\n/);
   } finally { f.done(); }
+});
+
+test('buildBrief: the header carries the output boundary and the standing steer, and no card copies them', () => {
+  const f = fixture();
+  try {
+    const b = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'implement', slice: 'api' });
+    const ref = f.ref.replace(/\\/g, '/');
+    assert.match(b.text, /^Output boundary: write each commit message, PR text, doc and code comment in product language.*leak-check it before you publish \(.+\/_output-boundary\.md\)\.$/m);
+    assert.ok(b.text.includes(`(${ref}/_output-boundary.md)`), 'the boundary names its card');
+    assert.match(b.text, /^Standing steer: each live `steer` entry under ## Decisions binds this stage\. Honor it, never above a mandatory gate, and give the relevant entries to each sub-agent you start \(.+\/_decisions\.md\)\.$/m);
+    assert.equal(b.text.split('Standing steer: ').length, 2, 'the steer rule is in the brief once');
+  } finally { f.done(); }
+  // SKILL.md binds both rules for the main session; the stage cards keep no preamble.
+  const skill = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'SKILL.md'), 'utf8');
+  assert.match(skill, /^- Apply \[_output-boundary\.md\]\(reference\/_output-boundary\.md\) to every external-facing output\.$/m);
+  assert.match(skill, /^- Apply each live `steer` entry of the decision store \(`decide list --kind steer`\) per \[_decisions\.md\]\(reference\/_decisions\.md\)\./m);
+  const refRoot = path.join(pluginRoot, 'skills', 'wf', 'reference');
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.md') ? [path.join(d, e.name)] : []));
+  for (const file of walk(refRoot)) {
+    const text = readFileSync(file, 'utf8');
+    const name = path.relative(refRoot, file);
+    assert.doesNotMatch(text, /^> \*\*Standing steer\.\*\* Only when the decision store holds a live `steer` entry/m, `${name} keeps no standing-steer block`);
+    assert.doesNotMatch(text, /^Apply the boundary rule in \[_output-boundary\.md\]\([^)]*\) to every external-facing output(?: this operation produces[.:] ?(?:translate workflow context[^\n]*)?)?$/m, `${name} keeps no output-boundary preamble`);
+  }
 });
 
 test('buildBrief: the decisions carry their keys, and one line says when a question is answered', () => {

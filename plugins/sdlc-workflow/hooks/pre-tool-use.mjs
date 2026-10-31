@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // hooks/pre-tool-use.mjs — Codex PreToolUse adapter (best-effort).
 //
-// NATIVE-INTEROP "Codex apply_patch": Codex PreToolUse does not receive the same
+// Codex apply_patch: Codex PreToolUse does not receive the same
 // final-content shape as a Claude Write, so pre-tool validation is BEST-EFFORT —
 // it validates only what is visible before the write lands. For an apply_patch
 // `Add File` (or an Edit/Write that carries full content) the new managed-artifact
 // body is present, so we run the folded PreToolUse policy (the validator, then
-// the leak guard — WIDE-VIEW §14.2.6) on it and DENY
+// the leak guard) on it and DENY
 // (exit 2) on a hard violation. For an `Update File` patch the full final content
 // isn't reconstructable here, so we defer to the post-tool audit and the Stop
 // enforcement boundary. Always best-effort: never blocks a non-artifact write.

@@ -17,7 +17,7 @@ Do this in order for reviews mode:
    ...
    Starting parallel fixes...
    ```
-6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. Send each sub-agent the fix prompt in [../review/_fix-prompt.md](../review/_fix-prompt.md) unchanged. Review Step 4c sends the same prompt. Fill `Source review command` from the `dimension` of the finding.
+6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. Send each sub-agent the prompt of [../_fix-prompt.md](../_fix-prompt.md). Fill `Source` with the `dimension` of the finding.
    a. **As each sub-agent completes, verify its fix (the merge gate):** read its `Method:` line and self-check first. Then read the changed file(s), confirm the fix addresses the finding and the suggested method ([../_fix-loop.md](../_fix-loop.md) rule 5), and check for regressions before merging its patch into the shared tree.
    b. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
    c. If a fix failed or was partial, record `COULD NOT FIX: <reason>` on its checklist item.

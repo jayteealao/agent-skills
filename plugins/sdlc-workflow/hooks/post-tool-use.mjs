@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // hooks/post-tool-use.mjs — the single serialized Codex PostToolUse dispatcher.
 //
-// NATIVE-INTEROP "Serialized Post-Tool Dispatcher": Codex launches matching
+// The serialized post-tool dispatcher: Codex launches matching
 // command hooks concurrently, so EXACTLY ONE PostToolUse command is registered
 // and it sequences these stages itself:
 //
 //   1. determine final touched files from the event (+ on-disk reality)
 //   2. record touched managed artifacts to the per-turn ledger (the Stop hook
 //      re-checks these — the enforcement boundary)
-//   3. run the folded PostToolUse policy ONCE (WIDE-VIEW §14.2.6): auto-stage
+//   3. run the folded PostToolUse policy ONCE (one process per event): auto-stage
 //      (git add of implement-stage source files), then VERIFY (schema/path/
 //      slug). A verify failure relays corrective feedback (exit 2).
 //

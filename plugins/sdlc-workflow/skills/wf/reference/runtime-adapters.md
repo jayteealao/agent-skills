@@ -1,28 +1,6 @@
 # Runtime Adapter Registry
 
-Per-platform driving recipes for runtime-truth verification. Both `wf-verify` (forward gate, per-slice interactive verification) and `/wf probe` (backward re-entry, slug-wide runtime sweep) read this registry, then the adapter files under `runtime-adapters/`, to decide how to bootstrap, drive, observe, and tear down the running artifact.
-
-## How to consume this registry
-
-Each adapter lives in its own file, `runtime-adapters/<key>.md`, and follows the same shape:
-
-| Field | Purpose |
-|---|---|
-| **Detection signals** | Files, paths, or commands that indicate the project uses this platform. The adapter is "matched" when any signal is present. |
-| **Bootstrap** | Ordered steps to bring the running artifact up. Each step is independently runnable. If any step fails after resolution attempts, the caller writes an `awaiting-environment` artifact (probe slice) or `result: blocked-runtime-evidence-missing` (verify) and stops, recording which step failed and the remediation hint. |
-| **Drive** | How to perform user actions against the running artifact. |
-| **Observe** | How to capture observable output (screenshots, page snapshots, stdout, HTTP responses, log scrapes). |
-| **Tear down** | How to leave the environment clean after the run completes. |
-| **Evidence layout** | Where the caller writes captured evidence files. |
-| **Skill catalog hints** (optional) | Session-level skills/MCP servers that complement this adapter (e.g., `lazylogcat` for android logcat capture). Hints are *opt-in candidates*, not mandatory drivers — the PO picks during shape. |
-
-## Stack fingerprint integration
-
-Callers should re-use the `stack:` block written by `/wf intake` Step 0.5 (and confirmed by the PO in intake Batch B) to short-circuit adapter selection. The contract:
-
-1. If `stack.platforms` is present and `user-confirmed: true`, intersect it with available adapters to narrow the match set before running detection signals. Detection signals stay authoritative for *how* to drive; the fingerprint is just a fast filter for *which* adapters are in scope.
-2. If `stack:` is missing or `user-confirmed: false`, fall back to running every adapter's detection signal against the repo as described below.
-3. If `stack.available-skills` or `stack.available-mcp` names a session-visible helper that an adapter calls out under **Skill catalog hints**, surface that helper as a *suggested companion* — not a required tool. Record the PO's choice in the calling artifact (`verify` per slice, `probe` once per slug).
+Per-platform driving recipes for runtime-truth verification. `verify` (the per-slice gate) and `/wf probe` (the slug-wide sweep) read this registry and select the adapters. Then they follow the file of each selected adapter under `runtime-adapters/` to boot, drive, observe and tear down the running artifact.
 
 ## Stack gate
 
@@ -41,36 +19,32 @@ Shape, slice, plan, verify and probe read the `stack:` block of `00-index.md` be
 
 ## Adapter selection (read by callers)
 
-1. Run every adapter's detection signal against the repo.
-2. Collect every adapter that matches. Multi-match (e.g., web frontend + CLI tool in one repo) is the common case, not an exception.
-3. **Default — run all matched adapters in parallel.** The caller iterates over every matched adapter and aggregates observations into one report. Record `adapters-used: [<key>, ...]` (plural).
-4. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
+This section owns adapter selection for `verify` and `probe`. The callers cite it and do not restate it.
+
+1. **Match.** Run every detection signal of the Adapters table against the repo. Each adapter with a signal present goes into `matched-adapters`. Several matches (for example a web frontend and a CLI) are the common case.
+2. **Intersect.** When the stack is confirmed (`stack.user-confirmed: true`), the effective set is `matched-adapters ∩ stack.platforms`. The stack selects *which* adapters run; the adapter files say *how*. When the stack is missing or unconfirmed, do not intersect: the effective set is `matched-adapters`.
+3. **Divergence.** When the intersection drops an adapter, set `stack-adapter-divergence: true`. List each dropped adapter under the divergence heading: `## Stack divergence` in the probe slice, `## Caveats` in the verify record (also `adapters-excluded-by-stack`). Divergence is a signal, not a stop.
+4. **Empty intersection.** When the stack is confirmed and the intersection is empty, drive `matched-adapters`, set `stack-adapter-divergence-mode: full-bypass`, and record the bypass under the divergence heading.
+5. **No match.** When `matched-adapters` is empty, record `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add an adapter file under runtime-adapters/ and its row to the Adapters table, or run in a directory that holds a recognized project." }`. Probe writes the slice with `status: awaiting-environment` and skips its Steps 4 and 5. Verify writes `result: blocked-runtime-evidence-missing`.
+6. **Drive all.** Drive every adapter of the effective set in parallel, and put the observations into one report. Record `adapters-used: [<key>, ...]`. Probe also records `matched-adapters` and `stack-intersected-adapters` in the slice frontmatter. When the stack is unconfirmed, verify stamps each evidence record `stack-confirmed: false` and says in `## Caveats` that the person did not confirm the selection.
+7. **Entry points.** The surface inference of the probe target (route, screen, command and endpoint names) refines which entry points each adapter drives.
+8. **Companions.** When `stack.available-skills` or `stack.available-mcp` names a helper that an adapter lists under **Skill catalog hints**, offer it as a companion, not as a required tool. Record the choice of the person in the calling artifact (`verify` per slice, `probe` once per slug).
 
 ## Adapters
 
-Match on the detection signals, then load the file for every matched adapter. The file's own `Detection signals` section is authoritative when this table and the file disagree.
+This table owns detection. Load the file of each selected adapter. Each file gives Bootstrap, Enumerate, Drive, Observe, Perturb, Tear down, Evidence layout and Remediation hints. When a bootstrap step still fails after its resolution attempt, probe writes an `awaiting-environment` slice and verify writes `result: blocked-runtime-evidence-missing`. Each records the failed step and its remediation hint.
 
 | Key | Detection signals (any one matches) | File |
 |---|---|---|
 | `web` | `package.json` with a `dev` / `start` / `serve` script; a `vite` / `next` / `nuxt` / `astro` / `svelte` / `remix` config file; static HTML at the repo root or under `public/`, `static/`, `dist/`; `index.html` referencing JavaScript modules | [runtime-adapters/web.md](runtime-adapters/web.md) |
-| `android` | `AndroidManifest.xml`; `build.gradle` / `build.gradle.kts` with the `com.android.application` plugin; `gradlew` at the repo root; an `app/src/main/java/` or `app/src/main/kotlin/` layout | [runtime-adapters/android.md](runtime-adapters/android.md) |
+| `android` | `AndroidManifest.xml` anywhere in the repo; `build.gradle` / `build.gradle.kts` with the `com.android.application` plugin; `gradlew` / `gradlew.bat` at the repo root; an `app/src/main/java/` or `app/src/main/kotlin/` layout | [runtime-adapters/android.md](runtime-adapters/android.md) |
 | `ios` | `*.xcodeproj` or `*.xcworkspace`; `Package.swift` declaring an iOS platform target; `ios/Runner.xcodeproj` (Flutter) or `ios/<Project>.xcodeproj` (React Native) | [runtime-adapters/ios.md](runtime-adapters/ios.md) |
 | `cli` | `Cargo.toml` with a `[[bin]]` target or a single binary crate; `package.json` with a `bin` field; `go.mod` with `main.go` or `cmd/<name>/main.go`; `setup.py` / `pyproject.toml` declaring an `entry_points` console script; a `Makefile` or `justfile` with a `run` target | [runtime-adapters/cli.md](runtime-adapters/cli.md) |
 | `desktop` | `package.json` with an `electron` / `electron-builder` / `tauri-build` dependency; a `src-tauri/` directory; `pyproject.toml` declaring `pyqt`, `pyside`, `tkinter`, `kivy`, or `wxpython`; `.app` / `.exe` bundles under `dist/` or `build/` | [runtime-adapters/desktop.md](runtime-adapters/desktop.md) |
-| `service` | a `Dockerfile` exposing an HTTP port; files declaring an HTTP server framework (Express, Fastify, FastAPI, Flask, Gin, Actix-web, Axum, Spring Boot, Rails); `openapi.yaml` / `openapi.json` / `swagger.yaml`; `docker-compose.yml` with web service definitions | [runtime-adapters/service.md](runtime-adapters/service.md) |
+| `service` | a `Dockerfile` exposing an HTTP port; files declaring an HTTP server framework (Express, Fastify, FastAPI, Flask, Gin, Actix-web, Axum, Spring Boot, Rails, or a similar framework); `openapi.yaml` / `openapi.json` / `swagger.yaml`; `docker-compose.yml` with web service definitions | [runtime-adapters/service.md](runtime-adapters/service.md) |
 | `notebook` | `*.ipynb` files; `requirements.txt` / `pyproject.toml` declaring `jupyter`, `notebook`, `nbconvert`, or `papermill`; `environment.yml` for a conda env aimed at data work | [runtime-adapters/notebook.md](runtime-adapters/notebook.md) |
 
 ## Shared protocols (load with every adapter run)
 
-- [runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) — the constraint-resolution ladder (mandatory before any deferral): wall-ownership triage, attempt-before-declare, headless boot first, pre-authorized tool absence, and the env-remediation rung. Per-wall rung lists: [runtime-adapters/_ladder-walls.md](runtime-adapters/_ladder-walls.md).
+- [runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) — the constraint-resolution ladder (mandatory before any deferral): wall-ownership triage, attempt-before-declare, the headless boot and the real wall of each adapter, pre-authorized tool absence, and the env-remediation rung. The per-wall rung lists: [runtime-adapters/_ladder-walls.md](runtime-adapters/_ladder-walls.md).
 - [runtime-adapters/_protocols.md](runtime-adapters/_protocols.md) — the surface enumeration ladder, the perturbation protocol, the evidence protocol, and the accessibility checks.
-
-# Adding a new adapter
-
-To add a platform not in this registry:
-
-1. Create `runtime-adapters/<key>.md` with the same shape (Detection signals, Bootstrap, Enumerate, Drive, Observe, Perturb, Tear down, Evidence layout, Remediation hints).
-2. Add its row to the Adapters table above. No changes are needed in `verify.md` or `probe.md` — both read this registry and load adapters by key.
-3. Submit as a two-file change; reviewers can audit the recipe in isolation.
-
-Adapters are *recipes*, not code. They are markdown sections that the calling agent reads and executes. This matches how the rest of the workflow already works and avoids introducing a code-execution path that the rest of the plugin does not have.

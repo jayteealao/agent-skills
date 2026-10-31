@@ -1,6 +1,5 @@
 /**
- * lib/brainstorm-archive.mjs — keep a brainstorm's board and document short
- * (WF-SYSTEM-REVIEW-2026-10-21 D1).
+ * lib/brainstorm-archive.mjs — keep a brainstorm's board and document short.
  *
  * A long brainstorm grows without a limit: every resume reads the whole board, and the
  * person's document repeats it. `archiveBoard` moves the closed part of the board (the
@@ -100,7 +99,7 @@ function section(markdown, name) {
   return lines.slice(start + 1, end < 0 ? lines.length : end).join('\n');
 }
 
-/** D1: the caps of the person's document. Returns warnings; an empty list passes. */
+/** The caps of the person's document. Returns warnings; an empty list passes. */
 export function docCheck(markdown, { keep = SESSIONS_KEPT, cap = SUMMARY_WORD_CAP } = {}) {
   const warnings = [];
   const summary = section(markdown, 'The Brainstorm');

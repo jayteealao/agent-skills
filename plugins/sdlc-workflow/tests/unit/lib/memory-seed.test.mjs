@@ -1,5 +1,5 @@
 // Unit tests for lib/memory-seed.mjs — the /wf rules-kernel seeder
-// (MEMORY-SEED-PLAN). Two layers: the pure fence surgery (no fs), and the
+// Two layers: the pure fence surgery (no fs), and the
 // fail-open fs orchestrator exercised against real temp dirs. The blast radius
 // is a user's committed memory files, so the surgical-edit guarantees carry the
 // heaviest coverage.

@@ -1,6 +1,5 @@
 ---
 template-kind: server-deploy
-description: Application deployed to long-running server infrastructure (Kubernetes, ECS, fly.io, Render). Merge-to-main or tag-on-main triggers a rolling deploy.
 ---
 
 # Seed values

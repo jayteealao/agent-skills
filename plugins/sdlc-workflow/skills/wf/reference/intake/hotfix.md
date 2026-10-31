@@ -1,18 +1,11 @@
----
-description: Compressed incident-response STANDARD lifecycle for production fixes. Drives every SDLC stage single-pass (01-hotfix → 02-shape diagnosis → 03-slice → 04-plan → gate → implement → verify → review[security]) on a full type:index overview, with a hard scope lock and a production-branch base. The mode authors the planning half; the standard /wf implement/verify/review chain authors execution.
-argument-hint: <description-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake hotfix`, an **accelerated incident-response standard lifecycle**.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-hotfix-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: hotfix`, `compressed: true`, `origin: intake/hotfix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `hotfix → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `hotfix`: it overrides the standalone steps below.
 
 # Pipeline
 `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review security` (→`07`) → `/wf ship` → `/wf retro`
@@ -58,8 +51,8 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
-   - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
-2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
+   - Otherwise → **new hotfix**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `hotfix-<short-description>`.
 3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `02-shape.md` `## Root Cause`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it). Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
@@ -74,26 +67,8 @@ Ask at most **3 questions** — stop as soon as you have enough:
 2. **What is the impact?** — outage / degraded / data issue? how many users? data at risk?
 3. **What changed recently?** — deployments, migrations, config, dependency updates in the last 24–72h?
 
-Write the draft `.ai/workflows/<slug>/.draft/01-hotfix.md` immediately, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way:
-```yaml
----
-schema: sdlc/v1
-type: intake
-slug: <slug>
-workflow-type: hotfix
-status: complete            # or awaiting-input if a blocking answer is missing
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: [incident]
-refs:
-  index: 00-index.md
-  next: 02-shape.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Write the draft `.ai/workflows/<slug>/.draft/01-hotfix.md` immediately, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
+Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
 
 # Step 2 — Diagnose → `02-shape.md`
@@ -108,83 +83,16 @@ Prompt with ALL of: read the areas most likely to contain the bug; `git log --on
 Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
 Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or hand to human triage. A hotfix built on a guess ships a second incident. Then write `02-shape.md` carrying the diagnosis-as-scope. `02-shape.md` is the only home of the root cause; `01-hotfix.md` does not copy it.
-```yaml
----
-schema: sdlc/v1
-type: shape
-slug: <slug>
-status: complete
-stage-number: 2
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-docs-needed: false
-docs-types: []
-tags: [incident]
-refs:
-  index: 00-index.md
-  intake: 01-hotfix.md
-  next: 03-slice.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `02-shape.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Root Cause` (`file:line` + hypothesis + confidence), `## Blast Radius` (affected paths/services, data risk), `## In Scope` (the minimum change), `## Out of Scope` (everything else — the scope lock).
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
-```yaml
----
-schema: sdlc/v1
-type: slice-index
-slug: <slug>
-status: complete
-stage-number: 3
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-total-slices: 1
-best-first-slice: <slug>
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <xs|s>
-tags: [incident]
-refs:
-  index: 00-index.md
-  shape: 02-shape.md
-  next: 04-plan.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `03-slice.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body (one line): "Single-slice incident fix."
 
 # Step 4 — Plan → `04-plan.md`
 A **minimal execution-ready plan**: aim for ≤5 steps and ≤3 files; every step directly addresses the root cause (no cleanup/refactor/improvement); include a **rollback** (exact revert command/steps); if data was corrupted, include a separate data-remediation step. When the plan genuinely needs more, that is a tripwire breach, not a schema violation — record it per `_change-mode-tail.md` and let the gate adjudicate.
-```yaml
----
-schema: sdlc/v1
-type: plan
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-metric-files-to-touch: <int>
-metric-step-count: <int>
-has-blockers: false
-revision-count: 0
-tags: [incident]
-refs:
-  index: 00-index.md
-  slice: 03-slice.md
-  next: 05-implement.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)

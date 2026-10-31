@@ -1,4 +1,4 @@
-// WF-IDEATE-TRIAGE-PLAN sections 9 and 12: the triage check of lib/ideate.mjs and the
+// The triage loop of ideate: the triage check of lib/ideate.mjs and the
 // schema keys of the loop (triage, links between ideas, rounds), plus the procedure
 // files that the loop needs.
 import { test } from 'node:test';

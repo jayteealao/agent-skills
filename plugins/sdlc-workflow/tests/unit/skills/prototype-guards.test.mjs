@@ -1,4 +1,4 @@
-// WF-PROTOTYPE-PLAN W4 — the guard tests of /wf loop prototype, red first:
+// The guard tests of /wf loop prototype, red first:
 //   - the person starts every round: yolo, goal and campaign refuse a prototype slug;
 //   - a commit happens only on a decide round, through the script, by explicit path;
 //   - no write lands outside the worktree; the report reads with scripts off.
@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { classOf } from '../../../lib/drive-class.mjs';
 import { NOT_DRIVEN } from '../../../lib/lifecycle-done.mjs';
 import { PACKET_FORMS } from '../../../lib/packets.mjs';
 
@@ -18,7 +19,8 @@ const REF = 'skills/wf/reference';
 
 test('each of the three drivers refuses a prototype slug', () => {
   assert.match(read(`${REF}/yolo.md`), /`prototype` \(the person starts every round; route `\/wf loop prototype <slug> <request>`\)/);
-  assert.match(read('skills/wf/workflows/yolo.js'), /5b2\. PROTOTYPE — workflow-type 'prototype'[^]*yolo drives NOTHING here/);
+  assert.equal(classOf('prototype'), 'refused', 'yolo: the drive block of status refuses a prototype');
+  assert.match(read('skills/wf/workflows/yolo.js'), /When drive\.drivable is false, set ok=false/);
   assert.ok(NOT_DRIVEN.prototype, 'goal: lifecycle-done refuses a prototype');
   assert.ok(!PACKET_FORMS.includes('prototype'), 'campaign: no packet can start a prototype');
 });

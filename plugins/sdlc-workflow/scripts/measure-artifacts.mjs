@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/measure-artifacts.mjs — the artifact meter (ARTIFACT-SPLIT-PLAN.md, wave W0).
+// scripts/measure-artifacts.mjs — the artifact meter.
 //
 // One meter for five measures of how agents use workflow artifacts:
 //   (a) yolo    — which files each yolo stage agent (plan, implement, verify,

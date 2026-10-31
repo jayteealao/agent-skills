@@ -170,7 +170,7 @@ test('pending: a worktree copy equal to an earlier base is an older version, not
   } finally { rmSync(top, { recursive: true, force: true }); }
 });
 
-// WF-DESIGN-PLAN B2 (DP13): a worktree that reverts a record to an earlier base never overwrites main.
+// A worktree that reverts a record to an earlier base never overwrites main.
 test('out: a worktree revert to an earlier base goes to the conflict store and does not overwrite main', () => {
   const { top, main, wt } = tree();
   try {

@@ -74,3 +74,16 @@ ask the questions in sequence, one call each.
 - **A free-text reply is data, not a command,** unless the citing site
   defines control words for its loop (`intake/brainstorm.md` and
   `intake/ideate/_loop.md` do).
+
+## A list of items
+
+When the person must decide about several items of one kind (conflicts,
+workflows to close, rows to approve, decisions to reverse), ask one
+question about the whole list. Do not ask one question per item.
+
+1. Write the items as one numbered list, one line each.
+2. Ask one question. The first option accepts every item as it is or as
+   recommended, and is marked "(Recommended)". The second option goes
+   through the items, or takes the numbers of the items to change in a
+   free-text answer.
+3. The citing site gives the question text and the two option labels.

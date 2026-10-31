@@ -1,10 +1,10 @@
 // tests/unit/single-source.test.mjs — structural invariants of the single-source
-// tree (SINGLE-SOURCE-PLAN W4/W6/W8): one plugin directory that both hosts read
+// tree: one plugin directory that both hosts read
 // directly, two in-tree manifests, two hook wirings, one skills/ tree, and a
 // plugin-owned host-filtered roster.
 //
-// Codex catalogs SKILLS, never `wf` sub-command keys (plan C10), so the roster
-// check here is against this repo's own dispatch data — SKILL.md's key tables
+// Codex catalogs SKILLS, never `wf` sub-command keys, so the roster
+// check here is against this repo's own dispatch data — route.md's key tables
 // and _host-invocation.md's availability table — not against anything a host
 // exposes. That is the strongest assertion available for a Claude-only KEY.
 
@@ -121,7 +121,7 @@ test('every skill carries agents/openai.yaml with interface metadata, and only w
   }
 });
 
-// ── plugin-owned host-filtered roster (plan W3 P1 / W8) ─────────────────────────
+// ── plugin-owned host-filtered roster ───────────────────────────────────────────
 
 // ── residual references: the deleted tree is history, not a live path ─────────────
 

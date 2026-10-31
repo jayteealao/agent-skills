@@ -19,15 +19,13 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`. The typog
 
 **Write the shell first.** Write each direction's first viewport as the document's shell: the navigation and where the reader stands in it; the title and the opening that answers or frames the reader's question; the reading column; the way forward (contents, section headings, next and previous). Then name where the world owns the frame and where the signature move lives: a masthead, a colored rail, a running head, a margin system, a numbering scheme, a way of setting code or tables.
 
-**Typography.** The measure and the reading face lead. Body prose keeps 65–75 characters per line. Use monospace for code, parameters and small labels only, never for running text or headings by default. Use a fixed scale at a ratio of 1.125–1.2.
+**Typography.** The measure and the reading face lead. Body prose keeps 65–75 characters per line. Use monospace for code, parameters and small labels only, never for running text or headings by default. Use the Read type scale of [_design-context.md](_design-context.md) → Shared design laws.
 
 **Color.** Restrained is the default, but the frame may commit: a colored rail, a tinted ground, set code and callouts in the world's palette.
 
 **Motion.** Motion helps wayfinding only: a contents highlight, an anchor jump, a disclosure. Nothing moves behind the text.
 
 ## Screens
-
-Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
 **The screen is the document as the reader meets it:** a frame the world owns, in the direction's committed palette and type, around a calm reading column.
 - Set the column at a real measure: about 65–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).

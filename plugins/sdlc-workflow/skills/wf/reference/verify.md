@@ -3,11 +3,6 @@ description: Verify that the selected slice meets acceptance criteria and is rea
 argument-hint: <slug> [slice]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf verify`, **stage 6 of 9**: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·ship → 9·retro.
 
 | | Detail |
@@ -22,7 +17,9 @@ You are running `/wf verify`, **stage 6 of 9**: 1·intake → 2·design → 3·s
 
 ## Card
 
-- Check every acceptance criterion and every check of the plan. Fix each fixable issue in one fix round, and record it in `## Verify-Owned Fixes`.
+- Check every acceptance criterion and every check of the plan. Do not fix code while the checks run.
+- Fix only in the fix round of Step 7.6, after the checks and the AC gate of Step 7.5. Fix a `lint`, `format` or `marker-syntax` issue without a question. Ask a gate question for each other failure, per [_gate-question.md](_gate-question.md): `Fix`, `Skip` or `Escalate`. Send each `Fix` to a write-isolated fix sub-agent, and record each fix in `## Verify-Owned Fixes`.
+- Run one fix round only. When an issue still fails after it, write `convergence: escalated` and route to `/wf verify` again or to `/wf implement`.
 - Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again.
 - A behavior that you drove and saw wrong is `result: fail`. It is never a deferral.
 - Before you fix or report a failing item, run `wf.mjs decide list` for the slice. When a live decision of the person, a standing answer or a delegate decision already settles the item (for example "record the miss, the speed work moves to a later packet"), accept the item. Write `accepted-by: <that decision's id>`, `accepted-at` and `accepted-items` in the frontmatter. Do not fix it, do not stop on it, and do not ask about it.
@@ -64,6 +61,8 @@ Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partiti
 | `verify/_augmentation.md` | procedure | mode:augment | |
 | `verify/_deferrals.md` | procedure | mode:deferral | |
 | `_fix-loop.md` | procedure | always | |
+| `_fix-prompt.md` | procedure | always | |
+| `_source-modes.md` | procedure | always | |
 | `runtime-adapters.md` | procedure | mode:user-observable | |
 | `runtime-adapters/_ladder.md` | procedure | mode:user-observable | |
 | `verify/_runtime-evidence.md` | procedure | mode:user-observable | |
@@ -71,14 +70,11 @@ Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partiti
 
 Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
 
-**Verify against the real contract, not the remembered one.** When a criterion turns on how a dependency, framework, or SDK actually behaves, invoke the `study-sources` skill to read its installed source (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`) before ruling the criterion met or unmet. Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the verify evidence or the diff.
+Before you rule on a criterion that turns on how a dependency behaves, read its source per [_source-study.md](_source-study.md).
 
 # Role
 
-You are a **workflow orchestrator that owns its own triage→fix loop**.
-- Run checks and compare results against acceptance criteria; do not improvise fixes while checks run, and do not review or ship (later stages).
-- After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure as a gate question per [_gate-question.md](_gate-question.md) (Fix / Skip / Escalate); `Fix` choices spawn parallel write-isolated sub-agents per [_subagents.md](_subagents.md) that apply the minimal patch. ONE round only: if anything still fails, write `convergence: escalated` and route to re-invoke `/wf verify` or `/wf implement`; do not loop again in this invocation.
-- Your only output is the workflow artifacts, the dispatched fix sub-agents, and the compact chat summary defined below.
+You run the verify stage of one slice: check it, then fix it in one round. Do not review or ship.
 
 # Workflow rules
 
@@ -90,13 +86,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
 1. **Resolve the slug** from `$ARGUMENTS` (first argument); the second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`: `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: the passed selector, else `selected-slice` from the index, else ask the user.
-4. **Determine the workflow source mode** from `workflow-type`:
-   - `quick` (legacy) → **compressed mode**. `01-quick.md` holds the acceptance criteria. No per-slice files exist.
-   - `rca` → **forwarded mode**. `01-rca.md` and the synthesized `02-shape.md` hold the acceptance criteria.
-   - `investigate` → **terminal analysis, not verified in place.** Direct the user to `/wf intake <option>`.
-   - `fix` / `hotfix` / `refactor` → **change-mode.** Verify as standard mode with the un-suffixed files. The lead `01-<mode>.md` holds the acceptance criteria, not `03-slice.md`. Hotfix: reproduce the incident symptom and run the regression suite. Refactor: re-run the literal `## Baseline Command` from `02-shape.md`, diff its pass/fail/skip counts against `## Baseline Test Result`, confirm every `## Public API Surface` name keeps its signature and its callers work; any unplanned deviation is a FAIL.
-   - `update-deps` → **self-managed**; it authors its own `06-verify.md`. STOP and direct the user back to `/wf intake update-deps <slug>`.
-   - `feature`/`optimize` or unset → **standard mode**. The slice file holds the acceptance criteria.
+4. **Find the source mode.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md): the lead record, the acceptance source, the record names and the verify action. When the action is STOP, give its route and stop.
 5. **Check prerequisites.** The mode's implement record must exist: `record get` of it exits 0.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed; [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger.
@@ -174,42 +164,7 @@ Conforms to [_fix-loop.md](_fix-loop.md); this section is the verify-specific pa
 For each remaining issue, ask the gate question per [_gate-question.md](_gate-question.md), batching up to 4 issues per gate round: header = an issue identifier (`LINT-1`, `AC-3`, `RUNTIME-MISSING-2`, `BENCH-REG`); question = `"{issue type}: {one-line summary} at {file:line or check name}"`; options `Fix` ("Fix this now: spawn a sub-agent to apply the minimal patch in this run"), `Skip` ("Leave as-is for now; it surfaces in the verify artifact under Issues Found"), `Escalate` ("Out of scope for verify; route to `/wf implement` or back to plan"). Outside the mechanical carve-out, verify never silently auto-fixes. If the user picks `Skip` for everything, the loop ends with `convergence: not-needed` and the failures remain recorded.
 
 Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one wave). For each issue:
-1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](_subagents.md); both settings are required ([_fix-loop.md](_fix-loop.md) rule 3). Under a worktree host, do not merge its branch until the sanity check passes; under a partition host (no worktree flag) the edit is already in the tree, so the sanity check reviews the diff before it is accepted. Prompt:
-   ```
-   Fix the following verify-stage issue in the codebase:
-
-   Issue ID: {ID}
-   Type: {check-failure | unmet-ac | runtime-evidence-missing | augmentation-regression}
-   Location: {file:line OR check-name}
-   Observation: {raw output or AC criterion text}
-   Suggested fix: {one-line suggestion, if any}
-   Check command: {narrowest check for this fix}
-
-   Read the file(s) at the location. Apply the minimal fix for this
-   issue only. Do not refactor.
-
-   Regression test (required for code bugs): if this issue is a code
-   bug, not a lint/format, config, tooling, or docs finding, add a
-   minimal regression test that fails before your patch and passes
-   after it. Write the test first when the check that caught the issue
-   is re-runnable. If a regression test is genuinely not possible,
-   state why in one line; the orchestrator records it as an exemption.
-   Never weaken, delete, or skip an existing test to make a check
-   pass; that is the one forbidden test edit.
-
-   The suggested fix names a METHOD, not only an outcome. Follow it. If
-   you conclude it is wrong or impossible you may deviate, but say so
-   in the FIRST line of your return, not in a closing note.
-
-   Run the check command before you return.
-
-   Return, in this order:
-     Method: as-prescribed | deviated
-     (if deviated) what was suggested / what you did instead / why
-     Self-check: <command> → exit <N>
-     A brief summary of what you changed, including the regression test
-     path (or the one-line exemption reason).
-   ```
+1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](_subagents.md); both settings are required ([_fix-loop.md](_fix-loop.md) rule 3). Under a worktree host, do not merge its branch until the sanity check passes; under a partition host (no worktree flag) the edit is already in the tree, so the sanity check reviews the diff before it is accepted. Send the prompt of [_fix-prompt.md](_fix-prompt.md) with its `[verify]` lines, and with its `[code bug]` lines for a code bug.
 2. As each sub-agent returns, read the changed files (worktree host: from the child's branch via `git checkout <branch> -- <files>`; partition host: from the working tree) and sanity-check the patch against both the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never merged on the sub-agent's own say-so: re-read the patch against what was suggested and decide deliberately; a deviation that touches an explicit prohibition is discarded, not merged. Accept a correct patch (merge the branch result under a worktree host; leave the working-tree edit under a partition host). When two patches overlap on the same lines, merge one, then re-dispatch the other against the merged state; serial for the conflicting pair only. Discard a wrong patch (`git checkout -- <files>` under a partition host) and record `COULD NOT FIX: <reason>`; that issue is `convergence: escalated` material.
 
 **Re-check.** Re-run ONLY the checks whose original failures were triaged `Fix`: the failing lint; the specific test file (or the smallest suite that covers it); the AC re-evaluated against the patched code (or the relevant interactive adapter for a user-observable AC); the adapter capture for a missing-evidence AC. Do not re-run unrelated checks, and do not re-run `Skip` or `Escalate` issues' checks. Compute `metric-issues-found-final` over the post-fix state.

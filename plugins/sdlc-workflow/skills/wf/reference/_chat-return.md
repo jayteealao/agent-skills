@@ -8,7 +8,7 @@ Every `/wf` reference ends by returning a chat summary. The router contract (`SK
 - **Narrative above, receipt below.** The narrative paragraph follows [The narrative](#the-narrative); everything below it — the `Deltas:` line, receipt fields, `Artifacts:` / `Next:` anchors — uses one term per concept and gives every pronoun one referent, and any command or instruction the return gives the user is imperative, one instruction per sentence, condition before command.
 - **The person types the next step.** When the next step is a `/wf` key, write "Type `/wf <key> <args>`." Never write that you run it.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed in the chat return — this is the internal summary, not external-facing copy. Outside it, the External Output Boundary ([_output-boundary.md](_output-boundary.md)) still applies.
-- **Always emit** — unless the reference STOPped with an error message, in which case the error replaces the summary.
+- **Always emit** — unless the reference STOPped with an error message, in which case the error replaces the summary. Omit the narrative only for a read-only run with nothing to narrate. Omit the `Deltas:` line only as the `Deltas` bullet above says; otherwise it sits between the narrative and the `Artifacts:` line of the `SKILL.md` Step 2 template.
 
 ## The narrative
 

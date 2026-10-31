@@ -27,11 +27,11 @@ export const meta = {
 // records the answer with `wf.mjs decide add`, and launches the next run with
 // args.answered. The stage that asked runs again with the answer.
 //
-// Phase-0 probe verdict (baked in): a subagent Write hits the same plugin hooks
+// What a probe of the runtime found: a subagent Write hits the same plugin hooks
 // as a main-session Write and persists to real disk — BUT subagents inherit the
 // parent session cwd, so every path passed in MUST be absolute. We hard-fail on
 // a missing/relative arg rather than risk writing into an `undefined/.ai/...`
-// tree. See docs/internal/YOLO-AUTONOMOUS-DRIVER-PLAN.md §Phase 0 result.
+// tree.
 // ===========================================================================
 
 // ---- args contract (the /wf yolo reference passes these absolute paths) ----
@@ -39,7 +39,7 @@ export const meta = {
 //   referenceRoot absolute path to skills/wf/reference (where plan.md … live)
 //   slug          the workflow slug to drive
 //   slice         (optional) one slice → slice mode; absent → slug mode
-//   reviewFanout  (optional, default true) Phase-3 parallel-dimension review; pass false to opt out
+//   reviewFanout  (optional, default true) the parallel per-dimension review; pass false to opt out
 //   answered      (optional) the answers of the questions that stopped the last run, each
 //                 { key, id (the decision id), question, answer, by, stage, slice }
 //   delegate      (optional, default false) the person delegated the intent-bearing decisions
@@ -70,7 +70,7 @@ const GIVEN_RUN_ID = typeof OPT.runId === 'string' && /^[A-Za-z0-9._-]{1,120}$/.
 const ANSWERED = (Array.isArray(OPT.answered) ? OPT.answered : []).filter(a => a && typeof a === 'object' && String(a.answer || '').trim())
 for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
   if (!v || typeof v !== 'string' || !v.trim()) {
-    // Phase-0 caveat 1: never let a path arg be undefined — it silently writes into cwd.
+    // Never let a path arg be undefined — it silently writes into cwd.
     return { ok: false, stopped: true, reason: `yolo: required arg '${k}' is missing. Pass an absolute path/slug; a relative or undefined value would write artifacts into the wrong tree.` }
   }
 }
@@ -108,24 +108,17 @@ const SPLIT_AFTER_STOPS = 2
 // An answered stage can send the slice back to its plan or its implement at most this often in one run.
 const MAX_ROUTE_BACKS = 2
 
-// WF-SYSTEM-REVIEW C5: the charter checkpoint runs only after work that touched the charter:
+// The charter checkpoint runs only after work that touched the charter:
 // a stage result with an intent-bearing decision, or a decision that names a charter id.
 // The unit review and the wave fidelity are the intent checks of their levels.
-// WF-SYSTEM-REVIEW C6: one refuter checks up to REFUTE_GROUP_SIZE findings of one rubric, so
-// it pays its cold start once for several findings. Over `limit` refuters, the groups grow.
+// One refuter checks up to REFUTE_GROUP_SIZE findings of one rubric, so it pays its cold start
+// once for several findings.
 const REFUTE_GROUP_SIZE = 4
-function refuteGroups(raw, limit) {
-  for (let size = REFUTE_GROUP_SIZE; ; size++) {
-    const byRubric = new Map()
-    for (const f of raw) {
-      const r = f.rubric || '?'
-      if (!byRubric.has(r)) byRubric.set(r, [])
-      byRubric.get(r).push(f)
-    }
-    const groups = []
-    for (const list of byRubric.values()) for (let i = 0; i < list.length; i += size) groups.push(list.slice(i, i + size))
-    if (groups.length <= limit || size >= raw.length) return groups
-  }
+function refuteGroups(raw) {
+  const byRubric = new Map()
+  for (const f of raw) byRubric.set(f.rubric || '?', [...(byRubric.get(f.rubric || '?') || []), f])
+  return [...byRubric.values()].flatMap(list => Array.from({ length: Math.ceil(list.length / REFUTE_GROUP_SIZE) },
+    (_, i) => list.slice(i * REFUTE_GROUP_SIZE, (i + 1) * REFUTE_GROUP_SIZE)))
 }
 
 function touchesCharter(results, charter) {
@@ -134,10 +127,13 @@ function touchesCharter(results, charter) {
     ids.some(id => String(d.decision || '').split(/[^A-Za-z0-9]+/).includes(id)))))
 }
 
-// The step record of implement, through `wf.mjs step` (implement/_steps.md).
-function implementStepsClause(wfCmd, slice, retry) {
-  const step = (rest) => `\`${wfCmd} step ${rest}\``
-  return `\n\nSTEP COMMITS. Before any step, run ${step(`where "${projectRoot}" ${slug} ${slice}`)}: continue at ` +
+// The step record of implement, through `wf.mjs step` (implement/_steps.md). The agent also
+// returns HEAD before and after its work, so the driver sees a route back that made no commit.
+function implementStepsClause(slice, retry) {
+  const step = (rest) => `\`${WF_CMD} step ${rest}\``
+  return `\n\nHEAD. Before any other work, run \`git -C ${projectRoot} rev-parse HEAD\` and return the commit id ` +
+    `that it prints as headStart. Immediately before you return, run it again and return that commit id as headEnd.` +
+    `\n\nSTEP COMMITS. Before any step, run ${step(`where "${projectRoot}" ${slug} ${slice}`)}: continue at ` +
     `the next open step it names, and never redo a done step. Before each plan step, run ` +
     `${step(`start "${projectRoot}" ${slug} ${slice} <n> --title "<the step title>"`)}. Commit each step with a ` +
     `conventional commit about the product, \`<type>: <what the step does>\` (feat, fix, test, refactor or docs), ` +
@@ -161,11 +157,11 @@ function implementStepsClause(wfCmd, slice, retry) {
 // Bookkeeping agents (branch, write-back, index write-back, run end) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
-function steeringClause(steerCmd, role, contractPath) {
+function steeringClause(role) {
   const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in its decision ` +
-    `store. Run \`${steerCmd}\` NOW — never use a copy in a prompt or from an earlier run: the user can add an ` +
+    `store. Run \`${STEER_CMD}\` NOW — never use a copy in a prompt or from an earlier run: the user can add an ` +
     `entry while this run drives. If it prints no entries, there is no steering: skip the rest of this block ` +
-    `and return no steering fields. The contract is ${contractPath}. No ` +
+    `and return no steering fields. The contract is ${referenceRoot}/_decisions.md. No ` +
     `human gate in this run repeats these entries, so the store is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
     `External Output Boundary, AC verifiability, the constraint-resolution rule), ` +
@@ -249,7 +245,7 @@ function steeringDigest(o) {
   return { honored, conflicts, violations }
 }
 
-// Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
+// THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
 // almost always, then skipped what it points to: the shape in 8–18% of implement,
 // verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
 // stage reference's `## Requires` table now names every input. No hook checks the
@@ -266,7 +262,7 @@ function requiresClause(refPath) {
     `Keep reading ${refPath} in full as well.`
 }
 
-// S6 — a dispatch prompt that carries the full text of a Requires input names it, so the
+// A dispatch prompt that carries the full text of a Requires input names it, so the
 // writer of the named output path counts it as read.
 function promptFedLine(inputs, outputPath) {
   const list = (inputs || []).filter(Boolean)
@@ -392,7 +388,7 @@ function acKey(ac) {
 // probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
 // NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
 // hard-gate a converged, defect-free slice on a formatting technicality — that cost
-// ~500k tokens per recurrence). But verify/_deferrals.md §"Attempt before declare" requires a
+// ~500k tokens per recurrence). But section "Attempt before declare" of verify/_deferrals.md requires a
 // PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
 // executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
 // across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
@@ -467,7 +463,7 @@ function collectDeferrals(o) {
 }
 
 // ---------------------------------------------------------------------------
-// W3.2 — THE AGGREGATE MAY NOT CONTRADICT ITS INPUTS.
+// THE AGGREGATE MAY NOT CONTRADICT ITS INPUTS.
 //
 // The run report is a re-derivation: collectDeferrals walks the stage returns and
 // decides what counts as a runtime-evidence deferral. When that re-derivation
@@ -535,7 +531,7 @@ function reconcileDeferrals(o, deferrals, priorDeferrals) {
 }
 
 // ---------------------------------------------------------------------------
-// W3.2 (second half) — A FAIL SURVIVES INTO THE OUTCOME.
+// A FAIL SURVIVES INTO THE OUTCOME.
 // The v9.134-era conflation ran the other way: verify recorded two ACs as
 // substantive FAILS with zero deferrals, and the driver's outcome listed them as
 // deferrals. A deferral is a promise that evidence is missing; a fail is a
@@ -556,7 +552,7 @@ function collectSubstantiveFailures(o) {
 }
 
 // ---------------------------------------------------------------------------
-// W3.4 — HONEST ERROR ACCOUNTING. One run reported "0 errors" while 6 of 15
+// HONEST ERROR ACCOUNTING. One run reported "0 errors" while 6 of 15
 // subagents had hit recovered tool errors, including schema rejections refilled
 // with ""/"n-a" junk. Two sources, both available to this script:
 //   • self-reported: each subagent returns the errors it recovered from (the
@@ -583,7 +579,7 @@ function collectSubagentErrors(o) {
   return { recovered, fatal, agents }
 }
 
-// deferralPressure() — F3 hand-back rollup. Combines the OPEN prior deferrals orient read
+// deferralPressure() — the hand-back rollup of deferrals. Combines the OPEN prior deferrals orient read
 // from 00-index (recorded by earlier runs) with THIS run's new deferrals into one pressure
 // headline: { open, oldestDeferredAt, repeatWalls }. It makes the standing pile visible in
 // every yolo hand-back instead of only inside artifacts — the bot-backend pattern (the same
@@ -610,12 +606,12 @@ function deferralPressure(priorDeferrals, runDeferrals) {
   return { open, oldestDeferredAt, repeatWalls }
 }
 
-// decisionDigest() — W11.1 end-of-run rollup. Groups EVERY autonomous decision the run
-// recorded (across all chains) by its W4 class stamp (`class: implementation-detail`), so the
+// decisionDigest() — the end-of-run rollup. Groups EVERY autonomous decision the run
+// recorded (across all chains) by its class stamp (`class: implementation-detail`), so the
 // human's post-run inspection is one structured section, not twelve artifacts. An
 // intent-bearing stamp on an autonomous record is the tell that the policy overstepped —
 // surfaced under `intentBearing` so it can't hide. Pure + extractable like the other rollups.
-// W3.3 — `unclassified` IS A GAP, NOT A CLASS. The old shape defaulted a missing
+// `unclassified` IS A GAP, NOT A CLASS. The old shape defaulted a missing
 // stamp to 'unclassified', counted it as just another bucket, and let the headline
 // "intent-bearing: 0" absorb it. But an unclassified decision is precisely a
 // decision nobody has checked for intent — folding it into the zero inverts what
@@ -669,7 +665,7 @@ function acceptedResiduals(o) {
   return out
 }
 
-// clearingTripwire() — W4.2 rollup. orient ran each open deferral's recorded
+// clearingTripwire() — the tripwire rollup. orient ran each open deferral's recorded
 // `clearing-probe` (one bounded command apiece) and reported whether the event
 // looks satisfied. This turns the hits into a hand-back line. It is a TRIPWIRE and
 // nothing more: no deferral is cleared, no index is edited, no gate moves. The
@@ -687,7 +683,7 @@ function clearingTripwire(priorDeferrals) {
   }))
 }
 
-// walkOrder() — the walk order of a roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4): topological
+// walkOrder() — the walk order of a roster: topological
 // order of dependsOn, with roster order as the tie-break. A cycle, or a name outside the
 // roster, keeps roster order for the slices that are left.
 function walkOrder(slices) {
@@ -817,8 +813,8 @@ function smallChangeClause(stage) {
 
 // A decided question: the Decisions of the brief list each live answer with its key, and say
 // when a question is answered.
-function sameQuestionClause(wfCmd = WF_CMD) {
-  return `Before you ask, run \`${wfCmd} decide answered "${projectRoot}" ${slug} --key <key>\`: a live answer settles it. `
+function sameQuestionClause() {
+  return `Before you ask, run \`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\`: a live answer settles it. `
 }
 
 // A failing item that a live decision already settles is accepted, in every mode.
@@ -834,10 +830,11 @@ function settledItemsClause(sliceArg) {
 }
 
 // Delegate mode, last verify round: a failing item is accepted and goes to the review as a finding.
-function delegateAcceptClause(sliceArg) {
+// `when` names that round: a verify agent's second round, or the self verify of an implement agent.
+function delegateAcceptClause(sliceArg, when = 'this is the last verify round of a delegate run') {
   const s = sliceArg || slug
   const sliceOpt = sliceArg ? ` --slice ${sliceArg}` : ''
-  return `\n\nDELEGATE ACCEPT (this is the last verify round of a delegate run). When an item still fails after ` +
+  return `\n\nDELEGATE ACCEPT (${when}). When an item still fails after ` +
     `your fix round, do not stop the run. First, when your own slice moved a measured product behaviour outside ` +
     `its pinned range and the cause is not known, spend one bounded round on finding the cause, then fix it or ` +
     `accept it. For each item that still fails: (1) run \`${WF_CMD} decide add "${projectRoot}" ${slug} --kind ` +
@@ -853,10 +850,10 @@ function delegateAcceptClause(sliceArg) {
 }
 
 // Delegate mode: the person delegated the intent-bearing decisions of this run.
-function delegateClause(wfCmd) {
+function delegateClause() {
   return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. ` +
-    sameQuestionClause(wfCmd) +
-    `Otherwise settle it by the option you would recommend, record it with \`${wfCmd} decide add "${projectRoot}" ` +
+    sameQuestionClause() +
+    `Otherwise settle it by the option you would recommend, record it with \`${WF_CMD} decide add "${projectRoot}" ` +
     `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
     `<stage>\`, and continue. Return no questions. When your own slice moves a measured product behaviour ` +
     `outside its pinned range and the cause is not known, do not carry it to later work: spend one bounded round ` +
@@ -879,7 +876,7 @@ const EOB =
   `verification, risk) and leak-check before any commit or push.`
 
 // ---------------------------------------------------------------------------
-// W1 — DRIVER LIVENESS. The single hardest failure in the field was not a wrong
+// DRIVER LIVENESS. The single hardest failure in the field was not a wrong
 // decision, it was SILENCE: a slug-mode driver died ~17 min into a run, the
 // harness task registry lost the task entirely ("Task not found"), and the user
 // came back two hours later to nothing. A resuming session then asserted the dead
@@ -918,7 +915,7 @@ const DRAFT_DIR = `${projectRoot}/.ai/workflows/${slug}/.draft`
 let RUN_ID = ''
 let AGENT_SEQ = 0
 
-// WF-SYSTEM-REVIEW A4: an agent appends a journal line with the `line` command of
+// An agent appends a journal line with the `line` command of
 // yolo-watch, never as text it builds by hand. The command writes the line through
 // JSON.stringify and stamps `at`, so a Windows path always parses. Inside the shell's
 // single quotes, `'` goes out as \u0027.
@@ -926,7 +923,7 @@ const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
 const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
 // The command names the workflow, not a file, so the line reaches the journal wherever the records live.
 const lineCmd = (o) => `node "${WATCH}" line "${projectRoot}" ${slug} ${jsonArg(o)}`
-// A3: the agent-end line says why the agent stopped.
+// The agent-end line says why the agent stopped.
 const END_FLAGS = `--status <the status you return> --errors <the number of tool errors, rejected writes and schema ` +
   `retries you RECOVERED from, 0 if none>. When your status is not complete, add --reason "<one line: why you ` +
   `stopped>". When you hard-stop, add --hard-stop-reason "<the same line>". When you route back, add ` +
@@ -944,7 +941,7 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
     `heartbeat is diagnostic, never a gate.`
 }
 
-// W1.3 / W5.1 — CONTROL-FILE OWNERSHIP. While a driver is live, that slug's
+// CONTROL-FILE OWNERSHIP. While a driver is live, that slug's
 // 00-index.md and the global INDEX.md are DRIVER-OWNED. Two writers mutating them
 // blind produced repeated "File has been modified since read" clusters — and once,
 // a DEAD driver's last write ambushed a foreground read two hours later. The rule
@@ -966,10 +963,10 @@ const CONTROL_FILE_RULE =
 
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
 // The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file.
-const steer = (role) => steeringClause(STEER_CMD, role, `${referenceRoot}/_decisions.md`)
+const steer = steeringClause
 
 // ---------------------------------------------------------------------------
-// STOP AT THE NEXT BOUNDARY (YOLO-COMMENTARY-PLAN G1-G3). The person says "stop
+// STOP AT THE NEXT BOUNDARY. The person says "stop
 // after the current verify" in chat; the main session writes
 // .ai/run/<slug>/.control.json through scripts/yolo-watch.mjs control. This
 // script cannot read the file, so the agent that starts each stage reads it, fresh,
@@ -1000,14 +997,14 @@ const stopCheck = () => stopCheckClause(`node "${WATCH}" stop-check "${projectRo
 
 
 
-// W3.3 — `class` IS REQUIRED ON EVERY RECORDED DECISION. The driver's headline
+// `class` IS REQUIRED ON EVERY RECORDED DECISION. The driver's headline
 // guarantee to the user is "intent-bearing escapes: 0". That number is only worth
 // the classification behind it, and in every run measured ~25% of recorded
 // decisions came back with no class at all (11/43, 4/15, 5/10, 40/173) — silently
 // defaulted to 'unclassified' and then folded into the reassuring zero. An
 // unclassified decision is a GAP in the guarantee, not a third class.
 //
-// W3.4 — RECOVERED ERRORS ARE REPORTED, NOT SWALLOWED. One run's outcome said
+// RECOVERED ERRORS ARE REPORTED, NOT SWALLOWED. One run's outcome said
 // "0 errors" while 6 of 15 subagents had hit rejected writes and schema retries
 // they recovered from. The script cannot see a subagent's tool history, so the
 // subagent reports its own: honest self-accounting beats a confident zero.
@@ -1071,7 +1068,7 @@ function questionContract(stage) {
     (stage === 'review'
       ? ` RETURN CONTRACT (review): the review asks the person nothing and routes nothing back. It fixes or ` +
         `dismisses every finding at Steps 4b and 4c of review/_stage.md, one fix step and one commit at a time, in ` +
-        `your own session. Return status 'complete' with fixCommits (the commit of each fix step, in order) and ` +
+        `your own session. Return status 'complete' with ` +
         `terminal.couldNotFixBlockers (the BLOCKER findings set could-not-fix). Return status 'hard-stop' only ` +
         `when a BLOCKER is could-not-fix. Never return status 'questions' or routeBack.`
       : '') +
@@ -1102,11 +1099,11 @@ const ORIENT_RESULT = {
     // honored default review rubric — an rca whose recommended-next is hotfix → 'security'; empty = standard
     // dimension selection. Threaded into the review stage so yolo respects the RCA's recommended build flavor.
     reviewDimension: { type: ['string', 'null'] },
-    // W1 — the run's own identity, minted by orient because it holds the clock this
+    // The run's own identity, minted by orient because it holds the clock this
     // script does not. Every later heartbeat carries it, so one run's journal entries
     // stay separable from a prior run's in the same append-only file.
     runId: { type: 'string' },
-    // W1.2/W1.3 — the PREVIOUS driver's journal, reported raw. orient() turns it into
+    // The PREVIOUS driver's journal, reported raw. orient() turns it into
     // idx.priorRun with judgeLiveness(): the verdict is arithmetic, so code owns it.
     priorJournal: {
       type: 'object',
@@ -1125,7 +1122,7 @@ const ORIENT_RESULT = {
         },
       },
     },
-    // F3 — open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
+    // Open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
     // driveVerify appends a RE-CHALLENGE clause from these so a prior run's wall is re-PROBED, never
     // inherited as fact; the hand-back rolls them into deferralPressure. Visibility, not a new gate.
     priorDeferrals: {
@@ -1144,13 +1141,13 @@ const ORIENT_RESULT = {
           // yolo). An authorized deferral is settled: no re-challenge, no probe-
           // receipt escalation, and a partial verify walled only by it counts done.
           authorized: { type: 'boolean' },
-          // W3.2 — the LEDGER's own classification of this wall. The index is the
+          // The LEDGER's own classification of this wall. The index is the
           // authoritative record of what a deferral IS; when the driver's end-of-run
           // re-derivation disagrees, the ledger wins and the disagreement is reported
           // as `reconciled`, never silently re-labeled.
           ac: { type: ['string', 'null'] },              // the AC the entry names, when it names one
           wallOwnership: { type: 'string' },   // code-owned | environment-negotiable | external
-          // W4 — the one-line, side-effect-free command that answers "has the
+          // The one-line, side-effect-free command that answers "has the
           // clearing event happened yet?". Run at the cheap moments (orientation,
           // /wf status) purely as a TRIPWIRE — a hit routes to /wf probe, it never
           // clears the deferral itself (the probe stage still owns evidence).
@@ -1160,7 +1157,7 @@ const ORIENT_RESULT = {
         },
       },
     },
-    // W11 — the charter (00-index `charter:`): the intake's 3–7 positive commitments.
+    // The charter (00-index `charter:`): the intake's 3–7 positive commitments.
     // yolo runs a cheap fidelity checkpoint every K slices asking "is the build still
     // advancing each commitment?"; a `broken` verdict is a stop. Empty/absent on
     // compressed lifecycles (no charter) → no checkpoints.
@@ -1206,7 +1203,7 @@ const ORIENT_RESULT = {
           // driving them into a HARD-STOP (Waypoint 2026-07-14: a 6.7-h run
           // died on an already-skipped slice with a conforming skip record).
           status: { type: 'string' },
-          // W2 — WHY this slice still has work. The distinction decides scheduling:
+          // WHY this slice still has work. The distinction decides scheduling:
           // 'new-work' (a stage was never run, or is not terminal) is the work a run
           // exists for; 'deferral-rechallenge' (every stage terminal-clean, the only
           // residue an open un-authorized deferral) is BOOKKEEPING. A driver launched
@@ -1262,8 +1259,9 @@ const STAGE_RESULT = {
     },
     // An answered implement or verify that needs a new plan or new code.
     routeBack: { enum: ['plan', 'implement'] },
-    // The review: the commit of each fix step, in order. The driver scans them once more.
-    fixCommits: { type: 'array', items: { type: 'string' } },
+    // The implement: HEAD before its work and HEAD when it returns. Equal ids mean it made no commit.
+    headStart: { type: 'string' },
+    headEnd: { type: 'string' },
     // The implement of an xs or s slice: the verify that it ran in the same session, as a verify result.
     verify: {
       type: 'object',
@@ -1277,7 +1275,7 @@ const STAGE_RESULT = {
         sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
       },
     },
-    // E4: the slice-status mirror that the verify agent did as its last step.
+    // The slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
     stopReason: { type: 'string' },
     artifactPath: { type: 'string' },
@@ -1296,7 +1294,7 @@ const STAGE_RESULT = {
         // 00-index.md runtime-evidence-deferrals; /wf ship later blocks on them).
         // `probe` is the literal capability-probe command + one-line output tail the
         // subagent executed THIS run to establish the wall (attempt-before-declare —
-        // verify/_deferrals.md §"Attempt before declare"). A deferral with no probe is challenged by
+        // section "Attempt before declare" of verify/_deferrals.md). A deferral with no probe is challenged by
         // probeGaps()/driveVerify with one corrective re-run before it is accepted.
         deferrals: {
           type: 'array',
@@ -1323,10 +1321,10 @@ const STAGE_RESULT = {
         },
       },
     },
-    // Recorded autonomous calls. W3.3: every entry MUST carry a `class` stamp
+    // Recorded autonomous calls. Every entry MUST carry a `class` stamp
     // (implementation-detail | intent-bearing) per _decision-classes.md; an entry
     // that resolves a specific AC also carries { ac, classification }, and THAT
-    // classification is canonical over anything the driver would re-derive (W3.2).
+    // classification is canonical over anything the driver would re-derive.
     decisions: {
       type: 'array',
       items: {
@@ -1343,7 +1341,7 @@ const STAGE_RESULT = {
         },
       },
     },
-    // W3.1 — deferred / could-not-fix notes that are NOT deferrals. A deferral lives
+    // Deferred / could-not-fix notes that are NOT deferrals. A deferral lives
     // in terminal.deferrals[] once, with its probe; duplicating it here is what the
     // one-writer-per-fact rule now forbids (the driver still tolerates the old shape
     // when it appears, so a stale subagent can't false-stop a compliant slice).
@@ -1360,7 +1358,7 @@ const STAGE_RESULT = {
         },
       },
     },
-    // W3.4 — errors this subagent hit AND RECOVERED FROM (tool errors, rejected
+    // Errors this subagent hit AND RECOVERED FROM (tool errors, rejected
     // writes, schema retries). Self-reported because the script cannot see a
     // subagent's tool history. A run that says "0 errors" while its agents were
     // quietly retrying is lying, and this is the field that stops it.
@@ -1441,7 +1439,7 @@ const VERDICT_SCHEMA = {
   required: ['refuted'],
   properties: { refuted: { type: 'boolean' }, reason: { type: 'string' } },
 }
-// C6: the verdicts of one grouped refuter.
+// The verdicts of one grouped refuter.
 const REFUTE_GROUP = {
   type: 'object',
   required: ['verdicts'],
@@ -1470,13 +1468,16 @@ async function orient() {
     `fact, and read a record only for a fact that the output lacks. Read a record with \`${REC('get')} <name>\` ` +
     `(exit 1 = the record is absent), and list the records with \`${REC('list')}\`. A record name such as ` +
     `03-slice.md is not a file path.\n` +
+    `   Its \`drive\` block is the class of the workflow, computed in code by ` +
+    `${referenceRoot}/../../../lib/drive-class.mjs from the workflow-type and the records. Copy its fields and do ` +
+    `not derive them again: workflowType = drive.workflowType, reviewScope = drive.reviewScope (the rule of ` +
+    `reviewScopeOf: the review-scope key wins; with no key, 'per-slice' only when 07-review-<slice>.md records ` +
+    `exist and 07-review.md does not), and reviewDimension = drive.reviewDimension (null = the standard rubric ` +
+    `selection; 'security' for an RCA that recommends a hotfix).\n` +
     `1. Read the index: run \`${REC('get')} index\`. It is CURRENT STATE only: parse the keys this step ` +
     `names and nothing else. Do NOT read index-history.jsonl or history/ — finished history (old next-step ` +
     `commentary, finished sub-pass telemetry) is not state, and must not be mixed into the open deferrals or the ` +
-    `charter you report. Parse: status, current-stage, review-scope ` +
-    `(the rule of reviewScopeOf in ${referenceRoot}/../../../lib/lifecycle-done.mjs: the key wins when it is set; ` +
-    `with no key, 'per-slice' only when 07-review-<slice>.md records exist and 07-review.md does not, else ` +
-    `'slug-wide'), workflow-type, branch-strategy (default 'none' if absent), ` +
+    `charter you report. Parse: status, current-stage, branch-strategy (default 'none' if absent), ` +
     `branch, and base-branch. ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
@@ -1508,91 +1509,31 @@ async function orient() {
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
     `deferred | skipped | dropped) as slices[].status, and its \`complexity:\` (xs | s | m | l | xl; null when the entry has none) as slices[].complexity — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
-    `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
-    `(selected-slice is set on 00-index.md — true ` +
-    `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
-    `(fall back to the slug if selected-slice is empty), set singleScope=true, and set reviewScope='slug-wide' (one ` +
-    `un-suffixed 07-review.md — never a per-slice split for a single scope). Do NOT route to '/wf slice' for a ` +
-    `single-scope workflow; a roster of one is complete.\n` +
+    `would break slice-mode routing to the NEXT slice). When drive.singleScope is true (03-slice.md is absent: a ` +
+    `forwarded rca, or a one-slice standard workflow with selected-slice set), synthesize a one-entry roster ` +
+    `[selected-slice] (fall back to the slug if selected-slice is empty) and set singleScope=true; drive.reviewScope ` +
+    `is then 'slug-wide' (one un-suffixed 07-review.md). Do NOT route to '/wf slice' for a single-scope workflow; a ` +
+    `roster of one is complete.\n` +
     `2b. IMPLEMENT PROGRESS. For each slice whose implement is not done, run ` +
     `\`${WF_CMD} step where "${projectRoot}" ${slug} <slice> --json\`: planSteps = its total, stepsCommitted = the ` +
     `number of entries of its done list (0 when empty), and implementStops = its hardStops (the fail stops only). ` +
     `The command checks each step commit against the slice branch itself.\n` +
-    `3. Resolve fileConvention: 'suffixed' for a multi-slice standard workflow that has per-slice ` +
-    `03-slice-<slice>.md files (so stage files are 04-plan-<slice>.md, 06-verify-<slice>.md, 07-review-<slice>.md); ` +
-    `'unsuffixed' for a change-mode (workflow-type fix|hotfix|refactor), a forwarded rca driven single-scope, or any ` +
-    `single-scope standard workflow (one slice, only a 04-plan.md master) where stage files are 04-plan.md, ` +
-    `06-verify.md, 07-review.md.\n` +
+    `3. fileConvention = drive.fileConvention: 'suffixed' names the stage files 04-plan-<slice>.md, ` +
+    `06-verify-<slice>.md and 07-review-<slice>.md; 'unsuffixed' names them 04-plan.md, 06-verify.md and 07-review.md.\n` +
     `4. Determine mode: 'slice' if a target slice was given, else 'slug'. In slice mode, confirm the target slice ` +
     `is in the roster — if not, set ok=false, blockReason, route='/wf slice ${slug}'.\n` +
-    `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake (the brief and the shape) autonomously; intake owns ` +
-    `product-owner alignment). First CLASSIFY by 00-index.md workflow-type — only workflows with a decided build are ` +
-    `drivable, and a non-build type must NOT fall through to the slice check:\n` +
-    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate, audit, brainstorm} (00-index.md ` +
-    `type: workflow-index; by design NO 03-slice.md/04-plan.md). Unlike rca, these do NOT converge on one build: ` +
-    `investigate emits 2–3 UNPICKED option sketches and writes NO 02-shape.md; discover emits a yes/no VERDICT whose ` +
-    `only follow-up is more analysis (e.g. /wf intake rca), not a build; ideate emits a RANKED MENU whose ideas each ` +
-    `become their OWN new workflow; audit emits FINDINGS, each with its own route in 07-review.md; brainstorm keeps an OPEN BOARD the person continues by hand. The missing ingredient is a human product decision (pick an option / act on the ` +
-    `verdict / choose an idea / route a finding) — exactly the intake+shape alignment yolo must not make. So yolo drives NOTHING here; ` +
-    `'missing 03-slice.md' is EXPECTED and must NEVER route to '/wf slice'. These are also never continued IN PLACE ` +
-    `(investigate has no shape to plan) — each SEEDS A NEW /wf intake workflow, so do NOT route to '/wf plan ${slug}' ` +
-    `either. Set ok=false, blockReason naming the terminal type, and set route from the workflow's OWN recorded next ` +
-    `step (00-index.md next-invocation / the 01-<mode>.md lead): ideate → its recorded '/wf intake <chosen-idea>'; ` +
-    `investigate → 'pick an option in 01-investigate.md, then /wf intake fix <option> (or /wf intake <option>) — ` +
-    `/wf yolo drives it once intaked+shaped'; discover → 'act on the verdict in 01-discover.md (/wf intake rca ` +
-    `<symptom> if it failed; no build if it holds)'; audit → "each finding's route in 07-review.md (## Triage ` +
-    `Decisions)"; brainstorm → '/wf intake brainstorm ${slug} to continue, or a ` +
-    `candidate entry command from 01-brainstorm.md once distilled'.\n` +
-    `   5b. RCA with a DECIDED build — workflow-type 'rca'. The diagnosis IS the intake and 02-shape.md is its ` +
-    `synthesized shape, so intake+shape are already COMPLETE and yolo may drive plan→implement→verify→review over ` +
-    `the single scope (the plan/implement/verify/review references all have a 'forwarded mode' path for this). Read ` +
-    `recommended-next from 01-rca.md frontmatter (fallback: the 00-index.md recommended-routes entry with default: true — old slugs: recommended-routes.primary — / next-invocation):\n` +
-    `      • human-triage — OR 01-rca.md shows root-cause-confidence: low AND blast-radius: high — is a genuine ` +
-    `product STOP: set ok=false, blockReason='RCA recommends human triage (low confidence + high blast radius)', ` +
-    `route='read the record 01-rca.md of ${slug} and choose the build route by hand, then /wf yolo ${slug}'.\n` +
-    `      • otherwise (recommended-next ∈ {/wf plan, /wf intake fix, /wf intake hotfix}) → DRIVABLE single-scope ` +
-    `build. Readiness passes when 01-rca.md (type: rca — the intake lead) and 02-shape.md both exist; 03-slice.md is ` +
-    `NOT required (single-scope roster was synthesized in step 2, singleScope=true). HONOR the recommendation via ` +
-    `reviewDimension = the review stage's default rubric: recommended-next hotfix → 'security'; plan/fix → leave ` +
-    `reviewDimension empty (standard selection). yolo drives from PLAN regardless — it does NOT re-run /wf intake ` +
-    `fix|hotfix, mint a new branch, or change base-branch; the drive runs on the tree the RCA recorded.\n` +
-    `   5c. SELF-MANAGED build — workflow-type 'update-deps'. yolo DRIVES this via a self-managed exec path: it does ` +
-    `NOT decompose into /wf implement + /wf verify (those redirect back to intake). Instead yolo wraps ` +
-    `intake/update-deps.md Steps 6–9, which self-author 05-implement.md + 06-verify.md in tier order, then runs the ` +
-    `standard slug-wide review. yolo drives from the PLAN gate onward — it never authors the scan/research/` +
-    `prioritize/plan itself (that is the human's own /wf intake update-deps run). READINESS: 01-update-deps.md ` +
-    `(type: intake, status: complete), 02-shape.md, 03-slice.md, and 04-plan.md must ALL exist and be ` +
-    `status: complete. If any is missing or not complete, set ok=false with blockReason and ` +
-    `route='/wf intake update-deps ${slug}' (or '/wf plan ${slug}' when 04-plan is the only gap). When 01–04 are ` +
-    `complete, set ok=true and workflowType='update-deps', then PROCEED to step 6 (the single-slice roster: ` +
-    `implement→05-implement.md, verify→06-verify.md, both un-suffixed; reviewScope slug-wide). Do NOT fall through ` +
-    `to 5d.\n` +
-    `   5b2. PROTOTYPE — workflow-type 'prototype'. A person-steered proof loop: the person starts every round, ` +
-    `and no driver runs one. yolo drives NOTHING here. Set ok=false, blockReason='a prototype is steered by the ` +
-    `person, one round at a time', route='/wf loop prototype ${slug} <request>'. Do NOT fall through to 5d.\n` +
-    `   5b3. TASK — workflow-type 'task'. Its blast-radius gates are never resolved unattended. yolo drives ` +
-    `NOTHING here. Set ok=false, blockReason='a task resolves its blast-radius gates with the person', ` +
-    `route='/wf intake task ${slug}'. Do NOT fall through to 5d.\n` +
-    `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf loop optimize: a person confirms ` +
-    `its spec (02-optimize-spec.md, confirmed-by), and the loop runs under its own driver. yolo never runs a trial. ` +
-    `READINESS: 05-implement-optimize.md exists with status: complete (the loop's finish wrote it, with ` +
-    `03-slice.md and 03-slice-optimize.md). If it is absent or not complete, set ok=false, blockReason='the ` +
-    `optimize loop has not finished', route='/wf loop optimize ${slug}'. When it is complete, set ok=true and ` +
-    `workflowType='optimize'; the roster is the one slice 'optimize', fileConvention 'suffixed' ` +
-    `(06-verify-optimize.md, 07-review-optimize.md), reviewScope from 00-index.md (per-slice). In step 6, mark ` +
-    `plan 'done' for that slice: the confirmed spec replaces the plan. yolo then drives verify and review only. ` +
-    `Do NOT fall through to 5d.\n` +
-    `   5d. STANDARD build lifecycle — everything else (standard/feature, plus the compressed change-modes fix / ` +
-    `hotfix / refactor; 00-index.md type: index). Apply the readiness check: the stage-1 intake artifact must exist ` +
-    `and not be status: awaiting-input; 02-shape.md must exist; 03-slice.md must exist (UNLESS singleScope was ` +
-    `synthesized in step 2 for a one-slice standard workflow). The intake lead is 01-intake.md for a standard ` +
-    `workflow, but the change-modes name it after the mode — resolve from workflow-type: fix→01-fix.md, ` +
-    `hotfix→01-hotfix.md, refactor→01-refactor.md, else 01-intake.md (all carry frontmatter type: intake, ` +
-    `stage-number 1; accept any 01-*.md whose frontmatter is type: intake if the named file is somehow absent). If ` +
-    `the resolved intake lead, 02-shape.md, or (when required) 03-slice.md is missing or awaiting-input, set ok=false ` +
-    `with blockReason and route='/wf intake <description>' (or '/wf intake ${slug}' / '/wf slice ${slug}' for the ` +
-    `specific gap).\n` +
-    `   5e. DESIGN GATE (applies to 5b and 5d; a person confirms the design — yolo NEVER runs the design stage). ` +
+    `5. READINESS GATE. yolo drives from PLAN onward only: it NEVER runs intake (the brief and the shape), which ` +
+    `owns product-owner alignment, and it does not run intake again, mint a new branch or change base-branch. ` +
+    `drive.class says what a driver may do: build and change-mode run plan, implement, verify and review; rca ` +
+    `drives its single scope (the diagnosis is the intake, and 02-shape.md is its synthesized shape); ` +
+    `self-managed (update-deps) and optimize drive their own paths (step 6); terminal-analysis, refused and small ` +
+    `are never driven, and their missing 03-slice.md never routes to '/wf slice'.\n` +
+    `   5a. When drive.drivable is false, set ok=false, and copy drive.blockReason to blockReason and drive.route ` +
+    `to route as they are: the route names the command for the gap, or the workflow's own recorded next step. ` +
+    `Skip 5b.\n` +
+    `   5b. When drive.drivable is true, the workflow is ready to drive; apply the design gate below.\n` +
+    `   DESIGN GATE (for drive.class build, change-mode and rca; a person confirms the design — yolo NEVER runs the ` +
+    `design stage). ` +
     `Read ux-impact from 00-index.md. Design is NEEDED when ux-impact ∈ {visual, flow, new-surface}, or when ` +
     `ux-impact is absent and 02b-design.md exists. Design is SETTLED when 02c-craft.md exists with a resolved ` +
     `image-gate (pass or skipped:<reason>) AND a direction-confirmed-by field, or when 00-index.md ` +
@@ -1620,6 +1561,10 @@ async function orient() {
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
     `   dependsOn: the slice's depends-on list in the roster of 03-slice.md ([] when it has none).\n` +
+    `   For drive.class optimize: the roster is the one slice 'optimize'. Mark its plan 'done': the confirmed spec ` +
+    `(02-optimize-spec.md) replaces the plan, so yolo drives verify and review only.\n` +
+    `   For drive.class self-managed (update-deps): the roster is one slice, whose implement is 05-implement.md and ` +
+    `whose verify is 06-verify.md, both un-suffixed; the review is slug-wide.\n` +
     `6b. For each slice, also classify WHY it still has work, as slices[].reverifyReason — this decides ` +
     `scheduling, so be precise:\n` +
     `   - 'new-work' — any of plan/implement/review is 'todo', OR verify is 'todo' because it was never run, ` +
@@ -1711,7 +1656,7 @@ async function ensureBranch(idx) {
   )
 }
 
-// reChallengeClause() — F3: fold the run's OPEN prior deferrals (from orient's
+// reChallengeClause() — fold the run's OPEN prior deferrals (from orient's
 // priorDeferrals) into a RE-CHALLENGE block for the verify prompt. A deferral recorded
 // by an earlier run is a CLAIM to re-test, never a fact to inherit — the Crumb
 // stale-creds incident (a carried-forward "Firebase creds unavailable" paired with a
@@ -1821,7 +1766,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `3. Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write ` +
     `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
     `${referenceRoot}/_records.md.` +
-    questionContract(stage) + (DELEGATE ? delegateClause(WF_CMD) : '') + answeredClause(extra.answered, stage, sliceArg) +
+    questionContract(stage) + (DELEGATE ? delegateClause() : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg) : '') +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
@@ -1848,7 +1793,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `inside an artifact.\n` +
     `- When you stop, still finish the artifact in its honest terminal state, then return status 'hard-stop' ` +
     `with hardStopReason, or status 'questions' with the questions.` +
-    (stage === 'implement' ? implementStepsClause(WF_CMD, sliceArg || slug, extra.retry === true) : '') +
+    (stage === 'implement' ? implementStepsClause(sliceArg || slug, extra.retry === true) : '') +
     (stage === 'implement' && extra.selfVerify && sliceArg ? selfVerifyClause(sliceArg, idx, deferCmd) : '') +
     (stage === 'verify' && sliceArg ? sliceStatusClause(sliceArg) : '') +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
@@ -1857,7 +1802,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `${extra.stopCheck === true ? ", 'stopped' when the stop-request check stopped you" : ''}), the primary ` +
     `artifactPath, and terminal fields — plan/implement: statusField; verify: convergence + result + deferrals ` +
     `([{ac, reason, probe}]; [] if none) + substantiveResidual + acceptedItems; review: verdict + blockerCount ` +
-    `(= metric-findings-blocker, OPEN) + couldNotFixBlockers, and fixCommits — plus the questions, the class-stamped decisions you recorded, any ` +
+    `(= metric-findings-blocker, OPEN) + couldNotFixBlockers — plus the questions, the class-stamped decisions you recorded, any ` +
     `residual (could-not-fix) notes, your recovered-error list, routeBack when the answered ` +
     `question asks for one, and steeringHonored (plus steeringConflict when a steering entry stopped you) when a ` +
     `steer entry exists.` +
@@ -1877,7 +1822,7 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
     `VERBATIM: the AC gate, the runtime checks with the evidence reuse of verify/_runtime-evidence.md, the deferral ` +
     `rules, and the verify record 06-verify-${sliceArg}.md. When the verify fails, fix the code as a new step, ` +
     `commit it, and verify again: at most 2 verify rounds.` + settledItemsClause(sliceArg) +
-    (DELEGATE ? delegateAcceptClause(sliceArg).replace('(this is the last verify round of a delegate run)', '(on your second verify round, in a delegate run)') : '') +
+    (DELEGATE ? delegateAcceptClause(sliceArg, 'on your second verify round, in a delegate run') : '') +
     reChallengeClause(idx.priorDeferrals, deferCmd) +
     sliceStatusClause(sliceArg) +
     `\nReturn the verify as \`verify\`: { status, artifactPath, terminal: { convergence, result, deferrals ` +
@@ -1885,7 +1830,7 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
     `The top-level fields stay the implement result.`
 }
 
-// W5.2 — SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
+// SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
 // at `status: defined` and the index `progress` block stale, so the next run's
 // orientation had to cross-check artifacts instead of trusting the index — and a
 // later ship had to self-repair what the drive should have recorded. The
@@ -1893,7 +1838,7 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
 // that yolo's slice-complete step is a WRITER: the fix lands at drive time, when
 // the fact is fresh, not two stages later when someone notices the drift.
 //
-// WF-SYSTEM-REVIEW E4: the verify agent does the mirror as its last step. Verify is the
+// The verify agent does the mirror as its last step. Verify is the
 // one writer of a roster `complete`, so the mirror is its own state, not another slice's.
 // This agent runs only as the fallback, when no verify agent of the chain confirmed it.
 function sliceStatusClause(sliceArg) {
@@ -1985,7 +1930,7 @@ async function driveVerify(sliceArg, idx, extra = {}) {
     const t = last.terminal || {}
     if (verifyClean(t, last.residual)) {
       // Structurally clean — but the deferral law demands a probe receipt on every deferral
-      // (verify/_deferrals.md §"Attempt before declare"). verifyClean tolerates a missing receipt (the
+      // (section "Attempt before declare" of verify/_deferrals.md). verifyClean tolerates a missing receipt (the
       // v9.114 no-hard-gate lesson); probeGaps surfaces it here. First offense with a round
       // left → ONE corrective re-run that demands the receipt (or the evidence, if the wall
       // fell). Still probe-less after that → hard-stop: the law is not optional, and re-running
@@ -2108,7 +2053,7 @@ async function driveWallProbe(sliceArg, idx, fresh = null) {
 }
 
 // ---------------------------------------------------------------------------
-// W3.3 — CORRECTIVE CLASSIFICATION ROUND. A decision with no `class` stamp is a
+// CORRECTIVE CLASSIFICATION ROUND. A decision with no `class` stamp is a
 // hole in the run's headline guarantee ("intent-bearing escapes: 0"), and ~25% of
 // recorded decisions arrived that way in every run measured. The probe-receipt
 // pattern applies — one corrective round, then report honestly — but the corrective
@@ -2256,36 +2201,36 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `issue, evidence, fix, preExisting, changesAcceptance }, per ${referenceRoot}/review/_dispatch.md Step 3: ` +
     `preExisting is true when the diff does not touch the flagged lines; changesAcceptance is true when the fix ` +
     `changes an acceptance check of the slice, a confirmed design board or a 02c-craft.md line. Write nothing.`
-  const scouts = await parallel(rubrics.map(r => () => agent(
+  const findingsOf = (s) => (s && Array.isArray(s.findings) ? s.findings : [])
+  const scoutJobs = rubrics.map(r => () => agent(
     `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${r.rubric}' rubric ONLY` +
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
-    `${r.focus ? ` — the '${r.focus}' section and '# Severity calibration'` : ' in full'}, and apply it as the ` +
-    `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
+    `${r.focus ? ` — only the '${r.focus}' section` : ' in full'}, and ${referenceRoot}/review/_severity.md for the ` +
+    `severity scale and the finding rules. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
     `findings the diff supports, with dimension '${r.rubric}'.${packetLine} ${shape}\n\n${EOB}` + steer('context') +
     beat(`scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
-  ).then(s => (s && Array.isArray(s.findings) ? s.findings : []).map(f => ({ ...f, dimension: f.dimension || r.rubric })))))
-  // Standing steering — one more scout whose rubric is the user's steer entries. It runs only
-  // when rubric selection saw an entry, and it reads the entries itself (never a copy).
-  const steeringScout = selection && selection.steeringPresent === true
-    ? await agent(
-        `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
-        `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'.` +
-        `${packetLine} ${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
-        { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
-      )
-    : null
-  const scanned = [
-    ...scouts.filter(Boolean).flat(),
-    ...((steeringScout && steeringScout.findings) || []).map(f => ({ ...f, dimension: 'steering' })),
-  ]
+  ).then(s => findingsOf(s).map(f => ({ ...f, dimension: f.dimension || r.rubric }))))
+  // Standing steering — one more scout whose rubric is the user's steer entries, in the same batch
+  // as the rubric scouts. It runs only when rubric selection saw an entry, and it reads the
+  // entries itself (never a copy).
+  const steering = !!selection && selection.steeringPresent === true
+  if (steering) {
+    scoutJobs.push(() => agent(
+      `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
+      `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'.` +
+      `${packetLine} ${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
+      { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
+    ).then(s => findingsOf(s).map(f => ({ ...f, dimension: 'steering' }))))
+  }
+  const scanned = (await parallel(scoutJobs)).filter(Boolean).flat()
   // A finding outside the work packet gets no refuter: the merge would drop it anyway.
   const raw = inPacket.size ? scanned.filter(f => !f || !f.file || inPacket.has(repoPath(f.file))) : scanned
   if (raw.length < scanned.length) log(`review fan-out: ${scanned.length - raw.length} finding(s) outside the work packet dropped`)
   // 2. Every finding gets a refuter. One refuter checks up to REFUTE_GROUP_SIZE findings
   //    of one rubric. A refuted finding stays, with the refuter's reason: the ledger keeps it.
   const withIds = raw.map((f, i) => ({ ...f, id: f && f.id ? `${f.dimension}:${f.id}` : `f${i + 1}`, rubric: f.dimension }))
-  const groups = refuteGroups(withIds, Infinity)
+  const groups = refuteGroups(withIds)
   const checked = await parallel(groups.map((g, gi) => () =>
     agent(
       `Adversarially REFUTE ${g.length === 1 ? 'this code-review finding' : `each of these ${g.length} code-review findings`}. ` +
@@ -2305,26 +2250,13 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const findings = checked.filter(Boolean).flat()
   const refuted = findings.filter(f => f.refuted).length
   log(`review fan-out: ${raw.length} raw findings → ${findings.length - refuted} stand, ${refuted} refuted (kept in the ledger with the refuter's reason)`)
-  const dimensions = [...new Set([...rubrics.map(r => r.rubric), ...(steeringScout ? ['steering'] : [])])]
+  const dimensions = [...new Set([...rubrics.map(r => r.rubric), ...(steering ? ['steering'] : [])])]
   // 3. Wrapped writer — review.md owns the ledger merge, triage, fix loop and review file.
   const res = await runStage('review', sliceArg, idx, {
     scan: { dimensions, findings, affectedFiles: affected, files: [...new Set(rubrics.map(r => r.file))] },
     ...(extra.answered ? { answered: extra.answered } : {}),
   })
   return await classifyDecisions(res, idx)
-}
-
-// The commit at HEAD, read by a bookkeeping agent: the script has no shell. Null when the
-// agent returns no commit id.
-async function headCommit(label) {
-  const r = await agent(
-    `READ-ONLY bookkeeping for slug '${slug}'. Run exactly \`git -C ${projectRoot} rev-parse HEAD\` and return ` +
-    `{ head } with the commit id that it prints. Run nothing else, and write nothing.` +
-    heartbeatClause(label, 'Review', 'review', null),
-    { schema: { type: 'object', required: ['head'], properties: { head: { type: 'string' } } }, label, phase: 'Review', ...HAIKU } // mechanical git; pinned per _subagents.md
-  )
-  const head = r && typeof r.head === 'string' ? r.head.trim() : ''
-  return /^[0-9a-f]{7,40}$/.test(head) ? head : null
 }
 
 // runUpdateDepsExec() — the self-managed execution stage for workflow-type
@@ -2345,7 +2277,7 @@ async function runUpdateDepsExec(idx) {
     `04-plan.md are complete; you START at Step 6. Wherever the reference asks the user or pauses for a human, ` +
     `resolve it by the "## Card" section of intake/update-deps.md (a driver run): the full plan, a failed ` +
     `package blocked and the run continuing, and the stop after 06-verify.md.` +
-    questionContract('update-deps') + (DELEGATE ? delegateClause(WF_CMD) : '') +
+    questionContract('update-deps') + (DELEGATE ? delegateClause() : '') +
     answeredClause(answeredFor(ANSWERED, 'update-deps', null), 'update-deps') +
     reChallengeClause(idx.priorDeferrals, `${WF_CMD} defer check "${projectRoot}" ${slug}`) +
     steer('writer') + `\n\n` +
@@ -2458,11 +2390,11 @@ const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
 // terminal-clean on disk (free resume), gating each per policy, HARD-STOPping
 // (and returning the trail) when the policy says so.
 //
-// W2.2: `bounded` marks a slice scheduled as a re-challenge sweep rather than as
+// `bounded` marks a slice scheduled as a re-challenge sweep rather than as
 // new work. Its verify runs as a cheap WALL PROBE first, and only escalates to a
 // full verify dispatch for a reason the driver can name and records as a decision.
-// W3.3: each stage's decisions pass through one corrective classification round.
-// W5.2: a chain that completes writes the slice's status back to the control files.
+// Each stage's decisions pass through one corrective classification round.
+// A chain that completes writes the slice's status back to the control files.
 // A stage that returns questions stops the chain. The relaunch carries the answers in
 // args.answered: each answer reaches the stage that asked it. An answered stage can route
 // back to an earlier stage; that stage and every later stage run again with the answer.
@@ -2523,9 +2455,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   let carried = null
   let routeBacks = 0
   // The stage that the last route back went to, and whether the forced implement after it
-  // moved HEAD. A forced verify at an unchanged HEAD, after a clean verify, runs no checks again.
+  // moved HEAD: the implement agent returns the HEAD it started at and the HEAD it ended at.
+  // A forced verify at an unchanged HEAD, after a clean verify, runs no checks again.
   let routedTo = null
-  let headBefore = null
+  let headAt = null
   let noCodeChange = false
   // An xs or s slice verifies in its implement agent; that verify result stands in for verify round 1.
   const selfVerify = !!entry && SELF_VERIFY_SIZES.includes(entry.complexity) && stages.includes('verify')
@@ -2542,14 +2475,13 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // commit and the slice verified clean before: nothing changed, so the clean result stands.
     // A route back to verify itself always runs it: the answer asks verify to check something new.
     if (stage === 'verify' && forced.has('verify') && routedTo !== 'verify' && noCodeChange && done.verify === 'done') {
-      log(`skip verify:${sliceArg} (no code change since the clean verify at ${headBefore})`)
+      log(`skip verify:${sliceArg} (no code change since the clean verify at ${headAt})`)
       ran.push({
         stage: 'verify', slice: sliceArg, status: 'complete', accepted: true, skipped: true, artifactPath: '', terminal: {},
-        decisions: [{ class: 'implementation-detail', decision: `verify of '${sliceArg}' kept its clean result: the implement after the route back made no commit (HEAD ${headBefore})${carried && carried.key ? `; the answer ${carried.key} is carried as accepted` : ''}` }],
+        decisions: [{ class: 'implementation-detail', decision: `verify of '${sliceArg}' kept its clean result: the implement after the route back made no commit (HEAD ${headAt})${carried && carried.key ? `; the answer ${carried.key} is carried as accepted` : ''}` }],
       })
       continue
     }
-    if (stage === 'implement' && forced.has('implement')) headBefore = await headCommit(`head:before-implement:${sliceArg}`)
     if (stage === 'implement' && !freshChecked && !ranStages.includes('plan') && codeMoved > 0 && done.plan === 'done') {
       freshChecked = true
       const f = await planFreshness(sliceArg)
@@ -2561,7 +2493,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       }
     }
 
-    // ---- W2.2 bounded re-verify -------------------------------------------
+    // ---- bounded re-verify ------------------------------------------------
     // Only for a slice whose sole residue is an open deferral (reverifyReason
     // 'deferral-rechallenge'). Everything else drives normally.
     if (opts.bounded === true && stage === 'verify' && !forced.has('verify')) {
@@ -2600,7 +2532,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       // fall through to the full verify dispatch below
     }
 
-    // C2: an implement that hard-stopped SPLIT_AFTER_STOPS times on this slice runs no third time.
+    // An implement that hard-stopped SPLIT_AFTER_STOPS times on this slice runs no third time.
     if (stage === 'implement' && ((entry && entry.implementStops) || 0) >= SPLIT_AFTER_STOPS) {
       return stopOut('implement',
         `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
@@ -2663,15 +2595,16 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       selfVerified = res.verify && typeof res.verify === 'object' ? res.verify : null
       if (!selfVerified) log(`implement:${sliceArg} returned no verify — a verify agent runs`)
     }
-    if (stage === 'implement' && forced.has('implement') && headBefore) {
-      const headAfter = await headCommit(`head:after-implement:${sliceArg}`)
-      noCodeChange = headAfter === headBefore
+    if (stage === 'implement' && forced.has('implement')) {
+      const sha = (h) => (typeof h === 'string' && /^[0-9a-f]{7,40}$/.test(h.trim()) ? h.trim() : null)
+      headAt = sha(res.headStart)
+      noCodeChange = !!headAt && headAt === sha(res.headEnd)
     }
   }
-  // W5.2 — the chain cleared every gate: record the slice as complete at DRIVE
+  // The chain cleared every gate: record the slice as complete at DRIVE
   // time. Only when this run actually drove something (a chain that skipped every
   // stage as already-done has nothing new to write back).
-  // E4: the verify agent of this chain did the mirror as its last step; the agent below is the fallback.
+  // The verify agent of this chain did the mirror as its last step; the agent below is the fallback.
   // A write-back that reports ok but names no record wrote nothing: that is a failure, not a success.
   const wroteSome = (w) => w && w.ok === true && Array.isArray(w.wrote) && w.wrote.length > 0
   const mirrored = ran.find(r => r && wroteSome(r.sliceWriteBack))
@@ -2711,7 +2644,7 @@ async function slugWideReview(idx, results) {
   return { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
 }
 
-// CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).
+// CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return.
 const CHECKPOINT_RESULT = {
   type: 'object',
   required: ['commitments'],
@@ -2746,7 +2679,7 @@ const CHECKPOINT_RESULT = {
   },
 }
 
-// charterCheckpoint() — W11.1: every K slices, a cheap read-only subagent reads the charter
+// charterCheckpoint() — every K slices, a cheap read-only subagent reads the charter
 // and the last K implement artifacts and asks "is the build still advancing each commitment?".
 // A `broken` verdict is a stop; at-risk is surfaced. Read-only — it never writes.
 async function charterCheckpoint(idx, throughSlice) {
@@ -2774,7 +2707,7 @@ const RUN_END_RESULT = {
   properties: { ended: { type: 'boolean' }, worktreesKept: { type: 'array', items: { type: 'string' } } },
 }
 
-// WF-SYSTEM-REVIEW A3 + E4: the last agent of every run that has a run id. It writes
+// The last agent of every run that has a run id. It writes
 // the run-end line with the stop and its reason. The `end` command appends nothing when the run has a run-end line
 // already, so the main session's own `end` after the Workflow returns is harmless.
 function shellText(s) {
@@ -2814,10 +2747,10 @@ if (!idx) {
   // so the route is simply to re-run.
   return { ok: false, stopped: true, transient: true, reason: 'orient did not return (subagent skipped or hit a transient API error) — re-run to retry; resume skips completed stages', route: `/wf yolo ${slug}${slice ? ' ' + slice : ''}` }
 }
-// W1 — adopt the runId orient minted (this script has no clock of its own) so every
+// Adopt the runId orient minted (this script has no clock of its own) so every
 // later heartbeat is attributable to THIS run.
 RUN_ID = GIVEN_RUN_ID || (idx.runId && String(idx.runId).trim()) || `run-${slug}`
-// W1.2/W1.3 — say what the PREVIOUS driver's journal shows, before anything else.
+// Say what the PREVIOUS driver's journal shows, before anything else.
 // Silence is the finding: a driver that died leaves a journal that simply stops, and
 // the whole point is that this is now stated rather than inferred away.
 const priorDriver = idx.priorRun && idx.priorRun.present === true ? idx.priorRun : null
@@ -2881,10 +2814,10 @@ if (idx.workflowType === 'update-deps') {
   const reviewPer = idx.reviewScope === 'per-slice'
   const perSliceStages = reviewPer ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
   const results = []
-  const CHECKPOINT_EVERY = 3   // W11.1 default K
+  const CHECKPOINT_EVERY = 3   // the default K
   const charterCheckpoints = []
 
-  // ---- W2.1 — THE WORK THIS RUN EXISTS FOR GOES FIRST. -------------------
+  // ---- THE WORK THIS RUN EXISTS FOR GOES FIRST. -------------------------
   // The re-challenge law (a stale wall must be re-probed) is correct, but it was
   // running as a PREFIX of the roster walk. So a driver launched for a slug-wide
   // review spent its whole life re-verifying already terminal-clean slices — its
@@ -2904,7 +2837,7 @@ if (idx.workflowType === 'update-deps') {
   }
 
   // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
-  // whole list cleared. `bounded` marks the re-challenge sweep (W2.2).
+  // whole list cleared. `bounded` marks the re-challenge sweep.
   async function driveRoster(list, bounded) {
     // The fields of every stop of the roster walk.
     const walk = { mode: 'slug', reviewScope: idx.reviewScope, results }
@@ -2927,7 +2860,7 @@ if (idx.workflowType === 'update-deps') {
       if (chain.stopped) {
         return stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: s.slice, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) })
       }
-      // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
+      // Charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
       // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
       const isLast = si === list.length - 1
@@ -2958,7 +2891,7 @@ if (idx.workflowType === 'update-deps') {
     return null
   }
 
-  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: the walk follows depends-on, then roster order.
+  // The walk follows depends-on, then roster order.
   outcome = await driveRoster(walkOrder(primary), false)
   if (!outcome) {
     if (reviewPer) {
@@ -2977,11 +2910,11 @@ if (idx.workflowType === 'update-deps') {
     const swept = await driveRoster(sweep, true)
     if (swept) outcome = { ...swept, sweptAfterTarget: true }
   }
-  // W11.1 — surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
+  // Surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
   if (charterCheckpoints.length && !outcome.charterCheckpoints) outcome.charterCheckpoints = charterCheckpoints
 }
 
-// W3.2 — collect, then RECONCILE against what was actually recorded. The driver's
+// Collect, then RECONCILE against what was actually recorded. The driver's
 // re-derivation never overrides a classification a stage decision or the index
 // ledger already made; where they disagree the recorded answer is reported and the
 // disagreement is named, so the aggregate can no longer contradict its own inputs.
@@ -2995,7 +2928,7 @@ if (reconciled.length) {
   outcome.reconciled = reconciled
   log(`reconciled ${reconciled.length} deferral classification(s) against the recorded ledger: ${reconciled.map(r => `${r.ac} is '${r.recordedClassification}' per the ${r.source}, not a runtime-evidence deferral`).join('; ')} — reported, never silently re-labeled`)
 }
-// W3.2 — verify's recorded FAIL semantics survive into the outcome, beside the
+// Verify's recorded FAIL semantics survive into the outcome, beside the
 // deferrals and never merged into them. A fail says the behavior is wrong; a
 // deferral says evidence is missing. Reporting the first as the second sends the
 // user to collect evidence for a defect.
@@ -3004,25 +2937,25 @@ if (failures.length) {
   outcome.substantiveFailures = failures
   log(`substantive verify failures this run: ${failures.length} (${failures.map(f => f.slice || 'slug').join(', ')}) — these are DEFECTS, not deferrals, and no /wf probe will clear them`)
 }
-// W3.4 — honest error accounting. "0 errors" may no longer coexist with subagents
+// Honest error accounting. "0 errors" may no longer coexist with subagents
 // that hit rejected writes or schema retries and recovered.
 const subagentErrors = collectSubagentErrors(outcome)
 if (subagentErrors) {
   outcome.subagentErrors = subagentErrors
   log(`subagent errors this run: ${subagentErrors.recovered} recovered, ${subagentErrors.fatal} fatal across ${subagentErrors.agents.length} agent(s) — recovered errors did not change any verdict, but the run does not claim zero`)
 }
-// W4 — clearing-event tripwire: an event that already came true gets NOTICED.
+// Clearing-event tripwire: an event that already came true gets NOTICED.
 const tripwire = clearingTripwire(idx.priorDeferrals)
 if (tripwire) {
   outcome.clearingEventsSatisfied = tripwire
   log(`clearing-event tripwire: ${tripwire.length} open deferral(s) appear ALREADY CLEARED by their recorded clearing-probe (${tripwire.map(t => `${t.slice || '?'}/${t.ac || '?'}`).join(', ')}) — run /wf probe ${slug} to capture the evidence; nothing was cleared automatically`)
 }
-// W1 — the previous driver's fate rides on the hand-back, so a resuming session
+// The previous driver's fate rides on the hand-back, so a resuming session
 // never has to guess (and never gets to guess wrong).
 if (priorDriver) outcome.priorDriver = priorDriver
 if (RUN_ID) outcome.runId = RUN_ID
 outcome.journal = JOURNAL_PATH
-// F3 rollup — standing deferral pressure across prior (index) + this run, made visible here.
+// Standing deferral pressure across prior (index) + this run, made visible here.
 const pressure = deferralPressure(idx.priorDeferrals, deferrals)
 if (pressure && pressure.open > 0) {
   outcome.deferralPressure = pressure
@@ -3032,7 +2965,7 @@ if (pressure && pressure.open > 0) {
   log(`deferral pressure: ${bits.join(', ')} — surfaced so the pile does not hide inside artifacts; plan's repeat-deferral tripwire governs retirement`)
 }
 if (branchAction) outcome.branch = branchAction   // surface the up-front create/switch in the hand-back
-// A3 — the last agent writes the run-end line, with the stop and its reason.
+// The last agent writes the run-end line, with the stop and its reason.
 const cleanStop = outcome.stoppedAt === 'stop-request'
 const waiting = Array.isArray(outcome.questions) && outcome.questions.length > 0
 const resumeCmd = `/wf yolo ${slug}${slice ? ' ' + slice : ''}`
@@ -3058,13 +2991,13 @@ if (accepted.length) {
   outcome.acceptedResiduals = accepted
   log(`accepted verify items: ${accepted.map(a => `${a.slice || slug} ${a.item} (by ${a.by})`).join('; ')} — each delegate accept is a residual finding of the review`)
 }
-// W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
+// Decision digest: every autonomous decision this run recorded, grouped by class,
 // so the human's post-run inspection is structured, not archaeological.
 const digest = decisionDigest(outcome)
 if (digest) {
   outcome.decisionDigest = digest
   const parts = Object.entries(digest.byClass).map(([k, n]) => `${n} ${k}`).join(', ') || 'none classified'
-  // W3.3 — the guarantee is stated with its qualifier attached. "0 intent-bearing
+  // The guarantee is stated with its qualifier attached. "0 intent-bearing
   // escapes" out of 173 decisions means nothing if 40 of them were never checked.
   const guarantee = digest.unclassified.length
     ? `intent-bearing escapes: ${digest.intentBearing.length} — SUSPECT: ${digest.unclassified.length} decision(s) could not be classified and are NOT covered by that number; review them`
@@ -3077,7 +3010,7 @@ if (steering) {
   outcome.steering = steering
   log(`steering: ${steering.honored.length} honored, ${steering.conflicts.length} stage stop(s) on a conflict, ${steering.violations.length} checkpoint violation(s)${steering.conflicts.length ? ` — ${steering.conflicts.map(c => `${c.stage}${c.slice ? ':' + c.slice : ''} "${c.entry}"`).join('; ')}` : ''}`)
 }
-// G2/G3 — a stop request is a clean end, not a HARD-STOP. The resume command
+// A stop request is a clean end, not a HARD-STOP. The resume command
 // is the route; the main session deletes the control file and reports the stop.
 if (outcome.stoppedAt === 'stop-request') {
   outcome.stopRequest = { kind: outcome.stoppedAt, controlFile: CONTROL_PATH, slice: outcome.stoppedSlice || outcome.slice || null }

@@ -12,8 +12,7 @@
  * - Silent exit 0 on success.
  * - Exit 2 + stderr when validation fails.
  *
- * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW
- * §14.2.6). A check refuses a write with refuseWrite(), as the checks mode says; the
+ * Exports `run(input)` for the folded `post-tool-use-all` entry. A check refuses a write with refuseWrite(), as the checks mode says; the
  * standalone entry below stays one release.
  */
 
@@ -66,7 +65,7 @@ function artifactType(text) {
   return augMatch ? augMatch[1] : type;
 }
 
-// Shadow-deferral vocabulary (AC-VERIFIABILITY R7 prose-deferral lint). When a
+// Shadow-deferral vocabulary (the prose-deferral lint of the verify result gate). When a
 // `verify` body carries one of these AND the frontmatter says `result: pass`,
 // the slice likely passed a user-observable AC on a prose-only deferral the
 // structured gate can't see. Heuristic → WARN, never block (a body can
@@ -83,14 +82,14 @@ function blockVerifyResultGate(config, rel, message) {
 }
 
 /**
- * Write-time `verify` result gate (AC-VERIFIABILITY R7). Closes the
+ * Write-time `verify` result gate. Closes the
  * "verified but actually broken" leak at the artifact boundary.
  *
  * HARD BLOCK (exit 2) under `checks: strict` — frontmatter
  * cross-field contradictions with no false-positive surface (a true pass meets
  * every AC and defers none):
- *   G1: result: pass while metric-acceptance-met < metric-acceptance-total.
- *   G2: result: pass while interactive-verification: deferred.
+ *   - result: pass while metric-acceptance-met < metric-acceptance-total.
+ *   - result: pass while interactive-verification: deferred.
  *
  * WARN (non-blocking systemMessage) —
  * heuristic prose-deferral lint: shadow vocabulary in the body co-occurring
@@ -107,7 +106,7 @@ async function enforceVerifyResultGate(paths, config) {
     const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!data || data.result !== 'pass') continue;
 
-    // Mock-evidence gate (INTENT-FIDELITY W5.2/W9.1 + YOLO F5; EVIDENCE-SCHEMA-CONTRACT §5).
+    // Mock-evidence gate: a mock rung never counts as evidence that an AC is met.
     // A user-observable AC evidenced only by a mock / static rung is NOT met. The verify
     // stage records the count in metric-acceptance-mock-rung (the machine-readable projection
     // of the per-AC evidence-rung labels). result: pass with any such AC is a hard block.
@@ -167,7 +166,7 @@ function newTextFromInput(input) {
   return '';
 }
 
-// Code-file advisory lints (INTENT-FIDELITY W3.2 limitation-claim + W9.3 suppression-debt).
+// Code-file advisory lints (the limitation-claim and the suppression-debt lints).
 // Runs on the NEW text of any Write/Edit to a NON-artifact file — warn-only, never blocks.
 // A limitation comment with no citation is a hypothesis; a suppression with no sdlc-debt:
 // marker is untracked debt. Emits one systemMessage per lint class.
@@ -199,7 +198,7 @@ function enforceCodeFileLints(input, config, artifactPaths) {
   );
 }
 
-// Intake ledger lint (INTAKE-SHAPE-HARDENING W2.1). A default-mode intake (the artifact
+// Intake ledger lint. A default-mode intake (the artifact
 // literally named 01-intake.md with type: intake — compressed modes write 01-fix.md /
 // 01-hotfix.md / … and are exempt) may never be SILENTLY ledger-less: zero RIMs / zero
 // charter commitments is legal only as the explicit `intent-risks: none-declared` /
@@ -241,7 +240,7 @@ async function enforceIntakeLedgerLint(paths, config) {
   }
 }
 
-// Named-mechanism artifact lint (INTENT-FIDELITY W7.2). On a shape/slice artifact, a
+// Named-mechanism artifact lint. On a shape/slice artifact, a
 // mechanism noun that appears in an AC / verification line but in NO decision section of
 // the body is a design decision smuggled past adjudication. Warn-only.
 async function enforceNamedMechanismLint(paths, config) {
@@ -416,9 +415,9 @@ async function validatePrototypeLedgers(paths, config, schemaPath) {
 }
 
 /**
- * Two checks on 01-ideate.md. The coverage guarantee of ideate with sources
- * (WF-IDEATE-SOURCES-PLAN 4.2): every source item has exactly one result, and its ids
- * resolve. The triage check (WF-IDEATE-TRIAGE-PLAN 9.3), on every ideation record: a drop
+ * Two checks on 01-ideate.md. The coverage guarantee of ideate with sources:
+ * every source item has exactly one result, and its ids
+ * resolve. The triage check, on every ideation record: a drop
  * has a reason, a hand-off names its brainstorm, and the links between ideas and rounds
  * resolve. A failing write BLOCKS (exit 2) in checks mode block, and names the problems.
  */
@@ -452,7 +451,7 @@ async function enforceIdeateRecord(paths, config) {
   refuseWrite(checksModeOf(config), reason.join(''));
 }
 
-// Index lint (ARTIFACT-SPLIT-PLAN S4, D7). 00-index.md is read by every stage,
+// Index lint. 00-index.md is read by every stage,
 // so history commentary there costs every reader. Warn only, never block.
 export const INDEX_SIZE_WARN_BYTES = 20480;
 // subagent-start (the Codex-only context hook) reads only this many characters
@@ -506,7 +505,7 @@ export function indexLintWarnings(text, byteSize = Buffer.byteLength(String(text
   return warnings;
 }
 
-// Design mode lint (WF-DESIGN-PLAN Part III 9.1). The design artifacts used to carry one
+// Design mode lint. The design artifacts used to carry one
 // `register` (brand or product); a surface now has its own design mode. The validator
 // still accepts `register` and reads it as a design mode: brand → persuade, product →
 // operate. Warn-only, so an old artifact keeps working and the writer learns the reason.
@@ -617,7 +616,7 @@ export async function run(input) {
   }
 
   if (!failures.length) {
-    // Frontmatter is clean. First the verify result gate (R7) — hard-block a
+    // Frontmatter is clean. First the verify result gate — hard-block a
     // `verify` artifact whose `result: pass` contradicts its acceptance evidence
     // (may exit 2; warns on prose-only deferrals). Then the warn-only lints.
     await enforceVerifyResultGate(paths, config);

@@ -108,12 +108,8 @@ After you distill:
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> distill` focuses the design stage and its contract `02c-craft.md` on reduction.
-- **Design confirmed:** `/wf design <slug> distill` runs the inventory, the classification and the Validate list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/distill-<timestamp>.md` per [_output.md](_output.md) with: the primary goal, each removed item with its reason, its new path and the signal to watch.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: reduction. Checks: the inventory, the classification and the Validate list. Notes record: the primary goal, each removed item with its reason, its new path and the signal to watch.
 
 ---
 

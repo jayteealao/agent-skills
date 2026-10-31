@@ -82,8 +82,8 @@ export function isWorkflowMarkdownPath(filePath) {
 // enforcement point must exempt them — the pre-write filename + frontmatter gates
 // AND the post-write schema verifier. Centralised here so the carve-out can't
 // drift between the two hooks (that exact drift shipped a broken post-write check
-// in 9.34.1). steer.md added in 9.120.0 (W6 standing-steering contract).
-// commentary.md is the yolo run commentary (YOLO-COMMENTARY-PLAN C4), appended by
+// in 9.34.1). steer.md (the standing steering) added in 9.120.0.
+// commentary.md is the yolo run commentary, appended by
 // scripts/yolo-watch.mjs note: prose, newest last, no frontmatter.
 export function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
@@ -97,7 +97,7 @@ export function isProseLogPath(filePath) {
 // both write hooks must exempt the subtree — otherwise textual evidence gets
 // smuggled through .txt to dodge the .md contract (seen in the 2026-07-18
 // handoff/ship audit). Centralised here like isProseLogPath so the carve-out
-// can't drift between hooks. Added in 9.138.0 (HANDOFF-SHIP-HARDENING W1.4).
+// can't drift between hooks. Added in 9.138.0.
 export function isProbeEvidencePath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/probe-evidence\//.test(normalized);
@@ -105,7 +105,7 @@ export function isProbeEvidencePath(filePath) {
 
 // Evidence folders directly under a workflow directory. probe-evidence/ holds
 // /wf probe runtime evidence; verify-evidence/<slice>/checks.md holds the raw
-// verify check output (ARTIFACT-SPLIT-PLAN S5). Files there are free-form: no
+// verify check output. Files there are free-form: no
 // NN- name, no frontmatter, no schema check, no sibling check, not a page, and
 // not counted by the workflow stale check.
 export const EVIDENCE_DIRS = Object.freeze(['probe-evidence', 'verify-evidence']);
@@ -115,7 +115,7 @@ export function isEvidencePath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:probe-evidence|verify-evidence)\//.test(normalized);
 }
 
-// A brainstorm's sources (BRAINSTORM-WORK-PACKETS-PLAN R1-R5, F1-F5): research
+// A brainstorm's sources: research
 // notes in research/ and copied references in references/. Free-form like the
 // evidence folders: no NN- name, no sdlc/v1 type, no schema check, no page, and
 // not counted by the stale check.
@@ -126,7 +126,7 @@ export function isBrainstormSourcePath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:research|references)\//.test(normalized);
 }
 
-// A list (WF-PIECES-PLAN 4.1): work/<packet-slug>.md packets (type packet) and
+// A list: work/<packet-slug>.md packets (type packet) and
 // work/index.md (type list), written by campaign.mjs write. Both carry a schema
 // type but no NN- name. work/changes.md, work/migration.md (prose) and anything in a
 // subfolder of work/ (work/archive/) are free-form.
@@ -147,7 +147,7 @@ export function isWorkSetFreeFormPath(filePath) {
 }
 
 // history/ holds snapshots: copies of stage artifacts, and the documents a
-// write-now packet changed, copied before the change (K8). A snapshot is a copy,
+// write-now packet changed, copied before the change. A snapshot is a copy,
 // so the write hooks do not hold it to the NN- name or the frontmatter rules.
 export function isHistorySnapshotPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/history\//.test(normalizePathForMatch(filePath));
@@ -156,7 +156,7 @@ export function isHistorySnapshotPath(filePath) {
 /**
  * The design boards folder of a workflow (`.ai/workflows/<slug>/design/`): board
  * HTML and PNG files, the boards.json manifest, sources, sketches and captures
- * (DESIGN-BOARDS-PLAN section 3). Free-form like design-notes/: no filename rule,
+ * Free-form like design-notes/: no filename rule,
  * no schema check, and no page render.
  */
 export function isDesignBoardsPath(filePath) {
@@ -178,7 +178,7 @@ export function isProjectContextMarkdownPath(filePath) {
     // observability-build), authored/realized by /wf project observability. The optional
     // -build keeps .ai/observability-audit.md OUT — that ledger is kind-keyed
     // (kind: observability-audit, no sdlc/v1 type) and must not be schema-gated.
-    // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).
+    // Added in v9.132.0.
     /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized) ||
     // The design record (design/record.md): .ai/design/current.md (type:
     // design-current) and .ai/design/direction.md (type: design-direction).

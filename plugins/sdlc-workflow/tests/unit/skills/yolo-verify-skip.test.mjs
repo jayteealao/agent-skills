@@ -10,36 +10,22 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { extractFn as extractFrom } from '../../helpers/extract-fn.mjs';
+
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-
-function extractFn(name) {
-  const m = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`).exec(src);
-  assert.ok(m, `could not locate function ${name} in yolo.js`);
-  let paren = 0;
-  let bodyAt = m.index + m[0].length - 1;
-  for (; bodyAt < src.length; bodyAt++) {
-    if (src[bodyAt] === '(') paren++;
-    else if (src[bodyAt] === ')' && --paren === 0) break;
-  }
-  let depth = 0;
-  for (let j = src.indexOf('{', bodyAt); j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(m.index, j + 1);
-  }
-  throw new Error(`unbalanced braces extracting ${name}`);
-}
+const extractFn = (name) => extractFrom(src, name);
 
 const CLEAN = (stage) => ({ stage, status: 'complete', artifactPath: `x/${stage}.md`, terminal: { statusField: 'complete', convergence: 'converged', result: 'pass' } });
 
-// driveChain with every dispatch stubbed. `heads` is the list of HEAD commits that headCommit
-// returns in order.
+// driveChain with every dispatch stubbed. `heads` is [headStart, headEnd] that the implement
+// agent returns: equal ids mean the implement made no commit.
 function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
   const calls = [];
   const verifyArgs = [];
   const logs = [];
   const build = new Function('stubs', `
-    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, headCommit, log, slug, ANSWERED } = stubs
+    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug, ANSWERED } = stubs
     const projectRoot = '/r'
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
     let codeMoved = 0
@@ -61,21 +47,21 @@ function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
     ${extractFn('driveChain')}
     return driveChain
   `);
-  let h = 0;
+  const [headStart, headEnd = headStart] = heads;
   const driveChain = build({
     slug: 'demo',
     ANSWERED: [],
     log: (m) => logs.push(m),
     runStage: async (stage, slice, idx, extra = {}) => {
       calls.push(extra.selfVerify ? `${stage}+verify` : stage);
-      return extra.selfVerify && selfVerifyResult ? { ...CLEAN(stage), verify: selfVerifyResult } : CLEAN(stage);
+      const res = stage === 'implement' ? { ...CLEAN(stage), headStart, headEnd } : CLEAN(stage);
+      return extra.selfVerify && selfVerifyResult ? { ...res, verify: selfVerifyResult } : res;
     },
     driveVerify: async (slice, idx, extra) => { verifyArgs.push(extra); calls.push(extra.first ? 'verify-from-implement' : 'verify'); return CLEAN('verify'); },
     driveReview: async () => { calls.push('review'); return CLEAN('review'); },
     driveWallProbe: async () => null,
     classifyDecisions: async (r) => r,
     writeBackSliceStatus: async () => ({ ok: true, wrote: ['00-index.md'] }),
-    headCommit: async () => { const v = heads[Math.min(h, heads.length - 1)]; h += 1; return v; },
   });
   return { driveChain, calls, logs, verifyArgs };
 }
@@ -103,6 +89,25 @@ test('a route back to verify itself always runs verify', async () => {
   const h = chainHarness(['abc1234']);
   await h.driveChain(['plan', 'implement', 'verify'], 'auth', DONE, { forceFrom: 'verify', carried: { key: 'k', answer: 'a' } });
   assert.deepEqual(h.calls, ['verify']);
+});
+
+test('an implement that returns no HEAD ids runs verify after a route back', async () => {
+  const h = chainHarness([undefined]);
+  await h.driveChain(['plan', 'implement', 'verify'], 'auth', DONE, { forceFrom: 'plan', carried: { key: 'k', answer: 'a' } });
+  assert.deepEqual(h.calls, ['plan', 'implement', 'verify']);
+  assert.doesNotMatch(src, /headCommit|label: `head:/, 'no bookkeeping agent reads HEAD');
+});
+
+test('the implement prompt asks for HEAD before and after the work, and the step commands of the slice', () => {
+  const clause = new Function(`const WF_CMD = 'node "/p/wf.mjs"', projectRoot = '/r', slug = 'demo'
+    ${extractFn('implementStepsClause')}; return implementStepsClause`)();
+  const plain = clause('auth', false);
+  assert.match(plain, /run `git -C \/r rev-parse HEAD` and return the commit id that it prints as headStart/);
+  assert.match(plain, /Immediately before you return, run it again and return that commit id as headEnd/);
+  assert.match(plain, /`node "\/p\/wf\.mjs" step where "\/r" demo auth`/);
+  assert.match(plain, /`node "\/p\/wf\.mjs" step complete "\/r" demo auth --sha HEAD`/);
+  assert.doesNotMatch(plain, /step retry/);
+  assert.match(clause('auth', true), /answered the split question with a retry: before any other work, run `node "\/p\/wf\.mjs" step retry "\/r" demo auth`/);
 });
 
 test('a slice that never verified clean runs verify after a route back with no commit', async () => {

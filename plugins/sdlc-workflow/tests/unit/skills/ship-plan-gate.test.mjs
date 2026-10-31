@@ -28,7 +28,7 @@ test('ship uses the readiness stamp of this run, and stops after the PR on not-a
   assert.match(ship, /a stamp `not-applicable` stands while `\.ai\/ship-plan\.md` is still missing/);
 });
 
-test('the readiness procedure and the PR phase leave the missing plan to the gate of Step R3', () => {
+test('the readiness procedure and the PR phase leave the missing plan to the gate of the readiness procedure', () => {
   const ready = ref('_ship-plan-readiness.md');
   assert.match(stepOf(ready, /^- \*\*At ship\*\*/), /--allow-no-plan/);
   assert.match(stepOf(ready, /^- \*\*`\/wf ship`\*\*/), /Step 0\.4 runs Step R0 only, with `--allow-no-plan`/);

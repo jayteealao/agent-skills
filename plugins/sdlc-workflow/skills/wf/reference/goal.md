@@ -3,10 +3,6 @@ description: Write a goal contract for one slug and hand it to the host goal, wh
 argument-hint: <slug> [objective] | <slug> resume|status|clear
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `/wf loop goal <slug> …`. A goal is an objective that the host keeps pursuing over many turns, until a judge says that it is done. The host carries the loop: its own continuation, pause, resume and budget. `/wf` owns the evidence. `goal.mjs check` runs the rule of the goal and prints the evidence, then one last line:
 
 - `GOAL: MET`: the objective is met.

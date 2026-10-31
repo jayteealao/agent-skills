@@ -1,6 +1,5 @@
 ---
 template-kind: pypi
-description: Library published to PyPI via Trusted Publisher (OIDC) or API token. Tag-on-main triggers build + twine upload.
 ---
 
 # Seed values

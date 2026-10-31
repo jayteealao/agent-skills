@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * hooks/seed-memory.mjs — SessionStart entrypoint that seeds the `/wf` rules
- * kernel into the agent memory files (MEMORY-SEED-PLAN).
+ * kernel into the agent memory files.
  *
  * Invoked on BOTH hosts (the parity rule —
  * same bytes run everywhere): Claude Code runs it directly from hooks/hooks.json;
@@ -14,7 +14,7 @@
  * Codex's native notice channel is model-facing additionalContext, and a
  * committed-file write is self-documenting via the fence comment, so on Codex
  * the seed runs silently. Host identity comes from the SDLC_HOST env signal
- * (SINGLE-SOURCE-PLAN §3.4) — never from this file's own path, which is the
+ * — never from this file's own path, which is the
  * same on both hosts now.
  */
 

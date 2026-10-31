@@ -1,6 +1,6 @@
 // tests/unit/hooks/cost-ledger-hook.test.mjs
 //
-// The Stop hook end to end (WIDE-VIEW-REPAIR-PLAN §10.3): spawn
+// The Stop hook end to end: spawn
 // hooks/cost-ledger.mjs against a temp repo + temp transcript, read the row
 // it appends, and check the cursor, the disable toggle, the pi shape, and the
 // Codex wiring (`--plugin-data`, rollout located by session id).

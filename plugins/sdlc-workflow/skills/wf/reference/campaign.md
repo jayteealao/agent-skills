@@ -3,10 +3,6 @@ description: Walk the list of one brainstorm or ideate folder, one work packet a
 argument-hint: <source-slug>
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `/wf campaign <source-slug>`, the **walk**. The source is a brainstorm folder or an ideate folder in `.ai/workflows/`. Its `work/index.md` (`type: list`) is the **list**: one work packet file `work/<packet-slug>.md` (`type: packet`) per work packet, in strict order. A brainstorm `done` or an ideate pick writes the list ([intake/brainstorm/_work.md](intake/brainstorm/_work.md)). Each work packet is one normal workflow, `.ai/workflows/<packet-slug>/`. The walk builds the work packets in list order, one work packet at a time, on the **list branch** `packets/<source-slug>`.
 
 > **Hosts.** Step 10 launches the yolo driver through the host's workflow runtime ([yolo.md](yolo.md) Step 1). Every step runs on every host.
@@ -16,7 +12,7 @@ You are running `/wf campaign <source-slug>`, the **walk**. The source is a brai
 - **The scope is confirmed.** The person confirmed the goal, the scope, the acceptance criteria, `ux-impact`, `try-out` and the stack of each work packet at brainstorm `done`. Do not ask about them again. Do not re-word a carried decision.
 - **The state is on disk.** The state of a work packet is the `state` field of its work packet file: `written`, `open`, `built`, `done`, or `dropped`. The walk keeps no other state, so a new call resumes at step 1.
 - **The script writes the exact things.** Change the state of a work packet, the list branch, the end branches and `base-branch` only through the script. Do not edit a work packet file by hand.
-- **The person decides, in chat.** The walk asks at each stop, each set of fidelity rows, each try-out and each set of conflicts. It never guesses past one. The person does not read the artifacts: everything that the person must know or decide is in chat. A list of items is one chat list and one question, not one question per item.
+- **The person decides, in chat.** The walk asks at each stop, each set of fidelity rows, each try-out and each set of conflicts. It never guesses past one. The person does not read the artifacts: everything that the person must know or decide is in chat. Ask about a list of items per "A list of items" of [_gate-question.md](_gate-question.md).
 
 A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`, the name of its workflow folder). Each command takes the key, and it also accepts the slug. `<cmd>` stands for `node "<skill-dir>/scripts/campaign.mjs"`, with `<skill-dir>` per [_host-invocation.md](_host-invocation.md). `<root>` is the absolute root of the repo that owns `.ai/workflows/`, resolved as `yolo.md` Step 0.3 does. Each command prints one JSON object. When `ok` is `false`, show the `error` to the person in plain words, and do not continue to the next step.
 
@@ -32,7 +28,7 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
 2. **Ask how far to go, and how the runs settle the person's decisions.** Ask once per call, with one call of the host question tool ([_gate-question.md](_gate-question.md)), these questions:
    - How far: the next work packet only; a number of work packets (free text gives the number); the whole list.
    - The run-decisions question of [yolo.md](yolo.md) Step 0.5, with the answer of the last call first.
-   - Only when `node "<skill-dir>/scripts/wf.mjs" profile budget "<root>"` prints `no budget`: the budget question of [_check-budget.md](_check-budget.md). Record the answer with `profile budget`. A later call does not ask it.
+   - The budget question, when "When to ask" of [_check-budget.md](_check-budget.md) says to ask it.
 
    Count the work packets that reach `done` in this call against the first answer. Each launch of step 10 in this call reuses the second answer: record it in the work packet's workflow with `decide add --kind steer --key run-decisions`, and do not ask it again.
 3. **Open the written work packets.** For each build work packet with `state: written`, in list order, run `<cmd> open "<root>" <source-slug> <packet-key>`. Run `status` again. Show the person the work packets of `needDesign`, in list order, each with `/wf design <packet-slug>`. Tell the person that a later work packet can be designed between work packets, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the walk.
@@ -63,7 +59,7 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
    - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
 
    When the subagent returns the warning, tell the person the slice count, and continue. The person can split the work packet later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer. When the person already ran `/wf slice <packet-slug>`, skip this step.
-10. **Run the yolo driver.** Launch the driver on the work packet slug in slug mode, as `/wf yolo <packet-slug>` does: [yolo.md](yolo.md) Steps 0.3 to 0.5, then Step 1 onward. Step 0.5 does not ask the run-decisions question: step 2 asked it once for this call. Wait for the run to end, and hand back per yolo.md Step 2.
+10. **Run the yolo driver.** Launch the driver on the work packet slug in slug mode, as `/wf yolo <packet-slug>` does: [yolo.md](yolo.md) Steps 0.3 to 0.5, then Step 1 onward. Wait for the run to end, and hand back per yolo.md Step 2.
     - When the run stopped (`outcome.stoppedAt` is set), show the stop to the person and follow the answer. Resume the driver per yolo.md "Resuming". Do not continue to the next work packet.
     - When the run reached its endpoint, run `<cmd> built "<root>" <source-slug> <packet-key>`. It also pushes the work, so CI runs at the end of each work packet, and opens the PR of the list as a draft the first time (`publish` in the result). A push that fails is a note to the person, not a stop.
     - A stop request stops the run at its next stage boundary, as in yolo.

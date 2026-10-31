@@ -18,10 +18,10 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 
 **Typography.**
 - System faces and workhorse UI faces are correct. One family is often right: a well-tuned sans carries headings, buttons, labels, body and data.
-- Use a fixed scale, not a fluid one, at a ratio of 1.125–1.2. More type elements need less contrast between steps.
+- Use the Operate type scale of [_design-context.md](_design-context.md) → Shared design laws. More type elements need less contrast between steps.
 - Prose keeps a measure of 65–75 characters. Data and compact UI may run denser.
 
-**Color.** Restrained is the default: tinted or plain neutrals and one accent at 10% or less. One surface can earn Committed, such as a dashboard where one category color carries a report.
+**Color.** Restrained is the default. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. One surface can earn Committed, such as a dashboard where one category color carries a report.
 - Standardize the state vocabulary on every screen: hover, focus, active, disabled, selected, loading, error, warning, success, info.
 - Keep the accent for primary actions, current selection and state indicators, not decoration.
 - Give sidebars, toolbars and panels a second neutral layer, slightly cooler or warmer than the content surface.
@@ -29,8 +29,6 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 **Motion.** 150–250 ms on most transitions. The person is in flow; do not make them wait for choreography. Motion conveys state, feedback, loading or reveal, nothing else. No orchestrated page-load sequences.
 
 ## Screens
-
-Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
 **The screen is the product as a person uses it,** in the direction's committed palette: its shell and navigation, a distinct area for each job, and, where there is data, filters over what they scope and charts and tables with clear states.
 - Every control is a standard one that the person already knows: buttons, tabs, inputs, selects, filters, tables with sortable headers, navigation that reads as navigation. Use the platform's own controls ([_platforms.md](_platforms.md)).

@@ -1,18 +1,11 @@
----
-description: Behavior-preserving refactoring STANDARD lifecycle. Drives every SDLC stage single-pass (01-refactor → 02-shape baseline → 03-slice → 04-plan → gate → implement → verify → review[refactor-safety]) on a full type:index overview. Captures a behavior baseline as the shape before touching code, plans incremental green steps, and confirms identical behavior after. The mode authors the planning half; the standard /wf implement/verify/review chain authors execution.
-argument-hint: <description-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake refactor`, a **behavior-preserving refactoring standard lifecycle**.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-refactor-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: refactor`, `compressed: true`, `origin: intake/refactor`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `refactor → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `refactor`: it overrides the standalone steps below.
 
 # Pipeline
 `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review architecture` (focus refactor-safety, →`07`) → `/wf ship` → `/wf retro`
@@ -59,8 +52,8 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
-   - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
-2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for refactor: `rf-*` artifacts).
+   - Otherwise → **new refactor**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `refactor-<short-description>` (legacy alias for refactor: `rf-*` artifacts).
 3. **Provenance check:** apply `_intake-provenance.md`. The common source is a `/wf intake simplify` finding routed here — its entry (id, files, rationale, severity) travels in the invocation text and seeds `## Target` / `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change-mode) consumes its Consume-table row. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply; the one-line confirm rides the Step 1 question round and sets `stack.user-confirmed: true`. Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:** Refactors SHOULD use a dedicated branch — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), options: `Create dedicated branch (recommended)` / `Use current branch`. If dedicated: run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <current branch>`, [_workflow-rules.md](../_workflow-rules.md)); then `git checkout -b refactor/<slug>` from the current branch; record the choice so the index's `branch-strategy`/`branch` reflect it (empty `branch` when the user kept the current branch).
@@ -75,26 +68,8 @@ Ask 3–6 targeted questions (not the 5-round PO interview):
 5. **Target structure?** — what the code should look like after (extract service; strategy pattern; early returns).
 6. **Stack confirm** — the one-line confirm from Step 0's fingerprint (per the `_change-mode-tail.md` stack policy).
 
-Write the draft `.ai/workflows/<slug>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way:
-```yaml
----
-schema: sdlc/v1
-type: intake
-slug: <slug>
-workflow-type: refactor
-status: complete            # or awaiting-input
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: [refactor]
-refs:
-  index: 00-index.md
-  next: 02-shape.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Write the draft `.ai/workflows/<slug>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
+Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
@@ -108,88 +83,21 @@ Prompt with ALL of: read every target file (line count, exported names, implicit
 ### research sub-agent 2 — Test Coverage Snapshot
 Prompt with ALL of: find all test files covering the target (grep target imports in test dirs); per test file, what behavior + key assertions + inputs/outputs; identify **coverage gaps** (exported functions/paths with NO coverage); run the existing tests for the area and capture pass/fail/skip counts + flakiness.
 
-Wait for both. Write the draft of `02-shape.md` carrying the baseline, and put it:
-```yaml
----
-schema: sdlc/v1
-type: shape
-slug: <slug>
-status: complete
-stage-number: 2
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-docs-needed: false
-docs-types: []
-tags: [refactor, baseline]
-refs:
-  index: 00-index.md
-  intake: 01-refactor.md
-  next: 03-slice.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Wait for both. Write the draft of `02-shape.md` carrying the baseline, and put it.
+Take the frontmatter from the `02-shape.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Command` (the exact test command sub-agent 2 ran — verify re-runs this literal command and diffs its counts), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface), `## Coverage Decision` (written after the question below — which option the user chose and why).
 
 **If coverage gaps are significant:** ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`. Record the answer in `## Coverage Decision` — the choice is a durable gate decision, not chat. **Add tests first** has a concrete mechanism: the plan's Step 1 becomes "author characterization tests for `<the gaps>`" (a real plan step that runs before any restructuring, committed on its own so the baseline grows before the refactor starts). **Proceed with gaps** records each gap as a `## Tripwire breaches` entry per `_change-mode-tail.md`. **Abort** closes the slug per the tail's Abort rule (`close-reason: cancelled`).
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
-```yaml
----
-schema: sdlc/v1
-type: slice-index
-slug: <slug>
-status: complete
-stage-number: 3
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-total-slices: 1
-best-first-slice: <slug>
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <s|m|l>
-tags: [refactor]
-refs:
-  index: 00-index.md
-  shape: 02-shape.md
-  next: 04-plan.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `03-slice.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
 
 # Step 4 — Plan → `04-plan.md`
 Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism). **Effort tier for that agent:** **low** (per [_subagents.md](../_subagents.md)) — REQUIRED on the dispatch; it is bounded search-and-extract work.
 
 The refactor tripwires are: a step that cannot be made independently green · an API surface delta without API simplification as the explicit stated goal · a coverage gap accepted at Step 2. Record breaches per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md).
-```yaml
----
-schema: sdlc/v1
-type: plan
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-metric-files-to-touch: <int>
-metric-step-count: <int>
-has-blockers: false
-revision-count: 0
-tags: [refactor]
-refs:
-  index: 00-index.md
-  slice: 03-slice.md
-  next: 05-implement.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)

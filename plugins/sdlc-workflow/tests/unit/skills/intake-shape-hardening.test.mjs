@@ -16,10 +16,10 @@ const trees = [
 ];
 
 
-// ── W1 — shape.md renumber + tooling-question relay ─────────────────────────
-// ── W2 — input integrity ─────────────────────────────────────────────────────
-// ── W3 — interview coverage & grounding ─────────────────────────────────────
-// ── W4 — independence & surfacing ────────────────────────────────────────────
+// ── shape.md renumber + tooling-question relay ─────────────────────────
+// ── input integrity ─────────────────────────────────────────────────────
+// ── interview coverage & grounding ─────────────────────────────────────
+// ── independence & surfacing ────────────────────────────────────────────
 // ── Schema round-trips (main tree owns the schema) ───────────────────────────
 test('schema — appetite / review-scope-confirmed / none-declared / charter-scenario validate', () => {
   const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));

@@ -1,18 +1,11 @@
----
-description: Dependency update STANDARD lifecycle. Scans manifests, researches each dependency, prioritizes by risk into P0/P1/P2 tiers, then drives the full SDLC sequence in-slug (01-update-deps → 02-shape research → 03-slice → 04-plan → gate → self-authored 05-implement/06-verify tiered exec → review) on a full type:index overview. Unlike the other change-modes, update-deps SELF-AUTHORS 05/06 (its tier-ordered execution is specialized) then routes to /wf review.
-argument-hint: "[package-name|--security-only|--audit-only|<existing-run-slug to resume>]"
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake update-deps`, a **dependency maintenance standard lifecycle**.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-update-deps-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: update-deps`, `compressed: true`, `origin: intake/update-deps`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `update-deps → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `update-deps`: it overrides the standalone steps below.
 
 # Pipeline
 `01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `/wf review` → `/wf ship` → `/wf retro`
@@ -35,8 +28,9 @@ The rules of Steps 6 to 9 when a driver runs them (`/wf yolo`), with nobody to a
 
 - The Step 6 gate answer is "Proceed with full plan": run every planned tier. Never treat the run as audit-only.
 - Run P0 security updates one package at a time, then P1 major updates one at a time, then the P2 safe updates in one batch. Apply only the app-code changes that the bump forces.
-- Never mix a security update and a major migration in one commit. Never edit a lockfile by hand: use the package manager.
-- When the tests or the build of a package fail, record the package as blocked in `05-implement.md`, with the reason, and continue. A run that updates some packages and blocks others is `result: partial`, not a stop.
+- Never mix a security update and a major migration in one commit. Never edit a lockfile by hand: use the commands of the package manager (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
+- When the tests or the build of a package fail, record the package as blocked in `05-implement.md`, with the reason, and continue. Do not change app code to make the tests pass. A run that updates some packages and blocks others is `result: partial`, not a stop.
+- Skip no stage. Keep the step order where a step uses the output of an earlier step or crosses a gate.
 - Write `06-verify.md` from the full suite and the build. Defer an acceptance criterion only by the law of `verify/_deferrals.md`, once, with the probe of this run.
 - Stop after `06-verify.md`. Do not run the review or the handoff.
 
@@ -65,15 +59,11 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `06-verify.md` | writes | | |
 
 # Role
-You are a **dependency update orchestrator**; the lifecycle skips no *stage* (each is single-pass), and the stated order binds only where a step consumes an earlier step's output or crosses a gate.
-- Do not make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
-- Do not edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
-- Do not batch major version updates across packages in one commit. Major updates go one at a time.
-- If an update causes non-trivial test failures → mark that package `blocked` and continue. Surface the blocker; do not fix application code to force tests green.
+You run the dependency update: scan, prioritize, plan, then apply each update through the package manager.
 
 # Step 0 — Orient
 1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; a bare token that exactly matches an existing `workflow-type: update-deps` slug on disk → **resume that run** (this check runs before the package-name reading — a slug is not a package); any other bare token → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).
-2. **Resolve slug / resume:** new run → slug `update-deps-<YYYYMMDD>` (the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If the index of `<slug>` exists (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) with `workflow-type: update-deps` → resume from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.) Apply the collision check in `_change-mode-tail.md` if the slug exists with a different type.
+2. **Resolve slug / resume:** a new run names its slug per "New slug" of [_intake-context.md](_intake-context.md), with the form `update-deps-<YYYYMMDD>`; the same type resumes from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.)
 3. **Prior-run provenance:** apply `_intake-provenance.md` (update-deps row). Scan `.ai/workflows/INDEX.md` for the most recent prior `workflow-type: update-deps` run; when one exists, read its `02-shape.md` Hold tier and `05-implement.md` Blocked list (`record get "<root>" <prior-slug> <name>`) and seed this run's Step 2 research from them — re-check each recorded revisit condition instead of cold-re-deriving last month's Hold research. Record `origin-update-deps: <prior-slug>` on the index when consumed.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (update-deps asks no planning questions; its self-authored verify carries the caveat). Write `ux-impact: none` and `progress.design: skipped` with `design-skip-reason: dependency update; no intended design change`. When a P1 package is a UI framework, component, or styling package, review selects the `design-audit` dimension (`review/_select.md`) and checks the rendered surfaces for drift.
 5. **Identify package manager(s):** read the project root for manifests; a project may have several (Node frontend + Python backend). List all.
@@ -82,27 +72,8 @@ You are a **dependency update orchestrator**; the lifecycle skips no *stage* (ea
 
 # Step 1 — Scan → `01-update-deps.md` (`type: intake`)
 Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages. Write the draft `.ai/workflows/<slug>/.draft/01-update-deps.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later record of this run and put it the same way.
-```yaml
----
-schema: sdlc/v1
-type: intake
-slug: <slug>
-workflow-type: update-deps
-run-id: deps-<YYYYMMDD-HHMM>   # continuity with legacy .ai/dep-updates/ runs
-mode: <all|single|security-only|audit-only>
-status: complete
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: [deps]
-refs:
-  index: 00-index.md
-  next: 02-shape.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
+Add `run-id: deps-<YYYYMMDD-HHMM>` (continuity with legacy `.ai/dep-updates/` runs) and `mode: <all|single|security-only|audit-only>` after `workflow-type`.
 Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
 # Step 2 — Research + prioritize → `02-shape.md`
@@ -118,83 +89,16 @@ Each batch agent returns per package: current/latest version, update-type, break
 
 **A limitation claim carries its evidence.** Any claim that a capability was REMOVED, broke, or is no longer exposed by the target version must cite it in the artifact: the changelog/release line that announces the removal (`changelog-source:` URL), a `study-sources` read of the target version's **installed** source (name the path opened), or an upstream issue. Do not infer removal from a remembered API or from an in-repo comment — a comment claiming a limitation is a hypothesis to re-verify, never authority to plan a migration around. An uncited "the new version dropped X" drops the package to `Hold: changelog unverified`.
 
-Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write the draft of `02-shape.md` and put it:
-```yaml
----
-schema: sdlc/v1
-type: shape
-slug: <slug>
-status: complete
-stage-number: 2
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-docs-needed: false
-docs-types: []
-tags: [deps]
-refs:
-  index: 00-index.md
-  intake: 01-update-deps.md
-  next: 03-slice.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write the draft of `02-shape.md` and put it.
+Take the frontmatter from the `02-shape.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason, **`changelog-source:` URL(s) + `changelog-read-through:` the highest version whose notes were read, or `unverified`**), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier). **Every P1 (major+migration) package's migration steps must cite the changelog source they derive from** — an uncited P1 migration is not plan-ready and drops to `Hold: changelog unverified`.
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
-```yaml
----
-schema: sdlc/v1
-type: slice-index
-slug: <slug>
-status: complete
-stage-number: 3
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-total-slices: 1
-best-first-slice: <slug>
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <s|m|l>
-tags: [deps]
-refs:
-  index: 00-index.md
-  shape: 02-shape.md
-  next: 04-plan.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `03-slice.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: "Single-slice dependency update — executed in P0 → P1 → P2 tier order (see `04-plan.md`)."
 
 # Step 4 — Plan → `04-plan.md` (tiered commands)
-```yaml
----
-schema: sdlc/v1
-type: plan
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-metric-files-to-touch: <int>
-metric-step-count: <int>
-has-blockers: false
-revision-count: 0
-tags: [deps]
-refs:
-  index: 00-index.md
-  slice: 03-slice.md
-  next: 05-implement.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
+Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition). Then `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`; the update-deps tripwires are: a P1 migration without a cited changelog · a Hold entry without a revisit condition · mixed tiers forced into one commit by tooling).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)

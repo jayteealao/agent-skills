@@ -1,6 +1,5 @@
 ---
 template-kind: npm-public
-description: Library published to the public npm registry. Tag-on-main triggers a publish workflow that runs npm publish with provenance.
 ---
 
 # Seed values

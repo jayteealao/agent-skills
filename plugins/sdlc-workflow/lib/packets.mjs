@@ -1,4 +1,4 @@
-// Packets (WF-PIECES-PLAN section 4). A brainstorm's `done`, or an ideate pick, writes
+// Packets. A brainstorm's `done`, or an ideate pick, writes
 // one ordered list: work/index.md plus one work/<packet>.md per packet, generated from
 // the board (brainstorm-board.json or ideate-work.json). The board stays the single
 // truth for the text; the packet file owns its `state` once the campaign walk starts it.
@@ -25,7 +25,7 @@ export const TARGETED_FORMS = Object.freeze(['extension', 'fix', 'hotfix']);
 export const PACKET_STATES = Object.freeze(['written', 'open', 'built', 'done', 'dropped']);
 // A packet in one of these states is never rewritten: the walk owns it.
 export const STARTED_STATES = Object.freeze(['open', 'built', 'done', 'dropped']);
-// The slice band of a packet (D15, D22): a target of 10, a band of 6 to 14.
+// The slice band of a packet: a target of 10, a band of 6 to 14.
 export const SLICE_TARGET = 10;
 export const SLICE_MIN = 6;
 export const SLICE_MAX = 14;
@@ -96,7 +96,7 @@ export function packetFileName(packet) {
   return `${packet.slug ?? packet.key}.md`;
 }
 
-/** D37: a packet the person can try. ux-impact other than none always can. */
+/** A packet the person can try. ux-impact other than none always can. */
 export function tryOutOf(packet) {
   if ((packet['ux-impact'] ?? 'none') !== 'none') return 'yes';
   return packet['try-out'] === 'yes' || packet['try-out'] === true ? 'yes' : 'no';
@@ -222,7 +222,7 @@ export function checkList(board, { isIgnored = null } = {}) {
     else if (est < SLICE_MIN) warnings.push(`packet ${packet.key}: about ${est} slices, below ${SLICE_MIN}. Propose a merge with a packet of the same family; the person may keep it.`);
   }
 
-  // WF-SYSTEM-REVIEW D5 and D3, for each packet that is not started: the open step shows
+  // For each packet that is not started: the open step shows
   // the person how old each carried decision is, and a packet needs findings as evidence.
   for (const packet of packets.filter(isPacket)) {
     if (writtenUp(packet) || packet.state === 'dropped') continue;

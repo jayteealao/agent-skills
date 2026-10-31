@@ -1,6 +1,6 @@
 // tests/unit/stamp-version.test.mjs
 //
-// The version stamp (WIDE-VIEW-REPAIR-PLAN §9.2): package.json is the one
+// The version stamp: package.json is the one
 // source; `npm run release` runs scripts/stamp-version.mjs, which writes every
 // other carrier. These tests copy the real carriers into a scratch tree, stamp
 // a new version, and prove (a) the release-versions gate accepts the result,

@@ -27,7 +27,7 @@ When the session's account can read only a summary of a link (the account can vi
 1. Run [stage.md](stage.md) Step 0. The same stop rules apply: closed workflow, driver, missing shape.
 2. Read `02c-craft.md` with `wf.mjs record get` when it exists. An import into an approved design is an amend: the screens change in place, the approval runs again, and Amend steps 3 and 4 of [stage.md](stage.md) apply.
 3. Load [_surface.md](_surface.md) in full. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`.
-4. Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists. Import skips stage Step 4, so this is the load point of the floor.
+4. Load [_craft-floor.md](_craft-floor.md) now, because import skips stage Step 4. Its load table says how import uses it.
 
 ## Step 1 — Copy the source
 

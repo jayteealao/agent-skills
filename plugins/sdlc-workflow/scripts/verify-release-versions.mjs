@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/verify-release-versions.mjs — the version-surface guard
- * (SINGLE-SOURCE-PLAN W6).
+ * scripts/verify-release-versions.mjs — the version-surface guard.
  *
  * Two surfaces, checked separately because they have different shapes:
  *

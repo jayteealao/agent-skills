@@ -1,18 +1,11 @@
----
-description: Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf plan for non-trivial work, /wf intake fix for small fixes, /wf intake hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf plan can consume the workflow directory without modification.
-argument-hint: <description-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md`: the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md`; it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-rca-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: rca`, `compressed: true`, `origin: intake/rca`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `rca → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `rca`: it overrides the standalone steps below.
 
 # Pipeline
 `1·symptom` → `2·investigate` → `3·synthesize` → `/wf plan` | `/wf intake fix` | `/wf intake hotfix`
@@ -57,12 +50,12 @@ You are a **diagnostician**, not a fixer.
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: rca`, the workflow exists. Split on three sub-cases:
-     - **A token after the slug matches a route** (`plan`, `fix`, `hotfix`, `human-triage`) → **route mode**. Jump to `# Route — decision closure` below; any trailing prose is the decision note. If the index is already `status: closed`, WARN: "Workflow `<slug>` is closed (chosen-route: `<value>`)." and stop.
+     - **A token after the slug matches a route** (`plan`, `fix`, `hotfix`, `human-triage`) → **route mode**. Jump to `# Route — decision closure` below; any trailing prose is the decision note. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
      - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`) and stop.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
-   - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, for example `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
+   - Otherwise → **new RCA**. This is an ordinary `.ai/workflows/<slug>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
    - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token. A `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
-2. **Collision check:** If the index of `<slug>` already exists (`record get` exits 0) and `workflow-type` is NOT `rca`, WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue the existing workflow." Stop.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `rca-<short-symptom>`.
 3. **Branch posture (do not switch branches):** investigation is read-only; create no branch and switch no branch. Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
 4. **Read project context (lightweight):** `README.md` (top 100 lines) for project shape; `AGENTS.md` if present for conventions; the workflow folder names under `.ai/workflows/` to spot related active workflows the symptom might be tied to.
 
@@ -184,15 +177,12 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 
 # Route — decision closure
 
-Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`). Recording the route is the workflow's decision record. It never starts the successor: it prints the invocation and stops.
+Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`). Follow "Closure" of [_light-index.md](_light-index.md) with the `rca` row. Step 3 of that section applies to the `fix` and `hotfix` routes only: their successor is a NEW workflow, so this one closes, and its registry row becomes `closed`. The other two routes keep the workflow open:
 
-1. **Stamp the artifact.** Add to `01-rca.md` frontmatter, with `record set "<root>" <slug> 01-rca.md chosen-route=<route> routed-at=<timestamp> "decision-note=<the trailing prose>"`: `chosen-route`; `routed-at` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and `decision-note` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body (get `01-rca.md`, add the section, write the draft and put it): which route was picked; why (the user's exact reason, else "user routed without a stated reason"); which tripwires were live at route time (from `## Tripwire warnings`, or "none").
-3. **Close or continue, by route:**
-   - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Run `record set "<root>" <slug> index status=closed close-reason=route-recorded superseded-by=pending closed-at=<timestamp> next-command=none "next-invocation=none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance-consume.md`) corrects `superseded-by: pending`.
-   - **`plan`**: the SAME slug continues into the standard chain; the workflow stays open. Run `record set "<root>" <slug> index next-command=wf-plan "next-invocation=/wf plan <slug>"`. When design is needed and not settled per `design/_lane.md`, set `next-command: wf-design` and `next-invocation: "/wf design <slug>"` instead.
-   - **`human-triage`**: the workflow stays open awaiting the human. Run `record set "<root>" <slug> index next-command=user-picks "next-invocation=user-picks — human triage; see 01-rca.md ## Confidence"`.
-4. **Print the next invocation** per the `## Recommended next command` table (`/wf plan <slug>`, or `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`) and stop. Do not run it.
+- **`plan`**: the SAME slug continues into the standard chain. Run `record set "<root>" <slug> index next-command=wf-plan "next-invocation=/wf plan <slug>"`. When design is needed and not settled per `design/_lane.md`, set `next-command: wf-design` and `next-invocation: "/wf design <slug>"` instead.
+- **`human-triage`**: the workflow waits for the human. Run `record set "<root>" <slug> index next-command=user-picks "next-invocation=user-picks — human triage; see 01-rca.md ## Confidence"`.
+
+Step 4 prints the invocation of the `## Recommended next command` table: `/wf plan <slug>`, `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`.
 
 # Routing notes (read carefully)
 
@@ -201,6 +191,4 @@ Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-
 
 # What this command is NOT
 
-- **Not a fixer**: `/wf intake rca` produces an RCA artifact and a routing recommendation. It does not edit application code, run mutating commands, commit, push, or open a PR.
-- **Not a hotfix**: `/wf intake hotfix` is what you run *after* `/wf intake rca` recommends it. `/wf intake rca` decides whether the situation warrants the hotfix path.
-- **Not an explainer**: `/wf status recap <slug> [plan|shape|slice|review|findings]` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.
+- **Not a fixer.** RCA edits no application code, runs no mutating command, and does not commit, push or open a PR.

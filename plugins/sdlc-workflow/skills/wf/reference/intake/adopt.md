@@ -1,8 +1,3 @@
----
-description: Adopt work that already happened into the lifecycle. Every other intake mode assumes the change lies ahead; adopt runs the other way — it reads the current working-tree / branch diff, reverse-engineers the planning-and-execution artifacts (01-adopt → 05-implement) from what the code already does, stamps them provenance:adopted, and lands the workflow at /wf verify so the quality tail (verify → review → ship) can run over work that was done outside the pipeline. Use when you explored-and-patched first and only afterward decided the change deserves recorded verification.
-argument-hint: "[description]"
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
@@ -56,8 +51,8 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 
 # Step 0 — Orient (before anything else)
 
-1. **Derive the slug:** `adopt-<short-description>` (kebab-case, max 5 words) from the optional `[description]` argument; with no argument, derive it from the dominant concern of the diff after Step A0 collects it (defer the final slug until then, but resolve the collision check before any write).
-2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
+1. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `adopt-<short-description>`, from the optional `[description]` argument.
+2. **No description:** derive the descriptor from the main concern of the diff after Step A0 collects it, and resolve the collision before any write.
 3. **Same-branch active-workflow scan:** read `.ai/workflows/INDEX.md`; if any **active** workflow records `branch:` equal to the current branch, the diff on this branch probably belongs to that workflow — STOP and recommend the extension path (`/wf intake <that-slug> <scope>`) or that workflow's own next command. Adopting another workflow's in-flight branch work as a new workflow forks the record.
 4. **Provenance check:** apply `_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
 5. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (adopt rides verify's caveat path; its two questions are spent on reconstruction).
@@ -180,6 +175,5 @@ Next: /wf verify <slug>
 - Write each artifact as a draft and put it; the put writes the record in one step, so a crash mid-write never leaves a half-written workflow.
 
 # What this command is NOT
-- **Not a way to skip verification** — the whole point is to *reach* `/wf verify`. Adoption reconstructs the record; it does not assert the code is correct. Verify still runs its full check suite and AC gate over the adopted change.
-- **Not `fix`/`hotfix`/`refactor`** — those author a plan and build forward. Use them when the work has *not* been done yet.
-- **Not extension** — `/wf intake <slug> <scope>` adds *new* scope to an existing workflow. Adopt roots a *new* workflow from *existing* code.
+
+- **Not a way to skip verification.** Adopt rebuilds the record; it does not say that the code is correct. `/wf verify` still runs its full checks and the AC gate on the adopted change.

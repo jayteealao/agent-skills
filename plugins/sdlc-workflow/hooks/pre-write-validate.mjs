@@ -17,8 +17,7 @@
  *   rule, lib/design-lane.mjs).
  * - Block with exit 2 + stderr on validation errors.
  *
- * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW
- * §14.2.6). The standalone entry below stays one release.
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry. The standalone entry below stays one release.
  */
 
 import { existsSync } from 'node:fs';
@@ -126,7 +125,7 @@ export async function run(input) {
   // NN-stagename convention (they carry the design-augmentation type instead).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
   // work/<packet-slug>.md packets and work/index.md carry a schema type but are named
-  // for the slug they open (WF-PIECES-PLAN 4.1).
+  // for the slug they open.
   const inWorkSet = isWorkSetPath(filePath);
   if (!inDesignNotes && !isProseLog && !inWorkSet) {
     const filenameError = validateFilename(filename);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/doctor.mjs — `npm run doctor` (WIDE-VIEW-REPAIR-PLAN §14.2.1, W11.1).
+// scripts/doctor.mjs — `npm run doctor`.
 //
 // Prints one table: installed plugin version per host, and whether the
 // one-time cleanup removed the old hub and tray state. Exit 1 when an

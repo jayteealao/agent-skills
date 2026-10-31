@@ -1,5 +1,5 @@
-// WF-GOAL-PLAN W2 — lib/goal.mjs: the contract, the GOAL: line, the condition text, and
-// the verdict of each kind. Nothing here asks a model (D3).
+// lib/goal.mjs: the contract, the GOAL: line, the condition text, and
+// the verdict of each kind. Nothing here asks a model: the verdict is deterministic.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -33,7 +33,7 @@ test('the condition names the check command, maps BLOCKED to impossible, and sta
   assert.equal(armPlan('pi', c).how, 'in-session');
 });
 
-test('D5 and D6: a parked gate and a used cap block before the rule runs', () => {
+test('a parked gate and a used cap block before the rule runs', () => {
   assert.equal(precheck(contract({ parked: { gate: 'design' } }), 0).reason, 'gate design');
   assert.match(precheck(contract(), 3).reason, /^budget/);
   assert.equal(precheck(contract(), 2), null);

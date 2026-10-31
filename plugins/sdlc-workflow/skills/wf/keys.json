@@ -1,5 +1,5 @@
 {
-  "$comment": "The one source of the /wf key surface. scripts/generate.mjs writes the key tables of SKILL.md, the key count of route.md, the README key table, the manifest descriptions and agents/openai.yaml from this file. Edit this file, then run npm run generate. A host value is \"full\", \"differs: <how>\" or \"gap: <reason>\".",
+  "$comment": "The one source of the /wf key surface. scripts/generate.mjs writes the key tables and the key count of route.md, the README key table, the manifest descriptions and agents/openai.yaml from this file. Edit this file, then run npm run generate. A host value is \"full\", \"differs: <how>\" or \"gap: <reason>\".",
   "groups": [
     { "id": "stages", "title": "Stages" },
     { "id": "drivers", "title": "Drivers and loops" },

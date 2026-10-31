@@ -1,4 +1,4 @@
-// ARTIFACT-SPLIT-PLAN S5: evidence folders are free-form and never make a
+// Evidence folders are free-form and never make a
 // workflow stale; `.jsonl` ledgers are ignored by the stale check too.
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -19,8 +19,8 @@ Selected slice: {slice or "(none — slug-wide)"}
 Acceptance checks: {the acceptance criteria of the slices in scope, from the brief}
 Work packet files: {the affected files of Step 1}
 
-Read the rubric. When Focus names sections, read those `###` sections of `# What to look for`
-plus `# Severity calibration`; otherwise read every section. Perform the review for the scope.
+Read the rubric and `<skill-dir>/reference/review/_severity.md`. When Focus names sections, read only
+those `###` sections of `# What to look for`; otherwise read every section. Perform the review for the scope.
 
 WORK PACKET: look for issues ONLY in the work packet files above. Report only an issue that the
 change makes or touches. Do not report debt that the change did not cause.

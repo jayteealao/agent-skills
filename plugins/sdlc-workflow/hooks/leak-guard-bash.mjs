@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * PreToolUse(Bash) External Output Boundary leak guard
- * (HOOKS-SEMANTIC Phase 1, hooks #1 + #3).
+ * PreToolUse(Bash) External Output Boundary leak guard: the commit and the
+ * publish checks.
  *
  * Scans the OUTWARD-FACING text arguments of publishing commands — `git commit`
  * / `git tag` messages, `gh pr create` titles/bodies, `gh release create`
@@ -13,9 +13,9 @@
  * first: `semantic.mode: "advisory"` emits a systemMessage; `"enforce"` denies
  * (exit 2). Promote to enforce only after the advisory false-positive rate is
  * ~0 across real workflows. Body-file flags (`-F`, `--body-file`) are NOT read
- * in Phase 1 — the file path itself is still scanned as text.
+ * yet — the file path itself is still scanned as text.
  * Never fires inside external-model dispatch (SDLC_DISPATCH_ACTIVE).
- * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry.
  */
 
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';

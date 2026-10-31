@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // hooks/stop-verify.mjs — Codex Stop / SubagentStop enforcement boundary.
 //
-// NATIVE-INTEROP Resolution 5 + "Post-Tool Validation Limits and the Stop-Time
-// Enforcement Boundary". PostToolUse cannot undo a completed apply_patch, so the
+// The Stop-time enforcement boundary of the post-tool validation. PostToolUse cannot undo a completed apply_patch, so the
 // boundary that makes Codex's FINAL on-disk state converge with Claude's
 // pre-write block is the Stop hook: it re-checks every managed artifact the turn
 // touched (recorded in the per-turn ledger by the PostToolUse dispatcher) and, on

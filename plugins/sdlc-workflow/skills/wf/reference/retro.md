@@ -3,13 +3,6 @@ description: Extract reusable lessons and turn them into concrete improvements t
 argument-hint: <slug|pr#N|branch>
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf retro`, **stage 9 of 9** in the SDLC lifecycle.
 
 # Pipeline
@@ -23,7 +16,7 @@ You are running `/wf retro`, **stage 9 of 9** in the SDLC lifecycle.
 
 ## Card
 
-- Extract the lessons of the workflow and propose improvements that a person can copy and paste. Do not apply them.
+- Extract the lessons of the workflow and propose concrete improvements that a person can copy and paste. Do not apply them.
 - Do not reopen the implementation and do not start new work.
 - Write each lesson honestly, with the evidence that supports it.
 
@@ -59,17 +52,10 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 The index holds every deferral (`runtime-evidence-deferrals`, cleared entries too).
 
 # Role
-You are a **workflow orchestrator**, not a problem solver.
-- Do not apply the improvements you suggest — only document them.
-- Do not reopen implementation or start new work.
-- Your job is to **extract lessons and propose concrete, copy-paste-ready improvements**.
+You run the retro stage: you extract lessons and propose improvements, never apply them.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the first argument — it is polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name), first match wins so a slug is never mistaken for a branch:
-   - **Exact slug**: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <arg> index` exits 0 → **single-slug retro** (`retro-scope: slug`). The classic path — continue with items 2–5 for that one slug.
-   - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
-   - **Branch name**: matches a `branch` in the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
-   - **Absent**: infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` → single-slug. If ambiguous, ask the user.
+1. **Resolve the first argument** (a slug, `pr#N`, or a branch name; absent is allowed): run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`. `scope: slug` → **single-slug retro** (`retro-scope: slug`): continue with items 2–5 for that one slug. `scope: branch` → **batch retro** (`retro-scope: branch`) over its `slugs`: see `## Batch retro` below, then return here per-slug. `ambiguous: true` → ask the user which of its `slugs`. An `error` → STOP and show it.
    - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
@@ -83,7 +69,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 Runs when Step 0 resolved a branch: the slugs that shipped together on one branch are retrospected together.
 
-1. **Build the roster.** Run `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`; the roster is every slug whose `branch` equals the resolved branch. If none → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+1. **Build the roster.** The roster is the `slugs` of the `target` output: every slug whose `branch` equals the resolved branch. When the output has the error "No workflows are on branch", STOP and show it. Record the roster as `branch-slugs:`.
 2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped. Mark each retrospected slug complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <roster-slug> index status=complete`.
 3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Zero cross-slug learnings is a legitimate outcome; do not pad.
 4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).

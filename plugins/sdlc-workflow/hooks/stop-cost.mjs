@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// hooks/stop-cost.mjs — Codex Stop adapter for the exact cost ledger
-// (WIDE-VIEW-REPAIR-PLAN §10). Host adapter only: read the Codex event, add the
+// hooks/stop-cost.mjs — Codex Stop adapter for the exact cost ledger.
+// Host adapter only: read the Codex event, add the
 // plugin-data dir (the cursor's home under Codex), and run the SAME
 // policy Claude Code runs — hooks/cost-ledger.mjs — with SDLC_HOST=codex. The
 // policy locates the rollout by session id when the event names no

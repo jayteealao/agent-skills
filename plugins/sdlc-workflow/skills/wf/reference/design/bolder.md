@@ -95,12 +95,8 @@ After changes:
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> bolder` focuses the design stage and its contract `02c-craft.md` on the named target.
-- **Design confirmed:** `/wf design <slug> bolder` runs the diagnosis, the skeleton test and the Validate list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/bolder-<timestamp>.md` per [_output.md](_output.md) with: the target, the source of the timidity, the one dominant choice, each addition the person agreed to, and the skeleton-test result.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: the named target. Checks: the diagnosis, the skeleton test and the Validate list. Notes record: the target, the source of the timidity, the one dominant choice, each addition the person agreed to, and the skeleton-test result.
 
 ---
 

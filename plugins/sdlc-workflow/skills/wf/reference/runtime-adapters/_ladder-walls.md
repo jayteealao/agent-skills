@@ -1,6 +1,6 @@
 # Constraint-resolution ladder — per-wall rung lists (`runtime-adapters/_ladder-walls.md`)
 
-Load this file from [_ladder.md](_ladder.md) when a wall matches one of these classes. Climb the rungs in order and record the rung reached.
+Load this file from [_ladder.md](_ladder.md) when a wall matches one of these classes. Climb the rungs in order and record the rung reached. This file owns the rungs of each wall; the adapter files cite it and do not list them.
 
 ### Web UI (no dev-browser / viewport pinned / no display)
 0. **Bootstrap (only if the plan authorized it):** a jsdom + Testing-Library stack does no layout and stubs `matchMedia`, so responsive/visual ACs are genuinely unverifiable there. If the plan's `## Verification Strategy` named a real browser driver (Playwright/Cypress) for this AC, install it now per that authorization. If no driver was planned, do **not** improvise one — fall to a `stack:`-listed tool or defer, and record the planning gap.
@@ -13,7 +13,7 @@ Load this file from [_ladder.md](_ladder.md) when a wall matches one of these cl
 ### Android (no device / emulator)
 1. Robolectric — unit + Compose interaction (gesture dispatch, callback wiring, state machines).
 2. Roborazzi — device-free screenshot goldens (visual fidelity, layout, theming).
-3. Boot an AVD **headless** (`emulator -avd … -no-window -gpu swiftshader_indirect`) → instrumented + Maestro flows. No display is needed; screenshots come from the framebuffer via `adb exec-out screencap`. This rung is only unreachable when *headless* boot fails (no KVM/HAXM/WHPX), not when there is no window.
+3. Boot an AVD **headless** → instrumented + Maestro flows. [_ladder.md](_ladder.md) → Headless boot gives the command and the real wall of this rung.
 4. Real device drive (live pointer routing, multi-touch, wall-clock timing).
 5. **Residual only:** hardware-specific (true pinch, hover, signed build) → pre-registered deferral.
 

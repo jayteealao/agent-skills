@@ -1,4 +1,4 @@
-// YOLO-COMMENTARY-PLAN W0 — the built-in yolo watch (scripts/yolo-watch.mjs).
+// The built-in yolo watch (scripts/yolo-watch.mjs).
 // The offsets survive a restart, no event is lost across a re-arm, the script
 // exits at the run end, a silent journal emits `stale`, and every path works as
 // a Windows path. The watch polls; it never depends on file-change events.
@@ -361,9 +361,9 @@ test('steer protection reads backticked paths on protect and do-not-touch lines 
 });
 
 // ---------------------------------------------------------------------------
-// K1, K2 (YOLO-COMMENTARY-PLAN section 4): old lines that arrive later, and slugs that run at once.
+// Old lines that arrive later, and slugs that run at once.
 // ---------------------------------------------------------------------------
-test('K1: a slug journal that a merge brings in later is history, not new stage events', () => {
+test('a slug journal that a merge brings in later is history, not new stage events', () => {
   const root = makeRepo();
   try {
     const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: clockAt(0) });
@@ -378,7 +378,7 @@ test('K1: a slug journal that a merge brings in later is history, not new stage 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('K2: a stage end carries how many slugs run at once', () => {
+test('a stage end carries how many slugs run at once', () => {
   const root = makeRepo();
   try {
     const other = 'squads';
@@ -396,7 +396,7 @@ test('K2: a stage end carries how many slugs run at once', () => {
 });
 
 // ---------------------------------------------------------------------------
-// WF-WATCH-MONITOR-PLAN — F2 to F6.
+// Restarts, silence, transcripts, commentary lines and the watch lock.
 // ---------------------------------------------------------------------------
 const tmpDir = (name) => mkdtempSync(path.join(os.tmpdir(), `${name} `));
 
@@ -421,7 +421,7 @@ test('a re-arm tells the commits made since the last watch; a watch hours later 
   } finally { for (const d of [root, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('F3: a restart does not reset the silence; a long gap and a long silence across two restarts give stale', () => {
+test('a restart does not reset the silence; a long gap and a long silence across two restarts give stale', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -446,7 +446,7 @@ test('F3: a restart does not reset the silence; a long gap and a long silence ac
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('F3: a restart after the run ended counts from its own start', () => {
+test('a restart after the run ended counts from its own start', () => {
   assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 100, 'the run wrote after the first watch: keep its start');
   assert.equal(W.keptWatchFrom({ watchFrom: 300, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 999, 'no line since the first watch: a new launch');
   assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'run-end' } }, 999), 999, 'the run ended');
@@ -463,7 +463,7 @@ function agentTranscript(projectsDir, root, label, mtimeMs) {
   return file;
 }
 
-test('F6: a long agent that still writes its transcript is not stale; a silent transcript is', () => {
+test('a long agent that still writes its transcript is not stale; a silent transcript is', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -486,7 +486,7 @@ test('F6: a long agent that still writes its transcript is not stale; a silent t
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('F6: a transcript older than the agent start belongs to another agent, so the journal rule applies', () => {
+test('a transcript older than the agent start belongs to another agent, so the journal rule applies', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -503,7 +503,7 @@ test('F6: a transcript older than the agent start belongs to another agent, so t
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('F4: the watch writes one commentary line per stage start and per commit, and never twice', () => {
+test('the watch writes one commentary line per stage start and per commit, and never twice', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -523,7 +523,7 @@ test('F4: the watch writes one commentary line per stage start and per commit, a
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('F5: a newer watch replaces an older one, and a lock whose holder died is taken again', () => {
+test('a newer watch replaces an older one, and a lock whose holder died is taken again', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -545,9 +545,9 @@ test('F5: a newer watch replaces an older one, and a lock whose holder died is t
 });
 
 // ---------------------------------------------------------------------------
-// The live-campaign audit of 2026-10-14 — B1 to B4.
+// Found on a live campaign run: the relaunch, protected files, the lifetime, --once.
 // ---------------------------------------------------------------------------
-test('B1: a first watch over a journal that ends in the old run-end waits for the relaunch', () => {
+test('a first watch over a journal that ends in the old run-end waits for the relaunch', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -565,7 +565,7 @@ test('B1: a first watch over a journal that ends in the old run-end waits for th
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('B3: a linked worktree has no dirty-at-start protection; the main checkout keeps it', () => {
+test('a linked worktree has no dirty-at-start protection; the main checkout keeps it', () => {
   const root = makeRepo();
   const wtBase = tmpDir('worktrees');
   const wt = path.join(wtBase, 'w1');
@@ -584,7 +584,7 @@ test('B3: a linked worktree has no dirty-at-start protection; the main checkout 
   }
 });
 
-test('B3: an agent that saves a protected file many times gives one event per quiet window', () => {
+test('an agent that saves a protected file many times gives one event per quiet window', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -602,7 +602,7 @@ test('B3: an agent that saves a protected file many times gives one event per qu
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('B2: the lifetime is 31 minutes, 110 with --once, or the given minutes', () => {
+test('the lifetime is 31 minutes, 110 with --once, or the given minutes', () => {
   assert.equal(W.lifetimeMs({}, {}), 31 * 60000);
   assert.equal(W.lifetimeMs({ once: true }, {}), 110 * 60000);
   assert.equal(W.lifetimeMs({ 'max-minutes': '5' }, {}), 5 * 60000);
@@ -620,7 +620,7 @@ function runCli(args, env, { onSpawn = null, timeoutMs = 20000 } = {}) {
   });
 }
 
-test('B2: a watch ends itself after its lifetime, silent without --once and with watch-timeout with it', async () => {
+test('a watch ends itself after its lifetime, silent without --once and with watch-timeout with it', async () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
@@ -634,7 +634,7 @@ test('B2: a watch ends itself after its lifetime, silent without --once and with
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-test('B4: --once exits after the first poll that gives news, and the next watch goes on from there', async () => {
+test('--once exits after the first poll that gives news, and the next watch goes on from there', async () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
@@ -964,7 +964,7 @@ test('pendingToolOf: the newest tool call with no result; null when every call r
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('F6: a silent agent with a tool call that has no result is pending-tool, not hung', () => {
+test('a silent agent with a tool call that has no result is pending-tool, not hung', () => {
   const root = makeRepo();
   const projectsDir = tmpDir('projects');
   const lockDir = tmpDir('locks');
@@ -985,11 +985,11 @@ test('F6: a silent agent with a tool call that has no result is pending-tool, no
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
-// ---- WF-SYSTEM-REVIEW A3, A4 ------------------------------------------------------
+// ---- the line and end commands ------------------------------------------------------
 
 const BS = String.fromCharCode(92);
 
-test('A4: the line command writes a Windows path that parses, stamps at, and adds the agent flags', () => {
+test('the line command writes a Windows path that parses, stamps at, and adds the agent flags', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'yw-line-'));
   try {
     const file = path.join(dir, '.driver-journal.jsonl');
@@ -1009,7 +1009,7 @@ test('A4: the line command writes a Windows path that parses, stamps at, and add
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('A3: end carries the reason, and a second end of the same run appends nothing', () => {
+test('end carries the reason, and a second end of the same run appends nothing', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'yw-end-'));
   try {
     const file = path.join(root, '.ai', 'workflows', 'demo', '.driver-journal.jsonl');

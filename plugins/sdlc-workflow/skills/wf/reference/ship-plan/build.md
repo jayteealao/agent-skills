@@ -1,12 +1,3 @@
----
-description: Reads `.ai/ship-plan.md` and brings the repo's *entire* CI/CD + developer-experience pipeline into compliance with it. Audits and builds the outbound half (release + pre-merge GitHub Actions workflows, post-publish checks, rollback) AND the inbound half (code-quality CI gates, commit-message + PR-title convention enforcement, local git hooks, editorconfig/version files/task targets, CODEOWNERS, PR/issue templates, dependency automation, and branch protection). Creates missing files, adds missing jobs/steps to existing files (no file is ever overwritten), and — when the plan opts in via `apply-via: gh-api` — applies branch-protection settings to the remote repo behind an explicit confirm gate. Each gap is shown to the user before any write or remote mutation occurs.
-argument-hint: "[--dry-run]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `wf project ship-plan build`. Your job: read the ship plan as the specification, measure the gap between what exists and what is required, confirm with the user, then implement only what is missing.
 
 # Design contract

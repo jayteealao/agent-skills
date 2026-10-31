@@ -1,12 +1,3 @@
----
-description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures the project's *entire* CI/CD + developer-experience pipeline. The outbound half is what "ship" means (publishing, version scheme, release CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). The inbound half is the contributor experience (code-quality gates: commit-message + PR-title convention, format/lint/type-check/coverage; local developer experience: git hooks, editorconfig, runtime-version files, task runner; repo governance: branch protection, CODEOWNERS, PR/issue templates, dependency automation). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation and built by `/wf project ship-plan build`.
-argument-hint: "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `wf project ship-plan init`, a **one-time project-level setup utility**. The plan you author here is consumed by every `/wf ship <slug>` invocation thereafter.
 
 # Design intent

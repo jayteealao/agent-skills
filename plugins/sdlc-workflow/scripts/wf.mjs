@@ -77,6 +77,12 @@
  *             where the workflow stands, in one block under 2 KB: the stage and the slice, step
  *             n of N, the open questions and deferrals, the last driver run, the next command
  *             Example: wf.mjs status . demo --brief
+ *   target   <root> [<slug>|pr#N|#N|<N>|<branch>] [--json]
+ *             the first argument of handoff, ship, retro, recap and status: {scope, slugs, branch}.
+ *             A slug wins, then a PR (its head branch by gh pr view), then a branch: its roster
+ *             is every workflow whose index names that branch. No argument: the one open
+ *             workflow (ambiguous: true lists several). Exit 1 when nothing resolves
+ *             Example: wf.mjs target . pr#12 --json
  *   index    <root> [--check]
  *             rebuild .ai/workflows/INDEX.md from the 00-index.md files
  *             Example: wf.mjs index . --check
@@ -348,6 +354,7 @@ import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
+import { resolveTarget, targetText } from '../lib/wf-target.mjs';
 import { decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
 
@@ -356,7 +363,7 @@ export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|target|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -1659,6 +1666,13 @@ async function runMain(cmd, pos, opt) {
         const s = await statusOf(resolve(root), slug ?? null);
         out(opt.json ? s : statusText(s));
         return s.error ? 1 : 0;
+      }
+      case 'target': {
+        const [root, arg] = pos;
+        if (!root) throw new Error('target: <root> is required');
+        const t = await resolveTarget(resolve(root), arg ?? null);
+        out(opt.json ? t : targetText(t));
+        return t.error ? 1 : 0;
       }
       case 'index': {
         const [root] = pos;

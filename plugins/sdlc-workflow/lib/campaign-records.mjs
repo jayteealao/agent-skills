@@ -17,7 +17,10 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative } from 'node:path';
+import { pidAlive } from './proc.mjs';
 import { recordPathOf, recordsHome } from './records-root.mjs';
+
+export { pidAlive };
 
 export const MANIFEST_VERSION = 1;
 /** The workflow registry: a both-sides change merges its rows (status.md, INDEX.md). */
@@ -109,7 +112,7 @@ const entryOf = (manifest, rel) => (manifest.files[rel] ??= { base: null, kept: 
 const EARLIER_LIMIT = 20;
 
 /**
- * WF-DESIGN-PLAN B2 (DP13): set the base of a file entry, and keep the base it replaces in
+ * Set the base of a file entry, and keep the base it replaces in
  * `earlier`. A worktree file whose hash equals an earlier base is an old version of the file
  * (a revert in the worktree), so `out` never copies it over the main checkout.
  */
@@ -198,7 +201,7 @@ export function recordsIn({ main, worktree, manifest, exclude = () => false, pri
  * - both sides changed it: the main version stays, the worktree version goes to
  *   the conflict store (the registry also merges its rows into the main copy).
  * A file the worktree deleted stays in the main checkout, and the result names it.
- * B2 (DP13): a worktree file whose hash equals an earlier base is an old version, and
+ * A worktree file whose hash equals an earlier base is an old version, and
  * `mainOnly(rel)` names the files that the main checkout owns (`.ai/design/`). Neither
  * is copied over the main version: a changed worktree copy goes to the conflict store.
  * For a linked project the main copy of a workflow file is the clone copy, which
@@ -294,12 +297,6 @@ export function recordsPending({ main, worktree, manifest, exclude = () => false
     pending.push({ rel, reason: 'not in the main checkout' });
   }
   return pending;
-}
-
-/** True while the process `pid` runs. EPERM means it runs under another user. */
-export function pidAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
 }
 
 /**

@@ -1,14 +1,9 @@
----
-description: "Review API contracts and database migrations for stability, compatibility, and safe operation in production"
-argument-hint: "[scope] [target] [paths]"
----
-
 # Role
 You are the **api-contracts** reviewer. You judge every surface other code depends on: routes, schemas, SDK entry points, and the database schema that migrations reshape.
 Library, SDK, and runtime correctness questions route here per [_surface-defects.md](../_surface-defects.md); their surface is an API and its consumers are code.
 
 # What to look for
-Read every section when the dispatch names no focus. When it names `focus: <alias>`, read that section and `# Severity calibration` only.
+Read every section when the dispatch names no focus. When it names `focus: <alias>`, read only that section. Always read [_severity.md](_severity.md): it gives the severity scale, the rules of a finding and the output.
 ### api-contracts
 - **Breaking changes without version bump are BLOCKER**: Removed fields, changed types, deleted endpoints without major version change
 - **Public API without versioning is BLOCKER**: External-facing APIs without version identifier
@@ -52,21 +47,3 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Migration timestamps do not collide; `REINDEX` and `VACUUM FULL` run `CONCURRENTLY` or offline; redundant indexes are dropped.
 - Partitioning an existing table needs a rebuild; partitions have automated maintenance.
 - Check table locking, reversibility, breaking schema changes, index creation (`CONCURRENTLY`), data transformations, constraints, ordering, defaults and auto-increment, enum and type changes, and partitioning.
-
-# Severity calibration
-- **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.
-- **Severity + Confidence**: Every finding has both ratings.
-- Severity: BLOCKER / HIGH / MED / LOW / NIT
-- Confidence: High / Med / Low
-- BLOCKER blocks the merge on its own. HIGH: fix before merge. MED: fix when time allows. LOW: cleanup candidate. NIT: preference.
-- **Remediation**: every BLOCKER or HIGH finding includes a concrete fix that names a method, not only an outcome.
-- **Pre-existing**: a finding on lines the diff did not touch carries `pre-existing: true`; it is debt, not verdict input.
-- Batch register-level findings (style, mechanics) into one finding per file.
-
-# Output shape
-Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
-```yaml
-findings:  # every finding, open and resolved
-  - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}
-summary: {open, blockers, resolved-this-run, verdict}
-```

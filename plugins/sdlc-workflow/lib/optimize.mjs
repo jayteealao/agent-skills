@@ -1,15 +1,15 @@
-// lib/optimize.mjs — the pure parts of /wf loop optimize (WF-OPTIMIZE-PLAN W1).
+// lib/optimize.mjs — the pure parts of /wf loop optimize.
 //
 // scripts/optimize.mjs owns every git write, every measurement, every keep or
-// revert, and the ledger (D4). This module holds the rules that it applies:
-//   - the spec in 02-optimize-spec.md (4.1) and its defaults;
-//   - the metric line, the median and the noise floor of the baseline (D6);
+// revert, and the ledger. This module holds the rules that it applies:
+//   - the spec in 02-optimize-spec.md and its defaults;
+//   - the metric line, the median and the noise floor of the baseline;
 //   - the keep rule: a gain larger than max(min-gain, 2 × noise), and a confirm run that agrees;
-//   - the path check against allowed-paths and off-limits (D5);
-//   - the branch rounds (D12, 4.4): the fixed schedule, the plateau trigger (D14), the
+//   - the path check against allowed-paths and off-limits;
+//   - the branch rounds: the fixed schedule, the plateau trigger, the
 //     turn of each branch, the winner, and the candidates of the merge step after a round;
-//   - the two proposer digests (D13, 4.5): the trunk digest and the flushed branch digest;
-//   - the next action that `status` prints (4.6).
+//   - the two proposer digests: the trunk digest and the flushed branch digest;
+//   - the next action that `status` prints.
 //
 // Source of the branch rounds: Cai, Ziakas et al., "Fork-and-Flush: Escaping Idea
 // Basins in Autoresearch Agents", arXiv 2610.07447.
@@ -24,7 +24,7 @@ export const DIRECTIONS = Object.freeze(['lower', 'higher']);
 export const VERDICTS = Object.freeze(['kept', 'reverted', 'rejected', 'crashed', 'timeout']);
 /** `branch-rounds.merge`: `consider` tries to merge the other kept branches of a round into the trunk; `off` keeps only the winner. */
 export const MERGE_MODES = Object.freeze(['consider', 'off']);
-/** The digest shows at most this many trials (4.5). */
+/** The digest shows at most this many trials. */
 export const DIGEST_TRIALS = 20;
 
 export const DEFAULT_SPEC = Object.freeze({
@@ -72,7 +72,7 @@ function fraction(v) {
   return NaN;
 }
 
-/** D12 default: 6% of budget.trials, rounded down, at least 3. */
+/** The default trials of a branch in a round: 6% of budget.trials, rounded down, at least 3. */
 export const defaultBranchTrials = (trials) => Math.max(3, Math.floor(0.06 * trials));
 
 /**
@@ -160,7 +160,7 @@ export function parseSpec(fm) {
 
 /**
  * The value of one metric run: the last non-empty stdout line is one number, or JSON
- * with `key` (4.1). null when it does not parse.
+ * with `key`. null when it does not parse.
  */
 export function parseMetricLine(stdout, key = null) {
   const lines = String(stdout ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -187,7 +187,7 @@ export function median(values) {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 }
 
-/** D6: the noise floor is half the range of the baseline runs. */
+/** The noise floor is half the range of the baseline runs. */
 export function noiseOf(values) {
   const v = values.filter(Number.isFinite);
   if (v.length < 2) return 0;
@@ -198,13 +198,13 @@ export function noiseOf(values) {
 export const gainOf = (direction, best, value) => (direction === 'lower' ? best - value : value - best);
 export const isBetter = (direction, a, b) => gainOf(direction, b, a) > 0;
 
-/** D6: a trial must gain more than max(min-gain, 2 × noise). */
+/** A trial must gain more than max(min-gain, 2 × noise). */
 export function keepThreshold(spec, best, noise) {
   return Math.max(amountOf(spec.metric.minGain, best), 2 * noise);
 }
 
 /**
- * The keep rule (D6). `first` is the median of the first `repeat` runs; `confirm` the
+ * The keep rule. `first` is the median of the first `repeat` runs; `confirm` the
  * median of the confirm run, or null when it has not run.
  *   → { wins: boolean (first), kept: boolean, needConfirm: boolean, threshold }
  */
@@ -217,7 +217,7 @@ export function keepDecision({ spec, best, noise, first, confirm = null }) {
 }
 
 /**
- * The paired keep rule (G3). `gains` are the gains of the trial run over the reference run next
+ * The paired keep rule. `gains` are the gains of the trial run over the reference run next
  * to it, one for each pair. A block passes when the median pair gain is above the threshold and
  * at least all but one of the pairs gain. A trial that wins gets a second block as its confirm.
  */
@@ -264,7 +264,7 @@ export function globToRegExp(glob) {
 
 export const matchesAny = (path, globs) => globs.some((g) => globToRegExp(g).test(path.replace(/\\/g, '/')));
 
-/** The paths that the commands name and that exist: these are off-limits as well (D5). */
+/** The paths that the commands name and that exist: these are off-limits as well. */
 export function commandFiles(commands, exists) {
   const out = new Set();
   for (const c of commands.filter(Boolean)) {
@@ -277,7 +277,7 @@ export function commandFiles(commands, exists) {
   return [...out];
 }
 
-/** D5: the changed paths that break the rule, with the reason for each. */
+/** The changed paths that break the rule, with the reason for each. */
 export function pathViolations(paths, spec, autoOffLimits = []) {
   const off = [...spec.offLimits, ...autoOffLimits, '.ai/**', SPEC_FILE];
   const bad = [];
@@ -301,14 +301,14 @@ export function laneBest(state, lane) {
 }
 
 /**
- * The next action (4.3, 4.4, 4.6). Read-only: `status` prints it, and `round-open`,
+ * The next action. Read-only: `status` prints it, and `round-open`,
  * `round-close`, `trial` and `checkpoint` refuse to run when it names another action.
  *
  * @returns {{ state: 'running'|'complete'|'stopped'|'finished', reason?: string, detail?: string,
  *            next: { action: string, on?: string, point?: number|'extra', why?: string } | null }}
  */
 /**
- * The pace of the loop (G6), from the ledger lines: `trialMs`, the median time between the last 6
+ * The pace of the loop, from the ledger lines: `trialMs`, the median time between the last 6
  * trial lines, and `measureMs`, the mean time of the guard and the measurement of the last 5
  * trials that have one. Each is null when the ledger cannot tell.
  */
@@ -323,7 +323,7 @@ export function paceOf(lines) {
   };
 }
 
-/** The trials that the wall clock allows (G6): the trials used, plus the time left over the trial time. null with no wall clock or no pace. */
+/** The trials that the wall clock allows: the trials used, plus the time left over the trial time. null with no wall clock or no pace. */
 export function projectTrials(spec, state, pace, now) {
   if (spec.budget.wallClockMs === null || !pace?.trialMs) return null;
   const left = Math.max(0, spec.budget.wallClockMs - (now - Date.parse(state.startedAt)));
@@ -361,7 +361,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const overClock = spec.budget.wallClockMs !== null && now - Date.parse(state.startedAt) >= spec.budget.wallClockMs;
   const overTokens = spec.budget.tokens !== null && tokensUsed !== null && tokensUsed >= spec.budget.tokens;
   const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - (now - Date.parse(state.startedAt));
-  // G9: the end of the clock is kept for the harvest: 2 measurements for the merge step or a bundle,
+  // The end of the clock is kept for the harvest: 2 measurements for the merge step or a bundle,
   // and one more for each keep when the ablation runs.
   const reserveMs = timeLeft !== null && pace?.measureMs ? pace.measureMs * (2 + (spec.ablate !== 'off' ? state.counters.keeps : 0)) : 0;
   const keptFor = `the rest of the wall clock (${minutes(Math.max(0, timeLeft ?? 0))}) is kept for the merge step, the ablation and finish`;
@@ -371,8 +371,8 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     if (used >= B || overClock || overTokens) return running({ action: 'merge-close', why: 'the budget ran out during the merge step' });
     if (!mg.considered) return running({ action: 'merge-consider', why: `round ${mg.round}: ${mg.candidates.filter((c) => !c.conflict).length} branch(es) to consider for a merge into the trunk` });
     const tryNext = (mg.order ?? []).map((name) => mg.candidates.find((c) => c.name === name)).find((c) => c && !c.verdict);
-    // G4: a port applies one kept idea of a branch that was not merged again, on the trunk code.
-    // G9: a bundle applies the near misses of the winner together.
+    // A port applies one kept idea of a branch that was not merged again, on the trunk code.
+    // A bundle applies the near misses of the winner together.
     if (tryNext?.kind === 'port') return running({ action: 'trial', on: state.trunk, port: tryNext.name, why: `round ${mg.round}: the port of trial ${tryNext.trial} of ${tryNext.branch}` });
     if (tryNext?.kind === 'bundle') return running({ action: 'trial', on: state.trunk, port: tryNext.name, why: `round ${mg.round}: the near misses ${tryNext.trials.map((t) => `t${t}`).join(', ')} of ${tryNext.branch}, together` });
     if (tryNext) return running({ action: 'merge-trial', branch: tryNext.name, why: `round ${mg.round}: the merge of ${tryNext.name}` });
@@ -385,7 +385,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     if (reserveMs && timeLeft < reserveMs) return running({ action: 'round-close', why: keptFor });
     const open = r.branches.filter((b) => !b.pruned && b.trials < (b.limit ?? r.branchTrials));
     if (!open.length) return running({ action: 'round-close', why: `every branch ran ${r.branchTrials} trials` });
-    // G5: a branch that trails the leader with no keep gives its other trials to a new fork of the leader.
+    // A branch that trails the leader with no keep gives its other trials to a new fork of the leader.
     const prune = pruneCandidate(r, spec, noiseFor(spec, state));
     if (prune) return running({ action: 'prune', branch: prune.name, why: `${prune.name} has no keep after ${prune.trials} trials and trails the leader of round ${r.n}` });
     // The branches take trials in turn: the one with the fewest trials, first in order.
@@ -400,7 +400,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (overClock) return { state: 'stopped', reason: 'budget', detail: 'the wall-clock budget is used', next: { action: 'person', why: personNext('budget') } };
   if (overTokens) return { state: 'stopped', reason: 'budget', detail: 'the token budget is used', next: { action: 'person', why: personNext('budget') } };
   const need = spec.rounds.branches * spec.rounds.branchTrials;
-  // G6: the schedule follows the budget that ends the run first: budget.trials, or the trials that the wall clock allows.
+  // The schedule follows the budget that ends the run first: budget.trials, or the trials that the wall clock allows.
   const projected = projectTrials(spec, state, pace, now);
   const S = projected === null ? B : Math.min(B, projected);
   const allows = S < B ? `; the wall clock allows about ${S} trials` : '';
@@ -409,7 +409,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const fits = timeLeft === null || !pace?.measureMs || need * pace.measureMs + reserveMs <= timeLeft;
   const roundTime = pace?.measureMs ? `its ${need} measurements take about ${minutes(need * pace.measureMs)}, and ${minutes(Math.max(0, timeLeft ?? 0))} are left` : '';
   const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i));
-  // G1: the first profile comes before any trial, and a round opens only on a profile of the trunk best.
+  // The first profile comes before any trial, and a round opens only on a profile of the trunk best.
   if (spec.profile && !state.profile) return running({ action: 'profile', why: 'the first profile of the code, before any trial' });
   const open = (next) => (spec.profile && state.profile?.commit !== state.best.commit
     ? running({ action: 'profile', why: `a profile of the trunk best before the round (${next.why})` })
@@ -420,14 +420,14 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   const skip = due && remaining >= need && !fits ? { point: due.i, why: `the round of ${Math.round(due.p * 100)}% is skipped: ${roundTime}` } : null;
   const trunk = (next) => running({ ...next, ...(skip ? { skipRound: skip.point } : {}), why: `${skip ? `${skip.why}; ` : ''}${next.why}${allows}` });
   const tryBundle = () => bundleOf(ideas, { tried: state.bundlesTried ?? [], canApply });
-  // G9: no time for one more proposed trial before the reserve: a bundle runs now, with no wait; otherwise the loop stops.
+  // No time for one more proposed trial before the reserve: a bundle runs now, with no wait; otherwise the loop stops.
   if (reserveMs && pace?.trialMs && timeLeft < pace.trialMs + reserveMs) {
     const bundle = tryBundle();
     if (bundle) return trunk({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `harvest: the ideas ${bundle.ids.join(', ')} together, before the clock ends` });
     return { state: 'stopped', reason: 'budget', detail: keptFor, next: { action: 'person', why: personNext('budget') } };
   }
   if (state.counters.streak >= spec.budget.plateau) {
-    // D14: a plateau opens the next scheduled round early, or adds one, up to max-extra.
+    // A plateau opens the next scheduled round early, or adds one, up to max-extra.
     const later = points.find(({ p }) => used < Math.ceil(p * S));
     if (later && remaining >= need && fits) return open({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
     if (state.extraRounds < spec.rounds.maxExtra && remaining >= need && fits) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
@@ -436,7 +436,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
   if (spec.holdout && state.counters.sinceCheckpoint >= spec.checkpointEvery) return running({ action: 'checkpoint', why: `${state.counters.sinceCheckpoint} trunk trials since the last checkpoint` });
-  // G4: half a plateau with no keep, and marginal ideas on other targets whose diffs apply together: try them together.
+  // Half a plateau with no keep, and marginal ideas on other targets whose diffs apply together: try them together.
   if (state.counters.streak >= Math.ceil(spec.budget.plateau / 2)) {
     const bundle = tryBundle();
     if (bundle) return trunk({ action: 'trial', on: state.trunk, bundle: bundle.ids, why: `bundle: the ideas ${bundle.ids.join(', ')} gain ${bundle.sum} together` });
@@ -445,7 +445,7 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
 }
 const running = (next) => ({ state: 'running', reason: 'running', next });
 
-/** The ablation (G7) runs before finish: on in the spec, not run yet, and a kept change to check. */
+/** The ablation runs before finish: on in the spec, not run yet, and a kept change to check. */
 export function ablationDue(spec, state) {
   return spec.ablate !== 'off' && !state.ablation && state.best.commit !== state.baseCommit;
 }
@@ -463,7 +463,7 @@ export function ablationTable(ablation, spec) {
   return ['| Trial | Commit | Change | Gain at the end | Verdict |', '|---|---|---|---|---|', ...rows].join('\n');
 }
 
-/** What the person does after a stop (4.6). */
+/** What the person does after a stop. */
 export function personNext(reason) {
   switch (reason) {
     case 'budget': return 'choose finish, or a new budget in the spec';
@@ -475,7 +475,7 @@ export function personNext(reason) {
   }
 }
 
-/** The winner of a round (4.4 step 5): the best kept value; a branch with no keep cannot win; the earlier one wins a tie. */
+/** The winner of a round: the best kept value; a branch with no keep cannot win; the earlier one wins a tie. */
 export function pickWinner(round, direction) {
   const kept = round.branches.filter((b) => b.keeps > 0 && b.best.value !== null);
   if (!kept.length) return null;
@@ -496,7 +496,7 @@ export function mergeCandidates(round, winner, spec, base, noise) {
 }
 
 // ---------------------------------------------------------------------------
-// The ideas ledger (G2): one record for each idea of every lane. A branch sees the target,
+// The ideas ledger: one record for each idea of every lane. A branch sees the target,
 // the status and the gains of each idea, never the hypothesis text of another lane.
 // ---------------------------------------------------------------------------
 export const IDEA_STATUSES = Object.freeze(['open', 'failed', 'marginal', 'kept', 'bundled']);
@@ -564,7 +564,7 @@ export function settleIdea(book, id, { trial, verdict, gain, patch = false }) {
 const brief = (i) => ({ id: i.id, target: i.target, family: i.family, status: i.status, claim: i.claim ?? null, pooled: i.pooled, trials: i.trials });
 
 /**
- * A bundle (G4, G9): 2 to 4 marginal ideas with a saved diff, a gain above 0 and different targets,
+ * A bundle: 2 to 4 marginal ideas with a saved diff, a gain above 0 and different targets,
  * the largest pooled gain first. The gains need not add past the threshold: near the noise floor one
  * result says little, and the combined trial is the test. `canApply(trials)` is the check of the
  * script: an idea joins only when the last diff of each idea applies together on the trunk. null
@@ -590,7 +590,7 @@ export function bundleOf(book, { tried = [], canApply = null } = {}) {
 }
 
 /**
- * The near misses of a lane in a round (G9): its reverted trials with a gain above 0 and a saved
+ * The near misses of a lane in a round: its reverted trials with a gain above 0 and a saved
  * diff, the largest gain first, each on paths that no other member touches, while `canApply(patches)`
  * says that the diffs apply together. At most 4; an empty list when fewer than 2 join.
  */
@@ -610,7 +610,7 @@ export function nearMisses(results, round, branch, canApply = null) {
 }
 
 /**
- * The seeds of a round (G5): the largest profile entries that can pass alone, and whose target
+ * The seeds of a round: the largest profile entries that can pass alone, and whose target
  * has no failed idea. Branch k gets entry k − 1; with fewer entries, the seeds repeat.
  */
 export function seedsOf(entries, book, best, threshold, count) {
@@ -621,7 +621,7 @@ export function seedsOf(entries, book, best, threshold, count) {
 }
 
 /**
- * The branch to prune (G5): 2 or more trials, no keep, trials left, and a best that trails the
+ * The branch to prune: 2 or more trials, no keep, trials left, and a best that trails the
  * leader of the round by more than the threshold. null when none.
  */
 export function pruneCandidate(round, spec, noise) {
@@ -635,7 +635,7 @@ export function pruneCandidate(round, spec, noise) {
 }
 
 // ---------------------------------------------------------------------------
-// The profile (G1): where the work of the metric goes, from a profile command or a profiler agent.
+// The profile: where the work of the metric goes, from a profile command or a profiler agent.
 // ---------------------------------------------------------------------------
 /** Parse the entries of a profile: objects with `name` and `share` (0 to 1), and optional `calls` and `where`. */
 export function parseProfile(input) {
@@ -676,9 +676,9 @@ export function profileView(entries, best, threshold) {
 }
 
 /**
- * The trials that a proposer of `lane` sees (4.5). A branch sees only its own trials.
+ * The trials that a proposer of `lane` sees. A branch sees only its own trials.
  * The trunk sees its trials since `digestFrom`, and the trials of the branch that
- * last won a round: the history from before that fork is flushed (4.4 step 7).
+ * last won a round: the history from before that fork is flushed.
  */
 export function digestTrials(results, state, lane) {
   const trials = results.filter((r) => r.event === 'trial');
@@ -697,8 +697,8 @@ export function digestTrials(results, state, lane) {
 }
 
 /**
- * The digest of section 4.5. `solutions` is used on the trunk only. `ideas` (G2) and `profile`
- * (G1) are shared by every lane.
+ * The digest of a proposer. `solutions` is used on the trunk only. `ideas` and `profile`
+ * are shared by every lane.
  */
 export function buildDigest({ spec, specProse, state, results, lane, solutions = [], ideas = null, profile = null }) {
   const isBranch = lane && lane !== 'trunk' && lane !== state.trunk;
@@ -766,7 +766,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
   };
 }
 
-/** A holdout value that regresses past the tolerance (D7). */
+/** A holdout value that regresses past the tolerance. */
 export function holdoutRegressed(spec, baseline, value) {
   if (!spec.holdout || baseline === null || value === null) return false;
   const loss = -gainOf(spec.holdout.direction, baseline, value);

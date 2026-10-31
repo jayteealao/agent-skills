@@ -1,18 +1,11 @@
----
-description: Compressed STANDARD lifecycle for small intentional changes. Drives every SDLC stage (intake → shape → slice → plan → gate → implement → verify → review → …) single-pass, emitting standard numbered artifacts on a full type:index overview. The mode authors the planning half (01-fix → 04-plan) then gates; the standard /wf implement/verify/review chain authors execution. Use when the change is small enough that full planning ceremony is overkill but you still want a recorded, resumable lifecycle and the standard quality gates.
-argument-hint: <description-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake fix`, a **compressed standard lifecycle** for small intentional changes.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-fix-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: fix`, `compressed: true`, `origin: intake/fix`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `fix → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `fix`: it overrides the standalone steps below.
 
 # Pipeline
 `01-fix`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review` (→`07`) → `/wf ship` → `/wf retro`
@@ -57,8 +50,8 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: fix` (new) OR `workflow-type: quick` (legacy) → **resume mode**. Read that index and the lead with `record get` (`01-fix.md` new, or legacy `01-quick.md` / `01-fix.md` `type: fix-plan` pre-migration — check both). Pick up from the first unwritten planning artifact. If planning is complete, the user likely meant `/wf implement` — tell them and stop.
-   - Otherwise → **new `/wf intake fix` workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
-2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for fix: `quick`).
+   - Otherwise → **new `/wf intake fix` workflow**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `fix-<short-description>` (legacy alias for fix: `quick`).
 3. **Provenance check:** apply `_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token, or an exact label match for an `investigate`, `ideate`, or `brainstorm` source), consume the matching Consume-table row (an `investigate` option card, an `rca` diagnosis, or an `ideate` idea card seeds `01-fix.md` and the Step 1 sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on the source index, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, then spend one of the two permitted questions on the one-line confirm and set `stack.user-confirmed: true`. In the same question, confirm `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
@@ -88,107 +81,18 @@ Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candid
 #### research sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
-### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `record put "<root>" <slug>`.
+### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `record put "<root>" <slug>`. Take the frontmatter of each record from the planning templates in [_change-mode-tail.md](_change-mode-tail.md), with the `fix` values.
 
 **`01-fix.md` — `type: intake` (the compressed brief, replaces standalone intake):**
-```yaml
----
-schema: sdlc/v1
-type: intake
-slug: <slug>
-workflow-type: fix          # mirror of the canonical discriminator on 00-index.md
-status: complete            # or awaiting-input if a blocking question remains
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: []
-refs:
-  index: 00-index.md
-  next: 02-shape.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
 Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
-```yaml
----
-schema: sdlc/v1
-type: shape
-slug: <slug>
-status: complete
-stage-number: 2
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-docs-needed: false
-docs-types: []
-tags: []
-refs:
-  index: 00-index.md
-  intake: 01-fix.md
-  next: 03-slice.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
 Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). When design is needed, add 3-5 design-note bullets here and point to `02b-design.md` and `02c-craft.md`, which the compressed design stage writes before `03-slice.md`.
 
 **`03-slice.md` — `type: slice-index` (one slice — the lifecycle never skips slicing):**
-```yaml
----
-schema: sdlc/v1
-type: slice-index
-slug: <slug>
-status: complete
-stage-number: 3
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-total-slices: 1
-best-first-slice: <slug>
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <xs|s|m>
-tags: []
-refs:
-  index: 00-index.md
-  shape: 02-shape.md
-  next: 04-plan.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
 Body (one line): "Single-slice lifecycle — the whole fix is one slice."
 
 **`04-plan.md` — `type: plan`:**
-```yaml
----
-schema: sdlc/v1
-type: plan
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-metric-files-to-touch: <int>
-metric-step-count: <int, ≤ 5>
-has-blockers: false
-revision-count: 0
-tags: []
-refs:
-  index: 00-index.md
-  slice: 03-slice.md
-  next: 05-implement.md
-next-command: <next-command>
-next-invocation: "<next-invocation>"
-recommended-routes: <routes>
----
-```
 Body: `## Steps` — a numbered list of **at most 5** implementation steps; each names the file(s) it touches, states the change in 1-2 lines, and lists its verification (lint? test? manual check? screenshot?). Then `## Verification` — **Tests to run** (specific commands) and **Manual checks** (specific URLs/flows/visual checks).
 
 ### Tripwires (warn-and-continue — never refuse)
@@ -221,6 +125,5 @@ If escalated, `Next:` is the successor invocation that the tail printed: `/wf in
 Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md) (artifact home, frontmatter + real timestamps, drafts and puts, resume-from-first-unwritten). Resume mode (Step 0) picks up from the first unwritten planning artifact: if interrupted after `02-shape.md` but before `03-slice.md`, it writes slice + plan + index and gates.
 
 # What this command is NOT
-- **Not a hotfix** — `/wf intake hotfix` exists for production incidents (production-branch base, diagnosis sub-agents, security-default review). Use it if there is an active incident.
-- **Not a refactor workflow** — `/wf intake refactor` exists for behavior-preserving refactoring with a test baseline. Use it for "make the code better without changing what it does."
-- **Not a way to skip review** — the standard `/wf implement` → `/wf verify` → `/wf review` chain still runs. The compression is in *planning ceremony*, never in *stages* or *quality gates*.
+
+- **Not a way to skip review.** `/wf implement`, `/wf verify` and `/wf review` still run. The compression is in the planning, never in the stages or the quality gates.

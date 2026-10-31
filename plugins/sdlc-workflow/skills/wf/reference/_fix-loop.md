@@ -1,12 +1,12 @@
 # Shared fix-loop invariants (single source)
 
-Three surfaces dispatch fix sub-agents: `verify.md` (Step 7.6, single-round
-user-gated loop), `review/_stage.md` (Step 4c, ledger-recorded dispatch), and handoff's
-PR/CI machinery (`handoff/_pr-ci-handoff.md` — CI-red and comment-triage fixes). Their
-triggers, triage protocols, round semantics, and prompt templates are
-stage-specific and live in those files. The rules below are the invariants every
-fix dispatch shares — they are stated **only here**; the stage references cite
-this file instead of restating them.
+Two surfaces dispatch fix sub-agents: the verify fix loop (`verify.md` Step 7.6, one round, gated by the
+person) and the PR phase of ship (`handoff/_pr-ci-handoff.md`: CI-red fixes and review-thread fixes).
+`/wf implement <slug> reviews` (`implement/_reviews-mode.md`), the manual escape of review, follows the
+same rules. The review stage dispatches no fix sub-agent: it fixes each finding in its own session.
+Each surface owns its trigger, its triage and its rounds. [_fix-prompt.md](_fix-prompt.md) owns the
+prompt. The rules below hold for every fix dispatch. They are stated only here; the surfaces cite
+this file.
 
 1. **Orchestrator discipline.** The stage orchestrator never patches code
    inline. Every fix is delegated to a dispatched sub-agent; only the
@@ -21,8 +21,7 @@ this file instead of restating them.
    what was auto-fixed, with diffs, in its round summary. Nothing auto-fixed is
    ever silent.
 3. **Pinned dispatch.** One sub-agent per issue at **medium** effort, per
-   [_subagents.md](_subagents.md). Where the stage file pins a tier (review
-   pins **medium** on fix dispatch — REQUIRED on that call), that pin stays.
+   [_subagents.md](_subagents.md). Set the tier on every fix dispatch.
    Rationale: read-finding-then-patch is a bounded profile; fix sub-agents
    must not silently inherit the parent session's configuration. Stage-specific
    dispatch rules (for example verify's parallel dispatch with write isolation)

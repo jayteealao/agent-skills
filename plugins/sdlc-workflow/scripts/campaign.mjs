@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/campaign.mjs — the disk side of /wf campaign, the serial walk over the
- * packets of one list (WF-PIECES-PLAN section 6.4).
+ * packets of one list.
  * skills/wf/scripts/campaign.mjs runs this script.
  *
  *   check   <source-dir|board-file>                 the list check of section 4.2 (exit 1 on an error)

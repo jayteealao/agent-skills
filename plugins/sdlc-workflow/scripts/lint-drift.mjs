@@ -13,6 +13,8 @@
 //   hosts     every gap of the registry names its reason (lib/registry.mjs checks the shape)
 //   generated every file that npm run generate writes matches the registry
 //   cards     every stage reference has a ## Card section, which the brief of the stage reads
+//   public    the comments of the drivers, lib, scripts and hooks, and the comments, test titles
+//             and file names of the tests, name no internal plan or review id (AGENTS.md "Public text")
 //
 //   node scripts/lint-drift.mjs [--json]     exit 1 when it finds any drift
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -306,6 +308,94 @@ export function lintCards(root, reg) {
   return out;
 }
 
+// ---------------------------------------------------------------- public
+
+/**
+ * The ids of internal plans and reviews: the name of a plan or a review, a section mark, a part,
+ * a wave, a lettered item, and a letter-number item id. An acceptance criterion id (AC and a
+ * number), a heading tag, an ECMAScript edition and the V8 engine are product words, not ids.
+ */
+export const PLAN_ID_RE = new RegExp([
+  String.raw`\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-(?:PLAN|AUDIT|REVIEW|FINDINGS|CONSENT|HARDENING|LIFECYCLE|INTEROP|SEMANTIC|FIDELITY|REMEDIATION)\b`,
+  String.raw`\bWIDE-VIEW\b`,
+  String.raw`§\s?\d+(?:\.\d+)*`,
+  String.raw`\bPart [A-Z]\b`,
+  String.raw`\bwaves? [A-Z]\d*\b`,
+  String.raw`\b(?!AC-)[A-Z]{1,2}-[A-Z]{1,2}-?\d+\b`,
+  String.raw`(?<![\w.-])(?!AC\d|ES\d|H[1-6]\b|V8\b)[A-Z]{1,2}\d+(?:\.\d+)*[a-z]?\b`,
+].join('|'), 'g');
+
+/**
+ * Files that another change rewrites now. Each entry is TEMPORARY: remove it when that change
+ * lands and its comments are clean.
+ */
+export const PUBLIC_SKIP = new Set([
+  'lib/design-check.mjs',
+  'lib/design-cli.mjs',
+  'tests/integration/design-approve.test.mjs',
+  'tests/unit/lib/design-audit.test.mjs',
+  'tests/unit/lib/design-check.test.mjs',
+]);
+
+/** The comments of a script, one entry for each line: `//` comments and block comments. */
+export function commentsOf(text) {
+  const out = [];
+  let inBlock = false;
+  text.split('\n').forEach((raw, i) => {
+    const line = raw.replace(/\r$/, '');
+    if (inBlock) {
+      out.push({ line: i + 1, text: line.trim() });
+      if (line.includes('*/')) inBlock = false;
+      return;
+    }
+    const block = /(?:^|\s)\/\*(.*)$/.exec(line);
+    if (block) {
+      out.push({ line: i + 1, text: block[1] });
+      if (!block[1].includes('*/')) inBlock = true;
+      return;
+    }
+    const lineComment = /(?:^|[\s;,(){}[\]])\/\/(.*)$/.exec(line);
+    if (lineComment) out.push({ line: i + 1, text: lineComment[1] });
+  });
+  return out;
+}
+
+const TEST_TITLE_RE = /\b(?:test|it|describe|suite)(?:\.(?:skip|only|todo))?\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+
+/** The titles of the tests of a test file: the first string of each test(), it(), describe() and suite(). */
+export function testTitlesOf(text) {
+  return [...text.matchAll(TEST_TITLE_RE)].map((m) => ({ line: lineOf(text, m.index), text: m[2] }));
+}
+
+/** The plan ids in one piece of text. */
+export const planIdsIn = (text) => [...String(text).matchAll(PLAN_ID_RE)].map((m) => m[0]);
+
+/** The files of the public-text check. */
+export function publicFiles(root = PLUGIN_ROOT) {
+  const dir = join(root, 'skills/wf/workflows');
+  const drivers = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => `skills/wf/workflows/${f}`) : [];
+  return [...drivers, ...['lib', 'scripts', 'hooks'].flatMap((d) => walk(root, d, ['.mjs'])), ...walk(root, 'tests', ['.mjs', '.js'])]
+    .filter((rel) => !PUBLIC_SKIP.has(rel)).sort();
+}
+
+/** No comment, test title or test file name names an internal plan or review id. */
+export function lintPublic(root = PLUGIN_ROOT) {
+  const findings = [];
+  for (const rel of publicFiles(root)) {
+    const text = readFileSync(join(root, rel), 'utf8');
+    const parts = commentsOf(text).map((c) => ({ ...c, what: 'comment' }));
+    if (rel.startsWith('tests/')) {
+      parts.push(...testTitlesOf(text).map((c) => ({ ...c, what: 'test title' })));
+      parts.push({ line: 1, text: rel.split('/').pop(), what: 'file name' });
+    }
+    for (const p of parts) {
+      const ids = [...new Set(planIdsIn(p.text))];
+      if (ids.length) findings.push({ check: 'public', file: rel, line: p.line, message: `the ${p.what} names the internal id ${ids.join(', ')}; say the reason in plain words` });
+    }
+  }
+  return findings;
+}
+
 export function lintDrift(root = PLUGIN_ROOT) {
   const reg = loadRegistry(root);
   const findings = [
@@ -316,6 +406,7 @@ export function lintDrift(root = PLUGIN_ROOT) {
     ...lintConfig(root),
     ...lintFields(root),
     ...lintCards(root, reg),
+    ...lintPublic(root),
   ];
   return findings;
 }

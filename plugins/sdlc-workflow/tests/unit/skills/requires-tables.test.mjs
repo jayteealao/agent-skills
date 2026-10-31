@@ -1,4 +1,4 @@
-// ARTIFACT-SPLIT-PLAN W2 — the Requires-table guard (build spec S1).
+// The Requires-table guard.
 //
 // Every stage reference that writes a stage artifact carries one `## Requires`
 // table. The table replaces the prose read orders of Step 0. This test pins:
@@ -36,7 +36,7 @@ const NO_WRITES = new Map([
   ['intake.md', 'the intake dispatcher: the mode reference it loads writes the lead'],
 ]);
 
-// References without a table. `_*.md` sub-procedures never carry one (S1); these
+// References without a table. `_*.md` sub-procedures never carry one; these
 // are the other files, each loaded by a stage reference that owns the table.
 const NO_TABLE = [
   [/^auto\.md$|^yolo\.md$|^campaign\.md$|^goal\.md$|^optimize\.md$/, 'lifecycle drivers and loops: they run stage references and scripts; intake/optimize.md carries the optimize table'],
@@ -215,7 +215,7 @@ test('(b) no Step 0 / Orient read order names a file that the Requires table doe
   assert.deepEqual(problems, [], `Step 0 read orders outside the Requires table:\n${problems.join('\n')}`);
 });
 
-// "Load <procedure file>" anywhere in a stage reference: the W2 done-when names
+// "Load <procedure file>" anywhere in a stage reference: the done-when of this guard names
 // Step 0 and "load" sentences. Only procedure files count here, because a
 // "load" of a workflow artifact outside Step 0 is rare and names a file the
 // stage writes as often as one it reads.
@@ -258,4 +258,70 @@ test('(b) self-test: the scan finds a Step 0 read of a file that the table does 
     }
   }
   assert.deepEqual(found, ['02-shape.md', '_gate-question.md']);
+});
+
+// ---- reachability ------------------------------------------------------------
+
+const WF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf');
+
+/** The reference files that a code span names: `dir/file.md`, or `dir/<name>.md` for every card of a folder. */
+function spanTargets(span, fromDir) {
+  const name = span.replace(/^<skill-dir>\//, '').replace(/^(?:plugins\/sdlc-workflow\/)?skills\/wf\//, '');
+  if (!/\.md$/.test(name) || /\s/.test(name)) return [];
+  const bases = [fromDir, REF_DIR, WF_DIR];
+  const placeholder = /<[^>]+>|\{[^}]+\}/;
+  if (!placeholder.test(name)) return bases.map((b) => path.resolve(b, name)).filter((abs) => existsSync(abs));
+  const parts = name.split('/');
+  const last = parts.pop();
+  if (parts.some((p) => placeholder.test(p)) || !/^(<[^>]+>|\{[^}]+\})\.md$/.test(last)) return [];
+  const found = [];
+  for (const b of bases) {
+    const dir = path.resolve(b, ...parts);
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+    for (const f of readdirSync(dir)) if (f.endsWith('.md') && !f.startsWith('_')) found.push(path.join(dir, f));
+  }
+  return found;
+}
+
+/** Every reference file that the dispatch reaches: SKILL.md and keys.json, then each load row, link and named path of a reached card. */
+export function reachableReferences() {
+  const seen = new Set();
+  const queue = [];
+  const add = (abs) => {
+    const norm = path.normalize(abs);
+    if (norm.endsWith('.md') && existsSync(norm) && !seen.has(norm)) { seen.add(norm); queue.push(norm); }
+  };
+  add(path.join(WF_DIR, 'SKILL.md'));
+  for (const m of readFileSync(path.join(WF_DIR, 'keys.json'), 'utf8').matchAll(/reference\/[\w./-]+\.md/g)) add(path.join(WF_DIR, m[0]));
+  while (queue.length) {
+    const file = queue.shift();
+    const dir = path.dirname(file);
+    const text = readFileSync(file, 'utf8');
+    for (const m of text.matchAll(/\]\(([^)#\s]+\.md)(?:#[^)]*)?\)/g)) add(path.resolve(dir, m[1]));
+    for (const m of text.matchAll(/`([^`\n]+\.md)`/g)) for (const abs of spanTargets(m[1], dir)) add(abs);
+    if (file.startsWith(REF_DIR)) for (const row of parseRequires(text).rows ?? []) if (row.kind === 'procedure' && row.file) add(path.join(REF_DIR, row.input));
+  }
+  return seen;
+}
+
+test('every reference file is reached from the dispatch, a load row, or a link or named path of a reached card', () => {
+  const seen = reachableReferences();
+  const orphans = markdownFiles(REF_DIR).filter((rel) => !seen.has(path.normalize(path.join(REF_DIR, rel))));
+  assert.deepEqual(orphans, [], `reference files that nothing reaches:\n${orphans.join('\n')}`);
+  const profileRow = (parseRequires(read('plan.md')).rows ?? []).find((row) => row.input === 'augment/profile.md');
+  assert.deepEqual(profileRow && [profileRow.kind, profileRow.when], ['procedure', 'mode:profile'], 'plan loads augment/profile.md with a mode:profile row');
+  // A card that only some runs need loads through a mode row, so the other runs do not read it.
+  const modeRows = { 'handoff.md': [['handoff/_batch.md', 'mode:batch'], ['handoff/_small.md', 'mode:small'], ['handoff/_repo-hooks.md', 'mode:repo-hooks']],
+    'status.md': [['status/_dashboard.md', 'mode:dashboard'], ['status/_detail.md', 'mode:detail']] };
+  for (const [card, expected] of Object.entries(modeRows)) {
+    const rows = parseRequires(read(card)).rows ?? [];
+    for (const [input, when] of expected) {
+      const row = rows.find((r) => r.input === input);
+      assert.deepEqual(row && [row.kind, row.when], ['procedure', when], `${card} loads ${input} with a ${when} row`);
+    }
+  }
+  assert.ok(!existsSync(path.join(REF_DIR, 'status', '_renders.md')), 'the status renders are split by mode');
+  // The scan must not pass by reaching nothing: an unlinked file in the tree is an orphan.
+  assert.ok(spanTargets('review/<name>.md', REF_DIR).length >= 11, 'a placeholder path reaches each card of its folder');
+  assert.deepEqual(spanTargets('review/_no-such-card.md', REF_DIR), []);
 });

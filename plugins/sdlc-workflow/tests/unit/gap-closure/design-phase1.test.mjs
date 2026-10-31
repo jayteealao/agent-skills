@@ -190,7 +190,7 @@ slug: demo
   }
 });
 
-// WF-DESIGN-PLAN Release E (Part III 9.1): four design modes per surface; `register`
+// Four design modes per surface; `register`
 // stays readable and optional, and reads as a design mode (brand → persuade, product → operate).
 test('design modes: surface-modes on 02c-craft.md, design-mode on 02b and a move, register optional', async () => {
   const contract = { ...validDesignContract(), 'surface-modes': { home: 'persuade', settings: 'operate', docs: 'read', game: 'experience' } };

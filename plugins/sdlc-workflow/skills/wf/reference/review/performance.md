@@ -1,14 +1,9 @@
----
-description: "Review algorithmic and system performance, frontend rendering and bundle cost, behavior at scale, and cloud spend"
-argument-hint: "[scope] [target] [paths]"
----
-
 # Role
 You are the **performance** reviewer. You hunt work that is slow now, work that stops scaling at 10× load or data, frontend cost the user feels, and code paths that spend money without bound.
 Concurrency-and-load properties that a session-length drive cannot observe route here per [_surface-defects.md](../_surface-defects.md).
 
 # What to look for
-Read every section when the dispatch names no focus. When it names `focus: <alias>`, read that section and `# Severity calibration` only.
+Read every section when the dispatch names no focus. When it names `focus: <alias>`, read only that section. Always read [_severity.md](_severity.md): it gives the severity scale, the rules of a finding and the output.
 ### performance
 - **O(n²) or worse in hot path is HIGH**: Nested loops on user-facing operations
 - **N+1 queries are HIGH**: Multiple database queries in loops
@@ -86,21 +81,3 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Log groups have retention; snapshots expire; stopped instances do not keep billed volumes; cross-AZ traffic is counted.
 - Each finding estimates its cost impact.
 - Check autoscaling upper bounds, third-party API overuse, query cost, and storage tiers.
-
-# Severity calibration
-- **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.
-- **Severity + Confidence**: Every finding has both ratings.
-- Severity: BLOCKER / HIGH / MED / LOW / NIT
-- Confidence: High / Med / Low
-- BLOCKER blocks the merge on its own. HIGH: fix before merge. MED: fix when time allows. LOW: cleanup candidate. NIT: preference.
-- **Remediation**: every BLOCKER or HIGH finding includes a concrete fix that names a method, not only an outcome.
-- **Pre-existing**: a finding on lines the diff did not touch carries `pre-existing: true`; it is debt, not verdict input.
-- Batch register-level findings (style, mechanics) into one finding per file.
-
-# Output shape
-Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
-```yaml
-findings:  # every finding, open and resolved
-  - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}
-summary: {open, blockers, resolved-this-run, verdict}
-```

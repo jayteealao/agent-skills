@@ -1,6 +1,6 @@
 // lib/branch-liveness.mjs
 //
-// Per-slug branch liveness (SLUG-BRANCH-IDENTITY-PLAN §4.3 / D2). Each workflow
+// Per-slug branch liveness. Each workflow
 // slug declares its own `branch` / `base-branch` / `pr-number` in frontmatter;
 // this module classifies that branch against the repo it belongs to so the hub
 // can show a soft `merged` / `branch gone` badge — it NEVER deletes anything.
@@ -9,7 +9,7 @@
 // render or a served page (same posture as the registry write). On any error or
 // missing git, it fails OPEN to `unknown` (no badge). Git-only checks are the
 // spine; the optional `gh` PR check is strictly secondary and network-guarded
-// (R2) — disabled by default on the hub-refresh path so a reload never blocks on
+// — disabled by default on the hub-refresh path so a reload never blocks on
 // the network.
 
 import { execFile, execFileSync } from 'node:child_process';

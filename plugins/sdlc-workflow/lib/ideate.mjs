@@ -1,4 +1,4 @@
-// lib/ideate.mjs — the pure side of /wf intake ideate (WF-IDEATE-SOURCES-PLAN, WF-IDEATE-TRIAGE-PLAN).
+// lib/ideate.mjs — the pure side of /wf intake ideate: its sources and its triage.
 //
 // Four jobs, each with a test:
 //   classifyArgs        Step 0: give each argument a kind from its shape (section 3);
@@ -136,7 +136,7 @@ export function sourceItemProblems(fm) {
 }
 
 /**
- * The triage check (WF-IDEATE-TRIAGE-PLAN 9.3). A record with no triage key, no
+ * The triage check. A record with no triage key, no
  * links, and no rounds is a run from before the loop, and passes.
  */
 export function triageProblems(fm) {

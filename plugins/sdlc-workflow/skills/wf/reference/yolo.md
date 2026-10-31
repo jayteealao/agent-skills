@@ -3,13 +3,6 @@ description: Autonomous lifecycle driver, on Claude Code, Codex and pi. Runs eac
 argument-hint: <slug> [<slice>]
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through the host's workflow runtime (Step 1).
 
 > **Three hosts, one script.** `workflows/yolo.js` runs unchanged on each host. Claude Code runs it with the **Workflow** tool, pi with pi-subagents' **SubagentWorkflow** tool, and Codex with `wf.mjs drive`, where each agent is one `codex exec` call. Step 1 names the call for each host. This file is a named host-contract file and may describe each host's tools directly.
@@ -42,7 +35,7 @@ It is diagnostic, never a gate: a failed append never changes what a stage does.
 
 `yolo` drives from **plan onward** — never `intake` (with its shape phase) or `design`, which own the product-owner alignment. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
 
-**Intake modes — what `yolo` drives.** Orientation classifies the slug by `00-index.md`'s `workflow-type`. Six classes:
+**Intake modes — what `yolo` drives.** Orientation classifies the slug by `00-index.md`'s `workflow-type`. The lead record, the acceptance source and the record names of each `workflow-type` are in [_source-modes.md](_source-modes.md). Six classes:
 
 - **Build lifecycles** — standard/feature and the compressed change-modes `fix` / `hotfix` / `refactor`. Their planning half (`01-<mode>` → `02-shape` → `03-slice` → `04-plan`) is written; `yolo` drives from `implement` onward. Orientation resolves the mode-named intake lead (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`, all `type: intake`) from `workflow-type`, not the literal `01-intake.md`. Readiness requires the intake lead + `02-shape.md` + `03-slice.md`; a single-scope workflow with no `03-slice.md` is driven as a synthesized roster of one.
 - **RCA (forwarded, single-scope)** — `workflow-type: rca`. `01-rca.md` (`type: rca`) is its intake and synthesizes `02-shape.md`; `yolo` drives from `plan` onward over a one-entry roster synthesized from `selected-slice` (each stage reference has a "forwarded mode" path). `recommended-next` sets the build flavor: `hotfix` → review defaults to the `security` rubric; `plan`/`fix` → standard review. **`recommended-next: human-triage`** is a genuine product stop: orientation blocks and routes you to read `01-rca.md` and choose the route by hand. `yolo` never mints a branch or changes the base for an RCA.
@@ -88,12 +81,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 # The Autonomous Decision Policy (what replaces each gate)
 
-Every stage gate that would ask the person, `yolo` resolves by this rule. Two tiers: **auto-resolve** (proceed, recording the decision into the artifact) and **HARD-STOP** (end the run with the artifact trail and a reason). The last column says what changes in delegate mode. A delegate run stops only for these four causes:
-
-- a broken charter commitment
-- a git switch or create that would destroy uncommitted work
-- a review BLOCKER that is `could-not-fix` after two tries
-- a runtime-evidence deferral with no probe receipt, or missing runtime evidence with no deferral
+Every stage gate that would ask the person, `yolo` resolves by this rule. Two tiers: **auto-resolve** (proceed, recording the decision into the artifact) and **HARD-STOP** (end the run with the artifact trail and a reason). The last column says what changes in delegate mode: a delegate run stops only where that column names a stop.
 
 | Gate | Auto-resolve | HARD-STOP | In delegate mode |
 |---|---|---|---|
@@ -107,7 +95,7 @@ Every stage gate that would ask the person, `yolo` resolves by this rule. Two ti
 | `intake` (with its shape phase) / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. | The same: never autonomous. |
 | standing steering (live `steer` entries) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. | The same: a veto stops. |
 
-Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recorded defer only when the fix would reach outside the slice's diff, be non-localized, or risk a convention conflict. An unfixable finding is recorded `could-not-fix`, and is a HARD-STOP only per the `review` row.
+Fix posture: the `review` row above.
 
 Branch posture: under `branch-strategy: dedicated`, orientation switches to the slug branch if it exists, else creates it from `base-branch`. It never stashes or force-switches: a switch or create that git refuses because uncommitted work would be lost is a HARD-STOP. A created or switched branch is reported in `outcome.branch`.
 
@@ -136,7 +124,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    ```
 
    The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`, `models`, `recordsRoot` and `delegate`. Pass `models` and `recordsRoot` on in the args of Step 1, and `delegate: true` when `delegate` is true. A `CAUTION` on stderr means a hot-patched copy was overwritten.
-5. **Ask how the run settles your decisions.** Ask only when the store of the workflow holds no `run-decisions` steer. A relaunch after a hand-back does not ask again: Step 0.4 reads the recorded answer. The campaign walk asks this question once per call, in its step 2, and records the answer in each work packet that it launches: do not ask it again for a work packet. When a later launch of `/wf yolo` asks, put the answer of the last launch first. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
+5. **Ask how the run settles your decisions.** Ask only when the store of the workflow holds no `run-decisions` steer. When a later launch of `/wf yolo` asks, put the answer of the last launch first. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
 
    ```
    node "<pluginRoot>/scripts/wf.mjs" decide add "<projectRoot>" <slug> --kind steer --key run-decisions --question "<the question>" --answer "<the answer>"
@@ -214,14 +202,9 @@ A stage that reaches an intent-bearing decision can hold it and continue with wo
 
 **Delegate mode.** When the `run-decisions` answer of Step 0.5 takes the recommended option, or the person says that the run decides for them, launch with `delegate: true`. Each stage settles an intent-bearing decision by the option it recommends, and records it with `--by delegate`. The run returns no questions. Before a stage settles a decision, it looks in the store for an answer to the same question in substance, also under another key, and reuses it.
 
-**While a delegate run is live, report and do not ask.** The person learns about a delegate decision in chat, and the run does not wait.
+**While a delegate run is live, report and do not ask**, per "A delegate run" of [yolo/_commentary.md](yolo/_commentary.md).
 
-1. Do not ask the person about a delegate decision while the run is live. Do not use the question tool for it.
-2. When a look-in or a commit shows a delegate decision that changes product behaviour, defers a failing check, accepts a verify item or starts a long run, write one chat line. The line gives what the run chose, the measured effect (for example "generated leagues: 4.9 shots a team, 27 before"), and the words that reverse it (for example "Say 'reverse D-080: find the cause now'").
-3. When the person reverses a decision in chat, record `decide add --kind answer --by person` with the same key and the person's words. Do not stop the driver: the next stage reads the answer at its start.
-4. Delegate mode ends only on the person's words: the person asks the run to stop deciding for them, or gives a new `run-decisions` answer. Then record the new `run-decisions` steer. "I'm back", or any other sign that the person is present, does not end delegate mode. The `run-decisions` steer is the only state. Do not keep another note of an away mode.
-
-**The end digest is one list and one question.** At the end of the run, run `outcome.delegate.digest` (`decide list --by delegate`).
+**The end digest is one list and one question**, per "A list of items" of [_gate-question.md](_gate-question.md). At the end of the run, run `outcome.delegate.digest` (`decide list --by delegate`).
 
 1. Write the delegate decisions in chat as a numbered list, one line each: the key, what the run chose, and its effect.
 2. Ask one question with the host question tool: "Reverse any of these?". The options are "None, keep them all (Recommended)" and, for up to 3 of the decisions with the largest effect, "Reverse <n>". The free-text answer can name other numbers.

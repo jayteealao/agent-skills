@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * hooks/pre-tool-use-all.mjs — the ONE PreToolUse process (WIDE-VIEW §14.2.6).
+ * hooks/pre-tool-use-all.mjs — the ONE PreToolUse process: one process per tool event.
  *
  * hooks.json wires this file for `Write|Edit|MultiEdit|Bash|PowerShell`. The payload shape
  * selects the checks, in the order the three separate hooks used to run:

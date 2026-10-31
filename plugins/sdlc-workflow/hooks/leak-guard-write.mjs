@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * PreToolUse(Write|Edit) External Output Boundary leak guard
- * (HOOKS-SEMANTIC Phase 1, hook #2).
+ * PreToolUse(Write|Edit) External Output Boundary leak guard: the public-doc
+ * write check.
  *
  * When a write targets a PUBLIC documentation path — README*, CHANGELOG*,
  * CONTRIBUTING*, or anything under a docs/ directory outside the internal
@@ -11,7 +11,7 @@
  *
  * Default OFF (`semantic.enabled: false`); advisory-first (`semantic.mode`).
  * Never fires inside external-model dispatch (SDLC_DISPATCH_ACTIVE).
- * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry.
  */
 
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';

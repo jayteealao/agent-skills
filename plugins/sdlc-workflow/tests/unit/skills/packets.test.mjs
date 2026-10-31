@@ -1,4 +1,4 @@
-// WF-PIECES-PLAN section 4 guard tests: a brainstorm's `done` writes one ordered list,
+// Work packet guard tests: a brainstorm's `done` writes one ordered list,
 // work/index.md plus one work/<packet-slug>.md per packet, from the board. Decisions travel
 // verbatim, every kept decision lands in exactly one packet, a build packet carries its
 // write-up, and a started packet is never rewritten.

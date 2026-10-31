@@ -1,4 +1,4 @@
-// WF-OPTIMIZE-PLAN W3 — the optimize driver (skills/wf/workflows/optimize.js), run as a
+// The optimize driver (skills/wf/workflows/optimize.js), run as a
 // whole script with a mock `agent` that answers by label. A small fake of optimize.mjs
 // decides the next action: an opening branch round of 4 branch trials, the round-close,
 // then trunk trials until the target is reached, then finish.
@@ -81,7 +81,7 @@ test('a branch proposer writes one hypothesis; the trunk proposer writes width h
   assert.ok(calls.filter((c) => c.label.startsWith('edit:')).every((c) => c.model === 'claude-sonnet-5-5' && /The optimize worktree is \/wt/.test(c.prompt)));
 });
 
-test('D13: the proposer reads only the digest, and never the ledger or the history of other branches', async () => {
+test('the proposer reads only the digest, and never the ledger or the history of other branches', async () => {
   const { agent, calls } = fakeLoop();
   await run(ARGS, agent);
   const p = calls.find((c) => c.label === 'propose:1').prompt;
@@ -412,4 +412,25 @@ test('the consider step lists the bundle of near misses first, and the targets a
   assert.match(p, /"targets": \[\s*"central_distance"\s*\][\s\S]*"lane": "optimize\/s--r1b2"/);
   assert.match(p, /Skip a port whose target already has a kept or marginal idea on the winner or the trunk, unless its mechanism differs/);
   assert.match(p, /--try <n1,b2,t7>/);
+});
+
+test('the proposer, editor and unwrap helpers keep the agent labels and their order', async () => {
+  const round = ['round-open', 'status', ...[1, 2, 3, 4].flatMap((n) => [`propose:${n}`, `edit:${n}`, `trial:${n}`]), 'status', 'round-close'];
+  const trunk = ['propose:5', 'edit:5', 'trial:5', 'edit:6', 'trial:6', 'status', 'finish'];
+  const labelsOf = async (o, wrap = (a) => a) => {
+    const { agent, calls } = fakeLoop(o);
+    const out = await run(ARGS, wrap(agent, calls));
+    return { labels: calls.map((c) => c.label), out };
+  };
+  assert.deepEqual((await labelsOf({})).labels, ['status', ...round, ...trunk]);
+  assert.deepEqual((await labelsOf({ profile: 'agent' })).labels, ['status', 'profile', ...round, ...trunk]);
+  // A profiler with no answer stops the loop with the label in the reason.
+  const silent = await labelsOf({ profile: 'agent' }, (a, calls) => async (p, o) => (o.label === 'profile' ? (calls.push({ label: o.label }), null) : a(p, o)));
+  assert.deepEqual(silent.labels, ['status', 'profile', 'status']);
+  assert.equal(silent.out.reason, 'profile: profile: no result');
+  // A proposer with no hypothesis stops the loop before any editor.
+  const empty = await labelsOf({}, (a, calls) => async (p, o) => (o.label.startsWith('propose') ? (calls.push({ label: o.label }), { hypotheses: [] }) : a(p, o)));
+  assert.deepEqual(empty.labels, ['status', 'round-open', 'status', 'propose:1', 'status']);
+  assert.equal(empty.out.stoppedAt, 'proposer');
+  assert.equal(empty.out.reason, 'the proposer of trial 1 returned no hypothesis');
 });

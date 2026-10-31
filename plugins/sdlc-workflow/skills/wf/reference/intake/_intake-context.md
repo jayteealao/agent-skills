@@ -6,13 +6,6 @@ the workflow-registry / slug semantics, and the rule for `INDEX.md`. The dispatc
 this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 # Workflow registry & slug semantics
 
 `.ai/workflows/INDEX.md` is the global workflow registry (format documented in
@@ -23,13 +16,24 @@ closed rows retained.
 **Slugs are stable.** Once intake establishes a slug it never changes, and a closed slug is never
 reused by a new workflow.
 
-**Collision detection** (a *new* workflow whose derived slug already exists) is owned by
-`intake/default.md` Step 0 — it prompts catch-up (recap) / add-scope (extend) / pick-different / cancel and never silently
-proceeds. **This is distinct from slug-mode:** when the dispatcher detects that the *first
-positional token* is an exact existing-slug match, that is an *intentional* attach handled by
-`../_compressed-slice.md` — no collision prompt fires.
+**Slug-mode is not a collision.** When the token before the mode word names an existing workflow, the run attaches a slice on purpose, per [_compressed-slice.md](../_compressed-slice.md). No collision rule fires.
 
-**Reserved slug names.** `wf/SKILL.md` reads a command word before it reads a slug, so a new
+# New slug
+
+Every mode that creates a workflow names it in three steps. A mode card cites this section and keeps only its own form and its exceptions.
+
+1. **Derive.** The form is `<mode>-<descriptor>`: lowercase kebab-case, at most 5 words, from the description (for example `fix-checkout-button-spacing`). A dated mode adds the date: `<mode>-<descriptor>-<YYYYMMDD>` (`ideate`, `simplify`, `brainstorm`) or `<mode>-<YYYYMMDD>` (`update-deps`), from the date-only row of [_timestamp.md](../_timestamp.md) with the dashes removed. Default intake derives a kebab-case slug with no prefix, or uses the slug that the person gives.
+2. **Reserved check.** The slug must not be one of the reserved words below. A slug with a mode prefix never matches, so the check stops a default slug, a given slug or a work packet slug. On a match, STOP and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
+3. **Collision.** Use the rule of the class of the mode:
+
+| Class | Modes | When `record get "<root>" <slug> index` exits 0 |
+|---|---|---|
+| Default | default intake | the `INDEX.md` row check and the gate questions of `intake/default.md` Step 0 |
+| Work packet | a work packet slug of a brainstorm or an ideate pick | ask the person for a new slug |
+| Typed | `fix`, `hotfix`, `refactor`, `update-deps`, `optimize`, `adopt`, `rca`, `investigate`, `discover`, `audit`, `task` | the same `workflow-type` (or its legacy alias) is the resume of the mode's Step 0. Another type: WARN *"Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue the existing workflow."* and stop. |
+| Dated | `ideate`, `simplify`, `brainstorm` | append `-2`, `-3`, and so on, until `record get` exits 1 |
+
+**Reserved words.** `wf/SKILL.md` reads a command word before it reads a slug, so a new
 workflow's slug must not be one of these words:
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 - the keys: `intake`, `shape`, `design`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `probe`, `yolo`, `campaign`, `loop`, `status`, `project`, `docs`;
@@ -37,9 +41,7 @@ workflow's slug must not be one of these words:
 - the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`, `amend`, `modernize`, `close`.
 <!-- end generated -->
 
-When a derived or given slug is in this set, ask for another slug with the "Pick a different slug"
-option of the `intake/default.md` collision prompt. Every mode that creates a workflow applies this
-rule. An existing slug keeps its name, and `/wf status` flags it.
+An existing workflow with a reserved slug keeps its name. `node "<skill-dir>/scripts/wf.mjs" index "<root>" --check` and `/wf status` flag it.
 
 # INDEX.md
 

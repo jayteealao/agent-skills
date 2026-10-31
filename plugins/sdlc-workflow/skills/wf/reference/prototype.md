@@ -3,10 +3,6 @@ description: Answer an open technical question by running code, one round at a t
 argument-hint: "<idea> | <poc-branch> <idea> | <slug> [request]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `/wf loop prototype`. A prototype answers an open question by running code. The person starts every round. You run one round, return, and end the run. You never start the next round.
 
 ## Requires

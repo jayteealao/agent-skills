@@ -1,6 +1,6 @@
-// WF-OPTIMIZE-PLAN W1 — lib/optimize.mjs: the spec, the keep rule, the path check, the
-// branch rounds on a fixed schedule (D12), the plateau as a round trigger (D14), the
-// winner, and the two proposer digests (D13). Source of the rounds: arXiv 2610.07447.
+// lib/optimize.mjs: the spec, the keep rule, the path check, the
+// branch rounds on a fixed schedule, the plateau as a round trigger, the
+// winner, and the two proposer digests. Source of the rounds: arXiv 2610.07447.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -20,7 +20,7 @@ const fm = (over = {}) => ({
 const specOf = (over) => { const { spec, errors } = parseSpec(fm(over)); assert.deepEqual(errors, []); return spec; };
 const stateOf = (over = {}) => ({ ...newState({ slug: 's', worktree: '/wt', baseCommit: 'c0', values: [100, 100, 100], startedAt: new Date().toISOString() }), ...over });
 
-test('the spec defaults follow D12: 60 trials, 4 branches, rounds at 0, 33 and 66 percent, 3 branch trials', () => {
+test('the spec defaults: 60 trials, 4 branches, rounds at 0, 33 and 66 percent, 3 branch trials', () => {
   const s = specOf();
   assert.equal(s.budget.trials, 60);
   assert.deepEqual(s.rounds.at, [0, 0.33, 0.66]);
@@ -42,7 +42,7 @@ test('the metric line is the last stdout line: one number, or JSON with the key'
   assert.equal(noiseOf([10, 12, 11]), 1);
 });
 
-test('D6: a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {
+test('a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {
   const spec = specOf();
   assert.equal(keepDecision({ spec, best: 100, noise: 0, first: 99 }).wins, false, '1% is under the 2% min-gain');
   assert.equal(keepDecision({ spec, best: 100, noise: 3, first: 95 }).wins, false, '5 is under 2 x noise = 6');
@@ -52,7 +52,7 @@ test('D6: a gain must pass max(min-gain, 2 x noise), and the confirm run must ag
   assert.equal(keepDecision({ spec, best: 100, noise: 0, first: 90, confirm: 91 }).kept, true);
 });
 
-test('D5: the path check rejects off-limits paths and paths outside allowed-paths', () => {
+test('the path check rejects off-limits paths and paths outside allowed-paths', () => {
   const spec = specOf({ 'off-limits': ['src/bench/**'] });
   assert.ok(globToRegExp('src/**').test('src/a/b.js'));
   assert.ok(globToRegExp('src').test('src/x.js'));
@@ -61,7 +61,7 @@ test('D5: the path check rejects off-limits paths and paths outside allowed-path
   assert.deepEqual(pathViolations(['src/m.js'], spec, ['src/m.js']).map((v) => v.reason), ['off-limits']);
 });
 
-test('D12: the 0% round opens from the baseline, then the branches take trials in turn', () => {
+test('the 0% round opens from the baseline, then the branches take trials in turn', () => {
   const spec = specOf();
   const s = stateOf();
   const open = nextAction({ state: s, spec });
@@ -73,7 +73,7 @@ test('D12: the 0% round opens from the baseline, then the branches take trials i
   assert.equal(nextAction({ state: { ...s, round, schedule: { used: [0] } }, spec }).next.action, 'round-close');
 });
 
-test('D12: the 33% round opens when 20 of 60 trials are used', () => {
+test('the 33% round opens when 20 of 60 trials are used', () => {
   const spec = specOf();
   const s = stateOf({ schedule: { used: [0] }, counters: { trials: 19, trunkTrials: 7, streak: 0, sinceCheckpoint: 0, keeps: 0 } });
   assert.equal(nextAction({ state: s, spec }).next.action, 'trial');
@@ -81,7 +81,7 @@ test('D12: the 33% round opens when 20 of 60 trials are used', () => {
   assert.deepEqual([nextAction({ state: s, spec }).next.action, nextAction({ state: s, spec }).next.point], ['round-open', 1]);
 });
 
-test('D14: a plateau opens the next round early, then extra rounds, then stops', () => {
+test('a plateau opens the next round early, then extra rounds, then stops', () => {
   const spec = specOf();
   const s = stateOf({ schedule: { used: [0] }, counters: { trials: 14, trunkTrials: 8, streak: 8, sinceCheckpoint: 0, keeps: 0 } });
   const early = nextAction({ state: s, spec });
@@ -112,7 +112,7 @@ test('the winner is the best kept branch; a branch with no keep cannot win; the 
   assert.equal(pickWinner({ branches: [b(1, 80, 1), b(2, 90, 1)] }, 'higher').k, 2);
 });
 
-test('D13: a branch reads a flushed digest; the trunk restarts from the winner of the last round', () => {
+test('a branch reads a flushed digest; the trunk restarts from the winner of the last round', () => {
   const spec = specOf();
   const results = [
     { event: 'trial', trial: 1, round: null, branch: null, hypothesis: { text: 'trunk idea' }, verdict: 'reverted' },
@@ -192,14 +192,14 @@ test('the trunk digest holds the kept trials of a merged branch', () => {
   assert.deepEqual(digestTrials(results, s, 'trunk').map((t) => t.trial), [1, 2, 4]);
 });
 
-test('D7: the holdout regresses past its tolerance', () => {
+test('the holdout regresses past its tolerance', () => {
   const spec = specOf({ holdout: { command: 'h', tolerance: '1%' } });
   assert.equal(holdoutRegressed(spec, 100, 100.5), false);
   assert.equal(holdoutRegressed(spec, 100, 102), true);
   assert.equal(holdoutRegressed(spec, 100, 90), false, 'lower is better: 90 is a gain');
 });
 
-test('G2: a claim of an idea refuses a target that another lane claims, and a tried target without a new reason', () => {
+test('a claim of an idea refuses a target that another lane claims, and a tried target without a new reason', () => {
   const book = emptyIdeas();
   const a = claimIdea(book, { lane: 'b1', target: 'Team::back_line', family: 'stack arrays' });
   assert.equal(a.ok, true);
@@ -228,7 +228,7 @@ test('G2: a claim of an idea refuses a target that another lane claims, and a tr
   assert.equal(claimIdea(book, { lane: 'b1', target: '' }).ok, false, 'a claim needs a target');
 });
 
-test('G1: the profile comes before the first trial and before each round, and the digest marks an entry that cannot pass alone', () => {
+test('the profile comes before the first trial and before each round, and the digest marks an entry that cannot pass alone', () => {
   const spec = specOf({ profile: 'agent' });
   const s = stateOf();
   assert.equal(nextAction({ state: s, spec }).next.action, 'profile', 'the first profile comes before the 0% round');
@@ -255,7 +255,7 @@ test('G1: the profile comes before the first trial and before each round, and th
   assert.equal(d.profile[1].alone, false);
 });
 
-test('G3: the paired rule keeps a small gain that repeats, and refuses a block in which two pairs lose', () => {
+test('the paired rule keeps a small gain that repeats, and refuses a block in which two pairs lose', () => {
   const spec = specOf({ metric: { command: 'm', direction: 'lower', repeat: 5, 'min-gain': '1%', paired: true } });
   assert.equal(spec.metric.paired, true);
   const noise = 0.4;
@@ -275,7 +275,7 @@ test('G3: the paired rule keeps a small gain that repeats, and refuses a block i
   assert.equal(specOf().metric.paired, false, 'an old spec keeps the unpaired rule');
 });
 
-test('G4: a bundle joins marginal ideas with a kept diff and other targets, once; a port is a trunk trial of the merge step', () => {
+test('a bundle joins marginal ideas with a kept diff and other targets, once; a port is a trunk trial of the merge step', () => {
   const book = emptyIdeas();
   for (const [t, g] of [['a', 0.04], ['b', 0.05], ['a', 0.03], ['c', 0.01]]) {
     const c = claimIdea(book, { lane: 'trunk', target: t, again: 'x' });
@@ -311,7 +311,7 @@ test('G4: a bundle joins marginal ideas with a kept diff and other targets, once
   assert.deepEqual([port.next.action, port.next.on, port.next.port], ['trial', 'optimize/s', 't3']);
 });
 
-test('G5: the seeds of a round, and a branch that trails the leader with no keep is pruned', () => {
+test('the seeds of a round, and a branch that trails the leader with no keep is pruned', () => {
   const entries = [{ name: 'decide', share: 0.3 }, { name: 'steer', share: 0.2 }, { name: 'threat', share: 0.001 }];
   const book = emptyIdeas();
   const c = claimIdea(book, { lane: 'trunk', target: 'steer' });
@@ -336,7 +336,7 @@ test('G5: the seeds of a round, and a branch that trails the leader with no keep
   assert.equal(buildDigest({ spec, specProse: '', state: { ...s, round: { ...round, branches: round.branches.map((b) => (b.k === 5 ? { ...b, seed: 'decide' } : b)) } }, results: [], lane: 'b5' }).seed, 'decide');
 });
 
-test('G6: the pace comes from the ledger, the schedule follows the trials that the wall clock allows, and a round that does not fit is skipped', () => {
+test('the pace comes from the ledger, the schedule follows the trials that the wall clock allows, and a round that does not fit is skipped', () => {
   const at = (min) => new Date(Date.UTC(2026, 0, 1, 0, min)).toISOString();
   const lines = [0, 10, 20, 30, 40, 50, 90].map((m, i) => ({ event: 'trial', trial: i + 1, at: at(m), ms: 60_000 }));
   assert.deepEqual(paceOf(lines), { trialMs: 600_000, measureMs: 60_000 }, 'the median gap of the last 6 lines, and the mean of the last 5 ms');
@@ -368,7 +368,7 @@ test('G6: the pace comes from the ledger, the schedule follows the trials that t
   assert.match(stop.detail, /^no round fits in the time left/);
 });
 
-test('G7: the ablation is due before finish at the target, once, and a change that gives no more than the threshold is weak', () => {
+test('the ablation is due before finish at the target, once, and a change that gives no more than the threshold is weak', () => {
   const spec = specOf({ metric: { command: 'node m.js', direction: 'lower', repeat: 3, 'min-gain': '2%', target: 50 } });
   const s = stateOf({ best: { commit: 'c9', value: 40, trial: 3, reachedAt: 3 } });
   assert.deepEqual(nextAction({ state: s, spec }).next.action, 'ablate');
@@ -384,7 +384,7 @@ test('G7: the ablation is due before finish at the target, once, and a change th
   assert.match(table, /^\| — \| 0123456789ab \| m \| — \| not checked: the revert conflicts with a later change \|$/m);
 });
 
-test('G9: the end of the clock is kept for the harvest: a round closes early, and the last trunk trial is a bundle or a stop', () => {
+test('the end of the clock is kept for the harvest: a round closes early, and the last trunk trial is a bundle or a stop', () => {
   const at = (min) => new Date(Date.UTC(2026, 0, 1, 0, min)).toISOString();
   const spec = specOf({ budget: { trials: 60, 'wall-clock': '6h' } });
   const pace = { trialMs: 600_000, measureMs: 300_000 };
@@ -417,7 +417,7 @@ test('G9: the end of the clock is kept for the harvest: a round closes early, an
   assert.equal(nextAction({ state: due, spec, now: Date.parse(at(285)), pace: fast }).next.skipRound, 2, '75 minutes are left');
 });
 
-test('G9: the near misses of a lane: reverted trials with a gain, the largest first, on separate paths, that apply together', () => {
+test('the near misses of a lane: reverted trials with a gain, the largest first, on separate paths, that apply together', () => {
   const lines = [
     { event: 'trial', trial: 3, round: 1, branch: 'b2', verdict: 'reverted', delta: 0.0439, patch: 'patches/3.patch', paths: ['sim.rs'] },
     { event: 'trial', trial: 5, round: 1, branch: 'b2', verdict: 'reverted', delta: 0.05, patch: 'patches/5.patch', paths: ['sim.rs', 'a.rs'] },

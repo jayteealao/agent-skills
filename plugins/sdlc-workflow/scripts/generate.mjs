@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/generate.mjs — writes the files that copy the /wf key surface from skills/wf/keys.json:
-// the key tables and argument hint of SKILL.md, the key count of route.md, the README key
+// the argument hint of SKILL.md, the key count and the key tables of route.md, the README key
 // table, the manifest descriptions, the catalog description and agents/openai.yaml.
 //
 //   node scripts/generate.mjs           write every target
@@ -62,7 +62,7 @@ function hostSentence(reg) {
   return ['Every key runs on Claude Code, Codex and pi in the same form, with these exceptions:', '', ...lines].join('\n');
 }
 
-export function skillBlock(reg) {
+export function keyTables(reg) {
   const ctx = context(reg);
   const out = [];
   for (const g of reg.groups) {
@@ -143,8 +143,8 @@ export function targets(reg) {
   const hint = `"<slug> | <${reg.keys.map((k) => k.name).join('|')}> [args...]"`;
   const count = (t, f) => replaceOnce(t, /one of the \d+ keys/, `one of the ${ctx.keyCount} keys`, f);
   return [
-    ['skills/wf/SKILL.md', (t, f) => replaceBlock(replaceOnce(t, /^argument-hint: .*$/m, `argument-hint: ${hint}`, f), skillBlock(reg), f)],
-    ['skills/wf/reference/route.md', count],
+    ['skills/wf/SKILL.md', (t, f) => replaceOnce(t, /^argument-hint: .*$/m, `argument-hint: ${hint}`, f)],
+    ['skills/wf/reference/route.md', (t, f) => replaceBlock(count(t, f), keyTables(reg), f)],
     ['skills/wf/reference/intake/_intake-context.md', (t, f) => replaceBlock(t, reservedBlock(reg), f)],
     ['skills/wf/reference/_host-invocation.md', (t, f) => replaceBlock(t, hostTable(reg), f)],
     ['README.md', (t, f) => replaceBlock(replaceOnce(t, /^## The \d+ keys$/m, `## The ${ctx.keyCount} keys`, f), readmeBlock(reg), f)],

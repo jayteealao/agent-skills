@@ -1,5 +1,5 @@
 // lib/design-lane.mjs — the design lane's human rule as code
-// (skills/wf/reference/design/_lane.md; DESIGN-LANE-PLAN W-A4).
+// (skills/wf/reference/design/_lane.md).
 //
 // A person confirms the design at the human-only `design` stage, before any
 // stage a driver can run. These pure predicates decide, from frontmatter alone,

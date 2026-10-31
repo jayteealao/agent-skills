@@ -200,12 +200,8 @@ A custom slider, drag surface or scrolling control strip survives an interrupted
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> harden` focuses the design stage and its contract `02c-craft.md` on accessibility and robustness.
-- **Design confirmed:** `/wf design <slug> harden` runs the checks above, including the worst-case pass, against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/harden-<timestamp>.md` per [_output.md](_output.md) with the report above.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: accessibility and robustness. Checks: the checks above, including the worst-case pass. Notes record: the report above.
 
 ---
 

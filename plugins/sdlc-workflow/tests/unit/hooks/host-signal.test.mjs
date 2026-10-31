@@ -1,5 +1,4 @@
-// tests/unit/hooks/host-signal.test.mjs — the host-identity contract
-// (SINGLE-SOURCE-PLAN §3.4 / W4).
+// tests/unit/hooks/host-signal.test.mjs — the host-identity contract.
 //
 // One tree serves both hosts, so nothing may infer the host from its own path.
 // SDLC_HOST is the entrypoint signal: the Codex hook adapter sets it, Claude Code

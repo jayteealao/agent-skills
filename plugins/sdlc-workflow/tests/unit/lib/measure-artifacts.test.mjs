@@ -1,4 +1,4 @@
-// Tests for scripts/measure-artifacts.mjs — the artifact meter (ARTIFACT-SPLIT-PLAN W0).
+// Tests for scripts/measure-artifacts.mjs — the artifact meter.
 // Every section counts over small synthetic transcripts and slug folders in a temp dir.
 
 import { test, describe, before, after } from 'node:test';
@@ -296,7 +296,7 @@ describe('measure over synthetic data', () => {
 
 });
 
-describe('stageWantsOf (WF-SUBPROCEDURE-AUDIT W0)', () => {
+describe('stageWantsOf', () => {
   test('counts the always procedure rows, less the template; a mode row is not counted', () => {
     const entries = [{ reference: 'verify.md', stage: 'verify', rows: [
       { input: '00-index.md', kind: 'artifact', when: 'always', sections: [] },

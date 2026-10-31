@@ -1,9 +1,9 @@
-// ARTIFACT-SPLIT-PLAN W1 — the contract-graph guard.
+// The contract-graph guard.
 //
 // A consumer stage cites a section (`## Heading`) or a frontmatter key of an
 // artifact that another stage writes. When the producer's template does not
 // declare that section or key, the consumer reads nothing, and the read check
-// (S6) cannot count a read of a section that does not exist. This test reads
+// cannot count a read of a section that does not exist. This test reads
 // every reference under skills/wf/reference, collects the citations, and checks
 // each one against the producer's template.
 //
@@ -76,12 +76,12 @@ export const PRODUCERS = [
   { match: /^02b-design\.md$/, templates: ['design/brief.md'] },
   { match: /^02c-craft\.md$/, templates: ['design/contract.md'] },
   // Slices: the master index and the per-slice files (standard, extension, probe, simplify).
-  { match: /^03-slice\.md$/, templates: ['slice.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/adopt/_artifacts.md', 'intake/extend/_artifacts.md'] },
+  { match: /^03-slice\.md$/, templates: ['slice.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'intake/extend/_artifacts.md'] },
   { match: /^03-slice-probe-.*\.md$/, templates: ['probe/_artifact.md'] },
   { match: /^03-slice-simplify-.*\.md$/, templates: ['intake/simplify/_artifact.md'] },
   { match: /^03-slice-.+\.md$/, templates: ['slice.md', 'intake/extend/_artifacts.md', 'probe/_artifact.md'] },
   // Plans, implement and verify records (master and per slice; update-deps self-authors 05/06).
-  { match: /^04-plan(-.+)?\.md$/, templates: ['plan.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/adopt/_artifacts.md'] },
+  { match: /^04-plan(-.+)?\.md$/, templates: ['plan.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md'] },
   { match: /^04b-instrument\.md$/, templates: ['augment/instrument/_artifact.md'] },
   { match: /^04c-experiment\.md$/, templates: ['augment/experiment/_artifact.md'] },
   { match: /^05-implement(-.+)?\.md$/, templates: ['implement/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/adopt/_artifacts.md', 'intake/task.md'] },
@@ -284,4 +284,10 @@ test('self-test: removing a cited section or key from a template fails the check
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('ship has no intent-risk gate of its own: the PR phase stops on an open risk, and Step 7 lists each carried risk', () => {
+  const ship = readFileSync(path.join(REF_DIR, 'ship.md'), 'utf8');
+  assert.doesNotMatch(ship, /Intent-risk \(RIM\) gate/);
+  assert.match(ship, /List every `carried` intent-risk \(RIM\) entry of each roster slug distinctly in the ship summary\./);
 });

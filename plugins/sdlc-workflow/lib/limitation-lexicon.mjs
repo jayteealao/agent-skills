@@ -1,21 +1,21 @@
 /**
- * Limitation / suppression / named-mechanism lexicon (INTENT-FIDELITY W3.2 / W9.3 / W7.2).
+ * Limitation / suppression / named-mechanism lexicon.
  *
  * Three advisory (warn-only) lints share this module so the two hook entrypoints
  * (pre-write-validate on code files, post-write-verify on artifacts) can never
  * disagree about what counts as a limitation claim, an unmarked suppression, or an
  * unowned mechanism:
  *
- *   1. Limitation claims (W3.2). A comment asserting a dependency capability
+ *   1. Limitation claims. A comment asserting a dependency capability
  *      "does not exist / is not exposed / was removed" is a HYPOTHESIS, not
  *      authority — it needs a citation (a `study-sources` read, a repro, an issue,
  *      a URL) within ±3 lines. The waypoint failure: a stale "getWebRequest() does
  *      not exist" comment mirrored into new code minutes after a grep printed it.
- *   2. Suppression debt (W9.3). A new `as any` / `@ts-ignore` / `eslint-disable`
+ *   2. Suppression debt. A new `as any` / `@ts-ignore` / `eslint-disable`
  *      (and language equivalents) needs an `sdlc-debt:` marker within ±2 lines so
  *      the existing debt lifecycle (verify validates, retro reconciles, simplify
  *      sweeps) inherits the whole class for free.
- *   3. Named mechanisms (W7.2). A mechanism-suggesting noun in an AC / verification
+ *   3. Named mechanisms. A mechanism-suggesting noun in an AC / verification
  *      line that appears in NO decision section of the artifact body is a design
  *      decision smuggled past adjudication.
  *
@@ -23,7 +23,7 @@
  * without spawning a hook. Line numbers are 1-indexed.
  */
 
-// ── Limitation claims (W3.2) ────────────────────────────────────────────────
+// ── Limitation claims ───────────────────────────────────────────────────────
 export const LIMITATION_RE =
   /does not (exist|ship|expose)|is(n'?t| not) (available|exposed|supported)|no longer (exists|available|exposed|supported)|(API|method|function|field|prop(?:erty)?) is missing|not (?:a )?(?:real|valid) (?:API|method|export)|was removed (?:from|in)\b/i;
 
@@ -31,14 +31,14 @@ export const LIMITATION_RE =
 export const CITATION_MARKER_RE =
   /source:|node_modules\/|\brepro:|\bissue:\s*#?\d|https?:\/\/|study-sources|\.d\.ts\b/i;
 
-// ── Suppression debt (W9.3) ─────────────────────────────────────────────────
+// ── Suppression debt ────────────────────────────────────────────────────────
 // TS/JS: as any, @ts-ignore, @ts-expect-error, eslint-disable. Python: # type: ignore,
 // # noqa. Java/Kotlin: @SuppressWarnings. C#: #pragma warning disable. Go: //nolint.
 export const SUPPRESSION_RE =
   /\bas any\b|@ts-ignore|@ts-expect-error|eslint-disable|#\s*type:\s*ignore|#\s*noqa|@SuppressWarnings|#pragma warning disable|\/\/\s*nolint|@Suppress\b/;
 export const DEBT_MARKER_RE = /sdlc-debt:/i;
 
-// ── Named mechanisms (W7.2) ─────────────────────────────────────────────────
+// ── Named mechanisms ────────────────────────────────────────────────────────
 export const MECHANISM_RE =
   /\b(state[- ]machine|scheduler|queue|cache|pipeline|orchestrator|regex)\b/i;
 
@@ -55,7 +55,7 @@ function markerWithin(ls, i, window, marker) {
 }
 
 /**
- * Limitation claims with no citation within ±3 lines (W3.2). `onlyComments` (default
+ * Limitation claims with no citation within ±3 lines. `onlyComments` (default
  * true) restricts matches to lines that look like a code comment, so prose docs and
  * string literals don't trip the code-file lint. Returns [{ line, text }].
  */
@@ -73,7 +73,7 @@ export function findUncitedLimitationClaims(text, { onlyComments = true } = {}) 
 }
 
 /**
- * New suppressions with no `sdlc-debt:` marker within ±2 lines (W9.3).
+ * New suppressions with no `sdlc-debt:` marker within ±2 lines.
  * Returns [{ line, text }].
  */
 export function findUnmarkedSuppressions(text) {
@@ -89,7 +89,7 @@ export function findUnmarkedSuppressions(text) {
 
 /**
  * Mechanism nouns that appear in an AC / verification line but in no decision
- * section of the body (W7.2). `acText` is the AC/verification region; `decisionText`
+ * section of the body. `acText` is the AC/verification region; `decisionText`
  * is the body's decision prose. Returns the deduped list of unowned mechanism nouns.
  */
 export function findUnownedMechanisms(acText, decisionText) {

@@ -9,10 +9,10 @@ export const meta = {
 }
 
 // ===========================================================================
-// /wf loop optimize — the Workflow driver (docs/internal/WF-OPTIMIZE-PLAN.md section 5).
+// /wf loop optimize — the Workflow driver.
 //
 // The script has no file access, no clock and no Node API. Every command is an agent.
-// `optimize.mjs status` decides the next action (4.6): a trial on the trunk or on the
+// `optimize.mjs status` decides the next action: a trial on the trunk or on the
 // branch whose turn it is, round-open, round-close, checkpoint, or a stop. The control
 // file (.control.json) is read by `status`, so a stop request or a usage pause ends the
 // loop at the next boundary. The branch rounds follow arXiv 2610.07447 (fork-and-flush):
@@ -45,7 +45,7 @@ const EOB =
   `in code, code comments, commit messages, or docs. Write product language only.`
 
 let SEQ = 0
-// WF-SYSTEM-REVIEW A4: every journal line goes out through the `line` command of
+// Every journal line goes out through the `line` command of
 // yolo-watch, which writes it with JSON.stringify and stamps `at`.
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
 const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
@@ -90,7 +90,7 @@ const EDIT_SCHEMA = {
 }
 
 // ---------------------------------------------------------------------------
-// The agent count and the ceiling (section 5): 3 agents per trial × budget.trials,
+// The agent count and the ceiling: 3 agents per trial × budget.trials,
 // plus 2 per branch round, plus 10.
 // ---------------------------------------------------------------------------
 let AGENTS = 0
@@ -102,6 +102,9 @@ async function call(prompt, opts) {
   return await agent(prompt, opts)
 }
 
+/** The result of an agent that returns { ok, result }; without one, a failure that names the label. */
+const unwrap = (res, label) => res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
+
 /** A bookkeeping agent: runs one optimize.mjs command and changes nothing else. */
 async function book(sub, rest, label, phaseName, pre = '') {
   const res = await call(
@@ -112,7 +115,7 @@ async function book(sub, rest, label, phaseName, pre = '') {
     `edit any other file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
     { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET, effort: 'low' }
   )
-  return res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
+  return unwrap(res, label)
 }
 
 // The hypothesis of the trial in flight on each lane: the editor writes it before its edit, so a
@@ -254,15 +257,33 @@ function profilerPrompt(st) {
     `still prints JSON: return it as result with ok false.` + EOB + heartbeat('profile', 'Loop')
 }
 
-/** The proposer and the editor of one branch trial. They change no file that a measurement reads. */
-async function prepare(lane, n) {
-  const p = await call(proposePrompt(n, 1, lane), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
-  if (p && p.prepared) return { lane, n, h: { text: '', prepared: true } }
+/**
+ * The proposer of trial n. It returns { prepared: true } when the worktree already holds an edit
+ * from before a stop, { error } when it wrote no hypothesis, or { hs }, each hypothesis with the worktree.
+ */
+async function propose(n, w, on) {
+  const p = await call(proposePrompt(n, w, on), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
+  if (p && p.prepared) return { prepared: true }
   const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)
-  if (!hs.length) return { lane, n, error: `the proposer of trial ${n} returned no hypothesis` }
-  const h = { ...hs[0], worktree: (p && p.worktree) || '' }
+  if (!hs.length) return { error: `the proposer of trial ${n} returned no hypothesis` }
+  for (const x of hs) x.worktree = (p && p.worktree) || ''
+  return { hs }
+}
+
+/** The editor of trial n. An edit that changed nothing is logged; the trial records it as rejected. */
+async function edit(n, h, lane) {
   const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
   if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+  return e
+}
+
+/** The proposer and the editor of one branch trial. They change no file that a measurement reads. */
+async function prepare(lane, n) {
+  const p = await propose(n, 1, lane)
+  if (p.prepared) return { lane, n, h: { text: '', prepared: true } }
+  if (p.error) return { lane, n, error: p.error }
+  const h = p.hs[0]
+  await edit(n, h, lane)
   return { lane, n, h }
 }
 
@@ -322,8 +343,7 @@ while (st && st.state === 'running') {
     const agentMode = st.profile && st.profile.mode === 'agent'
     let r
     if (agentMode) {
-      const a = await call(profilerPrompt(st), { schema: BOOK_SCHEMA, label: 'profile', phase: 'Loop', ...OPUS })
-      r = a && a.result ? a.result : { ok: false, error: (a && a.error) || 'profile: no result' }
+      r = unwrap(await call(profilerPrompt(st), { schema: BOOK_SCHEMA, label: 'profile', phase: 'Loop', ...OPUS }), 'profile')
     } else r = await book('profile', '', 'profile', 'Loop')
     events.push({ event: 'profile', ok: r.ok !== false, entries: r.entries ?? 0, skipped: !!r.skipped })
     if (r.ok === false) { stoppedAt = 'bookkeeping'; reason = `profile: ${r.error || 'failed'}`; break }
@@ -335,8 +355,7 @@ while (st && st.state === 'running') {
     queue.length = 0
     if (!st.merge) st = await book('status', '', 'status', 'Loop')
     const mg = st.merge || { round: '?', candidates: [] }
-    const r = await call(considerPrompt(mg), { schema: BOOK_SCHEMA, label: `merge-consider:${mg.round}`, phase: 'Loop', ...OPUS })
-    const res = r && r.result ? r.result : { ok: false, error: (r && r.error) || 'merge-consider: no result' }
+    const res = unwrap(await call(considerPrompt(mg), { schema: BOOK_SCHEMA, label: `merge-consider:${mg.round}`, phase: 'Loop', ...OPUS }), 'merge-consider')
     events.push({ event: 'merge-consider', ok: res.ok !== false, try: res.try || [] })
     if (res.ok === false) { stoppedAt = 'bookkeeping'; reason = `merge-consider: ${res.error || 'failed'}`; break }
     log(`merge-consider: round ${mg.round}, try ${(res.try || []).join(', ') || 'none'}`)
@@ -363,7 +382,7 @@ while (st && st.state === 'running') {
     if (item.error) { stoppedAt = 'proposer'; reason = item.error; break }
     n = item.n; h = item.h; lane = item.lane; on = item.lane
   } else if (next.port || next.bundle) {
-    // G4, G9: a port or a bundle has no proposer. The trial applies the kept diffs itself (--apply);
+    // A port or a bundle has no proposer. The trial applies the kept diffs itself (--apply);
     // only when they do not apply does the editor make the change by hand.
     queue.length = 0
     n = ++SEQ_T
@@ -377,27 +396,21 @@ while (st && st.state === 'running') {
     h = onTrunk && queue.length ? queue.shift() : null
     if (!h) {
       queue.length = 0
-      const p = await call(proposePrompt(n, onTrunk ? width : 1, onTrunk ? null : lane), { schema: PROPOSE_SCHEMA, label: `propose:${n}`, phase: 'Loop', ...OPUS })
-      if (p && p.prepared) h = { text: '', prepared: true }
+      const p = await propose(n, onTrunk ? width : 1, onTrunk ? null : lane)
+      if (p.prepared) h = { text: '', prepared: true }
       else {
-        const hs = (p && Array.isArray(p.hypotheses) ? p.hypotheses : []).filter(x => x && x.text)
-        if (!hs.length) { stoppedAt = 'proposer'; reason = `the proposer of trial ${n} returned no hypothesis`; break }
-        for (const x of hs) x.worktree = (p && p.worktree) || ''
-        h = hs.shift()
-        if (onTrunk) queue.push(...hs)
+        if (p.error) { stoppedAt = 'proposer'; reason = p.error; break }
+        h = p.hs.shift()
+        if (onTrunk) queue.push(...p.hs)
       }
     }
-    if (!h.prepared) {
-      const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
-      if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
-    }
+    if (!h.prepared) await edit(n, h, lane)
   }
   let t = await runTrial(n, h, lane, on)
   if (t.ok === false && t.apply === 'failed') {
     log(`trial ${n}: the saved diffs do not apply; the editor makes the change by hand`)
     h = { ...h, apply: false }
-    const e = await call(editPrompt(n, h, lane), { schema: EDIT_SCHEMA, label: `edit:${n}`, phase: 'Loop', ...SONNET })
-    if (!e || e.ok !== true) log(`edit:${n} changed nothing (${(e && e.note) || 'no answer'}); the trial records it as rejected`)
+    await edit(n, h, lane)
     t = await runTrial(n, h, lane, on)
   }
   if (t.ok === false) { stoppedAt = 'bookkeeping'; reason = `trial ${n}: ${t.error || 'failed'}`; break }
@@ -416,12 +429,12 @@ let finish = null
 if (st && st.state === 'complete') {
   phase('Finish')
   if (st.next && st.next.action === 'ablate') {
-    // G7: each kept change is reverted alone and measured against the final code, before the squash.
+    // Each kept change is reverted alone and measured against the final code, before the squash.
     const a = await book('ablate', '', 'ablate', 'Finish')
     const weak = ((a && a.ablation && a.ablation.changes) || []).filter(c => c.verdict === 'weak').length
     log(a.ok === false ? `ablate failed: ${a.error}; finish runs it again` : `ablation: ${weak} weak change(s) of ${((a.ablation && a.ablation.changes) || []).length}`)
   }
-  // G9: --stash puts the person's uncommitted files aside for the squash and restores them byte for byte.
+  // --stash puts the person's uncommitted files aside for the squash and restores them byte for byte.
   finish = await book('finish', '--stash', 'finish', 'Finish')
   log(finish.ok === false ? `finish failed: ${finish.error}` : `finished: ${finish.commit || 'no commit'}; next /wf verify ${slug} optimize`)
 }

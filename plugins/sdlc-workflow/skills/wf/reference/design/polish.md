@@ -181,12 +181,8 @@ Then walk the full path again:
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> polish` focuses the design stage and its contract `02c-craft.md` on finishing detail.
-- **Design confirmed:** `/wf design <slug> polish` runs the triage and the Validate list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/polish-<timestamp>.md` per [_output.md](_output.md) with: each drift and its class, the triage order, the fix, and the checks that code alone cannot settle.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: finishing detail. Checks: the triage and the Validate list. Notes record: each drift and its class, the triage order, the fix, and the checks that code alone cannot settle.
 
 ---
 

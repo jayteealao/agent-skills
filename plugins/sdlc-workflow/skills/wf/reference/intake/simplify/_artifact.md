@@ -153,7 +153,7 @@ refs:
 
 A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:
 
-1. **Never overwrite an existing slug.** On collision, append `-2`/`-3`. Keep `run-id` in the lead frontmatter.
+1. **Never overwrite an existing slug.** Name it per "New slug" of [../_intake-context.md](../_intake-context.md). Keep `run-id` in the lead frontmatter.
 2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead is immutable; subsequent runs author *new* slug workflows.
 3. **Set `regenerable: false`** explicitly — a simplify-run artifact is historical evidence.
 4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. Lineage is the `refs:` link, not a `## Revision <n>` chain.

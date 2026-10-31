@@ -3,11 +3,6 @@ description: Create or review-and-fix implementation plans. First invocation cre
 argument-hint: <slug> [<slice> [guidance or fix instructions] | all]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf plan`, **stage 4 of 9**: 1·intake → 2·design → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
@@ -22,10 +17,10 @@ You are running `/wf plan`, **stage 4 of 9**: 1·intake → 2·design → 3·sli
 - A slice has fewer than 40 steps. At 40 or more, route back to slice.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
 - Record each choice that you settle in `## Assumptions`, with the reason.
-- A plan or a slice may reserve a decision for the person only when it quotes the id of an answer of the person that says so for that case. A reservation without that id is an implementation-detail decision: settle it yourself.
+- A plan or a slice reserves a decision for the person only as [_decision-classes.md](_decision-classes.md) "A reservation needs the person's words" says.
 - A step check runs only the tests of the step, or the `fast` and `affected` suites of the test profile. Do not plan a `full` or `heavy` command, a push hook, or a command that takes longer than `budget.slice` of `wf.mjs profile budget` (else the time box of the profile) as a slice check. Name it under `## Packet Checks` of the plan: the review runs it once for the packet.
 - A long run is never a slice step ([_long-runs.md](_long-runs.md) L5): put it under `## Packet Checks` or a boundary check, with its pilot measurement.
-- Do not write product code.
+- Do not write product code, and do not edit files other than the plan records. Your only output is the plan records and the chat summary.
 - Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 - To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
@@ -50,18 +45,17 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `augment/instrument.md` | procedure | mode:instrument | |
 | `augment/experiment.md` | procedure | mode:experiment | |
 | `augment/benchmark.md` | procedure | mode:benchmark | |
+| `augment/profile.md` | procedure | mode:profile | |
 | `augment/tune.md` | procedure | mode:tune | |
 | `04-plan-<slice>.md` | writes | | |
 | `04-plan.md` | writes | | |
 
 `mode:design` rows apply when `design/_lane.md` says design is needed. An augmentation row applies when `02-shape.md` `augmentations-needed` names its type (list it in `modes:`). A single-scope workflow writes only `04-plan.md`.
 
-**Plan against the real API.** When plan steps call a dependency, framework, or SDK, first read its installed source with `study-sources`.
-
-**A limitation claim carries its evidence.** A plan step that asserts a dependency capability does not exist cites evidence in the same artifact: a `study-sources` read of the installed source (name the path opened), a failing minimal repro, or an upstream issue link. An in-repo comment claiming a limitation is a hypothesis, never sufficient authority for a workaround; re-verify it with one `study-sources` read. A recalled API shape never justifies `as any` / `@ts-ignore` alone; cite the type read from the installed package or the mismatch repro. The warn-only `limitationClaimLint` hook flags an uncited limitation comment; its citation markers are `source:` / `node_modules/` / `repro:` / `issue:` / a URL within ±3 lines.
+Before a plan step calls a dependency, framework or SDK, follow [_source-study.md](_source-study.md).
 
 # Role
-You are a workflow orchestrator, not a problem solver. Do not write code, edit files, or implement the plan you produce. Produce execution-ready plans by inspecting the repo and prior artifacts. Respect the stated order where a step consumes an earlier step's output or crosses a gate; reading and research may interleave. Your only output is the workflow artifacts and the chat summary.
+You run the plan stage: you write plans from the repo and the records, never product code.
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the slice-slug or the keyword `all`. If no slug is given, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
@@ -134,7 +128,7 @@ Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, 
 - `instrument`: author `04b-instrument.md` per `augment/instrument.md`. Fold the signals into the plan steps.
 - `experiment`: author `04c-experiment.md` per `augment/experiment.md`. Fold the flag and cohort wiring into the plan steps.
 - `benchmark`: capture the baseline into `05c-benchmark.md` per `augment/benchmark.md` in baseline mode. Add a "compare after implement" step for `verify`.
-- `profile`: add a plan step only when shape flagged a hotspot. `/wf probe` or `augment/profile.md` runs it later.
+- `profile`: when shape flagged a hotspot, run [augment/profile.md](augment/profile.md) on it, and add a plan step that acts on the hotspot that it finds.
 - `tune`: run the feasibility spike of `augment/tune.md`: write `05d-tune.md` with its baseline, and plan the rounds as steps.
 Each augmentation reference registers its entry in `00-index.md` `augmentations:` with `status: ready`.
 
@@ -149,7 +143,7 @@ After writing files, return per [_chat-return.md](_chat-return.md) — a narrati
 Do this in order:
 1. Determine planning mode from Step 0.
 2. **Discovery phase (new plans only; skip for review-and-fix modes).** Ask the implementation decisions that shape and slice left open, as gate questions per [_gate-question.md](_gate-question.md) and [_question-craft.md](_question-craft.md): up to 4 per round, in as few rounds as possible. Each question cites the files, patterns, and tradeoffs the sub-agents found. Do not re-ask a shape or slice decision. Present genuinely different approaches. Cover the approach, sequencing, test strategy, and risk (deprecations, advisories, contradicted shape assumptions). Record every answer with `decide add --stage plan` per [_decisions.md](_decisions.md).
-   **A decision that goes against a `carried` intent-risk is intent-bearing — never auto-resolve it.** A planning decision is intent-bearing when it goes against the recorded `decision:` of an intent-risk (RIM) that `00-index.md` still marks `status: carried`, or removes the protection that the risk names. Ask the PO on a human-gated run; on an autonomous run it is a stop condition. A decision that follows or applies the risk's decision is implementation-detail: settle it and record it. Classify every autonomous-versus-ask fork per [_decision-classes.md](_decision-classes.md). A recorded autonomous decision carries `class: implementation-detail`; an autonomous record never carries `class: intent-bearing`.
+   **A planning decision that goes against an intent-risk is intent-bearing**, per rule 1 of [_decision-classes.md](_decision-classes.md).
 3. **Single plan mode (new):** run the research sub-agents and the freshness research; run the discovery phase; author the augmentations (after research, above); produce a minimal execution-ready plan; write the draft of `04-plan-<slice-slug>.md` and put it; get the master `04-plan.md`, update it, write its draft and put it.
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all. Read their plan records. Run the cohesion check. Run the discovery phase once, for cross-cutting decisions. Write the draft of the master `04-plan.md` and put it.
 5. **Review-and-fix mode (any sub-mode):** see below.

@@ -1,6 +1,6 @@
 # Shared protocols (`runtime-adapters/_protocols.md`)
 
-Load this file with the registry, [../runtime-adapters.md](../runtime-adapters.md), for every adapter run. It holds the surface enumeration ladder, the perturbation protocol, the evidence protocol, and the accessibility checks.
+Load this file with the registry, [../runtime-adapters.md](../runtime-adapters.md), for every adapter run. It holds the surface enumeration ladder, the perturbation protocol, the evidence protocol, and the accessibility checks. Each adapter file gives only its own `Enumerate` recipe and its own perturbations; these rules apply to all of them.
 
 ## Surface enumeration ladder (climb before driving)
 

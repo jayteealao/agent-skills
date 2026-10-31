@@ -1,4 +1,4 @@
-// lib/campaign.mjs after WF-PIECES-PLAN: only the stage models of a project stay here.
+// lib/campaign.mjs after the move to pieces: only the stage models of a project stay here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,8 +1,3 @@
----
-description: "Modernize mode of intake — backfill an older workflow's artifacts to the schema the installed plugin now expects (charter, intent-risk ledger, wall-ownership and clearing-event fields on deferrals, revision ledgers). Slug-REQUIRED: `/wf intake <existing-slug> modernize`. Additive only: it fills absent fields from what the artifacts already say and never rewrites a recorded decision, verdict, or acceptance criterion. Detected automatically by intake on an existing slug and offered as a first-class option."
-argument-hint: <existing-slug> modernize [dry-run]
----
-
 # Output boundary & shared context
 The External Output Boundary and the workflow-registry/slug
 semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
@@ -109,9 +104,5 @@ Framing rules are single-sourced in [_chat-return.md](../_chat-return.md).
 
 # What this mode is NOT
 
-- **Not a re-run.** It reads what the artifacts recorded; it never re-derives, re-verifies, or
-  re-decides anything.
-- **Not a repair tool.** A workflow whose *content* is wrong needs the stage that owns that content.
-  Modernize only addresses the schema envelope around it.
-- **Not automatic.** Intake *detects* drift and offers this mode; it never modernizes silently. An
-  unannounced rewrite of someone's artifacts is not a favour.
+- **Not a re-run.** It reads what the artifacts recorded; it never re-derives, re-verifies or re-decides anything.
+- **Not automatic.** Intake detects drift and offers this mode; it never modernizes silently.

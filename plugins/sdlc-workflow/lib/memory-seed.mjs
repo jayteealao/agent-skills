@@ -1,5 +1,5 @@
 // lib/memory-seed.mjs — seed a minimal, versioned `/wf` rules kernel into the
-// agent memory files (MEMORY-SEED-PLAN).
+// agent memory files.
 //
 // Structure (single canonical source):
 //   AGENTS.md  — holds the LITERAL kernel behind a versioned fence. Codex reads

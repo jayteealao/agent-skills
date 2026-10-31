@@ -1,4 +1,4 @@
-// Unit coverage for the INTENT-FIDELITY W3.2/W9.3/W7.2 lint lexicon — the pure
+// Unit coverage for the limitation, suppression-debt and named-mechanism lint lexicon — the pure
 // text→findings functions the post-write-verify / pre-write-validate hooks share.
 // Testing the lexicon directly (not the hook) keeps the citation-adjacency, comment
 // scoping, and mechanism-ownership rules pinned without spawning a hook.
@@ -11,7 +11,7 @@ import {
   LIMITATION_RE, SUPPRESSION_RE, MECHANISM_RE,
 } from '../../../lib/limitation-lexicon.mjs';
 
-// ── limitation claims (W3.2) ────────────────────────────────────────────────
+// ── limitation claims ───────────────────────────────────────────────────────
 test('limitation: an uncited comment claim is flagged', () => {
   assert.equal(findUncitedLimitationClaims('// getWebRequest does not exist\nconst x = 1;').length, 1);
   assert.equal(findUncitedLimitationClaims('/* the fetch API is missing here */').length, 1);
@@ -32,7 +32,7 @@ test('limitation: distant citation does NOT discharge (window is +/-3)', () => {
   assert.equal(findUncitedLimitationClaims(src).length, 1);
 });
 
-// ── suppression debt (W9.3) ─────────────────────────────────────────────────
+// ── suppression debt ────────────────────────────────────────────────────────
 test('suppression: unmarked as any / ts-ignore / eslint-disable are flagged', () => {
   assert.equal(findUnmarkedSuppressions('const x = y as any;').length, 1);
   assert.equal(findUnmarkedSuppressions('// @ts-ignore\nfoo();').length, 1);
@@ -45,7 +45,7 @@ test('suppression: an sdlc-debt marker within +/-2 lines discharges it', () => {
   assert.equal(findUnmarkedSuppressions('// sdlc-debt: temporary\n//\n@ts-expect-error\nfoo();').length, 0);
 });
 
-// ── named mechanisms (W7.2) ─────────────────────────────────────────────────
+// ── named mechanisms ────────────────────────────────────────────────────────
 test('mechanism: a machine named in an AC but not in the body is unowned', () => {
   assert.deepEqual(
     findUnownedMechanisms('AC-3: verified by interview state-machine unit tests', 'We chose a prompt suite.'),

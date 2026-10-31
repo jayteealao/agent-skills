@@ -1,5 +1,5 @@
-// Unit tests for the consult skill's Phase-0 runner scripts + the hook sentinel.
-// EXTERNAL-MODEL-DISPATCH-PLAN §6. No live CLI/network: pure functions are tested
+// Unit tests for the consult skill's runner scripts + the hook sentinel.
+// No live CLI/network: pure functions are tested
 // directly; the impure runner is exercised through an injected `run` seam; the
 // hook early-exit is checked by spawning the SOURCE hook with the sentinel set.
 
@@ -112,7 +112,7 @@ test('buildClaudeArgs: --tools is the toolset restriction; no allowlist/hook-key
   ok(args.includes('--strict-mcp-config'), 'loads no MCP servers');
   ok(args.includes('--permission-mode') && args.includes('plan'), 'belt-and-suspenders plan mode');
   ok(args.includes('--output-format') && args.includes('json'), 'parseable output');
-  // A1: --allowed-tools is only an auto-approval allowlist (leaves Write/Bash) — must NOT be used.
+  // --allowed-tools is only an auto-approval allowlist (leaves Write/Bash) — must NOT be used.
   ok(!args.includes('--allowed-tools') && !args.includes('--allowedTools'), 'no auto-approval allowlist');
   // disableAllHooks is undocumented; an unknown --settings key could abort the run.
   ok(!args.includes('--settings'), 'no speculative --settings key');
@@ -140,7 +140,7 @@ test('winWrap: win32 routes CLI shims through cmd.exe; posix spawns directly', (
 // ── output parsing ───────────────────────────────────────────────────────────
 
 test('parseClaudeOutput: pulls result/total_cost_usd/session_id/usage, tolerates non-JSON', () => {
-  // WIDE-VIEW-REPAIR-PLAN §10: the result now carries the exact `usage` (null when absent).
+  // The result carries the exact `usage` (null when absent).
   deepEqual(
     parseClaudeOutput(JSON.stringify({ result: 'verdict', total_cost_usd: 0.012, session_id: 's1' })),
     { text: 'verdict', costUsd: 0.012, sessionId: 's1', usage: null },

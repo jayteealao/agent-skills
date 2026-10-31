@@ -1,6 +1,6 @@
 // tests/unit/lib/cost-ledger.test.mjs
 //
-// The exact cost ledger (WIDE-VIEW-REPAIR-PLAN §10). Fixtures copy the record
+// The exact cost ledger. Fixtures copy the record
 // shapes observed on this machine: Claude Code transcript lines (one request
 // spans several apiBlockIndex lines that repeat the same usage), Codex rollout
 // `token_count` events (cumulative totals), pi session entries (`usage.input`,
@@ -324,9 +324,9 @@ test('parseJsonLines: torn lines are dropped, never thrown', () => {
   assert.deepEqual(parseJsonLines(['{"a":1}', '{bad', '']), [{ a: 1 }]);
 });
 
-/* ───────────────────────── WF-SYSTEM-REVIEW A1: book each agent once ───────────────────────── */
+/* ───────────────────────── book each agent once ───────────────────────── */
 
-test('A1: a copy of a Workflow agent transcript in subagents/ books nothing again, on any later Stop', () => {
+test('a copy of a Workflow agent transcript in subagents/ books nothing again, on any later Stop', () => {
   const dir = tmp();
   try {
     const sid = 'sess-copy';
@@ -358,7 +358,7 @@ test('A1: a copy of a Workflow agent transcript in subagents/ books nothing agai
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('A1: a later line of the same response books only its growth; a response that straddles two Stops counts once', () => {
+test('a later line of the same response books only its growth; a response that straddles two Stops counts once', () => {
   const dir = tmp();
   try {
     const sid = 'sess-grow';
@@ -378,7 +378,7 @@ test('A1: a later line of the same response books only its growth; a response th
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('A1: a cursor of the old form migrates: the bytes it knew count as booked, and two files of one id stop resetting each other', () => {
+test('a cursor of the old form migrates: the bytes it knew count as booked, and two files of one id stop resetting each other', () => {
   const dir = tmp();
   try {
     const sid = 'sess-old';
@@ -404,14 +404,14 @@ test('A1: a cursor of the old form migrates: the bytes it knew count as booked, 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('A1: stageOfLabel reads the stage and the slice of a driver label', () => {
+test('stageOfLabel reads the stage and the slice of a driver label', () => {
   assert.deepEqual(stageOfLabel('implement:s1@alpha'), { stage: 'implement', slice: 's1' });
   assert.deepEqual(stageOfLabel('scout:correctness:s1@alpha'), { stage: 'scout', slice: 's1' });
   assert.deepEqual(stageOfLabel('waiter#3'), { stage: 'waiter', slice: null });
   assert.deepEqual(stageOfLabel('cross-unit-reconcile'), { stage: 'cross-unit-reconcile', slice: null });
 });
 
-test('A1 rebuild: agentTotalsFromFiles counts each response once across copies; rebuildLedgerRows keeps one true entry in the earliest row', () => {
+test('rebuild: agentTotalsFromFiles counts each response once across copies; rebuildLedgerRows keeps one true entry in the earliest row', () => {
   const dir = tmp();
   try {
     const resp = (id, out, extra = {}) => J({ type: 'assistant', ...extra, message: { id, model: 'claude-opus-5-5', usage: { input_tokens: 0, output_tokens: out, cache_read_input_tokens: 100, cache_creation_input_tokens: 0 }, content: [] } });

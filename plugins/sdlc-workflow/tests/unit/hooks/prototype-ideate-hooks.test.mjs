@@ -1,4 +1,4 @@
-// WF-PROTOTYPE-PLAN W2 and WF-IDEATE-SOURCES-PLAN 4.2 in the write hooks:
+// The prototype ledger and the ideate sources in the write hooks:
 // - post-write-verify checks prototype-ledger.json against $defs.prototypeLedger and
 //   the ledger rules, and blocks a bad ledger;
 // - post-write-verify blocks a 01-ideate.md that leaves a source item without a result.

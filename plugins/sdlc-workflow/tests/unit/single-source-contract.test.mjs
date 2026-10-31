@@ -142,3 +142,34 @@ test('docs gate passes (the command page lists the registry, the README rules ho
   const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'verify-docs.mjs')], { cwd: pluginRoot, encoding: 'utf8' });
   assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
 });
+
+test('_subagents.md names only bookkeeping labels that yolo.js pins to the haiku tier', () => {
+  const sub = read('skills', 'wf', 'reference', '_subagents.md');
+  const m = /the bookkeeping agents that run fixed commands or copy data \(([^]*?)\) to `claude-haiku-5-5`/.exec(sub);
+  assert.ok(m, '_subagents.md lists the bookkeeping labels');
+  const names = [...m[1].matchAll(/`([a-z-]+)`/g)].map((x) => x[1]);
+  assert.deepEqual(names, ['branch', 'writeback', 'run-end']);
+  const yolo = read('skills', 'wf', 'workflows', 'yolo.js');
+  for (const name of names) {
+    assert.match(yolo, new RegExp(`label: [\`']${name}[\`':][^\n]*\.\.\.HAIKU`), `${name} is a HAIKU label of yolo.js`);
+  }
+});
+
+test('the rule body of _output-boundary.md occurs under skills/ only in that file', () => {
+  const owner = read('skills', 'wf', 'reference', '_output-boundary.md');
+  const sentences = [
+    'Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.',
+    'translate workflow context into product/project language',
+  ];
+  for (const s of sentences) assert.ok(owner.includes(s), `the owner states: ${s}`);
+  const files = [];
+  (function walk(dir) {
+    for (const name of readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, name.name);
+      if (name.isDirectory()) walk(abs);
+      else if (/\.(md|mjs|js|json|yaml)$/.test(name.name)) files.push(abs);
+    }
+  })(path.join(pluginRoot, 'skills'));
+  const copies = files.filter((f) => !f.endsWith(`${path.sep}_output-boundary.md`) && sentences.some((s) => readFileSync(f, 'utf8').includes(s)));
+  assert.deepEqual(copies.map((f) => path.relative(pluginRoot, f)), []);
+});

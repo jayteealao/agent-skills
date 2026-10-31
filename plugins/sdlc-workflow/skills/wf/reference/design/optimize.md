@@ -109,12 +109,8 @@ Next: the `polish` move.
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> optimize` focuses the design stage and its contract `02c-craft.md` on performance.
-- **Design confirmed:** `/wf design <slug> optimize` runs the Step 1 measurements against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/optimize-<timestamp>.md` per [_output.md](_output.md) with: each bottleneck and its measurement, the change, the before and after numbers, and the device and network used.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: performance. Checks: the Step 1 measurements. Notes record: each bottleneck and its measurement, the change, the before and after numbers, and the device and network used.
 
 ---
 

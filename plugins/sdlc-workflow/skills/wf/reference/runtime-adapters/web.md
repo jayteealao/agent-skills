@@ -1,10 +1,6 @@
 # Adapter: `web`
 
-## Detection signals
-- `package.json` with a `dev` / `start` / `serve` script
-- `vite.config.*`, `next.config.*`, `nuxt.config.*`, `astro.config.*`, `svelte.config.*`, `remix.config.*`
-- Static HTML at repo root or under `public/`, `static/`, `dist/`
-- `index.html` referencing JavaScript modules
+The registry ([../runtime-adapters.md](../runtime-adapters.md)) selects this adapter. [_protocols.md](_protocols.md) owns the enumeration and perturbation rules; this file gives only the steps of this platform.
 
 ## Bootstrap
 1. **Probe for a running dev server** — `curl -sI http://localhost:<port>` against the project's documented port (read from config or `README.md`). If the server already responds, skip to drive.
@@ -12,10 +8,9 @@
 3. **Resolution attempts before failing:** if the start command exits non-zero, try `npm install` (or yarn/pnpm equivalent) once and retry the start. If that still fails, surface `bootstrap-failure: { step: dev-server-start, ... }`.
 
 ## Enumerate
-Inventory routes **before** driving (see the enumeration ladder in [_protocols.md](_protocols.md)).
 1. **Recipe rung** — read the router manifest: Next.js `app/`/`pages/` tree, React Router route config, Vue/Nuxt routes, Rails `routes.rb`, Django `urls.py`, or a generated `sitemap.xml`.
 2. **Static rung** — no central manifest: grep for route-registration calls and collect their path literals.
-3. **Traversal rung** — bounded breadth-first crawl from the entry URL, same-origin only, recording distinct rendered routes. The count is a FLOOR.
+3. **Traversal rung** — bounded breadth-first crawl from the entry URL, same-origin only, recording distinct rendered routes.
 Record dynamic segments once per template (`/post/:id`), not once per instance.
 
 ## Drive — candidate tools
@@ -81,7 +76,6 @@ If configured in the project, run existing Playwright test suites or write inlin
 After verifying all criteria in the primary browser, re-drive each criterion in at least one additional browser. Playwright supports Chromium, Firefox, and WebKit natively — switch engines via the driver's browser-selection mechanism. If using a different driver (dev-browser, Cypress, WebdriverIO), use its equivalent cross-browser capability. Compare the secondary browser's screenshots against the primary for each criterion. Report any divergence — layout breakage, missing elements, different rendering, different interaction behaviour — under `## Cross-Browser Delta`. Divergences are HIGH issues. If a third browser is available, add a third pass. Record which browsers were used under `adapters-used`.
 
 ## Perturb
-Break exactly one dependency, re-observe, restore (see the perturbation protocol in [_protocols.md](_protocols.md)).
 - **Offline** — CDP `Network.emulateNetworkConditions` offline, or Playwright `context.setOffline(true)`.
 - **One route failing** — intercept a single XHR/fetch route and return 500, or an empty body, leaving the rest healthy.
 - **Slow dependency** — throttle one request to expose a missing timeout.

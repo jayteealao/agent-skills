@@ -1,6 +1,6 @@
-// WF-PIECES-PLAN sections 6 and 12 — the disk side of /wf campaign in scripts/campaign.mjs:
+// The disk side of /wf campaign in scripts/campaign.mjs:
 // the serial walk over one list (status, open, land, start, built, done), the review base
-// of 6.2, the fidelity and try-out gates, `slice-order add`, and the migration of
+// of a list, the fidelity and try-out gates, `slice-order add`, and the migration of
 // an old wave campaign (report, apply, start of a migrated packet, finish, the guarded remove).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -20,7 +20,7 @@ Ask in one question round, per [_gate-question.md](_gate-question.md):
 
 1. "This repo is <your line>. Is that right?" The answers are your line and a field for the person's own line.
 2. "These commands test the repo: <fast>, <affected>, <full>, <heavy>. Are they right?" The answers are the commands and a field for corrections. Omit a suite that the repo does not have. This is the one place that asks for the suites: no stage asks again. A repo with no suite for implement gets `receipt: none (no suite in the profile)` at the end of implement.
-3. The budget question of [_check-budget.md](_check-budget.md), with the suite estimates and the known long runs of Step 1 in its text. Skip it when `wf.mjs profile budget` prints a budget.
+3. The budget question, when "When to ask" of [_check-budget.md](_check-budget.md) says to ask it. Put the suite estimates and the known long runs of Step 1 in its text.
 4. Only when Step 1 found a pre-push command in no suite: "The push hook runs <command> (<file>, about <estimate>). Add it to the `heavy` suite, so that the review runs it once per packet before the push?" Name each such command with its estimate. The answers are yes, no, and a field for corrections.
 
 ## Step 3 — Write the setup
@@ -43,7 +43,7 @@ When the setup prints `.ai/ in git: tracked`, ask the person: "Add `.ai/` to .gi
 Run `node "<skill-dir>/scripts/wf.mjs" records status "<projectRoot>"`. When it prints that a clone is there, ask the person: "Keep the records of this repo in the records repo, so that the work continues on any computer?" On yes, run `node "<skill-dir>/scripts/wf.mjs" records link "<projectRoot>" <name>`, where `<name>` is the folder name of the repo in lower case. On no, change nothing.
 
 The link prints what the person must do in the product repo:
-- A `records-conflict:` line names a file whose local copy differs from the clone copy. The clone copy stays, and the local copy is in `.ai/workflows/.conflicts/`. Show the lines to the person in one numbered list. When each conflict has a recommended resolution, ask one question: "Apply each recommendation (Recommended)" or "Go through them one by one".
+- A `records-conflict:` line names a file whose clone copy stays and whose local copy is in `.ai/workflows/.conflicts/`. Ask about the lines per "Records lines" of [_records-repo.md](_records-repo.md).
 - A `records-warning:` line names tracked record files or a missing `.gitignore` line. Show the command of the line to the person. Do not commit in the product repo yourself, because the commit lands on the branch that is checked out.
 - When the link refuses because a worktree holds workflow files, show the list. Do not copy the files yourself.
 

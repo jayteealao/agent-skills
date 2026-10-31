@@ -1,11 +1,6 @@
 # Adapter: `cli`
 
-## Detection signals
-- `Cargo.toml` with a `[[bin]]` target or a single binary crate
-- `package.json` with a `bin` field
-- `go.mod` with a `main.go` or `cmd/<name>/main.go` layout
-- `setup.py` / `pyproject.toml` declaring an `entry_points` console script
-- `Makefile` or `justfile` with a `run` target
+The registry ([../runtime-adapters.md](../runtime-adapters.md)) selects this adapter. [_protocols.md](_protocols.md) owns the enumeration and perturbation rules; this file gives only the steps of this platform.
 
 ## Bootstrap
 1. **Build the binary** — `cargo build`, `go build ./...`, `npm install` (for `bin` field linking), `pip install -e .`, or the project's documented build step.
@@ -13,10 +8,9 @@
 3. **Resolution attempt before failing:** if the build fails, run `<tool> --version` to confirm the toolchain is installed; surface a clear error if not.
 
 ## Enumerate
-Inventory the command tree **before** driving (see the enumeration ladder in [_protocols.md](_protocols.md)).
 1. **Recipe rung** — read the declared command registry: `package.json` `bin`, a Click/Typer/Cobra/clap command tree, or a generated completion script.
 2. **Static rung** — recursive `--help` walk: parse subcommands out of the top-level help, then recurse into each. Bound the depth and record it.
-3. **Traversal rung** — same walk when help output is unstructured, recording every subcommand that responds. The count is a FLOOR.
+3. **Traversal rung** — same walk when help output is unstructured, recording every subcommand that responds.
 Enumerate **flags per command** as well as commands — `dead-affordance` on a CLI is usually a flag, not a subcommand.
 
 ## Drive
@@ -31,7 +25,6 @@ Enumerate **flags per command** as well as commands — `dead-affordance` on a C
 - **Error cases (when probe target asks)** — test wrong arguments, missing files, permission errors. Capture each.
 
 ## Perturb
-Break exactly one dependency, re-observe, restore (see the perturbation protocol in [_protocols.md](_protocols.md)).
 - **Missing optional config** — move a config file aside, run, move it back. An *optional* source that aborts the command is `dependency-collapse`.
 - **Unset a required env var** — check the error is a message, not a traceback (`error-surface-leak`).
 - **No network** — run with the network dependency unreachable; check for a timeout, not a hang (`terminal-wait`).

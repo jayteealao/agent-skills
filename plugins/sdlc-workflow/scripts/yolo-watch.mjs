@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/yolo-watch.mjs — the built-in watch for /wf yolo (YOLO-COMMENTARY-PLAN).
+ * scripts/yolo-watch.mjs — the built-in watch for /wf yolo.
  *
  * The main session starts this script with the Monitor tool right after the
  * Workflow call. Every stdout line is one JSON event, and every stdout line
@@ -19,15 +19,15 @@
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
  *   node yolo-watch.mjs control <projectRoot> <slug> clear|show
- *       Write, delete or print .ai/run/<slug>/.control.json (the stop request, G1).
+ *       Write, delete or print .ai/run/<slug>/.control.json (the stop request).
  *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>] [--reason <text>] [--run <id>]
  *       Append a run-end line to the driver journal. The main session runs it when
  *       the Workflow returns, so the watch ends at once. The driver's last step runs
- *       it too (WF-SYSTEM-REVIEW A3): when the journal's last run-end is for the same
+ *       it too: when the journal's last run-end is for the same
  *       run, it appends nothing.
  *   node yolo-watch.mjs line <journalFile> '<json>' [--fields '<json>'] [--run id] [--seq n] [--status s] [--errors n]
  *                            [--reason r] [--hard-stop-reason r] [--route-back x]
- *       Append one journal line (WF-SYSTEM-REVIEW A4). The driver builds the JSON with
+ *       Append one journal line. The driver builds the JSON with
  *       JSON.stringify; the agent adds only what it alone knows, as flags. `at` is the
  *       clock now. Every line goes out through JSON.stringify, so a path with
  *       backslashes always parses.
@@ -36,23 +36,21 @@
  *   node yolo-watch.mjs help
  *       Print these forms.
  *
- * S1 Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
- *    protected files every 20 s, the usage readings every 60 s. A poll needs no
- *    file-change events, so it works on Windows.
- * S3 The offsets persist in .ai/run/<slug>/.watch-state.json. A re-armed
- *    watch starts where the last watch stopped and misses no event.
- * S4 The script exits by itself after the run-end event: a run-end journal line,
- *    or a journal whose newest line is an agent-end and that stays silent past
- *    the liveness limit (_liveness.md, the staleness rule).
- *
- * WF-WATCH-MONITOR-PLAN:
- * F3 A restart keeps the first watch's start (keptWatchFrom), so the silence of a
- *    live run counts from its last line, not from the 30-minute Monitor restart.
- * F4 Each stage-start and commit event also appends one line to commentary.md.
- * F5 One watch per journal: a newer watch takes the lock, and the older one emits
- *    watch-replaced and exits.
- * F6 A running agent is stale when its own transcript is silent for 15 minutes
- *    (AGENT_SILENT_MS); the journal rule applies only when no transcript is found.
+ * - Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
+ *   protected files every 20 s, the usage readings every 60 s. A poll needs no
+ *   file-change events, so it works on Windows.
+ * - The offsets persist in .ai/run/<slug>/.watch-state.json. A re-armed
+ *   watch starts where the last watch stopped and misses no event.
+ * - The script exits by itself after the run-end event: a run-end journal line,
+ *   or a journal whose newest line is an agent-end and that stays silent past
+ *   the liveness limit (_liveness.md, the staleness rule).
+ * - A restart keeps the first watch's start (keptWatchFrom), so the silence of a
+ *   live run counts from its last line, not from the 30-minute Monitor restart.
+ * - Each stage-start and commit event also appends one line to commentary.md.
+ * - One watch per journal: a newer watch takes the lock, and the older one emits
+ *   watch-replaced and exits.
+ * - A running agent is stale when its own transcript is silent for 15 minutes
+ *   (AGENT_SILENT_MS); the journal rule applies only when no transcript is found.
  *
  * Self-contained (node: built-ins only), so it runs from the plugin cache and
  * from the dev tree without a bundle, like stage-yolo-driver.mjs.
@@ -72,6 +70,7 @@ import {
 } from '../lib/live-events.mjs';
 import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
+import { pidAlive } from '../lib/proc.mjs';
 import { clearStopRequest } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
@@ -79,7 +78,7 @@ import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
 import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
 
-// The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
+// The event rules live in lib/live-events.mjs, shared with the live view of the mod.
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
 
 export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
@@ -140,7 +139,7 @@ function hashFile(file) {
 }
 
 // ---------------------------------------------------------------------------
-// One watch per journal (F5 of WF-WATCH-MONITOR-PLAN). A watch writes a lock for
+// One watch per journal. A watch writes a lock for
 // each journal it reads. A newer watch takes the lock over, and the older watch
 // stops with one `watch-replaced` line. The locks live in the temp folder: never in a workflow folder, which a slug
 // commit stages and which local records copy.
@@ -148,18 +147,13 @@ function hashFile(file) {
 export const lockFileOf = (journal, dir = null) => path.join(dir || path.join(os.tmpdir(), 'sdlc-watch-locks'),
   `${createHash('sha1').update(path.resolve(journal).toLowerCase()).digest('hex').slice(0, 16)}.json`);
 
-function pidAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
-}
-
 function readLock(file) {
   const v = readJson(file);
   return v && typeof v.id === 'string' ? v : null;
 }
 
 // ---------------------------------------------------------------------------
-// The running agent's own transcript (F6). A workflow agent writes
+// The running agent's own transcript. A workflow agent writes
 // <projects>/<project>/<session>/subagents/workflows/wf_*/agent-*.jsonl, with
 // its label in the `description` of the sibling .meta.json. The label is the
 // journal's `agent`. The project folder is the session's working folder with
@@ -253,7 +247,7 @@ export function pendingToolOf(file) {
 }
 
 // ---------------------------------------------------------------------------
-// The journal (S1): read the bytes after the saved offset. A last line with no
+// The journal: read the bytes after the saved offset. A last line with no
 // newline is still being written: it stays unread until its newline lands.
 // ---------------------------------------------------------------------------
 export function readJournalFrom(file, offset) {
@@ -297,13 +291,13 @@ export function stageArtifact(root, slug, stage, slice) {
   return null;
 }
 
-// A decision that needs the person (3.2): the rule is decisionSignalOf; this gives it the record.
+// A decision that needs the person: the rule is decisionSignalOf; this gives it the record.
 export function decisionSignal(doc) {
   return doc ? decisionSignalOf(`---\n${stringify(doc.frontmatter)}\n---\n${doc.body ?? ''}`) : null;
 }
 
 // ---------------------------------------------------------------------------
-// Protected files (S5): the config list, PRODUCT.md and DESIGN.md, the paths a
+// Protected files: the config list, PRODUCT.md and DESIGN.md, the paths a
 // live steer entry of the decision store protects, and every file with
 // uncommitted edits at run start.
 // ---------------------------------------------------------------------------
@@ -405,7 +399,7 @@ export function protectedSet(root, slugs, cfg) {
 }
 
 // ---------------------------------------------------------------------------
-// State (S3).
+// State: the offsets of the last watch, so a re-armed watch misses no event.
 // ---------------------------------------------------------------------------
 function freshSlugState() {
   return {
@@ -437,7 +431,7 @@ export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {
 }
 
 /**
- * The watch start that a restart keeps (F3 of WF-WATCH-MONITOR-PLAN). The
+ * The watch start that a restart keeps. The
  * Monitor tool stops a watch after 30 minutes, and the session starts it again.
  * When the run wrote a line after the saved start and has not ended, the
  * restart watches the same run: its silence counts from the run's last line,
@@ -454,7 +448,7 @@ export function keptWatchFrom(saved, nowMs) {
 /** A saved HEAD older than this is from another launch, not from the watch that a re-arm replaces. */
 export const REPO_STALE_MS = 2 * 60 * 60 * 1000;
 
-/** B3 — one protected-change event per file in this window. */
+/** One protected-change event per file in this window. */
 export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
@@ -484,7 +478,7 @@ export function createWatcher({
   function setSource(slug, entry) {
     const source = journalPath(root, slug);
     const { st } = entry;
-    // A state from before F2 read the journal of the root it was given.
+    // A state of an older watch has no source: it read the journal of the root it was given.
     if (!st.source) st.source = source;
     if (st.source === source) return;
     st.source = source;
@@ -516,7 +510,7 @@ export function createWatcher({
     lead.repo = { root, head: git(root, ['rev-parse', 'HEAD']), hashes, dirtyAtStart: prot.dirtyAtStart, runEnded: false, polledAt: now() };
   }
 
-  // F5 — one watch per journal.
+  // One watch per journal.
   for (const slug of states.keys()) {
     const file = lockFileOf(journalPath(root, slug), locks);
     try {
@@ -558,7 +552,7 @@ export function createWatcher({
     }
   }
 
-  /** The newest write to the transcript of a run's running agent, once its journal is silent past AGENT_SILENT_MS (F6). */
+  /** The newest write to the transcript of a run's running agent, once its journal is silent past AGENT_SILENT_MS. */
   const activityOf = (s) => (s.newest && s.newest.event === 'agent-start' && s.lastLineAt !== null && now() - s.lastLineAt > AGENT_SILENT_MS
     ? activity(s.newest.agent, s.lastLineAt) : null);
 
@@ -581,7 +575,7 @@ export function createWatcher({
         // A first watch with no state: the history sets the cadence and emits nothing,
         // unless --since asks for the newest run's lines after that seq. The history is
         // the lines older than the watch start: a relaunched driver can write its first
-        // line before the first poll, and that line is news (B4).
+        // line before the first poll, and that line is news.
         if (since !== null) {
           const newestRun = r.lines.length ? r.lines[r.lines.length - 1].run : null;
           emitFrom = { run: newestRun, seq: since };
@@ -590,7 +584,7 @@ export function createWatcher({
         entry.first = false;
       }
       let lines = r.lines;
-      // K1 — a journal this watch never saw a line of can arrive with old lines, when a
+      // A journal this watch never saw a line of can arrive with old lines, when a
       // merge or a checkout brings in a drive that ran elsewhere. So can the journal of
       // a state saved for another journal. Lines older than the cut are history.
       const cut = entry.historyBefore !== null ? entry.historyBefore : (st.lastLineAt === null ? watchStartMs : null);
@@ -604,13 +598,13 @@ export function createWatcher({
         lines = lines.filter((l) => !(Date.parse(l.at || '') < cut));
       }
       events.push(...applyJournalLines(root, slug, st, lines, { emitFrom }));
-      // B1 — the history of a first watch is an earlier run. Its run-end must not end
+      // The history of a first watch is an earlier run. Its run-end must not end
       // a watch that the session started for a relaunch whose first line is still to come.
       if (emitFrom && emitFrom.seq === Infinity) st.ended = false;
       st.offset = r.offset;
       events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st)).map((ev) => withPendingTool(ev, st)));
     }
-    // K2 — the number of slugs with a stage open right now. Above 1, the
+    // The number of slugs with a stage open right now. Above 1, the
     // commentary gives a stage end one line and keeps the full note for the run end.
     const running = [...states.values()].filter(({ st }) => Object.keys(st.openStages || {}).length).length;
     for (const ev of events) if (ev.event === 'stage-end') ev.parallel = Math.max(1, running + 1);
@@ -653,7 +647,7 @@ export function createWatcher({
     return events;
   }
 
-  // F4 — the record of the facts: one commentary line per stage start and per
+  // The record of the facts: one commentary line per stage start and per
   // commit. The model still gives the chat reply and the full notes.
   function fact(slugList, text, atIso) {
     const parsed = Date.parse(atIso || '');
@@ -703,7 +697,7 @@ export function createWatcher({
           const due = passed > sent;
           after[agent] = { startedAt, sent: passed };
           if (due) dueSlugs.add(slug);
-          // C7 — the look-in reader reads these paths and does not search for them.
+          // The look-in reader reads these paths and does not search for them.
           running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null,
             expectedMinutes: Math.round(expectedMs / 60000), due,
             root, journal: st.source || journalPath(root, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
@@ -753,7 +747,7 @@ function writeNote(file, name, body, kind, nowMs) {
   return file;
 }
 
-/** F4 — one fact line: a stage start or a commit. */
+/** One fact line: a stage start or a commit. */
 export function writeFact(file, name, text, nowMs) {
   ensureCommentary(file, name);
   appendFileSync(file, `\n- ${stampOf(nowMs)} · ${text}\n`);
@@ -813,7 +807,7 @@ export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), o
     if (l && l.event === 'run-end') lastEndRun = l.run ?? null;
   }
   if (opts.run) run = opts.run;
-  // A3: the driver's last step and the main session can both end one run. The
+  // The driver's last step and the main session can both end one run. The
   // second end appends nothing.
   if (lastEndRun !== undefined && lastEndRun === run && run) return null;
   const line = {
@@ -826,7 +820,7 @@ export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), o
 }
 
 /**
- * A4: parse the JSON that a driver built for a journal line. The driver writes it
+ * Parse the JSON that a driver built for a journal line. The driver writes it
  * with JSON.stringify, so it parses as it is. A copy that lost the escape of a
  * backslash (a Windows path typed by hand) parses after the lone backslashes are
  * doubled.
@@ -837,7 +831,7 @@ export function parseLineJson(text) {
   return JSON.parse(s.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})?/g, (m, g) => (g ? m : '\\\\')));
 }
 
-/** A4: append one journal line through JSON.stringify. Returns the line. */
+/** Append one journal line through JSON.stringify. Returns the line. */
 export function appendJournalLine(file, json, flags = {}, nowMs = Date.now()) {
   const obj = parseLineJson(json);
   // --fields: the values only the agent knows, as a JSON object (numbers and short words).
@@ -870,7 +864,7 @@ function parseArgs(argv) {
 const out = (ev) => process.stdout.write(`${JSON.stringify(ev)}\n`);
 
 /**
- * B2 — a Monitor watch lives 30 minutes, but on Windows the Monitor's stop can
+ * A Monitor watch lives 30 minutes, but on Windows the Monitor's stop can
  * leave the node process running. A watch therefore ends itself after its
  * lifetime: 31 minutes by default, 110 minutes with --once (inside the 2-hour
  * limit of a background shell task). --max-minutes or SDLC_WATCH_MAX_MINUTES sets it.
@@ -913,7 +907,7 @@ async function watch(root, slugs, flags) {
   process.on('SIGINT', stop);
   try {
     while (!stopping) {
-      // F5 — a newer watch took over: say so once and stop, so no event comes twice.
+      // A newer watch took over: say so once and stop, so no event comes twice.
       const replaced = w.checkLocks();
       if (replaced) { out(replaced); break; }
       const t = Date.now();
@@ -927,7 +921,7 @@ async function watch(root, slugs, flags) {
       for (const ev of events) if (!ev.quiet) out(ev);
       w.save();
       if (w.allEnded()) break;
-      // B4 — --once: the first poll with news ends the watch. The session reads the
+      // --once: the first poll with news ends the watch. The session reads the
       // lines, acts, and starts the watch again; the offsets keep every later event.
       // A commit or a stage start is not news: it is printed, and the watch polls on.
       if (flags.once && events.some(isNews)) break;

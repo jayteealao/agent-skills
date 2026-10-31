@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // scripts/verify-deployment.mjs — machine-side Codex deployment doctor
-// (SINGLE-SOURCE-PLAN W6; rewritten from the deleted codex tree's copy).
+// (rewritten from the deleted codex tree's copy).
 //
 // `npm test` proves the repo conforms to the Codex plugin contract; it cannot
 // prove the plugin actually EXECUTES on this machine. That failure mode is
 // real: from 2026-06 to 2026-07 this repo was fully conformant while the
 // machine ran a year-old legacy wrapper with hooks feature-flagged off
-// (docs/internal/CODEX-PLATFORM-GAPS.md §0). This doctor inspects machine
+// (docs/internal/CODEX-PLATFORM-GAPS.md). This doctor inspects machine
 // state — CLI version, hooks feature, install, trust, legacy leftovers — and
 // reports.
 //
@@ -14,7 +14,7 @@
 // the Claude Code plugin, from the same tree); its hook wiring is
 // hooks/codex.hooks.json, which is the relpath every trust key embeds. The
 // pre-merge identity `sdlc-workflow-codex` is LEGACY: an install under that
-// name means the machine has not cut over (SINGLE-SOURCE-PLAN W7 step 2).
+// name means the machine has not cut over to the single tree.
 //
 // Advisory by design: run via `npm run verify:deployment`. Exits 1 only on
 // FAIL findings (missing install, legacy active, hooks disabled); warnings

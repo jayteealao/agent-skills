@@ -1,12 +1,3 @@
----
-description: Read-only adversarial audit of the ship pipeline — questions whether `.ai/ship-plan.md`, the CI/CD it built, and the release-relevant codebase are actually SOUND, not merely present or compliant. Fans out one sub-agent per audit lens (plan-soundness, release-safety, ci-correctness, secrets-and-permissions, supply-chain, rollback-realism, version-integrity), refutes each candidate finding before it lands, then merges survivors into an accumulating ledger at `.ai/ship-plan-audit.md` and routes each to its sanctioned fixer. Never edits the plan, never mutates the repo, never ships. Distinct from `build` (which trusts the plan and closes repo gaps) and from the ship readiness pre-check (which only catches mechanical drift).
-argument-hint: "[<lens> | triage]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 > **Ground findings in the real source.** Before asserting that a workflow step, a published artifact, or the
 > code misuses a dependency, action, or registry — a wrong signature, an action that "can't work," a security
 > claim about a tool's behavior — invoke the `study-sources` skill to read its **actual installed source** (the

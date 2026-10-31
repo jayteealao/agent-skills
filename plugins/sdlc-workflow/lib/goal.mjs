@@ -1,10 +1,10 @@
-// lib/goal.mjs — the goal contract of /wf loop goal (WF-GOAL-PLAN W2), pure parts.
+// lib/goal.mjs — the goal contract of /wf loop goal, pure parts.
 //
 // The host carries the loop (Claude Code `/goal`, Codex goals). /wf owns the
 // evidence: `scripts/goal.mjs check` runs the rule of the contract's `kind` and
 // prints the evidence, then one last line, `GOAL: MET`, `GOAL: NOT-MET <reason>` or
 // `GOAL: BLOCKED <reason>`. The condition tells the host judge to trust only that
-// line (section 4.4). Nothing here asks a model (D3).
+// line. Nothing here asks a model: the check is a rule, not a judgment.
 
 export const KINDS = Object.freeze(['lifecycle', 'optimize', 'proofs']);
 export const HOSTS = Object.freeze(['claude-code', 'codex', 'pi']);

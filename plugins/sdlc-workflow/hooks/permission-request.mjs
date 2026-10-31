@@ -8,8 +8,8 @@
 // of <plugin root>/hooks/, <plugin root>/scripts/ or
 // <plugin root>/skills/<skill>/scripts/. Everything else gets NO OPINION (silent
 // exit 0), which leaves the normal approval flow untouched; this hook never
-// denies. Every auto-allow is logged to ${PLUGIN_DATA}/permission-auto-allow.log
-// (CODEX-REMEDIATION-PLAN H4).
+// denies. Every auto-allow is logged to ${PLUGIN_DATA}/permission-auto-allow.log,
+// so each one can be audited.
 
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';

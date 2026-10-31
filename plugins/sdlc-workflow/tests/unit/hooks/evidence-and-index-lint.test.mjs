@@ -1,4 +1,4 @@
-// ARTIFACT-SPLIT-PLAN W3 (S4 + S5) in the write hooks:
+// Evidence folders, ledgers and the index lint in the write hooks:
 // - evidence folders (probe-evidence/, verify-evidence/) are free-form: no NN-
 //   name, no frontmatter, no schema check, no sibling check, no render;
 // - index-history.jsonl and .read-ledger.jsonl pass every write hook silently;
@@ -79,7 +79,7 @@ function indexText({ before = '', after = '', body = 'body\n' } = {}) {
 
 const REPORT = 'Raw verify output\n\n$ npm test\n42 passing\n';
 
-/* ── evidence folders (S5) ─────────────────────────────────────────────── */
+/* ── evidence folders ──────────────────────────────────────────────────── */
 
 for (const rel of [
   '.ai/workflows/demo/verify-evidence/core/report.md',
@@ -126,7 +126,7 @@ test('pre-write-validate still blocks a non-NN .md outside the evidence folders'
   }
 });
 
-/* ── .jsonl ledgers (S4, S6) ───────────────────────────────────────────── */
+/* ── .jsonl ledgers ───────────────────────────────────────────────────── */
 
 for (const rel of ['.ai/workflows/demo/index-history.jsonl', '.ai/workflows/demo/.read-ledger.jsonl']) {
   test(`write hooks pass ${rel} silently`, () => {
@@ -146,7 +146,7 @@ for (const rel of ['.ai/workflows/demo/index-history.jsonl', '.ai/workflows/demo
   });
 }
 
-/* ── index lint (S4, D7) ───────────────────────────────────────────────── */
+/* ── index lint ───────────────────────────────────────────────────────── */
 
 test('indexLintWarnings: a clean index has no warnings', () => {
   deepEqual(indexLintWarnings(indexText()), []);

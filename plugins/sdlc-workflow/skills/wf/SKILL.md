@@ -9,6 +9,7 @@ argument-hint: "<slug> | <intake|shape|design|slice|plan|implement|verify|review
 You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, `/wf <slug>` runs the next step of that workflow, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
+- Apply each live `steer` entry of the decision store (`decide list --kind steer`) per [_decisions.md](reference/_decisions.md). Never apply it above a mandatory gate, and give the relevant entries to each sub-agent you start.
 - Write chat narratives per [_chat-return.md](reference/_chat-return.md).
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
@@ -29,71 +30,16 @@ Run this check before any read or write. Its result is your first visible output
    - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
    - `alias-of: <key>`: the key is an old name that stays for this release only. Tell the person in one line to use `/wf <key>` from now on, then run the reference.
    - `next-of: <slug> → /wf <step>`: the person typed only a slug. Say in one line that the next step of `<slug>` is `/wf <step>`, then run it. The `args=` of the first line are the arguments of that step. When the line ends with a reason in brackets, the workflow has no next step to run: run `/wf status <slug>` and give the reason.
-   - `close-ask: <slug> (<why>)`: the branch of an open workflow is merged. Before the key runs, ask the person per [_gate-question.md](reference/_gate-question.md): "The branch of `<slug>` is merged (<why>). Close the workflow?" When there are several `close-ask:` lines, list the workflows in chat and ask one question: "Close all (Recommended)" or "Go through them one by one". On yes, run `node "<skill-dir>/scripts/wf.mjs" close "<projectRoot>" <slug>`. On no, run the same command with `--decline`. Then run the key.
+   - `close-ask: <slug> (<why>)`: the branch of an open workflow is merged. Before the key runs, ask the person per [_gate-question.md](reference/_gate-question.md): "The branch of `<slug>` is merged (<why>). Close the workflow?" When there are several `close-ask:` lines, ask per "A list of items" of [_gate-question.md](reference/_gate-question.md): "Close all (Recommended)" or "Go through them one by one". On yes, run `node "<skill-dir>/scripts/wf.mjs" close "<projectRoot>" <slug>`. On no, run the same command with `--decline`. Then run the key.
    - `first-run: reference/setup.md`: the repo has no `.ai/` folder. Run [setup.md](reference/setup.md) first, then the key.
    - `records-dir: <folder>`: this project keeps its workflow files in the records repo clone. In every reference, `.ai/workflows/<slug>/<file>` means `<folder>/<slug>/<file>`: read and write evidence and notes there, and give the folder to each sub-agent. Only the drafts stay in `.ai/workflows/<slug>/.draft/`. `node "<skill-dir>/scripts/wf.mjs" path "<projectRoot>" <slug> <file>` prints the real place of one file.
    - `records: offline; …`: the records repo cannot be reached. Tell the person in one line, then run the key.
-   - `records-conflict: <workflow>: <why>`: two computers changed the same record. Do not run the key. Tell the person, and give `node "<skill-dir>/scripts/wf.mjs" records status "<projectRoot>"`. When there are several conflicts and each has a recommended resolution, list them in chat as one numbered list, and ask one question: "Apply each recommendation (Recommended)" or "Go through them one by one". STOP.
-   - `records-warning: <workflow>: <what>`: the clone has files that no commit holds, commits that are not pushed or pulled, a local copy that it kept aside, or a failed background step. Tell the person in one line, with `node "<skill-dir>/scripts/wf.mjs" records status "<projectRoot>"`, then run the key.
-   - `lease-lost: <slug> by <machine> until <time>`: this computer held the lease, and another computer took it. Do not run the key, and stop a stage that runs. A command or the pre-write check prints the same line when it sees the lease of another computer. Tell the person that the other computer writes the workflow now. STOP.
-   - `lease-held: <slug> by <machine> until <time>`: another computer writes this workflow now. Do not run the key. Tell the person that the work continues here after `wf.mjs lease release` runs on that computer, or after the time. STOP.
-   - `lease-expired: <slug> by <machine> since <time>`: ask the person once, per [_gate-question.md](reference/_gate-question.md): "The lease of <machine> on `<slug>` expired at <time>. Take the workflow over on this computer?" On yes, run `node "<skill-dir>/scripts/wf.mjs" lease claim "<projectRoot>" <slug> --take`, then the key. On no, STOP.
-   - `lease-offline: <slug>`: ask the person once: "The records repo cannot be reached, so no other computer knows that `<slug>` runs here. Continue?" On yes, run the key. On no, STOP.
+   - `records-conflict:`, `records-warning:` or a line that starts with `lease-`: act on the line per "Records lines" of [_records-repo.md](reference/_records-repo.md) before the key runs. Some of these lines STOP the run.
 4. **When you start `/wf` on your own.** The person's last message did not type this `/wf` call: you chose to run it. Run `node "<skill-dir>/scripts/wf.mjs" consent check "<projectRoot>" <slug>` first.
    - Exit 0: continue.
    - Exit 1: ask the `ask:` question of the output, word for word, with the host question tool. Offer `Yes — <the step>` first and `No — I type each command` second. Then run the `then:` command. When that command does not print `granted`, STOP: the person did not consent, and the `/wf` call does not run.
    - When the call names no existing workflow (a new intake, for example), do not run it: give the person the command to type.
    - Only the answer event of the question tool grants the consent. A hook records it. Do not write `answers.jsonl` or the consent field yourself.
-
-The script reads the forms of the table below from `skills/wf/keys.json` and checks each `<slug>`, `<slice>` and `<branch>` on disk. So `/wf plan the migration` goes to the router, because `the` is not a slug.
-
-<!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
-### Stages
-
-| Key | Arguments | Does | Writes |
-|---|---|---|---|
-| `intake` | `[<slug>] [<mode>] [text]` | Entry dispatcher. A description starts stage 1: the brief, then the shape work in the same run, or the small path when the person chooses it (implement and verify now, one commit on the checked-out branch, one note). A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
-| `shape` | `<slug> [text]` | Alias of `intake` for this release: runs the shape phase of intake on a workflow whose brief is written. Use `/wf intake`. | `02-shape.md` |
-| `design` | `[<slug>] [move\|amend\|import\|audit\|critique\|explore] [text]` · `explore [<slug>] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person approves the screens before drivers run. | `02c-craft.md` |
-| `slice` | `<slug> [text]` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
-| `plan` | `<slug> [<slice> [text]]` · `<slug> all` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
-| `implement` | `<slug> [<slice>\|reviews]` · `<slug> <slice> reviews` | Code the slice. `reviews` runs fix-blockers mode on the selected slice or on the named slice. | `05-implement-<slice>.md` |
-| `verify` | `<slug> [<slice>]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
-| `review` | `<slug> [<slice>\|triage\|<dimension>]` · `<slug> triage [<slice>]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
-| `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Alias of `ship` for this release: ship opens the PR first, then stops at the go/no-go gate. Use `/wf ship`. | `08-handoff.md` |
-| `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | The last mile: packages the completed slices into a PR and watches CI, stops at the go/no-go gate, then merges and releases via `.ai/ship-plan.md`. Refuses while a required review has unresolved blockers. Batch mode over `pr#N` or a branch is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `08-handoff.md`, `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
-| `retro` | `<slug>\|pr#N\|<branch> [deep]` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
-
-### Drivers and loops
-
-| Key | Arguments | Does | Writes |
-|---|---|---|---|
-| `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
-| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before ship. | none |
-| `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
-| `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
-
-### Navigation · routers
-
-| Key | Arguments | Does | Writes |
-|---|---|---|---|
-| `status` | `[<slug>\|pr#N\|<branch>] [deep]` · `advise [<branch>\|pr#N\|fast]` · `recap <slug>\|pr#N\|<branch> [<slice>\|plan\|shape\|slice\|review\|findings]` | Dashboard; per-slug detail with the next command; `INDEX.md` reconciliation; `deep` drift check; `advise` cross-slug sequencing. `recap` tells a workflow's or a branch's story, or explains one artifact. | none; `recap` writes `90-recap.md` |
-| `project` | `ship-plan init\|build\|edit\|audit [text]` · `observability init\|build\|audit [text]` | The project-level contracts: author, build, edit, or audit `.ai/ship-plan.md` and `.ai/observability.md`. | `.ai/ship-plan.md`, `.ai/observability.md`, and their audit files |
-| `docs` | `[plan\|tutorial\|how-to\|reference\|explanation\|readme\|review [text]]` · `<slug>\|--audit-only\|<path>` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. | per primitive |
-
-| Sub-key | Reference |
-|---|---|
-| `loop goal`, `loop optimize`, `loop prototype` | `reference/goal.md`, `reference/optimize.md`, `reference/prototype.md` |
-| `status recap` | `reference/recap.md` |
-| `project ship-plan`, `project observability` | `reference/ship-plan.md`, `reference/observability.md` |
-
-Every key runs on Claude Code, Codex and pi in the same form, with these exceptions:
-
-- `loop goal` on Claude Code: the mod puts the /goal line into the prompt box.
-- `loop goal` on Codex: the agent calls create_goal.
-- `loop goal` on pi: the person pastes the line that goal.mjs arm prints.
-- `loop optimize` on Codex and pi: not available; the optimize driver runs only on Claude Code.
-<!-- end generated -->
 
 # Step 0.7 — Git precondition
 
@@ -109,7 +55,7 @@ On consent, run `git init` only; do not stage or commit the user's files. On dec
 
 # Step 0.8 — Source study
 
-When the work turns on how a dependency behaves, use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only.
+When the work turns on how a dependency behaves, read its real source per [reference/_source-study.md](reference/_source-study.md).
 
 # Step 1 — Execute
 
@@ -125,8 +71,10 @@ wf <key> complete: <slug-or-scope>
 
 <Narrative per _chat-return.md, section The narrative.>
 
+Deltas: <per _chat-return.md>
 Artifacts: <paths created or modified, or "none">
 Next: <one concrete invocation, or "Done">
 ```
 
-- Name the key, with its sub-key or mode, and the scope on the first line. `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `status recap` writes `90-recap.md`, so name those. Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative. `Next` is one invocation, or `Done` after `ship`, `retro`, or a close. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.
+- Name the key, with its sub-key or mode, and the scope on the first line. `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `status recap` writes `90-recap.md`, so name those. `Next` is one invocation, or `Done` after `ship`, `retro`, or a close.
+- Write the narrative and the `Deltas:` line, and decide when to omit each, per [_chat-return.md](reference/_chat-return.md).

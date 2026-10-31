@@ -1,18 +1,11 @@
----
-description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates a broad set of improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Sources (web pages, documents, name@version changelogs, GitHub issues) and the word research add a source-fit lens that checks every announced item against the code. After the ranked list, a loop lets the person triage each idea (take, later, drop, check, merge, split, rescue), discuss one idea, and steer the scan into new rounds (deeper, similar, lens, direction, surprise me) in the same run. A pick writes a list of work packets that `/wf campaign` builds; refresh checks a run again. Inverts the normal pattern — surfaces what you might not have thought to ask about.
-argument-hint: "[source...] [research] [lens] [count] [topic] | <ideate-slug> [idea-id...|refresh|deeper|similar|lens|direction|surprise] [text]"
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake ideate`, a **pre-pipeline ideation utility** for the SDLC lifecycle.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-ideate-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: ideate`, `compressed: true`, `origin: intake/ideate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `ideate → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `ideate`: it overrides the standalone steps below.
 
 # Pipeline position
 ```
@@ -73,7 +66,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
    | 10 | Any other words | Topic, given to every lens |
 
    `research` and `issues` are reserved words: a topic that is one of them is quoted.
-2b. **Derive the workflow slug:** `ideate-<focusSlug>-<YYYYMMDD>`, with `focusSlug` from the script (the lens filter, the topic, `sources` when only sources are given, else `all`) and the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed. This roots the terminal analysis workflow. If that slug already exists, append `-2`/`-3`.
+2b. **New slug:** name the workflow per "New slug" of [_intake-context.md](_intake-context.md), with the form `ideate-<focusSlug>-<YYYYMMDD>` and `focusSlug` from the script (the lens filter, the topic, `sources` when only sources are given, else `all`).
 2c. **Resume / refresh / steer / pick split** (kind 1). The `mode` of the script output decides:
    - `refresh` → jump to `# Refresh`.
    - `steer` (a word of `deeper`, `similar`, `lens`, `direction`, `surprise` after the slug) → run sub-steps 3 to 3c, then the round per [_rounds.md](ideate/_rounds.md), then Step 7. Add `steer` to `modes:` of `01-ideate.md`.
@@ -201,10 +194,10 @@ Follow [_loop.md](ideate/_loop.md). The person triages each idea, discusses an i
 
 # Pick — decision closure
 
-Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line reason]`), or from `done` in Step 7 with one or more ideas at `triage: take`. The ideas at `take` are the selected ideas; `later`, `drop`, `brainstorm`, and `open` ideas are not picked. The pick is the workflow's terminus: it writes one list, with one work packet per selected idea, and closes the workflow. It never starts a workflow; it prints the invocations and ends the run.
+Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line reason]`), or from `done` in Step 7 with one or more ideas at `triage: take`. The ideas at `take` are the selected ideas; `later`, `drop`, `brainstorm`, and `open` ideas are not picked. The pick writes one list, with one work packet per selected idea, and closes the workflow. Steps 1, 2, 8 and 9 follow "Closure" of [_light-index.md](_light-index.md) with the `ideate` row; steps 3 to 7 are this mode's own.
 
-1. **Stamp the artifact.** In `01-ideate.md` frontmatter, with one `record set "<root>" <slug> 01-ideate.md` call, set `selected: [<idea-id>, …]`, `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body (get `01-ideate.md`, add the section, write the draft and put it): which ideas were picked; why (the user's exact reason, else "user picked without a stated reason"); the sibling ideas they beat and the one-line reason each lost (the culled-sibling rationale a work packet's out-of-scope list is seeded from).
+1. **Stamp the artifact** (Closure step 1).
+2. **Append `## Decision`** (Closure step 2). The culled siblings seed the out-of-scope list of a work packet.
 3. **Agree the order.** With two ideas or more, propose an order from the rank, and ask the person to confirm it. For each idea after the first, ask why it comes after the ideas before it, and record the answer in the person's words.
 4. **Write up each build work packet.** A build work packet has the form `intake`, `extension`, `fix` or `hotfix`. From the idea's card, write its goal, its in-scope and out-of-scope lines, its checkable acceptance criteria, its constraints and its risks, per "The write-up of a build work packet" in [brainstorm/_work.md](brainstorm/_work.md). Propose its `ux-impact`, its `try-out` and its `estimated-slices`. Detect the stack once: run the probes in `intake/default/_stack-fingerprint.md`.
 5. **Confirm the list.** Ask one question per [_gate-question.md](../_gate-question.md) with the work packets in order, each with its form, its write-up, its `ux-impact` and its `try-out`, and the stack. The person confirms the grouping into work packets, `ux-impact`, `try-out` and the stack. Do not ask about the pick reason again. Two ideas of one family can become one work packet when the person says so (the Size rules of [brainstorm/_work.md](brainstorm/_work.md)).
@@ -214,18 +207,14 @@ Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line rea
    - `items`: each idea's evidence as `kind: finding` items on its thread (`evidence:` the `file:line` or the reference path `references/<kind>/<file>`, never a `.ai/…` path). The person's pick reason is ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread, with `session: 1` and `decided-at:` the `chosen-at` time. It is carried once, by the order-1 work packet, which carries it word for word. Do not copy it into every thread.
    - `work`: one work packet per idea: `key` and `slug` (the idea's slug suggestion), `title`, `shape` (the form of the idea's `entry:`: `intake`, `extension`, `fix`, `hotfix`, `rca`, `investigate`, `discover`, or `task`), `target-slug` for `extension`, `fix` and `hotfix`, `order` (1 to n, from step 3), `why-here` (after order 1; it names the pick), `design-form: none`, `items` (the order-1 work packet also lists the pick decision), and `state: proposed`. A build work packet also carries its write-up of step 4, with `ux-impact-confirmed: true`. `entry` is `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet. Do not copy the idea's `depends-on:` into the work packet: the walk builds the work packets in list order.
 7. **Write the list.** Run `node "<skill-dir>/scripts/campaign.mjs" write ".ai/workflows/<slug>/ideate-work.json"`. It checks the board, then writes one work packet file per work packet in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
-8. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=list-written closed-at=<timestamp> next-command=none "next-invocation=/wf campaign <slug>"`.
+8. **Close the workflow** (Closure step 3).
 9. **Print the invocations.** Print `/wf campaign <slug>` when the list has a build work packet. Print the command of each work packet of another form. When an idea's `depends-on:` names `/wf intake update-deps`, print that command first. Do not run them.
 
 A later pick on a run that already has a list appends its work packets after the last work packet of the list, and runs steps 1 to 9 for them. A work packet that the walk started keeps its text ([brainstorm/_work.md](brainstorm/_work.md), "Reopening a list").
 
 ## Regroup (the migration of an old campaign)
 
-The first `/wf campaign <slug>` on an ideate run with an old campaign ledger migrates it (`campaign/_migrate.md`). After `migrate apply`, `ideate-work.json` holds a `done` work packet for each shipped unit and an `open` work packet for each in-flight unit. The walk then runs this regroup in its own session, with the person:
-1. Group the units that are not started into work packets, in their old order, under the Size rules of [brainstorm/_work.md](brainstorm/_work.md). Every carried item goes into exactly one work packet.
-2. Write up each new build work packet and confirm the stack, as in steps 4 and 5.
-3. Confirm the whole list with the person: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
-4. Write the list (step 7).
+The first `/wf campaign <slug>` on an ideate run with an old campaign ledger migrates it (`campaign/_migrate.md`), and the walk then runs the section "Regroup" of [brainstorm/_work.md](brainstorm/_work.md) on `ideate-work.json`, in its own session, with the person. Skip step 1 of that section: it is for a brainstorm board only. In its step 2, put every carried item into exactly one work packet. Write up each new build work packet and confirm the stack as in steps 4 and 5 above, and write the list as in step 7 above.
 
 # Refresh
 

@@ -1,5 +1,4 @@
-// tests/unit/gates.test.mjs — the two single-source gates run green on this tree
-// (SINGLE-SOURCE-PLAN W6).
+// tests/unit/gates.test.mjs — the two single-source gates run green on this tree.
 //
 //   verify-host-neutrality — host-mechanics wording fails outside the permanent
 //     exception list; the burndown allowlist is EMPTY at cutover and stays so.
@@ -63,7 +62,7 @@ test('host-neutrality gate: arguments-token binds SKILL.md files and clears on a
   }
 });
 
-test('host-neutrality gate: the permanent exception list is exactly the §3.3 budget', async () => {
+test('host-neutrality gate: the permanent exception list is exactly its fixed budget', async () => {
   // The exported list itself, so an entry added anywhere (not only under
   // skills/wf/reference/) is caught (v9.153.1).
   const { CONTRACT_FILES } = await import('../../scripts/verify-host-neutrality.mjs');

@@ -78,28 +78,9 @@ The command reads the file, merges the change and writes the file in one step. S
 - Do not make an `.ai/` folder below the project root. The check refuses it.
 - Do not edit `INDEX.md`: `wf.mjs` writes the row of a workflow each time its index changes.
 
-## The records repo
+## A linked project
 
-A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. The drafts stay in `.ai/workflows/<slug>/.draft/`, so the steps above do not change. Every other file of the workflow (evidence, notes, `INDEX.md`) is in the clone too: the dispatch prints the folder as `records-dir:`, the brief names it, and `<wf> path <root> <slug> <file>` prints the real place of one file. The pre-write check refuses a write of such a file by its local path and names the real place. A file that a command writes by the local path (a test runner, a shell redirect) moves into the clone at the next records commit. `wf.mjs` commits the records at each step and stage boundary, pushes them when the network is there, and pulls the work of other computers at each `/wf` call.
-
-- One computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first.
-- Read the records of another project, but do not change them. To ask that project for something, post a message to it.
-
-## Messages
-
-A message informs; it is never a decision. Each message is one file in the `inbox/` folder of a workflow, and only `wf.mjs` writes it.
-
-1. To post, run `<wf> msg post <root> <slug> --kind <handoff|review-request|question-for-project|note> --text "<text>"`. Add `--to <project>` to post to a workflow of another project.
-2. To see the messages, run `<wf> msg list <root> <slug>`. A `*` marks a message that this computer has not read.
-3. To read one, run `<wf> msg read <root> <slug> <id>`. The read is recorded for this computer only.
-
-## The GitHub layer
-
-When the records repo is set up, each workflow has one issue in it, with a status block at the end of its body. `wf.mjs` keeps the issues: each command that changes the state of a workflow queues one edit, and each answer that `decide add` records queues one comment. The queue goes out in order at the next `/wf` call.
-
-- Do not read the issues or the board for the state of a workflow. The records are the truth.
-- Do not write to the issues with `gh`. `wf.mjs` is the only writer. A message goes to the issue as a comment, and a comment of the person comes back as a message.
-- To see what is queued and which issue belongs to each workflow, run `<wf> gh status <root>`.
+A project that is linked to a records repo keeps its records in a clone. The dispatch then prints `records-dir:`, and the steps above do not change. The rules of the clone, the lease, messages and the GitHub layer are in [_records-repo.md](_records-repo.md).
 
 ## Workflows of the old layout
 

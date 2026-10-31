@@ -22,23 +22,15 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 
 **Interface languages.** When the source of a direction is itself an interface language, the surface may carry its grammar across navigation, content, controls and states, within the conventions of the platform.
 
-**Typography.** Find the face for the brand as a physical object: a museum caption, a 1970s terminal manual, a fabric label. Reject the first face that "looks designy". The font reflex list is in [typeset.md](typeset.md) → Font selection. Use a modular scale with a ratio of 1.25 or more; a flat scale reads as uncommitted. Display type may carry the voice.
+**Typography.** Find the face for the brand as a physical object: a museum caption, a 1970s terminal manual, a fabric label. Reject the first face that "looks designy". The font reflex list is in [typeset.md](typeset.md) → Font selection. Use the Persuade type scale of [_design-context.md](_design-context.md) → Shared design laws; a flat scale reads as uncommitted. Display type may carry the voice.
 
-**Color.** Pick one strategy. Committed or higher is the default:
-- **Restrained.** Tinted neutrals and one accent at 10% or less.
-- **Committed.** One saturated color carries 30–60% of the surface.
-- **Full palette.** Three to five colors, each with a defined role.
-- **Drenched.** Color owns the surface; the brand is its palette.
-
-Committed, Full palette and Drenched exceed the 10% rule on purpose. An unexpected combination is allowed when the strategy calls for it.
+**Color.** Committed or higher is the default. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. An unexpected combination is allowed when the strategy calls for it.
 
 **Layout.** Asymmetry is available: editorial grids, white space as content. Several columns are a design choice, not a grid default. The page may tell a story as the visitor scrolls.
 
 **Motion.** Orchestrated entrances, staggered reveals and scroll-driven motion are available when they serve the page. One rehearsed entrance beats scattered micro-interactions. Match motion to the personality: a playful brand may carry a spring with bounce 0.1–0.3; an austere brand stays restrained and slow. Motion stays interruptible and inside the frame budget ([animate.md](animate.md)).
 
 ## Screens
-
-Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
 **The world carries the page; it is not a picture of the page.** A facade, a shutter or a book can be what the page is built on. A viewport painted whole as a facade, a book cover or a poster, with no working parts, is a picture of the world, not a website.
 - Cover the page with the world's material: its material is the ground and the major surfaces, and its type sets the headlines. A world reduced to an accent on a neutral template is the category default with a sticker on it.

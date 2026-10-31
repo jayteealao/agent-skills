@@ -96,7 +96,7 @@ A discussion grows past one idea when it opens a second problem, when the person
 
 When the person chooses the brainstorm:
 
-1. Derive the brainstorm slug as `/wf intake brainstorm` does: `brainstorm-<the idea title in kebab form>-<YYYYMMDD>`.
+1. Name the brainstorm slug per "New slug" of [_intake-context.md](../_intake-context.md), with the idea title as the topic.
 2. Set the idea's `triage: brainstorm` and `routed-to:` that slug.
 3. Print `/wf intake brainstorm <idea title> from <ideate-slug>`. Do not run it. The brainstorm reads the idea's evidence and the discussion notes as its first thread.
 4. Return to the loop.

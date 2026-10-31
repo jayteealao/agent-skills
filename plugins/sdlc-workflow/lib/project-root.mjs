@@ -42,7 +42,7 @@ function gitToplevel(dir) {
   }
 }
 
-/** True when `dir` sits inside any git checkout (W11.3 SessionStart gate). */
+/** True when `dir` sits inside any git checkout (the SessionStart gate). */
 export function isInsideGitCheckout(dir) {
   return gitToplevel(dir) !== null;
 }

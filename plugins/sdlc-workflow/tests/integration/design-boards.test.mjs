@@ -1,4 +1,4 @@
-// DESIGN-BOARDS-PLAN W1 + W2: the board rules (lib/design-boards.mjs) and the board
+// The board rules (lib/design-boards.mjs) and the board
 // tool (scripts/design-boards.mjs). The tool runs as a child process with a test
 // double for the browser (SDLC_BROWSER=<file>.mjs), so no real browser is needed.
 
@@ -100,13 +100,13 @@ test('renderSheet: groups by surface, escapes text, and never links outside the 
   ok(!html.includes('../../secret.png'));
 });
 
-test('worst-case boards: <surface>--worst is a board key (DESIGN-CRAFT-PORT-PLAN C8)', () => {
+test('worst-case boards: <surface>--worst is a board key', () => {
   equal(boardKey({ surface: 'Squad List', state: 'worst' }), 'squad-list--worst');
   deepEqual(parseBoardKey('squad-list--worst--phone'), { surface: 'squad-list', state: 'worst', viewport: 'phone' });
   equal(capturePath('squad', 'squad-list--worst'), 'design/captures/squad/squad-list--worst.png');
 });
 
-test('directionSketches: one entry per direction-<name> file, sorted (C10)', () => {
+test('directionSketches: one entry per direction-<name> file, sorted', () => {
   deepEqual(directionSketches(['direction-quiet.html', 'direction-quiet.png', 'direction-dense.html', 'idea-1.html', 'direction-.html', 'Direction-Bold.PNG']), [
     { name: 'bold', html: null, png: 'sketches/Direction-Bold.PNG' },
     { name: 'dense', html: 'sketches/direction-dense.html', png: null },
@@ -115,7 +115,7 @@ test('directionSketches: one entry per direction-<name> file, sorted (C10)', () 
   deepEqual(directionSketches(undefined), []);
 });
 
-test('renderSheet: the working sheet shows directions first; the frozen copy never does (C10)', () => {
+test('renderSheet: the working sheet shows directions first; the frozen copy never does', () => {
   const m = { ...emptyManifest('demo'), boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', png: 'boards/cart--empty.png' }] };
   const directions = [{ name: 'quiet', html: 'sketches/direction-quiet.html', png: 'sketches/direction-quiet.png' }, { name: '<x>', html: null, png: null }];
   const working = renderSheet(m, { directions });
@@ -127,7 +127,7 @@ test('renderSheet: the working sheet shows directions first; the frozen copy nev
   ok(!renderSheet(m).includes('Directions'));
 });
 
-test('ignoreAdvice: the D9 exception block for each way a repo ignores .ai/', () => {
+test('ignoreAdvice: the board exception block for each way a repo ignores .ai/', () => {
   equal(ignoreAdvice(null, false).change, false);
   const star = ignoreAdvice('.ai/*');
   equal(star.style, 'star');
@@ -327,9 +327,9 @@ test('tool: track writes the exception block that git honours', () => {
   }
 });
 
-// ── WF-DESIGN-PLAN A5, A5b, A8 ───────────────────────────────────────────────
+// ── sketch exception blocks, stale canvases, terminal pictures ───────────────────────────────────────────────
 
-test('A5: the exception blocks track the sketches; an old block gets only the sketch lines', () => {
+test('the exception blocks track the sketches; an old block gets only the sketch lines', () => {
   match(ignoreAdvice('.ai/*').block, /^!\.ai\/workflows\/\*\/design\/sketches\/$/m);
   const glob = ignoreAdvice('.ai/**/*').block;
   match(glob, /^!\.ai\/workflows\/\*\/design\/sketches\/$/m);
@@ -344,7 +344,7 @@ test('A5: the exception blocks track the sketches; an old block gets only the sk
   match(ignoreAdvice('.ai/workflows/').manual, /design\/sketches\//);
 });
 
-test('A5: track upgrades a repo with the block from before the sketches (change: true)', () => {
+test('track upgrades a repo with the block from before the sketches (change: true)', () => {
   const root = project();
   try {
     if (spawnSync('git', ['init', '-q', root]).status !== 0) return;
@@ -372,7 +372,7 @@ test('A5: track upgrades a repo with the block from before the sketches (change:
 
 const hash = (text) => createHash('sha256').update(text).digest('hex');
 
-test('A5b: canvasStale reports a changed file, a missing file and a foreign account', () => {
+test('canvasStale reports a changed file, a missing file and a foreign account', () => {
   const canvas = (sha, account = 'me') => ({ link: 'https://claude.ai/a/1', account, 'published-at': '2026-10-22T10:00:00Z', sha256: sha });
   const entries = [
     { kind: 'sketch', key: 'fresh', where: 'w', path: 'a.html', canvas: canvas(hash('a')), sha256: hash('a') },
@@ -392,7 +392,7 @@ test('A5b: canvasStale reports a changed file, a missing file and a foreign acco
   deepEqual(validateManifest(m), []);
 });
 
-test('A5b: the schema accepts a canvas record and state reference on sketches and packets', () => {
+test('the schema accepts a canvas record and state reference on sketches and packets', () => {
   const canvas = { link: 'https://claude.ai/a/1', account: 'me', 'published-at': '2026-10-22T10:00:00Z', sha256: hash('a'), previous: ['https://claude.ai/a/0', { link: 'https://claude.ai/a/00', account: 'outlook' }] };
   const board = {
     schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: 'demo', areas: [], threads: [], items: [],
@@ -412,7 +412,7 @@ test('A5b: the schema accepts a canvas record and state reference on sketches an
   equal(validateFrontmatter({ ...packet, sketches: [{ key: 'home', path: null, canvas: { sha256: hash('a') } }] }).valid, false);
 });
 
-test('A5b: tool canvas-stale reads the board, the packets and boards.json', () => {
+test('tool canvas-stale reads the board, the packets and boards.json', () => {
   const root = project();
   try {
     const wdir = join(root, '.ai', 'workflows', 'demo');
@@ -444,7 +444,7 @@ test('A5b: tool canvas-stale reads the board, the packets and boards.json', () =
   }
 });
 
-test('A8: renderAnsi maps SGR 33 and 90 to the colours of each scheme', () => {
+test('renderAnsi maps SGR 33 and 90 to the colours of each scheme', () => {
   const text = 'ok \x1b[33mwarn\x1b[0m \x1b[90mhint\x1b[39m \x1b[1;31mfail\x1b[0m\x1b[2K <tag>\r\n';
   const dark = renderAnsi(text, 'campbell');
   match(dark, /<span style="color:#c19c00">warn<\/span>/);
@@ -464,7 +464,7 @@ test('A8: renderAnsi maps SGR 33 and 90 to the colours of each scheme', () => {
   throws(() => renderAnsi('x', 'nope'), /unknown colour scheme/);
 });
 
-test('A8: tool ansi writes the page; an unknown scheme is refused', () => {
+test('tool ansi writes the page; an unknown scheme is refused', () => {
   const root = project();
   try {
     writeFileSync(join(root, 'out.txt'), '\x1b[33mwarn\x1b[0m\n');

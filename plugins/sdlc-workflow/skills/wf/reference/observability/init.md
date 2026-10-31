@@ -1,12 +1,3 @@
----
-description: Author the project-level `.ai/observability.md` — a one-time, repo-scoped contract that captures the project's *entire* observability posture, language-agnostically. Works by **discovery → hypothesis → confirm**: first inventories what observability already exists in the codebase (loggers, structured vs unstructured, metrics, tracing, error-tracking, product analytics, and existing collector/dashboard/IaC config — across every language present), then reads `.ai/ship-plan.md` if present to tailor the backend to the real deploy target, then consultatively presents the gap and 2–3 real paths (backend/platform, sampling, schema, PII posture, dashboards, how far to provision) and lets the user choose. Writes a decisions contract — schema + emit + redaction + sampling + pipeline + backend + dashboards + provisioning (Blocks A–H) — never code or infra. Read by `/wf project observability build`, `/wf project observability audit`, and by `augment/instrument` (which designs against this schema when it exists).
-argument-hint: ""
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 > **Ground decisions in the real source.** Before asserting what logger, tracer, or telemetry SDK a service uses
 > — or how it behaves — reach for the `study-sources` skill to read the **actual installed source** (the logging
 > library in `node_modules`/`~/.m2`/the Go/Rust/.NET caches, the OTel SDK, the collector binary's real config
@@ -25,8 +16,7 @@ observability posture and moving it forward, whatever the language or stack**. F
 1. **Concept-first, adapter-second.** The language-agnostic core is *wide events / canonical log lines / tail
    sampling* — "emit one context-rich, queryable event per unit of work, keep the signal, sample the noise"
    ([wide-event-observability.md](../augment/wide-event-observability.md) is the shared doctrine). That idea is
-   realized differently in Go, Python, JVM, Rust, a serverless function, or a Node service. JavaScript is **one
-   adapter**, not the default. A run on a Go or Python service must never propose Express/Pino advice.
+   realized differently in Go, Python, JVM, Rust, a serverless function, or a Node service.
 2. **Discover before prescribe.** Read the codebase and report what observability *already* exists before
    proposing anything.
 3. **Consult, don't dictate.** Present the gap and 2–3 real paths; the user chooses. `Other (describe)` is always
@@ -51,8 +41,6 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 - It does **not** write application code, emit config, or stand up any infrastructure — that is
   `/wf project observability build`'s job, behind its own confirm gates.
 - It does **not** run or modify any logger, collector, or dashboard. Discovery is read-only.
-- It does **not** enter a vendor credential, API key, or account secret — ever. Choosing a backend records a
-  *decision*; authenticating to it is the user's action.
 - It does **not** overwrite an existing `.ai/observability.md`. If one exists, STOP and tell the user to amend by
   hand (there is no `edit` sub-key yet).
 - It does **not** modify `.ai/ship-plan.md` — it only *reads* it.
@@ -130,7 +118,7 @@ deploy-context hint from Step 1 still lets you present sensible options).
 Now run the hypothesis→confirm loop. For each decision below, **state the inferred/recommended value + why (1–2
 lines, citing Step 1/2)**, then let the user confirm, refine, or replace it (as a gate question per [_gate-question.md](../_gate-question.md), with
 `Other (describe)` always present; otherwise ask in chat and WAIT). These are **real forks with tradeoffs**, not a
-quiz. Bias every option by the discovered stack and the ship-plan — never propose a JS default on a non-JS repo.
+quiz. Bias every option by the discovered stack and the ship-plan.
 
 The decision letters are the block letters of the contract template ([init/_artifact.md](init/_artifact.md)), which `build` and `audit` read.
 
@@ -181,7 +169,7 @@ How far `/wf project observability build` should go, recorded so `build` never o
 - **emit IaC files** — Helm/Terraform/collector config written to the repo; the user applies them. *(Recommended
   default.)*
 - **apply to remote behind a gate** — `build` may `terraform apply` / `helm upgrade` / publish a dashboard, but
-  only with an explicit per-run confirm and a print-only fallback. Never silent, never with stored credentials.
+  only with an explicit per-run confirm and a print-only fallback. Never silent.
 - **print-only** — `build` emits nothing to any remote; it writes the exact commands to the compliance artifact.
 
 ## Client / edge scope (optional, no block letter)

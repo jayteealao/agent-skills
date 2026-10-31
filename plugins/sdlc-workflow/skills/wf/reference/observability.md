@@ -3,10 +3,6 @@ description: Observability router — establish and audit the project-level `.ai
 argument-hint: "<init|build|audit> [args...]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are the **observability router** for the SDLC plugin, invoked as `/wf project observability`.
 
 > **Foundation, not per-change.** This router sets up and audits the **project-wide** observability foundation
@@ -30,6 +26,13 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `/.ai/observability.md` | writes | | |
 
 The router reads no workflow artifacts.
+
+## Rules for every sub-command
+
+These rules apply to `init`, `build` and `audit`. The sub-references do not repeat them.
+
+- **No credentials, ever.** Never enter a vendor API key, token or account secret, and never store one. Record the decision, write the config and the exact commands, and let the person authenticate: entering a credential is always the person's own action.
+- **Never JavaScript on a non-JS unit.** Realize each unit in its own language, from the contract's Block B and the repo. Node is the reference adapter, not the default: never propose a JS default, or Express or Pino advice, for a Go, Python, JVM, Rust or .NET unit.
 
 # Step 0 — Resolve the sub-command
 

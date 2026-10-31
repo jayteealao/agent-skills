@@ -1,7 +1,5 @@
 ---
 name: wide-event-observability
-description: Design and implement wide-event logging with tail sampling for context-rich, queryable observability
-when_to_use: When designing logging/observability systems, debugging production incidents with inadequate context, or replacing scattered log statements with canonical log lines
 ---
 
 # Wide-Event Logging & Observability

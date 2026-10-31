@@ -3,15 +3,12 @@ description: Documentation dispatcher for the SDLC plugin. Orchestrator mode run
 argument-hint: "[<primitive> | <slug> | --audit-only | <path>]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are the **documentation dispatcher** for the SDLC plugin, invoked as `/wf docs`.
 
 Two modes of operation:
 
 - **Orchestrator** (`/wf docs`, `/wf docs <slug>`, `/wf docs --audit-only`, `/wf docs <path>`) — run the full pipeline. Discover existing docs, audit them against the codebase and Diátaxis principles, plan what to create/update/remove, generate using the appropriate primitive references, and spot-review the output.
-- **Primitive** (`/wf docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this key simply loads and follows the matching `docs/<primitive>.md`.
+- **Primitive** (`/wf docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this key loads and follows the matching reference of the Step 6 table.
 
 > **Wording (every document either mode writes).** Use one term for each concept, and give every
 > pronoun one referent. In a step sequence, write one imperative instruction per step, with its
@@ -29,7 +26,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `docs/_audit.md` | procedure | always | |
 | `08b-docs-index.md` | writes | | |
 
-The rows apply to orchestrator mode. Primitive mode reads only `docs/<primitive>.md`.
+The rows apply to orchestrator mode. Primitive mode reads only its reference from the Step 6 table.
 
 # Step 0 — Mode + sub-command resolution
 
@@ -100,7 +97,7 @@ For each action:
 - Scope: what specifically to write or change (2–4 sentences)
 - Required reading: which source files or workflow artifacts the writer must read first
 
-If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or a request that could be tutorial-or-how-to), load `docs/plan.md` to apply the Diátaxis decision table before recording the action.
+If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or a request that could be tutorial-or-how-to), load [doc-planner.md](../../diataxis/references/doc-planner.md) to apply the Diátaxis decision table before recording the action.
 
 Write `plan.md` with the `docs-plan` frontmatter (per-tier counts, `total-actions`, `audit-only`) from [docs/_artifacts.md](docs/_artifacts.md).
 
@@ -124,7 +121,7 @@ For each action:
 
 1. **Track the action** on the host's progress surface, if it has one ([_host-invocation.md](_host-invocation.md)): `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.
-3. **Load the matching primitive reference** from `docs/<primitive>.md` (the Step 6 table) and follow it exactly.
+3. **Load the matching primitive reference** from the Step 6 table and follow it exactly.
 4. **Write or update the file** at the target path.
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
 6. **Mark the action completed on that surface.**
@@ -132,7 +129,7 @@ For each action:
 Record each completed action in `generate.md` (`docs-generate` frontmatter — files created / updated / deleted, actions completed / skipped — in [docs/_artifacts.md](docs/_artifacts.md)).
 
 # Step 5 — Review (orchestrator only)
-Spot-check the generated documentation for quality and coherence. Load `docs/review.md` for the Diátaxis-discipline rubric.
+Spot-check the generated documentation for quality and coherence. Load [docs-reviewer.md](../../diataxis/references/docs-reviewer.md) for the Diátaxis-discipline rubric.
 
 Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md)) to review the generated files:
 
@@ -152,23 +149,26 @@ Write a `## Review Notes` section to `generate.md` with any issues found. For an
 # Step 6 — Primitive mode execution
 Invoked only when Step 0 resolved to a primitive (first token matched a known key).
 
-1. Load `docs/<primitive>.md` in full.
+1. Load the reference of the primitive from the table below in full.
 2. Treat its content as your instructions. Follow it exactly — no summarizing, paraphrasing, or skipping.
 3. Pass the remaining `$ARGUMENTS` (everything after the primitive key) to it as the writing target.
 4. The primitive is responsible for its own inputs-to-gather, structure, writing rules, and output contract. It writes one document at a path it decides (or the user supplies). It does not register a workflow artifact and does not run the orchestrator pipeline.
-5. After the primitive completes, return a brief summary to the user: file path written, primitive used, anti-patterns avoided.
+5. After a writing primitive (`tutorial`, `how-to`, `reference`, `explanation`, `readme`) completes, dispatch one fresh-context sub-agent over the file it wrote, with [docs-reviewer.md](../../diataxis/references/docs-reviewer.md) as its rubric.
+6. Return a brief summary to the user: file path written, primitive used, anti-patterns avoided.
 
 **Primitive reference table:**
 
+The references belong to the diataxis skill. Skip the Final self-check; Step 5 reviews in a fresh context, and in primitive mode item 5 above does.
+
 | Key | Reference | Purpose |
 |---|---|---|
-| `plan` | `docs/plan.md` | Classify docs into Diátaxis quadrants, propose docs map and writing order |
-| `tutorial` | `docs/tutorial.md` | Learning-oriented step-by-step lesson — beginner walkthrough, getting-started, first project |
-| `how-to` | `docs/how-to.md` | Goal-oriented guide for competent users — task guide, troubleshooting, runbook, migration |
-| `reference` | `docs/reference.md` | Neutral, structured, scannable technical reference — API, CLI, config, schema, error codes |
-| `explanation` | `docs/explanation.md` | Understanding-oriented content — why, trade-offs, architecture, design rationale |
-| `readme` | `docs/readme.md` | Front-door landing page that routes to deeper docs |
-| `review` | `docs/review.md` | Audit existing docs against Diátaxis principles with prioritized fixes |
+| `plan` | [doc-planner.md](../../diataxis/references/doc-planner.md) | Classify docs into Diátaxis quadrants, propose docs map and writing order |
+| `tutorial` | [tutorial.md](../../diataxis/references/tutorial.md) | Learning-oriented step-by-step lesson — beginner walkthrough, getting-started, first project |
+| `how-to` | [how-to.md](../../diataxis/references/how-to.md) | Goal-oriented guide for competent users — task guide, troubleshooting, runbook, migration |
+| `reference` | [reference.md](../../diataxis/references/reference.md) | Neutral, structured, scannable technical reference — API, CLI, config, schema, error codes |
+| `explanation` | [explanation.md](../../diataxis/references/explanation.md) | Understanding-oriented content — why, trade-offs, architecture, design rationale |
+| `readme` | [readme.md](../../diataxis/references/readme.md) | Front-door landing page that routes to deeper docs |
+| `review` | [docs-reviewer.md](../../diataxis/references/docs-reviewer.md) | Audit existing docs against Diátaxis principles with prioritized fixes |
 
 # Workflow rules (orchestrator mode)
 - Store audit artifacts under `.ai/docs/<run-id>/`. Documentation output goes to project doc paths (not under `.ai/`).

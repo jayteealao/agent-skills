@@ -1,12 +1,3 @@
----
-description: Block-editor for the project-level `.ai/ship-plan.md`. Opens the existing plan, lets the user pick which block to edit (A–K, or an additional-contract id), re-runs the relevant questions for that block only, then bumps `plan-version`. Use after CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, code-quality/security gates or governance rules change, or a new additional-contract is introduced.
-argument-hint: ""
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT change a workflow's record (`/wf intake <slug> amend` edits a workflow's configuration).
 
 ---

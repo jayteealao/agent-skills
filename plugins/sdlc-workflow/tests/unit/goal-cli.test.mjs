@@ -1,6 +1,6 @@
-// WF-GOAL-PLAN W2 — scripts/goal.mjs: arm writes the contract and the arm request, check
-// prints the evidence and ends with the GOAL: line, park blocks the next check (D5), the
-// cap is enforced in code (D6), resume arms again with a fresh count, and clear.
+// scripts/goal.mjs: arm writes the contract and the arm request, check
+// prints the evidence and ends with the GOAL: line, park blocks the next check, the
+// cap is enforced in code, resume arms again with a fresh count, and clear.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

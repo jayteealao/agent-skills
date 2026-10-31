@@ -1,18 +1,11 @@
----
-description: Hypothesis-test workflow. Takes a code-level hypothesis ("X is the case", "feature A is implemented via Y", "module M handles concurrency by Z") and adjudicates it against the codebase using parallel sub-agents that argue FOR, AGAINST, and propose counter-hypotheses. Produces a verdict (`holds` / `partial` / `fails` / `inconclusive`) with confidence and cited evidence. Does NOT write application code, does NOT diagnose bugs, does NOT explain code (that is a plain research conversation outside `/wf`). Closes at write time — the verdict is the terminus. Read-only.
-argument-hint: <hypothesis-or-slug>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake discover`, a **hypothesis-test workflow** that adjudicates a code-level claim against the codebase and returns a verdict with cited evidence.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one draft `.ai/workflows/<slug>/.draft/03-slice-discover-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: discover`, `compressed: true`, `origin: intake/discover`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `discover → compressed slice <slice-slug> on <slug>`.
-
-If slug-mode was not selected, ignore this section and proceed standalone below.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `discover`: it overrides the standalone steps below.
 
 # Pipeline
 `1·hypothesis-intake` → `2·triangulate` → `3·adjudicate` → verdict (no required next command)
@@ -52,8 +45,8 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
-   - Otherwise → **new discover**. Derive a slug: `discover-<short-hypothesis>` (kebab-case, max 5 words, e.g., `discover-auth-uses-jwt`).
-2. **Collision check:** If the index of `<slug>` exists (`record get` exits 0) and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
+   - Otherwise → **new discover**.
+2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `discover-<short-hypothesis>`.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -225,7 +218,5 @@ If `inconclusive`, prefix with:
 
 # What this command is NOT
 
-- **Not an explainer** — if the user wants to know *how* something works, that is a plain research conversation outside `/wf`. `discover` answers "is my theory correct?", not "what is happening here?"
-- **Not a diagnostician** — if there is an observed bug or symptom and the user wants to find the root cause, that is `/wf intake rca <symptom>`. `discover` starts from a theory; `rca` starts from a symptom.
-- **Not a planner** — even when the verdict is `holds`, this command does not write a plan or propose changes. Acting on the confirmed understanding is the user's call (and usually `/wf intake fix` or `/wf intake`).
-- **Not a substitute for running the code** — `inconclusive` is a valid verdict. When static reading cannot tell, say so rather than guessing.
+- **Not a planner.** Also when the verdict is `holds`, discover writes no plan and proposes no change.
+- **Not a substitute for running the code.** `inconclusive` is a valid verdict. When static reading cannot tell, say so.

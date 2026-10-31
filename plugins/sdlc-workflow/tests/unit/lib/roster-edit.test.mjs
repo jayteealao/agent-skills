@@ -1,4 +1,4 @@
-// WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4, 4.6 — lib/roster-edit.mjs: line edits of a slice
+// lib/roster-edit.mjs: line edits of a slice
 // roster. Each edit changes one roster entry or one frontmatter key, and keeps the rest
 // of the file as it is.
 import { test } from 'node:test';

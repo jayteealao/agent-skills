@@ -210,7 +210,7 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
 
 /**
  * The command that resumes a stopped run: its own yolo drive. A packet of a campaign list
- * resumes the same way; the walk reads the packet states again (WF-PIECES-PLAN 6.1).
+ * resumes the same way; the walk reads the packet states again.
  */
 export function resumeCommand(slug) {
   return `/wf yolo ${slug}`;
@@ -257,7 +257,7 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
 /**
  * The liveness of a run at a moment: `live` inside half the limit, `quiet`
  * past half of it, `stale` past it, `ended` after the run's end or a clean
- * stop, `none` before any line (WF-LIVE-VIEWS-PLAN.md 3.3).
+ * stop, `none` before any line.
  */
 export function livenessOf(st, nowMs) {
   if (st.lastLineAt === null) return { state: 'none', silentMs: null, limitMs: liveLimitMs(st) };

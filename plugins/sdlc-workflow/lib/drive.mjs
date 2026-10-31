@@ -126,12 +126,6 @@ export function usageOf(events) {
   return u;
 }
 
-function killTree(child) {
-  if (!child.pid) return;
-  if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-  else try { process.kill(-child.pid, 'SIGKILL'); } catch { try { child.kill('SIGKILL'); } catch { /* gone */ } }
-}
-
 /** One `codex exec` call. Resolves { code, events } when the process ends or its time box kills it. */
 export function runCodex({ entry, args, prompt, eventsFile, errFile, timeoutMs, env }) {
   return new Promise((resolve) => {
@@ -142,7 +136,7 @@ export function runCodex({ entry, args, prompt, eventsFile, errFile, timeoutMs, 
     let timedOut = false;
     child.stdout.on('data', (d) => { events += d; appendFileSync(eventsFile, d); });
     child.stderr.on('data', (d) => appendFileSync(errFile, d));
-    const timer = setTimeout(() => { timedOut = true; killTree(child); }, timeoutMs);
+    const timer = setTimeout(() => { timedOut = true; killTree(child.pid); }, timeoutMs);
     child.on('error', () => { clearTimeout(timer); resolve({ code: -1, events, timedOut }); });
     child.on('exit', (code) => { clearTimeout(timer); resolve({ code, events, timedOut }); });
     child.stdin.end(prompt);

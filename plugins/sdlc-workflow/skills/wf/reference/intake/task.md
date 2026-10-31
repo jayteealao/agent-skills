@@ -1,22 +1,10 @@
----
-description: Minimal lifecycle for work whose deliverable is not a code change — repo chores, environment/infra operations (rotate a key, set a DNS record), non-code deliverables (an RFC, a license audit), coordination (file an upstream issue, get signoff), and one-shot throwaway execution. Briefs the work with acceptance criteria that each name how the outcome will be OBSERVED, classifies blast radius, gates before acting (shared-env/external-party/irreversible always stop for a human), executes, then re-observes — an outcome the agent asserts but never reads back lands at evidence-rung `asserted` and cannot close an AC. Slug-first: an existing non-closed slug as the first token attaches the task as a compressed slice.
-argument-hint: "<description> | <task-slug> (resume) | <existing-slug> <description> (compressed slice)"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf intake task`, the **minimal lifecycle** for a unit of work with a slug whose deliverable is not a code change verified by executing software. Every other surface assumes that deliverable; `task` exists for the five classes that have nowhere else to go: repo chores with no behavior change, environment/infra operations, non-code deliverables, coordination with external parties, and one-shot throwaway execution. Uniquely on the surface except `ship`, a task may act **outside the repository** — which is why it carries an authorization gate no intake mode has.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If `intake.md` selected **slug-mode** (`/wf intake <slug> task <description>`, branch 1) and the `workflow-type` of `<slug>` is NOT `task`, follow [_compressed-slice.md](../_compressed-slice.md) — it OVERRIDES the standalone flow below. Write one draft `.ai/workflows/<slug>/.draft/03-slice-task-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: task`, `compressed: true`, `origin: wf/task`); no new workflow, no branch, additive index updates only. Per the contract's inline-records rule, the slice records its per-AC evidence rows (with `evidence-rung`) **inline in a body table** — it writes no `06-verify.md`. The blast-radius classification and the Step-1.5 gate still apply in full — the slice body records both. Chat return: `task → compressed slice <slice-slug> on <slug>`. The idiomatic use: "I'm mid-feature and need to rotate a key first."
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `task`: it overrides the standalone steps below.
 
-If that slug's `workflow-type` IS `task`, or the first token after `task` names a slug whose `workflow-type` IS `task`, that is a **resume** of the standalone flow below.
+In slug-mode, the blast-radius class and its gate (Step 1) still apply, and the slice body records both.
 
 # Pipeline
 `0·orient` → `1·brief` → `[gate]` → `2·execute` → `3·evidence` → `4·hand off`
@@ -56,7 +44,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 1. **Resolve slug and mode:**
    - The slug that intake consumed, or the first token after `task`, has an index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) with `workflow-type: task` → **resume**. Pick up at the first incomplete step.
    - Intake consumed a non-closed slug of another `workflow-type` → **slug-mode** (see above).
-   - Otherwise → **new task**. Derive a slug: `task-<short-description>` (kebab-case, max 5 words, e.g. `task-rotate-stripe-key`). Collision → WARN and stop, as the intake modes do.
+   - Otherwise → **new task**. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `task-<short-description>`.
 2. **Branch decision:** default `branch-strategy: none` — most tasks do not warrant a branch (this inverts the `fix` default deliberately). Create one only when the task will produce a repo diff the user wants isolated; record the decision either way.
 3. **Project context (lightweight):** read `README.md` (top 100 lines) and any file the description names.
 
@@ -129,8 +117,5 @@ The artifact trail is the state. Re-invoke `/wf intake task <slug>`: orientation
 
 # What this command is NOT
 
-- **Not a stage** — it is the fourth roster category, a *minimal lifecycle*: it self-authors `05-implement.md`/`06-verify.md` the way `update-deps` does, rather than routing into the standard execution chain.
-- **Not a router** — `ship-plan`/`docs`/`observability` are project-level contracts with sub-keys; a task is a unit of work with a slug.
-- **Not a terminal analysis mode** — the terminal intake modes observe. A task **acts**, also outside the repository. That reach is why a task has an authorization gate that no other intake mode has.
-- **Not `ship`** — `ship` releases built software through a ship-plan with Go/No-Go gates; `task` performs a bounded operation with its own scaled gate.
-- **Not a todo list** — one task, one outcome.
+- **Not a todo list.** One task has one outcome.
+- **Not a terminal analysis mode.** A task acts, also outside the repository. That is why a task has an authorization gate that no other intake mode has.

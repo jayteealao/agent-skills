@@ -1,8 +1,3 @@
----
-description: "Amend mode of intake — edit a workflow's RECORDED CONFIGURATION (branch strategy, branch, base branch, review scope, title, tags) in place, without adding scope or touching built work. Slug-REQUIRED: `/wf intake <existing-slug> amend <what to change>`. Strictly whitelisted: anything outside the amendable field list routes to extension (new scope) or a fix slice (wrong behaviour). Writes only 00-index.md and the registry row."
-argument-hint: "<existing-slug> amend <what to change> [dry-run]"
----
-
 # Output boundary & shared context
 The External Output Boundary and the workflow-registry/slug
 semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
@@ -108,8 +103,5 @@ Framing rules — narrative definition, internal audience, always-emit — are s
 
 # What this mode is NOT
 
-- **Not a scope editor.** Scope goes through extension or a fix slice, always.
-- **Not a state editor.** Derived state belongs to the stages that derive it.
+- **Not a scope editor or a state editor.** Scope goes through extension or a fix slice. Derived state belongs to the stages that derive it.
 - **Not a stage.** It writes no numbered artifact and never advances `current-stage`.
-- **Not a way to re-specify built work.** That rule has not moved an inch; amend simply carves out
-  the config fields it never covered.

@@ -156,7 +156,16 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     ? `\n\nThe files of this workflow are in \`${dir.replace(/\\/g, '/')}/\`: read and write evidence and notes there. ` +
       `Only the drafts stay in \`.ai/workflows/${slug}/.draft/\`.`
     : '';
-  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}`;
+  // The two rules that bind every stage. A stage agent reads the brief and its reference, not
+  // SKILL.md, so the brief carries them; the stage references keep no copy.
+  const refDir = String(referenceRoot).replace(/\\/g, '/').replace(/\/+$/, '');
+  const rules = '\n\n' + [
+    `Output boundary: write each commit message, PR text, doc and code comment in product language, with no workflow vocabulary ` +
+      `(stage, command or skill names) and no \`.ai/\` paths, and leak-check it before you publish (${refDir}/_output-boundary.md).`,
+    `Standing steer: each live \`steer\` entry under ## Decisions binds this stage. Honor it, never above a mandatory gate, ` +
+      `and give the relevant entries to each sub-agent you start (${refDir}/_decisions.md).`,
+  ].join('\n');
+  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}${rules}`;
   const parts = { card, slice: sliceText, plan: planText, tests: testsText, decisions: decisionsText };
   const text = [
     head,

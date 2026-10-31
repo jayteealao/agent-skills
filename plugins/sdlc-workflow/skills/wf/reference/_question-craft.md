@@ -77,15 +77,7 @@ quantities instead of abstract statements.
    recommended option is over `budget.long`, the options include at least one
    faster path of [_long-runs.md](_long-runs.md) L3.
 
-**Scope of authority — a PO answer decides only the question it was asked.**
-When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*
-that approach served does NOT silently degrade into being dropped. The stage must either (a) show
-the requirement is still met another way, or (b) ask the PO a follow-up question about the
-requirement itself. A vendor answer ("no Neon; only Cloudflare backends") does not authorise a
-requirement change ("no sync in v1") — that is a second decision the PO never made. When you record
-the answer, put the limit in the answer text, per rule 4 of [_decisions.md](_decisions.md). Shape's
-Intake Fidelity table and the intent-fidelity review dimension both read that limit to catch
-an over-read narrowing.
+**Scope of authority.** A PO answer decides only the question it was asked: apply rule 4 of [_decisions.md](_decisions.md).
 
 **Litmus test** — before sending a round, reread each question as someone who
 has never opened this repository: could they choose without asking a follow-up?
@@ -97,4 +89,4 @@ framing (it can be 2–3 sentences); option `label`s stay short; option
 field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
 Freeform chat questions follow the same ten requirements in prose.
 
-**Never ask a decided question again.** Before a question, check the decision store per rule 2 of [_decisions.md](_decisions.md). When a live entry covers the question, use it, name it, and do not ask. A standing answer (`standing:<kind>`) covers every later question of its kind. Ask again only when a fact changed, and say which fact.
+**Never ask a decided question again.** Before a question, apply rule 2 of [_decisions.md](_decisions.md).

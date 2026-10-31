@@ -15,6 +15,7 @@ import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
+import { pidAlive } from './proc.mjs';
 import { CANVAS_DIR, canvasState } from './design-state.mjs';
 import { addComment, approvalPicture, capturePicture } from './design-records.mjs';
 import { readAudit, startAudit } from './design-audit.mjs';
@@ -246,15 +247,11 @@ export async function listenDesignServer({ port = serverPort(), hosts = ['127.0.
 
 export const SERVER_SCRIPT = fileURLToPath(new URL('../scripts/design-server.mjs', import.meta.url));
 
-function alive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
-}
-
 /** The running server: `{ running, pid, port, addresses }`, from its info file and a health call. */
 export async function serverStatus() {
   let info = null;
   try { info = JSON.parse(readFileSync(serverInfoPath(), 'utf8')); } catch { info = null; }
-  if (!info?.pid || !alive(info.pid)) return { running: false, port: serverPort(), addresses: [], stale: Boolean(info) };
+  if (!info?.pid || !pidAlive(info.pid)) return { running: false, port: serverPort(), addresses: [], stale: Boolean(info) };
   let healthy = false;
   try {
     const r = await fetch(`http://127.0.0.1:${info.port}/health`, { signal: AbortSignal.timeout(1500) });

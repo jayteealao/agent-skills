@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/ideate-sources.mjs — the disk side of /wf intake ideate with sources
- * (WF-IDEATE-SOURCES-PLAN 3–5).
+ * scripts/ideate-sources.mjs — the disk side of /wf intake ideate with sources.
  * skills/wf/scripts/ideate-sources.mjs runs this script.
  *
  *   args      <root> <argument text...>             the kind of each argument (section 3)

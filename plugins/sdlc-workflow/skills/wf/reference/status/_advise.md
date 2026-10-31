@@ -28,8 +28,8 @@ cost. Drop terminal slugs (`shipped`/`closed`/`abandoned`) **unless** one still 
 carried-risk (an unresolved deferral, probe finding, or intent-risk), in which case keep it in the
 carried-risk section only.
 
-If advise-scope narrowed to a branch/`pr#N`, restrict the set to that branch's roster (resolve `pr#N`
-via `gh pr view <N> --json headRefName -q .headRefName`, then filter the `branch` column).
+If advise-scope narrowed to a branch/`pr#N`, restrict the set to that branch's roster: the `slugs` of
+`node "<skill-dir>/scripts/wf.mjs" target "<root>" <scope> --json`. An `error` → show it and STOP.
 
 ## Step A2 — Build the constraint graph (Tier 1, skipped under `fast`)
 

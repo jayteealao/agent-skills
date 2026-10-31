@@ -1,27 +1,10 @@
----
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). Never writes code directly. Adapted from the upstream bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
-argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf intake simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes; you classify each finding and route it to the appropriate downstream command. Not a lifecycle stage, not a workflow, not a fixer — a triage report that fans out.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If `intake.md` selected **slug-mode** (`/wf intake <slug> simplify [scope]`, branch 1), follow `_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `simplify`: it overrides the standalone steps below.
 
-- **One artifact, in the existing workflow.** Write the draft `.ai/workflows/<slug>/.draft/03-slice-simplify-<descriptor>.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md) (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. The compressed slice is the single output.
-- **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do not carry over — they belong to the standalone type. Report the same numbers in the body instead.
-- **No new workflow, no new branch, no `01-simplify.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
-- **Index updates:** the two `record set` calls of `_compressed-slice.md`, with `<op>` = `simplify` and `<slice-slug>` = `simplify-<descriptor>`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
-- **Chat return:** one line — `wf intake simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake <slug> refactor <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
-
-If slug-mode was not selected, ignore this section and proceed standalone.
+In slug-mode, report the counts of the `simplify-run` frontmatter in the slice body, and add the routing summary and the top routing assignments, each with `<slug>` as the first positional, to the chat return.
 
 # Pipeline
 `1·resolve-scope` → `2·dispatch (3 sub-agents in parallel)` → `3·aggregate + triage` → `4·classify + route (assign each finding a downstream command)` → `5·write run artifact + print routing suggestions`
@@ -184,7 +167,7 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** records as drafts under `.ai/workflows/<slug>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `simplify-<scope>-<YYYYMMDD>`. Write **two** records as drafts under `.ai/workflows/<slug>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 1. Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
 2. Write the draft of `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.

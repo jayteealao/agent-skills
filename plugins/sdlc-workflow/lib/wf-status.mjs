@@ -4,6 +4,7 @@
 import { join } from 'node:path';
 import { aggregateCost, readCostRows } from './cost-ledger.mjs';
 import { openDeferrals } from './deferrals.mjs';
+import { driveClass } from './drive-class.mjs';
 import { progressOf, readDriverOutcome } from './progress.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { workflowsRoot as wfRoot } from './records-root.mjs';
@@ -93,6 +94,8 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     stages,
     slices,
     cost: costSummary(dir),
+    // What a driver may do with the workflow: its class, the block and the route (lib/drive-class.mjs).
+    drive: driveClass(dir, w.frontmatter ?? frontmatterOf(dir, INDEX_NAME)),
     next: {
       file: current ?? null,
       invocation: currentFm?.['next-invocation'] ?? summary.next,

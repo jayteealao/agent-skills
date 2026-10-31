@@ -1,4 +1,4 @@
-// lib/cost-ledger.mjs — the exact cost ledger (WIDE-VIEW-REPAIR-PLAN §10).
+// lib/cost-ledger.mjs — the exact cost ledger.
 //
 // Every integer written here is copied from a record the host wrote: a Claude
 // Code transcript line, a Codex rollout `token_count` event, or a pi session
@@ -20,7 +20,7 @@
 // The hook keeps a cursor per session ({ mainOffset, files:{path: state},
 // agentOrd:{id: n}, turn, last:{slug,key,slice,root}, codexTotal }) so each Stop
 // reads only the new bytes. A sub-agent is booked once, however many transcript
-// files hold it (WF-SYSTEM-REVIEW-2026-10-21 A1): the offsets are kept for each
+// files hold it: the offsets are kept for each
 // file, and each agent keeps the count of its messages already booked, so a
 // copy of an agent's transcript in a second folder books nothing again. A row is written only when the turn has usage AND a slug is known
 // (written this turn, or inherited from the last attributed turn). A missing row
@@ -509,7 +509,7 @@ function agentFileKey(f) {
 }
 
 /**
- * A1: a cursor of the old form keeps one offset for each agent id, and two
+ * A cursor of the old form keeps one offset for each agent id, and two
  * files of one id (a Workflow transcript and its copy in `subagents/`) then
  * reset each other's offset on every Stop. Move it to the new form once: each
  * file that the old cursor knew counts as booked up to its present size, so the
@@ -599,7 +599,7 @@ export function readCursor(cursorDir, sessionId) {
   try {
     const parsed = JSON.parse(readFileSync(cursorPath(cursorDir, sessionId), 'utf-8'));
     const cursor = { ...newCursor(), ...(parsed && typeof parsed === 'object' ? parsed : {}) };
-    // A cursor of the old form (`agents`, no `files`) migrates on its next read (A1).
+    // A cursor of the old form (`agents`, no `files`) migrates on its next read.
     if (parsed?.agents && !parsed.files) { delete cursor.files; delete cursor.agentOrd; }
     return cursor;
   } catch {
@@ -763,7 +763,7 @@ export function aggregateCost(rows) {
   return { byKey, total, rows: (rows ?? []).length };
 }
 
-/* ───────────────────────── rebuild an inflated ledger (A1, SQ4) ───────────────────────── */
+/* ───────────────────────── rebuild an inflated ledger ───────────────────────── */
 
 const weight = (u) => CLAUDE_USAGE_FIELDS.reduce((n, f) => n + int(u?.[f]), 0);
 

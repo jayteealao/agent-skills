@@ -1,4 +1,4 @@
-// W11.6 — one hook process per tool event (WIDE-VIEW-REPAIR-PLAN §14.2.6).
+// One hook process per tool event.
 //
 // (1) hooks.json wires exactly one command per tool event at the folded entries
 // (2) pre-tool-use-all: a Write of an invalid artifact blocks with the validator's reason

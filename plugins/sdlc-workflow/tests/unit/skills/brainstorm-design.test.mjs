@@ -1,4 +1,4 @@
-// BRAINSTORM-DESIGN-PLAN guard tests: `/wf intake brainstorm` is an intake mode, `design`
+// Brainstorm design guard tests: `/wf intake brainstorm` is an intake mode, `design`
 // focuses a brainstorm on how an idea looks and behaves, sketches stay ideas,
 // and the design thoughts travel to the design stage, which presents them again
 // as its starting direction.

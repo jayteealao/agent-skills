@@ -1,4 +1,4 @@
-// W11.1 — the doctor (WIDE-VIEW-REPAIR-PLAN §14.2.1).
+// The doctor.
 //
 // (1) The installed-version readers see every Claude Code scope and every Codex
 //     cache version, plus the Codex enabled flag, legacy identities, and trust.

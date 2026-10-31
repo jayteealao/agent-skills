@@ -1,5 +1,4 @@
-// lib/doctor.mjs — machine-state report for the runtime (WIDE-VIEW-REPAIR-PLAN
-// §14.2.1, wave W11.1).
+// lib/doctor.mjs — machine-state report for the runtime.
 //
 // `npm run doctor` (scripts/doctor.mjs) calls runDoctor() and prints
 // formatDoctorTable(). verify-release-pushed.mjs reuses

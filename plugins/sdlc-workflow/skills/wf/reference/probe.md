@@ -3,12 +3,6 @@ description: Runtime-truth verification — drives a running artifact through ac
 argument-hint: <slug> [target|sweep] | sweep [path]
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf probe`: drive the running artifact, capture evidence, report findings. No fixes.
 
 ## Requires
@@ -24,6 +18,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `probe/_artifact.md` | procedure | always | |
 | `probe/_target-resolution.md` | procedure | mode:target | |
 | `_compressed-slice.md` | procedure | always | |
+| `_source-modes.md` | procedure | always | |
 | `_surface-defects.md` | procedure | always | |
 | `runtime-adapters.md` | procedure | always | |
 | `runtime-adapters/_ladder.md` | procedure | always | |
@@ -61,8 +56,8 @@ No flags — probe takes a slug and an optional target string. It always surface
 # Step 0 — Orient
 
 1. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, and parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
-2. **From `03-slice.md`** (or the lead `01-<mode>.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`), note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes write a standard one-slice `03-slice.md`.
-3. **Take the AC from every per-slice record** that the slice index names. Read each with `record get`. For compressed and forwarded modes, AC lives in the lead artifact (`01-<mode>.md`, for example `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
+2. **From `03-slice.md`** (or the lead `01-<mode>.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`), note every slice slug and the source mode of `workflow-type`, per [_source-modes.md](_source-modes.md).
+3. **Take the AC from every per-slice record** that the slice index names. Read each with `record get`. The acceptance source column of [_source-modes.md](_source-modes.md) names where the AC lives. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
 4. **Use the adapter registry** `runtime-adapters.md`, the ladder and the protocols. Read `runtime-adapters/<key>.md` for each adapter that Step 3 matches.
 5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but must be honest about provenance:
    - Apply the probe column of the table in [runtime-adapters.md](runtime-adapters.md) → Stack gate.
@@ -99,14 +94,8 @@ For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" �
 
 # Step 3 — Adapter selection
 
-1. **Match adapters.** Run every adapter's detection signal (the Adapters table in `runtime-adapters.md`) against the repo. Collect matches into `matched-adapters: [<key>, ...]`.
-2. **Stack intersection (when `stack-source: confirmed`).** Compute `stack-intersected-adapters = matched-adapters ∩ stack.platforms` from `00-index.md`.
-   - **Divergence** — record both sets in the slice frontmatter. If they differ, set `stack-adapter-divergence: true` and add `## Stack divergence` listing excluded adapters. Divergence is a signal, not a stop.
-   - **Default on divergence** — probe drives `stack-intersected-adapters`. If the intersection is empty, drive `matched-adapters` and set `stack-adapter-divergence-mode: full-bypass`; the artifact records the bypass.
-   - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection. `adapters-used` defaults to `matched-adapters`.
-3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (confirmed stack, non-empty intersection), else `matched-adapters`. Probe drives every adapter in that set.
-4. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add a new adapter file under runtime-adapters/ and its row to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
-5. **Enumerate the surface (mandatory in `sweep` mode, after bootstrap).** Climb the **surface enumeration ladder** in `runtime-adapters/_protocols.md` — `recipe` (the adapter's `Enumerate` section) → `static` (read the nav/route model in source) → `traversal` (bounded breadth-first drive) → `named` (caller supplies the list). Record the rung reached as `surface-coverage.enumeration-method`. **An adapter with no `Enumerate` recipe is NOT unsupported** — it sweeps at rung 2 or 3 at a declared, lower-confidence denominator. A `traversal` count is a FLOOR, not a total, and must be described as such **wherever it is rendered** (artifact AND chat return).
+1. **Select the adapters** per [runtime-adapters.md](runtime-adapters.md) → Adapter selection, which owns the intersection, the divergence, the empty fallback, the no-match stop and the probe fields.
+2. **Enumerate the surface (mandatory in `sweep` mode, after bootstrap)** per the surface enumeration ladder of [runtime-adapters/_protocols.md](runtime-adapters/_protocols.md), and record the rung reached as `surface-coverage.enumeration-method`.
 
 # Step 4 — Two-phase bootstrap
 

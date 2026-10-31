@@ -3,13 +3,6 @@ description: Recap or explain a workflow in plain understandable language. Give 
 argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review | findings]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf status recap`, the **plain-language catch-up** command for the SDLC lifecycle.
 
 # Pipeline
@@ -44,11 +37,11 @@ You are a **storyteller of the work done**, not a problem solver.
 
 `$ARGUMENTS`: the first token is **polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name); an optional second token is a **slice-slug** or **focus keyword** (single-slug only).
 
-1. **Resolve the first token (polymorphic, first match wins)** — so a slug is never mistaken for a branch:
-   - **Exact slug**: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`.
-   - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
-   - **Branch name**: matches a `branch` in the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
-   - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one as a gate question per [_gate-question.md](_gate-question.md) (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
+1. **Resolve the first token**: run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <token> --json`. A slug wins over a branch.
+   - **`scope: slug`** → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). When the output has `inferred: true`, note the inference in the recap header. A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`.
+   - **`scope: branch`** (a `pr#N` or a branch name) → **batch recap** (`recap-scope: branch`) — see **Step B** below.
+   - **`ambiguous: true`** (no token, several open workflows) → ask which of its `slugs` as a gate question per [_gate-question.md](_gate-question.md) (or in chat).
+   - **An `error`** → STOP and show it.
 
 2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
@@ -66,7 +59,7 @@ You are a **storyteller of the work done**, not a problem solver.
 
 Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
 
-1. **Build the roster.** From `.ai/workflows/INDEX.md` (or the output of `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`), collect every slug whose `branch` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+1. **Build the roster.** The roster is the `slugs` of the `target` output: every slug whose `branch` equals the resolved branch. Recap the open slugs; name the slugs of its `closed` list in the combined header, but do not narrate them in depth. Record the roster as `branch-slugs:`.
 2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do not recap individual slices in batch mode — whole-workflow scope only.
 3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. Tell the story that ties the slugs together:
    - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).

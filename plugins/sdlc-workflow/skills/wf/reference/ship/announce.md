@@ -1,15 +1,3 @@
----
-description: The post-publish announce phase of `/wf ship`. Drafts stakeholder-facing announcements for a shipped workflow — plain language, no jargon, tailored by audience (eng, product, users) — pulling from handoff and ship-run artifacts. Runs automatically at the tail of a go / conditional-go ship run, or on demand via `/wf ship <slug> announce` to regenerate comms without re-shipping.
-argument-hint: <slug>
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running the **announce phase** of `/wf ship` — post-publish communications. It runs at the
 tail of a `go` / `conditional-go` ship run (drafting announcements from the just-written run artifact),
 or on its own via `/wf ship <slug> announce` to regenerate comms without re-shipping. It writes only
@@ -72,12 +60,12 @@ For each doc type planned but not generated, determine whether it is needed for 
 | `explanation` | Engineering or Product announcement | Run `/wf docs explanation <topic>` before drafting |
 | `readme-update` | All audiences (if scope changed significantly) | Run `/wf docs readme` before drafting |
 
-**2c — Invoke needed primitives:** For each missing doc type identified above, load the matching Diátaxis primitive reference and execute it inline:
-- `../docs/how-to.md`
-- `../docs/reference.md`
-- `../docs/tutorial.md`
-- `../docs/explanation.md`
-- `../docs/readme.md`
+**2c — Invoke needed primitives:** For each missing doc type identified above, load the matching Diátaxis primitive reference of the diataxis skill and execute it inline:
+- [how-to.md](../../../diataxis/references/how-to.md)
+- [reference.md](../../../diataxis/references/reference.md)
+- [tutorial.md](../../../diataxis/references/tutorial.md)
+- [explanation.md](../../../diataxis/references/explanation.md)
+- [readme.md](../../../diataxis/references/readme.md)
 
 Pass the primitive the feature context from the shape and handoff artifacts. Write generated docs to the location specified in the shape's doc plan, or `docs/` if unspecified. Record each generated doc path so it can be linked in the announcement.
 

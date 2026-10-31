@@ -6,7 +6,7 @@
 // skip it. The run writes no workflow record. Its report is one JSON file under the SDLC home,
 // which the canvas reads and draws: a score for each dimension, and each finding as a box on its
 // screen in each viewport.
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, resolve } from 'node:path';
@@ -16,6 +16,7 @@ import { failureLines, openBrowser, surfaceViewports } from './design-check.mjs'
 import { readChecks } from './design-records.mjs';
 import { KEY_RE, STATES, listScreens, readManifest, screenFile, screenRel } from './design-surface.mjs';
 import { sdlcHomeDir } from './home.mjs';
+import { killTree, pidAlive } from './proc.mjs';
 import { readDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
@@ -36,10 +37,6 @@ export const auditPath = (root) => join(sdlcHomeDir(), 'design-audits', `${creat
 /** The runs of this process, by report path. */
 const running = new Map();
 
-function alive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
-}
-
 function writeReport(root, report) {
   const path = auditPath(root);
   mkdirSync(dirname(path), { recursive: true });
@@ -52,7 +49,7 @@ function writeReport(root, report) {
 export function readAudit(root) {
   let report = null;
   try { report = JSON.parse(readFileSync(auditPath(root), 'utf8')); } catch { return { schema: AUDIT_SCHEMA, status: 'none' }; }
-  if (report.status === 'running' && !running.has(auditPath(root)) && !(report.serverPid !== process.pid && alive(report.serverPid))) {
+  if (report.status === 'running' && !running.has(auditPath(root)) && !(report.serverPid !== process.pid && pidAlive(report.serverPid))) {
     return { ...report, status: 'failed', error: 'the design server stopped during the run' };
   }
   return report;
@@ -221,21 +218,17 @@ export async function screenRects(root, findings, { browser = undefined } = {}) 
   return findings;
 }
 
-function killTree(pid) {
-  if (process.platform === 'win32') spawnSync('taskkill', ['/F', '/T', '/PID', String(pid)], { windowsHide: true });
-  else { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
-}
-
 /** Run `claude -p` with the prompt on stdin. Resolves `{ ok, text, costUsd, error }`. */
 export function spawnClaude(prompt, { cwd, timeoutMs = TIMEOUT_MS } = {}) {
   return new Promise((done) => {
     const args = buildAuditArgs();
+    // On POSIX the child leads its own process group, so killTree stops its grandchildren too.
     // A `.cmd` shim of an npm install cannot start without cmd.exe, as in consult's dispatch.
     // The arguments hold no path, so the quoting of cmd.exe cannot break one.
     const [cmd, argv] = process.platform === 'win32' ? ['cmd.exe', ['/d', '/s', '/c', 'claude', ...args]] : ['claude', args];
     let child;
     try {
-      child = spawn(cmd, argv, { cwd, env: buildClaudeEnv(process.env), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+      child = spawn(cmd, argv, { cwd, env: buildClaudeEnv(process.env), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
     } catch (e) { done({ ok: false, error: String(e?.message || e) }); return; }
     let stdout = '';
     let stderr = '';

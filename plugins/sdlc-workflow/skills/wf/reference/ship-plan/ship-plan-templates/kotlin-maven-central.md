@@ -1,6 +1,5 @@
 ---
 template-kind: kotlin-maven-central
-description: Library published to Maven Central via Sonatype Central with GPG signing. Tag-on-main release trigger; gradle publish workflow.
 ---
 
 # Seed values

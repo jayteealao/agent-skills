@@ -1,8 +1,8 @@
-// WF-OPTIMIZE-PLAN W1 — scripts/optimize.mjs against a real git repository. The metric
+// scripts/optimize.mjs against a real git repository. The metric
 // prints the number in src/value.txt; the guard fails when src/broken exists. The test
 // plays the editor: it writes the change into the worktree, then runs `trial`.
-// It walks the opening branch round (D12), a winner, the flushed digests (D13), a plateau
-// that opens an extra round and then stops the loop (D14), the path check (D5), the
+// It walks the opening branch round, a winner, the flushed digests, a plateau
+// that opens an extra round and then stops the loop, the path check, the
 // squash at finish, and the cleanup.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -336,7 +336,7 @@ test('a proposer past twice its propose-time gets no probe; another lane still d
     assert.equal(run(root, 'round-open').ok, true);
     assert.equal(run(root, 'propose-context', '--on', B1).ok, true);
     assert.equal(run(root, 'probe-open', '--on', B1).ok, true, 'within its time the proposer probes');
-    // The proposer of B1 started 31 minutes ago; the default propose-time is 15 minutes.
+    // The proposer of the first branch started 31 minutes ago; the default propose-time is 15 minutes.
     const stamp = path.join(root, '.ai', 'workflows', S, 'optimize', '.propose-r1b1.json');
     writeFileSync(stamp, `${JSON.stringify({ at: Date.now() - 31 * 60_000 })}\n`);
     const open = run(root, 'probe-open', '--on', B1);

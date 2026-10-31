@@ -1,20 +1,15 @@
----
-description: Brainstorm with a thinking partner. The person has a half-formed thought and explores the problem space and the solution space with the agent. The agent maps the areas the topic touches, asks question batches in plain words, brings ideas of its own, and keeps two files — a document the person reads and a JSON board the agent works from. Only the person ends the loop. On `done` the person and the agent walk through the discussion, decide what to keep, cut, or leave for later, and shape the kept decisions into work packets together. The work packets form one ordered list, which `/wf campaign` builds one work packet at a time. A work packet that changes only documents is written in the same session. Writes no code and no plan. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
-argument-hint: <topic> | <slug> (resume) | <slug> add <text> | <slug> (existing workflow) brainstorm <topic>
----
-
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake brainstorm`, a **person-led thinking loop**. It exists for the thought that has no request yet: `ideate` scans the codebase and generates, `investigate` needs a stated problem, `shape` needs a request. Here the person leads, and you think beside the person.
 
-# Slug-mode (read before proceeding)
+# Slug-mode
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `brainstorm`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one draft `.ai/workflows/<slug>/.draft/03-slice-brainstorm-<descriptor>.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` (per [_records.md](../_records.md); `type: slice`, `slice-type: brainstorm`, `compressed: true`, `origin: intake/brainstorm`) and its board `.ai/workflows/<slug>/brainstorm-board-<descriptor>.json`. The loop (Step 2) and `done` (Step 3) are the same; the slice body is the person's document, and the agreed work packets are written into the slice for a later `/wf intake <slug> <scope>` extension. No new workflow, no branch, no standalone artifact, additive index updates only. Chat return: `brainstorm → compressed slice <slice-slug> on <slug>`.
+When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `brainstorm`: it overrides the standalone steps below.
 
-If the first token matched an existing slug whose `workflow-type` IS `brainstorm`, that is a **resume** of the standalone flow below (Step 0), not slug-mode. **Design focus.** When the topic's first token is `design`, or a resume names `design`, the board's `focus` is `design`: load `brainstorm/_design.md` in full now. On a non-brainstorm slug, `design` as the first topic token is not slug-mode: it brainstorms that workflow's design, per that file's section "On a feature workflow": `/wf intake <feature-slug> brainstorm design [idea]`.
+In slug-mode, also write the board `.ai/workflows/<slug>/brainstorm-board-<descriptor>.json`: the loop (Step 2) and `done` (Step 3) are the same, and the agreed work packets go into the slice body for a later `/wf intake <slug> <scope>` extension.
 
-If neither applies, proceed standalone below.
+**Design focus.** When the topic's first token is `design`, or a resume names `design`, the board's `focus` is `design`: load `brainstorm/_design.md` in full now. On a non-brainstorm slug, `design` as the first topic token is not slug-mode: it brainstorms that workflow's design, per that file's section "On a feature workflow": `/wf intake <feature-slug> brainstorm design [idea]`.
 
 # Pipeline
 `0·orient` → `1·open-the-board` → `2·loop` → `3·done` → `4·return`
@@ -102,7 +97,7 @@ An item has one of six kinds: a **decision**, which the person chose; an **idea*
    - First token matches a `workflow-type: brainstorm` slug whose index has `status: closed` → STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`, then run `/wf intake brainstorm <slug>` again."*
    - First token matches an existing `workflow-type: brainstorm` slug, with no `add` → **resume**. When the next token is `design`, set the board's `focus: design`. When the board has no JSON file and its frontmatter carries `claims:`, it is a legacy board: convert it first, per the conversion section of [brainstorm/_artifact.md](brainstorm/_artifact.md). Snapshot both files to `history/` (the JSON file, and the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-brainstorm.md`) and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md). Bump `sessions` (`record set "<root>" <slug> 01-brainstorm.md sessions=<n>`), then run the archive command ([brainstorm/_artifact.md](brainstorm/_artifact.md), Archive). When `work/` holds a list, load [brainstorm/_work.md](brainstorm/_work.md) and apply its "Reopening a list" rules. Reopen a distilled board (`status: open` on the document and `progress.brainstorm: in-progress` on the index, each with `record set`; the work packets kept as they are). Write a `brief` for each area that has none. Then run Step 0.3, tell the story of the last session in chat ([brainstorm/_talk.md](brainstorm/_talk.md)), show where we are (2.6), and go to Step 2. Skip Step 1.
    - The tokens end with `from <ideate-slug>`, and the index of that slug has `workflow-type: ideate` → **seeded from an idea**. Strip the two tokens; the rest is the topic. Read the source's `01-ideate.md` (`record get "<root>" <ideate-slug> 01-ideate.md`) and find the idea whose `routed-to:` is the slug derived below, else the idea whose title matches the topic. Add `from` to `modes:`, and record `origin-ideate: <ideate-slug>` in `00-index.md`. Step 1 seeds the first thread from the idea. Then continue as a new topic.
-   - Otherwise the tokens are the **topic**; `design` as the first token sets `focus: design`. With no token, STOP and show the forms: `/wf intake brainstorm [design] <idea>`, `/wf intake brainstorm <brainstorm-slug> [design | add <text>]`, and `/wf intake <feature-slug> brainstorm [design] <topic>`. Derive the slug `brainstorm-<topic-slug>-<YYYYMMDD>` (the topic in kebab form, the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If that slug exists, append `-2`, `-3`.
+   - Otherwise the tokens are the **topic**; `design` as the first token sets `focus: design`. With no token, STOP and show the forms: `/wf intake brainstorm [design] <idea>`, `/wf intake brainstorm <brainstorm-slug> [design | add <text>]`, and `/wf intake <feature-slug> brainstorm [design] <topic>`. Name the workflow per "New slug" of [_intake-context.md](_intake-context.md), with the form `brainstorm-<topic-slug>-<YYYYMMDD>`.
 2. **Read recorded history** for the topic, as cheap reads, skipping whatever is absent: retro action items (the `10-retro.md` record of each workflow, read with `record get`), `.ai/solutions/INDEX.md`, deferred review findings, and `sdlc-debt:` markers. A recorded item that touches the topic becomes a finding on the first thread, with its source.
 3. **Map the space.** List the areas the topic touches, on the problem side (what feels wrong, where, and for whom) and on the solution side (the kinds of change that could answer it). Cover the whole topic before any area goes deep. On a resume, start from the board's areas and add the areas the earlier sessions missed. Mark each area `open`, `touched`, or `explored`.
 4. **Announce the plan** in chat: the topic, the slug, the map in plain words, the control words (2.3), and how to leave (`done`). The first batch asks where to start.
@@ -220,10 +215,10 @@ A second `done` on a distilled board shows the recorded scope and asks what to c
 **Link-back.** The campaign walk opens each build work packet with `campaign.mjs open`, which records `origin-packet` in the work packet's `00-index.md`. A work packet of another form starts through its mode ([../intake.md](../intake.md), "List work packet"), which records `origin-packet` too. The walk sets the `state` of each work packet file. A successor started with `from <slug>` applies [_intake-provenance-consume.md](_intake-provenance-consume.md). An item with `scope: cut` never seeds a successor, and never goes into a work packet. The board is never superseded.
 
 # What this command is NOT
-- Not `ideate`: no lens scan, no ranked backlog. The person leads and you think beside the person.
-- Not `investigate`: no option cards and no evidence-weighed comparison. A thread that needs one becomes an `investigate` work packet at `done`.
-- Not `shape`: no question floor, no ambiguity inventory, no request. The floor annotation of the session aid does not apply here.
+
 - Not a build: no branch, no slice, no plan, no code.
+- No question floor and no ambiguity inventory. The floor note of the session aid does not apply here.
+
 # Step 4 — Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead is the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), then this receipt:
 - `wrote: .ai/workflows/<slug>/01-brainstorm.md + brainstorm-board.json + 00-index.md`, plus `work/` after `done`

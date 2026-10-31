@@ -33,47 +33,12 @@ Record `ci-watch-rounds: <N polls>` and the terminal outcome in handoff frontmat
 Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule (no code changes by the orchestrator) holds. This contract conforms to the shared fix-loop invariants in [_fix-loop.md](../_fix-loop.md). Dispatch ONE sub-agent per fix at **medium** effort per [_subagents.md](../_subagents.md), required on every dispatch (the effort pin follows [_fix-loop.md](../_fix-loop.md) rule 3):
 
 - `description`: 3–5 words, for example `"fix CI failure"` or `"fix review thread"`.
-- `prompt`: self-contained; include the exact target and these rules:
-  ```
-  Apply the following fix in this repository:
+- `prompt`: the prompt of [_fix-prompt.md](../_fix-prompt.md), with its `[handoff]` lines, and with its `[code bug]` lines for a code bug. Fill `Prohibitions in the suggested fix` with each prohibition of the diagnosis, unchanged.
 
-  Location: <file:line-range>
-  Problem:  <root cause / thread body>
-  Proposed fix: <the change to make>
-  Prohibitions in the proposed fix: <copy unchanged any "do not …" / "regenerate,
-    don't patch" clause the diagnosis stated — or "none">
-
-  Read the file(s) at the location. Apply the MINIMAL change that resolves
-  the problem — do not refactor, reformat, or touch anything unrelated.
-  Do not broaden scope beyond this one item.
-
-  The proposed fix names a METHOD, not just an outcome. Follow the method.
-  If you conclude the prescribed method is wrong or impossible, you may
-  deviate — but you must SAY SO FIRST, in the required field below. A
-  deviation disclosed at the bottom of a report that opens with "confirmed"
-  is a deviation that will be missed.
-
-  Self-check before returning — run this command and report its exit status:
-    <the narrowest gate the orchestrator passed in; see "Self-check" below>
-  A non-zero exit means you did not finish. Fix it, or return COULD NOT FIX.
-
-  Then commit ONLY the files you changed:
-    git commit -m "<the commit message the orchestrator gave you>"
-
-  Return ONLY, and in this order — the first line is mandatory:
-    Method: as-prescribed | deviated
-    (if deviated) What the proposed fix said / what you did instead / why.
-    Self-check: <command> → exit <N>
-    Commit: <sha from `git rev-parse HEAD`>
-    Files: <list>
-    Confirmed: yes | no
-  Paste no diffs or full file contents back.
-  ```
-
-**Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose, so the orchestrator passes a real command:
+**Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose, so the orchestrator fills `Check command` with a real command:
 - When `pre-push-checks:` is configured ([_handoff-config.md](_handoff-config.md)), pass the check(s) whose scope covers the fix's files.
 - Absent that config, pass the narrowest gate the fix's own file type implies: the repo's formatter for a formatting fix, its linter for the language of the edited file, the single test file for a test fix.
-- If nothing narrow exists, say so explicitly in the prompt (`Self-check: none available — state what you verified by hand`) rather than leaving the line to be answered decoratively.
+- If nothing narrow exists, say so explicitly in the prompt (`Check command: none available: state what you verified by hand`) rather than leaving the line to be answered decoratively.
 
 **`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (rule 5 in [_fix-loop.md](../_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop**.
 

@@ -1,4 +1,4 @@
-// YOLO-COMMENTARY-PLAN W3 — the stop request (G1-G3). The person says "stop after
+// The stop request. The person says "stop after
 // the current verify"; the main session writes .control.json; the agent that starts
 // the next stage reads it, does no work, and returns status 'stopped'; the driver
 // ends cleanly with stoppedAt 'stop-request' and the resume command as its route.
@@ -11,26 +11,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { extractFn as extractFrom } from '../../helpers/extract-fn.mjs';
+
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-
-function extractFn(name) {
-  const m = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`).exec(src);
-  assert.ok(m, `could not locate function ${name} in yolo.js`);
-  // Skip the parameter list first: a default such as `opts = {}` holds braces too.
-  let paren = 0;
-  let bodyAt = m.index + m[0].length - 1;
-  for (; bodyAt < src.length; bodyAt++) {
-    if (src[bodyAt] === '(') paren++;
-    else if (src[bodyAt] === ')' && --paren === 0) break;
-  }
-  let depth = 0;
-  for (let j = src.indexOf('{', bodyAt); j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(m.index, j + 1);
-  }
-  throw new Error(`unbalanced braces extracting ${name}`);
-}
+const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', ...p), 'utf8');
+const extractFn = (name) => extractFrom(src, name);
 
 // driveChain with every dispatch stubbed: `answers` maps a stage to the result its
 // agent returns. The stubs record each dispatch and the extra options it carried.
@@ -41,17 +27,17 @@ function chainHarness(answers, answered = []) {
   const logs = [];
   const writeBacks = [];
   const build = new Function('stubs', `
-    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, headCommit, log, slug, ANSWERED } = stubs
+    const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug, ANSWERED } = stubs
     const projectRoot = '/r'
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
     // No implement ran before this chain, so it runs no plan check.
     let codeMoved = 0
     const planFreshness = async () => ({ fresh: true })
-    // WF-SYSTEM-REVIEW C2: the split threshold that driveChain reads.
+    // The split threshold that driveChain reads.
     const SPLIT_AFTER_STOPS = 2
     const MAX_ROUTE_BACKS = 2
     const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
-    // C3: implement runs through implementSlice, which dispatches runStage with the stop check.
+    // Implement runs through implementSlice, which dispatches runStage with the stop check.
     const SELF_VERIFY_SIZES = ['xs', 's']
     const implementSlice = (slice, idx, entry, answered, selfVerify) => runStage('implement', slice, idx, { stopCheck: true, answered, selfVerify })
     ${extractFn('verifyClean')}
@@ -67,7 +53,6 @@ function chainHarness(answers, answered = []) {
     return driveChain
   `);
   const count = {};
-  let heads = 0;
   const answer = (stage) => {
     count[stage] = (count[stage] || 0) + 1;
     const a = answers[stage];
@@ -84,8 +69,6 @@ function chainHarness(answers, answered = []) {
     driveWallProbe: async () => null,
     classifyDecisions: async (r) => r,
     writeBackSliceStatus: async (slice, idx, stages) => { writeBacks.push(stages); return { ok: true, wrote: [] }; },
-    // Each read of HEAD is a new commit: every implement moves HEAD, so no verify is skipped.
-    headCommit: async () => `h${(heads += 1)}`,
   });
   return { driveChain, calls, logs, writeBacks };
 }
@@ -104,7 +87,7 @@ test('a stopped stage agent ends the chain cleanly at stop-request, before the s
   assert.deepEqual(h.writeBacks, [], 'an unfinished slice is not written back as complete');
 });
 
-// WF-CAMPAIGN-DRIVER-PLAN W8 — the wave driver drives a campaign; yolo has no campaign wait,
+// The wave driver drives a campaign; yolo has no campaign wait,
 // no campaign control file and no campaign context.
 test('yolo has no campaign wait: the stop check has no condition (d), and the stage result has no wait kind', () => {
   const clause = new Function('READ_TOOL', `${extractFn('stopCheckClause')}; return stopCheckClause`)('the file-read tool')('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
@@ -280,13 +263,16 @@ const CLEAN_REVIEW = { stage: 'review', status: 'complete', artifactPath: '', te
 const ROSTER = { slices: [{ slice: 'auth', stages: {} }, { slice: 'feed', stages: {} }], priorDeferrals: [] };
 
 test('a slug-wide review runs one round: it fixes its findings, returns no stop and no route-back, and stops', async () => {
-  const first = { ...CLEAN_REVIEW, fixCommits: ['c1', 'c2', 'c3'], artifactPath: 'first' };
-  const h = slugWideHarness([first, { ...CLEAN_REVIEW, fixCommits: ['c4'] }]);
+  const first = { ...CLEAN_REVIEW, artifactPath: 'first' };
+  const h = slugWideHarness([first, CLEAN_REVIEW]);
   const out = await h.slugWideReview(ROSTER, []);
   assert.deepEqual([out.ok, out.stopped, out.route, h.calls.chain.length], [true, false, '/wf ship demo', 0]);
   assert.equal(h.calls.review.length, 1, 'no second round over the fix commits');
   assert.equal(out.slugWide.artifactPath, 'first');
-  assert.doesNotMatch(src, /REVIEW_CHECK_PASSES|check pass|diffRange: `/);
+  assert.doesNotMatch(src, /REVIEW_CHECK_PASSES|check pass|diffRange: `|fixCommits/);
+  assert.doesNotMatch(ref('review', '_stage.md'), /fixCommits|check the fix commits once more/);
+  assert.doesNotMatch(ref('yolo.md'), /keep a recorded defer/);
+  assert.match(ref('yolo.md'), /^Fix posture: the `review` row above\.$/m);
 });
 
 test('the review stops only on a BLOCKER that it could not fix', async () => {
@@ -300,7 +286,7 @@ test('the review stops only on a BLOCKER that it could not fix', async () => {
 });
 
 test('with findings from the walk, the review fixes the ledger and runs no scan', async () => {
-  const h = slugWideHarness([{ ...CLEAN_REVIEW, fixCommits: ['c1'] }, CLEAN_REVIEW], { opt: { reviewFindings: true } });
+  const h = slugWideHarness([CLEAN_REVIEW, CLEAN_REVIEW], { opt: { reviewFindings: true } });
   const out = await h.slugWideReview(ROSTER, []);
   assert.equal(out.ok, true);
   assert.deepEqual(h.calls.review, [{ ledgerOnly: true }], 'one ledger-only review: no scan of the whole packet and no scan of the fix commits');
@@ -340,7 +326,7 @@ test('an answered verify fixes a small change and routes back only a change that
 // driveReview with every agent stubbed: 'selection' is what the rubric selection returns, and
 // 'found' the findings of each scout.
 function reviewHarness(selection, found = [], opt = {}) {
-  const calls = { agents: [], stages: [], classified: [] };
+  const calls = { agents: [], stages: [], classified: [], batches: [] };
   const build = new Function('stubs', `
     const { agent, parallel, runStage, classifyDecisions, log, OPT } = stubs
     const slug = 'demo'
@@ -366,7 +352,13 @@ function reviewHarness(selection, found = [], opt = {}) {
     log: () => {},
     OPT: opt,
     classifyDecisions: async (r) => { calls.classified.push(r); return { ...r, classified: true }; },
-    parallel: async (fns) => Promise.all(fns.map((f) => f())),
+    // Each batch records the labels of the agents that start in it.
+    parallel: async (fns) => {
+      const before = calls.agents.length;
+      const out = Promise.all(fns.map((f) => f()));
+      calls.batches.push(calls.agents.slice(before).map((a) => a.label));
+      return out;
+    },
     agent: async (prompt, opts) => {
       calls.agents.push({ label: opts.label, prompt });
       if (opts.label === 'select-rubrics') return selection;
@@ -378,6 +370,31 @@ function reviewHarness(selection, found = [], opt = {}) {
   return { driveReview: fn, calls };
 }
 const REVIEW_IDX = { branch: { base: 'main' }, slices: [] };
+
+test('the steering scout starts in the same batch as the rubric scouts', async () => {
+  const sel = { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }, { rubric: 'security', file: 'review/security.md', focus: '' }], steeringPresent: true, stopped: false };
+  const h = reviewHarness(sel, [{ id: '1', severity: 'MED', file: 'a.js', issue: 'x' }]);
+  await h.driveReview(null, REVIEW_IDX, {});
+  assert.deepEqual(h.calls.batches[0], ['scout:correctness', 'scout:security', 'scout:steering']);
+  const scan = h.calls.stages[0].scan;
+  assert.deepEqual(scan.dimensions, ['correctness', 'security', 'steering']);
+  assert.deepEqual(scan.findings.map((f) => f.dimension), ['correctness', 'security', 'steering']);
+  const none = reviewHarness({ ...sel, steeringPresent: false });
+  await none.driveReview(null, REVIEW_IDX, {});
+  assert.deepEqual(none.calls.batches[0], ['scout:correctness', 'scout:security']);
+  assert.deepEqual(none.calls.stages[0].scan.dimensions, ['correctness', 'security']);
+});
+
+test('refuteGroups chunks the findings of each rubric by REFUTE_GROUP_SIZE', () => {
+  const refuteGroups = new Function(`const REFUTE_GROUP_SIZE = 4
+    ${extractFn('refuteGroups')}; return refuteGroups`)();
+  const f = (rubric, n) => Array.from({ length: n }, (_, i) => ({ id: `${rubric}${i}`, rubric }));
+  const groups = refuteGroups([...f('a', 9), ...f('b', 2), { id: 'x' }]);
+  assert.deepEqual(groups.map((g) => g.map((x) => x.id)), [
+    ['a0', 'a1', 'a2', 'a3'], ['a4', 'a5', 'a6', 'a7'], ['a8'], ['b0', 'b1'], ['x'],
+  ]);
+  assert.deepEqual(refuteGroups([]), []);
+});
 
 test('every review path gives the decisions of the writer their classes', async () => {
   const sel = { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false };

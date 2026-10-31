@@ -1,4 +1,4 @@
-// hooks/_adapter.mjs — native Codex hook adapter layer (SINGLE-SOURCE-PLAN W4).
+// hooks/_adapter.mjs — native Codex hook adapter layer.
 //
 // Wired by hooks/codex.hooks.json — the hooks file .codex-plugin/plugin.json
 // declares. Codex never reads hooks/hooks.json (the Claude Code wiring). Host
@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 // ── stdin / argv ──────────────────────────────────────────────────────────────
 
 /**
- * F4 (FRESH-REPO-REGISTRATION-FIX-PLAN): opt-in raw-payload capture. Codex
+ * Opt-in raw-payload capture. Codex
  * rollout JSONL never records hook executions, so when event delivery breaks
  * (the Desktop PostToolUse gap) there is nothing on disk to diagnose. With
  * SDLC_HOOK_DEBUG=1 in the env — or a `hook-debug` flag file in PLUGIN_DATA —
@@ -103,7 +103,7 @@ export function policyEntry(runtimeRoot, name) {
 
 /**
  * Env for every shared-runtime spawn from a Codex hook. `SDLC_HOST` is THE host
- * signal (SINGLE-SOURCE-PLAN §3.4): the shared runtime reads it for the
+ * signal: the shared runtime reads it for the
  * seed-memory notice channel and the lifecycle log. An explicit caller
  * `SDLC_HOST` wins so tests and escape hatches can override.
  */
@@ -321,7 +321,7 @@ export function findProjectRoot(cwd) {
 
 /**
  * True when `dir` or an ancestor (≤ 40 levels) carries `.git` (dir or worktree
- * file). The W11.3 SessionStart policy: outside a checkout, nothing is set up.
+ * file). The SessionStart policy: outside a checkout, nothing is set up.
  */
 export function insideGitCheckout(dir) {
   let cur = resolve(dir || process.cwd());

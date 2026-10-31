@@ -6,9 +6,9 @@ Typography carries information, hierarchy and voice. Improve it inside the estab
 
 ## Design mode
 
-Persuade and Experience: display type may carry the voice. Use a scale ratio of 1.25 or more between steps, large size contrasts, and mixed weights for editorial effect. The reflex list below applies.
+Persuade and Experience: display type may carry the voice. Use large size contrasts and mixed weights for editorial effect. The reflex list below applies.
 
-Operate: one family and a fixed scale at a ratio of 1.125–1.2. System faces are correct. The type scale serves the information structure, not the brand voice.
+Operate: one family. System faces are correct. The type scale serves the information structure, not the brand voice.
 
 Read: the measure and a reading face lead. Use monospace only for code and labels.
 
@@ -61,7 +61,9 @@ Use the fewest roles and families that make the hierarchy clear. Combine size, w
 
 ## Type scale
 
-**Persuade and Experience**: modular scale with ≥1.25 ratio between steps. Fluid headings. Display size is 6rem at most.
+[_design-context.md](_design-context.md) → Shared design laws gives the scale ratio of each design mode. The tokens below are web examples.
+
+**Persuade and Experience**: fluid headings.
 
 ```css
 /* Web: */
@@ -75,7 +77,7 @@ Use the fewest roles and families that make the hierarchy clear. Combine size, w
 --type-display: clamp(3rem, 2rem + 5vw, 6rem);
 ```
 
-**Operate and Read**: fixed scale. Tight ratio (1.125–1.2).
+**Operate and Read**: fixed scale.
 
 ```css
 /* Web: */
@@ -165,12 +167,8 @@ Next: the `polish` move.
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> typeset` focuses the design stage and its contract `02c-craft.md` on typography.
-- **Design confirmed:** `/wf design <slug> typeset` runs the Assess questions and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/typeset-<timestamp>.md` per [_output.md](_output.md) with: the role system, each finding with its evidence, the fix, and the checks that code alone cannot settle.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: typography. Checks: the Assess questions and the Verify list. Notes record: the role system, each finding with its evidence, the fix, and the checks that code alone cannot settle.
 
 ---
 

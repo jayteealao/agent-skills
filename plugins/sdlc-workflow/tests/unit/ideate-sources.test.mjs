@@ -1,7 +1,6 @@
-// WF-IDEATE-SOURCES-PLAN section 10 — red first. The argument kinds (section 3), the
-// coverage guarantee (4.2), the issue copy that keeps no text (5.3), the packets an
-// ideate pick writes from ideate-work.json (8.1, WF-PIECES-PLAN 12.6), a campaign on an ideate slug, the
-// renderer's new columns, and the memory of earlier runs (8.2).
+// The sources of ideate, red first. The argument kinds, the coverage guarantee, the issue
+// copy that keeps no text, the packets an ideate pick writes from ideate-work.json, a
+// campaign on an ideate slug, the renderer's new columns, and the memory of earlier runs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -44,7 +43,7 @@ test('section 3: reserved words are quoted to be a topic; an existing ideate slu
   assert.equal(classifyArgs(`"${SLUG}"`, { isIdeateSlug }).mode, 'new', 'a quoted slug is a topic');
 });
 
-test('WF-IDEATE-TRIAGE-PLAN 10: a steer word after the slug runs a round; a quoted title stays a pick', () => {
+test('triage: a steer word after the slug runs a round; a quoted title stays a pick', () => {
   const isIdeateSlug = (t) => t === SLUG;
   const deeper = classifyArgs(`${SLUG} deeper "retry logic for the Stripe client"`, { isIdeateSlug });
   assert.equal(deeper.mode, 'steer');

@@ -5,9 +5,9 @@
 // workflow slug(s) + current stage from `.ai/workflows/INDEX.md`, the
 // child-side write discipline, and the External Output Boundary reminder.
 //
-// Deliberately MINIMAL (CODEX-REMEDIATION-PLAN H3): this hook is the Codex
-// landing site for the feedback-loops W6 standing-instructions (steer.md)
-// propagation contract. When W6 lands, its steering rows are injected HERE —
+// Deliberately MINIMAL: this hook is the Codex landing site for the
+// standing-instructions (steer.md) propagation contract. When that contract
+// lands, its steering rows are injected HERE —
 // do not grow an independent steering contract in this file.
 // Always exits 0 — context injection must never block a spawn.
 

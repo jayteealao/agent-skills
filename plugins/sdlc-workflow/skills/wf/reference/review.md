@@ -3,23 +3,7 @@ description: The single review surface — workflow stage AND ad-hoc, resolved b
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
-> **Ground findings in the real source (both modes).** Before asserting that code misuses a
-> dependency, framework, or SDK — wrong signature, unhandled edge case, a call that "can't
-> work," a security claim about a library's behavior — invoke the `study-sources` skill to
-> read its **actual installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches,
-> Android SDK `sources/`, …) and confirm the defect against the version the project resolved.
-> A finding grounded in the real implementation beats one grounded in a recalled API — the
-> latter is exactly where plausible-but-wrong review comments come from. This holds in **both**
-> stage mode and ad-hoc dimension/sweep mode; inject the same instruction into every reviewer
-> sub-agent you dispatch. Read-only — reads land in gitignored `.scratch/`, never in the review
-> artifact or the diff.
+Before you assert that code misuses a dependency, read its source per [_source-study.md](_source-study.md), in the stage and in an ad-hoc review.
 
 You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 
@@ -72,10 +56,10 @@ Mode `triage`: the second argument is `triage`. Mode `select`: you select the ru
 | `07-review-<slice>.md` | artifact | on-resume | |
 | `findings.yaml` | artifact | if-present | |
 | `review/_stage.md` | procedure | always | |
+| `_source-modes.md` | procedure | always | |
 | `review/_triage.md` | procedure | mode:triage | |
 | `review/_select.md` | procedure | mode:select | |
 | `review/_dispatch.md` | procedure | mode:select | |
-| `review/_fix-prompt.md` | procedure | always | |
 | `review/_ad-hoc.md` | procedure | mode:ad-hoc | |
 | `review/_artifact.md` | procedure | always | |
 | `_findings-ledger.md` | procedure | always | |

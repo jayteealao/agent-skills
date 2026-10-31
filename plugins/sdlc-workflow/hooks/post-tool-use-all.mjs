@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * hooks/post-tool-use-all.mjs — the ONE PostToolUse process (WIDE-VIEW §14.2.6).
+ * hooks/post-tool-use-all.mjs — the ONE PostToolUse process: one process per tool event.
  *
  * hooks.json wires this file for `Write|Edit|MultiEdit|NotebookEdit`. It runs
  * auto-stage, then verify, in that order, on one parsed payload. A verify block

@@ -3,10 +3,6 @@ description: The human-only design stage and the design record. `/wf design <slu
 argument-hint: "[slug] [move|amend|import|audit|critique|extract|explore] [instructions] | <setup|teach|extract|direction|sync|explore> [instructions]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running `/wf design`. It has four jobs:
 
 1. **The design stage.** A human-only lifecycle stage between `intake` and `slice`. The person approves the screens here, before any stage that `/wf yolo` can run. The rule and the per-stage design duties are in [design/_lane.md](design/_lane.md). The screens live on the repo's design surface ([design/_surface.md](design/_surface.md)).

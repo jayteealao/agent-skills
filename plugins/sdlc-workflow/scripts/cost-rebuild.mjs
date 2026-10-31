@@ -2,11 +2,11 @@
 /**
  * scripts/cost-rebuild.mjs — rebuild the inflated cost ledgers (`cost.jsonl` and
  * the monthly `cost-<yyyy-mm>.jsonl`) of one
- * project from the Claude Code transcripts (WF-SYSTEM-REVIEW-2026-10-21 A1, SQ4).
+ * project from the Claude Code transcripts.
  *
  *   node scripts/cost-rebuild.mjs <projectRoot> [--apply] [--projects-dir <dir>] [--force]
  *
- * Before the A1 fix, a sub-agent whose transcript also had a copy in
+ * Before the cursor fix, a sub-agent whose transcript also had a copy in
  * `subagents/` was read again from its first byte on every Stop, so its usage
  * was booked again in every row. This script reads each such agent's
  * transcripts in full, and keeps one entry with its true total, in the earliest

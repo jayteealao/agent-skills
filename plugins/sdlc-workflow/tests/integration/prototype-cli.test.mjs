@@ -1,4 +1,4 @@
-// WF-PROTOTYPE-PLAN W4 — scripts/prototype.mjs against a real git repository. The
+// scripts/prototype.mjs against a real git repository. The
 // test plays the agent: it writes proof files and the ledger in the worktree, then runs
 // the script. Guards, red first: no write outside the worktree, a commit only on a
 // decide round and only of explicit paths, a report that reads with scripts off, an

@@ -3,11 +3,6 @@ description: The shape phase of intake. Turn the intake brief into a compact imp
 argument-hint: <slug> [focus hint]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running the **shape phase of `/wf intake`**, the second half of stage 1 of 9: 1·intake (brief → `shape`) → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
 Intake runs this phase right after the brief, in the same run. On a workflow whose brief is written, `/wf intake <slug>` runs it alone, and so does `/wf shape <slug>`, an alias that stays for this release only.
@@ -24,7 +19,7 @@ Intake runs this phase right after the brief, in the same run. On a workflow who
 - Write a mini-spec: the problem, the desired behavior, the acceptance criteria, what is out of scope, the open questions, the documentation plan and `augmentations-needed`.
 - Each acceptance criterion says whether it is observable, and how verify checks it.
 - Adjudicate every `open` entry of the RIM ledger.
-- Do not design, architect or code the solution.
+- Do not design, architect or code the solution. Your only output is the workflow records and the chat return of this card.
 - Done when `02-shape.md` is complete, `progress.intake` is `complete`, and every answer is in the decision store.
 
 ## Requires
@@ -42,9 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `02b-design.md` | writes | | |
 
 # Role
-You are a workflow orchestrator, not a problem solver.
-- Do not design, architect, implement, or code the solution. Produce a mini-spec with acceptance criteria.
-- Your only output is the workflow artifacts and the chat return defined below.
+You run the shape stage: you write the mini-spec, never the solution.
 
 # Workflow rules
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
@@ -116,7 +109,7 @@ Harvest every ambiguity, unstated assumption, and unclear-context item from `01-
 - **Round 4 — What can go wrong?** Failure modes: worst-case impact of bugs, invalid-input handling, dependency failures, access and permissions.
 - **Round 5 — Where are the boundaries?** Lead with scope restraint: which parts of the brief v1 *actually* needs versus speculative generality, gold-plating, or "while we're here" scope. Present these as trim options the PO chooses, never a unilateral cut ("do you actually need X, or does Y cover it?"). Then: explicit out-of-scope, the transition from old to new behavior, existing code and data touched. Never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
-- **Round 6 — How do we know, and how long may it take?** Which checks prove the work: the tests, the measurements and the runs that the acceptance criteria need. What each check costs in time on this repo: the suite times of `wf.mjs profile show`, and the known long runs of [_check-budget.md](_check-budget.md). Which faster path is acceptable for each long run, per [_long-runs.md](_long-runs.md) L3: the touched part, a pilot, a sample, a split, or the packet end. When `wf.mjs profile budget` prints `no budget`, ask the budget question of [_check-budget.md](_check-budget.md) here. Ask the tooling question of Step 3 in this round when sub-agent 1's tooling report is back. Each option that runs a check states its time ([_question-craft.md](_question-craft.md) rule 9).
+- **Round 6 — How do we know, and how long may it take?** Which checks prove the work: the tests, the measurements and the runs that the acceptance criteria need. What each check costs in time on this repo: the suite times of `wf.mjs profile show`, and the known long runs of [_check-budget.md](_check-budget.md). Which faster path is acceptable for each long run, per [_long-runs.md](_long-runs.md) L3: the touched part, a pilot, a sample, a split, or the packet end. Ask the budget question here, when "When to ask" of [_check-budget.md](_check-budget.md) says to ask it. Ask the tooling question of Step 3 in this round when sub-agent 1's tooling report is back. Each option that runs a check states its time ([_question-craft.md](_question-craft.md) rule 9).
 
 ## Step 2.4 — Extension rule (extend while ambiguity blocks, never pad)
 After Round 6, inventory what is still unresolved. A decision point qualifies for an extension round only if leaving it open would block slicing, make an acceptance criterion unverifiable, or force plan/implement to guess a direction the PO should choose. If any qualify, run up to 2 more rounds (up to 4 questions each) on ONLY those points; each lead-in names the point each question closes. Stop when nothing qualifies. What is still open after 2 extension rounds goes to `## Unknowns / Open Questions` (and `status: awaiting-input` if it blocks the spec).

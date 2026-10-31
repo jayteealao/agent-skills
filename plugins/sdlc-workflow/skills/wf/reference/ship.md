@@ -3,11 +3,6 @@ description: The last mile. Run the PR phase (the handoff package, the PR and th
 argument-hint: <slug|pr#N|branch> [environment|announce|rollback] [<run-id>]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf ship`, **stage 8 of 9**: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → `8·ship` → 9·retro.
 
 Ship runs in three parts, in one run: the PR phase ([handoff.md](handoff.md)) packages the work, opens the PR and watches CI; the go/no-go gate (Step 5) waits for the person; then the merge and the release. A second `/wf ship` call resumes at the gate.
@@ -21,9 +16,9 @@ Ship runs in three parts, in one run: the PR phase ([handoff.md](handoff.md)) pa
 ## Card
 
 - Run the PR phase first ([handoff.md](handoff.md)). Its fingerprint guard makes an unchanged, ready package a no-op.
-- Follow `.ai/ship-plan.md` as a contract. Do not edit it.
-- Each step can run again. A step that is already done is a no-op and a note.
-- Do not fix code. When a blocker needs a code change, route to implement.
+- Follow `.ai/ship-plan.md` as a contract. Do not edit it. To change the plan, the person runs `/wf project ship-plan edit`.
+- Each step can run again. A step that is already done is a no-op and a note, never a second side effect.
+- Do not fix code. When a blocker needs a code change, route to `/wf implement <slug> <slice>`.
 - Do not ship while a runtime-evidence deferral is open.
 
 ## Requires
@@ -48,10 +43,7 @@ Read only the frontmatter of `08-handoff.md` and of each review master.
 
 # Role
 
-You are a **workflow orchestrator**, not a problem solver.
-- Do not fix code; when blockers require code changes, recommend `/wf implement <slug> <slice>`.
-- Do not modify `.ai/ship-plan.md`; to edit the plan, run `/wf project ship-plan edit`. Runs follow the plan as a contract.
-- Each step is independently re-runnable. Re-running step N when N already completed is a no-op plus a note, not a duplicate side effect.
+You run the ship stage: the PR phase, the go/no-go gate and the release, per the ship plan.
 
 # Workflow rules
 
@@ -62,7 +54,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Ship-specific rules:
 - **Backwards compatibility.** A legacy `09-ship.md` is read-only history. The next release writes a `09-ship-run-<run-id>.md`.
 
 # Step 0 — Orient
-1. **Resolve the first positional**, polymorphic, in the same order as the PR phase ([handoff.md](handoff.md) Step 0; first match wins): an **exact slug** (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <arg> index` exits 0) → single-slug ship, `ship-scope: slug`; a **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName` → the branch path, `ship-scope: branch`; a **branch name** (matches the `branch` of a workflow in `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`) → batch ship, `ship-scope: branch`; **absent** → infer the most recent active workflow from the `status` output, single-slug; if ambiguous, ask. **Build the roster** (`branch-slugs`): single-slug → `[<slug>]`; batch → every slug whose `branch` in the `status` output equals the resolved branch. **Elect the lead**: reuse the `handoff-lead:` recorded at handoff; if absent, the first roster slug alphabetically. The lead owns the single `09-ship-run-<run-id>.md`; followers get a `shipped-via` pointer. The second-positional shortcuts (`announce`, `rollback`) resolve against the lead slug's run in batch mode: one run per branch.
+1. **Resolve the first positional** (a slug, `pr#N`, a branch name, or absent) with `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`, as the PR phase does ([handoff.md](handoff.md) Step 0): `scope: slug` → single-slug ship, `ship-scope: slug`; `scope: branch` → batch ship, `ship-scope: branch`; `ambiguous: true` → ask which of its `slugs`; an `error` → STOP and show it. **Build the roster** (`branch-slugs`): the `slugs` of the output. **Elect the lead**: reuse the `handoff-lead:` recorded at handoff; if absent, the first roster slug alphabetically. The lead owns the single `09-ship-run-<run-id>.md`; followers get a `shipped-via` pointer. The second-positional shortcuts (`announce`, `rollback`) resolve against the lead slug's run in batch mode: one run per branch.
 1.5. **Announce re-run shortcut.** If the second positional is exactly `announce`: load `ship/announce.md`, run only the announce phase for `<slug>`, then STOP. Do not run the 13-step sequence.
 1.6. **Rollback shortcut.** If the second positional is exactly `rollback`: load `ship/rollback.md`, run only that phase for `<slug>`, then STOP. Do not run the 13-step sequence. The optional third positional is `<run-id>`; default: the latest run in `09-ship-runs.md` with `status: complete` and `go-nogo` not `no-go`. `ship/rollback.md` refuses a paused (`awaiting-input`) run.
 1.7. **The merge facts.** Run `node "<skill-dir>/scripts/wf.mjs" ship facts "<root>" --base <base-branch> --json`. It reads the rulesets, the branch protection and the merge methods of the repo: `method` is the method that Step 6 uses, and `direct: false` means that a review or a merge queue is in the way, so Step 6 prints the one command. When `planMethodAllowed` is `false`, name it in the readiness gate of step 4: the plan merges by a method that the repo refuses.
@@ -79,8 +71,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Ship-specific rules:
    - **`not-applicable`: STOP after the PR is ready.** The work ships outside `/wf ship`. Write no run artifact. Set the index with `record set "<root>" <slug> index recommended-next-command=retro "recommended-next-invocation=/wf retro <slug>"`, and tell the person: "The PR is ready. Shipping is external: merge and release it by the process of the repo, then type `/wf retro <slug>`."
    - **`missing`, `drift` or a cancel: STOP** before the 13-step sequence. Only `ok`, `acknowledged` or `amended-inline` continue. Stamp the verdict into the run artifact (Step 13). Parse blocks A–G of `.ai/ship-plan.md` into memory (on `amended-inline`, the plan after the amendment).
 6.5. **Runtime-evidence deferral gate (hard block).** Parse `runtime-evidence-deferrals` from the index of every roster slug (absent → empty). An entry is **open** when `cleared-by: null` and it carries no `ship-override-authorization`; one open entry on any roster slug blocks the whole atomic run. If any entry is still open, STOP with: "Ship is blocked: <N> open runtime-evidence deferral(s). The following slices passed verify only because runtime evidence was deferred; ship requires evidence: <slice-slug>: <reason> (deferred-at: <iso>) … Clear each deferral by (a) running `/wf probe <slug> <target-matching-the-deferred-AC>` (probe sets `cleared-by` to its descriptor when the evidence matches), (b) re-running `/wf verify <slug> <slice-slug>` in an environment that supports the interactive checks, or (c) recording an explicit PO risk-acceptance as `ship-override-authorization: {by, at, reason}` on the entry, for genuinely deploy-time-circular cases only." **`cleared-by` is for evidence, never risk-acceptance**: it holds a probe/evidence descriptor proving the AC was observed. PO risk-acceptance goes in the distinct `ship-override-authorization` field and is listed as an explicit override in the ship summary. A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
-6.6. **Intent-risk (RIM) gate (hard block, mirrors 6.5).** Parse `intent-risks` from the index of every roster slug (absent → empty). An entry is open when `status: open`; one open entry on any roster slug blocks the run. If any entry is still open, STOP with: "Ship is blocked: <N> open intent-risk(s) (RIM). Shape never resolved a load-bearing ambiguity for the following — ship requires each adjudicated: <RIM-id> (<severity>): <risk> … Adjudicate each by running `/wf intake <slug>`; shape sets every open entry to `adjudicated` or `carried`. Ship never adjudicates; it detects and routes." `carried` RIMs are legal and do not block, but list every `carried` entry distinctly in the ship summary.
-7. **Release-notes inputs.** Take open findings from `wf.mjs findings list "<root>" <slug> --open`, and "what review fixed" from `metric-findings-fixed` in each review master's frontmatter. Give every `augmentations:` entry a changelog entry in user language.
+7. **Release-notes inputs.** Take open findings from `wf.mjs findings list "<root>" <slug> --open`, and "what review fixed" from `metric-findings-fixed` in each review master's frontmatter. Give every `augmentations:` entry a changelog entry in user language. List every `carried` intent-risk (RIM) entry of each roster slug distinctly in the ship summary.
 8. **Resume detection.** Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`, and read each `09-ship-run-<run-id>.md` with `record get`. Look for `status: awaiting-input`. For any hit, ask a gate question per [_gate-question.md](_gate-question.md) (header "Prior run"): `Resume <run-id> (Recommended)` (continue from the failed step), `Start fresh` (new run-id; the prior run stays paused), `Mark prior as failed and start fresh`. On resume, load that run's frontmatter and skip to the first step with an empty evidence field. On start fresh, leave the prior run untouched (or set `failed` with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 09-ship-run-<run-id>.md status=failed`, per [_records.md](_records.md)) and generate a new `run-id`.
 9. **Batch the load-bearing questions; ask them HERE, before the sequence starts.** A ship run is atomic: once step 1 begins, the run holds open until it finishes or is explicitly paused. Ask these together, in one round, presenting the derived default and asking only for confirmation or override:
 

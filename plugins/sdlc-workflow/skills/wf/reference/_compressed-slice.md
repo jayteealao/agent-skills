@@ -1,8 +1,15 @@
 # Compressed-slice contract (shared)
 
-This is the **slug-mode** output contract, shared by the `/wf intake` mode dispatcher (`reference/intake.md`), `/wf probe` (`reference/probe.md`), `/wf intake simplify` (`reference/intake/simplify.md`), and `/wf intake task` (`reference/intake/task.md`). When a command resolves to **slug-mode** (its first positional token is an existing, non-closed workflow slug, so `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0), its output is rerouted to **one compressed slice** on that workflow instead of a standalone flow. This contract **overrides** any "create a new workflow", "create a branch", "write a top-level `00-index.md`", or "write a standalone `01-<op>.md` / off-pipeline artifact" instruction in the calling reference. The reference's *content discipline* (research, sub-agents, body sections, analysis depth) still applies in full; only the *output destination* and *index bookkeeping* change.
+This is the **slug-mode** output contract, shared by the `/wf intake` mode dispatcher (`reference/intake.md`), every intake mode card that attaches a slice, and `/wf probe` (`reference/probe.md`). When a command resolves to **slug-mode** (see the trigger below), its output is rerouted to **one compressed slice** on that workflow instead of a standalone flow. This contract **overrides** any "create a new workflow", "create a branch", "write a top-level `00-index.md`", or "write a standalone `01-<op>.md` / off-pipeline artifact" instruction in the calling reference. The reference's *content discipline* (research, sub-agents, body sections, analysis depth) still applies in full; only the *output destination* and *index bookkeeping* change.
 
-Throughout, `<op>` is the operation that produced the slice: an intake mode (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `audit`, `brainstorm`), `probe`, `simplify`, or `task`.
+Throughout, `<op>` is the operation that produced the slice: an intake mode (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `audit`, `brainstorm`, `simplify`, `task`) or `probe`.
+
+## The trigger and the mode cards
+
+- **Trigger.** Slug-mode starts on one test: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0 for the token before the mode word (branch 1 of `reference/intake.md`; a closed workflow asks first).
+- **Own type.** When the `workflow-type` of that workflow is the mode itself (`brainstorm`, `audit`, `task`), the run is a resume of the standalone flow, not slug-mode.
+- **`origin`.** An intake mode writes `origin: intake/<op>`. `probe` writes `origin: probe`.
+- **Mode cards.** An intake mode card cites this contract in one line and keeps no copy of it. A card with a real exception adds one exception line.
 
 ## Inline records — a compressed slice spawns no children
 
@@ -28,7 +35,7 @@ slug: <slug>
 slice-slug: <slice-slug>
 slice-type: <op>            # fix | rca | probe | investigate | discover | hotfix | update-deps | refactor | ideate | simplify | audit | task | brainstorm
 compressed: true
-origin: wf/<op>             # e.g. intake/rca, probe, simplify
+origin: intake/<op>         # probe writes origin: probe
 status: defined
 stage-number: 3
 created-at: "<real UTC timestamp per _timestamp.md>"

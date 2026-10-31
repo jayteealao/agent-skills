@@ -6,9 +6,9 @@ Introduce color as hierarchy, meaning and atmosphere. Keep the confirmed brand a
 
 ## Design mode
 
-Persuade and Experience: the palette is the voice. Color may own regions. The Committed, Full palette and Drenched strategies are available.
+Persuade and Experience: the palette is the voice. Color may own regions.
 
-Operate: Restrained by default, and color still does real jobs: the shell, state, data and selection. A gray screen with one accent is the category default, not restraint.
+Operate: color does real jobs: the shell, state, data and selection. A gray screen with one accent is the category default, not restraint.
 
 Read: the world's color owns the frame. The reading column keeps a calm ground.
 
@@ -24,11 +24,7 @@ Read: the world's color owns the frame. The reading column keeps a calm ground.
 
 ## Pick a strategy
 
-Pick a strategy before you pick a color:
-- **Restrained** — neutrals and one accent for action, selection and state.
-- **Committed** — one saturated color carries 30–60% of the surface.
-- **Full palette** — three to five colors, each with a named role.
-- **Drenched** — the surface is the color.
+Pick a strategy before you pick a color. [_design-context.md](_design-context.md) → Shared design laws defines the strategies and the default of each design mode.
 
 Name the temperature, the dominant relationship, the contrast range and the dosage. Follow the brief, not a percentage.
 
@@ -119,12 +115,8 @@ Use the project's color space. For a new palette, prefer a perceptual space such
 
 ## In the workflow
 
-This file is a move, not a stage.
-- **Design not confirmed:** `/wf design <slug> colorize` focuses the design stage and its contract `02c-craft.md` on color.
-- **Design confirmed:** `/wf design <slug> colorize` runs the audit, the Accessibility checks and the Verify list against the approved screens and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
-- `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/colorize-<timestamp>.md` per [_output.md](_output.md) with: the strategy and its dosage, the role map, each contrast check in both themes, and each signal that used color only.
-- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
+Focus: color. Checks: the audit, the Accessibility checks and the Verify list. Notes record: the strategy and its dosage, the role map, each contrast check in both themes, and each signal that used color only.
 
 ---
 

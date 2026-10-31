@@ -13,7 +13,7 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
   // `warn` lets it stand and shows the same reason as a warning, and `off` runs
   // no check. The lints only warn, in `strict` and `warn` alike.
   checks: 'strict',
-  // Semantic leak guards (HOOKS-SEMANTIC Phase 1): scan outward-facing text —
+  // Semantic leak guards: scan outward-facing text —
   // git commit/tag messages, gh pr/release titles+bodies, public-doc writes —
   // for internal workflow vocabulary, using the lexicon derived from
   // skills/wf/reference/_output-boundary.md. Default OFF and advisory-first:
@@ -24,7 +24,7 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     enabled: false,
     mode: 'advisory',
   },
-  // Agent memory-file seeding (MEMORY-SEED-PLAN): when seedRules is true
+  // Agent memory-file seeding: when seedRules is true
   // (default), each SessionStart in an sdlc-engaged repo (one with .ai/workflows/)
   // ensures a small, versioned, fenced `/wf` rules block in AGENTS.md (canonical;
   // read by Codex natively and by Claude via an `@AGENTS.md` import added to
@@ -33,8 +33,8 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
   memory: {
     seedRules: true,
   },
-  // Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/`
-  // is the per-repo corpus (feedback-loops W1). `globalDir` optionally points plan's
+  // Knowledge-compounding corpus (the loop that learns from past work). `.ai/solutions/`
+  // is the per-repo corpus. `globalDir` optionally points plan's
   // reuse scan at a USER-LEVEL corpus read alongside it, and gives retro a place to
   // promote a repo lesson (always user-confirmed) + append about-the-workflow lessons
   // to a `plugin-feedback.md`. null = disabled (no global corpus); the dir stays local,

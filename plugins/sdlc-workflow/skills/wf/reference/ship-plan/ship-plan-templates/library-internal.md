@@ -1,6 +1,5 @@
 ---
 template-kind: library-internal
-description: Library shared inside a monorepo or internal registry. Merge-to-main = release; no public registry; consumers pin via internal registry or git ref.
 ---
 
 # Seed values

@@ -35,7 +35,7 @@ export const NOT_DRIVEN = Object.freeze({
   brainstorm: '/wf intake brainstorm <slug>',
   investigate: 'the pick recorded in 01-investigate.md',
   discover: 'the verdict recorded in 01-discover.md',
-  // A prototype is steered by the person, one round at a time (WF-PROTOTYPE-PLAN P4).
+  // A prototype is steered by the person, one round at a time.
   prototype: '/wf loop prototype <slug> <request>, one round per request of the person',
 });
 
@@ -105,7 +105,7 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
   if (!index) return out('blocked', 'no 00-index.md: start the workflow with /wf intake');
   const type = str(index['workflow-type']) || 'standard';
   if (NOT_DRIVEN[type]) return out('blocked', `workflow-type ${type} has no build lifecycle to drive: ${NOT_DRIVEN[type]}`);
-  // The optimize lifecycle replaces shape and plan with the spec (WF-OPTIMIZE-PLAN section 3).
+  // The optimize lifecycle replaces shape and plan with the spec.
   // Its lead is 01-optimize.md, as 01-fix.md is the lead of a fix.
   const optimize = type === 'optimize';
   const intake = artifact(optimize ? '01-optimize.md' : '01-intake.md');

@@ -48,8 +48,7 @@ export function normalizeHookPayload(input) {
 export const INVALID_JSON_HEX_BYTES = 200;
 
 /**
- * Pure: the message for a payload that is not JSON (WIDE-VIEW-REPAIR-PLAN
- * §14.2.2 item 4). Carries the parser's message, the payload length, and the
+ * Pure: the message for a payload that is not JSON. Carries the parser's message, the payload length, and the
  * first 200 bytes as hex — enough to see a BOM, a CRLF, a truncated write, or
  * a host that sent text instead of JSON, without a repro.
  */

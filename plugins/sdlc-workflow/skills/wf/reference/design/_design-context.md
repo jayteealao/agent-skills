@@ -7,9 +7,11 @@ The single source of truth for the **design modes** and the **shared design laws
 **Consumer contract.** Each stage loads only its sections, through the Sections cell of its Requires row, when the design lane says design is needed (`design/_lane.md`). This asymmetry is intentional, not drift:
 - `slice` — Design modes (maps each surface to its design mode; never redesigns).
 - `plan` — Design modes; Shared design laws. Then load the craft home (`animate.md`, `polish.md`, `typeset.md`) for what the feature touches.
-- `implement` — Design modes; Shared design laws, and the craft home. Load `_craft-floor.md` before the first UI file edit of the slice.
-- `verify`, `review`, and the design `audit` and `critique` — `_craft-floor.md` only (Verify and the Refuse lists). They do not load this file.
-- The design stage — the whole file and `design/_preflight.md` at Step 1; `_craft-floor.md` at Step 4.
+- `implement` — Design modes; Shared design laws, and the craft home.
+- `verify`, `review`, and the design `audit` and `critique` — they do not load this file. They load `_craft-floor.md` only.
+- The design stage — the whole file and `design/_preflight.md` at Step 1.
+
+The table of `_craft-floor.md` says when each stage loads the floor.
 
 > Load with: `design/_design-context.md`
 
@@ -44,7 +46,13 @@ These laws apply to every design, in every design mode. The build checks itself 
 ### Color
 - Use OKLCH. Reduce chroma as lightness approaches 0 or 100.
 - Tint a neutral toward the brand hue only when it creates cohesion. A plain neutral is valid.
-- Choose a color strategy: Restrained / Committed / Full palette / Drenched. Persuade and Experience default to Committed or higher. Operate and Read default to Restrained.
+- Choose a color strategy before you choose a color:
+  - **Restrained.** Tinted or plain neutrals, and one accent at 10% or less of the surface, for action, selection and state.
+  - **Committed.** One saturated color carries 30–60% of the surface.
+  - **Full palette.** Three to five colors, each with a named role.
+  - **Drenched.** Color owns the surface; the brand is its palette.
+- Committed, Full palette and Drenched exceed the 10% rule on purpose.
+- Defaults: Persuade and Experience use Committed or higher. Operate and Read use Restrained. The brief or the design-mode file can earn another strategy for one surface.
 
 ### Anti-convergence
 Generated designs cluster around a few looks, whatever the subject. Steer away from them before any color or face is chosen:
@@ -60,7 +68,7 @@ Generated designs cluster around a few looks, whatever the subject. Steer away f
 - Establish hierarchy through size AND weight contrast — not just one.
 - Set body text at the platform body size or larger (16 px on the web). Use a line height of 1.5 or more for prose.
 - Max 65–75ch line length for prose content.
-- Scale ratio: ≥1.25 for Persuade and Experience, 1.125–1.2 for Operate and Read.
+- Type scale. Persuade and Experience: a modular scale at a ratio of 1.25 or more, with fluid headings. Operate and Read: a fixed scale at a ratio of 1.125–1.2. `typeset.md` → Type scale gives example tokens.
 
 ### Spacing
 - Use a 4-unit base. Extend the project's spacing tokens. Never add a parallel set.

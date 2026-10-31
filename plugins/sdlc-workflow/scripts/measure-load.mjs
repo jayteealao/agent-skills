@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// scripts/measure-load.mjs — words the model loads per /wf key
-// (WIDE-VIEW-REPAIR-PLAN §1.1 and §3.4, wave W0).
+// scripts/measure-load.mjs — words the model loads per /wf key.
 //
 // Three numbers per key, because one number cannot say what is certain and
 // what is optional:

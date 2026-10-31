@@ -1,5 +1,5 @@
 // tests/helpers/state-fingerprint.mjs — the shape of the REAL machine state dir
-// that a leaking test changes (WIDE-VIEW-REPAIR-PLAN §14.2.7).
+// that a leaking test changes.
 //
 // Imported by tests/run-all.mjs (records the baseline before the suite) and by
 // tests/unit/state-dir-guard.test.mjs (compares after it). Not a test.

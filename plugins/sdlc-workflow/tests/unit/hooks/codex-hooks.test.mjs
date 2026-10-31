@@ -1,6 +1,5 @@
 // tests/unit/hooks/codex-hooks.test.mjs — the Codex hook adapter layer, in the
-// single-source tree (SINGLE-SOURCE-PLAN W6; migrated from the deleted codex
-// tree's tests/hooks.test.mjs).
+// single-source tree (migrated from the deleted codex tree's tests/hooks.test.mjs).
 //
 // Two layers: pure adapter logic (apply_patch parsing, touched-file extraction,
 // stdin synthesis, the Stop-time ledger + repair ceiling),
@@ -165,7 +164,7 @@ test('Stop-time ledger: record, repair counter, clear', () => {
   }
 });
 
-// ── host signal (SINGLE-SOURCE-PLAN §3.4) ───────────────────────────────────────
+// ── host signal ─────────────────────────────────────────────────────────────────
 
 test('codexHostEnv sets SDLC_HOST; an explicit SDLC_HOST wins', () => {
   const env = codexHostEnv({ PATH: '/x' });

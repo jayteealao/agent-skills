@@ -3,11 +3,6 @@ description: Implement one selected planned slice. Writes per-slice implementati
 argument-hint: <slug> [slice-slug|reviews]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf implement`, **stage 5 of 9**: 1·intake → 2·design → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
@@ -19,11 +14,11 @@ You are running `/wf implement`, **stage 5 of 9**: 1·intake → 2·design → 3
 
 ## Card
 
-- Build the slice in the order of its plan steps.
+- Build only the selected slice, in the order of its plan steps. Do not broaden the scope. Do not verify, review or ship.
 - Red before green: where a step names a test, write the failing test first and see it fail.
 - Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
 - Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
-- A plan or a slice may reserve a decision for the person only when it quotes the id of an answer of the person that says so for that case. A reservation without that id is an implementation-detail decision: settle it yourself.
+- A plan or a slice reserves a decision for the person only as [_decision-classes.md](_decision-classes.md) "A reservation needs the person's words" says.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
 - After each step, run only the tests that cover the files of that step. Run the fast and affected suites of the test profile once, at the end, with `wf.mjs receipt` ([implement/_steps.md](implement/_steps.md)).
 - A `full` or `heavy` command, or a command longer than the longest check of your brief, is a long run. A long run is never a slice step (`_long-runs.md` L5): record it under `## Packet Checks`. Do this also when an acceptance criterion needs it or names a push hook. The review runs it once for the packet.
@@ -51,30 +46,24 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `04c-experiment.md` | artifact | if-present | |
 | `05c-benchmark.md` | artifact | if-present | |
 | `implement/_artifact.md` | procedure | always | |
+| `_source-modes.md` | procedure | always | |
 | `implement/_research.md` | procedure | mode:research | |
 | `implement/_steps.md` | procedure | mode:commit | |
 | `design/_design-context.md` | procedure | mode:ui | Design modes; Shared design laws |
 | `design/_craft-floor.md` | procedure | mode:ui | |
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
-| `review/_fix-prompt.md` | procedure | mode:reviews | |
+| `_fix-prompt.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
 | `findings.yaml` | artifact | mode:reviews | |
 | `05-implement-<slice>.md` | writes | | |
 
 Change-mode (`fix` / `hotfix` / `refactor`) and single-scope workflows use the un-suffixed names: `03-slice.md`, `04-plan.md`, `05-implement.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
 
-**Read the source before you code against it.** When you are about to write code that calls a dependency, framework, or SDK whose exact API, types, or edge-case behavior matter, and the answer is not already in the repo, invoke the `study-sources` skill to read its **installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`, …). Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the change.
-
-**A limitation claim carries its evidence.** Any code comment or deviation asserting a dependency capability does not exist (not exposed, removed, broke, "the API can't do X") carries evidence at the site or in the record: a `study-sources` read of the **installed** source (name the `node_modules/` or vendored path actually opened), a failing minimal repro, or an upstream issue link. Two corollaries:
-1. **Comments are hypotheses.** An existing in-repo comment claiming a limitation is never sufficient authority to replicate its workaround in new code; re-verify the premise first (one `study-sources` read).
-2. **Recalled API shapes never justify `as any` / `@ts-ignore` alone.** The suppression cites the type actually read from the installed package, or the mismatch repro.
-A warn-only hook (`limitationClaimLint`) flags an uncited limitation comment at write time; the citation markers it looks for are `source:` / `node_modules/` / `repro:` / `issue:` / a URL within ±3 lines.
+Before you write code against a dependency whose exact behavior matters, follow [_source-study.md](_source-study.md).
 
 # Role
 
-You are a **workflow orchestrator** running the implementation stage.
-- Do not verify, review, or ship; those are later stages.
-- Implement **only** the selected slice as described in the plan. Do not broaden scope.
+You run the implement stage of one slice.
 
 # Workflow rules
 
@@ -84,21 +73,14 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the **slice-slug**. If no slug, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`workflow-type`**.
 3. **Check for reviews mode.** If the last argument is literally `reviews`, this is a **review-fix** invocation: load [implement/_reviews-mode.md](implement/_reviews-mode.md), skip the rest of Step 0, and follow that file.
-4. **Determine workflow source mode** from `workflow-type`:
-   - `workflow-type: quick` (legacy) → **compressed mode**. The source artifact is `01-quick.md`. No shape, slice, or plan files exist; do not require them.
-   - `workflow-type: rca` → **forwarded mode**. The rich context lives in `01-rca.md`; a synthesized `02-shape.md` exists (the RCA writes it as a forwarding contract). Planning may have been added via `/wf plan`, or this may be a quick-style continuation.
-   - `workflow-type: investigate` → **terminal analysis, not built in place.** It has no shape and no plan. Direct the user to `/wf intake <option>`, which starts a new workflow.
-   - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** Authored as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. Exactly **one** slice; `selected-slice` on the index is its slug. Implement as **standard mode**, with every per-slice file **un-suffixed** (`04-plan.md`, `05-implement.md`). Wherever a step below names a suffixed file, use the un-suffixed name. hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: one atomic green step per plan step, never combined; commit per step; if verify fails, fix the refactor, not the test.
-   - `workflow-type: update-deps` → **self-managed change-mode.** It self-authors `05-implement.md` / `06-verify.md` inside its own flow, then routes to `/wf review`. STOP and direct the user back to `/wf intake update-deps <slug>`.
-   - `workflow-type: docs` / `optimize` → **alternate workflow** with its own implement stage. STOP and direct the user to that workflow's implement command.
-   - `workflow-type: feature` (the intake default) or unset → **standard mode**. Use the pipeline files.
+4. **Find the source mode.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md): the lead record, the acceptance source, the record names and the implement action. When the action is STOP, give its route and stop. Wherever a step below names a suffixed file and the row names records without a suffix, use the name without the suffix.
 5. **Resolve the slice-slug.** If passed, use it. Otherwise use `selected-slice` from the index. In compressed mode the slice-slug may be empty: `01-fix.md` (or legacy `01-quick.md`) covers a single intentional change.
 6. **Check prerequisites by mode:**
    - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md`; check both with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`, which exits 1 for an absent record). If missing → STOP. "Run `/wf intake fix <slug>` first or use a different workflow type."
    - **Standard / forwarded / change-mode**: a plan must exist, either `04-plan-<slice-slug>.md` or `04-plan.md` (change-mode always uses un-suffixed); check it with `record get`. If missing → STOP. "Run `/wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
    - If `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists, note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-7. **Use the source context by mode.** The `## Requires` rows name the files. Compressed: `01-quick.md` holds the acceptance criteria and the plan. Forwarded: `01-rca.md` holds the rich context; `04-plan.md` exists only if `/wf plan` ran after the forward. Change-mode: `01-<mode>.md` holds the acceptance criteria, not `03-slice.md`. Hotfix's `02-shape.md` holds `## Root Cause`; refactor's holds the API-surface baseline.
+7. **Use the source context** of the row of [_source-modes.md](_source-modes.md). The `## Requires` rows name the files.
 8. **Apply the augmentation context.** For each entry in the `00-index.md` `augmentations:` list, apply the type-specific behavior:
 
    | Type | Artifact | What `/wf implement` does |
@@ -139,7 +121,7 @@ Shape settled *what* to build and plan settled *which strategy* (build-avoidance
 
 **Every new type or lint suppression is debt; mark it.** Any suppression you introduce (`as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, or a language equivalent such as `# type: ignore`, `@Suppress`, `#[allow(...)]`, `// nolint`) carries an `sdlc-debt:` marker with a reason at the site. The existing debt machinery inherits the class: verify validates the marker, retro reconciles it, `/wf intake simplify` sweeps it. A warn-only hook (`suppressionDebtLint`) flags an unmarked suppression at write time; it looks for `sdlc-debt:` within ±2 lines.
 
-**A build decision that goes against a `carried` intent-risk is intent-bearing; never auto-resolve it.** A build decision is intent-bearing when it goes against the recorded `decision:` of an intent-risk (RIM) that `00-index.md`'s `intent-risks` still marks `status: carried`, or removes the protection that the risk names. A decision that follows or applies the risk's decision is implementation-detail. An intent-bearing build decision: ask the PO on a human-gated run, and treat it as a **stop condition** on an autonomous run, not an assumption to fill. Classify every autonomous-versus-ask fork per [_decision-classes.md](_decision-classes.md). A recorded autonomous decision carries a `class: implementation-detail` stamp; an autonomous record never carries `class: intent-bearing`.
+**A build decision that goes against an intent-risk is intent-bearing**, per rule 1 of [_decision-classes.md](_decision-classes.md).
 
 **Build for verifiability; the planned verification seams are part of *done*.** The plan's `## Verification Strategy` names what makes each user-observable AC observable: a seeded fixture, a deterministic clock, a `data-testid` / accessibility id, an emulator or test config, an exported test hook. Build those seams as part of this slice. Record each seam built in `## Verification Seams Built`; if you could not build one the plan named, say so there and in `## Deviations from Plan`.
 

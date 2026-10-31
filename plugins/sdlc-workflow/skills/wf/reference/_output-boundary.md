@@ -35,7 +35,7 @@ Workflow artifacts and command internals are private implementation context. Nev
 - **One named exception: the build provenance marker.** `/wf project ship-plan build` and
   `/wf project observability build` mark each block they insert with an `Added by wf … build` comment.
   `ship.md` finds build output by that marker, so write it exactly as the build reference gives it.
-- The **chat return** at the end of a `/wf` invocation is an internal audience — `.ai/` paths are
-  allowed there. The boundary governs what leaves the session: commits, PRs, releases, docs, code.
+- The **chat return** at the end of a `/wf` invocation is an internal audience, per
+  [_chat-return.md](_chat-return.md). The boundary governs what leaves the session: commits, PRs, releases, docs, code.
 - Sub-agents spawned with fresh context do NOT inherit this rule automatically; dispatcher prompts
   re-assert a compressed form of it. That compressed restatement is the only sanctioned duplication.

@@ -1,4 +1,4 @@
-// WF-PIECES-PLAN 4.1 in the write hooks:
+// The packet files in the write hooks:
 // - research/, references/, work/changes.md, work/migration.md, work/archive/ and
 //   history/ snapshots are free-form: no NN- name, no frontmatter, no schema check;
 // - work/<packet-slug>.md packets and work/index.md need no NN- name, and their

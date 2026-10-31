@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/stamp-version.mjs — stamp every version carrier from package.json
- * (WIDE-VIEW-REPAIR-PLAN §9.2).
+ * scripts/stamp-version.mjs — stamp every version carrier from package.json.
  *
  * package.json is the one source. `npm run release <level>` (scripts/release.mjs)
  * bumps it, calls this stamp, and commits each carrier by path.

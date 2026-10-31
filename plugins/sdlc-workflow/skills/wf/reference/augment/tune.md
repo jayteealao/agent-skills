@@ -1,12 +1,3 @@
----
-description: Tuning loop for a measured target. A slice whose goal is a number (a latency, a size, an accuracy, a frame time) moves it in bounded rounds — change one lever, run the harness, record the round — until the target is met, the round budget is spent, or no lever moves the number. Writes 05d-tune.md in the existing workflow directory.
-argument-hint: <slug> <slice-slug>
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running the **tune sub-procedure**: a bounded loop that moves one measured number into its target range.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape (intake from v10) flags `tune` in `augmentations-needed` when an acceptance criterion is a number that the build must reach. Implement may also start it when a plan step's done check is a number that the first build misses. `plan` runs the feasibility spike, `implement` runs the rounds, and `verify` runs the harness again.

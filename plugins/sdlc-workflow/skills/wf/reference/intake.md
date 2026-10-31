@@ -102,6 +102,9 @@ Propose a mode **only when ALL** of these hold — otherwise run `intake/default
 - `audit` vs `rca` — both hunt defects. Propose `rca` when a **specific symptom** is described ("X broke", "Y returns 500"); propose `audit` when the description names a **subsystem** to scrutinize and the defects are unknown.
 - `audit` vs `discover` — `discover` adjudicates a **stated hypothesis** (yes/no); `audit` has none and enumerates whatever defects the lenses surface.
 - `audit` vs `investigate` — `investigate` assumes the problem is real and sketches approaches; `audit` decides whether problems exist at all.
+- `fix` vs `hotfix` — propose `hotfix` only for an active production incident.
+- `fix` vs `refactor` — `fix` changes behaviour; `refactor` keeps it.
+- `discover` vs `rca` / `investigate` — `discover` tests a stated theory; `rca` starts from a symptom; `investigate` starts from a stated problem.
 
 Propose **at most one** mode, **once**, as a gate question per [_gate-question.md](_gate-question.md) offering the proposed mode (recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on decline, `intake/default.md`. Nothing routes into a build-committing mode (`fix`, `hotfix`, `refactor`, `update-deps`) without the user's yes.
 
@@ -113,59 +116,15 @@ Apply `intake/_intake-context.md`: the External Output Boundary and the workflow
 
 # Step 2 — Resolve mode → flow span
 
-The mode decides how far the flow travels. Run only the stages the mode needs. This is the single mode→span map:
+The mode reference owns the flow span: run only the stages, the artifact writes and the next step that it names. `default` has this row:
 
-| Mode | Standalone (no slug) | Slug-mode (`<slug> <mode>`) | Terminus / Next |
+| Mode | Reference | Writes | Next |
 |---|---|---|---|
-| `default` | `00-index.md` + `01-intake.md` + `02-shape.md`; PO interview + stack fingerprint, then the shape phase in the same run | n/a — default is never slug-attached | recommends `/wf design <slug>` or `/wf slice <slug>` (the shape phase routes) |
-| `default`, small path | `00-index.md` (`workflow-type: small`) + the one note `01-small.md`; implement and verify in the same run, one commit on the checked-out branch | n/a | `Done`, or `/wf review <slug>` when the person wants a PR |
-| `fix` | compressed **standard** lifecycle — `01-fix`(`type:intake`) → `02-shape` → `03-slice`(`slice-index`) → `04-plan` → **[gate]**, on a `type:index` overview; branch `fix/<slug>` | compressed slice (branch suppressed) | → `/wf implement <slug>` (standard chain authors `05`→`10`) |
-| `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → route recorded via `rca <slug> <route>` (`plan` continues the slug; `fix`/`hotfix` close it and forward `from <slug>`; `human-triage` after the ladder) |
-| `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks; pick recorded via `investigate <slug> <option>` (closes the workflow) → `fix` / `intake` with `from <slug>` |
-| `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → **closes at write time** (`close-reason: verdict-recorded`); verdict-dependent routes forward `from <slug>` |
-| `hotfix` | compressed **standard** lifecycle — `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]**; branch `hotfix/<slug>` off the production branch | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `security`) |
-| `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
-| `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `/wf review <slug>` (self-authors `05`/`06`; skips `/wf implement`+`/wf verify`); audit-only → `/wf intake <slug> close deferred`; a bare existing run-slug resumes |
-| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks; the pick (`ideate <slug> <idea-id...>`) writes work packets for `/wf campaign` and closes the workflow |
-| `brainstorm` | **terminal thinking loop** — roots a `type:workflow-index` slug with the `01-brainstorm` board only; no branch | compressed slice (the board in the slice body) | terminal → **stays open**; only the person's `done` leaves the loop, and `done` writes work packets for `/wf campaign`; `brainstorm <slug>` resumes; retire via `/wf intake <slug> close` |
-| `audit` | **terminal defect hunt** — roots a `type:workflow-index` slug with `01-audit.md` (the brief) + the `07-review*` accumulating findings ledger; no branch | compressed slice (one-shot, inline findings, no ledger) | terminal → **stays open**; each accepted finding routes to its own command (`fix`/`rca`/`investigate`/`intake`/`probe`/`task`, all `from <slug>`); re-invoking `audit <slug>` merges into the ledger; retire via `/wf intake <slug> close` |
-| `adopt` | **reverse-entry** — reconstructs `01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → **`05-implement`** from the working-tree diff (all `provenance: adopted`), confirm-before-write gate; records the current branch, never creates one | n/a — adopt is standalone-only (never slug-attachable) | → `/wf verify <slug>` (the standard verification chain takes over from stage 6) |
-| `optimize` | `01-optimize` → `02-optimize-spec` | n/a | → `/wf loop optimize <slug>` |
-| `simplify` | **read-only triage** — `01-simplify.md` in a `type:workflow-index` slug; no branch | compressed slice | terminal → the routed commands |
-| `task` | `01-task.md` → **[gate]** → `05-implement.md` → `06-verify.md`; shape/slice/plan skipped | compressed slice | → `Done` |
-| `extend` | n/a — extension always attaches to an existing slug | **adds full net-new `03-slice-<new>.md` file(s)** to the named workflow; never a compressed slice; never touches completed work | → `/wf plan <slug> <new-slice>` |
-| `amend` | n/a — slug-required | **maintenance**: edits whitelisted config on `00-index.md` (branch-strategy, branch, base-branch, review-scope, title, tags) + the registry row. No numbered artifact, no slice, never touches built work | → whatever the workflow was already doing |
-| `modernize` | n/a — slug-required | **maintenance**: additive schema backfill across the workflow's existing artifacts (charter, intent-risks, deferral wall-ownership/clearing-event, revision ledgers). Never rewrites a decision, verdict, or criterion | → the command that resolves the largest remaining gap |
-| `close` | n/a — slug-required | **maintenance**: `99-close.md` (workflow) or `skip-slice-<slice>.md` (slice). Never deletes an artifact | → `Done`, or the next slice |
-
-Notes:
-- **The dispatcher is a pure router:** each mode reference owns its artifact writes, as the table above says.
+| `default` (never slug-attached) | `intake/default.md`, then [shape.md](shape.md); [intake/small.md](intake/small.md) on the small path | `00-index.md`, `01-intake.md` and `02-shape.md`: the interview and the stack fingerprint, then the shape phase in the same run. The small path writes `00-index.md` (`workflow-type: small`) and `01-small.md`, and implements and verifies in the same run with one commit on the checked-out branch. | the shape phase names `/wf design <slug>` or `/wf slice <slug>`; the small path ends `Done`, or `/wf review <slug>` when the person wants a PR |
 
 # Step 3 — Load the mode reference
 
-Load the resolved reference in full and follow it exactly. Do not summarize, paraphrase, or skip.
-
-| Mode | Reference file |
-|---|---|
-| `default` | `intake/default.md`, then [shape.md](shape.md), or [intake/small.md](intake/small.md) on the small path |
-| `fix` | `intake/fix.md` |
-| `rca` | `intake/rca.md` |
-| `investigate` | `intake/investigate.md` |
-| `discover` | `intake/discover.md` |
-| `hotfix` | `intake/hotfix.md` |
-| `refactor` | `intake/refactor.md` |
-| `update-deps` | `intake/update-deps.md` |
-| `ideate` | `intake/ideate.md` |
-| `brainstorm` | `intake/brainstorm.md` |
-| `audit` | `intake/audit.md` |
-| `adopt` | `intake/adopt.md` |
-| `optimize` | `intake/optimize.md` |
-| `simplify` | `intake/simplify.md` |
-| `task` | `intake/task.md` |
-| `extend` *(auto-routed — branch 2)* | `intake/extend.md` |
-| `amend` *(maintenance — branch 0)* | `intake/amend.md` |
-| `modernize` *(maintenance — branch 0)* | `intake/modernize.md` |
-| `close` *(maintenance — branch 0)* | `intake/close.md` |
+Load `intake/<mode>.md` (`intake/extend.md` for an extension) in full and follow it exactly. Do not summarize, paraphrase, or skip.
 
 # Step 4 — Execute
 

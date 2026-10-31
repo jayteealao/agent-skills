@@ -1,15 +1,3 @@
----
-description: End a workflow, or terminate a single slice, without completing the full lifecycle. `/wf intake <slug> close [reason]` archives the whole workflow (status closed, writes 99-close.md). `/wf intake <slug> close <slice>` closes/skips just that slice — marks it terminated so downstream prerequisites are satisfied, and writes a slice skip record. Never deletes artifacts; never edits application code.
-argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-externally|merged-into]"
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf intake <slug> close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two
 scopes, resolved by whether the second token names a slice:
 - **Workflow close** — `/wf intake <slug> close [reason]` archives the entire workflow.
@@ -205,12 +193,6 @@ receipt: skipped slice, reason, skip-record path, next command (`/wf plan <slug>
 ---
 
 # What this command is NOT
-- **Not a delete** — `close` archives in place; all artifacts remain under `.ai/workflows/<slug>/`. To
-  truly remove them, delete the directory manually after closing.
-- **Not a stage-skip** — `close` never bypasses a pipeline stage. A slice is the unit of skippable
-  work. If you do not want a stage's gate on a slice, either run the stage or close the slice. To end
-  the whole workflow before a stage, use workflow close.
-- **Not a retro** — `/wf retro` extracts lessons after a successful ship; `close` is early/unplanned
-  termination. Run `/wf retro <slug>` separately first if you want a retro on a cancelled effort.
-- **Not automatic** — it does not close PRs, delete branches, or notify teammates. Those are explicit
-  human actions, surfaced as a checklist.
+
+- **Not a delete and not automatic.** `close` archives in place: all artifacts stay under `.ai/workflows/<slug>/`. It closes no PR, deletes no branch and notifies nobody; it surfaces those as a checklist.
+- **Not a stage-skip.** A slice is the unit of skippable work: run the stage or close the slice.

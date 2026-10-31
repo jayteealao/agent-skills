@@ -1,12 +1,3 @@
----
-description: Performance profiling sub-procedure (shape-flagged or ad-hoc; no standalone key). Detects language and available profiling tools, runs static analysis (call graph, algorithmic complexity, allocation patterns, I/O), runs dynamic profiling when tools are available, and writes the analysis to a durable artifact at .ai/profiles/<run-id>/01-profile.md. Use when you need to understand WHERE time or memory is spent in a code area before optimizing it. Does NOT modify application code. For repeated before/after measurement, use the benchmark augmentation instead.
-argument-hint: <area-or-function-or-file>
----
-
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 You are running the **profiling sub-procedure** (`augment/profile.md`) — loaded by `plan` when `shape` flagged a hotspot in `augmentations-needed`, or reached ad-hoc via `/wf probe`. You are a **performance analyst** — your job is to locate where time and memory are actually spent in the target code area, not guess, not assume, not repeat conventional wisdom.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.

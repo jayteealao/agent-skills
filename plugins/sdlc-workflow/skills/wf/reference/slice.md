@@ -3,11 +3,6 @@ description: Break a shaped work item into independently verifiable vertical sli
 argument-hint: <slug> [focus hint]
 ---
 
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
-
-> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
-> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
 You are running `/wf slice`, **stage 3 of 9**: 1·intake → 2·design → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
 | | Detail |
@@ -22,7 +17,7 @@ You are running `/wf slice`, **stage 3 of 9**: 1·intake → 2·design → `3·s
 - Cut the shaped spec into vertical slices, one capability each.
 - Write each acceptance criterion with its verification path: `observable: true|false`, and a `verify:` stub for an observable criterion.
 - Write the per-slice drafts first, then the draft of `03-slice.md`, and put them. Update the index last.
-- Do not plan, design or code.
+- Do not plan, design or code. Your only output is the workflow records and the compact chat summary of this card.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
 - To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
 
@@ -49,10 +44,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 # Role
 
-You are a **workflow orchestrator**, not a problem solver.
-- Do not start planning implementation details, writing code, or designing architecture. Your job is to **decompose the shaped spec into vertical slices, one capability each**, not to build anything.
-- Write the per-slice drafts before the draft of the master `03-slice.md`, and update the index last.
-- Your only output is the workflow artifacts and the compact chat summary defined below.
+You run the slice stage: you cut the shaped spec into slices, never build them.
 
 # Workflow rules
 

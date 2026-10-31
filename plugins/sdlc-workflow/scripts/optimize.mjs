@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * scripts/optimize.mjs — the disk side of /wf loop optimize (WF-OPTIMIZE-PLAN 4.2, D4).
+ * scripts/optimize.mjs — the disk side of /wf loop optimize.
  * skills/wf/scripts/optimize.mjs runs this script.
  *
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
  *   status          <root> <slug>                     running | complete | stopped | finished, and the next action
- *   propose-context <root> <slug> [--on <lane>]       the digest of the next proposer (4.5) and the worktree of its lane
+ *   propose-context <root> <slug> [--on <lane>]       the digest of the next proposer and the worktree of its lane
  *   trial           <root> <slug> <id> [--on <lane>] [--hypothesis t | --hypothesis-file f] [--expected e]
  *                                                     judge the change in the worktree of the lane: kept, reverted, rejected, crashed, timeout
- *   round-open      <root> <slug> [schedule|plateau]  open a branch round (4.4): one branch and one worktree for each branch
+ *   round-open      <root> <slug> [schedule|plateau]  open a branch round: one branch and one worktree for each branch
  *   round-close     <root> <slug>                     pick the winner, fast-forward the trunk, remove the branch worktrees and branches
  *   merge-consider  <root> <slug> --try b2,b4 --skip "b3:<reason>"
  *                                                     record which candidates of the closed round to merge into the trunk
  *   merge-trial     <root> <slug> --branch <name>     merge one candidate into the trunk, and judge it as a trial
  *   merge-close     <root> <slug>                     end the merge step: skip the rest, delete the branches, checkpoint
- *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline (D7)
+ *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline
  *   finish          <root> <slug> [--message m] [--no-ablate] [--no-holdout] [--stash]
  *                                                     squash the kept trials onto the slug branch; write the slice artifacts; clean up
  *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
@@ -58,6 +58,7 @@ import {
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { findRunFile } from '../lib/run-files.mjs';
+import { pidAlive as alive } from '../lib/proc.mjs';
 import { costFiles, readCostRows } from '../lib/cost-ledger.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
@@ -136,7 +137,7 @@ function appendResult(root, slug, line) {
   mkdirSync(optDir(root, slug), { recursive: true });
   appendFileSync(resultsPath(root, slug), `${JSON.stringify({ at: nowIso(), ...line })}\n`);
 }
-// The ideas ledger (G2). Proposers claim ideas while a trial runs, so each change of the file
+// The ideas ledger. Proposers claim ideas while a trial runs, so each change of the file
 // holds a short lock of its own: a read, the change, and an atomic write.
 const ideasPath = (root, slug) => join(optDir(root, slug), 'ideas.json');
 /**
@@ -231,12 +232,9 @@ function ensureBuildDir(state, spec) {
 
 // ---------------------------------------------------------------------------
 // The measure lock: one guard and one measurement at a time, across processes.
-// Two measured runs on one machine corrupt each other's numbers (D8).
+// Two measured runs on one machine corrupt each other's numbers.
 // ---------------------------------------------------------------------------
 const lockPath = (root, slug) => join(optDir(root, slug), '.measure.lock');
-const alive = (pid) => {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
-};
 /** The holder of the lock, or null when no live process holds it. A stale lock is one whose process is dead, or that is older than three trial timeouts. */
 function lockHolder(root, slug, trialTimeoutMs) {
   const f = lockPath(root, slug);
@@ -320,7 +318,7 @@ function measure(spec, cwd, n, command = spec.metric.command, key = spec.metric.
 }
 
 // ---------------------------------------------------------------------------
-// The reference worktree and paired measurement (G3)
+// The reference worktree and paired measurement
 // ---------------------------------------------------------------------------
 /** The reference worktree: detached at the commit that a trial is compared with. */
 const refPath = (state) => `${state.worktree}--ref`;
@@ -433,7 +431,7 @@ function judge(root, state, spec, wt, env, best, line) {
 }
 
 /**
- * The ablation (G7): each kept change of the trunk, reverted alone in the reference worktree on
+ * The ablation: each kept change of the trunk, reverted alone in the reference worktree on
  * top of the final code, and a paired block of the code without it against the final code. A
  * change whose removal costs no more than the keep threshold is weak. A revert that conflicts, or
  * a block that fails, is not checked. Nothing is removed: the person decides at verify.
@@ -484,7 +482,7 @@ function ablate(root, slug) {
   return { ...optimizeStatus(root, slug), ok: true, ablation: state.ablation };
 }
 
-/** state.json and results.jsonl must agree, and the branch must sit where the loop left it (4.6 state-error). */
+/** state.json and results.jsonl must agree, and the branch must sit where the loop left it, or the status is state-error. */
 function consistency(root, slug, state, results, spec) {
   // A measurement in flight moves its lane and writes the ledger and the state one after the other.
   const holder = lockHolder(root, slug, spec?.budget.trialTimeoutMs);
@@ -515,7 +513,7 @@ export function optimizeStatus(root, slug) {
   const err = consistency(root, slug, state, results, spec);
   if (err) return { ok: true, state: 'stopped', reason: 'state-error', detail: err, next: { action: 'person', why: 'report; do not repair' } };
   const ideas = readIdeas(root, slug);
-  // G9: a bundle of the ideas ledger joins only ideas whose last diffs apply together on the trunk.
+  // A bundle of the ideas ledger joins only ideas whose last diffs apply together on the trunk.
   const canApply = (trials) => diffsApply(state.worktree, trials.map((t) => join(patchesDir(root, slug), `${t}.patch`)));
   const st = nextAction({ state, spec, control: readControl(root, slug), tokensUsed: tokensSince(root, slug, state.startedAt), ideas, pace: paceOf(results), canApply });
   // A port or a bundle has no proposer: the script applies the kept diffs, and the editor makes them by hand when they do not apply.
@@ -550,7 +548,7 @@ export function optimizeStatus(root, slug) {
 }
 
 /**
- * A merge candidate as the consider step reads it (G9): a port or a bundle names its diff files, its
+ * A merge candidate as the consider step reads it: a port or a bundle names its diff files, its
  * targets, and every idea of the ledger on those targets, with the lanes of their trials and their status.
  */
 function mergeView(root, slug, c, ideas, results) {
@@ -612,7 +610,7 @@ function baseline(root, slug) {
     if (h.crashed || h.timeout) return { ok: false, error: 'the holdout did not print a number at the baseline', output: h.output };
     holdout = h.median;
   }
-  // G3: an A/A block of the reference worktree against the trunk worktree, at the same commit,
+  // An A/A block of the reference worktree against the trunk worktree, at the same commit,
   // gives the noise of a paired comparison.
   let pairedNoise = null;
   let aa = null;
@@ -768,7 +766,7 @@ function probe(root, slug, f) {
 }
 
 // ---------------------------------------------------------------------------
-// ideas and the profile (G1, G2)
+// ideas and the profile
 // ---------------------------------------------------------------------------
 function ideaClaim(root, slug, f) {
   const state = readState(root, slug);
@@ -875,15 +873,15 @@ function trial(root, slug, id, f) {
     try { line.prepareMs = Date.now() - JSON.parse(readFileSync(stamp, 'utf8')).at; } catch { /* no time */ }
     rmSync(stamp, { force: true });
   }
-  // G4: a port applies a kept idea of a branch that was not merged again; a bundle tries marginal ideas together.
+  // A port applies a kept idea of a branch that was not merged again; a bundle tries marginal ideas together.
   const mg = state.merge;
   const port = st.next.port ? mg?.candidates.find((c) => c.name === st.next.port) ?? null : null;
   const bundle = Array.isArray(st.next.bundle) ? st.next.bundle : null;
-  // G9: the near misses of the winner are a port of several diffs.
+  // The near misses of the winner are a port of several diffs.
   const nearSet = port?.kind === 'bundle';
   if (port) line.port = nearSet ? { round: mg.round, trials: port.trials, branch: port.branch, kind: 'bundle' } : { round: mg.round, trial: port.trial, branch: port.branch };
   if (bundle) line.bundle = bundle;
-  // G9: `--apply` makes the change of a port or a bundle from its saved diffs. A diff that does not
+  // `--apply` makes the change of a port or a bundle from its saved diffs. A diff that does not
   // apply leaves the worktree as it was and records no trial: the editor then makes the change by hand.
   if (f.apply === true && (port || bundle) && !dirtyPaths(wt).length) {
     const book = bundle ? readIdeas(root, slug) : null;
@@ -906,7 +904,7 @@ function trial(root, slug, id, f) {
     Object.assign(line, { verdict, ...extra });
     if (verdict === 'kept' && port) line.additive = nearSet ? { measured: line.delta, sum: port.gain } : { measured: line.delta, alone: port.gain };
     if (verdict === 'kept' && bundle) line.additive = { measured: line.delta, sum: bundleSum };
-    // A kept change, and a reverted change with a real gain, keep their diff: a port or a bundle can use it (G4).
+    // A kept change, and a reverted change with a real gain, keep their diff: a port or a bundle can use it.
     const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
     if (keepPatch) {
       mkdirSync(patchesDir(root, slug), { recursive: true });
@@ -925,7 +923,7 @@ function trial(root, slug, id, f) {
       port.verdict = verdict;
       if (line.reason) port.reason = line.reason;
     } else if (isTrunk) {
-      // G6: a scheduled round that did not fit in the time left is used up, and the line records it.
+      // A scheduled round that did not fit in the time left is used up, and the line records it.
       if (st.next.skipRound !== undefined && !state.schedule.used.includes(st.next.skipRound)) {
         state.schedule.used.push(st.next.skipRound);
         line.skippedRound = { point: st.next.skipRound, why: st.next.why };
@@ -960,7 +958,7 @@ function trial(root, slug, id, f) {
   if (!c.ok) return finish('rejected', { reason: 'the commit hook refused the change', paths, output: tail(`${c.out}\n${c.err}`) });
   line.commit = headOf(wt);
   line.paths = paths;
-  // G6: the time of the guard and the measurement goes on the line: the schedule fits a round in the time left with it.
+  // The time of the guard and the measurement goes on the line: the schedule fits a round in the time left with it.
   const t0 = Date.now();
   const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
   line.guard = g.code === 0 ? 'pass' : 'fail';
@@ -977,7 +975,7 @@ function trial(root, slug, id, f) {
 }
 
 // ---------------------------------------------------------------------------
-// branch rounds (4.4)
+// branch rounds
 // ---------------------------------------------------------------------------
 function roundOpen(root, slug) {
   const st = requireNext(root, slug, 'round-open');
@@ -997,7 +995,7 @@ function roundOpen(root, slug) {
     if (existsSync(worktree)) throw new Error(`${worktree} exists: a worktree of round ${n} from another run. Ask the person.`);
     branches.push({ k, name, worktree, best: { ...state.best, reachedAt: 0 }, trials: 0, keeps: 0 });
   }
-  // G5: each branch starts at its own hot spot of the profile.
+  // Each branch starts at its own hot spot of the profile.
   const prof = readProfile(root, slug);
   if (prof?.entries?.length) {
     const seeds = seedsOf(prof.entries, readIdeas(root, slug), state.best.value, keepThreshold(spec, state.best.value, noiseFor(spec, state)), branches.length);
@@ -1031,7 +1029,7 @@ function roundOpen(root, slug) {
 }
 
 /**
- * G5: prune a branch that trails the leader with no keep. Its worktree and its branch go; its
+ * Prune a branch that trails the leader with no keep. Its worktree and its branch go; its
  * other trials go to a new branch forked from the best of the leader, with the next free seed.
  */
 function prune(root, slug) {
@@ -1114,7 +1112,7 @@ function roundClose(root, slug) {
       ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
     };
   });
-  // G4: each kept trial of a branch that did not win, and that no merge candidate can bring in whole,
+  // Each kept trial of a branch that did not win, and that no merge candidate can bring in whole,
   // is a port candidate: its saved diff can be applied again on the trunk code. A diff that does not
   // apply to the new trunk is skipped as a conflict.
   const whole = new Set(candidates.filter((c) => !c.conflict).map((c) => c.name));
@@ -1126,7 +1124,7 @@ function roundClose(root, slug) {
       ...(conflict ? { decision: 'skip', reason: 'conflict', verdict: 'skipped' } : {}),
     };
   });
-  // G9: the near misses of the winner: its reverted trials with a gain above 0. They were measured
+  // The near misses of the winner: its reverted trials with a gain above 0. They were measured
   // on the code that is now the trunk, so their saved diffs apply as they are, and together they can pass.
   const near = winner && spec.rounds.merge !== 'off'
     ? nearMisses(results, r.n, winner.name, (patches) => diffsApply(state.worktree, patches.map((x) => join(optDir(root, slug), x))))
@@ -1327,12 +1325,12 @@ function finish(root, slug, f) {
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) throw new Error(`state-error: ${err}`);
-  // G7: the ablation runs before the squash, while the trunk worktree holds the final code.
+  // The ablation runs before the squash, while the trunk worktree holds the final code.
   if (ablationDue(spec, state) && f['no-ablate'] !== true) {
     state.ablation = runAblation(root, slug, state, spec);
     saveState(root, slug, state);
   }
-  // G9: a change kept after the last checkpoint is checked on the holdout before the squash.
+  // A change kept after the last checkpoint is checked on the holdout before the squash.
   if (spec.holdout && f['no-holdout'] !== true && state.best.commit !== state.baseCommit && (state.lastCheckpoint?.trial ?? 0) < (state.best.trial ?? 0)) {
     const cp = runCheckpoint(root, slug, state, spec);
     saveState(root, slug, state);
@@ -1351,7 +1349,7 @@ function finish(root, slug, f) {
   }
   const branch = state.slugBranch;
   if (branch && currentBranch(root) !== branch) throw new Error(`the main checkout is on ${currentBranch(root) || 'a detached HEAD'}, not on the slug branch ${branch}: switch to it, then finish again`);
-  // G9: --stash puts the person's uncommitted tracked files aside for the squash, and restores them after it.
+  // --stash puts the person's uncommitted tracked files aside for the squash, and restores them after it.
   const stash = stashForFinish(root, slug, state, f);
   let out;
   try {
@@ -1435,7 +1433,7 @@ function finish(root, slug, f) {
 }
 
 /**
- * The stash of finish (G9). Without --stash, uncommitted changes to tracked files stop the finish. With
+ * The stash of finish. Without --stash, uncommitted changes to tracked files stop the finish. With
  * it, each such file is copied to optimize/finish-stash/ and stashed. A file that the squash or the
  * records of finish also write is refused: its pop would conflict.
  */

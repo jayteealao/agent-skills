@@ -12,7 +12,7 @@ Agree these with the person, in plain words, and give your view with its reason.
 
 | Field | What to agree |
 |---|---|
-| `slug` | The workflow slug the work packet opens, in kebab form. For an extension, the new scope's descriptor. When the slug is a reserved slug name ([../_intake-context.md](../_intake-context.md)), or `.ai/workflows/<slug>/` exists for other work, ask the person for a new slug. |
+| `slug` | The workflow slug the work packet opens, in kebab form. For an extension, the new scope's descriptor. Check it per "New slug" of [../_intake-context.md](../_intake-context.md), the work packet class. |
 | `shape` | The form (table below). |
 | `target-slug` | For `extension`, `fix` and `hotfix`: the existing workflow slug. |
 | `order` | The place of the work packet in the list. Every work packet has one, write-now work packets included. The orders are 1 to n, each used once. The list is the safe serial order: work packet N may use anything that work packets 1 to N−1 built. |

@@ -48,17 +48,24 @@ rule below. And when an interactive suite runs but every spec exits via a creden
 guard (0 executed), that is `blocked-runtime-evidence-missing` with the unmet precondition
 named — never a deferral.
 
-**"No display" is not incapability for a headless-capable adapter — boot headless first.** A
-windowing surface is a *boot mode*, not a prerequisite. An Android emulator boots with `-no-window`
-+ a software GPU, an iOS simulator's *runtime* boots via `xcrun simctl boot` with no `Simulator.app`
-window, and a Linux GUI app runs under `xvfb-run`'s virtual framebuffer — and in every case the
-screenshot comes from the framebuffer (`adb exec-out screencap`, `xcrun simctl io booted
-screenshot`, Xvfb capture), never from a visible window. So a background subagent or CI host with no
-attached display has **not** reached the residual rung; it has hit a boot-flag choice it never made.
-"No display" is a lawful defer-reason ONLY after the adapter's own **headless** boot mode has been
-attempted and its probe output recorded — and the wall it exposes is missing hardware acceleration
-(`emulator -no-window` failed because no KVM/HAXM/WHPX nested virtualization), never the missing
-window. Attempt-before-declare (above) applies unchanged: the headless invocation *is* the probe.
+## Headless boot
+
+**"No display" is not incapability — boot headless first.** A window is a boot mode, not a
+prerequisite. A background sub-agent or a CI host with no display has **not** reached the residual
+rung; it has a boot flag that it did not set. The screenshot comes from the framebuffer, never from a
+visible window. Write "no display" as a defer-reason only after the headless boot of the adapter ran
+and its output is recorded: the headless command *is* the probe of attempt-before-declare. The
+defer-reason then names the real wall of the adapter, from this table, never the missing window.
+
+| Adapter | Headless boot | Screenshot | The real wall |
+|---|---|---|---|
+| `android` | `emulator -avd <name> -no-window -gpu swiftshader_indirect` | `adb exec-out screencap -p` | No hardware acceleration (no KVM, HAXM, WHPX or Hypervisor.framework). `emulator -accel-check` shows it. |
+| `ios` | `xcrun simctl boot "<device>"`, with no `Simulator.app` window | `xcrun simctl io booted screenshot` | No simulator runtime is installed. A missing display never blocks this adapter. |
+| `desktop` on Linux | `xvfb-run -a <launch command>` | the Xvfb framebuffer, or `page.screenshot()` for Electron | `xvfb-run` itself fails. |
+| `desktop` on macOS or Windows | none: a native GUI app needs an interactive desktop session | OS screen capture | No interactive desktop session. Climb the device-free rungs (unit and component tests) first. |
+| `web` | the headless mode of the driver (Playwright, `dev-browser --headless`) | the driver | None: a browser driver needs no display. |
+
+## Tool absence and the environment
 
 **Tool absence is not a terminal state — but the fix is *pre-authorized upstream*, never an improvised verify-time install.** The verification tool is named at `slice` (the per-AC `verify:` stub) and engineered at `plan` (`## Verification Strategy`), so by the time verify runs, any install/bootstrap a criterion needs is a step the PO already approved. Verify **executes** that authorized bootstrap (the plan said "install Playwright for AC-8" → verify installs it and drives) — it does **not** silently introduce a *new* tool the plan never named, which still routes back through shape (the PO owns tooling choices). If an AC needs a tool that was never planned and none is installed, that is the upstream gap this whole chain exists to prevent: use a `stack:`-listed alternative if one genuinely covers the AC, otherwise register an honest deferral **and** flag the missing verification plan so it is fixed at the source. The cure is to *plan* the tool; the ladder is how you climb once it is planned.
 

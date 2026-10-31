@@ -15,40 +15,21 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { extractFn } from '../../helpers/extract-fn.mjs';
+
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const yoloSrc = readFileSync(
   path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'),
   'utf8'
 );
 
-// Extract a top-level `function NAME(...) { ... }` declaration by brace-matching from the
-// first `{` after the signature to its balanced close. Robust to nested braces / object
-// literals inside the body; naive string-scanning is enough for these small pure fns.
-function extractFn(src, name) {
-  const sig = new RegExp(`function\\s+${name}\\s*\\(`);
-  const m = sig.exec(src);
-  assert.ok(m, `could not locate function ${name} in yolo.js`);
-  let i = src.indexOf('{', m.index);
-  assert.ok(i > -1, `no body brace for ${name}`);
-  let depth = 0;
-  for (let j = i; j < src.length; j++) {
-    const c = src[j];
-    if (c === '{') depth++;
-    else if (c === '}') {
-      depth--;
-      if (depth === 0) return src.slice(m.index, j + 1);
-    }
-  }
-  throw new Error(`unbalanced braces extracting ${name}`);
-}
-
 // evaluateGate calls verifyClean, so build them together in one scope and hand them back.
-// probeGaps (F2), reChallengeClause + deferralPressure (F3) are also pure top-level fns, so
+// probeGaps, reChallengeClause and deferralPressure are also pure top-level fns, so
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
 const {
   verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure,
   decisionDigest, acKey,
-  // YOLO-DRIVER-LIFECYCLE W3/W4 — the aggregation-truth and tripwire rollups.
+  // The aggregation-truth and tripwire rollups.
   classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
   collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness,
   stageResults, acceptedResiduals,
@@ -206,7 +187,7 @@ test('collectDeferrals: threads the probe receipt through into the ship-block ha
 });
 
 // ---------------------------------------------------------------------------
-// probeGaps (F2) — the deferral-LAW compliance check verifyClean deliberately does NOT
+// probeGaps — the deferral-LAW compliance check verifyClean deliberately does NOT
 // enforce. Returns ac-bearing deferral entries (deduped by ac, both arrays) with no
 // non-empty `probe`. A non-empty result drives ONE corrective re-run, then a hard-stop.
 // ---------------------------------------------------------------------------
@@ -253,8 +234,8 @@ test('probeGaps: gaps are drawn from BOTH arrays and deduped by ac', () => {
 });
 
 // ---------------------------------------------------------------------------
-// reChallengeClause (F3) — open prior deferrals → a RE-CHALLENGE block for the verify
-// prompt. Pinned as a string (P1-4): no execution, just the template shape.
+// reChallengeClause — open prior deferrals → a RE-CHALLENGE block for the verify
+// prompt. Pinned as a string: no execution, just the template shape.
 // ---------------------------------------------------------------------------
 test('reChallengeClause: empty / absent prior deferrals ⇒ no clause', () => {
   assert.equal(reChallengeClause([]), '');
@@ -283,7 +264,7 @@ test('reChallengeClause: runs defer check first and does not probe an unchanged 
 });
 
 // ---------------------------------------------------------------------------
-// deferralPressure (F3) — hand-back rollup across prior (index) + this run's deferrals.
+// deferralPressure — hand-back rollup across prior (index) + this run's deferrals.
 // Visibility only; null when there is no pressure.
 // ---------------------------------------------------------------------------
 test('deferralPressure: null when there is no pressure at all', () => {
@@ -315,7 +296,7 @@ test('deferralPressure: collapses duplicate prior entries by slice::key', () => 
 });
 
 // ---------------------------------------------------------------------------
-// decisionDigest (W11.1) — groups every recorded autonomous decision by W4 class.
+// decisionDigest — groups every recorded autonomous decision by its class.
 // ---------------------------------------------------------------------------
 test('decisionDigest: null when no decisions were recorded', () => {
   assert.equal(decisionDigest({ ran: [{ stage: 'plan', decisions: [] }] }), null);
@@ -333,7 +314,7 @@ test('decisionDigest: groups by class across slug-mode chains and surfaces inten
   assert.equal(d.total, 4);
   assert.equal(d.byClass['implementation-detail'], 2);
   assert.equal(d.byClass['intent-bearing'], 1);
-  // W3.3 — `unclassified` is a GAP, not a class: it never lands in byClass (which
+  // `unclassified` is a GAP, not a class: it never lands in byClass (which
   // would make it look like a third, understood kind of decision) and it is counted
   // separately so the headline guarantee can be qualified.
   assert.equal(d.byClass['unclassified'], undefined);
@@ -352,7 +333,7 @@ test('decisionDigest: works in slice-mode (outcome.ran) too', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W3.3 (YOLO-DRIVER-LIFECYCLE) — the guarantee carries its own qualifier.
+// The guarantee carries its own qualifier.
 // "intent-bearing escapes: 0" out of 173 decisions is worthless if 40 of them were
 // never classified. Every run measured leaked ~25% unclassified into that zero.
 // ---------------------------------------------------------------------------
@@ -389,7 +370,7 @@ test('decisionDigest: a whitespace-only class stamp counts as unclassified, not 
 });
 
 // ---------------------------------------------------------------------------
-// W2 (HANDOFF-SHIP-HARDENING, 9.138.0) — acKey normalization + authorized deferrals
+// acKey normalization + authorized deferrals (9.138.0)
 // ---------------------------------------------------------------------------
 
 test('acKey: extracts and normalizes the leading AC token across label shapes', () => {
@@ -451,7 +432,7 @@ test('reChallengeClause: all-authorized prior deferrals ⇒ no clause at all', (
 });
 
 // ---------------------------------------------------------------------------
-// YOLO-DRIVER-LIFECYCLE W3.2 — the aggregate may not contradict its inputs.
+// The aggregate may not contradict its inputs.
 //
 // Field failure: a run's own recorded decision said "AC-NC1 stays a
 // build-capability deferral, NOT runtime-evidence", and the outcome listed AC-NC1
@@ -540,7 +521,7 @@ test('reconcileDeferrals: no recorded classifications at all ⇒ pass-through un
 });
 
 // ---------------------------------------------------------------------------
-// W3.2 (second half) — a FAIL survives into the outcome as a fail.
+// The other half: a FAIL survives into the outcome as a fail.
 // The v9.134-era conflation ran the other way: verify recorded two ACs as
 // substantive fails with ZERO deferrals, and the run report listed them as
 // deferrals — telling the user to go collect evidence for a defect.
@@ -575,7 +556,7 @@ test('collectSubstantiveFailures: non-verify stages are never scanned', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W3.4 — honest error accounting. One run reported "0 errors" while 6 of 15
+// Honest error accounting. One run reported "0 errors" while 6 of 15
 // subagents had recovered from rejected writes and schema retries.
 // ---------------------------------------------------------------------------
 
@@ -654,7 +635,7 @@ test('every hand-back roll-up walks the stage results through stageResults', () 
 });
 
 // ---------------------------------------------------------------------------
-// W4 — clearing-event tripwire. An AC shipped uncleared while its clearing event
+// The clearing-event tripwire. An AC shipped uncleared while its clearing event
 // ("device available for AC6") came true on-screen in the same session.
 // ---------------------------------------------------------------------------
 
@@ -748,7 +729,7 @@ test('liveness: only the newest prior run is judged, and orient owns no arithmet
 // stage ran cannot drift the charter.
 // ---------------------------------------------------------------------------
 
-test('checkpoint: skipped when no work since the last checkpoint touched the charter (WF-SYSTEM-REVIEW C5)', () => {
+test('checkpoint: skipped when no work since the last checkpoint touched the charter', () => {
   assert.match(yoloSrc, /if \(touchesCharter\(chain\.ran, idx\.charter\)\) workSinceCheckpoint = true/);
   const touchesCharter = new Function(`${extractFn(yoloSrc, 'touchesCharter')}; return touchesCharter;`)();
   const charter = [{ id: 'C2' }];
@@ -764,8 +745,11 @@ test('checkpoint: skipped when no work since the last checkpoint touched the cha
 // driver's own judging agents get a clause that names the COMMAND and tells them to
 // run it fresh, so an entry added during a run reaches every agent that starts later.
 // ---------------------------------------------------------------------------
+const STEER = 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --kind steer';
+const CONTRACT = '/plugin/skills/wf/reference/_decisions.md';
 const { steeringClause, steeringDigest } = new Function(
   [
+    `const STEER_CMD = ${JSON.stringify(STEER)}, referenceRoot = '/plugin/skills/wf/reference'`,
     extractFn(yoloSrc, 'stageResults'),
     extractFn(yoloSrc, 'steeringClause'),
     extractFn(yoloSrc, 'steeringDigest'),
@@ -783,12 +767,9 @@ function fnSrc(name) {
   return next < 0 ? rest : rest.slice(0, next);
 }
 
-const STEER = 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --kind steer';
-const CONTRACT = '/plugin/skills/wf/reference/_decisions.md';
-
 test('steering: every role names the command, demands a fresh run, and handles no entries', () => {
   for (const role of ['writer', 'scout', 'refute', 'classify', 'checkpoint', 'context']) {
-    const c = steeringClause(STEER, role, CONTRACT);
+    const c = steeringClause(role);
     assert.ok(c.includes(STEER), `${role}: command missing`);
     assert.ok(c.includes(CONTRACT), `${role}: contract missing`);
     assert.match(c, /` NOW/, `${role}: no fresh-run demand`);
@@ -800,12 +781,12 @@ test('steering: every role names the command, demands a fresh run, and handles n
 });
 
 test('steering: each role carries its own duty', () => {
-  assert.match(steeringClause(STEER, 'writer', CONTRACT), /steering-honored:.*steeringHonored/s);
-  assert.match(steeringClause(STEER, 'writer', CONTRACT), /steeringConflict/);
-  assert.match(steeringClause(STEER, 'scout', CONTRACT), /STEERING COMPLIANCE.*severity HIGH/s);
-  assert.match(steeringClause(STEER, 'refute', CONTRACT), /refuted ONLY when the diff does not contradict/);
-  assert.match(steeringClause(STEER, 'classify', CONTRACT), /contradicts an entry is 'intent-bearing'/);
-  assert.match(steeringClause(STEER, 'checkpoint', CONTRACT), /steeringViolations/);
+  assert.match(steeringClause('writer'), /steering-honored:.*steeringHonored/s);
+  assert.match(steeringClause('writer'), /steeringConflict/);
+  assert.match(steeringClause('scout'), /STEERING COMPLIANCE.*severity HIGH/s);
+  assert.match(steeringClause('refute'), /refuted ONLY when the diff does not contradict/);
+  assert.match(steeringClause('classify'), /contradicts an entry is 'intent-bearing'/);
+  assert.match(steeringClause('checkpoint'), /steeringViolations/);
 });
 
 test('steeringDigest: null when no stage reported steering', () => {
@@ -876,8 +857,7 @@ test('driveReview classifies the decisions of every review path; no walk classif
 
 test('settle: a stop request joins nothing; other results are classified, join ran, and questions stop', async () => {
   const classified = [];
-  // extractFn starts at `function`, so the async keyword goes back in front.
-  const settle = new Function('classifyDecisions', `async ${extractFn(yoloSrc, 'settle')}; return settle;`)(
+  const settle = new Function('classifyDecisions', `${extractFn(yoloSrc, 'settle')}; return settle;`)(
     async (r) => { classified.push(r.stage); return { ...r, classifiedNow: true }; });
   const ran = [];
   const stopped = await settle({ stage: 'plan', status: 'stopped' }, {}, ran);
@@ -903,16 +883,39 @@ test('stopOut: every stop has one shape, and the chain names its stop point stop
 // ---------------------------------------------------------------------------
 // Orientation blocks every workflow type that yolo does not drive.
 // ---------------------------------------------------------------------------
-test('orient: audit is terminal analysis with its own route, and task is refused', () => {
-  const orientSrc = fnSrc('orient');
-  assert.match(orientSrc, /5a\. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ \{investigate, discover, ideate, audit, brainstorm\}/);
-  assert.match(orientSrc, /audit → "each finding's route in 07-review\.md \(## Triage ` \+\s+`Decisions\)"/);
-  assert.match(orientSrc, /TASK — workflow-type 'task'\. Its blast-radius gates are never resolved unattended\. yolo drives ` \+\s+`NOTHING here\./);
-  assert.match(orientSrc, /route='\/wf intake task \$\{slug\}'\. Do NOT fall through to 5d\./);
+// The orient prompt, rendered with a stub agent. The classes, blocks and routes themselves are
+// tested in tests/unit/lib/drive-class.test.mjs; the prompt copies the `drive` block of status.
+async function orientPrompt() {
+  let prompt = '';
+  const orient = new Function('agent', 'judgeLiveness', `
+    const projectRoot = '/repo', referenceRoot = '/plugin/skills/wf/reference', slug = 'demo', slice = null
+    const WF_CMD = 'node "/plugin/skills/wf/scripts/wf.mjs"', JOURNAL_PATH = '/repo/j.jsonl', GIVEN_RUN_ID = null
+    const REC = (verb) => WF_CMD + ' record ' + verb, lineCmd = () => 'line', ORIENT_RESULT = {}, OPUS = {}
+    ${extractFn(yoloSrc, 'orient')}
+    return orient`)(async (p) => { prompt = p; return null; }, () => null);
+  await orient();
+  return prompt;
+}
+
+test('orient: the readiness gate copies the drive block of status, and keeps only the design gate', async () => {
+  const p = await orientPrompt();
+  assert.match(p, /Its `drive` block is the class of the workflow, computed in code by \/plugin\/skills\/wf\/reference\/\.\.\/\.\.\/\.\.\/lib\/drive-class\.mjs/);
+  assert.match(p, /When drive\.drivable is false, set ok=false, and copy drive\.blockReason to blockReason and drive\.route to route as they are/);
+  assert.match(p, /When drive\.drivable is true, the workflow is ready to drive; apply the design gate below/);
+  assert.match(p, /When drive\.singleScope is true \(03-slice\.md is absent/);
+  assert.match(p, /3\. fileConvention = drive\.fileConvention/);
+  assert.match(p, /workflowType = drive\.workflowType, reviewScope = drive\.reviewScope/);
+  assert.match(p, /reviewDimension = drive\.reviewDimension/);
+  assert.match(p, /DESIGN GATE \(for drive\.class build, change-mode and rca/);
+  assert.match(p, /in the roster — if not, set ok=false, blockReason, route='\/wf slice demo'/, 'step 4 stays');
+  assert.match(p, /For drive\.class optimize: the roster is the one slice 'optimize'\. Mark its plan 'done'/);
+  assert.match(p, /For drive\.class self-managed \(update-deps\): the roster is one slice/);
+  // No class is derived from prose any more.
+  assert.doesNotMatch(p, /TERMINAL-ANALYSIS|PROTOTYPE — workflow-type|TASK — workflow-type|fall through to 5d/);
 });
 
-test('orient: an absent review-scope follows the rule of reviewScopeOf, not a per-slice default', () => {
-  const orientSrc = fnSrc('orient');
-  assert.doesNotMatch(orientSrc, /default 'per-slice' if the field is absent/);
-  assert.match(orientSrc, /the rule of reviewScopeOf in \$\{referenceRoot\}\/\.\.\/\.\.\/\.\.\/lib\/lifecycle-done\.mjs: the key wins when it is set; ` \+\s+`with no key, 'per-slice' only when 07-review-<slice>\.md records exist and 07-review\.md does not, else ` \+\s+`'slug-wide'/);
+test('orient: an absent review-scope follows the rule of reviewScopeOf, not a per-slice default', async () => {
+  const p = await orientPrompt();
+  assert.doesNotMatch(p, /default 'per-slice' if the field is absent/);
+  assert.match(p, /the rule of reviewScopeOf: the review-scope key wins; with no key, 'per-slice' only when 07-review-<slice>\.md records exist and 07-review\.md does not/);
 });
