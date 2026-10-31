@@ -170,10 +170,8 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .side h3:first-child { margin-top: 0; }
 .side h3 .chk { margin-left: auto; font-weight: 400; }
 .side .none { color: var(--pencil); margin: 0; }
-.thread { position: relative; margin-bottom: 10px; padding: 10px 12px 10px 14px; border-radius: var(--r); background: var(--sunk); }
-.thread::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--note); }
-.thread.closed { opacity: .7; }
-.thread.closed::before { background: var(--line); }
+.thread { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--note); border-radius: var(--r); background: var(--sunk); }
+.thread.closed { opacity: .7; border-color: var(--line); }
 .thread .c { margin: 0 0 6px; }
 .thread .c b { display: block; font-size: 12.5px; font-weight: 600; color: var(--pencil); }
 .thread small { display: block; color: var(--pencil); font-size: 12px; overflow-wrap: anywhere; }

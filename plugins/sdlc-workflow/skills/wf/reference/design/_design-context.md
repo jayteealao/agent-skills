@@ -2,14 +2,14 @@
 
 Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
 
-The single source of truth for the **design modes** and the **shared design laws**. Edit them only here. These are direction-time rules. The refusals and the checks of the built result are in [_craft-floor.md](_craft-floor.md), which loads only after the direction is settled. The design stage's own gates (context gathering, image gate, preflight gates, mutation types) are in `design/_preflight.md`.
+The single source of truth for the **design modes** and the **shared design laws**. Edit them only here. These are direction-time rules. The refusals and the checks of the built result are in [_craft-floor.md](_craft-floor.md), which loads only after the direction is settled. The codebase inspection sub-agents of the design stage are in `design/_preflight.md`.
 
 **Consumer contract.** Each stage loads only its sections, through the Sections cell of its Requires row, when the design lane says design is needed (`design/_lane.md`). This asymmetry is intentional, not drift:
 - `slice` — Design modes (maps each surface to its design mode; never redesigns).
 - `plan` — Design modes; Shared design laws. Then load the craft home (`animate.md`, `polish.md`, `typeset.md`) for what the feature touches.
 - `implement` — Design modes; Shared design laws, and the craft home.
 - `verify`, `review`, and the design `audit` and `critique` — they do not load this file. They load `_craft-floor.md` only.
-- The design stage — the whole file and `design/_preflight.md` at Step 1.
+- The design stage — the whole file at Step 1, and `design/_preflight.md` at Step 3.
 
 The table of `_craft-floor.md` says when each stage loads the floor.
 

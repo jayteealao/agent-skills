@@ -109,7 +109,7 @@ sentence, named anchor references, anti-goals — from the discovery interview. 
 to the design stage, which a person runs:
 
 - **Screens** — the design stage draws each changed screen on the design surface when it authors
-  the visual contract (see [contract.md](contract.md) → *Land the visual direction*, and
+  the visual contract (see [stage.md](stage.md) Step 4, and
   [_surface.md](_surface.md)). Do not draw screens or explore sketches here.
 - **Approval** — the design stage runs the checks and gets the person's approval from the answer
   event before it writes `02c-craft.md`. The brief is revisable discovery output, not

@@ -40,7 +40,6 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -50,6 +49,7 @@ import {
   userCodexHome,
 } from './isolate.mjs';
 import { appendCostRow, CLAUDE_USAGE_FIELDS, CODEX_USAGE_FIELDS } from '../../../lib/cost-ledger.mjs';
+import { killTree } from '../../../lib/proc.mjs';
 import { workflowDir } from '../../../lib/records-root.mjs';
 
 // ── configuration (NOT user-facing flags, D15) ──────────────────────────────
@@ -133,10 +133,11 @@ function defaultHasBin(bin) {
  *   --max-turns     : bound the agentic loop.
  *   --output-format json   : parse result/total_cost_usd.
  */
-export function buildClaudeArgs({ maxTurns = CLI_MAX_TURNS } = {}) {
+export function buildClaudeArgs({ maxTurns = CLI_MAX_TURNS, model = null } = {}) {
   return [
     '-p', 'Follow the consultation instructions provided on standard input.',
     '--output-format', 'json',
+    ...(model ? ['--model', model] : []),
     '--tools', 'Read,Glob,Grep',
     '--strict-mcp-config',
     '--permission-mode', 'plan',
@@ -145,8 +146,8 @@ export function buildClaudeArgs({ maxTurns = CLI_MAX_TURNS } = {}) {
 }
 
 /** Headless read-only `codex exec` argv. Prompt rides on STDIN. --json = NDJSON stream. */
-export function buildCodexArgs() {
-  return ['exec', '--sandbox', 'read-only', '--json'];
+export function buildCodexArgs({ model = null } = {}) {
+  return ['exec', '--sandbox', 'read-only', '--json', ...(model ? ['--model', model] : [])];
 }
 
 /**
@@ -401,67 +402,87 @@ export function parseGemini(json) {
  * silently regressing. `tempHome` is the freshly-created CODEX_HOME to remove
  * after the child exits (null when none was created — never the user's real home).
  */
-export function buildCliSpawn(provider, repoRoot, { env = process.env, prepareHome = prepareCodexHome } = {}) {
+export function buildCliSpawn(provider, repoRoot, { env = process.env, prepareHome = prepareCodexHome, model = null, maxTurns = CLI_MAX_TURNS } = {}) {
   let bin, args, childEnv, tempHome = null;
   if (provider === 'claude') {
     bin = 'claude';
-    args = buildClaudeArgs();
+    args = buildClaudeArgs({ maxTurns, model });
     childEnv = buildClaudeEnv(env);
   } else {
     bin = 'codex';
-    args = buildCodexArgs();
+    args = buildCodexArgs({ model });
     tempHome = prepareHome(userCodexHome(env)); // null on failure → buildCodexEnv leaves the real home
     childEnv = buildCodexEnv(env, { codexHome: tempHome });
   }
   const { cmd, cmdArgs } = winWrap(bin, args);
-  const options = { cwd: repoRoot, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true };
+  // On POSIX the child leads its own process group, so a timeout's killTree stops its children too.
+  const options = { cwd: repoRoot, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' };
   return { cmd, cmdArgs, options, tempHome };
 }
 
-function runCli(provider, prompt, repoRoot) {
+/**
+ * Run one CLI oracle (`claude` or `codex`) headless and read-only, with the prompt on stdin.
+ * Resolves `{ provider, model, ok, text, costUsd, usage, evidenceScope, error, errorKind, remedy }`;
+ * a failure names its class (auth, sandbox, not-found, timeout, unknown). `model` pins the model,
+ * `maxTurns` bounds the claude loop, and `timeoutMs` kills the run and its children when it
+ * runs longer. The design audit of the canvas runs through here too.
+ */
+export function runCli(provider, prompt, repoRoot, { model = null, timeoutMs = null, maxTurns = CLI_MAX_TURNS, env = process.env, build = buildCliSpawn } = {}) {
   return new Promise((resolve) => {
-    const { cmd, cmdArgs, options, tempHome } = buildCliSpawn(provider, repoRoot);
+    const { cmd, cmdArgs, options, tempHome } = build(provider, repoRoot, { env, model, maxTurns });
     const parse = provider === 'claude' ? parseClaudeOutput : parseCodexOutput;
     const evScope = evidenceScope(provider);
     // The isolated CODEX_HOME holds a COPY of auth.json — remove it once the
     // child is done (idempotent: 'error' then 'close' may both fire).
     const cleanup = () => { if (tempHome) { try { rmSync(tempHome, { recursive: true, force: true }); } catch { /* best-effort */ } } };
+    const base = { provider, model: model ?? null, evidenceScope: evScope };
 
     let child;
     try {
       child = spawn(cmd, cmdArgs, options);
     } catch (err) {
       cleanup();
-      resolve({ provider, ok: false, text: '', costUsd: null, evidenceScope: evScope, error: String(err?.message || err) });
+      resolve({ ...base, ok: false, text: '', costUsd: null, error: String(err?.message || err) });
       return;
     }
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    const timer = timeoutMs ? setTimeout(() => { timedOut = true; killTree(child.pid); }, timeoutMs) : null;
     child.stdout.on('data', (d) => { stdout += d.toString(); });
     child.stderr.on('data', (d) => { stderr += d.toString(); });
     child.on('error', (err) => {
+      if (timer) clearTimeout(timer);
       cleanup();
-      resolve({ provider, ok: false, text: '', costUsd: null, evidenceScope: evScope, error: String(err?.message || err) });
+      resolve({ ...base, ok: false, text: '', costUsd: null, error: String(err?.message || err) });
     });
     child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
       cleanup();
+      if (timedOut) {
+        resolve({ ...base, ok: false, text: '', costUsd: null, error: `${provider} timed out after ${timeoutMs} ms`, errorKind: 'timeout', remedy: null });
+        return;
+      }
       // A zero exit can still be an in-band failure (claude reports is_error on
       // stdout while exiting 0 in some versions), so classify both paths.
       const inBand = provider === 'claude' ? claudeFailureText(stdout) : null;
       if (code === 0 && !inBand) {
         const { text, costUsd, usage } = parse(stdout);
-        resolve({ provider, ok: Boolean(text), text, costUsd, usage: usage ?? null, evidenceScope: evScope, error: text ? null : `empty output${stderr ? `: ${stderr.trim()}` : ''}` });
+        resolve({ ...base, ok: Boolean(text), text, costUsd, usage: usage ?? null, error: text ? null : `empty output${stderr ? `: ${stderr.trim()}` : ''}` });
       } else {
         const { reason, kind, remedy } = extractCliFailure(provider, stdout, stderr, code);
         resolve({
-          provider, ok: false, text: '', costUsd: null, evidenceScope: evScope,
+          ...base, ok: false, text: '', costUsd: null,
           error: `${provider} unavailable (${kind}): ${reason}${remedy ? ` — ${remedy}` : ''}`,
           errorKind: kind,
           remedy,
         });
       }
     });
+
+    // A child that ends before it reads the prompt closes stdin; the close handler reports it.
+    child.stdin.on('error', () => {});
 
     // Feed the prompt on stdin (avoids argv limits + cmd.exe quoting).
     try {
@@ -548,8 +569,10 @@ async function main() {
   process.exit(0);
 }
 
+// Only a run of this file starts the fan-out: `lib/dispatch.mjs` has the same base name, and the
+// design audit imports this file into the design server.
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (isMain || basename(process.argv[1] || '') === 'dispatch.mjs') {
+if (isMain || /consult[\\/]scripts[\\/]dispatch\.mjs$/i.test(process.argv[1] || '')) {
   main().catch((err) => {
     process.stderr.write(`${String(err?.stack || err)}\n`);
     process.exit(1);

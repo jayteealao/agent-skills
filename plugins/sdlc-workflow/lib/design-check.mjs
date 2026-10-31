@@ -1,20 +1,23 @@
 // The checks of the screens, before an approval: contrast, target size, viewport fit,
 // worst-case content, display bugs, overlapping text, script errors and colors that are not
 // tokens, in each viewport and each state. A headless Chromium opens each screen page over the
-// DevTools protocol, and a script in the page measures it.
+// DevTools protocol, and a script in the page measures it. A pool of pages in one browser loads
+// the screen pages side by side.
 //
 // Each failure names its screen, check, viewport and state, a message, the box of the element
 // on the page, and the move that fixes it. The result goes to `_design/checks.json` in the
 // records; the canvas draws the boxes, and the approval question shows each failure.
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { browserCandidates } from '../scripts/design-boards.mjs';
-import { readChecks, writeChecks } from './design-records.mjs';
+import { groupFailures, readChecks, writeChecks } from './design-records.mjs';
 import { tokensOf } from './design-state.mjs';
-import { STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenFile, surfaceDir } from './design-surface.mjs';
+import { STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenUrl, surfaceDir } from './design-surface.mjs';
+import { killTree } from './proc.mjs';
+
+export { groupFailures };
 
 /**
  * The check of a failure → the move that fixes it (design/<move>.md). A script error names no
@@ -29,8 +32,28 @@ export const MIN_TARGET = 24;
 const START_MS = 15000;
 const STEP_MS = 15000;
 const MAX_PER_PAGE = 40;
+/** The pages that load screen pages at the same time, in one browser. */
+const PAGES = 3;
 
 /* ───────────────────────── the page script ───────────────────────── */
+
+// Runs in the page: the box of an element in CSS pixels of the document. The checks and the
+// boxes of the audit findings share it.
+function pageBox(el) {
+  const r = el.getBoundingClientRect();
+  return { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), width: Math.round(r.width), height: Math.round(r.height) };
+}
+
+/** A script for the page: the box of the first element that `selector` matches, or null when none matches or it has no size. */
+export function selectorRect(selector) {
+  return `((pageBox) => { try {
+    const el = document.querySelector(${JSON.stringify(String(selector))});
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return null;
+    return pageBox(el);
+  } catch { return null; } })(${pageBox.toString()})`;
+}
 
 // Runs in the screen page. It returns `[{ check, message, rect, selector }]`. `tokens` are the
 // color tokens of the token sheet, `[{ name, value }]`, for the token check; empty skips it.
@@ -61,10 +84,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
     const cs = getComputedStyle(el);
     return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && Number(cs.opacity) > 0;
   };
-  const box = (el) => {
-    const r = el.getBoundingClientRect();
-    return { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), width: Math.round(r.width), height: Math.round(r.height) };
-  };
+  const box = pageBox;
   const selector = (el) => {
     const parts = [];
     for (let n = el; n && n.nodeType === 1 && n !== document.body && parts.length < 4; n = n.parentElement) {
@@ -202,6 +222,14 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
       return !best || d < best.d ? { t, d } : best;
     }, null);
     const told = new Set();
+    // True when a style holds a raw color in a color property: only such a rule needs the DOM query.
+    const hasRaw = (style) => {
+      for (let i = 0; i < style.length; i += 1) {
+        const value = style.getPropertyValue(style[i]);
+        if (COLOR.test(style[i]) && value && !value.includes('var(') && RAW.test(value)) return true;
+      }
+      return false;
+    };
     const scan = (style, where, el) => {
       for (let i = 0; i < style.length; i += 1) {
         const prop = style[i];
@@ -223,7 +251,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
       let list;
       try { list = sheet.cssRules; } catch { continue; }
       for (const r of flat(list)) {
-        if (!r.selectorText || !r.style) continue;
+        if (!r.selectorText || !r.style || !hasRaw(r.style)) continue;
         let el = null;
         try { el = [...document.querySelectorAll(r.selectorText)].find(shown) ?? null; } catch { el = null; }
         if (el) scan(r.style, r.selectorText, el);
@@ -235,11 +263,6 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
 }
 
 /* ───────────────────────── the browser ───────────────────────── */
-
-function killTree(pid) {
-  if (platform() === 'win32') spawnSync('taskkill', ['/F', '/T', '/PID', String(pid)], { windowsHide: true });
-  else { try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } } }
-}
 
 /** The first browser that can run the checks: a Chromium or a headless shell, not a script. */
 export function checkBrowser(root, env = process.env) {
@@ -310,67 +333,96 @@ class Cdp {
   }
 }
 
-/** Open a browser for the checks. Returns `{ open(url, viewport), evaluate, screenshot, close }`, or null. */
-export async function openBrowser(root, { browser = checkBrowser(root) } = {}) {
+/**
+ * Open a browser for the checks. Returns `{ open(url, viewport), evaluate, screenshot, errors,
+ * pages, close }`, or null. `open` and the others drive the first page; `pages` holds it and up
+ * to `pages - 1` more, each with the same four functions, for loads side by side.
+ */
+export async function openBrowser(root, { browser = checkBrowser(root), pages = 1 } = {}) {
   if (!browser) return null;
   const started = (await startBrowser(browser, { noSandbox: false })) ?? (await startBrowser(browser, { noSandbox: true }));
   if (!started) return null;
   const ws = new WebSocket(started.url);
   await new Promise((ok, no) => { ws.addEventListener('open', ok, { once: true }); ws.addEventListener('error', () => no(new Error('the browser refused the DevTools connection')), { once: true }); });
   const cdp = new Cdp(ws);
-  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
-  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
-  await cdp.send('Page.enable', {}, sessionId);
-  await cdp.send('Runtime.enable', {}, sessionId);
-  const evaluate = async (expression) => {
-    const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
-    return r.result.value;
+  const close = async () => {
+    try { await Promise.race([cdp.send('Browser.close'), new Promise((ok) => setTimeout(ok, 2000))]); } catch { /* it closed */ }
+    try { ws.close(); } catch { /* closed */ }
+    killTree(started.child.pid);
+    await new Promise((ok) => setTimeout(ok, 200));
+    try { rmSync(started.profile, { recursive: true, force: true }); } catch { /* the browser can hold it a moment */ }
   };
-  // The errors of the page's own scripts since the last open: uncaught exceptions and console.error.
-  let errors = [];
-  cdp.listeners.push((m) => {
-    if (m.sessionId !== sessionId) return;
-    if (m.method === 'Runtime.exceptionThrown') {
-      const d = m.params.exceptionDetails;
-      errors.push(String(d.exception?.description ?? d.text ?? 'an uncaught exception').split('\n')[0].slice(0, 300));
-    } else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
-      errors.push(m.params.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 300) || 'console.error');
+  const page = async ({ newWindow }) => {
+    // A page in its own window is in front, so the browser does not slow its timers as it does for a background tab.
+    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank', ...(newWindow ? { newWindow: true } : {}) })
+      .catch(() => cdp.send('Target.createTarget', { url: 'about:blank' }));
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    await cdp.send('Page.enable', {}, sessionId);
+    await cdp.send('Runtime.enable', {}, sessionId);
+    const evaluate = async (expression) => {
+      const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+      return r.result.value;
+    };
+    // The errors of the page's own scripts since the last open: uncaught exceptions and console.error.
+    let errors = [];
+    cdp.listeners.push((m) => {
+      if (m.sessionId !== sessionId) return;
+      if (m.method === 'Runtime.exceptionThrown') {
+        const d = m.params.exceptionDetails;
+        errors.push(String(d.exception?.description ?? d.text ?? 'an uncaught exception').split('\n')[0].slice(0, 300));
+      } else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+        errors.push(m.params.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 300) || 'console.error');
+      }
+    });
+    return {
+      errors: () => errors.slice(),
+      async open(url, { width, height }) {
+        errors = [];
+        await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 }, sessionId);
+        const loaded = cdp.once('Page.loadEventFired', sessionId);
+        await cdp.send('Page.navigate', { url }, sessionId);
+        await loaded;
+        await evaluate('document.fonts ? document.fonts.ready.then(() => true) : true');
+      },
+      evaluate,
+      async screenshot() {
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId);
+        return Buffer.from(data, 'base64');
+      },
+    };
+  };
+  const all = [];
+  try {
+    all.push(await page({ newWindow: false }));
+    // A page that the browser cannot make leaves a smaller pool, never a failed run.
+    for (let i = 1; i < pages; i += 1) {
+      try { all.push(await page({ newWindow: true })); } catch { break; }
     }
-  });
-  return {
-    browser,
-    errors: () => errors.slice(),
-    async open(url, { width, height }) {
-      errors = [];
-      await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 }, sessionId);
-      const loaded = cdp.once('Page.loadEventFired', sessionId);
-      await cdp.send('Page.navigate', { url }, sessionId);
-      await loaded;
-      await evaluate('document.fonts ? document.fonts.ready.then(() => true) : true');
-    },
-    evaluate,
-    async screenshot() {
-      const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId);
-      return Buffer.from(data, 'base64');
-    },
-    async close() {
-      try { await Promise.race([cdp.send('Browser.close'), new Promise((ok) => setTimeout(ok, 2000))]); } catch { /* it closed */ }
-      try { ws.close(); } catch { /* closed */ }
-      killTree(started.child.pid);
-      await new Promise((ok) => setTimeout(ok, 200));
-      try { rmSync(started.profile, { recursive: true, force: true }); } catch { /* the browser can hold it a moment */ }
-    },
-  };
+  } catch (e) { await close(); throw e; }
+  return { browser, ...all[0], pages: all, close };
 }
 
 /* ───────────────────────── the run ───────────────────────── */
 
-const screenUrl = (root, key, state) => `${pathToFileURL(screenFile(root, key)).href}?state=${state}`;
-
 /** The viewports of the surface: `[{ name, width, height }]`. */
 export function surfaceViewports(root) {
   return Object.entries(readManifest(root).viewports).map(([name, v]) => ({ name, ...parseViewport(v) }));
+}
+
+/** Run `job(page, item)` for each item over the pages of the pool. The results keep the order of the items. */
+export async function overPool(pages, items, job) {
+  const out = new Array(items.length);
+  let next = 0;
+  let failed = false;
+  const worker = async (page) => {
+    while (!failed && next < items.length) {
+      const i = next++;
+      try { out[i] = await job(page, items[i]); } catch (e) { failed = true; throw e; }
+    }
+  };
+  await Promise.all(pages.map(worker));
+  return out;
 }
 
 /**
@@ -391,32 +443,36 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
     if (!s.exists) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: 'The screen page is missing', rect: null, move: CHECK_MOVES.states });
     else if (missing.length) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: `The page has no ${missing.join(', ')} state`, rect: null, move: CHECK_MOVES.states });
   }
-  const b = await openBrowser(root, browser === undefined ? {} : { browser });
+  const b = await openBrowser(root, { ...(browser === undefined ? {} : { browser }), pages: PAGES });
   if (!b) {
     return { at: now.toISOString(), ran: false, reason: 'no browser can run the checks: install Chrome, Edge or Chromium, or set SDLC_BROWSER', passed: false, screens: screens.map((s) => s.key), failures };
   }
-  // The color tokens of the token sheet. The token check runs in the default state only: the
-  // styles of a page are the same in every state.
+  // The color tokens of the token sheet. The token check runs once for each screen, in the
+  // default state of the first viewport: the styles of a page are the same in every state and
+  // every viewport.
   let tokens = [];
   try { tokens = tokensOf(readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8')); } catch { tokens = []; }
   try {
-    const script = `(${pageChecks.toString()})`;
-    for (const s of screens.filter((x) => x.exists)) {
-      const scriptErrors = new Set();
-      for (const vp of surfaceViewports(root)) {
-        for (const state of s.states) {
-          await b.open(screenUrl(root, s.key, state), vp);
-          const found = await b.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: state === 'default' ? tokens : [] })})`);
-          for (const f of (found ?? []).slice(0, MAX_PER_PAGE)) failures.push({ screen: s.key, viewport: vp.name, state, ...f, move: CHECK_MOVES[f.check] ?? null });
-          // A script error is one failure of the screen, at the first viewport and state that shows it.
-          for (const message of b.errors?.() ?? []) {
-            if (scriptErrors.has(message)) continue;
-            scriptErrors.add(message);
-            failures.push({ screen: s.key, viewport: vp.name, state, check: 'script', message: `The page script fails: ${message}`, rect: null, selector: null, move: null });
-          }
-        }
+    const script = `((pageBox) => (${pageChecks.toString()}))(${pageBox.toString()})`;
+    const vps = surfaceViewports(root);
+    const loads = screens.filter((x) => x.exists).flatMap((s) => vps.flatMap((vp, n) => s.states.map((state) => ({ s, vp, state, scan: state === 'default' && n === 0 }))));
+    const results = await overPool(b.pages ?? [b], loads, async (page, { s, vp, state, scan }) => {
+      await page.open(screenUrl(root, s.key, state), vp);
+      const found = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: scan ? tokens : [] })})`);
+      return { found: found ?? [], errors: page.errors?.() ?? [] };
+    });
+    // A script error is one failure of the screen, at the first viewport and state that shows it.
+    const scriptErrors = new Map();
+    loads.forEach(({ s, vp, state }, i) => {
+      for (const f of results[i].found.slice(0, MAX_PER_PAGE)) failures.push({ screen: s.key, viewport: vp.name, state, ...f, move: CHECK_MOVES[f.check] ?? null });
+      if (!scriptErrors.has(s.key)) scriptErrors.set(s.key, new Set());
+      const seen = scriptErrors.get(s.key);
+      for (const message of results[i].errors) {
+        if (seen.has(message)) continue;
+        seen.add(message);
+        failures.push({ screen: s.key, viewport: vp.name, state, check: 'script', message: `The page script fails: ${message}`, rect: null, selector: null, move: null });
       }
-    }
+    });
   } finally { await b.close(); }
   const checked = new Set(screens.map((s) => s.key));
   const before = readChecks(root);
@@ -447,23 +503,7 @@ export async function captureScreens(root, keys, { viewport = null, browser = un
   return out;
 }
 
-/**
- * The failures grouped by cause: one group for each check and cause, for example one raw color
- * in five rules on three screens. `places` counts the distinct elements, not the viewports.
- */
-export function groupFailures(failures) {
-  const groups = new Map();
-  for (const f of failures) {
-    const k = `${f.check}|${f.cause ?? f.message}`;
-    if (!groups.has(k)) groups.set(k, { check: f.check, cause: f.cause ?? f.message, message: f.message, move: f.move ?? null, screens: [], viewports: [], states: [], at: new Set() });
-    const g = groups.get(k);
-    for (const [list, v] of [[g.screens, f.screen], [g.viewports, f.viewport], [g.states, f.state]]) if (v && !list.includes(v)) list.push(v);
-    g.at.add(`${f.screen}|${f.selector ?? f.message}|${f.state}`);
-  }
-  return [...groups.values()].map(({ at, ...g }) => ({ ...g, places: at.size }));
-}
-
-/** The failures as lines for a person: one per cause, with its places and its move. */
+/** The failures as lines for a person: one per cause (`groupFailures`), with its places and its move. */
 export function failureLines(failures) {
   return groupFailures(failures).map((g) => `${g.screens.join(', ')}${g.viewports.length ? ` (${g.viewports.join(', ')}; ${g.states.join(', ')})` : ''}: ${g.check}: ${g.message}${g.places > 1 ? ` (${g.places} places)` : ''}${g.move ? ` — move: ${g.move}` : ''}`);
 }

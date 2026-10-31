@@ -28,6 +28,7 @@ import {
   runFanout,
   buildCliSpawn,
   externalCostRow,
+  runCli,
 } from '../../../skills/consult/scripts/dispatch.mjs';
 import {
   buildClaudeEnv,
@@ -328,4 +329,33 @@ test('SDLC_DISPATCH_ACTIVE makes pre-write-validate skip an otherwise-blocking w
   equal(run({}).status, 2, 'invalid artifact is blocked without the sentinel');
   // With the sentinel: a dispatched sub-agent's write is not validated (exit 0).
   equal(run({ SDLC_DISPATCH_ACTIVE: '1' }).status, 0, 'sentinel makes the hook early-exit');
+});
+
+// ── runCli: the shared CLI runner (a node child stands in for the CLI) ─────────
+
+/** A spawn of `node -e <script>` in place of the CLI, with the options that runCli asked for. */
+const fakeCli = (script, seen = {}) => (provider, repoRoot, opts) => {
+  Object.assign(seen, { provider, repoRoot, ...opts, args: buildCliSpawn(provider, repoRoot, { ...opts, prepareHome: () => null }).cmdArgs });
+  return { cmd: process.execPath, cmdArgs: ['-e', script], options: { cwd: repoRoot, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' }, tempHome: null };
+};
+
+test('runCli: pins the model and the turns, reads the prompt on stdin, and keeps the usage', async () => {
+  const seen = {};
+  const out = JSON.stringify({ result: 'ok', total_cost_usd: 0.1, usage: { input_tokens: 9, output_tokens: 2 } });
+  const script = `let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{process.stdout.write(s.startsWith('hello')?${JSON.stringify(out)}:'')})`;
+  const r = await runCli('claude', 'hello there', tempDir(), { model: 'claude-sonnet-5-5', maxTurns: 80, build: fakeCli(script, seen) });
+  deepEqual([r.ok, r.text, r.costUsd, r.model, r.usage], [true, 'ok', 0.1, 'claude-sonnet-5-5', { input_tokens: 9, output_tokens: 2 }]);
+  const at = (flag) => seen.args[seen.args.indexOf(flag) + 1];
+  deepEqual([at('--model'), at('--max-turns'), at('--tools')], ['claude-sonnet-5-5', '80', 'Read,Glob,Grep']);
+  ok(!buildClaudeArgs().includes('--model'), 'no model flag unless one is named');
+  deepEqual(buildCodexArgs({ model: 'gpt-5.5' }).slice(-2), ['--model', 'gpt-5.5']);
+});
+
+test('runCli: an in-band failure keeps its class and remedy; a run past the timeout is killed and says so', async () => {
+  const failed = await runCli('claude', 'x', tempDir(), { build: fakeCli(`process.stdout.write(JSON.stringify({is_error:true,result:'Not logged in · Please run /login'}));process.exit(1)`) });
+  deepEqual([failed.ok, failed.errorKind], [false, 'auth']);
+  match(failed.remedy, /\/login/);
+  const slow = await runCli('claude', 'x', tempDir(), { timeoutMs: 300, build: fakeCli('setTimeout(()=>{}, 60000)') });
+  deepEqual([slow.ok, slow.errorKind], [false, 'timeout']);
+  match(slow.error, /timed out after 300 ms/);
 });

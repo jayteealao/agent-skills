@@ -74,7 +74,8 @@ export const PRODUCERS = [
   // Shape: the standard template, then each producer that synthesizes a shape.
   { match: /^02-shape\.md$/, templates: ['shape.md', 'intake/rca/_artifact.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md'] },
   { match: /^02b-design\.md$/, templates: ['design/brief.md'] },
-  { match: /^02c-craft\.md$/, templates: ['design/contract.md'] },
+  // The visual contract: the template, and the extra fields that the design stage adds at Step 6.
+  { match: /^02c-craft\.md$/, templates: ['design/contract.md', 'design/stage.md'] },
   // Slices: the master index and the per-slice files (standard, extension, probe, simplify).
   { match: /^03-slice\.md$/, templates: ['slice.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'intake/extend/_artifacts.md'] },
   { match: /^03-slice-probe-.*\.md$/, templates: ['probe/_artifact.md'] },

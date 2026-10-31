@@ -3,21 +3,23 @@
 //
 // The Audit button of the canvas starts it through the design server. The agent reads files and
 // changes nothing: its tools are Read, Glob and Grep, it loads no MCP server, and the SDLC hooks
-// skip it. The run writes no workflow record. Its report is one JSON file under the SDLC home,
-// which the canvas reads and draws: a score for each dimension, and each finding as a box on its
-// screen in each viewport.
-import { spawn } from 'node:child_process';
+// skip it. It runs through the runner of consult, so a failure names its class. Its report is one
+// JSON file under the SDLC home, which the canvas reads and draws: a score for each dimension,
+// and each finding as a box on its screen in each viewport. An audit of one workflow writes its
+// token use as one cost row, key `design-audit`, to the cost ledger of that workflow, like each
+// other external call; it writes no other record.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, normalize, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { buildClaudeEnv } from '../skills/consult/scripts/isolate.mjs';
-import { failureLines, openBrowser, surfaceViewports } from './design-check.mjs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { isAbsolute, join, normalize, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { externalCostRow, runCli, buildClaudeArgs } from '../skills/consult/scripts/dispatch.mjs';
+import { appendCostRow } from './cost-ledger.mjs';
+import { failureLines, openBrowser, selectorRect, surfaceViewports } from './design-check.mjs';
 import { readChecks } from './design-records.mjs';
-import { KEY_RE, STATES, listScreens, readManifest, screenFile, screenRel } from './design-surface.mjs';
+import { KEY_RE, STATES, listScreens, readManifest, screenRel, screenUrl, writeJson } from './design-surface.mjs';
 import { sdlcHomeDir } from './home.mjs';
-import { killTree, pidAlive } from './proc.mjs';
-import { readDoc } from './records.mjs';
+import { pidAlive } from './proc.mjs';
+import { INDEX_NAME, frontmatterOfDoc, readDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 export const AUDIT_SCHEMA = 'sdlc/design-audit/v1';
@@ -38,10 +40,7 @@ export const auditPath = (root) => join(sdlcHomeDir(), 'design-audits', `${creat
 const running = new Map();
 
 function writeReport(root, report) {
-  const path = auditPath(root);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(`${path}.tmp`, `${JSON.stringify(report, null, 2)}\n`);
-  renameSync(`${path}.tmp`, path);
+  writeJson(auditPath(root), report);
   return report;
 }
 
@@ -55,20 +54,68 @@ export function readAudit(root) {
   return report;
 }
 
-/** The argv of the headless agent. Paths never go in argv: the prompt carries them on stdin. */
-export function buildAuditArgs() {
-  return [
-    '-p', 'Follow the audit instructions on standard input.',
-    '--output-format', 'json',
-    '--model', AUDIT_MODEL,
-    '--tools', 'Read,Glob,Grep',
-    '--strict-mcp-config',
-    '--permission-mode', 'plan',
-    '--max-turns', String(MAX_TURNS),
-  ];
-}
+/** The argv of the headless agent: the read-only argv of consult, with the audit model and turns. Paths never go in argv. */
+export const buildAuditArgs = () => buildClaudeArgs({ model: AUDIT_MODEL, maxTurns: MAX_TURNS });
 
 const readText = (file) => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
+
+/** The platforms of the platform map, each with the name of its column. */
+export const PLATFORM_COLUMNS = Object.freeze({ web: 'Web', ios: 'iOS', android: 'Android (Compose)', desktop: 'Desktop' });
+
+/**
+ * The platforms of the built UI, as keys of PLATFORM_COLUMNS: `stack.platforms` of the workflow,
+ * or of the workflows of the screens when the audit names none. With no stack, the files at the
+ * top of the repo: Gradle is Android, an Xcode project is iOS, `package.json` is the web. An empty
+ * list is an unknown platform.
+ */
+export function auditPlatforms(root, { workflow = null, screens = [] } = {}) {
+  const slugs = workflow ? [workflow] : [...new Set(screens.flatMap((s) => s.workflows ?? []))];
+  const stack = slugs.flatMap((w) => {
+    const p = frontmatterOfDoc(workflowDir(root, w), INDEX_NAME)?.stack?.platforms;
+    return Array.isArray(p) ? p.map((x) => String(x).toLowerCase()) : [];
+  });
+  if (stack.length) return Object.keys(PLATFORM_COLUMNS).filter((k) => stack.includes(k));
+  let files = [];
+  try { files = readdirSync(root); } catch { files = []; }
+  const found = [
+    files.some((f) => /^(settings|build)\.gradle(\.kts)?$/.test(f)) && 'android',
+    files.some((f) => /\.(xcodeproj|xcworkspace)$/.test(f)) && 'ios',
+    files.includes('package.json') && 'web',
+  ].filter(Boolean);
+  return found.length === 1 ? found : [];
+}
+
+/** Split a table row into its cells; a `\|` inside a cell is not a split. */
+const cellsOf = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => c.trim());
+
+/**
+ * The platform map with only the first column of each table and the columns of `platforms`.
+ * A table whose rows are the platforms keeps the rows of `platforms`. With no platform, the
+ * whole map.
+ */
+export function platformMap(text, platforms) {
+  const names = (platforms ?? []).map((p) => PLATFORM_COLUMNS[p]).filter(Boolean);
+  if (!names.length) return text;
+  const lines = String(text).split(/\r?\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const head = /^\|/.test(lines[i]) && /^\|[\s|:-]+\|\s*$/.test(lines[i + 1] ?? '') ? cellsOf(lines[i]) : null;
+    if (!head) { out.push(lines[i]); continue; }
+    let j = i + 2;
+    const rows = [];
+    while (j < lines.length && /^\|/.test(lines[j])) rows.push(cellsOf(lines[j++]));
+    const keep = head.map((h, n) => (n === 0 || names.includes(h) ? n : -1)).filter((n) => n >= 0);
+    if (keep.length > 1) {
+      const row = (cells) => `| ${keep.map((n) => cells[n] ?? '').join(' | ')} |`;
+      out.push(row(head), `|${keep.map(() => '---').join('|')}|`, ...rows.map(row));
+    } else {
+      // The rows are the platforms (`| Platform | Tools |`): keep the rows of the chosen ones.
+      out.push(lines[i], lines[i + 1], ...lines.slice(i + 2, j).filter((l) => names.includes(cellsOf(l)[0])));
+    }
+    i = j - 1;
+  }
+  return out.join('\n');
+}
 
 /** The instructions of the agent: the rules, the platform map, the screens and the contract. */
 export function auditPrompt(root, { workflow = null } = {}) {
@@ -76,6 +123,8 @@ export function auditPrompt(root, { workflow = null } = {}) {
   const contract = workflow && existsSync(workflowDir(root, workflow)) ? readDoc(workflowDir(root, workflow), '02c-craft.md')?.body ?? '' : '';
   const keys = new Set(screens.map((s) => s.key));
   const measured = (readChecks(root)?.failures ?? []).filter((f) => keys.has(f.screen)).slice(0, MAX_MEASURED);
+  const platforms = auditPlatforms(root, { workflow, screens });
+  const columns = platforms.map((p) => PLATFORM_COLUMNS[p]).join(' and ');
   return [
     'You audit the design of one product repo. You are read-only: you read files and change nothing. Write no file.',
     '',
@@ -84,7 +133,9 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '## Steps',
     '',
     '1. Read `DESIGN.md` and `.ai/design/tokens.css`. They hold the design system and its tokens.',
-    '2. Find the platform of the built UI from the repo: web, Android with Jetpack Compose, iOS, or desktop. Use the column of that platform in the platform map below.',
+    platforms.length
+      ? `2. The platform of the built UI is ${columns}. The platform map below keeps only ${platforms.length > 1 ? 'the columns of those platforms' : 'the column of that platform'}.`
+      : '2. Find the platform of the built UI from the repo: web, Android with Jetpack Compose, iOS, or desktop. Use the column of that platform in the platform map below.',
     '3. Read each screen page below. Each screen is an HTML mock with the states default, empty, loading, error and worst, each an element with `data-state`.',
     '4. Find the built UI code of each screen in the repo with Glob and Grep, and read it. When no built code exists, audit the screens only.',
     '5. Run the Diagnostic Scan of the audit rules below, sections 1 to 5, over the screens and the built code. Weigh most: a value that does not use a token, a target under the minimum of the platform, and drift from `DESIGN.md`.',
@@ -115,7 +166,7 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '',
     '## The platform map (`design/_platforms.md`)',
     '',
-    readText(join(DESIGN_REF, '_platforms.md')),
+    platformMap(readText(join(DESIGN_REF, '_platforms.md')), platforms),
     '',
     '## Return',
     '',
@@ -201,15 +252,9 @@ export async function screenRects(root, findings, { browser = undefined } = {}) 
       const pages = [...new Set(targets.map((f) => `${f.screen}|${f.state}`))];
       for (const page of pages) {
         const [key, state] = page.split('|');
-        await b.open(`${pathToFileURL(screenFile(root, key)).href}?state=${state}`, vp);
+        await b.open(screenUrl(root, key, state), vp);
         for (const f of targets.filter((x) => x.screen === key && x.state === state)) {
-          const rect = await b.evaluate(`(() => { try {
-            const el = document.querySelector(${JSON.stringify(f.selector)});
-            if (!el) return null;
-            const r = el.getBoundingClientRect();
-            if (!r.width && !r.height) return null;
-            return { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), width: Math.round(r.width), height: Math.round(r.height) };
-          } catch { return null; } })()`);
+          const rect = await b.evaluate(selectorRect(f.selector));
           (f.rects ||= {})[vp.name] = rect ?? null;
         }
       }
@@ -218,34 +263,20 @@ export async function screenRects(root, findings, { browser = undefined } = {}) 
   return findings;
 }
 
-/** Run `claude -p` with the prompt on stdin. Resolves `{ ok, text, costUsd, error }`. */
+/** Run the agent through the runner of consult. Resolves `{ ok, text, costUsd, usage, error, errorKind }`. */
 export function spawnClaude(prompt, { cwd, timeoutMs = TIMEOUT_MS } = {}) {
-  return new Promise((done) => {
-    const args = buildAuditArgs();
-    // On POSIX the child leads its own process group, so killTree stops its grandchildren too.
-    // A `.cmd` shim of an npm install cannot start without cmd.exe, as in consult's dispatch.
-    // The arguments hold no path, so the quoting of cmd.exe cannot break one.
-    const [cmd, argv] = process.platform === 'win32' ? ['cmd.exe', ['/d', '/s', '/c', 'claude', ...args]] : ['claude', args];
-    let child;
-    try {
-      child = spawn(cmd, argv, { cwd, env: buildClaudeEnv(process.env), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
-    } catch (e) { done({ ok: false, error: String(e?.message || e) }); return; }
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => { killTree(child.pid); }, timeoutMs);
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
-    child.on('error', (e) => { clearTimeout(timer); done({ ok: false, error: String(e?.message || e) }); });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      let out = null;
-      try { out = JSON.parse(stdout); } catch { out = null; }
-      if (code === 0 && out && !out.is_error) done({ ok: true, text: String(out.result ?? ''), costUsd: typeof out.total_cost_usd === 'number' ? out.total_cost_usd : null });
-      else done({ ok: false, error: String(out?.result || stderr || stdout || `claude exited ${code}`).trim().slice(0, 600) });
-    });
-    child.stdin.on('error', () => { /* the child closed early; close reports it */ });
-    child.stdin.end(prompt);
-  });
+  return runCli('claude', prompt, cwd, { model: AUDIT_MODEL, maxTurns: MAX_TURNS, timeoutMs });
+}
+
+/** Write the token use of an audit of one workflow as one cost row of that workflow. A run with no usage, or no workflow folder, writes nothing. */
+export function auditCostRow(root, workflow, r, { now = () => new Date() } = {}) {
+  if (!workflow || !r?.usage) return null;
+  const dir = workflowDir(root, workflow);
+  if (!existsSync(dir)) return null;
+  const row = externalCostRow([{ provider: 'claude', model: AUDIT_MODEL, ok: true, usage: r.usage }], { slug: workflow, key: 'design-audit', now });
+  if (!row) return null;
+  try { appendCostRow(dir, row); } catch { return null; }
+  return row;
 }
 
 /**
@@ -261,6 +292,7 @@ export function startAudit(root, { workflow = null, repo = null, now = () => new
   const done = (async () => {
     try {
       const r = await run(auditPrompt(root, { workflow }), { cwd: root });
+      auditCostRow(root, workflow, r, { now });
       if (!r.ok) return writeReport(root, { ...base, status: 'failed', endedAt: now().toISOString(), error: r.error ?? 'the agent failed' });
       const answer = parseAuditAnswer(r.text);
       if (!answer) return writeReport(root, { ...base, status: 'failed', endedAt: now().toISOString(), costUsd: r.costUsd ?? null, error: 'the agent returned no JSON report' });

@@ -1,8 +1,9 @@
-// The design audit of the canvas: the read-only argv of the agent, its prompt, the parse and the
-// clean-up of its answer, and a run that writes one report under the SDLC home and no record.
+// The design audit of the canvas: the read-only argv of the agent, its prompt with the platform
+// column of the stack, the parse and the clean-up of its answer, a run that writes one report under
+// the SDLC home, and the cost row of an audit of one workflow.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -10,7 +11,8 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../../lib/design-surface.mjs';
 import { writeChecks } from '../../../lib/design-records.mjs';
-import { AUDIT_MODEL, auditPath, auditPrompt, buildAuditArgs, normalizeAudit, parseAuditAnswer, readAudit, startAudit } from '../../../lib/design-audit.mjs';
+import { AUDIT_MODEL, auditPath, auditPlatforms, auditPrompt, buildAuditArgs, normalizeAudit, parseAuditAnswer, platformMap, readAudit, startAudit } from '../../../lib/design-audit.mjs';
+import { readCostRows } from '../../../lib/cost-ledger.mjs';
 
 function repo() {
   const top = mkdtempSync(join(tmpdir(), 'design-audit-'));
@@ -101,5 +103,60 @@ test('a run writes one report under the SDLC home, refuses a second run, and wri
     const failed = await startAudit(root, { run: async () => ({ ok: false, error: 'not logged in' }), rects }).done;
     assert.deepEqual([failed.status, failed.error], ['failed', 'not logged in']);
     assert.deepEqual(startAudit(root, { workflow: '../x' }), { started: false, reason: 'a bad workflow' });
+  } finally { done(); }
+});
+
+test('the prompt sends the first column and the column of the stack platform; an unknown platform gets the whole map', () => {
+  const { root, done } = repo();
+  try {
+    assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), [], 'no stack and no telling file');
+    const whole = auditPrompt(root, { workflow: 'w1' });
+    assert.match(whole, /\| Term \| Web \| iOS \| Android \(Compose\) \| Desktop \|/);
+    assert.match(whole, /2\. Find the platform of the built UI/);
+
+    const dir = join(root, '.ai', 'workflows', 'w1');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: w1\nstack:\n  platforms: [android]\n---\n');
+    assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), ['android']);
+    const one = auditPrompt(root, { workflow: 'w1' });
+    assert.match(one, /2\. The platform of the built UI is Android \(Compose\)/);
+    assert.match(one, /\| Term \| Android \(Compose\) \|\n\|---\|---\|\n\| \*\*cheap property\*\*[^\n]*\| `Modifier\.graphicsLayer/);
+    assert.doesNotMatch(one, /\| Web \||\| iOS \|/);
+    assert.match(one, /\| Android \(Compose\) \| Developer option/, 'a table of platform rows keeps the row of the platform');
+    assert.doesNotMatch(one, /^\| Web \| DevTools/m);
+    assert.ok(whole.length - one.length > 10000, 'the map is much smaller');
+
+    writeFileSync(join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: w1\nstack:\n  platforms: [cli]\n---\n');
+    assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), [], 'a platform outside the map is unknown');
+  } finally { done(); }
+});
+
+test('with no stack, the files at the top of the repo tell the platform', () => {
+  const { root, done } = repo();
+  try {
+    writeFileSync(join(root, 'package.json'), '{}');
+    assert.deepEqual(auditPlatforms(root), ['web']);
+    writeFileSync(join(root, 'settings.gradle.kts'), '');
+    assert.deepEqual(auditPlatforms(root), [], 'two platforms are not one');
+    assert.equal(platformMap('| Term | Web | iOS |\n|---|---|---|\n| a \\| b | w | i |', ['web']), '| Term | Web |\n|---|---|\n| a \\| b | w |', 'an escaped bar stays in its cell');
+  } finally { done(); }
+});
+
+test('an audit of a workflow writes its token use as one design-audit cost row of that workflow', async () => {
+  const { root, done } = repo();
+  try {
+    const dir = join(root, '.ai', 'workflows', 'w1');
+    mkdirSync(dir, { recursive: true });
+    const usage = { input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 50, cache_creation_input_tokens: 0 };
+    const run = async () => ({ ok: true, costUsd: 0.2, usage, text: '```json\n{"summary":"ok","findings":[]}\n```' });
+    const report = await startAudit(root, { workflow: 'w1', run, rects: async () => {} }).done;
+    assert.equal(report.status, 'done');
+    const rows = readCostRows(dir);
+    assert.equal(rows.length, 1);
+    assert.deepEqual([rows[0].key, rows[0].slug, rows[0].host, rows[0].external], ['design-audit', 'w1', 'external', [{ provider: 'claude', model: AUDIT_MODEL, ...usage }]]);
+    await startAudit(root, { run, rects: async () => {} }).done;
+    assert.equal(readCostRows(dir).length, 1, 'an audit of the whole repo writes no row');
+    await startAudit(root, { workflow: 'w2', run, rects: async () => {} }).done;
+    assert.equal(existsSync(join(root, '.ai', 'workflows', 'w2')), false, 'no folder for a workflow that has none');
   } finally { done(); }
 });

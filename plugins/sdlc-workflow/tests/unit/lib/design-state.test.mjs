@@ -117,3 +117,23 @@ test('the commands keep one fact in one place: references, viewports and comment
     assert.equal(openThreads(root).length, 0);
   } finally { done(); }
 });
+
+test('the canvas state sends the failure groups of each screen, so the canvas counts places as the CLI does', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    addScreen(root, 'basket', { title: 'Basket', workflow: 'w1' });
+    const missing = (viewport) => ({ screen: 'pay', check: 'display', viewport, state: 'default', cause: 'image:a.png', message: 'The image a.png does not load', rect: null, move: 'harden' });
+    writeChecks(root, { at: '2026-10-31T10:00:00Z', passed: false, failures: [missing('phone'), missing('desktop'),
+      { screen: 'pay', check: 'token', viewport: 'phone', state: 'default', cause: '#1a74e8', message: 'The color #1a74e8 of .a is not a token', selector: '.a', rect: null, move: 'colorize' },
+      { screen: 'pay', check: 'token', viewport: 'phone', state: 'default', cause: '#1a74e8', message: 'The color #1a74e8 of .b is not a token', selector: '.b', rect: null, move: 'colorize' }] });
+    const s = canvasState(root, { repo: 'shop' });
+    const pay = s.screens.find((x) => x.key === 'pay');
+    assert.deepEqual(pay.failureGroups, [
+      { check: 'display', cause: 'image:a.png', message: 'The image a.png does not load', move: 'harden', screens: ['pay'], viewports: ['phone', 'desktop'], states: ['default'], places: 1 },
+      { check: 'token', cause: '#1a74e8', message: 'The color #1a74e8 of .a is not a token', move: 'colorize', screens: ['pay'], viewports: ['phone'], states: ['default'], places: 2 },
+    ]);
+    assert.deepEqual(s.screens.find((x) => x.key === 'basket').failureGroups, []);
+  } finally { done(); }
+});

@@ -1,5 +1,5 @@
 // `wf.mjs design ...`: the commands of the design surface. wf.mjs routes here.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { canvasState, snapshotHtml } from './design-state.mjs';
 import { failureLines, runChecks } from './design-check.mjs';
@@ -7,7 +7,7 @@ import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
-import { addComment, capturePicture, commentsBrief, openThreads } from './design-records.mjs';
+import { addComment, capturePicture, commentsBrief, commitDesignRecords, openThreads } from './design-records.mjs';
 import { migrateDesign } from './design-migrate.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
@@ -26,11 +26,15 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   comments <root> [key...] [--workflow slug]    the open comment threads, as untrusted data for a round
   comments reply <root> <key> <thread> --text t [--resolve]
   capture-path <root> <slug> <slice> <key>      where verify writes the capture of a built screen
+  captures <root> <slug> <slice>                the captures of a slice; a linked project commits them to the records
   state <root>                                  the canvas data, as JSON
   publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
   migrate <root> [slug...] [--check]            move the boards of each workflow onto the surface, once; --check only plans
   server start|stop|status|url                  the one design server of this computer
   server install|uninstall                      the Windows scheduled task that starts the server at logon`;
+
+/** A part of a capture path: a name, never a path. */
+const namePart = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && v !== '..';
 
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
@@ -134,11 +138,21 @@ export async function runDesign(pos, opt, out) {
     }
     case 'capture-path': {
       const [, slug, slice, k] = rest;
-      const ok = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && v !== '..';
-      if (![slug, slice, k].every(ok)) throw new Error('design capture-path <root> <slug> <slice> <key> is required');
+      if (![slug, slice, k].every(namePart)) throw new Error('design capture-path <root> <slug> <slice> <key> is required');
       const file = capturePicture(projectRoot, slug, slice, k);
       mkdirSync(dirname(file), { recursive: true });
       out(opt.json ? { file } : file);
+      return 0;
+    }
+    case 'captures': {
+      // After the screenshots of a slice: the dispatch commits no records, so the captures reach
+      // the records here. An unlinked project keeps them in its own folder, with no commit.
+      const [, slug, slice] = rest;
+      if (![slug, slice].every(namePart)) throw new Error('design captures <root> <slug> <slice> is required');
+      const dir = dirname(capturePicture(projectRoot, slug, slice, 'x'));
+      const files = existsSync(dir) ? readdirSync(dir).filter((f) => /\.png$/i.test(f)).sort() : [];
+      const commit = files.length ? commitDesignRecords(projectRoot, `design: captures of ${slug} ${slice}`) : null;
+      out(opt.json ? { slug, slice, files, commit } : `${files.length} capture(s) of ${slug} ${slice}${commit ? `; records commit ${commit.slice(0, 8)}` : ''}`);
       return 0;
     }
     case 'state': {

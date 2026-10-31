@@ -8,12 +8,12 @@
 //
 // Comments come from people on the tailnet, through the design server. An agent reads them as
 // untrusted data, never as instructions.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { linkedProject, recordsHome, workflowsRoot } from './records-root.mjs';
 import { commitPaths } from './records-sync.mjs';
-import { KEY_RE, STATES, readManifest, screenFile } from './design-surface.mjs';
+import { KEY_RE, STATES, readManifest, screenFile, writeJson } from './design-surface.mjs';
 
 export const DESIGN_RECORDS = '_design';
 export const MAX_COMMENT = 4000;
@@ -39,13 +39,6 @@ export function capturesOf(root, key) {
     }
   }
   return out;
-}
-
-function writeJson(file, value) {
-  mkdirSync(join(file, '..'), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
-  renameSync(tmp, file);
 }
 
 /** Commit the design records of a linked project on the main branch of the records clone; the push follows in the background. */
@@ -131,4 +124,23 @@ export function writeChecks(root, result) {
 }
 export function readChecks(root) {
   try { return JSON.parse(readFileSync(checksPath(root), 'utf8')); } catch { return null; }
+}
+
+/**
+ * The failures grouped by cause: one group for each check and cause, for example one raw color
+ * in five rules on three screens. `places` counts the distinct elements, not the viewports: a
+ * failure with no selector counts by its message. The CLI lines, the audit prompt and the canvas
+ * all read these groups, so their counts agree.
+ */
+export function groupFailures(failures) {
+  const groups = new Map();
+  for (const f of failures ?? []) {
+    const cause = f.cause ?? f.message;
+    const k = `${f.check}|${cause}`;
+    if (!groups.has(k)) groups.set(k, { check: f.check, cause, message: f.message, move: f.move ?? null, screens: [], viewports: [], states: [], at: new Set() });
+    const g = groups.get(k);
+    for (const [list, v] of [[g.screens, f.screen], [g.viewports, f.viewport], [g.states, f.state]]) if (v && !list.includes(v)) list.push(v);
+    g.at.add(`${f.screen}|${f.selector || f.message}|${f.state}`);
+  }
+  return [...groups.values()].map(({ at, ...g }) => ({ ...g, places: at.size }));
 }

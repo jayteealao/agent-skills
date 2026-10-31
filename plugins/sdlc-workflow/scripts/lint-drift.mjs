@@ -331,13 +331,7 @@ export const PLAN_ID_RE = new RegExp([
  * Files that another change rewrites now. Each entry is TEMPORARY: remove it when that change
  * lands and its comments are clean.
  */
-export const PUBLIC_SKIP = new Set([
-  'lib/design-check.mjs',
-  'lib/design-cli.mjs',
-  'tests/integration/design-approve.test.mjs',
-  'tests/unit/lib/design-audit.test.mjs',
-  'tests/unit/lib/design-check.test.mjs',
-]);
+export const PUBLIC_SKIP = new Set([]);
 
 /** The comments of a script, one entry for each line: `//` comments and block comments. */
 export function commentsOf(text) {
@@ -400,14 +394,9 @@ export function lintPublic(root = PLUGIN_ROOT) {
 
 // ---------------------------------------------------------------- wfdir
 
-/**
- * The card that defines the local folder of a workflow (`<root>/.ai/workflows/<slug>/`), and the
- * files that another change rewrites now. Each entry after the first is TEMPORARY: remove it
- * when that change lands.
- */
+/** The card that defines the local folder of a workflow (`<root>/.ai/workflows/<slug>/`). */
 export const WFDIR_SKIP = new Set([
   'skills/wf/reference/_records.md',
-  'skills/wf/reference/design/stage.md',
 ]);
 
 /**

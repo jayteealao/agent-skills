@@ -6,19 +6,19 @@ The human-only stage between `intake` and `slice`. It turns the brief into scree
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
 | Produces | `02c-craft.md` (type `design-contract`); the screens in `.ai/design/screens/` and their approval commit ([_surface.md](_surface.md)); `00-index.md` updates |
-| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf yolo <slug>`, which may start now. For a campaign work packet, the campaign command of [Chat return](#chat-return). |
+| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension), or `/wf yolo <slug>`, which may start now. When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it: type `/wf campaign <source-slug>`, where `<source-slug>` is the folder before `/work/` in the `origin-packet` path. This row owns the Next step of every design-stage return. |
 
 ## Step 0 — Orient
 
 1. Read `00-index.md` with `<wf> record get "<root>" <slug> index` ([_records.md](../_records.md)). When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, run `wf.mjs record set "<root>" <slug> index status=in-progress`. Then run `/wf design <slug>` again."*
 2. When a driver (`yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
 3. When `02-shape.md` is missing (`record get` exits 1) or not complete, STOP and route to `/wf intake <slug>`.
-4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, run `<wf> record set "<root>" <slug> index progress.design=skipped design-skip-reason="<reason>"`, then STOP with the next step `/wf slice <slug>`.
-5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` (`record get`) already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the approved design and STOP. Next: `/wf slice <slug>`. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
+4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, run `<wf> record set "<root>" <slug> index progress.design=skipped design-skip-reason="<reason>"`, then STOP with the next step of the Next row.
+5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` (`record get`) already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the approved design and STOP with the next step of the Next row. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
 
 ## Step 1 — Load the design record
 
-1. Load [_design-context.md](_design-context.md) and [_preflight.md](_preflight.md) in full. Do not load [_craft-floor.md](_craft-floor.md) yet: Step 4 loads it, after the direction is settled.
+1. Load [_design-context.md](_design-context.md) in full.
 2. Read `PRODUCT.md`. When it is missing, empty, or carries `[TODO]` markers, run `/wf design setup` now with the person, then continue.
 3. Read `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. When a `.ai/design/` file is missing, create it from the [record.md](record.md) template with `[TODO]` sections and tell the person. Do not stop.
 4. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`. Read the screens of the repo with `<wf> design list <root>`: a screen that the brief touches already exists, and this stage changes it in place.
@@ -35,7 +35,7 @@ When `02b-design.md` is missing (`record get` exits 1), author it now per [brief
 
 ## Step 3 — Inspect the code
 
-Run the four codebase inspection sub-agents from [_preflight.md](_preflight.md) → Preflight gates. Reuse the `stack:` block where it answers the question. Add one duty to the surface ranger: list every existing surface the brief touches, its screen key when it has one, and its entry in `.ai/design/current.md`.
+Load [_preflight.md](_preflight.md) and run its four codebase inspection sub-agents. Reuse the `stack:` block where it answers the question. Add one duty to the surface ranger: list every existing surface the brief touches, its screen key when it has one, and its entry in `.ai/design/current.md`.
 
 When the product already exists and the stack can run it, capture every touched surface in its current state as a PNG in `.ai/design/references/`, and add each one to `references.json` per [_surface.md](_surface.md). The screens start from these captures.
 
@@ -67,13 +67,16 @@ Run this step only when the person picked directions at Step 3a, or when `ux-imp
 
 ## Step 4 — Draw every changed screen
 
-Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists. Load it now, before the first screen, and draw every screen against it. Also load the design-mode file of each surface in the brief's content inventory, and read its `## Screens`.
+Load [_craft-floor.md](_craft-floor.md) as its table names for this step. Also load the design-mode file of each surface in the brief's content inventory, and read its `## Screens`.
+
+Read `02b-design.md` with `<wf> record get "<root>" <slug> 02b-design.md`. Take from it the feature summary and the user context, the color strategy and the scene sentence, the design mode of each surface, the visual direction and the anti-goals, the UX intent (flows, states and user-facing text), and the design goals that the surfaces must serve. Load each reference of its `recommended-references:`, the move that the person named, `typeset.md`, and `harden.md` for the `worst` state. Also load `animate.md` for motion, `colorize.md` for much color work, `layout.md` for a layout-heavy surface, `adapt.md` for a phone, native or desktop target, and `optimize.md` when performance is critical. Keep a list of the references that you load: Step 6 writes it to `references-loaded:`.
 
 Draw the whole feature, not one slice. Every surface in the brief's content inventory is a screen, and every screen has the five states of [_surface.md](_surface.md). The `worst` state holds the worst-case content of [harden.md](harden.md) → Worst-case content. For a terminal surface (command-line output or a terminal interface), the `worst` state holds the height budget of `_platforms.md` → Terminal.
 
 1. Choose the area, flow and order of each new screen per [_surface.md](_surface.md) → Arranging the screens. When the workflow adds an area, set the order of the areas with `<wf> design areas`. For each new screen, run `<wf> design screen add <root> <key> --title "<title>" --area <area> --flow <flow> --order <n> --workflow <slug> [--slice <slice>]`, then write the page. For each existing screen that this workflow changes, run `<wf> design screen add <root> <key> --workflow <slug>`, then change the page in place.
 2. Make every step of a flow a link between screens, so the person can click through it. For `ux-impact: flow`, the flow of states is the form.
-3. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory. The inventory names the screen keys.
+3. Name the north-star screen: the screen that sets the direction.
+4. Keep the mock fidelity inventory: the visible ingredients of the screens that must survive into the build, each with its screen key. List the composition and spatial relations, the type choices (sizes, weights and families), the elements that carry each color, and the distinctive moves that make the screen not generic. For the `worst` state of each screen, list what wraps, what truncates and where, what falls back, and what the empty or error state shows. Code that loses an ingredient has regressed. Keep the inventory current through Step 4b. Step 6 writes it.
 
 ## Step 4b — Decision rounds
 
@@ -98,7 +101,7 @@ A user-confirmed `PRODUCT.md` or an earlier `teach` answer never replaces the ap
 
 ## Step 6 — Write the contract and record the approval
 
-1. Write the draft of `02c-craft.md` and put it per [contract.md](contract.md) Step 5, with these extra frontmatter fields:
+1. Load [contract.md](contract.md). Write the draft of `02c-craft.md` from its template and put it, with these extra frontmatter fields:
 
    ```yaml
    surfaces: [<every surface drawn>]
@@ -117,7 +120,7 @@ A user-confirmed `PRODUCT.md` or an earlier `teach` answer never replaces the ap
 `/wf design <slug> amend [instructions]` reopens an approved design, because a later stage found that it cannot be built as drawn, or because the person changed their mind.
 
 1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add. For a design brainstorm, the reason is the carried thoughts: run Step 1b first.
-2. Change or add only the screens that the reason names, in place: git keeps their history, and the canvas compares each version. Run Steps 4–6 for those screens. Step 4 loads the floor. Step 6 records a new approval.
+2. Change or add only the screens that the reason names, in place: git keeps their history, and the canvas compares each version. Run Steps 4–6 for those screens. Step 6 records a new approval.
 3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md): write the `record get` output of `02c-craft.md` to the `history/` path that file names. Then write the draft of the new one, put it, and run `<wf> design approve` after the person approves.
 4. Name every plan that cites a changed screen. Route to `/wf plan <slug> <slice>` for each.
 
@@ -127,7 +130,7 @@ When the person wants to reconsider the direction itself, run Step 3b again arou
 
 `/wf design <slug> <move>` on an approved design runs the move's own checks. It draws nothing and approves nothing.
 
-1. Read `02c-craft.md` (`record get`), the screens that its `screens:` names, and `design/<move>.md`. Load [_craft-floor.md](_craft-floor.md) as a checklist: check the screens and the built UI against its Refuse and Verify lists. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
+1. Read `02c-craft.md` (`record get`), the screens that its `screens:` names, and `design/<move>.md`. Load [_craft-floor.md](_craft-floor.md) as its table names for the Move pass. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
 2. Run the move's checks against the screens and the built UI:
    - `animate` — the gates and the opportunity sweep ([animate.md](animate.md)): every existing animation through the gates, the opportunities, and the rejected candidates.
    - `harden` — the checks of [harden.md](harden.md), including the `worst` state of each screen.
@@ -141,6 +144,5 @@ When the person wants to reconsider the direction itself, run Step 3b again arou
 Return per [_chat-return.md](../_chat-return.md): what the person approved, the screen keys, the approval commit, the canvas URL, the check failures that the person accepted, the `DESIGN.md` change, and the top design risk.
 
 Write the next step as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
-- Next: "Type `/wf slice <slug>`.", or "Type `/wf yolo <slug>`." when the person wants the build driven.
+- Next: the next step of the Next row above.
 - After an approval, also offer one finishing move as an option, never as the next step: "Type `/wf design <slug> polish`." for the details of the screens, or "Type `/wf design <slug> delight`." for a moment of personality. A finishing move on an approved design runs the Move pass.
-- When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. The next step is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-packet` path (`.ai/workflows/<source-slug>/work/<packet-slug>.md`).

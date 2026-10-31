@@ -137,13 +137,13 @@ test('in a browser: missing values, a broken image, overlapping text, a script e
     assert.match(token.message, /#1a74e8 .* nearest token is --accent \(#1a73e8\)/);
     assert.equal(token.move, 'colorize');
     assert.ok(token.rect.width > 0);
-    assert.ok(of('pay', 'token').every((f) => f.state === 'default'), 'the token check runs in the default state only');
+    assert.ok(of('pay', 'token').every((f) => f.state === 'default' && f.viewport === 'phone'), 'the token check runs once, in the default state of the first viewport');
     assert.equal(of('pay', 'script').length, 1, 'one script error per screen');
     assert.equal(of('pay', 'script')[0].move, null);
     for (const check of ['display', 'overlap', 'script']) assert.deepEqual(of('basket', check), [], `no ${check} failure on a clean screen`);
-    // One raw color in one rule, in three viewports: one cause, one place, one line.
+    // One raw color in one rule: one cause, one place, one line.
     const lines = failureLines(of('pay', 'token').filter((f) => /\.price/.test(f.message)));
     assert.equal(lines.length, 1);
-    assert.match(lines[0], /^pay \(phone, tablet, desktop; default\): token: .* — move: colorize$/);
+    assert.match(lines[0], /^pay \(phone; default\): token: .* — move: colorize$/);
   } finally { done(); }
 });

@@ -25,7 +25,7 @@
   let data = null;
   // The last design audit of the repo (./audit.json): a read-only agent's report, not a check.
   let audit = null;
-  const phone =() => matchMedia('(max-width: 720px)').matches;
+  const phone = () => matchMedia('(max-width: 720px)').matches;
   // On a phone the card is the width of the page less its gutters (canvas.css).
   const CARD_W = () => (phone() ? window.innerWidth - 32 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 300);
   const GAP_X = 64;
@@ -58,8 +58,13 @@
   // ------------------------------------------------------------ data
 
   async function load() {
-    data = window.WF_STATE || await (await fetch(`${BASE}state.json`, { cache: 'no-store' })).json();
-    if (!SNAP) { await fetchAudit(); pollAudit(); }
+    // The state and the audit load at the same time; the board draws once, when both are here.
+    const [state] = await Promise.all([
+      window.WF_STATE || fetch(`${BASE}state.json`, { cache: 'no-store' }).then((r) => r.json()),
+      SNAP ? null : fetchAudit(),
+    ]);
+    data = state;
+    if (!SNAP) pollAudit();
     $('#repo').textContent = data.repo || 'Design canvas';
     document.title = `${data.repo || 'Design'} canvas`;
     const names = Object.keys(data.viewports);
@@ -108,6 +113,15 @@
     if (ui.open && !s.openComments) return false;
     if (ui.failing && !(s.failures || []).length) return false;
     return true;
+  }
+  /** Dim the cards that the search box and the filters leave out, with no new screen frame. */
+  function applyFilter() {
+    if (!data) return;
+    const byKey = new Map(data.screens.map((s) => [s.key, s]));
+    for (const card of document.querySelectorAll('#board > .card')) {
+      const s = byKey.get(card.dataset.key);
+      card.classList.toggle('dim', Boolean(s) && !matches(s));
+    }
   }
 
   const frameH = () => Math.round(CARD_W() * vp().height / vp().width);
@@ -213,7 +227,12 @@
 
   // ------------------------------------------------------------ pan, zoom, drag
 
+  // A wheel or a pointer move can come many times in one frame: the board moves once a frame.
+  let placeFrame = 0;
   function place() {
+    if (!placeFrame) placeFrame = requestAnimationFrame(() => { placeFrame = 0; placeNow(); });
+  }
+  function placeNow() {
     const stage = $('#stage');
     if (phone()) {
       $('#board').style.transform = 'none';
@@ -434,6 +453,9 @@
     return parts.join(' > ');
   }
 
+  /** One box over the screen: a check failure or an audit finding at its rectangle. */
+  const boxAt = (r, scale, label, title, kind = '') => h('div', { class: `box${kind ? ` ${kind}` : ''}`, title,
+    style: `left:${r.x * scale}px;top:${r.y * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }, h('span', {}, label));
   function shot(caption, content, size, scale) {
     const box = h('div', { class: 'shot', style: `width:${Math.round(size.width * scale)}px;height:${Math.round(size.height * scale)}px` }, h('div', { class: 'cap' }, caption), content);
     content.style.width = `${size.width}px`;
@@ -447,13 +469,21 @@
   }
   const toggle = (text, on, fn) => h('button', { type: 'button', class: 'btn', 'aria-pressed': String(Boolean(on)), onclick: fn }, text);
 
+  /** The scale of the screens in the screen view: one or two panes in the room of the window. */
+  function focusScale(f) {
+    const size = vp(f.viewport);
+    const panes = f.compare || f.capture ? 2 : 1;
+    const room = phone() ? window.innerWidth - 32 : window.innerWidth - 32 - 340 - 48;
+    return Math.min(1, (room - (panes - 1) * 24) / panes / size.width, phone() ? 1 : (window.innerHeight - 240) / size.height);
+  }
+  // The scale and the layout of the last drawn screen view: a resize that keeps both keeps the view.
+  let focusDrawn = null;
   function drawFocus() {
     const f = focusState;
     const s = data.screens.find((x) => x.key === f.key);
     const size = vp(f.viewport);
-    const panes = f.compare || f.capture ? 2 : 1;
-    const room = phone() ? window.innerWidth - 32 : window.innerWidth - 32 - 340 - 48;
-    const scale = Math.min(1, (room - (panes - 1) * 24) / panes / size.width, phone() ? 1 : (window.innerHeight - 240) / size.height);
+    const scale = focusScale(f);
+    focusDrawn = { scale, phone: phone() };
     const view = h('div', { class: 'view' });
     const live = shot(f.compare || f.capture ? 'Now' : `${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state), size, scale);
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` });
@@ -466,15 +496,13 @@
     } else live.append(overlay);
     if (f.checks) {
       for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
-        if (!x.rect) continue;
-        overlay.append(h('div', { class: 'box', title: x.message, style: `left:${x.rect.x * scale}px;top:${x.rect.y * scale}px;width:${x.rect.width * scale}px;height:${x.rect.height * scale}px` }, h('span', {}, CHECK_NAMES[x.check] || x.check)));
+        if (x.rect) overlay.append(boxAt(x.rect, scale, CHECK_NAMES[x.check] || x.check, x.message));
       }
     }
     const findings = auditOf(s.key);
     if (f.audit) {
       for (const x of findings.filter((q) => q.state === f.state && q.rects?.[f.viewport])) {
-        const r = x.rects[f.viewport];
-        overlay.append(h('div', { class: 'box audit', title: x.message, style: `left:${r.x * scale}px;top:${r.y * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }, h('span', {}, x.rule || 'Audit')));
+        overlay.append(boxAt(x.rects[f.viewport], scale, x.rule || 'Audit', x.message, 'audit'));
       }
     }
     s.threads.forEach((t, i) => {
@@ -537,15 +565,7 @@
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
     const shown = s.threads.filter((t) => f.all || t.open);
-    // One entry for each cause, for example one raw color in five rules, with its places,
-    // viewports and states.
-    const failures = Object.values((s.failures || []).reduce((acc, x) => {
-      const g = (acc[`${x.check}|${x.cause ?? x.message}`] ||= { ...x, viewports: [], states: [], at: new Set() });
-      if (x.viewport && !g.viewports.includes(cap(x.viewport))) g.viewports.push(cap(x.viewport));
-      if (x.state && !g.states.includes(x.state)) g.states.push(x.state);
-      g.at.add(`${x.selector ?? ''}|${x.state}`);
-      return acc;
-    }, {}));
+    const failures = groupsOf(s);
     const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
     const side = h('section', { class: 'side' },
       h('h3', {}, 'Comments', openN ? h('span', { class: 'count' }, String(openN)) : null,
@@ -553,12 +573,30 @@
       shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then tap a point of the screen.' : 'No open comment.'),
       h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
       failures.length ? failures.map((x) => h('div', { class: 'check' },
-        h('b', {}, CHECK_NAMES[x.check] || x.check), x.at.size > 1 ? h('span', { class: 'sev' }, `${x.at.size} places`) : null,
+        h('b', {}, CHECK_NAMES[x.check] || x.check), x.places > 1 ? h('span', { class: 'sev' }, `${x.places} places`) : null,
         h('p', {}, x.message),
-        h('small', {}, `${x.viewports.length ? `${list(x.viewports)}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
+        h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
       findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
+  }
+  /**
+   * The check failures of one screen, one entry for each cause, for example one raw color in five
+   * rules, with its places, viewports and states. The server groups them. An older server sends
+   * only the failures, so then the canvas groups them.
+   */
+  function groupsOf(s) {
+    if (Array.isArray(s.failureGroups)) return s.failureGroups;
+    const groups = new Map();
+    for (const x of s.failures || []) {
+      const k = `${x.check}|${x.cause ?? x.message}`;
+      if (!groups.has(k)) groups.set(k, { check: x.check, message: x.message, move: x.move ?? null, viewports: [], states: [], at: new Set() });
+      const g = groups.get(k);
+      if (x.viewport && !g.viewports.includes(x.viewport)) g.viewports.push(x.viewport);
+      if (x.state && !g.states.includes(x.state)) g.states.push(x.state);
+      g.at.add(`${x.selector ?? ''}|${x.state}`);
+    }
+    return [...groups.values()].map(({ at, ...g }) => ({ ...g, places: at.size }));
   }
   function sel(values, value, on, labels = {}) {
     return h('select', { onchange: (e) => on(e.target.value) }, ...values.map((v) => h('option', { value: v, selected: v === value }, labels[v] ?? v)));
@@ -690,7 +728,7 @@
           h('h3', {}, 'Tokens'), h('div', { class: 'chips' }, ...(c.tokens.length ? c.tokens.map((t) => h('span', {}, t)) : ['None'])),
           h('h3', {}, 'Rules'), c.rules.length ? h('ul', {}, ...c.rules.map((r) => h('li', {}, r))) : h('p', {}, 'No rule of the visual contract names these screens.'),
           h('h3', {}, 'Approval and checks'), h('p', {}, approvalText(c), ' ', checksText(c)),
-          h('h3', {}, 'Open comments'), h('p', {}, c.openComments ? h('button', { type: 'button', class: 'linkish', onclick: () => { ui.open = true; ui.workflow = c.workflow; $('#open').checked = true; $('#workflow').value = c.workflow; filterCount(); render(); } }, `Show the ${plural(c.openComments, 'open comment')}`) : 'None.')))
+          h('h3', {}, 'Open comments'), h('p', {}, c.openComments ? h('button', { type: 'button', class: 'linkish', onclick: () => { ui.open = true; ui.workflow = c.workflow; $('#open').checked = true; $('#workflow').value = c.workflow; filterCount(); applyFilter(); } }, `Show the ${plural(c.openComments, 'open comment')}`) : 'None.')))
           : [h('p', {}, 'No screen belongs to a slice yet.')])],
       decisions: () => [h('h2', {}, 'Design decisions'), h('p', { class: 'lede' }, 'The answers that shaped these screens.'),
         data.decisions.length ? h('ul', {}, ...data.decisions.map((d) => h('li', {}, h('b', {}, d.question || d.id), h('br'), d.answer ?? '', h('span', { class: 'sub' }, ` (${d.workflow})`)))) : h('p', {}, 'No design decision is recorded.')],
@@ -717,13 +755,13 @@
       render();
     }));
     document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => panel(b.dataset.panel)));
-    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); render(); if (ui.panel === 'audit') panel('audit', true); });
+    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'audit') panel('audit', true); });
     filter('#area', 'area', (t) => t.value);
     filter('#workflow', 'workflow', (t) => t.value);
     filter('#open', 'open', (t) => t.checked);
     filter('#failing', 'failing', (t) => t.checked);
     $('#viewport').addEventListener('change', (e) => { ui.viewport = e.target.value; render(); });
-    $('#q').addEventListener('input', (e) => { ui.q = e.target.value; render(); });
+    $('#q').addEventListener('input', (e) => { ui.q = e.target.value; applyFilter(); });
     $('#zin').addEventListener('click', () => zoomBy(1.25));
     $('#zout').addEventListener('click', () => zoomBy(0.8));
     $('#zfit').addEventListener('click', fit);
@@ -742,11 +780,18 @@
       else if ($('#filters').open) $('#filters').open = false;
       else if (ui.panel) closePanel();
     });
+    // A resize comes many times a second, and on a phone also while the person scrolls. Once a
+    // frame, the board redraws when the phone layout changes. The screen view redraws only when
+    // its scale or the phone layout changes, so its frames and a typed reply stay.
     let last = phone();
+    let resizeFrame = 0;
     addEventListener('resize', () => {
-      barHeight();
-      if (phone() !== last) { last = phone(); ui.fitted = false; render(); }
-      if (focusState) drawFocus();
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        barHeight();
+        if (phone() !== last) { last = phone(); ui.fitted = false; render(); }
+        if (focusState && (focusDrawn?.phone !== phone() || focusDrawn?.scale !== focusScale(focusState))) drawFocus();
+      });
     });
     panZoom();
   }

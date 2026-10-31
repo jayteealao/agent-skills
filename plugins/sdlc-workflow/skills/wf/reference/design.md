@@ -141,7 +141,6 @@ Next: <Type `/wf <key> <args>`. | Done>
 ```
 
 Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
-- After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md). An `rca` workflow has no slice stage.
-- When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder before `/work/` in the `origin-packet` path (`…/<source-slug>/work/<packet-slug>.md`).
+- After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md).
 - After amend, `Next` names the first plan to revisit.
 - After explore, `Next` follows [design/explore.md](design/explore.md) → Chat return.

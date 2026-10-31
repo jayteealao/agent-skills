@@ -11,8 +11,9 @@
 // The comments and the approval pictures do not live here: a product repo can be public. They
 // live in the records (lib/design-records.mjs).
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { sdlcHomeDir } from './home.mjs';
 import { missingBoardFiles } from './design-boards.mjs';
 
@@ -32,8 +33,12 @@ const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const surfaceDir = (root) => join(root, ...SURFACE_REL.split('/'));
 export const screenFile = (root, key) => join(surfaceDir(root), SCREENS_DIR, `${key}.html`);
 export const screenRel = (key) => `${SURFACE_REL}/${SCREENS_DIR}/${key}.html`;
+/** The file URL of a screen page in one state, as the browser of the checks opens it. */
+export const screenUrl = (root, key, state) => `${pathToFileURL(screenFile(root, key)).href}?state=${state}`;
 
-function writeJson(file, value) {
+/** Write a JSON file whole: to a temporary file first, then a rename. The folder is made when it is missing. */
+export function writeJson(file, value) {
+  mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
   renameSync(tmp, file);

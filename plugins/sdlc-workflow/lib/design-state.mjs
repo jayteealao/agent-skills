@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { liveDecisions, readDecisions } from './decisions.mjs';
-import { capturesOf, readComments, readChecks } from './design-records.mjs';
+import { capturesOf, groupFailures, readComments, readChecks } from './design-records.mjs';
 import { LAYOUT_FILE, STATES, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { readDoc } from './records.mjs';
@@ -118,13 +118,16 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
   const screens = listScreens(root).map((s) => {
     const html = existsSync(screenFile(root, s.key)) ? readFileSync(screenFile(root, s.key), 'utf8') : '';
     const threads = readComments(root, s.key).threads;
+    const failures = (checks?.failures ?? []).filter((f) => f.screen === s.key);
     return {
       ...s,
       tokens: tokensUsed(html),
       history: historyOf(root, s.key),
       threads,
       openComments: threads.filter((t) => t.open).length,
-      failures: (checks?.failures ?? []).filter((f) => f.screen === s.key),
+      failures,
+      // One entry for each cause, with its places: the canvas lists these, the CLI prints the same groups.
+      failureGroups: groupFailures(failures),
       position: layout.positions?.[s.key] ?? null,
       captures: capturesOf(root, s.key),
     };
