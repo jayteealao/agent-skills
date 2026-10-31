@@ -68,7 +68,7 @@ Ask 3–6 targeted questions (not the 5-round PO interview):
 5. **Target structure?** — what the code should look like after (extract service; strategy pattern; early returns).
 6. **Stack confirm** — the one-line confirm from Step 0's fingerprint (per the `_change-mode-tail.md` stack policy).
 
-Write the draft `.ai/workflows/<slug>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
+Write the draft `<wf-dir>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 

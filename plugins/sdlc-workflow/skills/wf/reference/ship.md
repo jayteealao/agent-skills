@@ -48,7 +48,7 @@ You run the ship stage: the PR phase, the go/no-go gate and the release, per the
 # Workflow rules
 
 Apply [_workflow-rules.md](_workflow-rules.md). Ship-specific rules:
-- Run artifacts live under `.ai/workflows/<slug>/`; `09-ship-runs.md` is the per-workflow run index. The ship plan lives at `.ai/ship-plan.md` (repo root), not under `.ai/workflows/`: project-scoped, shared across workflows.
+- Run artifacts live under `<wf-dir>/`; `09-ship-runs.md` is the per-workflow run index. The ship plan lives at `.ai/ship-plan.md` (repo root), not under `.ai/workflows/`: project-scoped, shared across workflows.
 - If a step cannot finish, set `status: awaiting-input`, record what is blocking, and STOP. The next invocation resumes from there.
 - **Idempotency invariants per step.** Pre-flight is a no-op if the version is already applied. Merge is a no-op if the PR is merged. Tag is a no-op if the tag exists. Polling resumes from the last `pending` check.
 - **Backwards compatibility.** A legacy `09-ship.md` is read-only history. The next release writes a `09-ship-run-<run-id>.md`.

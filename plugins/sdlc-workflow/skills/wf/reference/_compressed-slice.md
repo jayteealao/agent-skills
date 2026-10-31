@@ -25,7 +25,7 @@ A compressed slice carries its records **inline in the artifact body** and never
 
 ## Write exactly one artifact
 
-Write the draft `.ai/workflows/<slug>/.draft/03-slice-<slice-slug>.md` per [_records.md](_records.md), with this frontmatter shape:
+Write the draft `<wf-dir>/.draft/03-slice-<slice-slug>.md` per [_records.md](_records.md), with this frontmatter shape:
 
 ```yaml
 ---

@@ -171,7 +171,7 @@ When the report lists fewer than three issues, you can skip the questions. Then 
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> critique`:
-- Write the draft `.ai/workflows/<slug>/.draft/07-design-critique.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
+- Write the draft `<wf-dir>/.draft/07-design-critique.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
 - When `02c-craft.md` names `screens:`, judge the pairs of approval picture and capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` line of the issue.
 - Do not reopen a screen that the person approved. Write a finding against an approved screen as a question for `/wf design <slug> amend`. Do not redraw the screen.
 - Use this frontmatter:

@@ -17,7 +17,7 @@ This command does NOT start or advance any workflow. It discovers improvement op
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — the `ideas:` and `culled:` rosters + the ranked list) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
+| Produces | A `type: workflow-index` slug workflow: `<wf-dir>/01-ideate.md` (`type: ideation` — the `ideas:` and `culled:` rosters + the ranked list) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
 ## Requires
@@ -180,7 +180,7 @@ Then write the records (Step 6), and go to Step 7. The first question of the loo
 
 # Step 6 — Write Artifact
 
-The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** records as drafts under `.ai/workflows/<slug>/.draft/` (the slug derived in Step 0 sub-step 2b), run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** records as drafts under `<wf-dir>/.draft/` (the slug derived in Step 0 sub-step 2b), run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
@@ -206,7 +206,7 @@ Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line rea
    - `threads`: one per selected idea, `key: idea-<NNN>`, `name` (the title), `state: live`; and one `key: pick` thread for the pick.
    - `items`: each idea's evidence as `kind: finding` items on its thread (`evidence:` the `file:line` or the reference path `references/<kind>/<file>`, never a `.ai/…` path). The person's pick reason is ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread, with `session: 1` and `decided-at:` the `chosen-at` time. It is carried once, by the order-1 work packet, which carries it word for word. Do not copy it into every thread.
    - `work`: one work packet per idea: `key` and `slug` (the idea's slug suggestion), `title`, `shape` (the form of the idea's `entry:`: `intake`, `extension`, `fix`, `hotfix`, `rca`, `investigate`, `discover`, or `task`), `target-slug` for `extension`, `fix` and `hotfix`, `order` (1 to n, from step 3), `why-here` (after order 1; it names the pick), `design-form: none`, `items` (the order-1 work packet also lists the pick decision), and `state: proposed`. A build work packet also carries its write-up of step 4, with `ux-impact-confirmed: true`. `entry` is `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet. Do not copy the idea's `depends-on:` into the work packet: the walk builds the work packets in list order.
-7. **Write the list.** Run `node "<skill-dir>/scripts/campaign.mjs" write ".ai/workflows/<slug>/ideate-work.json"`. It checks the board, then writes one work packet file per work packet in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
+7. **Write the list.** Run `node "<skill-dir>/scripts/campaign.mjs" write "<wf-dir>/ideate-work.json"`. It checks the board, then writes one work packet file per work packet in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
 8. **Close the workflow** (Closure step 3).
 9. **Print the invocations.** Print `/wf campaign <slug>` when the list has a build work packet. Print the command of each work packet of another form. When an idea's `depends-on:` names `/wf intake update-deps`, print that command first. Do not run them.
 
@@ -229,7 +229,7 @@ On a closed run, `refresh` reopens the workflow (`status: ready`) only when it f
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
-- `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
+- `wrote: <wf-dir>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - `triage: <N> taken · <N> later · <N> dropped · <N> to brainstorm · <N> open`, and `rounds: <N>` when a steer ran
 - `sources: <N> read, <N> unavailable; items by result` and every research act, when sources ran

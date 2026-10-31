@@ -505,7 +505,7 @@ function recordsWorld() {
   writeFileSync(path.join(home, 'config.json'), JSON.stringify({ records: { machine: 'alpha' } }));
   execFileSync('git', ['clone', '-q', bare, path.join(home, 'records')], { stdio: 'ignore' });
   const saved = { ...process.env };
-  Object.assign(process.env, { SDLC_HOME: home, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
+  Object.assign(process.env, { SDLC_HOME: home, SDLC_RECORDS_PUSH: 'off', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
   const done = () => {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
     Object.assign(process.env, saved);
@@ -537,7 +537,7 @@ test('12.2 linked: the migration brings the worktree records into the clone, a c
     assert.match(readFileSync(clone(SRC, 'work', 'migration.md'), 'utf8'), /Records: linked as `demo` in the records repo/);
     // The commit takes every change that no commit holds: the report, and the clone note above.
     assert.deepEqual([...rep.committed].sort(), ['eng', SRC].sort());
-    assert.equal(git(r.clone, 'log', '-1', '--format=%s', `live/demo/${SRC}`), `demo/${SRC}: campaign migrate`);
+    assert.ok(git(r.clone, 'log', '-2', '--format=%s', 'main').split(/\r?\n/).includes(`demo/${SRC}: campaign migrate`));
 
     const ap = migrateApply(root, SRC, {}, { isMerged: merged });
     assert.equal(ap.ok, true, JSON.stringify(ap));
@@ -556,8 +556,8 @@ test('12.2 linked: the migration brings the worktree records into the clone, a c
     assert.equal(written.ok, true, JSON.stringify(written));
     assert.ok(existsSync(clone(SRC, 'work', 'later.md')));
     assert.deepEqual([...written.committed].sort(), ['eng', SRC].sort());
-    assert.equal(git(r.clone, 'show', 'live/demo/eng:demo/eng/05-implement-s1.md').trim(), '# Implement s1');
-    git(r.clone, 'cat-file', '-e', `live/demo/${SRC}:demo/${SRC}/work/later.md`);
+    assert.equal(git(r.clone, 'show', 'main:demo/eng/05-implement-s1.md').trim(), '# Implement s1');
+    git(r.clone, 'cat-file', '-e', `main:demo/${SRC}/work/later.md`);
     assert.equal(run(['write', wf(root, SRC)]).committed, undefined, 'a command that changes nothing makes no commit');
   } finally {
     dropOldCampaign(m);

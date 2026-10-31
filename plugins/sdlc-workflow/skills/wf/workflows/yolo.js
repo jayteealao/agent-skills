@@ -35,7 +35,8 @@ export const meta = {
 // ===========================================================================
 
 // ---- args contract (the /wf yolo reference passes these absolute paths) ----
-//   projectRoot   absolute repo root that owns .ai/workflows/<slug>/
+//   projectRoot   absolute repo root of the workflow
+//   recordsRoot   (optional) the folder of all workflows; the wf-dir is <recordsRoot>/<slug>
 //   referenceRoot absolute path to skills/wf/reference (where plan.md … live)
 //   slug          the workflow slug to drive
 //   slice         (optional) one slice → slice mode; absent → slug mode
@@ -864,12 +865,21 @@ function delegateClause() {
 
 
 
+// The wf-dir: the one folder of this workflow, its drafts included. A linked project keeps it in
+// the records clone: the staging step prints the folder of all workflows as recordsRoot.
+const RECORDS_ROOT = typeof OPT.recordsRoot === 'string' && OPT.recordsRoot.trim()
+  ? OPT.recordsRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  : `${projectRoot}/.ai/workflows`
+const WF_DIR = `${RECORDS_ROOT}/${slug}`
+
 // ---------------------------------------------------------------------------
 // External Output Boundary — re-asserted to every fresh-context subagent.
 // They do NOT inherit it from the dispatcher, so each stage prompt embeds it.
+// The prompt also carries the wf-dir line: each `<wf-dir>/` path of a reference is in it.
 // ---------------------------------------------------------------------------
 const EOB =
-  `EXTERNAL OUTPUT BOUNDARY: workflow artifact paths (.ai/workflows/…), stage names/numbers, ` +
+  `wf-dir: ${WF_DIR}\n\n` +
+  `EXTERNAL OUTPUT BOUNDARY: workflow artifact paths (<wf-dir>/…), stage names/numbers, ` +
   `slash-command names, sub-agent names, and control-file metadata are PRIVATE implementation context. They ` +
   `must NEVER appear in any external-facing output — commit messages, branch names, PR text, release notes, ` +
   `code comments, or docs. Translate to product language (user-visible change, rationale, affected areas, ` +
@@ -895,19 +905,13 @@ const EOB =
 //
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
-// The folder of the workflow records. A linked project keeps them in the records home: the
-// staging step prints that folder as recordsRoot. The drafts always stay in the local folder.
-const RECORDS_ROOT = typeof OPT.recordsRoot === 'string' && OPT.recordsRoot.trim()
-  ? OPT.recordsRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '')
-  : `${projectRoot}/.ai/workflows`
-const WF_DIR = `${RECORDS_ROOT}/${slug}`
 const JOURNAL_PATH = `${WF_DIR}/.driver-journal.jsonl`
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
 const WF_CMD = `node "${referenceRoot}/../scripts/wf.mjs"`
 // The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
 // `record set`, and writes a whole record as a draft that `record put` checks and writes.
 const REC = (verb, rest) => `${WF_CMD} record ${verb} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
-const DRAFT_DIR = `${projectRoot}/.ai/workflows/${slug}/.draft`
+const DRAFT_DIR = `${WF_DIR}/.draft`
 
 // runId is minted by orient (the first subagent — it has the clock this script
 // lacks) and threaded into every later heartbeat so one run's entries are
@@ -2420,7 +2424,7 @@ async function planFreshness(sliceArg) {
     `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
     `\`files:\` and \`edges:\`.\n` +
     `2. Find the commits since the plan was last written: \`git -C ${projectRoot} log --oneline <the last commit ` +
-    `that changed ${projectRoot}/.ai/workflows/${slug}/slice-${sliceArg}.yaml>..HEAD\`, or the last 20 commits ` +
+    `that changed ${WF_DIR}/slice-${sliceArg}.yaml>..HEAD\`, or the last 20 commits ` +
     `when that file is not committed.\n` +
     `3. Read the files and interfaces that the plan names, as they are at HEAD.\n` +
     `4. The plan is stale only when the code at HEAD contradicts it, so an implement would follow wrong steps: ` +

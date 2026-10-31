@@ -6,7 +6,7 @@ The decision store holds what the person decided for one workflow: the answers t
 
 ## The file
 
-`.ai/workflows/<slug>/decisions.yaml`. Only `wf.mjs decide` writes it. Never write or edit the file with a file tool.
+`<wf-dir>/decisions.yaml`. Only `wf.mjs decide` writes it. Never write or edit the file with a file tool.
 
 Each entry has these fields:
 

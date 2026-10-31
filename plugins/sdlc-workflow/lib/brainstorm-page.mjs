@@ -60,7 +60,7 @@ export function pageBrief(root, slug) {
     board: join(dir, BOARD_FILE),
     decisions: join(dir, 'decisions.yaml'),
     document: '01-brainstorm.md',
-    draft: join(localWorkflowsRoot(root), slug, DRAFT_DIR, PAGE_DRAFT),
+    draft: join(dir, DRAFT_DIR, PAGE_DRAFT),
     page: join(dir, PAGE_REL),
     version: boardVersion(dir),
     keys: requiredKeys(dir),
@@ -102,7 +102,8 @@ export function checkPage(root, slug) {
 /** Check the draft and move it into place. A draft with a problem stays where it is. */
 export function putPage(root, slug) {
   const dir = workflowDir(root, slug);
-  const draft = [join(localWorkflowsRoot(root), slug, DRAFT_DIR, PAGE_DRAFT), join(dir, DRAFT_DIR, PAGE_DRAFT)].find(existsSync);
+  // The draft is in <wf-dir>/.draft/; the local folder of the old layout is read second, for one release.
+  const draft = [join(dir, DRAFT_DIR, PAGE_DRAFT), join(localWorkflowsRoot(root), slug, DRAFT_DIR, PAGE_DRAFT)].find(existsSync);
   if (!draft) return { ok: false, problems: [`no draft ${DRAFT_DIR}/${PAGE_DRAFT}`] };
   const problems = pageProblems(readFileSync(draft, 'utf8'), dir);
   if (problems.length) return { ok: false, draft, problems };

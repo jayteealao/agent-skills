@@ -34,7 +34,7 @@ test('one commit for each changed workflow, none for a read, none for a script t
     }
     assert.equal(linkProject(root, 'notes').ok, true);
     const clone = join(home, 'records');
-    const count = (slug) => Number(git(clone, 'rev-list', '--count', `refs/heads/live/notes/${slug}`));
+    const count = (slug) => Number(git(clone, 'rev-list', '--count', 'HEAD', '--', `notes/${slug}`));
     const before = ['w1', 'w2', 'w3'].map(count);
 
     const r = await runScript(root, async ({ open }) => {
@@ -48,8 +48,8 @@ test('one commit for each changed workflow, none for a read, none for a script t
     assert.equal(r.ok, true, r.error?.message);
     assert.deepEqual([r.value, r.changed.sort()], ['active', ['w1', 'w2']]);
     assert.deepEqual(['w1', 'w2', 'w3'].map(count), [before[0] + 1, before[1] + 1, before[2]]);
-    assert.match(git(clone, 'log', '-1', '--format=%s', 'refs/heads/live/notes/w1'), /w1: wf run many\.mjs/);
-    assert.equal(git(bare, 'rev-parse', 'refs/heads/live/notes/w1'), git(clone, 'rev-parse', 'refs/heads/live/notes/w1'), 'the push went out');
+    assert.match(git(clone, 'log', '-1', '--format=%s', 'HEAD', '--', 'notes/w1'), /w1: wf run many\.mjs/);
+    assert.equal(git(bare, 'rev-parse', 'main'), git(clone, 'rev-parse', 'HEAD'), 'the push went out');
 
     const after = ['w1', 'w2'].map(count);
     const bad = await runScript(root, async ({ open }) => {

@@ -3,7 +3,7 @@ description: Walk the list of one brainstorm or ideate folder, one work packet a
 argument-hint: <source-slug>
 ---
 
-You are running `/wf campaign <source-slug>`, the **walk**. The source is a brainstorm folder or an ideate folder in `.ai/workflows/`. Its `work/index.md` (`type: list`) is the **list**: one work packet file `work/<packet-slug>.md` (`type: packet`) per work packet, in strict order. A brainstorm `done` or an ideate pick writes the list ([intake/brainstorm/_work.md](intake/brainstorm/_work.md)). Each work packet is one normal workflow, `.ai/workflows/<packet-slug>/`. The walk builds the work packets in list order, one work packet at a time, on the **list branch** `packets/<source-slug>`.
+You are running `/wf campaign <source-slug>`, the **walk**. The source is a brainstorm workflow or an ideate workflow. Its `work/index.md` (`type: list`) is the **list**: one work packet file `work/<packet-slug>.md` (`type: packet`) per work packet, in strict order. A brainstorm `done` or an ideate pick writes the list ([intake/brainstorm/_work.md](intake/brainstorm/_work.md)). Each work packet is one normal workflow, with its own wf-dir beside the wf-dir of the source: `<wf-dir>/../<packet-slug>/`. The walk builds the work packets in list order, one work packet at a time, on the **list branch** `packets/<source-slug>`.
 
 > **Hosts.** Step 10 launches the yolo driver through the host's workflow runtime ([yolo.md](yolo.md) Step 1). Every step runs on every host.
 
@@ -70,8 +70,8 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
     - **Works.** Record the try-out in the work packet's workflow with `decide add --kind try-out --key try-out --answer works` per [_decisions.md](_decisions.md). Put the question and the person's words in `--question`. Go to step 14.
     - **A problem.** Go to step 13 with the person's words.
 13. **Fix the defect in a review run.** A defect never becomes a new slice, and the walk does not reopen the roster.
-    1. Write the problem as one finding in `.ai/workflows/<packet-slug>/.draft/found.json`: `{ "findings": [ { "dimension": "intent-fidelity", "severity": "HIGH", "file": <the file, when known, else null>, "issue": <the problem text>, "fix": <what must change> } ] }`. For a try-out problem, use the dimension `try-out`.
-    2. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <packet-slug> .ai/workflows/<packet-slug>/.draft/found.json --source review --dimensions <the dimension>`.
+    1. Write the problem as one finding in `<wf-dir>/../<packet-slug>/.draft/found.json`: `{ "findings": [ { "dimension": "intent-fidelity", "severity": "HIGH", "file": <the file, when known, else null>, "issue": <the problem text>, "fix": <what must change> } ] }`. For a try-out problem, use the dimension `try-out`.
+    2. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <packet-slug> <wf-dir>/../<packet-slug>/.draft/found.json --source review --dimensions <the dimension>`.
     3. Launch the driver as step 10 does, with `reviewFindings: true` in the args. The driver skips every built slice. The slug-wide review fixes the finding, one step and one commit, and stops. It does not scan its own fix commits.
     4. Go to step 11 for a fidelity row, or to step 12 for a try-out problem.
 

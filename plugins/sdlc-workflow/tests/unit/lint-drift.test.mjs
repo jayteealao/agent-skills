@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PUBLIC_SKIP, checkForm, commentsOf, formsIn, hasStep, headingSlugs, lintDrift, planIdsIn, publicFiles, testTitlesOf } from '../../scripts/lint-drift.mjs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+
+import { PUBLIC_SKIP, WFDIR_SKIP, checkForm, commentsOf, formsIn, hasStep, headingSlugs, lintDrift, lintWfDir, planIdsIn, publicFiles, testTitlesOf } from '../../scripts/lint-drift.mjs';
 import { loadRegistry } from '../../lib/registry.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -66,4 +69,25 @@ test('public: the files are the drivers, lib, scripts, hooks and tests, less the
   assert.ok(files.includes('skills/wf/workflows/optimize.js') && files.includes('lib/proc.mjs') && files.includes('tests/run-all.mjs'));
   for (const skipped of PUBLIC_SKIP) assert.ok(!files.includes(skipped), skipped);
   assert.ok(!files.some((f) => f.endsWith('.md')), 'cards are out of scope');
+});
+
+test('wfdir: a card or a driver that names the old workflow path is refused, and the defining card is not', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'lint-wfdir-'));
+  try {
+    const ref = path.join(root, 'skills', 'wf', 'reference');
+    const drivers = path.join(root, 'skills', 'wf', 'workflows');
+    mkdirSync(ref, { recursive: true });
+    mkdirSync(drivers, { recursive: true });
+    // The old form is built from parts, so this file does not hold it.
+    const old = '.ai/' + 'workflows/';
+    writeFileSync(path.join(ref, 'a.md'), ['Write the draft `' + old + '<slug>/.draft/x.md`.', 'The registry `' + old + 'INDEX.md` stays.', ''].join('\n'));
+    writeFileSync(path.join(ref, 'b.md'), 'Write the draft `<wf-dir>/.draft/x.md`.\n');
+    writeFileSync(path.join(drivers, 'd.js'), 'const p = `${root}/' + old + '${slug}`\n');
+    writeFileSync(path.join(ref, '_records.md'), 'The wf-dir is `<root>/' + old + '<slug>/`.\n');
+    const found = lintWfDir(root).map((f) => `${f.file}:${f.line}`).sort();
+    assert.deepEqual(found, ['skills/wf/reference/a.md:1', 'skills/wf/workflows/d.js:1']);
+    assert.ok(WFDIR_SKIP.has('skills/wf/reference/_records.md'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -58,7 +58,7 @@ You are a **performance analyst**, not an optimizer.
 
 # Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
-   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
+   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found."
    - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
 2. **Resolve mode:**
    - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
@@ -110,7 +110,7 @@ If benchmarks fail to run (missing dependency, build error, missing test fixture
 
 ## Baseline Step 3 — Write `05c-benchmark.md` (baseline)
 
-Write the draft `.ai/workflows/<slug>/.draft/05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
+Write the draft `<wf-dir>/.draft/05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
 
 ## Baseline Step 4 — Update `00-index.md` augmentations registry
 
@@ -168,7 +168,7 @@ Targets measured: <N> (<N> failed)
 Branch: <branch> @ <commit>
 Next: /wf implement <slug> — baseline is recorded
 Re-baseline: re-run `plan` (it re-authors the baseline), or load this file in baseline mode
-Artifact: .ai/workflows/<slug>/05c-benchmark.md
+Artifact: <wf-dir>/05c-benchmark.md
 ```
 
 **Compare mode summary.** Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors:
@@ -180,7 +180,7 @@ Improvements: <N> (<list target names>) | none
 Largest delta: <target> <±X%>
 Tripwires: <none | comma-separated>
 Next: /wf verify <slug> — comparison data available as context
-Artifact: .ai/workflows/<slug>/05c-benchmark.md
+Artifact: <wf-dir>/05c-benchmark.md
 ```
 
 If regressions found, prefix compare summary with:

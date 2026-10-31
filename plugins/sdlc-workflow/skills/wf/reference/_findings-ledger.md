@@ -12,7 +12,7 @@ deliberately deferred from what was never seen.
 
 ## The ledger file
 
-The ledger is `.ai/workflows/<slug>/findings.yaml`. Only `wf.mjs findings` writes it. Never
+The ledger is `<wf-dir>/findings.yaml`. Only `wf.mjs findings` writes it. Never
 edit `findings.yaml` by hand, and never copy its rows into a second ledger.
 
 | Command | What it does |
@@ -29,7 +29,7 @@ packet. `found.json` is `{ "dimensions": [...], "affectedFiles": [...], "finding
 drops a finding in any other file and counts it as `out-of-scope` in the `runs` entry. Each finding has
 `dimension`, `severity` (BLOCKER, HIGH, MED, LOW or NIT), `file`, `line`, `issue`, and can have
 `confidence`, `evidence`, `fix`, `key`, `preExisting`, `refuted` (the refuter's reason),
-`changesAcceptance` and `needsRuntimeEvidence` (the experiment that settles the finding). Write `found.json` to `.ai/workflows/<slug>/.draft/found.json`; the next run
+`changesAcceptance` and `needsRuntimeEvidence` (the experiment that settles the finding). Write `found.json` to `<wf-dir>/.draft/found.json`; the next run
 replaces it. `dimensions` names every dimension that the run checked, also the clean ones: a
 dimension that is not named clears nothing.
 

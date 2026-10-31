@@ -82,7 +82,7 @@ These are the implementation contract. Code that loses them has regressed.
 
 ## Step 5: Write the visual contract
 
-Write the visual contract as the draft `.ai/workflows/<slug>/.draft/02c-craft.md`, then run `<wf> record put "<root>" <slug>` ([_records.md](../_records.md)). This is the spec the implement step applies — writing it does not itself mutate product code. Then run `<wf> design approve "<root>" <slug>` per [stage.md](stage.md) Step 6: the command adds the approval fields.
+Write the visual contract as the draft `<wf-dir>/.draft/02c-craft.md`, then run `<wf> record put "<root>" <slug>` ([_records.md](../_records.md)). This is the spec the implement step applies — writing it does not itself mutate product code. Then run `<wf> design approve "<root>" <slug>` per [stage.md](stage.md) Step 6: the command adds the approval fields.
 
 ```yaml
 ---

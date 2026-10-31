@@ -120,7 +120,7 @@ recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reas
 ---
 ```
 
-Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`. Write the record to the draft `.ai/workflows/<slug>/.draft/01-investigate.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`. Write the record to the draft `<wf-dir>/.draft/01-investigate.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 # Step 4 — Write `00-index.md`
 
@@ -162,7 +162,7 @@ Cross-option observation: <one line from ## Side-by-side comparison>
 Tripwires: <none | comma-separated list>
 Next: pick an option — record it via /wf intake investigate <slug> <option> [reason],
       then route per ## Routing (the routed invocation carries `from <slug>`)
-Artifact: .ai/workflows/<slug>/01-investigate.md
+Artifact: <wf-dir>/01-investigate.md
 ```
 
 If `single-viable-option` tripped, prefix with:

@@ -36,7 +36,7 @@ Read every row before you run the mode reference. [_requires.md](_requires.md) d
 
 Two shape carve-outs: `adopt` and `optimize` are **standalone-only** (never slug-attachable, never auto-proposed); `amend`, `modernize` and `close` are **slug-REQUIRED** (never compressed slices, never auto-proposed). The branches below enforce both.
 
-**List work packet.** A brainstorm `done` or an ideate pick writes work packets: `.ai/workflows/<source-slug>/work/<packet-slug>.md`, `type: packet` (`campaign.md`). Check these before the order below:
+**List work packet.** A brainstorm `done` or an ideate pick writes work packets: `<wf-dir>/../<source-slug>/work/<packet-slug>.md`, `type: packet` (`campaign.md`). Check these before the order below:
 - When `token0` is the path of a work packet file whose `form` is `intake`, `fix`, `hotfix` or `extension`, STOP: *"The campaign walk opens and builds this work packet. Type `/wf campaign <source-slug>`."* Intake does not open a build work packet: `campaign.mjs open` writes its folder.
 - When `token0` is `investigate`, `discover`, `rca` or `task`, and `token1` is the `packet-slug` of a work packet file of that form, run that mode standalone with the work packet as its source. The new workflow's slug is the work packet slug. The token `from <source-slug>` is implied ([intake/_intake-provenance-consume.md](intake/_intake-provenance-consume.md), row `brainstorm`). A `token0` path to such a work packet file runs the same way.
 

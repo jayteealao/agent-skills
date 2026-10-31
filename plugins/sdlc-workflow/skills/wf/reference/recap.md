@@ -189,7 +189,7 @@ no advancing the workflow.
 # Step 3 — Save and return
 
 1. **Timestamp:** get the current UTC time per [_timestamp.md](_timestamp.md).
-2. **Write the draft `.ai/workflows/<slug>/.draft/90-recap.md`** with this frontmatter, followed by the recap body. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md):
+2. **Write the draft `<wf-dir>/.draft/90-recap.md`** with this frontmatter, followed by the recap body. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md):
 
 ```yaml
 ---

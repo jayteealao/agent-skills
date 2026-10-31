@@ -72,7 +72,7 @@ matched-adapters: [<key>, ...]          # full list from detection; adapters-use
 partial-bootstrap-failures: []          # list of {adapter, step, remediation} when only some adapters failed
 
 probed-on-branch: <branch-name>         # only set when user chose run-and-record at Step 1
-evidence-dir: ".ai/workflows/<slug>/probe-evidence/<descriptor>/"
+evidence-dir: "<wf-dir>/probe-evidence/<descriptor>/"
 bootstrap-failure: <object|null>        # set when status == awaiting-environment
 
 comparison-basis: [ac, charter, taxonomy]   # which bases ran; [taxonomy] alone when slug-less

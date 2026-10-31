@@ -190,4 +190,4 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
 - **init**: this command. One-time. Errors if a plan exists. Always runs discovery first.
 - **edit**: `/wf project ship-plan edit` — opens the existing plan, lets the user pick which block to edit (A–K, or an additional-contract `id`), runs the relevant questions for that block only, bumps `plan-version`. Used when CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, code-quality/security gates or governance rules change, or a new additional-contract is introduced.
 
-The plan is intentionally project-scoped — every workflow on the same repo ships through the same pipeline, so the plan only needs to be authored once per project. Run history accumulates per workflow under `.ai/workflows/<slug>/09-ship-run-*.md`.
+The plan is intentionally project-scoped — every workflow on the same repo ships through the same pipeline, so the plan only needs to be authored once per project. Run history accumulates per workflow under `<wf-dir>/09-ship-run-*.md`.

@@ -1,5 +1,5 @@
 # Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage record first. Write a record as a draft and put it, per [_records.md](_records.md).
+- Store artifacts under `<wf-dir>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage record first. Write a record as a draft and put it, per [_records.md](_records.md).
 - Every artifact file has YAML frontmatter (between `---` markers) as the first thing in the file. One role per place: frontmatter is state; the agent-file body is the contract and the working record, under fixed `##` headings; the chat narrative is for the person, per [_chat-return.md](_chat-return.md).
 - Write no explainer and no sibling `.yaml`, unless the stage reference names that file. Only the review stage and the audit intake mode name a sibling `.yaml`, because agents read those files.
 - Before you write a stage artifact, read every input in the stage's `## Requires` table, per [_requires.md](_requires.md).
@@ -16,7 +16,7 @@
 - Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: STOP, and ask the person to reconcile it. Do not cut the branch from it.
 - **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.
   1. Stage the code files that this step changed, each by its path: `git add -- <path> <path>`.
-  2. Stage the workflow records under `.ai/workflows/<slug>/` by path.
+  2. Stage the workflow records under `<wf-dir>/` by path.
   3. Any other dirty path is not yours. Fail closed: do not stage it, and ask the person.
   4. Never run `git add -A`, `git add .`, `git commit -a` or a `git add` with no path. A sweep commits the work of other sessions.
   5. Write the message as `implement/_steps.md` says: `<type>: <what the change does>`. Name no slug, no slice, no step number and no finding id.

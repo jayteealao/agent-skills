@@ -80,7 +80,7 @@ These checks are **informational** — surface them, do not act automatically.
 
 ## Step W3 — Write `99-close.md`
 
-Write the draft `.ai/workflows/<slug>/.draft/99-close.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the draft `<wf-dir>/.draft/99-close.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 ```yaml
 ---
@@ -111,7 +111,7 @@ stage), `## Reason & Context` (expanded; name what superseded/absorbed it; reviv
 deferred), `## Branch & PR Status` (a resource/state/action table), `## Revival Instructions` (only
 if `deferred`/`superseded`: *"To resume, run `wf.mjs record set "<root>" <slug> index status=in-progress` and run
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
-are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed permanently").
+are intact at `<wf-dir>/`"*; otherwise "Not applicable — closed permanently").
 
 ## Step W4 — Update `00-index.md`
 Run one `record set "<root>" <slug> index` call: `status=closed`, `close-reason=<reason>`, `superseded-by=<value>`,
@@ -194,5 +194,5 @@ receipt: skipped slice, reason, skip-record path, next command (`/wf plan <slug>
 
 # What this command is NOT
 
-- **Not a delete and not automatic.** `close` archives in place: all artifacts stay under `.ai/workflows/<slug>/`. It closes no PR, deletes no branch and notifies nobody; it surfaces those as a checklist.
+- **Not a delete and not automatic.** `close` archives in place: all artifacts stay under `<wf-dir>/`. It closes no PR, deletes no branch and notifies nobody; it surfaces those as a checklist.
 - **Not a stage-skip.** A slice is the unit of skippable work: run the stage or close the slice.

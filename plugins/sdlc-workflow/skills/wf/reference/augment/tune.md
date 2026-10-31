@@ -51,7 +51,7 @@ The body has `## Baseline` (the harness output on the code before the first roun
 |---|---|---|---|---|---|
 | `1` | `<the lever>` | `<what changed, in one line>` | `<the harness number>` | `<the change from the round before>` | `<short sha>` |
 
-Write the record as the draft `.ai/workflows/<slug>/.draft/05d-tune.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). To add a section or a row, get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05d-tune.md`, change it, write the draft and put it. To change only `mode:`, `result:` or `rounds-run:`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 05d-tune.md key=value`.
+Write the record as the draft `<wf-dir>/.draft/05d-tune.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). To add a section or a row, get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05d-tune.md`, change it, write the draft and put it. To change only `mode:`, `result:` or `rounds-run:`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 05d-tune.md key=value`.
 
 # Rules
 

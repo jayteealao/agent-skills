@@ -149,8 +149,8 @@ Every finding gets a refuter before it enters the ledger. Group the findings of 
 
 # Step 4: Merge into the ledger
 
-1. **Write `found.json`** to `.ai/workflows/<slug>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, `dimensions` = every command of this run, also the clean ones, and `affectedFiles` = the work packet files of Step 1.
-2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.draft/found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
+1. **Write `found.json`** to `<wf-dir>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, `dimensions` = every command of this run, also the clean ones, and `affectedFiles` = the work packet files of Step 1.
+2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
 3. **Read the ledger.** Run `wf.mjs findings table` and `wf.mjs findings metrics` with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
 
 Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
@@ -196,7 +196,7 @@ The review file lists each fix step: the finding, the commit and the check that 
 
 # Step 5: Write the review file whole
 
-Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix steps. Load [_artifact.md](_artifact.md) and write the draft `.ai/workflows/<slug>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix steps. Load [_artifact.md](_artifact.md) and write the draft `<wf-dir>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
 Write the whole draft on every run, also when the record exists. Keep only `created-at` from the old record (`record get`). Do not merge into the old body: the ledger holds the history. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 

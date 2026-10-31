@@ -67,7 +67,7 @@ Ask at most **3 questions** — stop as soon as you have enough:
 2. **What is the impact?** — outage / degraded / data issue? how many users? data at risk?
 3. **What changed recently?** — deployments, migrations, config, dependency updates in the last 24–72h?
 
-Write the draft `.ai/workflows/<slug>/.draft/01-hotfix.md` immediately, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
+Write the draft `<wf-dir>/.draft/01-hotfix.md` immediately, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`) and put it the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
 

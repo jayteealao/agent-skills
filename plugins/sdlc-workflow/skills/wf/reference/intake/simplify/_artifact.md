@@ -151,7 +151,7 @@ refs:
 
 ## Additive-write contract — no rewrites; one slug workflow per run
 
-A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:
+A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `<wf-dir>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:
 
 1. **Never overwrite an existing slug.** Name it per "New slug" of [../_intake-context.md](../_intake-context.md). Keep `run-id` in the lead frontmatter.
 2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead is immutable; subsequent runs author *new* slug workflows.

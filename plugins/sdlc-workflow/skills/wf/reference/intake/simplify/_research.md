@@ -70,7 +70,7 @@ For `plan` scope: hunt the same efficiency classes in the plan's steps instead o
 | Agent rubrics | Reuse, Quality, Efficiency | Same — kept unchanged |
 | Dispatch shape | Three parallel sub-agents | Same |
 | Action after findings | **Applies fixes directly** | **Routes findings to downstream commands; never writes code** |
-| Output | Ephemeral chat summary | `.ai/workflows/<slug>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |
+| Output | Ephemeral chat summary | `<wf-dir>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |
 
 The divergence is intentional: every command in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews; simplify routes. The user invokes the appropriate downstream command for code action — each runs its own discipline, keeping the artifact trail clean and preventing simplify from becoming a back-door code-write path that bypasses review, verify, or planning.
 

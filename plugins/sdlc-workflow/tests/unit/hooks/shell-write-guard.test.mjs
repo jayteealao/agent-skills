@@ -86,12 +86,14 @@ function linked() {
   return { top, home, clone, root, done: () => { if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved; rmSync(top, { recursive: true, force: true }); } };
 }
 
-test('a shell write into a local workflow path of a linked project is refused with the real place; a draft passes', () => {
+test('a shell write into a local workflow path of a linked project is refused with the wf-dir path, a draft too', () => {
   const w = linked();
   try {
     const r = shellWriteRefusal('npm test > .ai/workflows/w1/verify-evidence/run.txt', w.root, w.root);
     assert.ok(r && r.includes(path.join(w.clone, 'notes', 'w1', 'verify-evidence', 'run.txt')), r);
-    assert.equal(shellWriteRefusal('echo x > .ai/workflows/w1/.draft/04-plan.md', w.root, w.root), null);
+    const draft = shellWriteRefusal('echo x > .ai/workflows/w1/.draft/04-plan.md', w.root, w.root);
+    assert.ok(draft && draft.includes(path.join(w.clone, 'notes', 'w1', '.draft', '04-plan.md')), draft);
+    assert.match(draft, /fix: write the file at/);
     assert.equal(shellWriteRefusal(`echo x > "${path.join(w.clone, 'notes', 'w1', 'run.txt')}"`, w.root, w.root), null, 'a write in the clone passes');
     assert.equal(shellWriteRefusal('echo x > src/a.js', w.root, w.root), null);
     assert.equal(recordPathOf(w.root, path.join(w.root, 'src', 'a.js')), path.join(w.root, 'src', 'a.js'));

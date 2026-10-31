@@ -1,6 +1,6 @@
 # Implement artifacts
 
-`implement.md` Steps 8 and 9 write these two records. Write the draft of each record to `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). Frontmatter is the machine-readable state; the body is the contract and the working record.
+`implement.md` Steps 8 and 9 write these two records. Write the draft of each record to `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). Frontmatter is the machine-readable state; the body is the contract and the working record.
 
 ## `05-implement.md` (master index)
 

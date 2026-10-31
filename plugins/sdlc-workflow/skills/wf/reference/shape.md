@@ -175,7 +175,7 @@ from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood
 One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the id of the new decision-store entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried decision, its key and text word for word, from the origin work packet's `carried-decisions` or the origin board; list work packets have them already.
 
 # Step 10 — Write the artifacts
-Write the draft `.ai/workflows/<slug>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `.ai/workflows/<slug>/.draft/02b-design.md`; its structure is defined in [design/brief.md](design/brief.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the draft `<wf-dir>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `<wf-dir>/.draft/02b-design.md`; its structure is defined in [design/brief.md](design/brief.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **The ship gaps at the start.** When `branch-strategy` is `dedicated`, run Step R0 of [_ship-plan-readiness.md](_ship-plan-readiness.md) in its listing form: `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. Name each gap in the chat return as a person task. A gap does not stop intake; ship stops on it.
 
@@ -248,6 +248,6 @@ Body sections, in order:
 
 # Additive-write contract
 `02-shape.md` is a revisable artifact. When `/wf shape` re-runs on a slug that already has one, follow [_additive-write.md](_additive-write.md): snapshot, rewrite the body to current truth (do not stack `## Revision N` sections), and add one ledger entry.
-- Snapshot: write the `record get` output of `02-shape.md` to `.ai/workflows/<slug>/history/02-shape-<rev>.md` (snapshot a sibling `02-shape.yaml` only when one exists from an older run).
+- Snapshot: write the `record get` output of `02-shape.md` to `<wf-dir>/history/02-shape-<rev>.md` (snapshot a sibling `02-shape.yaml` only when one exists from an older run).
 - Ledger entry: `trigger: scope-change` (or `answers-returned` when the reshape resolves open questions), `because:` naming what prompted the reshape, `changed:` naming what moved in the spec.
 - `regenerable: true` applies only when `/wf shape` wraps an auto-derived shape (post-amendment regeneration); then there is no ledger entry. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).

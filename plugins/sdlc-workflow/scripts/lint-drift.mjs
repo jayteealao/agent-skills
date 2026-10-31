@@ -15,6 +15,8 @@
 //   cards     every stage reference has a ## Card section, which the brief of the stage reads
 //   public    the comments of the drivers, lib, scripts and hooks, and the comments, test titles
 //             and file names of the tests, name no internal plan or review id (AGENTS.md "Public text")
+//   wfdir     the cards and the drivers name the folder of a workflow `<wf-dir>/`, never
+//             `.ai/workflows/<slug>/` (only _records.md defines the local folder)
 //
 //   node scripts/lint-drift.mjs [--json]     exit 1 when it finds any drift
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -396,6 +398,35 @@ export function lintPublic(root = PLUGIN_ROOT) {
   return findings;
 }
 
+// ---------------------------------------------------------------- wfdir
+
+/**
+ * The card that defines the local folder of a workflow (`<root>/.ai/workflows/<slug>/`), and the
+ * files that another change rewrites now. Each entry after the first is TEMPORARY: remove it
+ * when that change lands.
+ */
+export const WFDIR_SKIP = new Set([
+  'skills/wf/reference/_records.md',
+  'skills/wf/reference/design/stage.md',
+]);
+
+/**
+ * The cards and the drivers name the folder of a workflow as `<wf-dir>/`, the absolute folder
+ * that the dispatch and the brief print. A path `.ai/workflows/<...>` is the old form: in a
+ * linked project it names the wrong folder.
+ */
+export function lintWfDir(root = PLUGIN_ROOT) {
+  const out = [];
+  for (const rel of walk(root, 'skills', ['.md', '.js', '.mjs'])) {
+    if (WFDIR_SKIP.has(rel)) continue;
+    const text = readFileSync(join(root, rel), 'utf8');
+    for (const m of text.matchAll(/\.ai\/workflows\/(?:<|\$\{)/g)) {
+      out.push({ check: 'wfdir', file: rel, line: lineOf(text, m.index), message: 'names the workflow folder as `.ai/workflows/<slug>/`; write `<wf-dir>/` (the dispatch prints `wf-dir:`)' });
+    }
+  }
+  return out;
+}
+
 export function lintDrift(root = PLUGIN_ROOT) {
   const reg = loadRegistry(root);
   const findings = [
@@ -407,6 +438,7 @@ export function lintDrift(root = PLUGIN_ROOT) {
     ...lintFields(root),
     ...lintCards(root, reg),
     ...lintPublic(root),
+    ...lintWfDir(root),
   ];
   return findings;
 }

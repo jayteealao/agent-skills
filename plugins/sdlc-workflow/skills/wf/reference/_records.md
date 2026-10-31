@@ -1,6 +1,6 @@
 # Records (single source)
 
-The records of a workflow are YAML files in `.ai/workflows/<slug>/`, and scripts write them. An agent never writes a record file. It writes a draft, and `wf.mjs record put` checks the draft and writes the record.
+The records of a workflow are YAML files in its one folder, the wf-dir, and scripts write them. The wf-dir is `<root>/.ai/workflows/<slug>/`, or `<records home>/<project>/<slug>/` in a project that is linked to a records repo. The dispatch and the brief print it as `wf-dir: <absolute path>`, and the references write it as `<wf-dir>/`. An agent never writes a record file. It writes a draft, and `wf.mjs record put` checks the draft and writes the record.
 
 In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>` is the project root. Run `<wf> help <command>` for the forms and the flags of a command. Do not read the source of `wf.mjs` to learn them.
 
@@ -39,7 +39,7 @@ You may also read a record file with the file-read tool. Each section has `name`
 ## Write a record
 
 1. Get the frontmatter template of the record type: `<wf> stamp <type> --slug <slug> [--slice <slice>]`.
-2. Write the whole record, frontmatter and body, to the draft `.ai/workflows/<slug>/.draft/<name>` with the file-write tool. The write-time checks run on the draft.
+2. Write the whole record, frontmatter and body, to the draft `<wf-dir>/.draft/<name>` with the file-write tool. The write-time checks run on the draft.
 3. Run `<wf> record put <root> <slug>`. Each draft must print `put <name> → <file>#<section>`. The command moves the draft to `.draft/.put/<name>`, and `record stage-done` deletes it.
 4. When the command prints `refused <name>: <errors>`, nothing was written for that draft. Correct the draft and run step 3 again.
 
@@ -74,13 +74,13 @@ The command reads the file, merges the change and writes the file in one step. S
 ## Prohibitions
 
 - Do not Write or Edit `state.yaml`, `meta.yaml` or any other record file. The pre-write check refuses it.
-- Do not Write a record name beside the records, such as `.ai/workflows/<slug>/04-plan-api.md`. The check refuses it and names the draft path.
+- Do not Write a record name beside the records, such as `<wf-dir>/04-plan-api.md`. The check refuses it and names the draft path. The check also refuses a Write of `decisions.yaml`, `findings.yaml` and `steps.jsonl`: `decide add`, `findings add` and `step` write them.
 - Do not make an `.ai/` folder below the project root. The check refuses it.
 - Do not edit `INDEX.md`: `wf.mjs` writes the row of a workflow each time its index changes.
 
 ## A linked project
 
-A project that is linked to a records repo keeps its records in a clone. The dispatch then prints `records-dir:`, and the steps above do not change. The rules of the clone, the lease, messages and the GitHub layer are in [_records-repo.md](_records-repo.md).
+A project that is linked to a records repo keeps each wf-dir in a clone, and the steps above do not change. The check refuses a write by a path in `.ai/workflows/` of a linked project, and names the wf-dir path. The rules of the clone, the lease, messages and the GitHub layer are in [_records-repo.md](_records-repo.md).
 
 ## Workflows of the old layout
 

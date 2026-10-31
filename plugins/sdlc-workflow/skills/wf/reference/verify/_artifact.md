@@ -1,6 +1,6 @@
 # Verify artifact schemas
 
-`verify.md` steps 8 and 9 write these two records. Write the draft of each record to `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). Frontmatter carries every machine-readable field; the body is the contract that review, handoff, and design audit read. Raw check output goes to `verify-evidence/<slice-slug>/checks.md`.
+`verify.md` steps 8 and 9 write these two records. Write the draft of each record to `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). Frontmatter carries every machine-readable field; the body is the contract that review, handoff, and design audit read. Raw check output goes to `verify-evidence/<slice-slug>/checks.md`.
 
 ## `06-verify.md` (master index)
 
@@ -64,7 +64,7 @@ interactive-verification: <required | deferred | not-applicable>
 interactive-verification-defer-reason: "<string>"  # required when interactive-verification == deferred
 adapters-used: [<key>, ...]                     # runtime adapters driven
 bootstrap-failures: []                          # {adapter, step, remediation} from sub-agent 3
-evidence-dir: ".ai/workflows/<slug>/verify-evidence/<slice-slug>/"
+evidence-dir: "<wf-dir>/verify-evidence/<slice-slug>/"
 evidence-run-count: <N>                         # 1 for the first run; prior evidence archived to <slice-slug>-run-<N-1>/
 security-scan-result: <pass | fail | skipped>  # BLOCKER if fail; skipped only when no tooling is installed
 metric-a11y-violations-new: <N>                # new WCAG AA violations in slice-modified UI components

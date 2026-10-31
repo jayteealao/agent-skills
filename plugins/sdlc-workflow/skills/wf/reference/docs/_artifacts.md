@@ -88,7 +88,7 @@ created-at: <real timestamp>
 
 ## `08b-docs-index.md` (Step 5)
 
-In `mode: workflow`, write the draft `.ai/workflows/<target-slug>/.draft/08b-docs-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <target-slug>` per [_records.md](../_records.md); in project/path mode, write `.ai/docs/<run-id>/08b-docs-index.md` unless the run is explicitly attached to an existing workflow slug.
+In `mode: workflow`, write the draft `<wf-dir>/../<target-slug>/.draft/08b-docs-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <target-slug>` per [_records.md](../_records.md); in project/path mode, write `.ai/docs/<run-id>/08b-docs-index.md` unless the run is explicitly attached to an existing workflow slug.
 
 ```yaml
 ---

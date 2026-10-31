@@ -61,7 +61,7 @@ test('buildBrief: card, slice sections, the plan sections of the stage, and the 
     assert.doesNotMatch(b.parts.plan, /Current State/);
     assert.deepEqual(b.parts.decisions.split('\n').map((l) => l.slice(2, 7)), ['D-001', 'D-003']);
     assert.equal(b.parts.tests, '- fast: `npm test` (120s measured)\n- affected: `npm test -- {files}` (60s estimated)\n- budget: not chosen; the person chooses it once for the repo (_check-budget.md)\n\nTime box: 10 minutes. Longest check of this stage: 600s (from the time box). A longer command is a long run: follow _long-runs.md.');
-    assert.match(b.text, /^# Brief: implement demo api\n\nOutput boundary: [^\n]+\nStanding steer: [^\n]+\n\n## Card\n/);
+    assert.match(b.text, /^# Brief: implement demo api\n\nwf-dir: [^\n]+\/demo\n\nOutput boundary: [^\n]+\nStanding steer: [^\n]+\n\n## Card\n/);
   } finally { f.done(); }
 });
 
@@ -118,7 +118,9 @@ test('buildBrief: a stage with no plan sections, no slice, and the missing parts
     assert.match(b.text, /No live decisions in this scope\./);
     assert.doesNotMatch(b.text, /A question whose key is listed here/, 'no decisions, no rule');
     const v =buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'verify', slice: 'gone' });
-    assert.deepEqual(v.missing, ['the ## Card section of reference/verify.md', '.ai/workflows/demo/slice-gone.yaml#slice', '.ai/workflows/demo/slice-gone.yaml#plan']);
+    const wfDir = f.dir.replace(/\\/g, '/');
+    assert.deepEqual(v.missing, ['the ## Card section of reference/verify.md', `${wfDir}/slice-gone.yaml#slice`, `${wfDir}/slice-gone.yaml#plan`]);
+    assert.ok(v.text.includes(`\n\nwf-dir: ${wfDir}\n`), 'the brief carries the wf-dir line');
     assert.throws(() => buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'nope', stage: 'plan' }), /no workflow folder/);
   } finally { f.done(); }
 });
@@ -128,7 +130,7 @@ test('buildBrief: a long section is cut and names its file', () => {
   try {
     writeFileSync(path.join(f.dir, '04-plan-api.md'), `## Handover\n\n${'x'.repeat(SECTION_CAP + 10)}\n`);
     const b = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'implement', slice: 'api' });
-    assert.match(b.parts.plan, /cut at 12000 characters: read \.ai\/workflows\/demo\/04-plan-api\.md for the rest/);
+    assert.ok(b.parts.plan.includes(`cut at 12000 characters: read ${f.dir.replace(/\\/g, '/')}/04-plan-api.md for the rest`), b.parts.plan.slice(-200));
   } finally { f.done(); }
 });
 

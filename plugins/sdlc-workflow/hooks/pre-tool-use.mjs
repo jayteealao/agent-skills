@@ -25,7 +25,7 @@ import {
   isRecordsHomePath,
 } from './_adapter.mjs';
 
-const RECORD_YAML = /(?:^|\/)\.ai\/workflows\/(?:[^/]+\/[^/]+\.yaml|answers\.jsonl)$/;
+const RECORD_YAML = /(?:^|\/)\.ai\/workflows\/(?:[^/]+\/(?:[^/]+\.yaml|steps\.jsonl)|answers\.jsonl)$/;
 
 function main() {
   const args = parseHookArgs();
@@ -41,10 +41,12 @@ function main() {
     (t) => typeof t.content === 'string' && ((t.path.endsWith('.md') && isManagedArtifactPath(t.path)) || RECORD_YAML.test(t.path.replace(/\\/g, '/')) || isRecordsHomePath(t.path)),
   );
   // An Update or a Move of a patch has no full content, but its path is known: a local
-  // workflow path of a linked project goes to the check with no content, so the refusal
-  // that names the real place applies to a patch write too.
+  // workflow path of a linked project, a record file and a file of the records clone go to the
+  // check with no content, so the refusal that names the wf-dir path or the record command
+  // applies to a patch write too.
   for (const t of touched) {
-    if (typeof t.content !== 'string' && t.path && isLinkedLocalPath(cwd, t.path)) candidates.push({ path: t.path, content: '' });
+    if (typeof t.content === 'string' || !t.path) continue;
+    if (isLinkedLocalPath(cwd, t.path) || RECORD_YAML.test(t.path.replace(/\\/g, '/')) || isRecordsHomePath(t.path)) candidates.push({ path: t.path, content: '' });
   }
   if (!candidates.length) return 0;
 

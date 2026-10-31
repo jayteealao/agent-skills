@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path';
 import { sdlcHomeDir } from './home.mjs';
 import { linkedProject, recordsHome, workflowDir } from './records-root.mjs';
-import { commitPaths, liveRef, machineName, mainBranch, namesAt, otherProjectSource, postFileTo, readMachineFacts, textAt, writeMachineFacts } from './records-sync.mjs';
+import { commitPaths, machineName, namesAt, otherProjectSource, postFileTo, readMachineFacts, textAt, writeMachineFacts } from './records-sync.mjs';
 
 export const KINDS = ['handoff', 'review-request', 'question-for-project', 'note'];
 export const INBOX = 'inbox';
@@ -23,7 +23,7 @@ const stampOf = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/,
 
 /**
  * The workflow folder of a message: this project's, or another project's in the records home.
- * The folder of another project that has no live branch here is a commit: `ref` names it, and
+ * The folder of another project that this clone does not hold is a commit: `ref` names it, and
  * `missing` is true when no commit has the workflow.
  */
 function folderOf(root, slug, project = null) {
@@ -65,7 +65,7 @@ function commentNumber(c) {
   return String(parseInt(createHash('sha1').update(String(c?.id ?? c?.body ?? '')).digest('hex').slice(0, 12), 16));
 }
 
-/** Post one message. Returns `{ id, file, project }`; the commit goes on the workflow's live branch. */
+/** Post one message. Returns `{ id, file, project }`; the records commit of the file starts the push. */
 export function postMessage(root, slug, { kind, text, to = null, from = machineName(), now = new Date() }) {
   if (!KINDS.includes(kind)) throw new Error(`msg: the kind must be one of ${KINDS.join(', ')}`);
   if (!String(text ?? '').trim()) throw new Error('msg: the text is empty');
@@ -80,7 +80,7 @@ export function postMessage(root, slug, { kind, text, to = null, from = machineN
   const at = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
   const body = `---\nkind: ${kind}\nfrom: ${from}\nproject: ${linkedProject(root) ?? 'local'}\nat: ${at}\n---\n\n${String(text).trim()}\n`;
   if (ref) {
-    // Only the message file goes onto the other project's live branch; nothing else is written.
+    // Only the message file goes onto the remote main branch; nothing else is written.
     const p = postFileTo(project, slug, { path: `${INBOX}/${id}`, text: body, message: `${project}/${slug}: ${kind} from ${from}` });
     if (!p.pushed) throw new Error(`msg: the post to ${project}/${slug} needs the records remote: ${p.reason}`);
     return { id, file: null, project, pushed: true };
@@ -89,7 +89,7 @@ export function postMessage(root, slug, { kind, text, to = null, from = machineN
   writeFileSync(join(inbox, id), body);
   if (project) {
     const home = recordsHome();
-    commitPaths(home, { ref: liveRef(project, slug), base: `refs/heads/${mainBranch(home)}`, paths: [`${project}/${slug}/${INBOX}/${id}`], message: `${project}/${slug}: ${kind} from ${from}` });
+    commitPaths(home, { paths: [`${project}/${slug}/${INBOX}/${id}`], message: `${project}/${slug}: ${kind} from ${from}` });
   }
   return { id, file: join(inbox, id), project };
 }

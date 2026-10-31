@@ -9,12 +9,12 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 
 # What `/wf yolo` is (and is not)
 
-- **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
+- **A driver, not a stage.** Every artifact in `<wf-dir>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
 - **Reads are listed.** Each stage prompt names the reference's `## Requires` table as a checklist per [_requires.md](_requires.md).
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
 - **It stops before ship — always.** It never opens a PR or runs `ship` or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
-- **A dead driver looks dead.** Every dispatched subagent writes heartbeats to `.ai/workflows/<slug>/.driver-journal.jsonl`. Read it by the staleness rule; never by its existence.
+- **A dead driver looks dead.** Every dispatched subagent writes heartbeats to `<wf-dir>/.driver-journal.jsonl`. Read it by the staleness rule; never by its existence.
 
 # Driver liveness
 
@@ -114,7 +114,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 1. **Slug + mode.** First positional after `yolo` = slug. Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. `yolo` owns its own slug resolution (the dispatcher excludes it from fuzzy-suggest). If the slug is empty, infer it from `.ai/workflows/INDEX.md`: exactly one `status: active` workflow → use it (slug mode); otherwise STOP with: *"`/wf yolo` needs a slug. Active workflows: `<list>`. Run `/wf yolo <slug>`."*
 2. **Existence check.** Confirm that `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
 3. **Resolve the absolute paths the Workflow script needs.** The script and its stage subagents inherit no working directory:
-   - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
+   - `projectRoot` = the absolute root of the repo of the workflow: the `"<projectRoot>"` of the dispatch call (the nearest ancestor that holds `.ai/`, capped at the git toplevel).
    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
 4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run it at every launch and resume (on Codex, `wf.mjs drive` runs it):
@@ -177,8 +177,8 @@ A stage agent never asks the person. It returns each intent-bearing decision as 
 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
 2. Drop the questions that the store already answers:
-   1. Write `outcome.questions` to `.ai/workflows/<slug>/.draft/questions.json`.
-   2. Run `wf.mjs decide drop "<projectRoot>" <slug> .ai/workflows/<slug>/.draft/questions.json --json`. It prints `{ ask, answered }`.
+   1. Write `outcome.questions` to `<wf-dir>/.draft/questions.json`.
+   2. Run `wf.mjs decide drop "<projectRoot>" <slug> <wf-dir>/.draft/questions.json --json`. It prints `{ ask, answered }`.
    3. Put each question of `answered` into the relaunch `answered` list of step 5, with the decision id and the answer that the command prints. Do not ask it again.
 3. Ask the questions of `ask` with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call. Put the `recommended` option first. When `ask` is empty, go to step 5.
 4. For each answer, run `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`. Add `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf.mjs decide add "<projectRoot>" <slug> --file <file>` once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is the one record of them.

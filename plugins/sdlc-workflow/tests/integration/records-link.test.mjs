@@ -1,5 +1,5 @@
 // The link is safe: it merges a folder that the clone holds already, keeps both copies of a
-// file that differs, squashes the closed workflows, waits for the files of a worktree, and
+// file that differs, commits every workflow on the main branch, waits for the files of a worktree, and
 // reports the record files that the product repo tracks or does not ignore. A worktree of a
 // linked project uses the clone, and the removal check of a worktree reads the clone copy.
 
@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import { INDEX_NAME } from '../../lib/records.mjs';
 import { linkedProject, mainWorktreeOf, parseWorkflowPath, recordsHome, workflowsRoot } from '../../lib/records-root.mjs';
-import { commitWorkflow, linkProject, productRepoGaps } from '../../lib/records-sync.mjs';
+import { commitWorkflow, linkProject, productRepoGaps, pushRecords } from '../../lib/records-sync.mjs';
 import { recordsPending } from '../../lib/campaign-records.mjs';
 import { defaultRun, readyGaps } from '../../lib/last-mile.mjs';
 import { fromGitBashPath } from '../../lib/msys.mjs';
@@ -35,7 +35,7 @@ function world() {
     return { name, home, root, clone: join(home, 'records') };
   };
   const saved = { ...process.env };
-  Object.assign(process.env, { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
+  Object.assign(process.env, { SDLC_RECORDS_PUSH: 'off', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
   const as = (m) => { process.env.SDLC_HOME = m.home; return m; };
   const done = () => {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
@@ -60,14 +60,14 @@ function productRepo(root) {
   git(root, 'commit', '-q', '-m', 'init');
 }
 
-test('a closed workflow is squashed at the link; a second link merges the folder and keeps both copies of a file that differs', () => {
+test('a closed workflow is one commit on the main branch at the link; a second link merges the folder and keeps both copies of a file that differs', () => {
   const w = world();
   try {
     const a = w.as(w.machine('alpha'));
     writeFileSync(join(workflow(a.root, 'w1', 'complete'), 'a.md'), 'from alpha\n');
     const r = linkProject(a.root, 'notes');
     assert.equal(r.ok, true, r.reason);
-    assert.deepEqual(r.squashed, ['w1']);
+    assert.equal(pushRecords().pushed, true);
     assert.match(git(w.bare, 'ls-tree', '-r', '--name-only', 'main'), /notes\/w1\/a\.md/);
     assert.doesNotMatch(git(w.bare, 'for-each-ref', '--format=%(refname)'), /live\/notes\/w1/);
 
@@ -90,7 +90,7 @@ test('a closed workflow is squashed at the link; a second link merges the folder
   } finally { w.done(); }
 });
 
-test('a file that a session writes after the link stays local, and the next commit moves it', () => {
+test('a file that a session writes by the local path after the link stays local, and no commit moves it', () => {
   const w = world();
   try {
     const a = w.as(w.machine('alpha'));
@@ -99,8 +99,8 @@ test('a file that a session writes after the link stays local, and the next comm
     const late = join(a.root, '.ai', 'workflows', 'w1', 'late.md');
     writeFileSync(late, 'late\n');
     commitWorkflow(a.root, 'w1', 'w1: late');
-    assert.equal(existsSync(late), false);
-    assert.equal(read(join(a.clone, 'notes', 'w1', 'late.md')), 'late\n');
+    assert.equal(read(late), 'late\n');
+    assert.equal(existsSync(join(a.clone, 'notes', 'w1', 'late.md')), false);
   } finally { w.done(); }
 });
 

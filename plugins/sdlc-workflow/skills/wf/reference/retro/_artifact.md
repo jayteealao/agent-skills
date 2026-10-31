@@ -1,6 +1,6 @@
 # Retro — artifact template and additive-write contract (`retro.md`)
 
-Load this file from `retro.md` when you write `10-retro.md`. Write the draft `.ai/workflows/<slug>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md).
+Load this file from `retro.md` when you write `10-retro.md`. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md).
 
 ## `10-retro.md` structure
 
@@ -91,7 +91,7 @@ check" or "quarterly look-back" section. When `/wf retro` is re-invoked on a
 slug that already has one, follow the shared additive-write contract in
 [_additive-write.md](../_additive-write.md) with:
 
-- Snapshot: write the output of `record get "<root>" <slug> 10-retro.md` to `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
+- Snapshot: write the output of `record get "<root>" <slug> 10-retro.md` to `<wf-dir>/history/10-retro-<rev>.md`.
 - **Rewrite the body** so the retro reads as current truth — fold the revisit's
   findings into the relevant sections rather than appending a `## Revision N`
   block. Make the body carry the arc. State what the retro said at close and

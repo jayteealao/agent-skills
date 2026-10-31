@@ -12,7 +12,7 @@ In slug-mode, report the counts of the `simplify-run` frontmatter in the slice b
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces | `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. |
+| Produces | `<wf-dir>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. |
 | Next | One or more downstream commands the user runs based on the routing assignments (routing matrix in Step 4). |
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running the same scope+target on an already-cleaned input is safe — agents report "no findings" and the artifact records that. |
@@ -37,7 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Role
 You are a **router**, not a problem-solver: resolve the scope before dispatch, complete triage before routing, and write the run artifact last.
 - Do not write code — not one line, not even a trivial typo fix — and do not commit, stage, push, or open PRs.
-- Do not mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`); do not edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
+- Do not mutate any artifact file other than the ones you're authoring (`<wf-dir>/01-simplify.md` + its `00-index.md`); do not edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
 - Do not read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, codebase = the named path subtree only). Plan scope reads the named plan file and no other workflow artifact. Its agents may search the repository read-only, to check the reuse candidates and code that the plan names.
 
 ---
@@ -167,7 +167,7 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `simplify-<scope>-<YYYYMMDD>`. Write **two** records as drafts under `.ai/workflows/<slug>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `simplify-<scope>-<YYYYMMDD>`. Write **two** records as drafts under `<wf-dir>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 1. Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
 2. Write the draft of `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.
@@ -189,7 +189,7 @@ Return per [_chat-return.md](../_chat-return.md). Lead with the narrative per th
 - `scope: <scope>`
 - `target: <target>`
 - `run-id: <run-id>`
-- `wrote: .ai/workflows/<slug>/01-simplify.md + 00-index.md`
+- `wrote: <wf-dir>/01-simplify.md + 00-index.md`
 - `findings: <N total>; accepted: <N>; skipped: <N>; deferred: <N>`
 - `routes:` — one-line counts per route (`route-fix: N · route-refactor: N · route-intake: N · ...`)
 - `recommended-next:` — copy-pasteable invocations ordered by priority (intake first, fix last).

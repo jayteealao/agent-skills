@@ -13,7 +13,7 @@ When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compre
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces (this command) | In-slug standard artifacts under `.ai/workflows/<slug>/`: `01-update-deps.md` (`type: intake`, scan), `02-shape.md` (research + priority tiers), `03-slice.md` (`type: slice-index`), `04-plan.md` (tiered commands), and — because update-deps self-authors execution — `05-implement.md` + `06-verify.md`, plus a conformant `00-index.md` (`type: index`). |
+| Produces (this command) | In-slug standard artifacts under `<wf-dir>/`: `01-update-deps.md` (`type: intake`, scan), `02-shape.md` (research + priority tiers), `03-slice.md` (`type: slice-index`), `04-plan.md` (tiered commands), and — because update-deps self-authors execution — `05-implement.md` + `06-verify.md`, plus a conformant `00-index.md` (`type: index`). |
 | Slug | `update-deps-<YYYYMMDD>` (e.g. `update-deps-20260619`). Keep a `run-id` field on the lead for continuity with legacy `.ai/dep-updates/` runs. |
 | No argument | Scan and update all dependencies. |
 | `<package-name>` | Focus on a single named package. |
@@ -71,7 +71,7 @@ You run the dependency update: scan, prioritize, plan, then apply each update th
 7. **Single slice.** The whole update is one slice (`slice-slug` = `<slug>`); the P0/P1/P2 tiers are organized *within* the slice/plan/implement bodies (so the un-suffixed single `05-implement.md`/`06-verify.md` capture the tiered execution).
 
 # Step 1 — Scan → `01-update-deps.md` (`type: intake`)
-Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages. Write the draft `.ai/workflows/<slug>/.draft/01-update-deps.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later record of this run and put it the same way.
+Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages. Write the draft `<wf-dir>/.draft/01-update-deps.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later record of this run and put it the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Add `run-id: deps-<YYYYMMDD-HHMM>` (continuity with legacy `.ai/dep-updates/` runs) and `mode: <all|single|security-only|audit-only>` after `workflow-type`.
 Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).

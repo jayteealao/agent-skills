@@ -50,7 +50,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 1 — Brief (`00-index.md` + `01-task.md`)
 
-Author the brief. Write `01-task.md` and `00-index.md` as drafts `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Ask at most **2 questions** in chat; record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
+Author the brief. Write `01-task.md` and `00-index.md` as drafts `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Ask at most **2 questions** in chat; record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 
 `01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](../_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes`) carries these fixed `##` headings:
 
@@ -100,7 +100,7 @@ Outcome: <one line>
 Blast radius: <class> — gate: <authorized-by-user | auto-proceeded-low-risk | recorded-note>
 Steps: <N done / M deviated / K failed>
 Evidence: <per-AC rungs, e.g. live 3 / attested 1>
-Artifacts: .ai/workflows/<slug>/01-task.md, 05-implement.md, 06-verify.md
+Artifacts: <wf-dir>/01-task.md, 05-implement.md, 06-verify.md
 Next: Done | <the missing observation> | /wf review <dimension> (diff left on <branch>)
 ```
 

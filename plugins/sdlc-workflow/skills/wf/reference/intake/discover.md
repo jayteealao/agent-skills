@@ -83,7 +83,7 @@ Pick exactly one verdict:
 | `fails` | Direct contradicting evidence exists, OR an alternative hypothesis is clearly more plausible than the original. |
 | `inconclusive` | Static code reading cannot adjudicate — the answer depends on runtime behavior, configuration, or data not visible in the repo. |
 
-Write the record to the draft `.ai/workflows/<slug>/.draft/01-discover.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the record to the draft `<wf-dir>/.draft/01-discover.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **`01-discover.md` frontmatter:**
 ```yaml
@@ -205,7 +205,7 @@ Counter-hypotheses considered: <N>
 Tripwires: <none | comma-separated list>
 Workflow: closed (verdict-recorded)
 Next: <the ## Routing route with its from <slug> form> | <"none — confirmed, proceed as you intended">
-Artifact: .ai/workflows/<slug>/01-discover.md
+Artifact: <wf-dir>/01-discover.md
 ```
 
 If `fails`, prefix with:

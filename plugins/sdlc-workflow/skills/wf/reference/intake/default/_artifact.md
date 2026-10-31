@@ -3,7 +3,7 @@
 ## `00-index.md`
 
 1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires, with the allowed values of each enum.
-2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+2. Write the output to the draft `<wf-dir>/.draft/00-index.md`. Remove the `# one of:` comments.
 3. Fill `title`, `branch-strategy`, `branch` and `base-branch`. Then set or add these keys:
 
 ```yaml

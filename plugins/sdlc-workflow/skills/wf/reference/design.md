@@ -121,7 +121,7 @@ Follow the command's section in [design/record.md](design/record.md). `setup` an
 ## Review
 
 Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). Check against its Refuse and Verify lists.
-- With a slug, write the draft `.ai/workflows/<slug>/.draft/07-design-audit.md` or `.ai/workflows/<slug>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` consumes the accessibility, performance, and web-vitals results in `06-verify-*.md`; it measures them itself only when no verify ran.
+- With a slug, write the draft `<wf-dir>/.draft/07-design-audit.md` or `<wf-dir>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` consumes the accessibility, performance, and web-vitals results in `06-verify-*.md`; it measures them itself only when no verify ran.
 - Without a slug, write no workflow artifact. Report in chat.
 
 # Step 2 — Final summary
@@ -142,6 +142,6 @@ Next: <Type `/wf <key> <args>`. | Done>
 
 Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
 - After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md). An `rca` workflow has no slice stage.
-- When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-packet` path (`.ai/workflows/<source-slug>/work/<packet-slug>.md`).
+- When `00-index.md` has `origin-packet`, the workflow is a campaign work packet, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder before `/work/` in the `origin-packet` path (`…/<source-slug>/work/<packet-slug>.md`).
 - After amend, `Next` names the first plan to revisit.
 - After explore, `Next` follows [design/explore.md](design/explore.md) → Chat return.

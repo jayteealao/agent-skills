@@ -124,7 +124,7 @@ just the conceptual state of an unwritten gate.)
 ## Output
 
 When `shape` runs this procedure (`../shape.md` Step 5a):
-- Write the brief as the draft `.ai/workflows/<slug>/.draft/02b-design.md` (type `design`), with
+- Write the brief as the draft `<wf-dir>/.draft/02b-design.md` (type `design`), with
   `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
   Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
 - Leave `00-index.md` `current-stage: intake` (the brief is part of the shape phase).

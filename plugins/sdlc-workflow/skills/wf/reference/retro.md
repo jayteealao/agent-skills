@@ -187,7 +187,7 @@ Do this in order:
 2. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
 3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
 4. Mark the workflow as complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete`, unless follow-up work is being opened.
-5. Write the draft `.ai/workflows/<slug>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
+5. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:

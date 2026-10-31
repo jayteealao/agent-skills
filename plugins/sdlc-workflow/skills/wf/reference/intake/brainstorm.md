@@ -7,7 +7,7 @@ You are running `/wf intake brainstorm`, a **person-led thinking loop**. It exis
 
 When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compressed-slice.md) with `<op>` = `brainstorm`: it overrides the standalone steps below.
 
-In slug-mode, also write the board `.ai/workflows/<slug>/brainstorm-board-<descriptor>.json`: the loop (Step 2) and `done` (Step 3) are the same, and the agreed work packets go into the slice body for a later `/wf intake <slug> <scope>` extension.
+In slug-mode, also write the board `<wf-dir>/brainstorm-board-<descriptor>.json`: the loop (Step 2) and `done` (Step 3) are the same, and the agreed work packets go into the slice body for a later `/wf intake <slug> <scope>` extension.
 
 **Design focus.** When the topic's first token is `design`, or a resume names `design`, the board's `focus` is `design`: load `brainstorm/_design.md` in full now. On a non-brainstorm slug, `design` as the first topic token is not slug-mode: it brainstorms that workflow's design, per that file's section "On a feature workflow": `/wf intake <feature-slug> brainstorm design [idea]`.
 
@@ -221,7 +221,7 @@ A second `done` on a distilled board shows the recorded scope and asks what to c
 
 # Step 4 — Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead is the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), then this receipt:
-- `wrote: .ai/workflows/<slug>/01-brainstorm.md + brainstorm-board.json + 00-index.md`, plus `work/` after `done`
+- `wrote: <wf-dir>/01-brainstorm.md + brainstorm-board.json + 00-index.md`, plus `work/` after `done`
 - `threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped`
 - `batches: <N> this session · <sessions> sessions`
 - `scope:` — `<kept> kept · <later> later · <cut> cut` after `done`, or `not scoped yet`

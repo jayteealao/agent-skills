@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 import { INDEX_NAME } from '../../lib/records.mjs';
 import { evidenceDir, runDir, workflowDir } from '../../lib/records-root.mjs';
-import { commitWorkflow, linkProject, pushWorkflow } from '../../lib/records-sync.mjs';
+import { commitWorkflow, linkProject, pushRecords } from '../../lib/records-sync.mjs';
 import { EVIDENCE_LOG } from '../../lib/run-files.mjs';
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -19,7 +19,7 @@ test('a records commit moves the run files and a file over the cap out of the cl
   const top = mkdtempSync(join(tmpdir(), 'run-files-sweep-'));
   const saved = { ...process.env };
   try {
-    Object.assign(process.env, { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
+    Object.assign(process.env, { SDLC_RECORDS_PUSH: 'off', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
     const bare = join(top, 'records.git');
     git(top, 'init', '-q', '--bare', '-b', 'main', bare);
     const home = join(top, 'home');
@@ -32,7 +32,7 @@ test('a records commit moves the run files and a file over the cap out of the cl
     mkdirSync(local, { recursive: true });
     writeFileSync(join(local, INDEX_NAME), '---\nschema: sdlc/v1\ntype: index\nslug: w1\nstatus: active\ncurrent-stage: plan\n---\n');
     linkProject(root, 'notes');
-    pushWorkflow(root, 'w1');
+    pushRecords();
 
     const dir = workflowDir(root, 'w1');
     assert.ok(dir.startsWith(join(home, 'records')), 'the workflow folder is in the clone');
@@ -48,11 +48,11 @@ test('a records commit moves the run files and a file over the cap out of the cl
     assert.ok(existsSync(join(runDir(root, 'w1'), '.watch-state.json')));
     assert.ok(existsSync(join(evidenceDir(root, 'w1'), 'verify-evidence', 'trace.zip')));
     for (const f of ['.control.json', '.watch-state.json', join('verify-evidence', 'trace.zip')]) assert.ok(!existsSync(join(dir, f)), `${f} left the clone`);
-    const files = git(join(home, 'records'), 'ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1');
+    const files = git(join(home, 'records'), 'ls-tree', '-r', '--name-only', 'HEAD');
     assert.match(files, /notes\/w1\/steps\.jsonl/);
     assert.match(files, new RegExp(`notes/w1/${EVIDENCE_LOG.replace('.', '\\.')}`));
     assert.doesNotMatch(files, /\.control\.json|\.watch-state\.json|trace\.zip/);
-    const line = JSON.parse(git(join(home, 'records'), 'show', `refs/heads/live/notes/w1:notes/w1/${EVIDENCE_LOG}`));
+    const line = JSON.parse(git(join(home, 'records'), 'show', `HEAD:notes/w1/${EVIDENCE_LOG}`));
     assert.equal(line.path, '.ai/evidence/w1/verify-evidence/trace.zip');
     assert.equal(line.bytes, 4096);
     assert.equal(line.machine, 'alpha');

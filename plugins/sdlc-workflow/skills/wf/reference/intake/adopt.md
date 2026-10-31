@@ -118,14 +118,14 @@ options:
 
 # Step 3 — Write the reconstructed artifacts (each schema-conformant, each `provenance: adopted`)
 
-Write the five reconstructed artifacts per [intake/adopt/_artifacts.md](adopt/_artifacts.md): `01-adopt.md` (`type: intake`, the adoption record with the Step A0 surface evidence), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice unless separable concerns were confirmed), `04-plan.md` (retrospective observation plus the forward `## Verification Strategy`, whose `proxy+deferral` resolutions also land in the index's `runtime-evidence-deferrals`), and `05-implement.md` (synthesized from the diff; `next: 06-verify.md`). Every frontmatter block carries `provenance: adopted`. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each artifact as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md).
+Write the five reconstructed artifacts per [intake/adopt/_artifacts.md](adopt/_artifacts.md): `01-adopt.md` (`type: intake`, the adoption record with the Step A0 surface evidence), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice unless separable concerns were confirmed), `04-plan.md` (retrospective observation plus the forward `## Verification Strategy`, whose `proxy+deferral` resolutions also land in the index's `runtime-evidence-deferrals`), and `05-implement.md` (synthesized from the diff; `next: 06-verify.md`). Every frontmatter block carries `provenance: adopted`. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each artifact as a draft `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md).
 
 # Step 4 — Write `00-index.md` (conformant `type: index`)
 
 Write the full `type: index`, the same index as a standard feature workflow.
 
 1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires.
-2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+2. Write the output to the draft `<wf-dir>/.draft/00-index.md`. Remove the `# one of:` comments.
 3. Fill `title`, `branch` (the current branch name) and `base-branch`. Then set or add these adoption values:
 
 ```yaml
@@ -171,7 +171,7 @@ Next: /wf verify <slug>
 ```
 
 # Resume & crash-safety
-- Adopt is resumable: if interrupted after some artifacts are written, re-running adopt on the same tree detects the partially-written `.ai/workflows/<slug>/` (by the recorded branch + adopted-surface match in `01-adopt.md`) and continues from the first unwritten artifact rather than re-confirming. If the surface has changed since (the diff moved), warn and re-run the gate.
+- Adopt is resumable: if interrupted after some artifacts are written, re-running adopt on the same tree detects the partially-written `<wf-dir>/` (by the recorded branch + adopted-surface match in `01-adopt.md`) and continues from the first unwritten artifact rather than re-confirming. If the surface has changed since (the diff moved), warn and re-run the gate.
 - Write each artifact as a draft and put it; the put writes the record in one step, so a crash mid-write never leaves a half-written workflow.
 
 # What this command is NOT

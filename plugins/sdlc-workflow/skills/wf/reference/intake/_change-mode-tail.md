@@ -206,7 +206,7 @@ When design is needed, the person is present, so run the design stage (`design/s
 Every change-mode writes the full `type: index`, the same index as a standard feature workflow.
 
 1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires.
-2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+2. Write the output to the draft `<wf-dir>/.draft/00-index.md`. Remove the `# one of:` comments.
 3. Fill `title`, `branch-strategy` (`dedicated` or `none`), `branch` (empty when `branch-strategy: none`) and `base-branch`. Then set or add these keys, with the slots from the value table:
 
 ```yaml
@@ -278,7 +278,7 @@ Escalate). Family rules, all branches:
 
 ## Workflow rules (shared tail)
 
-- Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
+- Store artifacts under `<wf-dir>/`. Never leave canonical results only in chat.
 - Every artifact must have YAML frontmatter with `schema: sdlc/v1`. Timestamps must be
   real — get the current UTC time per [_timestamp.md](../_timestamp.md).
 - Write each record as a draft and put it, per [_records.md](../_records.md). The put writes the record in one step, so a crash never leaves a

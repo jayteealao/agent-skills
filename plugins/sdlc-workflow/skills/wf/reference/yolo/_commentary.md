@@ -57,7 +57,7 @@ Scout, classifier, and bookkeeping agents give no event.
   - what comes next.
 - **C2.** Use plain words. Explain a term that the person did not see before.
 - **C3.** Say nothing when you re-arm the watch.
-- **C4.** The watch writes the `stage-start` and `commit` lines to `commentary.md` itself (R1). Append each other note to `.ai/workflows/<slug>/commentary.md` with the event kind:
+- **C4.** The watch writes the `stage-start` and `commit` lines to `commentary.md` itself (R1). Append each other note to `<wf-dir>/commentary.md` with the event kind:
 
   ```
   node "<pluginRoot>/scripts/yolo-watch.mjs" note "<projectRoot>" <slug> --event <kind> <<'NOTE'

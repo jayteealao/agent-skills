@@ -103,7 +103,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
 
 1. After the board write, check the list:
    ```
-   node "<skill-dir>/scripts/campaign.mjs" check .ai/workflows/<slug>
+   node "<skill-dir>/scripts/campaign.mjs" check <wf-dir>
    ```
    The check fails on each of these:
    - a work packet with no `order`, or a list with a gap or a repeat: the orders are 1 to n, each used once;
@@ -122,7 +122,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
 2. Run each write-now work packet (above).
 3. Write the list:
    ```
-   node "<skill-dir>/scripts/campaign.mjs" write .ai/workflows/<slug>
+   node "<skill-dir>/scripts/campaign.mjs" write <wf-dir>
    ```
    The command writes each work packet file to `work/<packet-slug>.md`, then `research/index.md`, then `work/index.md` last, and appends one entry to `work/changes.md`. A reader that sees the new `list-revision` in `work/index.md` finds every work packet file already written. The command moves the files of the old work packets to `work/archive/packets/`.
 4. Set each work packet's `entry` on the board: `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet, for example `/wf intake investigate <packet-slug>`.
@@ -172,7 +172,7 @@ The first `/wf campaign <slug>` on a board with an old campaign ledger migrates 
 1. Give each kept decision that two or more work packets hold one home. Run `node "<skill-dir>/scripts/campaign.mjs" migrate "<root>" <slug> regroup --dry-run`. The rule is the earliest live owner: a `done` or `open` work packet keeps the decision; otherwise the first not-started unit of the old ledger, in list order, gets it; a work packet that was no unit of the ledger keeps none. Tell the person the rule and the counts of `groups`. On a yes, run the command again without `--dry-run`. Then ask the person for a home for each decision of `unsettled`. Do not move a shared decision with a script of your own.
 2. Take the units that are not started, in their old order. Propose work packets from them under the Size rules. Every kept decision goes into exactly one work packet. Do not confirm the decisions again. When you merge work packets, count their decisions after step 1, not before.
 3. A unit with intake and shape already written (`01-intake.md` and `02-shape.md`) can stay one work packet. Keep its slug as the work packet slug. `open` then keeps its folder, and the walk does not slice it again when it has `03-slice.md`.
-4. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `.ai/workflows/<packet-slug>/` before the walk opens the work packet: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <unit-slug> 02c-craft.md` to the draft `.ai/workflows/<packet-slug>/.draft/02c-craft.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <packet-slug>` (per [_records.md](../../_records.md)), and move the `design/` folder. The design stage of the work packet then starts from them.
+4. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `<wf-dir>/../<packet-slug>/` before the walk opens the work packet: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <unit-slug> 02c-craft.md` to the draft `<wf-dir>/../<packet-slug>/.draft/02c-craft.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <packet-slug>` (per [_records.md](../../_records.md)), and move the `design/` folder. The design stage of the work packet then starts from them.
 5. Write the write-up of each new build work packet, and confirm the stack, as at `done`.
 6. Confirm the whole list with the person as in 3.4: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
 7. Run the check and the `write` command.

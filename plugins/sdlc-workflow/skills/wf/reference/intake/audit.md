@@ -103,9 +103,9 @@ A plausible-but-wrong finding costs more here than in the review stage — nobod
 
 # Step 5 — Merge into the ledger
 
-Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step (`07-review.md`, `01-audit.md`, `00-index.md`) as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step (`07-review.md`, `01-audit.md`, `00-index.md`) as a draft `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
-1. **Merge.** Write every candidate (survivors and refuted) to `.ai/workflows/<slug>/.draft/found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> .ai/workflows/<slug>/.draft/found.json --source audit --run <now>`.
+1. **Merge.** Write every candidate (survivors and refuted) to `<wf-dir>/.draft/found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source audit --run <now>`.
 2. **Review file** — write `07-review.md` (`type: review`, `review-scope: slug-wide`) whole, from the ledger: the frontmatter metrics from `wf.mjs findings metrics --source audit`, `## Findings` from `wf.mjs findings table --source audit` (refuted rows included, with the killing refutation), `## Triage Decisions` (the routes of Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`.
 3. **`01-audit.md` edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run gets the record, appends to it, writes the draft and puts it; it never rewrites history.
 4. **`01-audit.md` content** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
@@ -138,7 +138,7 @@ Lenses: <lens (reason) · lens (reason) …>
 Findings: <O open / R resolved / X refuted>   (this run: A net-new, B re-confirmed, C cleared)
 Not observable statically: <N — see 01-audit.md ## Not observable>
 Routes: <top routes, one per open BLOCKER/HIGH>
-Artifacts: .ai/workflows/<slug>/01-audit.md, findings.yaml, 07-review.md
+Artifacts: <wf-dir>/01-audit.md, findings.yaml, 07-review.md
 Next: <top route> | /wf intake audit <slug> (re-run) | /wf intake <slug> close (retire the concern)
 ```
 

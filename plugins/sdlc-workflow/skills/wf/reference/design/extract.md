@@ -127,8 +127,8 @@ Document each with its implicit design decisions. When these patterns will be sy
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> extract`:
-- Write extraction report to `.ai/workflows/<slug>/design-notes/extract-<timestamp>.md`. Get `<timestamp>` from [../_timestamp.md](../_timestamp.md) in the compact run-id form.
-- Write suggested token file to `.ai/workflows/<slug>/design-notes/tokens-extracted.css`
+- Write extraction report to `<wf-dir>/design-notes/extract-<timestamp>.md`. Get `<timestamp>` from [../_timestamp.md](../_timestamp.md) in the compact run-id form.
+- Write suggested token file to `<wf-dir>/design-notes/tokens-extracted.css`
 
 When invoked as `/wf design extract` with no slug:
 - Write the extraction report to `.ai/design/extract-<timestamp>.md`.

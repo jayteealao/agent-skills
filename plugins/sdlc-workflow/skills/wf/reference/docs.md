@@ -141,7 +141,7 @@ Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md
 
 Write a `## Review Notes` section to `generate.md` with any issues found. For any accuracy issue found at review: fix it immediately before completing this step.
 
-**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` as the draft `.ai/workflows/<target-slug>/.draft/08b-docs-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <target-slug>` per [_records.md](_records.md); otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
+**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` as the draft `<wf-dir>/../<target-slug>/.draft/08b-docs-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <target-slug>` per [_records.md](_records.md); otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
 
 **Commit all documentation changes:**
 `docs: <one line that names the documents changed, in product language>`

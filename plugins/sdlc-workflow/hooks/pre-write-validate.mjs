@@ -2,8 +2,11 @@
 /**
  * PreToolUse(Write) validator for .ai/workflows/ artifacts:
  * - Refuse a Write or Edit into a nested .ai/ folder (lib/records-root.mjs nestedAiDir).
- * - Refuse a Write or Edit of a record file (state.yaml, slice-<s>.yaml, ...) or of an old
- *   record name beside the records: scripts write the records from drafts (lib/records.mjs).
+ * - Refuse a Write or Edit of a record file (state.yaml, slice-<s>.yaml, ...), of a store that
+ *   one command writes (decisions.yaml, findings.yaml, steps.jsonl) or of an old record name
+ *   beside the records, anywhere in the wf-dir, the records clone included: scripts write the
+ *   records from drafts (lib/records.mjs). A file in a subfolder (evidence, notes) goes through.
+ * - Refuse a write by a local .ai/workflows/ path in a linked project, and name the wf-dir path.
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -44,7 +47,7 @@ import {
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
 import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
-import { evidenceDir, linkedProject, localRelOf, localWorkflowsRoot, nestedAiDir, parseWorkflowPath, recordPathOf, recordsRel, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
+import { evidenceDir, linkedLocalTarget, linkedProject, localRelOf, nestedAiDir, parseWorkflowPath, recordsRel, workflowDir, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
 import { EVIDENCE_LOG, maxFileBytes } from '../lib/run-files.mjs';
 import { otherLease } from '../lib/leases.mjs';
 
@@ -92,7 +95,7 @@ export async function run(input) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
     return;
   }
-  const refusal = filePath ? capRefusal(filePath, content, projectRoot) ?? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? cloneDraftRefusal(filePath, projectRoot) ?? leaseRefusal(filePath, projectRoot) : null;
+  const refusal = filePath ? capRefusal(filePath, content, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? recordWriteRefusal(filePath, projectRoot) ?? leaseRefusal(filePath, projectRoot) : null;
   if (refusal) {
     refuseWrite(checksModeOf(config), refusal);
     return;
@@ -221,14 +224,28 @@ function recordWriteRefusal(filePath, projectRoot) {
   if (!info || info.storageRel.includes('/')) return null;
   if (RECORD_FILE_RE.test(info.filename)) {
     return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. Scripts write the record files.\n` +
-      `Change a field with \`${cli} record set <root> ${info.slug} <old name> key=value\`, or write a draft and put it.\n`;
+      `fix: \`${cli} record set <root> ${info.slug} <old name> key=value\` changes a field, \`${cli} record edit <root> ${info.slug} <old name> --section <heading> --from <file>\` changes a section, ` +
+      `or write a draft in <wf-dir>/${DRAFT_DIR}/ and run \`${cli} record put <root> ${info.slug}\`.\n`;
+  }
+  const store = SCRIPT_STORES[info.filename];
+  if (store) {
+    return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. One command writes this file.\n` +
+      `fix: \`${cli} ${store.replace('<slug>', info.slug)}\`\n`;
   }
   if (locate(info.filename)) {
     return `wf-validate: blocked a write to ${info.filename} in workflow '${info.slug}'. The records are YAML files that scripts write.\n` +
-      `Write the record as the draft ${DRAFT_DIR}/${info.filename} in the same folder, then run \`${cli} record put <root> ${info.slug}\`.\n`;
+      `fix: write the record as the draft ${DRAFT_DIR}/${info.filename} in the same folder, then run \`${cli} record put <root> ${info.slug}\`.\n`;
   }
   return null;
 }
+
+// The files of a workflow that one command writes, each with that command. An agent never
+// writes them by hand, in the local folder or in the records clone.
+const SCRIPT_STORES = Object.freeze({
+  'decisions.yaml': 'decide add <root> <slug> --answer "<answer>" --key <key> --question "<question>"',
+  'findings.yaml': 'findings add <root> <slug> <found.json> --source review',
+  'steps.jsonl': 'step <start|done|stop|complete> <root> <slug> <slice> ...',
+});
 
 // A workflow folder holds only files that sync, so a file over the size cap (records.max-file-mb)
 // is refused there. A trace, a video or a large log goes to the evidence folder of the project,
@@ -246,31 +263,17 @@ function capRefusal(filePath, content, projectRoot) {
     `Write a trace, a video or a large log to ${evidenceDir(projectRoot, info.slug)} instead; the next records commit lists it in ${EVIDENCE_LOG}.\n`;
 }
 
-// A linked project keeps its records in the records home, and only the drafts stay in the local
-// folder. A file written by its local path would never reach the records repo, and a later reader
-// would look for it in the records home. So the write is refused, and the refusal names the place.
+// A linked project keeps each workflow in its wf-dir in the records clone, the drafts too. A file
+// written by its local path in .ai/workflows/ would never reach the records repo, and a later
+// reader would look for it in the wf-dir. So the write is refused, and the refusal names the place.
 function linkedWriteRefusal(filePath, projectRoot) {
   const abs = resolveProjectPath(projectRoot, filePath);
-  const real = recordPathOf(projectRoot, abs);
-  if (real === abs) return null;
-  return `wf-validate: blocked a write to ${abs}. This project keeps its workflow files in the records repo clone, ` +
-    `so the file belongs at ${real}. Write it there, and read it there later. Only the drafts stay in ` +
-    `.ai/workflows/<slug>/${DRAFT_DIR}/.
-`;
-}
-
-// A draft belongs to the session that writes it, so it stays in the local folder of the project.
-// A draft in the records home would go into the next commit of the workflow and to every machine.
-function cloneDraftRefusal(filePath, projectRoot) {
-  const abs = resolveProjectPath(projectRoot, filePath);
-  const rel = recordsRel(abs);
-  const parts = rel ? rel.split('/') : [];
-  if (parts.length < 3 || !parts.slice(2).includes(DRAFT_DIR)) return null;
-  const [project, slug] = parts;
-  const local = linkedProject(projectRoot) === project
-    ? join(localWorkflowsRoot(projectRoot), slug, ...parts.slice(2))
-    : `<project root>/.ai/workflows/${slug}/${parts.slice(2).join('/')}`;
-  return `wf-validate: blocked a draft write into the records repo clone (${abs}). A draft stays on this machine: write it at ${local}, then run \`wf.mjs record put\`.\n`;
+  const target = linkedLocalTarget(projectRoot, abs);
+  if (!target) return null;
+  const slug = localRelOf(projectRoot, abs)?.split('/')[0] ?? '';
+  const where = slug && !slug.includes('.') ? `The wf-dir of this workflow is ${workflowDir(projectRoot, slug)}. ` : '';
+  return `wf-validate: blocked a write to ${abs}. This project keeps its workflows in the records repo clone, not in .ai/workflows/. ${where}` +
+    `A draft goes to <wf-dir>/${DRAFT_DIR}/.\nfix: write the file at ${target}.\n`;
 }
 
 // The lease names the one machine that writes a workflow now. The hook reads the lease ref that

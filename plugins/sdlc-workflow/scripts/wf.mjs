@@ -20,13 +20,16 @@
  *             Each changed workflow gets one commit. --dry-run lists the changes and applies none
  *             Example: wf.mjs run . .ai/workflows/demo/.draft/verify-all.mjs --slug demo
  *   path     <root> [<slug> [<file>]]
- *             the real place of the records folder, a workflow folder or a file in it: a linked
- *             project keeps them in the records repo clone, and only the drafts stay local
+ *             an alias for one release: the workflows folder, the wf-dir of a workflow or a file
+ *             in it. The dispatch prints the wf-dir, and every file of a workflow is in it
  *             Example: wf.mjs path . demo verify-evidence/api/run.txt
- *   records  <link|status|sync|push|close> <root> [<project>|<slug>] [--json]
+ *   records  <link|status|sync|push|close|migrate> [<root>] [<project>|<slug>] [--dry-run] [--json]
  *             the records repo: link a project (its records move into the clone), show the
- *             clone, pull the work of other machines, push a workflow, squash a closed one
+ *             clone, pull the work of other machines, push the clone, close a workflow (commit,
+ *             push, release its lease), and move the live branches of an older version onto the
+ *             main branch once (each ref goes to refs/archive/live/)
  *             Example: wf.mjs records status .
+ *             Example: wf.mjs records migrate --dry-run
  *   lease    <claim|release|show> <root> <slug> [--take] [--json]
  *             the lease of a workflow: the one machine that writes its records now (--take: an
  *             expired lease of another machine, after the person said yes)
@@ -314,7 +317,7 @@ import { SOURCES as FINDING_SOURCES, STATUSES as FINDING_STATUSES } from '../lib
 import { STATUSES as PROGRESS_STATUSES } from '../lib/progress.mjs';
 import { STOP_KINDS } from '../lib/steps.mjs';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
@@ -324,8 +327,8 @@ import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
-import { afterChange, inBackground } from '../lib/after-change.mjs';
-import { healthLine, linkProject, liveRef, logRecordsFailure, machineName, productRepoGapLines, productRepoGaps, pushRef, pushWorkflow, recordsStatus, squashWorkflow, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
+import { afterChange } from '../lib/after-change.mjs';
+import { closeRecords, healthLine, linkProject, machineName, migrateLive, productRepoGapLines, productRepoGaps, pushRecords, recordsStatus, syncRecords, workflowHealth } from '../lib/records-sync.mjs';
 import { claimLease, heldBefore, leaseLostLine, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
@@ -352,7 +355,7 @@ import { NO_SUITE, implementSuites, noSuiteReceipt, receiptState, treeChanges } 
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
-import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
 import { decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
@@ -441,9 +444,12 @@ async function runDispatch(pos, opt) {
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
   r.sync = sync;
   const target = sync ? slugAtDispatch(projectRoot, r, safe) : null;
+  // The folder of the workflow that the call names, status too: every reference path is in it.
+  const wfSlug = slugAtDispatch(projectRoot, r, safe, { reads: true });
+  r.wfDir = wfSlug ? workflowDir(projectRoot, wfSlug) : null;
   r.lease = target ? leaseAtDispatch(projectRoot, target, opt.host ?? null) : null;
   // The registry is generated in the clone: a pull that moved a folder rebuilds it.
-  if (sync && (sync.pulled.length || sync.folded.length)) await reconcileIndex(projectRoot);
+  if (sync?.pulled.length) await reconcileIndex(projectRoot);
   r.health = target ? healthLine(workflowHealth(projectRoot, target)) : null;
   // The person's comments on the issue reach the inbox of the workflow that the call acts on.
   r.imported = target && layerOf(projectRoot) ? importIssueComments(projectRoot, target) : [];
@@ -466,12 +472,11 @@ async function runDispatch(pos, opt) {
   for (const s of r.subkeys ?? []) lines.push(`sub-key: ${r.key} ${s.name} → ${s.reference}`);
   for (const c of r.closeAsk) lines.push(`close-ask: ${c.slug} (${c.reason})`);
   if (r.firstRun) lines.push('first-run: reference/setup.md');
-  // A linked project keeps its workflow files in the records home: the reference paths point there.
-  if (r.sync) lines.push(`records-dir: ${wfRoot(projectRoot)}`);
+  // The one folder of the workflow: each `<wf-dir>/` path of a reference is in it.
+  if (r.wfDir) lines.push(`wf-dir: ${r.wfDir}`);
   if (r.sync?.offline) lines.push('records: offline; the records of other machines may be old');
   for (const c of r.sync?.conflicts ?? []) lines.push(`records-conflict: ${c}`);
   for (const c of r.sync?.fileConflicts ?? []) lines.push(`records-conflict: ${c} has a change of this machine; the pull did not overwrite it`);
-  for (const c of r.sync?.adoptConflicts ?? []) lines.push(`records-warning: the local copy of ${c} differs from the clone copy; it is kept in .ai/workflows/.conflicts/`);
   if (r.health) lines.push(r.health);
   lines.push(...r.repoGaps);
   if (r.imported.length) lines.push(`messages: ${r.imported.length} new comment(s) from GitHub in the inbox of ${target}; wf.mjs msg list "${projectRoot}" ${target} --unread`);
@@ -980,13 +985,16 @@ function runRecord(pos, opt) {
   if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
   switch (verb) {
     case 'put': {
-      // The agents write the drafts in the local folder; a linked project keeps its records elsewhere.
+      // The agents write the drafts in <wf-dir>/.draft/. A linked project of the old layout kept
+      // them in the local .ai/workflows/<slug>/.draft/: put reads that folder second, for one release.
       const local = join(localWorkflowsRoot(resolve(root)), slug);
-      const homes = local === dir ? [dir] : [local, dir];
+      const homes = local === dir ? [dir] : [dir, local];
+      const named = (p) => basename(p);
       const drafts = rest.length
         // A named draft that was put already is in .draft/.put/ until the stage ends: put it again.
         ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? homes.map((h) => keptPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
-        : homes.flatMap(draftsOf);
+        // A draft of the wf-dir wins over an old local draft of the same name.
+        : homes.flatMap(draftsOf).filter((p, i, all) => all.findIndex((q) => named(q) === named(p)) === i);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
       const results = drafts.map((p) => putChecked(dir, p));
       const ev = pruneEvidence(dir);
@@ -1056,7 +1064,7 @@ function runRecord(pos, opt) {
       const n = resolveRecord(dir, name, 'record draft');
       const doc = readDoc(dir, n);
       if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
-      const path = draftPath(join(localWorkflowsRoot(resolve(root)), slug), n);
+      const path = draftPath(dir, n);
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, `---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
       out(opt.json ? { name: n, draft: path } : `draft ${n} → ${path}; edit it, then run record put`);
@@ -1226,9 +1234,10 @@ function runShip(pos, opt) {
 
 // ---------------------------------------------------------------- main
 
-// The workflow that a call acts on, or null. A read-only key acts on none.
-function slugAtDispatch(projectRoot, r, tokens) {
-  if (!r.key || r.key === 'status' || r.reason) return null;
+// The workflow that a call acts on, or null. A read-only key acts on none; with `reads`, the
+// workflow that a read-only key names counts too.
+function slugAtDispatch(projectRoot, r, tokens, { reads = false } = {}) {
+  if (!r.key || (r.key === 'status' && !reads) || r.reason) return null;
   const args = (r.tokens ?? tokens).slice(r.argsFrom);
   return r.nextOf ?? args.slice(0, 2).find((t) => existsSync(join(wfRoot(projectRoot), t, INDEX_NAME)) || existsSync(join(wfRoot(projectRoot), t, 'state.yaml'))) ?? null;
 }
@@ -1248,7 +1257,22 @@ function leaseAtDispatch(projectRoot, slug, host) {
 
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
-  if (!root) throw new Error('records: <link|status|sync|push|close> <root> are required');
+  if (verb === 'migrate') {
+    const r = migrateLive(recordsHome(), { dryRun: Boolean(opt['dry-run']) });
+    if (opt.json) { out(r); return r.failed.length ? 1 : 0; }
+    const row = (m) => `${m.ref}: ${m.action === 'commit' ? `the folder of ${m.tip.slice(0, 8)} goes on the main branch` : m.action === 'same' ? 'the main branch holds the same folder' : 'no folder on the branch'}${m.tip !== m.sha ? ' (the remote tip is newer)' : ''}${m.diverged ? ' (the remote tip diverged; it is kept in refs/archive/live-remote/)' : ''}`;
+    out([
+      ...(r.reason ? [r.reason] : []),
+      ...(r.dryRun ? ['dry run: nothing changed'] : []),
+      ...r.moved.map(row),
+      ...r.moved.flatMap((m) => (m.kept ?? []).map((f) => `kept: ${f} has a change of this machine; the newer remote copy is in the commit`)),
+      ...r.failed.map((m) => `failed: ${m.ref}: ${m.reason}`),
+      ...(!r.dryRun && r.moved.length ? [`moved ${r.moved.length} live branch(es) to refs/archive/live/; records-state.json lists each one in migratedLive`] : []),
+      ...(!r.moved.length && !r.failed.length ? ['no live branch'] : []),
+    ].join('\n'));
+    return r.failed.length ? 1 : 0;
+  }
+  if (!root) throw new Error('records: <link|status|sync|push|close|migrate> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'link') {
     if (!arg) throw new Error('records link: <project> is required');
@@ -1262,7 +1286,6 @@ async function runRecords(pos, opt) {
     if (!r.ok) { out(r.reason); return 1; }
     out([
       `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}`,
-      ...(r.squashed.length ? [`squashed the closed workflows onto the main branch: ${r.squashed.join(', ')}`] : []),
       ...r.separate.map((p) => `separate: ${p} has its own .ai/sdlc-config.json with no link, so its records stay in it`),
       ...r.conflicts.map((f) => `records-conflict: ${f}: the clone copy stays; the local copy is in .ai/workflows/.conflicts/${f}. Compare them, then delete the kept copy.`),
       ...(r.tracked.length ? [`tracked: ${r.tracked.slice(0, 10).join(', ')}${r.tracked.length > 10 ? ` and ${r.tracked.length - 10} more` : ''}`] : []),
@@ -1273,37 +1296,39 @@ async function runRecords(pos, opt) {
   if (verb === 'status') {
     const s = recordsStatus(projectRoot);
     const lines = s.linked
-      ? [`records: ${s.project} in ${s.home} (${s.remote ? 'with a remote' : 'no remote'}), machine ${s.machine}`, ...s.live.map((l) => `live: ${l}`), ...s.pendingClose.map((k) => `close waits for the network: ${k}`), ...s.conflicts.map((c) => `conflict: ${c.workflow}: ${c.reason}`),
+      ? [`records: ${s.project} in ${s.home} (${s.remote ? 'with a remote' : 'no remote'}), machine ${s.machine}`,
+        ...(s.ahead || s.behind ? [`branch: ${s.main}: ${s.ahead} ahead, ${s.behind} behind the remote`] : []),
+        ...(s.pushConflict ? s.pushConflict.files.length ? s.pushConflict.files.map((f) => `conflict: ${f}: the push of ${s.pushConflict.at} stopped at this file`) : [`conflict: the push of ${s.pushConflict.at} stopped: ${s.pushConflict.reason}`] : []),
+        ...s.live.map((l) => `live: ${l} is not moved yet; run wf.mjs records migrate`),
         ...s.workflows.flatMap((h) => [
           ...(h.uncommitted.length ? [`uncommitted: ${h.workflow}: ${h.uncommitted.join(', ')}`] : []),
           ...(h.ahead || h.behind ? [`branch: ${h.workflow}: ${h.ahead} ahead, ${h.behind} behind the remote`] : []),
           ...h.adoptConflicts.map((f) => `kept aside: ${h.workflow}: .ai/workflows/.conflicts/${h.workflow.split('/')[1]}/${f} (the clone copy won; compare, then delete the kept copy)`),
           ...(h.lastFailure ? [`failed: ${h.workflow}: ${h.lastFailure.step} at ${h.lastFailure.at}: ${h.lastFailure.error}`] : []),
         ]),
-        ...s.dropped.map((d) => `dropped: ${d.ref} was ${d.sha} (${d.reason}); git -C "${s.home}" update-ref ${d.ref} ${d.sha} brings it back`)]
+        ...s.migrated.slice(-10).map((m) => `moved: ${m.ref} was ${m.sha}; git -C "${s.home}" update-ref ${m.ref} ${m.sha} brings it back`)]
       : [`records: local in .ai/workflows/${s.clone ? `; a clone is at ${s.home}: wf.mjs records link <root> <project>` : ''}`];
     out(opt.json ? s : lines.join('\n'));
     return 0;
   }
   if (verb === 'sync') {
-    const r = syncRecords(projectRoot, { holds: (s) => showLease(projectRoot, s).mine === true });
-    if (r && (r.pulled.length || r.folded.length)) await reconcileIndex(projectRoot);
-    out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; pushed ${r.pushed.join(', ') || 'nothing'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
+    const r = syncRecords(projectRoot);
+    if (r?.pulled.length) await reconcileIndex(projectRoot);
+    out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; ${r.pushed ? 'pushed' : 'not pushed'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
     return r?.conflicts?.length ? 1 : 0;
   }
-  if (!arg) throw new Error(`records ${verb}: <slug> is required`);
   if (verb === 'push') {
-    const r = opt.to ? pushRef(recordsHome(), liveRef(opt.to, arg), { folder: `${opt.to}/${arg}` }) : pushWorkflow(projectRoot, arg);
-    if (!opt.to && !r?.leaseLost) renewIfMine(projectRoot, arg);
-    // This step runs in the background with no output: a failure goes into the records log.
-    if (r && !r.pushed && !r.offline) logRecordsFailure({ project: opt.to ?? linkedProject(projectRoot), slug: arg, step: 'push', error: r.reason ?? (r.conflict ? 'the branches conflict' : 'not pushed') });
-    out(opt.json ? r : !r ? 'records: local' : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
-    return !r || r.pushed ? 0 : 1;
+    // This step runs in the background with no output: pushRecords writes a failure into the records log.
+    const r = pushRecords(recordsHome());
+    if (arg && linkedProject(projectRoot)) renewIfMine(projectRoot, arg);
+    out(opt.json ? r : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
+    return r.pushed ? 0 : 1;
   }
+  if (!arg) throw new Error(`records ${verb}: <slug> is required`);
   if (verb === 'close') {
-    const r = squashWorkflow(projectRoot, arg);
+    const r = closeRecords(projectRoot, arg);
     if (r?.ok) releaseLease(projectRoot, arg);
-    out(opt.json ? r : !r ? 'records: local' : r.ok ? `squashed ${arg}${r.pending ? '; the push waits for the network' : ''}` : r.reason);
+    out(opt.json ? r : !r ? 'records: local' : r.ok ? `closed ${arg}${r.pushed ? '' : `; not pushed: ${r.reason ?? 'offline'}`}` : r.reason);
     return !r || r.ok ? 0 : 1;
   }
   throw new Error(`records: unknown verb ${verb}`);
@@ -1358,8 +1383,10 @@ async function runRun(pos, opt) {
   if (!file) throw new Error(`run: no script ${script}`);
   const real = realpathSync(file);
   const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
-  if (!fold(real).startsWith(fold(`${projectRoot}${sep}`))) {
-    throw new Error(`run: ${real} is outside the project ${projectRoot}. Write the script in .ai/workflows/<slug>/.draft/ or in .scratch/`);
+  // The workflows of a linked project are in the records clone, so a script in a wf-dir runs too.
+  const homes = [projectRoot, existsSync(wfRoot(projectRoot)) ? realpathSync(wfRoot(projectRoot)) : null].filter(Boolean);
+  if (!homes.some((h) => fold(real).startsWith(fold(`${h}${sep}`)))) {
+    throw new Error(`run: ${real} is outside the project ${projectRoot}. Write the script in <wf-dir>/.draft/ or in .scratch/`);
   }
   const mod = await import(`${pathToFileURL(real).href}?run=${Date.now()}`);
   if (typeof mod.default !== 'function') throw new Error(`run: ${script} has no default export function; write export default async function ({ wf, open, args }) { ... }`);
@@ -1396,8 +1423,6 @@ function runMsg(pos, opt) {
   if (verb === 'post') {
     const r = postMessage(projectRoot, slug, { kind: opt.kind, text: opt.text, to });
     if (!to) noteMessage(projectRoot, slug, { kind: opt.kind, from: machineName(), text: opt.text });
-    // A post to a project that is not linked here is pushed already.
-    if (r.project && !r.pushed) inBackground(['records', 'push', projectRoot, slug, ...(to ? ['--to', to] : [])]);
     out(opt.json ? r : `posted ${r.id}`);
     return 0;
   }
@@ -1728,9 +1753,9 @@ async function runMain(cmd, pos, opt) {
         const [root, slug, file] = pos;
         if (!root) throw new Error('path: <root> is required');
         const projectRoot = resolve(root);
-        // A draft stays in the local folder; every other file of a workflow is in its records folder.
-        const local = slug && file ? join(localWorkflowsRoot(projectRoot), slug, file) : null;
-        out(!slug ? wfRoot(projectRoot) : !file ? workflowDir(projectRoot, slug) : recordPathOf(projectRoot, local));
+        // An alias for one release: the dispatch prints the wf-dir, and every file of a workflow,
+        // its drafts too, is in it.
+        out(!slug ? wfRoot(projectRoot) : !file ? workflowDir(projectRoot, slug) : join(workflowDir(projectRoot, slug), file));
         return 0;
       }
       case 'board': {

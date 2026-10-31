@@ -4,7 +4,7 @@
 
 ## Step commits
 
-The step record is `.ai/workflows/<slug>/steps.jsonl`. Only `wf.mjs step` writes it. Use it in place of a host task list. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
+The step record is `<wf-dir>/steps.jsonl`. Only `wf.mjs step` writes it. Use it in place of a host task list. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
 
 1. Before the first step, run `<wf> step where "<projectRoot>" <slug> <slice-slug>`. It names the done steps, the step that ran last, and the next open step. Start at the next open step that it names. Do not do a done step again.
    - A step is done while its commit is in the history of the slice branch. The answer is the same in the main checkout and in a worktree.

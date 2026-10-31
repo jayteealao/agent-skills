@@ -52,7 +52,7 @@ You are an **observability architect**, not an implementer.
 
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. This must match an existing workflow directory.
-   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
+   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists (`record get` exits 0) → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
@@ -116,7 +116,7 @@ Return as structured text:
 
 Merge findings from both sub-agents into the instrumentation plan artifact.
 
-Write the draft `.ai/workflows/<slug>/.draft/04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). The body is direction, not a plan.
+Write the draft `<wf-dir>/.draft/04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). The body is direction, not a plan.
 
 # Step 3 — Update `00-index.md` augmentations registry
 
@@ -147,7 +147,7 @@ PII warnings: <none | N fields require redaction — see §4>
 Framework: <detected>
 Next: /wf implement <slug> — instrumentation plan will be read as additional context
 Consider: the experiment augmentation (shape decides it; plan writes 04c-experiment.md) to design a controlled rollout for this change
-Artifact: .ai/workflows/<slug>/04b-instrument.md
+Artifact: <wf-dir>/04b-instrument.md
 ```
 
 If dark paths are zero, note:

@@ -1238,7 +1238,7 @@ function unitWaits(homes, units) {
 function renderMigration(rep) {
   const L = ['# Migration of the old campaign', '', `Written by \`campaign.mjs migrate report\` at ${nowIso()}. It changes no branch and deletes nothing (WF-PIECES-PLAN 12.2).`, ''];
   const records = rep.linked
-    ? `linked as \`${rep.linked}\` in the records repo (the migration brings the worktree records into its clone, and each campaign command commits what it writes there; the next records sync pushes the commits)`
+    ? `linked as \`${rep.linked}\` in the records repo (the migration brings the worktree records into its clone, and each campaign command commits what it writes there and starts the push)`
     : rep.records === 'local' ? 'local (.ai/ is not tracked; the records sync brings them home)' : 'tracked';
   L.push(`- Trunk: \`${rep.trunk}\`. Records: ${records}.`);
   L.push(`- Old wave run live: ${rep.live ? `YES (last ledger event ${rep.ledgerAgeMinutes} minutes ago): stop it first` : 'no'}.`, '');
@@ -1479,8 +1479,8 @@ const READ_ONLY = new Set(['check', 'status', 'remove-worktree']);
 
 /**
  * A linked project keeps its records in the clone of the records repo. Commit what the command
- * wrote there, so the clone history holds it before the next records sync pushes it. A failed
- * commit fails no command: that sync commits the files too.
+ * wrote there; the commit starts the background push. A failed commit fails no command: the next
+ * records commit or sync commits the files too.
  */
 function commitWrites(cmd, pos) {
   const label = `campaign ${cmd}`;

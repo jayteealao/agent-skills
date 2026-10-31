@@ -43,7 +43,7 @@ You are an **experiment designer**, not an implementer.
 
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
-   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
+   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists (`record get` exits 0) → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
@@ -94,7 +94,7 @@ Return as structured text: full experiment design covering all 6 elements above,
 
 # Step 2 — Write `04c-experiment.md`
 
-Write the draft `.ai/workflows/<slug>/.draft/04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
+Write the draft `<wf-dir>/.draft/04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
 
 # Step 3 — Update `00-index.md` augmentations registry
 
@@ -127,7 +127,7 @@ Guardrails: <comma-separated list>
 Flag framework: <detected | "none — env var recommended">
 Instrumentation: <present | "MISSING — author the instrument augmentation (shape/plan) before shipping">
 Next: /wf implement <slug> — build the flag scaffold per §6
-Artifact: .ai/workflows/<slug>/04c-experiment.md
+Artifact: <wf-dir>/04c-experiment.md
 ```
 
 If `04b-instrument.md` was not found, prefix with:

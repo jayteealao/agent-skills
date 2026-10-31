@@ -44,7 +44,7 @@ The walk (3.2) and the split (3.3) run as usual. These additions apply:
 
 `/wf intake brainstorm <feature-slug> design` brainstorms the design of a workflow that exists, before or after its design stage.
 
-1. **Files.** Write the board to `.ai/workflows/<slug>/brainstorm-board-design.json` and the person's document to `.ai/workflows/<slug>/design-notes/brainstorm-design.md`, per the templates in [_artifact.md](_artifact.md), with `board: brainstorm-board-design.json`. When both files exist, resume them as Step 0 resumes a board. Write no `00-index.md` of a new workflow and no slice. Add the two files to `workflow-files` in the workflow's `00-index.md`, and change no other index field during the loop.
+1. **Files.** Write the board to `<wf-dir>/brainstorm-board-design.json` and the person's document to `<wf-dir>/design-notes/brainstorm-design.md`, per the templates in [_artifact.md](_artifact.md), with `board: brainstorm-board-design.json`. When both files exist, resume them as Step 0 resumes a board. Write no `00-index.md` of a new workflow and no slice. Add the two files to `workflow-files` in the workflow's `00-index.md`, and change no other index field during the loop.
 2. **At `done`**, the kept design items become one work packet on this board: `shape: design`, `slug: <slug>`, `state: proposed`, and `entry` (below). It gets no work packet file and no list: the design stage reads this board ([../../design/_carried.md](../../design/_carried.md), source 3).
    - When `02c-craft.md` does not carry `direction-confirmed-by`, the entry is `/wf design <slug>`.
    - When it does, the entry is `/wf design <slug> amend`. Also set `progress.design: in-progress` in `00-index.md`: the design is reopened per `design/_lane.md`.

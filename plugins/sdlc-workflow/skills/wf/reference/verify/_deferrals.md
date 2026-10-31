@@ -38,7 +38,7 @@ When the annotation is present on a slice:
 
 ## 00-index.md ledger
 
-When a slice's verify writes a deferral, append an entry to the `runtime-evidence-deferrals` list of the workflow index. Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, add the entry, write the draft `.ai/workflows/<slug>/.draft/00-index.md`, and run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). The entry has this form:
+When a slice's verify writes a deferral, append an entry to the `runtime-evidence-deferrals` list of the workflow index. Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, add the entry, write the draft `<wf-dir>/.draft/00-index.md`, and run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). The entry has this form:
 
 ```yaml
 runtime-evidence-deferrals:

@@ -108,7 +108,7 @@ Lead with value not implementation · active voice · no filler ("We're excited 
 
 # Step 5 — Write announce.md
 
-Write `.ai/workflows/<slug>/announce.md`:
+Write `<wf-dir>/announce.md`:
 
 ```yaml
 ---

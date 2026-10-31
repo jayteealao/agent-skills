@@ -54,7 +54,7 @@ artifact lets `/wf review` and `/wf ship` see exactly what design augmentations 
   them; `n/a` for commands that don't run it.
 - **Screens** — for the design stage, the approved screen keys, the approval commit, and the
   canvas URL.
-- **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
+- **Artifacts.** Comma-separate the `<wf-dir>/` paths written (build runs list the
   whole span; the design stage lists `.ai/design/screens/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
 - **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes per the Next row of `stage.md` (`/wf slice <slug>`, or `/wf plan <slug>` for an `rca` workflow), or, for a campaign
   work packet, to `/wf campaign <source-slug>` per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.

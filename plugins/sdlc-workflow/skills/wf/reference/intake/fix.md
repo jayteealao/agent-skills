@@ -81,7 +81,7 @@ Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candid
 #### research sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
-### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each as a draft `.ai/workflows/<slug>/.draft/<name>`, then run `record put "<root>" <slug>`. Take the frontmatter of each record from the planning templates in [_change-mode-tail.md](_change-mode-tail.md), with the `fix` values.
+### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md). Write each as a draft `<wf-dir>/.draft/<name>`, then run `record put "<root>" <slug>`. Take the frontmatter of each record from the planning templates in [_change-mode-tail.md](_change-mode-tail.md), with the `fix` values.
 
 **`01-fix.md` — `type: intake` (the compressed brief, replaces standalone intake):**
 Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).

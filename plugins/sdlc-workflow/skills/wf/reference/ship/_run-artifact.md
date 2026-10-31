@@ -1,6 +1,6 @@
 # Ship run artifacts
 
-`ship.md` Steps 11 and 13 write these records. Write the draft `.ai/workflows/<slug>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md). Frontmatter is the source of truth; every body table is regenerated from it.
+`ship.md` Steps 11 and 13 write these records. Write the draft `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md). Frontmatter is the source of truth; every body table is regenerated from it.
 
 ## `09-ship-run-<run-id>.md` (Step 13)
 

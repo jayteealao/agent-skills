@@ -29,7 +29,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 With a slug, `probe` writes a compressed slice. `_compressed-slice.md` gives the slice frontmatter and the index bookkeeping.
 
-- **One artifact, in the existing workflow.** Write the draft `.ai/workflows/<slug>/.draft/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
+- **One artifact, in the existing workflow.** Write the draft `<wf-dir>/.draft/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
 
 # Role
@@ -116,7 +116,7 @@ For each adapter in `adapters-used` whose bootstrap completed:
 1. **For each entry in `target-resolution`** (or every AC when `target == slug-wide`):
    a. Follow the adapter's `Drive` section to perform the user actions implied by the target/AC.
    b. Follow the adapter's `Observe` section to capture observable output (screenshot, stdout, response body, log lines).
-   c. Write evidence to `.ai/workflows/<slug>/probe-evidence/<descriptor>/<target-or-ac-slug>.<ext>` per the adapter's `Evidence layout`.
+   c. Write evidence to `<wf-dir>/probe-evidence/<descriptor>/<target-or-ac-slug>.<ext>` per the adapter's `Evidence layout`.
    d. **Read the evidence** (multimodal for visuals, parsed for textual) and compare to the target/AC text.
    e. Record `{target-or-ac, adapter, evidence-path, observation, result: pass | fail | partial}`.
 
@@ -136,7 +136,7 @@ For each adapter in `adapters-used` whose bootstrap completed:
 
 # Step 6 — Synthesize and write the compressed probe slice
 
-Write the draft `.ai/workflows/<slug>/.draft/03-slice-probe-<descriptor>.md` from the frontmatter and body-section templates in [probe/_artifact.md](probe/_artifact.md), and put it.
+Write the draft `<wf-dir>/.draft/03-slice-probe-<descriptor>.md` from the frontmatter and body-section templates in [probe/_artifact.md](probe/_artifact.md), and put it.
 
 **Descriptor derivation:** if `target` is a single short string (≤5 words after slugification), `<descriptor>` is the slugified target; if `target == slug-wide`, `<descriptor>` is `slug-wide-<utc-date>` (e.g., `slug-wide-2026-05-16`); on collision append `-2`, `-3`, … until unique. `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` names the records that exist.
 

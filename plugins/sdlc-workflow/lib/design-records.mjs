@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { linkedProject, recordsHome, workflowsRoot } from './records-root.mjs';
-import { commitPaths, gitIn, mainBranch } from './records-sync.mjs';
+import { commitPaths } from './records-sync.mjs';
 import { KEY_RE, STATES, readManifest, screenFile } from './design-surface.mjs';
 
 export const DESIGN_RECORDS = '_design';
@@ -48,14 +48,11 @@ function writeJson(file, value) {
   renameSync(tmp, file);
 }
 
-/** Commit the design records of a linked project on the main branch of the records clone. */
+/** Commit the design records of a linked project on the main branch of the records clone; the push follows in the background. */
 export function commitDesignRecords(root, message) {
   const project = linkedProject(root);
   if (!project) return null;
-  const home = recordsHome();
-  const commit = commitPaths(home, { ref: `refs/heads/${mainBranch(home)}`, paths: [`${project}/${DESIGN_RECORDS}`], message });
-  if (commit) gitIn(home, ['read-tree', commit]);
-  return commit;
+  return commitPaths(recordsHome(), { paths: [`${project}/${DESIGN_RECORDS}`], message, pushArgs: ['records', 'push', root] });
 }
 
 /** The threads of one screen. */

@@ -99,7 +99,7 @@ import { noteAnswer } from './github-layer.mjs';
 import { getPath, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
 import { DRAFT_DIR, draftPath, listDocs, outlineOf, readDoc, sectionText } from './records.mjs';
-import { localWorkflowsRoot, runDir, workflowDir } from './records-root.mjs';
+import { runDir, workflowDir } from './records-root.mjs';
 import { ensureRunFolder } from './run-files.mjs';
 import { lastSlice, whereOf } from './steps.mjs';
 import { decideAdd, editRecord, noRecord, pick, recordName as plainName, resolveRecord, setRecordPaths } from './wf-ops.mjs';
@@ -219,7 +219,7 @@ export function openWorkflow(root, slug, hooks = {}) {
     draft: (name) => read('records.draft', recordName(name), [], () => {
       const d = doc(name);
       if (!d) throw new Error(noRecord(name, slug, dir));
-      const path = draftPath(join(localWorkflowsRoot(projectRoot), slug), recordName(name));
+      const path = draftPath(dir, recordName(name));
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, `---\n${stringifyYaml(d.frontmatter ?? {})}\n---\n${d.body ?? ''}`);
       return path;

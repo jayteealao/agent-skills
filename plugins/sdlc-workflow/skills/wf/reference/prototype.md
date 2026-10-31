@@ -98,7 +98,7 @@ A decide round accepts a component only from the person's words.
 
 `01-prototype.md` is the accepted pipeline in plain words: the stages, their settings, the measured speed and cost, and the known limits. Rewrite its body after a decide round and in a document round. Exclude the rejected paths; the report keeps them.
 
-The record is in the worktree, so `<worktree>` is the root of each command. Get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`. Write the whole record to the draft `.ai/workflows/<slug>/.draft/01-prototype.md` in the worktree, then run `node "<skill-dir>/scripts/wf.mjs" record put "<worktree>" <slug>` per [_records.md](_records.md).
+The record is in the worktree, so `<worktree>` is the root of each command. Get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`. Write the whole record to the draft `<wf-dir>/.draft/01-prototype.md` in the worktree, then run `node "<skill-dir>/scripts/wf.mjs" record put "<worktree>" <slug>` per [_records.md](_records.md).
 
 ## Step 5 — Update the report
 

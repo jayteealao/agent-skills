@@ -81,7 +81,7 @@ steps executed — the authored runbook is itself valuable. STOP after writing.
 
 # Step 4 — Write the record
 
-1. **Write the draft `.ai/workflows/<slug>/.draft/09-rollback-<run-id>.md`**, then run `record put "<root>" <slug>`:
+1. **Write the draft `<wf-dir>/.draft/09-rollback-<run-id>.md`**, then run `record put "<root>" <slug>`:
 
 ```yaml
 ---

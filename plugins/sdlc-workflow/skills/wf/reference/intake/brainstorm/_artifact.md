@@ -54,7 +54,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
 - **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number and its plain `text`.
-- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `.ai/workflows/<slug>/design/sketches/<key>.<ext>`, `<file>#<artboard>` when one file holds several sketches, or `null`), a plain `caption`, `state` (`idea`, `carried`, `dropped`, or `reference` for an outside link with no file), and for a published sketch `canvas` (`link`, `account`, `published-at`, `sha256` of the published file, and `previous[]` links).
+- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `<wf-dir>/design/sketches/<key>.<ext>`, `<file>#<artboard>` when one file holds several sketches, or `null`), a plain `caption`, `state` (`idea`, `carried`, `dropped`, or `reference` for an outside link with no file), and for a published sketch `canvas` (`link`, `account`, `published-at`, `sha256` of the published file, and `previous[]` links).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
 - **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
 - **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
@@ -92,7 +92,7 @@ The board also holds the stack of the list, once, at the top level: `"stack": { 
 A brainstorm keeps every source it uses inside its own folder. A board item, a research note, or a work packet file never cites `.scratch/` or another gitignored path, because that citation breaks on another machine, in a worktree, and after a cleanup.
 
 ```
-.ai/workflows/<slug>/
+<wf-dir>/
   research/
     index.md
     R01-<label>.md ...
@@ -219,7 +219,7 @@ The body names everything in words. It carries no key, no internal number, and n
 
 A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`:
 ```
-node "<skill-dir>/scripts/campaign.mjs" archive .ai/workflows/<slug>
+node "<skill-dir>/scripts/campaign.mjs" archive <wf-dir>
 ```
 1. The command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open work packet, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
 2. The command also warns when `## The Brainstorm` is over 150 words, or when `## Sessions` tells more than three sessions. On a warning, rewrite the summary shorter, and move the older stories to `archive/record.md`.

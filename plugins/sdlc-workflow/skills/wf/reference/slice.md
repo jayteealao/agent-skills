@@ -93,7 +93,7 @@ Do this in order:
 6. Identify the best first slice.
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user sees the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion, `charter scenario executes through step N`: the milestone slice proves the steps built so far, the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, on the same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario.
 6c. **Review scope is not a question.** One review per work packet: keep `review-scope` as `00-index.md` has it. When an older workflow has `review-scope-confirmed: false`, set `review-scope-confirmed: true` (step 10 carries it), and ask nothing. Also set `review-scope: slug-wide`, unless `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` names a `07-review*` record: a change of scope then orphans that record.
-7. **Write one draft `.ai/workflows/<slug>/.draft/03-slice-<slice-slug>.md` per slice** (template below).
+7. **Write one draft `<wf-dir>/.draft/03-slice-<slice-slug>.md` per slice** (template below).
 8. **Write the draft of the master `03-slice.md`** (template below) with links to every per-slice record. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
 10. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> slice`. It writes `current-stage`, `progress.slice`, `next-command`, `next-invocation` (the default route, `/wf plan <slug> <best-first-slice>`) and adds every slice record to `workflow-files`. When the recommended default option is another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`.
@@ -212,7 +212,7 @@ Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 # Additive-write contract
 
 Both `03-slice.md` and each per-slice `03-slice-<slice-slug>.md` are revisable. When `/wf slice` is re-invoked on an existing slug, follow [_additive-write.md](_additive-write.md) for every file that will be rewritten: snapshot, **rewrite the body to current truth**, add one ledger entry.
-- Snapshots in `.ai/workflows/<slug>/history/`, each the `record get` output of the record: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
+- Snapshots in `<wf-dir>/history/`, each the `record get` output of the record: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
 - **Ledger entry** per rewritten file: `trigger: scope-change` (default) or `new-slice` when slices were added; `because:` names why the slicing changed; `changed:` names what moved.
 - **New slices added in this run** start fresh: no prior revision, no history snapshot, `revision-count` 1.
 - **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section: get the record, change it, write its draft and put it. Do not delete a slice record.

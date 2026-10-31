@@ -78,7 +78,7 @@ The settled rule is in [_lane.md](_lane.md) → "The human rule": a contract tha
 
 ## Move the boards of an older workflow
 
-A workflow from before the surface keeps its drawings as boards in `.ai/workflows/<slug>/design/`. Move them onto the surface once per repo:
+A workflow from before the surface keeps its drawings as boards in `<wf-dir>/design/`. Move them onto the surface once per repo:
 
 1. Run `<wf> design migrate <root> --check`. The command lists each workflow, its revisions, the revision that its contract confirmed, and the screen key of each board. It writes nothing.
 2. When a workflow shows `export <file> from <link>`, read that claude.ai artifact and save its page at that file. Do this for each listed board.

@@ -53,7 +53,7 @@ Ask per [_gate-question.md](../_gate-question.md), in one round:
 4. **The guard.** Which command must exit 0 after every change? It is usually the test suite.
 5. **The stack confirm**, from Step 0.
 
-Write the draft `.ai/workflows/<slug>/.draft/01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`:
+Write the draft `<wf-dir>/.draft/01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`:
 
 ```yaml
 ---

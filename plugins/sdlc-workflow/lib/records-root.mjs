@@ -1,10 +1,10 @@
 // The one resolver of the record paths of a project.
 //
 // Every script and hook gets the folder of the workflow records, and the folder of one
-// workflow, from here. The records live in <project root>/.ai/workflows/<slug>/, until the
-// project is linked to the records repo of this machine (`wf.mjs records link`). Then they live
-// in <records home>/<project>/<slug>/, and the local .ai/workflows/ folder keeps only the drafts
-// of the agents and the machine-local files of a run.
+// workflow, from here. The folder of one workflow is its wf-dir: <project root>/.ai/workflows/<slug>/,
+// until the project is linked to the records repo of this machine (`wf.mjs records link`). Then it
+// is <records home>/<project>/<slug>/. The drafts of the agents are in <wf-dir>/.draft/, which git
+// ignores, and the run files of this machine are in <project root>/.ai/run/<slug>/.
 //
 // A write into a nested `.ai/` folder is refused: an agent that runs in a subfolder, or in a
 // workflow folder, must not start a second record store. An `.ai/` folder is allowed only at
@@ -80,7 +80,7 @@ export function linkedProject(projectRoot) {
   return existsSync(join(home, '.git')) && existsSync(join(home, hit.project)) ? hit.project : null;
 }
 
-/** The local records folder of a project: the drafts, and every record of an unlinked project. */
+/** The local records folder of a project: every wf-dir of an unlinked project (and the old drafts of a linked one, read for one release). */
 export const localWorkflowsRoot = (projectRoot) => join(projectRoot, AI_DIR, WORKFLOWS_DIR);
 
 /** The folder of all workflow records of a project. */
@@ -169,6 +169,18 @@ export function recordPathOf(projectRoot, filePath) {
   if (rel === null || isLocalOnly(rel)) return filePath;
   const project = linkedProject(resolve(projectRoot));
   return project ? join(recordsHome(), project, rel) : filePath;
+}
+
+/**
+ * The place in the wf-dir of a write by a local path of a linked project, or null. A linked
+ * project keeps each workflow in the records clone, so every path in its local workflows folder
+ * names a file of the clone: the pre-write checks refuse the local path and name this place.
+ */
+export function linkedLocalTarget(projectRoot, filePath) {
+  const rel = localRelOf(projectRoot, filePath);
+  if (rel === null) return null;
+  const project = linkedProject(resolve(projectRoot));
+  return project ? join(recordsHome(), project, rel) : null;
 }
 
 /** recordPathOf for an absolute path: the project root is the folder above its `.ai/workflows/`. */

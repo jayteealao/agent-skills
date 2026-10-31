@@ -53,7 +53,7 @@ You are a **diagnostician**, not a fixer.
      - **A token after the slug matches a route** (`plan`, `fix`, `hotfix`, `human-triage`) → **route mode**. Jump to `# Route — decision closure` below; any trailing prose is the decision note. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
      - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`) and stop.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
-   - Otherwise → **new RCA**. This is an ordinary `.ai/workflows/<slug>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
+   - Otherwise → **new RCA**. This is an ordinary `<wf-dir>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
    - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token. A `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
 2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `rca-<short-symptom>`.
 3. **Branch posture (do not switch branches):** investigation is read-only; create no branch and switch no branch. Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
@@ -73,7 +73,7 @@ Launch parallel read-only sub-agents to identify the root cause. Do not proceed 
 
 # Step 3 — Synthesize and write `01-rca.md`
 
-Write the body per the section templates in `intake/rca/_artifact.md`: `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route. Write the record to the draft `.ai/workflows/<slug>/.draft/01-rca.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the body per the section templates in `intake/rca/_artifact.md`: `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route. Write the record to the draft `<wf-dir>/.draft/01-rca.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 **`01-rca.md` frontmatter:**
 ```yaml
@@ -168,7 +168,7 @@ Tripwires: <none | comma-separated list>
 Recommended next: <route> — <one-sentence justification>
 Record it: /wf intake rca <slug> <route>   (then run the invocation it prints)
 Alternates: <comma-separated list of other viable routes>
-RCA artifact: .ai/workflows/<slug>/01-rca.md
+RCA artifact: <wf-dir>/01-rca.md
 ```
 
 If the recommendation is `human-triage`, replace the `Recommended next:` line with:

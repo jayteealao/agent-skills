@@ -15,7 +15,7 @@ import { basename, join } from 'node:path';
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
 import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
-import { linkedProject, workflowDir, workflowRel } from './records-root.mjs';
+import { workflowDir } from './records-root.mjs';
 
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
@@ -79,13 +79,14 @@ export function absoluteLinks(text, referenceRoot) {
 export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = null, wfCli = null }) {
   const dir = workflowDir(projectRoot, slug);
   if (!existsSync(dir)) throw new Error(`no workflow folder ${dir}`);
+  const wfDir = dir.replace(/\\/g, '/');
   const missing = [];
   // A record of either layout; a citation names its place in the record files.
   const doc = (name) => readDoc(dir, name)?.body ?? null;
   const rel = (name) => {
     const at = readDoc(dir, name);
     const place = at?.layout === 'md' ? name : at?.section ? `${basename(at.path)}#${at.section}` : redirectOf(name) ?? name;
-    return `${workflowRel(slug)}/${place}`;
+    return `${wfDir}/${place}`;
   };
 
   const rawCard = cardOf(referenceRoot, stage);
@@ -151,11 +152,8 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     'is also answered when a `[standing:<kind>]` entry is listed: use its answer, and record the case with `--by standing:<id>` of that entry.';
 
   const cli = wfCli ? `\n\nThe decision commands are \`node "${String(wfCli).replace(/\\/g, '/')}" decide <verb> "${String(projectRoot).replace(/\\/g, '/')}" ${slug} ...\`.` : '';
-  // A linked project keeps the files of the workflow in the records home; the drafts stay local.
-  const where = linkedProject(projectRoot)
-    ? `\n\nThe files of this workflow are in \`${dir.replace(/\\/g, '/')}/\`: read and write evidence and notes there. ` +
-      `Only the drafts stay in \`.ai/workflows/${slug}/.draft/\`.`
-    : '';
+  // The one folder of the workflow: each `<wf-dir>/` path of a reference is in it, the drafts too.
+  const where = `\n\nwf-dir: ${wfDir}`;
   // The two rules that bind every stage. A stage agent reads the brief and its reference, not
   // SKILL.md, so the brief carries them; the stage references keep no copy.
   const refDir = String(referenceRoot).replace(/\\/g, '/').replace(/\/+$/, '');

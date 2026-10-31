@@ -50,7 +50,7 @@ often it runs: a self-initiated run pins a **free** subscription CLI (`codex`/`c
    and the artifact in context, decide:
    - **intent**: review / critique / diagnose / compare / second-opinion — this
      shapes the prompt preamble, it is not a keyword.
-   - **what to read**: a specific path (e.g. `.ai/workflows/<slug>/04-plan.md`), a
+   - **what to read**: a specific path (e.g. `<wf-dir>/04-plan.md`, where `<wf-dir>` is the folder that the `/wf` dispatch prints as `wf-dir:`), a
      diff (`git diff`, `git diff <base>...HEAD`), or "the repo." Resolve the repo
      root (the git toplevel of the cwd).
 
@@ -84,7 +84,7 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
 - It prints one JSON object: `{ results: [{provider, ok, text, costUsd, usage, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
-- When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to the cost ledger of the slug, `.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl` (see [_additive-write.md](../wf/reference/_additive-write.md)). Without the variable, no row is written.
+- When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to the cost ledger of the slug, `<wf-dir>/cost-<yyyy-mm>.jsonl` in the folder of that workflow (see [_additive-write.md](../wf/reference/_additive-write.md)). Without the variable, no row is written.
 - Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
   error.
 

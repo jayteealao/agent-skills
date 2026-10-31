@@ -32,7 +32,7 @@ read-only detail view.
    findings.
 5. **Assess health** — per-category totals (Code, Test, Git, Deps, External, Steering, Intent-Risk) with ✓/⚠/✗/? counts. Rate:
    `in-sync` (no ✗, ≤2 ⚠) · `minor-drift` (no ✗, 3+ ⚠) · `significant-drift` (any ✗) · `stale` (>7d old AND drift).
-6. **Write the draft `.ai/workflows/<slug>/.draft/00-sync.md`** (`type: sync-report`, `regenerable: true`, `health: <rating>`)
+6. **Write the draft `<wf-dir>/.draft/00-sync.md`** (`type: sync-report`, `regenerable: true`, `health: <rating>`)
    with the summary table, per-category tables, drift details, and recommended actions, then run
    `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. **Overwrite
    freely** each run (no history append).

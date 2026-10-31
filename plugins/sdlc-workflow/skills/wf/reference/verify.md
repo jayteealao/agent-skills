@@ -79,7 +79,7 @@ You run the verify stage of one slice: check it, then fix it in one round. Do no
 # Workflow rules
 
 Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
-- **Evidence versioning across re-invocations.** On a re-run, move the previous evidence directory to `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` = `fix-rounds-run` + 1; never overwrite it.
+- **Evidence versioning across re-invocations.** On a re-run, move the previous evidence directory to `<wf-dir>/verify-evidence/<slice-slug>-run-<N>/` where `N` = `fix-rounds-run` + 1; never overwrite it.
 - **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 06-verify-<slice-slug>.md result=<result>`, then re-derive the master `06-verify.md` rollup. Change the slice record first, then the index; never the index alone.
 
 # Step 0 — Orient (do this before all other steps)

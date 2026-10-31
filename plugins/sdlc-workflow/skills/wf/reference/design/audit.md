@@ -121,7 +121,7 @@ Format as a structured report:
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> audit`:
-- Write the report as the draft `.ai/workflows/<slug>/.draft/07-design-audit.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
+- Write the report as the draft `<wf-dir>/.draft/07-design-audit.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
 - When `02c-craft.md` names `screens:`, compare each approval picture with its capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` column of `## Findings`. A screen without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:

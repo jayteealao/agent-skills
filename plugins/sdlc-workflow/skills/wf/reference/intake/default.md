@@ -127,7 +127,7 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 
 Do this in order:
 1. Parse the request and derive the workflow slug.
-2. Create `.ai/workflows/<slug>/` directory. Write the draft `.ai/workflows/<slug>/.draft/00-index.md` using the index template in `intake/default/_artifact.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The first `decide add` creates `decisions.yaml`.
+2. Create `<wf-dir>/` directory. Write the draft `<wf-dir>/.draft/00-index.md` using the index template in `intake/default/_artifact.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The first `decide add` creates `decisions.yaml`.
 3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: **substance first (Batch B), process second (Batch A)**. Batch B is freeform (outcome, success criteria, non-goals, constraints, stack confirmation). Batch A asks the path question first, then the branch-strategy and appetite gate questions; review scope is not asked at intake. When the person takes the small path, [intake/small.md](small.md) runs the rest of this run, and the steps below do not run.
 4. Record ALL answers (structured + freeform) with `decide add` per [_decisions.md](../_decisions.md).
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
@@ -136,7 +136,7 @@ Do this in order:
 6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification with `decide add` per [_decisions.md](../_decisions.md); ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
 7. Write `next-invocation: "/wf intake <slug>"`, and the same invocation as the one entry of the `01-intake.md` `recommended-routes`. A stop before the shape phase resumes there; the shape phase writes the routes that follow intake.
 8. Update the index: `current-stage: intake`, `progress.intake: in-progress`, and the `next-invocation` of item 7. Run `record set "<root>" <slug> index current-stage=intake progress.intake=in-progress "next-invocation=/wf intake <slug>"`. The `intent-risks` and `charter` ledgers of Steps 6a–6b hold text entries: get the index, add them, write the draft of `00-index.md` and put it. The shape phase sets `progress.intake: complete`.
-9. Write the draft `.ai/workflows/<slug>/.draft/01-intake.md` per the template in `intake/default/_artifact.md`, and put it.
+9. Write the draft `<wf-dir>/.draft/01-intake.md` per the template in `intake/default/_artifact.md`, and put it.
 
 # Continue into the shape phase
 
@@ -150,7 +150,7 @@ After Step 9, do not stop and do not ask the person to type a new command:
 
 ## Additive-write contract
 
-`01-intake.md` is a revisable artifact. Re-invocation happens when the user returns with answers to open questions, when scope changes, or when a related intake informs the current one. Follow the shared additive-write contract in [_additive-write.md](../_additive-write.md): snapshot (write the output of `record get "<root>" <slug> 01-intake.md`) to `.ai/workflows/<slug>/history/01-intake-<rev>.md`, **rewrite the body to current truth**, add one ledger entry (`trigger: answers-returned`, `scope-change`, or `manual`; `because:` and `changed:` naming the prompt and the effect).
+`01-intake.md` is a revisable artifact. Re-invocation happens when the user returns with answers to open questions, when scope changes, or when a related intake informs the current one. Follow the shared additive-write contract in [_additive-write.md](../_additive-write.md): snapshot (write the output of `record get "<root>" <slug> 01-intake.md`) to `<wf-dir>/history/01-intake-<rev>.md`, **rewrite the body to current truth**, add one ledger entry (`trigger: answers-returned`, `scope-change`, or `manual`; `because:` and `changed:` naming the prompt and the effect).
 
 Stage-specific additions:
 

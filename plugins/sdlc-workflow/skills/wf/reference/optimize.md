@@ -71,7 +71,7 @@ When your host has the driver (Claude Code only):
 
 1. Stage the driver: `node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>" --driver optimize`. The JSON line holds `scriptPath`.
 2. Launch the driver the same way as [yolo.md](yolo.md) Step 1 launches its driver, with the staged `scriptPath` and the args `{ projectRoot, referenceRoot, slug }`.
-3. Start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md). The driver journal is `.ai/workflows/<slug>/.driver-journal.jsonl`.
+3. Start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md). The driver journal is `<wf-dir>/.driver-journal.jsonl`.
 4. When the driver returns, end the watch and go to Step 4.
 
 To resume, run `/wf loop optimize <slug>` again. The script continues from `state.json`, inside an open round too.

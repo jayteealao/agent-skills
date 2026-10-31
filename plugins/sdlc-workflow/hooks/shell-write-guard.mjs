@@ -6,12 +6,11 @@
  * writes files too: a redirect (`>`, `>>`), `tee`, `cp`, `mv`, and in PowerShell `Out-File`,
  * `Set-Content`, `Add-Content`, `Copy-Item` and `Move-Item`. This guard reads the targets of
  * those writes and refuses:
- * - a target that is a local workflow path of a linked project (the file belongs in the
- *   records repo clone, as the Write check says), and
+ * - a target that is a local workflow path of a linked project (the file belongs in the wf-dir
+ *   in the records repo clone, as the Write check says), and
  * - a target that is the answer log `po-answers.md` or `steer.md` of a workflow: answers go
  *   through `wf.mjs decide add`.
- * A command whose targets this guard cannot read passes; the adopt of the next commit moves a
- * stray file of a linked workflow into the clone.
+ * A command whose targets this guard cannot read passes.
  *
  * Exports `run(input)` for the folded `pre-tool-use-all` entry.
  */
@@ -19,7 +18,7 @@
 import { isAbsolute, resolve } from 'node:path';
 import { checksModeOf } from '../lib/config.mjs';
 import { hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
-import { recordPathOf } from '../lib/records-root.mjs';
+import { linkedLocalTarget } from '../lib/records-root.mjs';
 
 const WORD = String.raw`("[^"]*"|'[^']*'|[^\s;&|<>()]+)`;
 const unquote = (t) => (/^(["']).*\1$/.test(t) ? t.slice(1, -1) : t);
@@ -59,10 +58,10 @@ export function shellWriteRefusal(command, cwd, projectRoot) {
         '`node <plugin root>/skills/wf/scripts/wf.mjs decide add <root> <slug> --answer "<answer>" --key <key> --question "<question>"`, ' +
         'or `decide add <root> <slug> --file <answers.json>` for several. `decide list` reads them.\n';
     }
-    const real = recordPathOf(projectRoot, abs);
-    if (real !== abs) {
-      return `shell-write-guard: blocked a shell write to ${abs}. This project keeps its workflow files in the records repo clone, ` +
-        `so the file belongs at ${real}. Write it there, by that path. Only the drafts stay in .ai/workflows/<slug>/.draft/.\n`;
+    const target = linkedLocalTarget(projectRoot, abs);
+    if (target) {
+      return `shell-write-guard: blocked a shell write to ${abs}. This project keeps its workflows in the records repo clone, not in .ai/workflows/. ` +
+        `A draft goes to <wf-dir>/.draft/.\nfix: write the file at ${target}.\n`;
     }
   }
   return null;

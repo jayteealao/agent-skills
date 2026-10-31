@@ -72,7 +72,7 @@ and "quietly repoint a workflow at the wrong trunk."
 
 # Step 2 — Write
 
-1. Apply the confirmed changes to the index: get it, change the fields, refresh `updated-at`, write the draft `.ai/workflows/<slug>/.draft/00-index.md` and put it with `record put "<root>" <slug>`. The changes of items 3 and 4 go into the same draft. The put refreshes the row of the workflow in `INDEX.md`.
+1. Apply the confirmed changes to the index: get it, change the fields, refresh `updated-at`, write the draft `<wf-dir>/.draft/00-index.md` and put it with `record put "<root>" <slug>`. The changes of items 3 and 4 go into the same draft. The put refreshes the row of the workflow in `INDEX.md`.
 2. Follow [_control-file-ownership.md](../_control-file-ownership.md): get the index immediately before
    you write the draft, and put the draft at once. A driver may be
    running on this slug.
@@ -94,7 +94,7 @@ wf intake amend complete: <slug>
 <Narrative — what config moved and why it mattered, in one short paragraph.>
 
 Amended: <field: old → new, one per line>
-Artifacts: .ai/workflows/<slug>/00-index.md
+Artifacts: <wf-dir>/00-index.md
 Next: <the command the amendment unblocks — usually whatever the workflow was already doing>
 ```
 

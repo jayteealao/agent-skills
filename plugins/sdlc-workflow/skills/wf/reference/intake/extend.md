@@ -52,7 +52,7 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 
 # Step 0 — Orient
 
-1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
+1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `<wf-dir>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
    - `from-review` — extract new scope that the person names from the review records. Only the person starts this seed: a review never routes a finding here, and a defect of built work is fixed by a review run, never by a new slice.
    - `from-retro` — extract new scope from `10-retro.md` findings.

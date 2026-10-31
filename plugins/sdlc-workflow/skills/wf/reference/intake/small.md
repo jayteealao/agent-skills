@@ -28,13 +28,13 @@ Read every row before you write the note. [_requires.md](../_requires.md) define
 Do this step once, right after the path question. On a resume, start at the first step whose part of the note is empty.
 
 1. Run `git rev-parse --abbrev-ref HEAD`. The output is the branch that is checked out.
-2. Write the draft `.ai/workflows/<slug>/.draft/00-index.md` from the index template of [intake/default/_artifact.md](default/_artifact.md), with these values:
+2. Write the draft `<wf-dir>/.draft/00-index.md` from the index template of [intake/default/_artifact.md](default/_artifact.md), with these values:
    - `workflow-type: small`, `appetite: small`, `branch-strategy: shared`, `branch: <the checked-out branch>`;
    - `current-stage: implement`, `stage-number: 5`, `selected-slice: <slug>`;
    - `progress`: `intake: complete`, `design: skipped`, `slice: skipped`, `plan: skipped`, `implement: in-progress`, `verify: not-started`, `review: skipped`, `ship: skipped`, `retro: skipped`;
    - `design-skip-reason: "small path"`;
    - `next-invocation: "/wf intake <slug>"`.
-3. Write the draft `.ai/workflows/<slug>/.draft/01-small.md` (`type: intake`, `small-path: true`, `stage-number: 1`, `status: in-progress`, `commit-sha: []`, `pr-wanted: null`), with these sections:
+3. Write the draft `<wf-dir>/.draft/01-small.md` (`type: intake`, `small-path: true`, `stage-number: 1`, `status: in-progress`, `commit-sha: []`, `pr-wanted: null`), with these sections:
    - `## Request`: the restated request, in one paragraph.
    - `## Acceptance Checks`: one line per check. Each line names how the result is observed.
    - `## Change`, `## Checks Run`, `## Result`: empty for now.
@@ -79,7 +79,7 @@ Return per [_chat-return.md](../_chat-return.md): lead with the narrative, then:
 wf intake complete: <slug> (small path)
 Change: <short sha> on <branch>, <N> files
 Checks: <passed>/<total> acceptance checks, fast and affected suites <pass|fail>
-Artifacts: .ai/workflows/<slug>/01-small.md
+Artifacts: <wf-dir>/01-small.md
 Next: Done | /wf review <slug>
 ```
 

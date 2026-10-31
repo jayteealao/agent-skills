@@ -6,9 +6,9 @@ A design brainstorm (`intake/brainstorm/_design.md`) leaves design thoughts on a
 
 Look in these places, in this order. Read every source that exists.
 
-1. **The origin work packet.** When `00-index.md` records `origin-packet: .ai/workflows/<source-slug>/work/<packet-slug>.md`, read the work packet file's `sketches:`: each key with its file, its link, and its caption.
-2. **The origin board.** When `00-index.md` records `origin-packet`, read the board of the source folder, with `<source-slug>` from that path: `.ai/workflows/<source-slug>/brainstorm-board.json`, or `ideate-work.json` for an ideate source. When it records `origin-brainstorm: <board-slug>`, read `.ai/workflows/<board-slug>/brainstorm-board.json`. Take the board work packet in `work[]` whose `slug` is this slug. The work packet file records the same value as `packet-slug`.
-3. **This workflow's own board.** When `.ai/workflows/<slug>/brainstorm-board-design.json` exists, take its work packet with `shape: design`.
+1. **The origin work packet.** When `00-index.md` records `origin-packet` (a path that ends in `<source-slug>/work/<packet-slug>.md`), read the `sketches:` of the work packet file `<wf-dir>/../<source-slug>/work/<packet-slug>.md`: each key with its file, its link, and its caption.
+2. **The origin board.** When `00-index.md` records `origin-packet`, read the board of the source folder, with `<source-slug>` from that path: `<wf-dir>/../<source-slug>/brainstorm-board.json`, or `ideate-work.json` for an ideate source. When it records `origin-brainstorm: <board-slug>`, read `<wf-dir>/../<board-slug>/brainstorm-board.json`. Take the board work packet in `work[]` whose `slug` is this slug. The work packet file records the same value as `packet-slug`.
+3. **This workflow's own board.** When `<wf-dir>/brainstorm-board-design.json` exists, take its work packet with `shape: design`.
 
 From each work packet, the carried set is:
 - its kept items (`scope: keep`) with `design: true`: the decisions and the open ideas, with each item's `why`;
@@ -22,7 +22,7 @@ An item with `scope: cut` or `scope: later` is not carried. When no source exist
 The sketch file is the design. Every stage reads the file. The person sees it on the canvas, in the Explore panel ([_surface.md](_surface.md)).
 
 1. **Give the file and the canvas.** Each time you name a sketch, give its path and the canvas URL.
-2. **A sketch from before the design surface.** When a carried sketch is a file in `.ai/workflows/<slug>/design/sketches/`, make it an explore sketch: run `node "<skill-dir>/scripts/wf.mjs" design explore add "<root>" <key> --title "<caption>" --link <slug>`, and copy an HTML file to `.ai/design/explore/<key>.html`. Add a PNG sketch as a reference with `wf.mjs design refs add`. A sketch path can be `<file>#<artboard>`: copy the file once, and keep the `#<artboard>` anchor in the record of each key.
+2. **A sketch from before the design surface.** When a carried sketch is a file in `<wf-dir>/design/sketches/`, make it an explore sketch: run `node "<skill-dir>/scripts/wf.mjs" design explore add "<root>" <key> --title "<caption>" --link <slug>`, and copy an HTML file to `.ai/design/explore/<key>.html`. Add a PNG sketch as a reference with `wf.mjs design refs add`. A sketch path can be `<file>#<artboard>`: copy the file once, and keep the `#<artboard>` anchor in the record of each key.
 3. **A link with no file.** When a carried sketch has a link and no local file, run the import at the door of [import.md](import.md) → Import at the door before you present it.
 
 ## In the brief (`shape` Step 5a)

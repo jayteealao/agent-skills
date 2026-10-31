@@ -366,8 +366,9 @@ export function workflowsRootOf(projectRoot) {
 export const LOCAL_ONLY_NAMES = ['.draft', 'answers.jsonl', '.control.json', '.watch-state.json', '.driver-outcome.json', '.api-log.jsonl', '.ai'];
 
 /**
- * True for a path in the local workflows folder of a linked project that is not machine-local:
- * the file belongs in the records clone, so the pre-write check refuses it by its local path.
+ * True for a path in the local workflows folder of a linked project. Each workflow of a linked
+ * project, its drafts too, is in its wf-dir in the records clone, so the pre-write check refuses
+ * the local path and names the wf-dir path.
  */
 export function isLinkedLocalPath(projectRoot, path) {
   const local = join(projectRoot, '.ai', 'workflows');
@@ -375,10 +376,7 @@ export function isLinkedLocalPath(projectRoot, path) {
   const fold = (s) => (process.platform === 'win32' ? s.toLowerCase() : s);
   const base = local.replace(/\\/g, '/');
   const n = resolve(projectRoot, String(path ?? '')).replace(/\\/g, '/');
-  if (!fold(n).startsWith(`${fold(base)}/`)) return false;
-  const parts = n.slice(base.length + 1).split('/').filter(Boolean);
-  if (!parts.length || parts[0].startsWith('.') || parts[0] === 'answers.jsonl' || (parts[0].startsWith('_') && parts[0] !== '_design')) return false;
-  return !parts.slice(1).some((p) => LOCAL_ONLY_NAMES.includes(p));
+  return fold(n).startsWith(`${fold(base)}/`) && n.length > base.length + 1;
 }
 
 /** True for a record, draft or message file inside the records clone: the pre-write check sees it. */

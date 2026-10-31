@@ -145,7 +145,7 @@ Do this in order:
 
 8. **Evaluate adaptive routing** (below) and write ALL viable options into the `recommended-routes` frontmatter.
 9. Update the index of each roster slug in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=ship progress.ship=in-progress next-command=<command> next-invocation=<invocation>`, and (batch) `handoff-lead=<lead>`. An older index can still hold a `progress.handoff` key: set `progress.handoff=complete` when the verdict is `ready`, and add none. Followers also set `readiness-via=<lead>/08-handoff.md`.
-10. Write the draft `.ai/workflows/<slug>/.draft/08-handoff.md` for each packaged slug (additive-write + ledger + `handoff-fingerprint`), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The lead's artifact carries the readiness keys and `pr-readiness-verdict`; followers carry `readiness-via` and the copied `pr-readiness-verdict`. Skip-unchanged and not-ready slugs are not written.
+10. Write the draft `<wf-dir>/.draft/08-handoff.md` for each packaged slug (additive-write + ledger + `handoff-fingerprint`), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The lead's artifact carries the readiness keys and `pr-readiness-verdict`; followers carry `readiness-via` and the copied `pr-readiness-verdict`. Skip-unchanged and not-ready slugs are not written.
 
 # Adaptive routing — evaluate what is actually next
 Present ALL viable options:
@@ -241,5 +241,5 @@ The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in or
 # Additive-write contract
 `08-handoff.md` is revisable. On re-invocation, follow [_additive-write.md](_additive-write.md):
 - **No-op guard (fingerprint).** Recompute `handoff-fingerprint` (step 6). If it matches the stored value, skip the slug entirely: no snapshot, no ledger entry, no rewrite.
-- **Snapshot** the `record get` output of the pre-run `08-handoff.md` to `.ai/workflows/<slug>/history/08-handoff-<rev>.md`, then **rewrite the body to current truth**.
+- **Snapshot** the `record get` output of the pre-run `08-handoff.md` to `<wf-dir>/history/08-handoff-<rev>.md`, then **rewrite the body to current truth**.
 - **Ledger entry** (`revisions:`): `trigger` is `review-feedback`, `ci-fix`, `new-slug-joined`, `scope-change`, or `resume`; `because:` and `changed:` name the prompt and the effect. Update `handoff-fingerprint`. The body is the current document, so re-posting the PR description via `gh pr edit` is a straight copy; in batch mode the PR body is the union across packaged slugs, regenerated whole each run. The readiness keys are overwritten on every re-run, never revisioned, and in batch mode present only on the lead.
