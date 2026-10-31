@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { appendAnswerEvent } from '../../lib/answers.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
-import { CHECK_MOVES, checkBrowser, runChecks } from '../../lib/design-check.mjs';
+import { CHECK_MOVES, checkBrowser, failureLines, runChecks } from '../../lib/design-check.mjs';
 import { approvalPicture, readChecks } from '../../lib/design-records.mjs';
 import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile, writeTokens } from '../../lib/design-surface.mjs';
 import { designGateRefusal, designSettled } from '../../lib/design-lane.mjs';
@@ -141,5 +141,9 @@ test('in a browser: missing values, a broken image, overlapping text, a script e
     assert.equal(of('pay', 'script').length, 1, 'one script error per screen');
     assert.equal(of('pay', 'script')[0].move, null);
     for (const check of ['display', 'overlap', 'script']) assert.deepEqual(of('basket', check), [], `no ${check} failure on a clean screen`);
+    // One raw color in one rule, in three viewports: one cause, one place, one line.
+    const lines = failureLines(of('pay', 'token').filter((f) => /\.price/.test(f.message)));
+    assert.equal(lines.length, 1);
+    assert.match(lines[0], /^pay \(phone, tablet, desktop; default\): token: .* — move: colorize$/);
   } finally { done(); }
 });

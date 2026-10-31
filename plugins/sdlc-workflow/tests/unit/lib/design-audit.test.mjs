@@ -42,7 +42,7 @@ test('the prompt names the screens, carries the audit rules and the platform map
     writeChecks(root, { at: '2026-10-28T10:00:00Z', passed: false, failures: [{ screen: 'basket', check: 'token', viewport: 'phone', state: 'default', message: 'The color #1a74e8 of .total is not a token', rect: null, move: 'colorize' }] });
     const p = auditPrompt(root, { workflow: 'w1' });
     assert.match(p, /`basket` \(Basket\): `\.ai\/design\/screens\/basket\.html`/);
-    assert.match(p, /## The measured checks[\s\S]*basket \(phone, default\): token: The color #1a74e8/);
+    assert.match(p, /## The measured checks[\s\S]*basket \(phone; default\): token: The color #1a74e8/);
     assert.match(p, /`Color\(0xFF…\)` in Compose/);
     assert.match(p, /`undefined`, `null`, `NaN`/);
     assert.match(p, /## Diagnostic Scan/);

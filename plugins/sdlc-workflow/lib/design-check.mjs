@@ -75,7 +75,8 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
     return parts.join(' > ');
   };
   const hex = (c) => `#${c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
-  const add = (check, el, message) => out.push({ check, message, rect: box(el), selector: selector(el) });
+  // `cause` is what the failures of one fault share, for example one color pair: the list groups by it.
+  const add = (check, el, message, cause = message) => out.push({ check, message, cause, rect: box(el), selector: selector(el) });
 
   // The background under an element: its layers composited down to white. Null when an image
   // or a gradient is in the way, because no single color is the background then.
@@ -110,7 +111,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
       const key = `${hex(fg)}/${hex(bg)}/${need}`;
       if (seen.has(key) && seen.size > 12) continue;
       seen.add(key);
-      add('contrast', el, `The text ${hex(fg)} on ${hex(bg)} is ${ratio.toFixed(2)}:1; ${need}:1 is the minimum for ${large ? 'large' : 'body'} text`);
+      add('contrast', el, `The text ${hex(fg)} on ${hex(bg)} is ${ratio.toFixed(2)}:1; ${need}:1 is the minimum for ${large ? 'large' : 'body'} text`, key);
     }
   }
 
@@ -123,7 +124,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
     if (r.width >= minTarget - 0.5 && r.height >= minTarget - 0.5) continue;
     const cs = getComputedStyle(el);
     if (el.tagName === 'A' && cs.display === 'inline' && el.parentElement && el.parentElement.textContent.trim().length > el.textContent.trim().length + 20) continue;
-    add('target-size', el, `The target is ${Math.round(r.width)}×${Math.round(r.height)} px; ${minTarget}×${minTarget} px is the minimum`);
+    add('target-size', el, `The target is ${Math.round(r.width)}×${Math.round(r.height)} px; ${minTarget}×${minTarget} px is the minimum`, `${Math.round(r.width)}×${Math.round(r.height)}`);
   }
 
   // Viewport fit: no horizontal scroll at this width.
@@ -159,12 +160,13 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
     const m = /(^|[^\w])(undefined|null|NaN)(?!\w)|\[object Object\]/.exec(t.textContent);
     if (m && !missing.has(t.parentElement)) {
       missing.add(t.parentElement);
-      add('display', t.parentElement, `The text shows "${m[0].replace(/^[^\w[]/, '')}", the text of a missing value`);
+      const shownText = m[0].replace(/^[^\w[]/, '');
+      add('display', t.parentElement, `The text shows "${shownText}", the text of a missing value`, `text:${shownText}`);
     }
   }
   for (const img of document.body.querySelectorAll('img[src]')) {
     if (!img.getClientRects().length || !img.complete || img.naturalWidth > 0) continue;
-    add('display', img, `The image ${img.getAttribute('src').slice(0, 80)} does not load`);
+    add('display', img, `The image ${img.getAttribute('src').slice(0, 80)} does not load`, `image:${img.getAttribute('src')}`);
   }
 
   // Overlap: two pieces of text whose lines cross. Each line of a text is its own box, so a
@@ -198,7 +200,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
     const nearest = (c) => swatches.reduce((best, t) => {
       const d = Math.hypot(c[0] - t.c[0], c[1] - t.c[1], c[2] - t.c[2], (c[3] - t.c[3]) * 255);
       return !best || d < best.d ? { t, d } : best;
-    }, null).t;
+    }, null);
     const told = new Set();
     const scan = (style, where, el) => {
       for (let i = 0; i < style.length; i += 1) {
@@ -210,8 +212,9 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
         told.add(`${where}|${raw}`);
         // The browser writes every color as rgb(); an opaque one reads back as hex.
         const c = rgba(raw);
-        const n = nearest(c);
-        add('token', el, `The ${prop} ${c[3] >= 1 ? hex(c) : raw} of ${where} is not a token; the nearest token is ${n.name} (${n.value})`);
+        const { t: n, d } = nearest(c);
+        const color = c[3] >= 1 ? hex(c) : raw;
+        add('token', el, `The ${prop} ${color} of ${where} is not a token; ${d < 1 ? `use ${n.name}, which has this value` : `the nearest token is ${n.name} (${n.value})`}`, color);
       }
     };
     const flat = (list) => [...list].flatMap((r) => (r.cssRules && !r.selectorText ? flat(r.cssRules) : [r]));
@@ -444,7 +447,23 @@ export async function captureScreens(root, keys, { viewport = null, browser = un
   return out;
 }
 
-/** The failures as lines for a person: one per failure, with its move. */
+/**
+ * The failures grouped by cause: one group for each check and cause, for example one raw color
+ * in five rules on three screens. `places` counts the distinct elements, not the viewports.
+ */
+export function groupFailures(failures) {
+  const groups = new Map();
+  for (const f of failures) {
+    const k = `${f.check}|${f.cause ?? f.message}`;
+    if (!groups.has(k)) groups.set(k, { check: f.check, cause: f.cause ?? f.message, message: f.message, move: f.move ?? null, screens: [], viewports: [], states: [], at: new Set() });
+    const g = groups.get(k);
+    for (const [list, v] of [[g.screens, f.screen], [g.viewports, f.viewport], [g.states, f.state]]) if (v && !list.includes(v)) list.push(v);
+    g.at.add(`${f.screen}|${f.selector ?? f.message}|${f.state}`);
+  }
+  return [...groups.values()].map(({ at, ...g }) => ({ ...g, places: at.size }));
+}
+
+/** The failures as lines for a person: one per cause, with its places and its move. */
 export function failureLines(failures) {
-  return failures.map((f) => `${f.screen}${f.viewport ? ` (${f.viewport}, ${f.state})` : ''}: ${f.check}: ${f.message}${f.move ? ` — move: ${f.move}` : ''}`);
+  return groupFailures(failures).map((g) => `${g.screens.join(', ')}${g.viewports.length ? ` (${g.viewports.join(', ')}; ${g.states.join(', ')})` : ''}: ${g.check}: ${g.message}${g.places > 1 ? ` (${g.places} places)` : ''}${g.move ? ` — move: ${g.move}` : ''}`);
 }

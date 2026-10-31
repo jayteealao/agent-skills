@@ -368,7 +368,7 @@
     const s = data.screens.find((x) => x.key === key);
     if (!s) return;
     focusFrom = document.activeElement;
-    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false };
+    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false, play: false, trail: [] };
     drawFocus();
     $('#focus').hidden = false;
     $('#focus .close')?.focus();
@@ -390,9 +390,31 @@
     if (list.length < 2) return;
     const i = list.findIndex((s) => s.key === focusState.key);
     const next = list[(i + by + list.length) % list.length];
-    focusState = { ...focusState, key: next.key, compare: '', commenting: false };
+    focusState = { ...focusState, key: next.key, compare: '', commenting: false, trail: [] };
     drawFocus();
     $(`#focus [data-step="${by}"]`)?.focus();
+  }
+  /**
+   * Play: the screen's own links work. A link to another screen opens that screen in the view,
+   * in the state that its `?state=` names, and Back returns along the trail. Any other link
+   * stays on the screen, because a design page leads nowhere outside the screens.
+   */
+  function playLinks(ifr) {
+    let doc = null;
+    try { doc = ifr.contentDocument; } catch { doc = null; }
+    if (!doc) return;
+    doc.addEventListener('click', (e) => {
+      const a = e.target.closest?.('a[href]');
+      if (!a) return;
+      e.preventDefault();
+      let url = null;
+      try { url = new URL(a.getAttribute('href'), doc.baseURI); } catch { url = null; }
+      const key = url && /\/screens\/([a-z0-9-]+)\.html$/.exec(url.pathname)?.[1];
+      if (!key || !data.screens.some((x) => x.key === key)) { say('That link leads to no screen'); return; }
+      const st = url.searchParams.get('state');
+      focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
+      drawFocus();
+    });
   }
   function closeFocus() {
     $('#focus').hidden = true;
@@ -433,9 +455,15 @@
     const room = phone() ? window.innerWidth - 32 : window.innerWidth - 32 - 340 - 48;
     const scale = Math.min(1, (room - (panes - 1) * 24) / panes / size.width, phone() ? 1 : (window.innerHeight - 240) / size.height);
     const view = h('div', { class: 'view' });
-    const live = shot(f.compare || f.capture ? 'Now' : `${cap(f.viewport)}, ${f.state} state`, frameFor(s.key, f.state), size, scale);
+    const live = shot(f.compare || f.capture ? 'Now' : `${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state), size, scale);
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` });
-    live.append(overlay);
+    // In play, nothing covers the screen, so its links and controls take the pointer.
+    if (f.play) {
+      live.classList.add('playing');
+      const ifr = live.querySelector('iframe');
+      ifr.removeAttribute('tabindex');
+      ifr.addEventListener('load', () => playLinks(ifr));
+    } else live.append(overlay);
     if (f.checks) {
       for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
         if (!x.rect) continue;
@@ -490,8 +518,11 @@
       h('button', { type: 'button', 'data-step': '-1', 'aria-label': `Previous screen: ${near(-1).title}`, title: `${near(-1).title} (←)`, onclick: () => step(-1) }, '‹'),
       h('span', { class: 'pos' }, `${at + 1} of ${order.length}`),
       h('button', { type: 'button', 'data-step': '1', 'aria-label': `Next screen: ${near(1).title}`, title: `${near(1).title} (→)`, onclick: () => step(1) }, '›')) : null;
+    const back = f.play && f.trail.length ? f.trail.at(-1) : null;
+    const backTitle = back ? data.screens.find((x) => x.key === back.key)?.title || back.key : '';
     const header = h('header', {},
       h('h2', {}, s.title, h('small', {}, metaOf(s))),
+      back ? h('button', { type: 'button', class: 'btn', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, trail: f.trail.slice(0, -1) }; drawFocus(); } }, `← ${backTitle}`) : null,
       stepper,
       h('button', { type: 'button', class: 'close', onclick: closeFocus, 'aria-label': 'Close' }, '×'));
     const tools = h('div', { class: 'tools' },
@@ -500,15 +531,19 @@
       h('span', { class: 'gap' }),
       toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
       findings.length ? toggle('Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }) : null,
-      data.writable ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; drawFocus(); }) : null,
+      SNAP ? null : toggle('Play', f.play, () => { f.play = !f.play; f.commenting = false; f.trail = []; drawFocus(); }),
+      data.writable ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
       toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
     const shown = s.threads.filter((t) => f.all || t.open);
-    // One entry for each failure, with every viewport where it fails.
+    // One entry for each cause, for example one raw color in five rules, with its places,
+    // viewports and states.
     const failures = Object.values((s.failures || []).reduce((acc, x) => {
-      const k = `${x.check}|${x.state}|${x.message}`;
-      (acc[k] ||= { ...x, viewports: [] }).viewports.push(cap(x.viewport));
+      const g = (acc[`${x.check}|${x.cause ?? x.message}`] ||= { ...x, viewports: [], states: [], at: new Set() });
+      if (x.viewport && !g.viewports.includes(cap(x.viewport))) g.viewports.push(cap(x.viewport));
+      if (x.state && !g.states.includes(x.state)) g.states.push(x.state);
+      g.at.add(`${x.selector ?? ''}|${x.state}`);
       return acc;
     }, {}));
     const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
@@ -518,9 +553,9 @@
       shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then tap a point of the screen.' : 'No open comment.'),
       h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
       failures.length ? failures.map((x) => h('div', { class: 'check' },
-        h('b', {}, CHECK_NAMES[x.check] || x.check),
+        h('b', {}, CHECK_NAMES[x.check] || x.check), x.at.size > 1 ? h('span', { class: 'sev' }, `${x.at.size} places`) : null,
         h('p', {}, x.message),
-        h('small', {}, `${list(x.viewports)}, ${x.state} state.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
+        h('small', {}, `${x.viewports.length ? `${list(x.viewports)}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
       findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));

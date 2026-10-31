@@ -81,8 +81,9 @@ export async function runDesign(pos, opt, out) {
     case 'check': {
       const r = await runChecks(projectRoot, { keys: rest.slice(1), workflow: opt.workflow ?? null });
       if (opt.json) { out(r); return r.ran && r.passed ? 0 : 1; }
-      const lines = failureLines(r.new ?? r.failures);
-      out([r.ran ? `checked ${r.checked.length} screen(s): ${lines.length ? `${lines.length} failure(s)` : 'all pass'}` : `not checked: ${r.reason}`,
+      const found = r.new ?? r.failures;
+      const lines = failureLines(found);
+      out([r.ran ? `checked ${r.checked.length} screen(s): ${lines.length ? `${found.length} failure(s) from ${lines.length} cause(s)` : 'all pass'}` : `not checked: ${r.reason}`,
         ...lines, ...(opt.workflow ? [`ask: ${approvalQuestion(opt.workflow)}`] : [])].join('\n'));
       return r.ran && !lines.length ? 0 : 1;
     }
