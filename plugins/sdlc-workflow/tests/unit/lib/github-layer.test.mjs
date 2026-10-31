@@ -155,3 +155,13 @@ test('a network error is tried once more after the delay; another error is not',
     assert.deepEqual(none, [], 'no retry for an error that is not of the network');
   } finally { t.done(); }
 });
+
+test('a label name over 50 characters is cut and ends with a hash of the whole name', async () => {
+  const { labelName, LABEL_MAX } = await import('../../../lib/github-layer.mjs');
+  const long = 'list:brainstorm-android-claude-monitor-widget-20261018';
+  const cut = labelName(long);
+  assert.ok(cut.length <= LABEL_MAX);
+  assert.ok(cut.startsWith('list:brainstorm-android-claude'));
+  assert.notEqual(labelName(`${long}x`), cut);
+  assert.equal(labelName('project:lantern'), 'project:lantern');
+});

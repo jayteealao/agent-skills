@@ -199,3 +199,19 @@ test('the sweep moves the run files and the files over the cap out of a workflow
     assert.deepEqual(noteEvidence(f.root, 'demo', clone), []);
   } finally { f.done(); }
 });
+
+test('a trace or a video under the cap still leaves the workflow folder for the evidence folder', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, existsSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { sweepRunFiles } = await import('../../lib/run-files.mjs');
+  const root = mkdtempSync(join(tmpdir(), 'sweep-trace-'));
+  const dir = join(root, 'wf', 'demo');
+  mkdirSync(join(dir, 'verify-evidence'), { recursive: true });
+  writeFileSync(join(dir, 'verify-evidence', 'trace.zip'), 'small');
+  writeFileSync(join(dir, 'verify-evidence', 'shot.png'), 'small');
+  const r = sweepRunFiles(root, 'demo', dir);
+  assert.deepEqual(r.evidence, ['verify-evidence/trace.zip']);
+  assert.ok(!existsSync(join(dir, 'verify-evidence', 'trace.zip')));
+  assert.ok(existsSync(join(dir, 'verify-evidence', 'shot.png')));
+});

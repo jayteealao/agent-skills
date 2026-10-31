@@ -132,8 +132,11 @@ function moveFile(src, dst) {
 
 const COST_RE = /^cost(?:-\d{4}-\d{2}(?:\.\d+)?)?\.jsonl$/;
 
-// The files over the cap under `dir`, relative to it. A draft and a cost ledger stay: the drafts
-// leave with the put, and the cost rows must stay readable.
+// A trace or a video stays on this machine at any size: the records list it, and never commit it.
+export const LOCAL_EVIDENCE_RE = /\.(zip|mp4|webm)$/i;
+
+// The files over the cap under `dir`, and each trace or video, relative to it. A draft and a cost
+// ledger stay: the drafts leave with the put, and the cost rows must stay readable.
 function overCap(dir, limit) {
   const out = [];
   const walk = (abs, rel) => {
@@ -143,7 +146,7 @@ function overCap(dir, limit) {
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) { if (e.name !== '.draft' && e.name !== '.git') walk(join(abs, e.name), r); continue; }
       if (!e.isFile() || (!rel && (COST_RE.test(e.name) || e.name === EVIDENCE_LOG))) continue;
-      try { if (statSync(join(abs, e.name)).size > limit) out.push(r); } catch { /* gone */ }
+      try { if (LOCAL_EVIDENCE_RE.test(e.name) || statSync(join(abs, e.name)).size > limit) out.push(r); } catch { /* gone */ }
     }
   };
   walk(dir, '');

@@ -207,6 +207,18 @@ export function backfill(root, slugs) {
 
 const LABELS = [['wf', '0e8a16', 'A /wf workflow'], [NEEDS_ME, 'd93f0b', 'Waits on the person']];
 
+/**
+ * A GitHub label name has at most 50 characters. A longer name keeps its start and ends with a
+ * short hash of the whole name, so two long names stay different.
+ */
+export const LABEL_MAX = 50;
+export function labelName(name) {
+  const s = String(name);
+  if (s.length <= LABEL_MAX) return s;
+  const hash = createHash('sha256').update(s).digest('hex').slice(0, 6);
+  return `${s.slice(0, LABEL_MAX - hash.length - 1)}~${hash}`;
+}
+
 function ensureLabels(state, repo, extra, run) {
   const have = new Set(state.labels[repo] ?? []);
   for (const [name, color, about] of [...LABELS, ...extra.map((n) => [n, 'c5def5', 'A /wf project or list'])]) {
@@ -246,7 +258,7 @@ function recordIssue(e, issue) {
 function applySync(e, state, run, save) {
   const key = keyOf(e.project, e.slug);
   const b = e.block;
-  const labels = [`project:${e.project}`, ...(b.list ? [`list:${b.list}`] : [])];
+  const labels = [`project:${e.project}`, ...(b.list ? [`list:${b.list}`] : [])].map(labelName);
   ensureLabels(state, e.repo, labels, run);
   const title = `${e.project}/${e.slug}: ${b.title}`;
   let issue = state.issues[key] ?? knownIssue(e, run);
