@@ -45,7 +45,7 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 |------|--------|------|----|
 ```
 
-If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledger; every integer copied from the ledger):
+For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<root>" <slug> --json`. If any slug has cost rows, add the cost table (one row per slug with rows; copy every integer from the command):
 
 ```
 ## Cost (exact tokens)
@@ -98,7 +98,7 @@ Take <n>, <m> and each step line from `node "<skill-dir>/scripts/wf.mjs" step wh
 - <slice>/<ac> — <reason> · clearing event: <clearing-event>
 - ⚠ **clearing event appears SATISFIED** for <slice>/<ac> — run `/wf probe <slug>` to capture the evidence
 
-## Cost (exact tokens · from cost.jsonl; omit when the file is absent)
+## Cost (exact tokens · from `wf.mjs cost`; omit when it has no rows)
 | Key | Turns | Sub-agents | Input | Output | Cache read | Cache write | External in / out |
 |-----|-------|------------|-------|--------|------------|-------------|-------------------|
 | plan | 7 | 2 | 12 | 3,104 | 210,980 | 88,120 | 18,176 / 142 |

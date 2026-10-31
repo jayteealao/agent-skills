@@ -361,7 +361,8 @@ export function workflowsRootOf(projectRoot) {
 }
 
 // The machine-local entries of a workflow folder, as LOCAL_ONLY_ENTRIES of lib/records-root.mjs
-// lists them; a test keeps the two lists equal.
+// lists them; a test keeps the two lists equal. The run files now live in <root>/.ai/run/<slug>/,
+// so this list is a guard for old files, and it can go with LOCAL_ONLY_ENTRIES.
 export const LOCAL_ONLY_NAMES = ['.draft', 'answers.jsonl', '.control.json', '.watch-state.json', '.driver-outcome.json', '.api-log.jsonl', '.ai'];
 
 /**

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * scripts/cost-rebuild.mjs — rebuild the inflated `cost.jsonl` files of one
+ * scripts/cost-rebuild.mjs — rebuild the inflated cost ledgers (`cost.jsonl` and
+ * the monthly `cost-<yyyy-mm>.jsonl`) of one
  * project from the Claude Code transcripts (WF-SYSTEM-REVIEW-2026-10-21 A1, SQ4).
  *
  *   node scripts/cost-rebuild.mjs <projectRoot> [--apply] [--projects-dir <dir>] [--force]
@@ -12,7 +13,7 @@
  * row that held it (lib/cost-ledger.mjs `rebuildLedgerRows`).
  *
  * - With no `--apply`, it changes nothing and prints what it would change.
- * - With `--apply`, it keeps each old file as `cost.jsonl.bak`, and refuses when
+ * - With `--apply`, it keeps each old file as `<name>.bak`, and refuses when
  *   a `.bak` exists already (`--force` replaces it). Run it while no session
  *   writes to the project: the Stop hook appends to these files.
  * - `--projects-dir` is the Claude Code projects folder (default ~/.claude/projects).
@@ -23,7 +24,7 @@ import { copyFileSync, existsSync, readdirSync, renameSync, writeFileSync } from
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { COST_FILE, agentTotalsFromFiles, listClaudeAgentFiles, readCostRows, rebuildLedgerRows } from '../lib/cost-ledger.mjs';
+import { agentTotalsFromFiles, costFiles, listClaudeAgentFiles, readCostFile, rebuildLedgerRows } from '../lib/cost-ledger.mjs';
 import { workflowsRoot } from '../lib/records-root.mjs';
 
 function argsOf(argv) {
@@ -56,8 +57,8 @@ export function costRebuild({ root, apply = false, force = false, projectsDir })
   if (!existsSync(wf)) return { ok: false, error: `no .ai/workflows in ${root}` };
   const files = [];
   for (const d of readdirSync(wf, { withFileTypes: true })) {
-    if (!d.isDirectory() || !existsSync(join(wf, d.name, COST_FILE))) continue;
-    files.push({ path: join(wf, d.name, COST_FILE), rows: readCostRows(join(wf, d.name)) });
+    if (!d.isDirectory()) continue;
+    for (const f of costFiles(join(wf, d.name))) files.push({ path: f, rows: readCostFile(f) });
   }
   const ids = new Set();
   const sessions = new Set();

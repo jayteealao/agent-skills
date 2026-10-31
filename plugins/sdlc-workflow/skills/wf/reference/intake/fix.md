@@ -196,7 +196,7 @@ The fix tripwires are: >3 files touched · >5 implementation steps · new extern
 
 # Step 2 — Write `00-index.md` (conformant `type: index`)
 
-Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Put it. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
+Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Put it.
 
 # Step 3 — Gate before implement (mandatory unless auto-proceeding)
 

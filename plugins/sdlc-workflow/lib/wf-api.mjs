@@ -7,7 +7,9 @@
  *
  * API:
  *   wf.records.get(name)
- *             the frontmatter and the body of one record, or null. `index` names 00-index.md
+ *             the frontmatter and the body of one record, or null. `index` names 00-index.md;
+ *             each name may leave out .md and the number, or be a stage name (`implement`), and
+ *             a name that fits several records throws with the list
  *             Example: const { frontmatter } = wf.records.get('index')
  *   wf.records.getMany(names)
  *             several records in one call, by their file names
@@ -15,6 +17,15 @@
  *   wf.records.fields(name, keys)
  *             only the frontmatter fields `keys` of a record; `a.b` reads a field of a map
  *             Example: wf.records.fields('06-verify-api', ['result', 'convergence'])
+ *   wf.records.section(name, heading)
+ *             the text under one ## heading of the body of a record
+ *             Example: wf.records.section('04-plan-api', 'Steps')
+ *   wf.records.field(name, path)
+ *             one value of a record, by a path of record set
+ *             Example: wf.records.field('03-slice', 'slices[api].status')
+ *   wf.records.outline(name)
+ *             the fields and the ## headings of a record, with the size of each in bytes
+ *             Example: wf.records.outline('07-review').sections.map((s) => s.heading)
  *   wf.records.list()
  *             the names of the records of the workflow
  *             Example: wf.records.list().filter((n) => n.startsWith('06-verify-'))
@@ -24,6 +35,10 @@
  *   wf.records.put(name, { frontmatter, body })
  *             write a whole record with the checks of record put
  *             Example: wf.records.put('07-review', { frontmatter, body: '# Review\n' })
+ *   wf.records.edit(name, change)
+ *             change a body in place with the checks of record put: { section, text } replaces
+ *             the text under one ## heading; { replace, with } replaces one exact text
+ *             Example: wf.records.edit('05-implement-api', { replace: '- [ ] AC-2', with: '- [x] AC-2' })
  *   wf.records.draft(name)
  *             write the record as a draft in the local .draft/ folder, and return its path
  *             Example: const path = wf.records.draft('04-plan-api')
@@ -81,16 +96,17 @@ import { boardAdd, boardItems, boardMove, boardRegroup, boardRemove } from './bo
 import { answeredBy, decisionsOf, liveDecisions } from './decisions.mjs';
 import { OPEN_STATUSES, mergeRun, readLedger, setStatus, writeLedger } from './findings.mjs';
 import { noteAnswer } from './github-layer.mjs';
-import { parseSetArg } from './record-path.mjs';
+import { getPath, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
-import { DRAFT_DIR, draftPath, listDocs, readDoc } from './records.mjs';
-import { localWorkflowsRoot, workflowDir } from './records-root.mjs';
+import { DRAFT_DIR, draftPath, listDocs, outlineOf, readDoc, sectionText } from './records.mjs';
+import { localWorkflowsRoot, runDir, workflowDir } from './records-root.mjs';
+import { ensureRunFolder } from './run-files.mjs';
 import { lastSlice, whereOf } from './steps.mjs';
-import { decideAdd, noRecord, pick, recordName, setRecordPaths } from './wf-ops.mjs';
+import { decideAdd, editRecord, noRecord, pick, recordName as plainName, resolveRecord, setRecordPaths } from './wf-ops.mjs';
 import { statusBrief, stepGit } from './wf-status.mjs';
 import { stringify as stringifyYaml } from './yaml.mjs';
 
-/** The run log of the scripts, in the local folder of each workflow; it stays on this machine. */
+/** The run log of the scripts, in the run folder of each workflow (<root>/.ai/run/<slug>/); it stays on this machine. */
 export const API_LOG = '.api-log.jsonl';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -156,7 +172,13 @@ export function openWorkflow(root, slug, hooks = {}) {
       throw e;
     }
   };
+  const recordName = (name) => resolveRecord(dir, name);
   const doc = (name) => readDoc(dir, recordName(name)) ?? null;
+  const must = (name) => {
+    const d = doc(name);
+    if (!d) throw new Error(noRecord(name, slug, dir));
+    return d;
+  };
 
   const records = {
     get: (name) => read('records.get', recordName(name), [], () => doc(name)),
@@ -166,6 +188,9 @@ export function openWorkflow(root, slug, hooks = {}) {
       if (!d) throw new Error(noRecord(name, slug, dir));
       return pick(d.frontmatter ?? {}, keys);
     }),
+    section: (name, heading) => read('records.section', recordName(name), [], () => sectionText(must(name).body, heading)),
+    field: (name, path) => read('records.field', recordName(name), [String(path)], () => getPath(must(name).frontmatter ?? {}, String(path))),
+    outline: (name) => read('records.outline', recordName(name), [], () => outlineOf(must(name))),
     list: () => read('records.list', null, [], () => listDocs(dir)),
     set: (name, path, value) => write('records.set', recordName(name), [String(path)], () => {
       // `list+` and `list-` are the append and the remove of `list+=v` and `list-=v`; the
@@ -174,8 +199,9 @@ export function openWorkflow(root, slug, hooks = {}) {
       change.value = value === undefined ? null : value;
       return setRecordPaths(dir, recordName(name), [change], { slug }).frontmatter;
     }),
-    put: (name, { frontmatter, body = '' }) => write('records.put', recordName(name), Object.keys(frontmatter ?? {}), () => {
-      const n = recordName(name);
+    // A put may write a new record, so its name is never matched to another record.
+    put: (name, { frontmatter, body = '' }) => write('records.put', plainName(name), Object.keys(frontmatter ?? {}), () => {
+      const n = plainName(name);
       const tmp = mkdtempSync(join(tmpdir(), 'wf-put-'));
       try {
         const path = join(tmp, n);
@@ -184,6 +210,11 @@ export function openWorkflow(root, slug, hooks = {}) {
         if (r.errors.length) throw new Error(`record put: refused ${r.name}: ${r.errors.join('; ')}`);
         return { name: r.name, file: r.file };
       } finally { rmSync(tmp, { recursive: true, force: true }); }
+    }),
+    edit: (name, change) => write('records.edit', recordName(name), [], () => {
+      const r = editRecord(dir, recordName(name), change ?? {}, { slug });
+      if (r.errors.length) throw new Error(`record edit: refused ${r.name}: ${r.errors.join('; ')}`);
+      return { name: r.name, file: r.file };
     }),
     draft: (name) => read('records.draft', recordName(name), [], () => {
       const d = doc(name);
@@ -296,9 +327,9 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
   const bySlug = new Map();
   for (const o of ops) bySlug.set(o.slug, [...(bySlug.get(o.slug) ?? []), o]);
   for (const [s, list] of bySlug) {
-    const file = join(localWorkflowsRoot(projectRoot), s, API_LOG);
+    const file = join(runDir(projectRoot, s), API_LOG);
     try {
-      mkdirSync(dirname(file), { recursive: true });
+      ensureRunFolder(dirname(file));
       appendFileSync(file, list.map((o) => JSON.stringify({ ...o, applied: apply })).join('\n').concat('\n'));
     } catch { /* the log is not the change */ }
   }

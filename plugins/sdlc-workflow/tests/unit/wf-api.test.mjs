@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { API_LOG, openWorkflow, runScript } from '../../lib/wf-api.mjs';
 import { INDEX_NAME, frontmatterOfDoc, writeDoc } from '../../lib/records.mjs';
+import { runDir } from '../../lib/records-root.mjs';
 import { describeAll, helpText } from '../../scripts/wf.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -148,7 +149,7 @@ test('wf.mjs run: the result, the dry run, the run log, and a script outside the
     assert.deepEqual(out.value, [{ result: 'pass' }]);
     assert.deepEqual([out.applied, out.changed], [true, ['demo']]);
     assert.deepEqual(frontmatterOfDoc(f.dir, '03-slice.md').slices.map((s) => s.status), ['in-progress', 'in-progress']);
-    const log = readFileSync(path.join(f.dir, API_LOG), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    const log = readFileSync(path.join(runDir(f.root, 'demo'), API_LOG), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
     const sets = log.filter((l) => l.op === 'records.set');
     assert.deepEqual(sets.map((l) => l.applied), [false, false, true, true]);
     assert.deepEqual(sets[2].keys, ['slices[api].status']);

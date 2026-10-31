@@ -44,4 +44,4 @@ updated-at: "<ISO 8601>"
 - Do not write `selected-slice`. A light index has no slice roster.
 - Write no YAML comments in the index.
 - Get each timestamp per [_timestamp.md](../_timestamp.md).
-- Add the extra keys of your mode from the mode reference. Then register the slug per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
+- Add the extra keys of your mode from the mode reference.

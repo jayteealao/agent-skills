@@ -23,6 +23,7 @@ import { DRAFT_DIR, INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { otherLease } from './leases.mjs';
+import { maxFileBytes, sweepRunFiles } from './run-files.mjs';
 
 // A call that only asks the remote (ls-remote) ends after 20 seconds, so an offline machine goes
 // on quickly. A transfer (push, fetch) runs as long as data moves: git itself stops a transfer
@@ -235,13 +236,11 @@ function moveMain(home, from, to) {
 
 /**
  * The size above which a record file stays on this machine, in bytes: `records.max-file-mb` of
- * ~/.sdlc/config.json, else 5 MB. Such a file (a test trace, a large log) stays in the folder of
- * the clone, so the workflow still reads it, but no commit holds it and no push sends it.
+ * ~/.sdlc/config.json, else 5 MB. Such a file (a test trace, a large log) belongs in
+ * <root>/.ai/evidence/<slug>/: the commit of a workflow folder moves it there first, and no
+ * commit holds it.
  */
-export function maxCommitBytes() {
-  const mb = Number(readMachineConfig().records?.['max-file-mb']);
-  return Math.round((Number.isFinite(mb) && mb > 0 ? mb : 5) * 1024 * 1024);
-}
+export const maxCommitBytes = maxFileBytes;
 
 const tooLarge = (abs, limit = maxCommitBytes()) => {
   try { return statSync(abs).size > limit; } catch { return false; }
@@ -266,7 +265,9 @@ function largeFiles(home, dir) {
 
 /**
  * True for a path of the records home that stays out of every commit: a local-only file, a
- * generated INDEX.md, or, when `home` is given, a file above the size limit.
+ * generated INDEX.md, or, when `home` is given, a file above the size limit. Each commit of a
+ * workflow folder moves such files out first (sweepRunFiles), so this is a guard: it can go when
+ * no clone holds such a file.
  */
 export function keptOutOfCommits(file, home = null) {
   const parts = String(file).replace(/\\/g, '/').split('/').filter(Boolean);
@@ -606,6 +607,8 @@ export function commitWorkflow(root, slug, message) {
   if (!project) return null;
   const adopted = adoptLocal(root, slug);
   const home = recordsHome();
+  // The run files and the files over the cap leave the clone before the commit.
+  try { sweepRunFiles(root, slug, join(home, project, slug), { machine: machineName() }); } catch { /* the guard of the commit keeps them out */ }
   const commit = commitPaths(home, { ref: liveRef(project, slug), base: `refs/heads/${mainBranch(home)}`, paths: [`${project}/${slug}`], message });
   if (!commit) logRecordsFailure({ project, slug, step: 'commit', error: 'the commit of the workflow folder failed' });
   return { commit, project, home, conflicts: adopted?.conflicts ?? [] };

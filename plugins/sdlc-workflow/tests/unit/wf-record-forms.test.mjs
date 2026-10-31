@@ -56,6 +56,22 @@ test('record set changes a roster item by slug, refuses a value outside the sche
   } finally { f.done(); }
 });
 
+test('record set: += of a flow map adds an object to a list, as a compressed slice records itself', () => {
+  const f = fixture();
+  try {
+    const r = run(['record', 'set', f.root, 'demo', 'index', 'workflow-files+=03-slice-fix-x.md', 'compressed-slices+={slug: fix-x, slice-type: fix, created-at: "2026-10-31T09:00:00Z"}']);
+    assert.equal(r.status, 0, r.stderr);
+    const fm = frontmatterOfDoc(f.dir, INDEX_NAME);
+    assert.deepEqual(fm['compressed-slices'], [{ slug: 'fix-x', 'slice-type': 'fix', 'created-at': '2026-10-31T09:00:00Z' }]);
+    assert.deepEqual(fm['workflow-files'], ['00-index.md', '03-slice-fix-x.md']);
+    assert.notEqual(fm['updated-at'], '2026-10-25T10:00:00Z');
+    assert.equal(run(['record', 'set', f.root, 'demo', '03-slice', 'slices+={slug: fix-x, status: defined}', 'total-slices=4']).status, 0);
+    const roster = frontmatterOfDoc(f.dir, '03-slice.md');
+    assert.deepEqual(roster.slices.at(-1), { slug: 'fix-x', status: 'defined' });
+    assert.equal(roster['total-slices'], 4);
+  } finally { f.done(); }
+});
+
 test('record stage-done writes the stage, the progress, the next route and the stage files', () => {
   const f = fixture();
   try {
@@ -84,6 +100,90 @@ test('record stage-done writes the stage, the progress, the next route and the s
     assert.equal(bad.status, 1);
     assert.match(bad.stderr, /nope is not in the roster; its slices are: api, ui, docs/);
   } finally { f.done(); }
+});
+
+const rosterOf = (dir) => Object.fromEntries(frontmatterOfDoc(dir, '03-slice.md').slices.map((s) => [s.slug, s.status]));
+const verifyRecord = (dir, slice, fields) => writeDoc(dir, `06-verify-${slice}.md`, { frontmatter: { schema: 'sdlc/v1', type: 'verify', slug: 'demo', 'slice-slug': slice, status: 'complete', ...fields } });
+const setDeferrals = (dir, list) => writeDoc(dir, INDEX_NAME, { frontmatter: { ...frontmatterOfDoc(dir, INDEX_NAME), 'runtime-evidence-deferrals': list } });
+
+test('stage-done after implement sets the roster status of the slice to in-progress', () => {
+  const f = fixture();
+  try {
+    const r = run(['record', 'stage-done', f.root, 'demo', 'implement', 'api', '--json']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(JSON.parse(r.stdout)['roster-status'], 'in-progress');
+    assert.deepEqual(rosterOf(f.dir), { api: 'in-progress', ui: 'defined', docs: 'defined' });
+  } finally { f.done(); }
+});
+
+test('stage-done after verify sets complete for a pass', () => {
+  const f = fixture();
+  try {
+    verifyRecord(f.dir, 'api', { result: 'pass', convergence: 'converged' });
+    assert.equal(run(['record', 'stage-done', f.root, 'demo', 'verify', 'api']).status, 0);
+    assert.equal(rosterOf(f.dir).api, 'complete');
+  } finally { f.done(); }
+});
+
+test('stage-done after verify sets deferred for a partial whose only residue is an open deferral', () => {
+  const f = fixture();
+  try {
+    verifyRecord(f.dir, 'api', { result: 'partial', convergence: 'not-needed', 'interactive-verification': 'deferred' });
+    setDeferrals(f.dir, [{ slice: 'api', reason: 'no device', 'cleared-by': null }]);
+    assert.equal(run(['record', 'stage-done', f.root, 'demo', 'verify', 'api']).status, 0);
+    assert.equal(rosterOf(f.dir).api, 'deferred');
+    // A deferred slice is built: the review routes past it to the next open slice.
+    assert.equal(run(['record', 'stage-done', f.root, 'demo', 'review', 'ui']).status, 0);
+    assert.equal(frontmatterOfDoc(f.dir, INDEX_NAME)['next-invocation'], '/wf plan demo docs');
+  } finally { f.done(); }
+});
+
+test('stage-done after verify sets in-progress for any other outcome', () => {
+  const f = fixture();
+  try {
+    run(['record', 'set', f.root, 'demo', '03-slice', 'slices[api].status=deferred']);
+    // A cleared deferral does not count; a partial with no open deferral stays in progress.
+    verifyRecord(f.dir, 'api', { result: 'partial', convergence: 'converged' });
+    setDeferrals(f.dir, [{ slice: 'api', 'cleared-by': 'probe run 2' }]);
+    run(['record', 'stage-done', f.root, 'demo', 'verify', 'api']);
+    assert.equal(rosterOf(f.dir).api, 'in-progress');
+    // An open deferral with a failure left after the fix round is not deferred.
+    verifyRecord(f.dir, 'ui', { result: 'partial', convergence: 'escalated' });
+    setDeferrals(f.dir, [{ slice: 'ui', 'cleared-by': null }]);
+    run(['record', 'stage-done', f.root, 'demo', 'verify', 'ui']);
+    assert.equal(rosterOf(f.dir).ui, 'in-progress');
+    verifyRecord(f.dir, 'docs', { result: 'fail', convergence: 'escalated' });
+    run(['record', 'stage-done', f.root, 'demo', 'verify', 'docs']);
+    assert.equal(rosterOf(f.dir).docs, 'in-progress');
+  } finally { f.done(); }
+});
+
+test('stage-done does not change a skipped, dropped or complete roster entry', () => {
+  const f = fixture();
+  try {
+    run(['record', 'set', f.root, 'demo', '03-slice', 'slices[api].status=complete', 'slices[ui].status=skipped', 'slices[docs].status=dropped']);
+    for (const s of ['api', 'ui', 'docs']) {
+      verifyRecord(f.dir, s, { result: 'fail', convergence: 'escalated' });
+      const r = run(['record', 'stage-done', f.root, 'demo', 'verify', s, '--json']);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(JSON.parse(r.stdout)['roster-status'], undefined);
+    }
+    run(['record', 'stage-done', f.root, 'demo', 'implement', 'api']);
+    assert.deepEqual(rosterOf(f.dir), { api: 'complete', ui: 'skipped', docs: 'dropped' });
+  } finally { f.done(); }
+});
+
+test('stage-done with no 03-slice.md writes no roster', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'sdlc-forms-'));
+  const dir = path.join(root, '.ai', 'workflows', 'demo');
+  mkdirSync(dir, { recursive: true });
+  try {
+    writeDoc(dir, INDEX_NAME, { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: 'demo', status: 'active', 'workflow-files': [] } });
+    const r = run(['record', 'stage-done', root, 'demo', 'implement', 'fix', '--json']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(JSON.parse(r.stdout)['roster-status'], undefined);
+    assert.equal(frontmatterOfDoc(dir, '03-slice.md'), null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('record get reads several records in one call, and --fields prints only those fields', () => {
@@ -132,7 +232,7 @@ test('help: a bare call lists the commands; <command> help and an unknown form p
   assert.equal(unknown.status, 2);
   assert.match(unknown.stderr, /record has no form sett\. Its forms:/);
   assert.doesNotMatch(unknown.stderr, /did you mean/i);
-  assert.equal(run(['record']).status, 2);
+  assert.equal(run(['record']).status, 0);
   assert.equal(run(['nope']).status, 2);
   // Every help block carries one example.
   const all = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(new URL('../../scripts/wf.mjs', import.meta.url).href)}).then((m) => { for (const c of ['record', 'step', 'decide', 'slice', 'status']) console.log(m.helpText(c)); })`], { encoding: 'utf8' });

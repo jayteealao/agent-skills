@@ -39,6 +39,6 @@ The ledger says *why each revision happened* in one line; the snapshots hold *th
 
 This contract governs how a **revisable artifact** is rewritten. It says nothing about *who may write* the shared **control files** (`00-index.md`, the global `INDEX.md`) or what to do when two writers collide there. That rule lives in [_control-file-ownership.md](_control-file-ownership.md): change an index field with `record set`, get the index immediately before you write a draft of it, and treat a presumed-dead driver's writes as suspect until reconciled. Apply both: this file for the artifact body, that one for the index.
 
-## cost.jsonl is hook-owned
+## The cost ledger is hook-owned
 
-`.ai/workflows/<slug>/cost.jsonl` is the exact cost ledger (one JSON row per turn: the main model's usage, each sub-agent's usage, and the stage key the turn wrote). The Stop hook appends it; the consult dispatcher appends `external` rows when `SDLC_COST_SLUG` is set. No stage writes, edits, or rewrites the file, and no stage copies its numbers into an artifact body — `/wf status`, the slug page, and the dashboard sum the rows on read. Commit the file with the next commit that touches the slug.
+`.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl` is the exact cost ledger, one file for each month (one JSON row per turn: the main model's usage, each sub-agent's usage, and the stage key the turn wrote). The Stop hook appends it; the consult dispatcher appends `external` rows when `SDLC_COST_SLUG` is set. No stage writes, edits, or rewrites the file, and no stage copies its numbers into an artifact body — `/wf status`, the slug page, and the dashboard sum the rows on read. Commit the file with the next commit that touches the slug.

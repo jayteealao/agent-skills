@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, existsSync, read
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { costFiles, readCostRows } from '../../../lib/cost-ledger.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = join(here, '..', '..', '..');
@@ -54,9 +55,9 @@ test('claude Stop: appends one attributed row, keeps a cursor under SDLC_HOME, a
     const input = { session_id: 'sess-claude', transcript_path: transcript, cwd: repo, hook_event_name: 'Stop' };
     runHook(input, { env: { SDLC_HOME: home } });
 
-    const ledger = join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl');
-    assert.ok(existsSync(ledger), 'cost.jsonl written');
-    const rows = readFileSync(ledger, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const ledger = join(repo, '.ai', 'workflows', 'demo');
+    assert.equal(costFiles(ledger).length, 1, 'the monthly ledger is written');
+    const rows = readCostRows(ledger);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].host, 'claude');
     assert.equal(rows[0].key, 'plan');
@@ -68,12 +69,12 @@ test('claude Stop: appends one attributed row, keeps a cursor under SDLC_HOME, a
     assert.ok(!existsSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md')), 'the hook never writes 00-index.md');
 
     runHook(input, { env: { SDLC_HOME: home } });
-    assert.equal(readFileSync(ledger, 'utf-8').trim().split('\n').length, 1, 'no usage → no row');
+    assert.equal(readCostRows(ledger).length, 1, 'no usage → no row');
 
     // A gate-question turn: usage, no artifact write → inherits demo/plan.
     appendFileSync(transcript, claudeAssistant('r2', { input_tokens: 5, output_tokens: 7, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, [{ type: 'text', text: 'ok?' }]));
     runHook(input, { env: { SDLC_HOME: home } });
-    const rows2 = readFileSync(ledger, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const rows2 = readCostRows(ledger);
     assert.equal(rows2.length, 2);
     assert.equal(rows2[1].key, 'plan');
     assert.equal(rows2[1].turn, 3, 'turn counter counts every Stop, including the quiet one');
@@ -101,7 +102,7 @@ test('claude Stop: a Workflow agent\'s tokens go to its slug in the main checkou
     writeFileSync(join(dir, sid, 'subagents', 'agent-b1.jsonl'), claudeAssistant('s1', use(7), write(join(wt, '.ai', 'workflows', 'gone', '04-plan.md'))));
     runHook({ session_id: sid, transcript_path: transcript, cwd: repo, hook_event_name: 'Stop' }, { env: { SDLC_HOME: home } });
 
-    const rows = (slug) => readFileSync(join(repo, '.ai', 'workflows', slug, 'cost.jsonl'), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const rows = (slug) => readCostRows(join(repo, '.ai', 'workflows', slug));
     const brain = rows('brain');
     assert.equal(brain.length, 1);
     assert.equal(brain[0].main.output_tokens, 10);
@@ -113,7 +114,7 @@ test('claude Stop: a Workflow agent\'s tokens go to its slug in the main checkou
     assert.equal(drive[0].turn, brain[0].turn, 'one turn, one turn number');
     assert.equal(drive[0].main, null);
     assert.deepEqual(drive[0].subagents.map((s) => [s.agent_id, s.output_tokens]), [['a1', 40]]);
-    assert.ok(!existsSync(join(wt, '.ai', 'workflows', 'drive', 'cost.jsonl')), 'nothing written in the worktree: git would refuse to remove it');
+    assert.equal(costFiles(join(wt, '.ai', 'workflows', 'drive')).length, 0, 'nothing written in the worktree: git would refuse to remove it');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -124,7 +125,7 @@ test('the ledger has no switch; a payload without session_id writes nothing', ()
     const transcript = join(dir, 't.jsonl');
     writeFileSync(transcript, claudeAssistant('r1', { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, [{ type: 'tool_use', name: 'Write', input: { file_path: join(repo, '.ai', 'workflows', 'demo', '04-plan.md') } }]));
     runHook({ session_id: 's', transcript_path: transcript, cwd: repo }, { env: { SDLC_HOME: home } });
-    assert.ok(existsSync(join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl')), 'checks: off does not stop the ledger');
+    assert.equal(costFiles(join(repo, '.ai', 'workflows', 'demo')).length, 1, 'checks: off does not stop the ledger');
     rmSync(join(home, 'cost-cursor'), { recursive: true, force: true });
     runHook({ transcript_path: transcript, cwd: repo }, { env: { SDLC_HOME: home } });
     assert.ok(!existsSync(join(home, 'cost-cursor')), 'no session → no cursor');
@@ -141,7 +142,7 @@ test('pi Stop: the session file is detected by its header; usage names are mappe
       + J({ type: 'message', id: 'm', message: { role: 'assistant', model: 'gpt-5.6-sol', provider: 'openai-codex', usage: { input: 120, output: 30, cacheRead: 900, cacheWrite: 40 }, content: [{ type: 'toolCall', name: 'write', arguments: { path: join(repo, '.ai', 'workflows', 'demo', '06-verify.md') } }] } })
       + J({ type: 'custom', customType: 'sdlc:subagent-usage', data: { id: 'ag1', type: 'explorer', usage: { input: 10, output: 20, cacheRead: 0, cacheWrite: 0 } } }));
     runHook({ session_id: 'pi-1', transcript_path: transcript, cwd: repo }, { env: { SDLC_HOME: home } });
-    const rows = readFileSync(join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl'), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const rows = readCostRows(join(repo, '.ai', 'workflows', 'demo'));
     assert.equal(rows.length, 1);
     assert.equal(rows[0].host, 'pi');
     assert.equal(rows[0].key, 'verify');
@@ -171,8 +172,8 @@ test('codex Stop via the adapter: --plugin-data hosts the cursor, the rollout is
     const input = { session_id: sid, cwd: repo, hook_event_name: 'Stop' };
     const args = ['--plugin-root', PLUGIN_ROOT, '--plugin-data', pluginData];
     runHook(input, { env: { CODEX_HOME: codexHome }, args, script: CODEX_ADAPTER });
-    const ledger = join(repo, '.ai', 'workflows', 'demo', 'cost.jsonl');
-    let rows = readFileSync(ledger, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const ledger = join(repo, '.ai', 'workflows', 'demo');
+    let rows = readCostRows(ledger);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].host, 'codex');
     assert.equal(rows[0].key, 'implement');
@@ -182,7 +183,7 @@ test('codex Stop via the adapter: --plugin-data hosts the cursor, the rollout is
 
     appendFileSync(rollout, tc(2, { input_tokens: 1300, cached_input_tokens: 1100, cache_write_input_tokens: 4, output_tokens: 80, reasoning_output_tokens: 12, total_tokens: 1380 }));
     runHook(input, { env: { CODEX_HOME: codexHome }, args, script: CODEX_ADAPTER });
-    rows = readFileSync(ledger, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    rows = readCostRows(ledger);
     assert.equal(rows.length, 2);
     assert.deepEqual(rows[1].main, { model: 'gpt-5.6', fields: 'codex', input_tokens: 300, cached_input_tokens: 200, cache_write_input_tokens: 4, output_tokens: 30, reasoning_output_tokens: 2 }, 'the second row is the exact delta');
     assert.equal(rows[1].key, 'implement', 'no write this turn → inherits');

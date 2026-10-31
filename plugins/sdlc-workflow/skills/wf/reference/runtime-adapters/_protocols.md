@@ -60,6 +60,7 @@ rung in [_ladder.md](_ladder.md), which this cites rather than restates:
    - `verify`: `.ai/workflows/<slug>/verify-evidence/<slice-slug>/`
    - `probe`: `.ai/workflows/<slug>/probe-evidence/<descriptor>/`
 4. Reference evidence files in the calling artifact's report.
+5. A file over the size cap (5 MB, `records.max-file-mb`), such as a trace, a video or a large log, goes to `<project root>/.ai/evidence/<slug>/`. The pre-write check refuses it in the workflow folder. The next records commit lists each file of that folder in `local-evidence.jsonl` (path, size, sha256, machine).
 
 ## Accessibility checks (shared across all UI adapters)
 

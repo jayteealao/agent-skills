@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from '../../lib/yaml.mjs';
 import { undoGitBashPath } from '../../lib/msys.mjs';
 import { formatValidationErrors } from '../../lib/schema-validator.mjs';
-import { appendJournalLine, stopCheck, writeControl } from '../../scripts/yolo-watch.mjs';
+import { appendJournalLine, controlPath, stopCheck, writeControl } from '../../scripts/yolo-watch.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const wf = path.join(pluginRoot, 'scripts', 'wf.mjs');
@@ -40,12 +40,15 @@ test('help lists the commands and prints the forms of one command; --help works 
   assert.match(none.stderr, /no command nope/);
 });
 
-test('an error that names the forms points to help; a slug in the place of the root says so', () => {
+test('a bare form prints its forms; a usage error prints the forms of the verb; a slug in the place of the root says so', () => {
   const f = fixture();
   try {
     const bare = run(['record', 'get']);
-    assert.equal(bare.status, 1);
-    assert.match(bare.stderr, /run wf\.mjs help record for its forms and flags/);
+    assert.equal(bare.status, 0);
+    assert.match(bare.stdout, /^record {3}get <root> <slug>/m);
+    const usage = run(['decide', 'answered', f.root, 'demo']);
+    assert.equal(usage.status, 1);
+    assert.match(usage.stderr, /the forms of decide answered:\ndecide {3}answered <root> <slug> --key k/);
     const slugFirst = run(['step', 'done', 'demo', 'api', '1'], { cwd: f.root });
     assert.equal(slugFirst.status, 1);
     assert.match(slugFirst.stderr, /demo is not a project root\. The project root comes first: wf\.mjs step done "<project root>" <slug>/);
@@ -71,8 +74,8 @@ test('decide add --file records each answer, settles each open question, and dro
     ]));
     const r = run(['decide', 'add', f.root, 'demo', '--file', file]);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /^D-001 Which store\? → sqlite \(answer\)/m);
-    assert.match(r.stdout, /settled db\nD-002 Which sign-in\? → device code \(answer\)\nsettled auth/);
+    assert.match(r.stdout, /^D-001 \[db\] Which store\? → sqlite \(answer\)/m);
+    assert.match(r.stdout, /settled db\nD-002 \[auth\] Which sign-in\? → device code \(answer\)\nsettled auth/);
     assert.deepEqual(parse(readFileSync(path.join(f.dir, 'state.yaml'), 'utf8'))['open-questions'], []);
     const empty = path.join(f.root, 'none.json');
     writeFileSync(empty, '[]');
@@ -100,12 +103,12 @@ test('record get takes a name without .md, names the records when one is missing
   } finally { f.done(); }
 });
 
-test('progress set takes complete as done, and a Git Bash path in front of /wf is undone in every flag', () => {
+test('progress set takes complete as done, and a Git Bash path in front of /wf is undone in every flag, with no warning', () => {
   const f = fixture();
   try {
     const p = run(['progress', 'set', f.root, 'demo', '--status', 'complete', '--resume', 'C:/Program Files/Git/wf ship demo']);
     assert.equal(p.status, 0, p.stderr);
-    assert.match(p.stderr, /--resume began with the Git install path/);
+    assert.doesNotMatch(p.stderr, /Git install path/);
     const rec = JSON.parse(readFileSync(path.join(f.dir, 'progress.json'), 'utf8'));
     assert.equal(rec.status, 'done');
     assert.equal(rec.resume, '/wf ship demo');
@@ -131,7 +134,7 @@ test('profile run runs the suite command, records its time, and fails with the s
     assert.equal(typeof cfg.testProfile.fast.measuredSeconds, 'number');
     const none = run(['profile', 'run', f.root, 'heavy']);
     assert.equal(none.status, 1);
-    assert.match(none.stderr, /has no command for the heavy suite; set it with profile set first/);
+    assert.match(none.stderr, /has no command for the heavy suite\nfix: wf\.mjs profile set .+ heavy --command "<command>" --estimate <seconds>/);
   } finally { f.done(); }
 });
 
@@ -153,7 +156,7 @@ test('stop-check: no request, a stop after the current agent, a stop after a sta
     assert.equal(stopCheck(f.root, 'demo').stop, false, 'verify has not ended since the request');
     appendJournalLine(path.join(f.dir, '.driver-journal.jsonl'), '{"event":"agent-end","agent":"verify:api"}', {}, Date.parse('2026-10-25T10:05:00Z'));
     assert.deepEqual(stopCheck(f.root, 'demo').stop, true);
-    writeFileSync(path.join(f.dir, '.control.json'), '{not json');
+    writeFileSync(controlPath(f.root, 'demo'), '{not json');
     assert.equal(stopCheck(f.root, 'demo').reason, 'the stop-request file does not parse');
     const cli = spawnSync(process.execPath, [watch, 'stop-check', f.root, 'demo'], { encoding: 'utf8' });
     assert.equal(JSON.parse(cli.stdout).stop, true);

@@ -1,12 +1,14 @@
 // The record and decision operations that the CLI (scripts/wf.mjs) and the library
 // (lib/wf-api.mjs) share. Each one returns data and prints nothing, so both doors keep the
 // same rules: the record names, the enum check of the schema, and the settle of a question.
-import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addDecision } from './decisions.mjs';
 import { PATH_FORMS, applySet, enumAt, parseSetArg } from './record-path.mjs';
-import { INDEX_NAME, frontmatterOfDoc, listDocs, markSuperseded, readDoc, setFields } from './records.mjs';
+import { putChecked } from './record-put.mjs';
+import { INDEX_NAME, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
 
 const SCHEMA_FILE = fileURLToPath(new URL('../schemas/frontmatter.schema.json', import.meta.url));
 
@@ -71,6 +73,36 @@ export const recordName = (n) => RECORD_ALIASES[n] ?? (/^\d{2}[a-z]?-[^.]+$/.tes
 export const noRecord = (name, slug, dir) => `no record ${name} in ${slug}; its records are: ${listDocs(dir).join(', ') || 'none'}`;
 
 /**
+ * The record that a name fits, by these rules, in order; the first rule with a match wins:
+ *   1. the exact name, `index`, or the name with `.md` added (`04-plan-api`);
+ *   2. the name without its number (`implement-api` → 05-implement-api.md, `review` → 07-review.md);
+ *   3. the name and a dash start the record name, with or without its number
+ *      (`05-implement` or `implement` → 05-implement-api.md).
+ * A rule that fits more than one record is an error that lists them. A name that fits no
+ * record comes back as `recordName` gives it, so the reader says "no record".
+ */
+export function resolveRecord(dir, name, verb = 'record') {
+  const n = recordName(String(name));
+  let exact = null;
+  try { exact = readDoc(dir, n); } catch { /* a folder of that name is not a record */ }
+  if (n === INDEX_NAME || exact) return n;
+  const names = listDocs(dir);
+  const want = n.replace(/\.md$/, '');
+  const stem = (r) => r.replace(/\.md$/, '');
+  const bare = (r) => stem(r).replace(/^\d{2}[a-z]?-/, '');
+  const rules = [
+    (r) => bare(r) === want,
+    (r) => stem(r).startsWith(`${want}-`) || bare(r).startsWith(`${want}-`),
+  ];
+  for (const fits of rules) {
+    const hits = names.filter((r) => r !== INDEX_NAME && fits(r));
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1) throw new Error(`${verb}: ${name} fits ${hits.length} records: ${hits.join(', ')}; name one of them`);
+  }
+  return n;
+}
+
+/**
  * Apply the path forms of `record set` to one record (lib/record-path.mjs). A value outside the
  * enum of the schema is refused with the allowed values. Returns `{ frontmatter, keys }`.
  */
@@ -81,7 +113,7 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
   const def = defOfType(schema, doc.frontmatter.type ?? (name === INDEX_NAME ? 'index' : null));
   const fm = structuredClone(doc.frontmatter);
   const changes = args.map((a) => (typeof a === 'string'
-    ? parseSetArg(a, { onRepair: (k, v) => process.stderr.write(`wf.mjs: ${k} began with the Git install path, which Git Bash put in front of /wf; it is set to ${v}\n`) })
+    ? parseSetArg(a)
     : a));
   for (const c of changes) {
     const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
@@ -93,6 +125,28 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
   const top = [...new Set(changes.map((c) => c.path[0].key))];
   const written = setFields(dir, name, Object.fromEntries(top.map((k) => [k, fm[k] ?? null])));
   return { frontmatter: written, keys: changes.map((c) => c.key) };
+}
+
+/**
+ * Change the body of one record in place, with the checks of `record put`, and no draft:
+ * `{ section, text }` replaces the text under one `##` heading, and `{ replace, with }` makes
+ * one exact replacement (refused when the text matches zero times or more than once).
+ * `updated-at` moves when the record has it. Returns the result of the put.
+ */
+export function editRecord(dir, name, change, { slug = basename(dir), now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') } = {}) {
+  const doc = readDoc(dir, name);
+  if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
+  let body;
+  if (change.section !== undefined) body = replaceSection(doc.body, change.section, change.text ?? '');
+  else if (change.replace !== undefined) body = replaceOnce(doc.body, change.replace, change.with ?? '');
+  else throw new Error('record edit: give --section <heading> --from <file>, or --replace <old> --with <new>');
+  const frontmatter = Object.hasOwn(doc.frontmatter, 'updated-at') ? { ...doc.frontmatter, 'updated-at': now } : doc.frontmatter;
+  const tmp = mkdtempSync(join(tmpdir(), 'wf-edit-'));
+  try {
+    const path = join(tmp, basename(name));
+    writeFileSync(path, docText({ frontmatter, body }));
+    return putChecked(dir, path);
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
 /** The frontmatter fields `keys` of a record; a missing field reads as null. */

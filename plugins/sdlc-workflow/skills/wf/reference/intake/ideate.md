@@ -187,7 +187,7 @@ Then write the records (Step 6), and go to Step 7. The first question of the loo
 
 # Step 6 — Write Artifact
 
-The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** records as drafts under `.ai/workflows/<slug>/.draft/` (the slug derived in Step 0 sub-step 2b), run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`, then register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
+The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** records as drafts under `.ai/workflows/<slug>/.draft/` (the slug derived in Step 0 sub-step 2b), run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
@@ -214,7 +214,7 @@ Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line rea
    - `items`: each idea's evidence as `kind: finding` items on its thread (`evidence:` the `file:line` or the reference path `references/<kind>/<file>`, never a `.ai/…` path). The person's pick reason is ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread, with `session: 1` and `decided-at:` the `chosen-at` time. It is carried once, by the order-1 work packet, which carries it word for word. Do not copy it into every thread.
    - `work`: one work packet per idea: `key` and `slug` (the idea's slug suggestion), `title`, `shape` (the form of the idea's `entry:`: `intake`, `extension`, `fix`, `hotfix`, `rca`, `investigate`, `discover`, or `task`), `target-slug` for `extension`, `fix` and `hotfix`, `order` (1 to n, from step 3), `why-here` (after order 1; it names the pick), `design-form: none`, `items` (the order-1 work packet also lists the pick decision), and `state: proposed`. A build work packet also carries its write-up of step 4, with `ux-impact-confirmed: true`. `entry` is `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet. Do not copy the idea's `depends-on:` into the work packet: the walk builds the work packets in list order.
 7. **Write the list.** Run `node "<skill-dir>/scripts/campaign.mjs" write ".ai/workflows/<slug>/ideate-work.json"`. It checks the board, then writes one work packet file per work packet in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
-8. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=list-written closed-at=<timestamp> next-command=none "next-invocation=/wf campaign <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` to `closed`.
+8. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=list-written closed-at=<timestamp> next-command=none "next-invocation=/wf campaign <slug>"`.
 9. **Print the invocations.** Print `/wf campaign <slug>` when the list has a build work packet. Print the command of each work packet of another form. When an idea's `depends-on:` names `/wf intake update-deps`, print that command first. Do not run them.
 
 A later pick on a run that already has a list appends its work packets after the last work packet of the list, and runs steps 1 to 9 for them. A work packet that the walk started keeps its text ([brainstorm/_work.md](brainstorm/_work.md), "Reopening a list").

@@ -32,7 +32,7 @@ import {
 } from '../lib/prototype.mjs';
 import { validatePrototypeLedger } from '../lib/schema-validator.mjs';
 import { workflowRel, workflowsRoot } from '../lib/records-root.mjs';
-import { INDEX_NAME, META_FILE, STATE_FILE, hasDoc, locate as recordPlace, readDoc, setFields, writeDoc } from '../lib/records.mjs';
+import { INDEX_HEADER, INDEX_NAME, META_FILE, STATE_FILE, hasDoc, locate as recordPlace, readDoc, setFields, writeDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: prototype.mjs <start|status|check|report|decide|exit|cleanup> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -109,7 +109,6 @@ const saveLedger = (wt, slug, ledger) => writeAtomic(ledgerPath(wt, slug), `${JS
 
 // ---------------------------------------------------------------- INDEX.md
 
-const INDEX_HEADER = '# .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
 
 function indexRow(main, slug) {
   const p = join(workflowsRoot(main), 'INDEX.md');

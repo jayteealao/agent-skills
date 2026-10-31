@@ -44,7 +44,7 @@ import { designNeeded, designSettled, namesScreens } from '../lib/design-lane.mj
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 import { linkedProject, realPathOf, recordsRel, workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 import { commitRecords } from '../lib/records-sync.mjs';
-import { INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
+import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 
 const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
@@ -415,8 +415,7 @@ function statusCmd(root, src) {
 
 function indexRow(root, slug, branch) {
   const file = join(workflowsRoot(root), 'INDEX.md');
-  const header = '# .ai/workflows/INDEX.md — global workflow registry. Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
-  const lines = existsSync(file) ? readFileSync(file, 'utf8').split(/\r?\n/).filter((l, i, a) => l || i < a.length - 1) : [header];
+  const lines = existsSync(file) ? readFileSync(file, 'utf8').split(/\r?\n/).filter((l, i, a) => l || i < a.length - 1) : [INDEX_HEADER];
   if (lines.some((l) => l.split('\t')[0] === slug)) return false;
   const head = lines[0]?.startsWith('#') ? [lines[0]] : [];
   const rows = lines.slice(head.length).filter(Boolean);

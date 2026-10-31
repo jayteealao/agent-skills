@@ -293,14 +293,14 @@ test('appendCostRow / readCostRows / aggregateCost: atomic append, torn lines sk
   const dir = tmp();
   try {
     const slugDir = join(dir, '.ai', 'workflows', 'demo');
-    const row = (turn, key, main, extra = {}) => ({ ts: 't', host: 'claude', session: 's', turn, key, slug: 'demo', slice: null, main, subagents: [], external: [], ...extra });
+    const row = (turn, key, main, extra = {}) => ({ ts: '2026-10-05T10:00:00Z', host: 'claude', session: 's', turn, key, slug: 'demo', slice: null, main, subagents: [], external: [], ...extra });
     const m = (input, output) => ({ model: 'm', input_tokens: input, output_tokens: output, cache_read_input_tokens: 7, cache_creation_input_tokens: 3 });
     appendCostRow(slugDir, row(1, 'plan', m(2, 500)));
-    appendFileSync(join(slugDir, COST_FILE), '{torn');
+    appendFileSync(join(slugDir, 'cost-2026-10.jsonl'), '{torn');
     appendCostRow(slugDir, row(2, 'plan', m(1, 10), { subagents: [{ agent_id: 'a', model: 'x', input_tokens: 4, output_tokens: 4, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }] }));
     appendCostRow(slugDir, row(null, 'plan', null, { host: 'external', external: [{ provider: 'codex', fields: 'codex', input_tokens: 18176, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 142 }] }));
     appendCostRow(slugDir, row(3, 'review', m(9, 9)));
-    const text = readFileSync(join(slugDir, COST_FILE), 'utf-8');
+    const text = readFileSync(join(slugDir, 'cost-2026-10.jsonl'), 'utf-8');
     assert.equal(text.split('\n').filter(Boolean).length, 5, 'four rows + the torn line stay on disk');
     const rows = readCostRows(slugDir);
     assert.equal(rows.length, 4, 'the torn line is skipped on read');

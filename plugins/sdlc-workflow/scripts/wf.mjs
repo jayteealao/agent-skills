@@ -81,7 +81,7 @@
  *             rebuild .ai/workflows/INDEX.md from the 00-index.md files
  *             Example: wf.mjs index . --check
  *   cost     <root> <slug> [--json]
- *             the sums of the slug's cost.jsonl per key
+ *             the sums of the slug's cost ledger (cost-<yyyy-mm>.jsonl) per key
  *             Example: wf.mjs cost . demo
  *   stamp    <type> [--slug s] [--slice x]
  *             the frontmatter template of an artifact type, with every required field
@@ -104,7 +104,9 @@
  *   receipt  <root> <slug> <slice> [--suites a,b] [--json]
  *             run the suites of the test profile (the implement suites, or --suites) at HEAD,
  *             and write .test-receipt-<slice>.json only when every suite passed; exit 1 else.
- *             A tracked change outside .ai that HEAD lacks goes into its dirty list, with its hash
+ *             A tracked change outside .ai that HEAD lacks goes into its dirty list, with its hash.
+ *             With no implement suite in the profile: a receipt of none, exit 0 (record
+ *             stage-done implement writes it too)
  *             Example: wf.mjs receipt . demo api
  *   receipt  <root> <slug> <slice> --check [--json]
  *             exit 0 when the receipt still names the tree: no code commit after its sha, and the
@@ -221,20 +223,32 @@
  *             Example: wf.mjs findings table . demo --slice api
  *   record   put <root> <slug> [<draft>...] [--json]
  *             check each draft (.draft/<old name>.md, or every draft) and write it into its
- *             section of the record files; a draft with errors stays, and exit 1
+ *             section of the record files; a draft with errors stays, and exit 1. A draft that
+ *             was put stays in .draft/.put/ until record stage-done: edit it and put it again
  *             Example: wf.mjs record put . demo 04-plan-api.md
- *   record   get <root> <slug> <name|index>... [--fields a,b] [--json]
- *             records by their old file names, as Markdown with frontmatter (either layout);
- *             several names in one call; --fields prints only those frontmatter fields
- *             Example: wf.mjs record get . demo index 03-slice --fields status,best-first-slice
- *   record   draft <root> <slug> <name|index> [--json]
+ *   record   get <root> <slug> <name>... [--section <heading>|--field <path>|--outline|--fields a,b]
+ *                [--full] [--json]
+ *             records as Markdown with frontmatter; several names in one call. --section prints
+ *             the text under one ## heading, --field one value by a path of record set,
+ *             --outline the fields and the ## headings with their sizes, --fields only those
+ *             fields. A record over 20 KB prints its outline; --full prints all of it
+ *             Example: wf.mjs record get . demo 04-plan-api --section "Steps"
+ *   record   draft <root> <slug> <name> [--json]
  *             write one record as its draft (.draft/<old name>.md) to change its body: edit the
  *             draft, then run record put
  *             Example: wf.mjs record draft . demo 04-plan-api
- *   record   set <root> <slug> <name|index> <path=value>...
+ *   record   edit <root> <slug> <name> --section <heading> --from <file> | --replace <old> --with <new>
+ *             change a body in place with the checks of put, and no draft: the text under one
+ *             ## heading becomes the text of the file, or one exact text is replaced (refused
+ *             when it matches nothing or more than once)
+ *             Example: wf.mjs record edit . demo 05-implement-api --replace "- [ ] AC-2" --with "- [x] AC-2"
+ *   record   set <root> <slug> <name> <path=value>...
  *             merge fields into one record; a value reads as YAML, null deletes the field.
  *             Paths: field=v, a.b=v, list[<slug>].field=v, list[0].field=v, list+=v, list-=v.
- *             A value outside the enum of the schema is refused with the allowed values
+ *             A value outside the enum of the schema is refused with the allowed values.
+ *             A <name> of get, draft, edit and set is the record name with or without .md
+ *             and its number, index, or a stage name (implement-api, 05-implement, review);
+ *             a name that fits several records lists them, and exit 1
  *             Example: wf.mjs record set . demo 03-slice slices[api].status=in-progress
  *   record   stage-done <root> <slug> <stage> [<slice>] [--next "<invocation>"] [--status s]
  *             the end of a stage in the index: current-stage, progress.<stage>, next-command,
@@ -287,7 +301,12 @@
  *             Example: wf.mjs drive . demo api --time-box 90
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { fromGitBashPath, undoGitBashPath } from '../lib/msys.mjs';
+import { fromGitBashPath, undoGitBashPath, unrepairedWarning } from '../lib/msys.mjs';
+// The enums that a usage error lists with the forms (hintOf).
+import { BY as DECISION_BY, KINDS as DECISION_KINDS } from '../lib/decisions.mjs';
+import { SOURCES as FINDING_SOURCES, STATUSES as FINDING_STATUSES } from '../lib/findings.mjs';
+import { STATUSES as PROGRESS_STATUSES } from '../lib/progress.mjs';
+import { STOP_KINDS } from '../lib/steps.mjs';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -314,22 +333,22 @@ import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
-import { DRAFT_DIR, INDEX_NAME, draftPath, draftsOf, frontmatterOfDoc, listDocs, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields } from '../lib/records.mjs';
+import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, draftsOf, frontmatterOfDoc, keptPath, listDocs, markSuperseded, migrateWorkflow, outlineOf, putDraft, readDoc, redirectOf, sectionText, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
-import { PATH_FORMS } from '../lib/record-path.mjs';
+import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
 import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
-import { STAGE_SUITES, budgetLine, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
+import { STAGE_SUITES, SUITES, BUDGET_PRESETS, budgetLine, noCommand, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
-import { receiptState, treeChanges } from '../lib/test-receipt.mjs';
+import { NO_SUITE, implementSuites, noSuiteReceipt, receiptState, treeChanges } from '../lib/test-receipt.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordPathOf, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
-import { decideAdd, defOfType, holdQuestion, noRecord, pick, recordName, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
+import { decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
 
 // The status and record bodies live in lib/, so the library calls the same functions.
@@ -344,6 +363,11 @@ const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const wfRoot = workflowsRoot;
 const out = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
+// A refusal whose last line names the command that fixes it: `fix: <command>` (hintOf prints it).
+const refuse = (message, fix) => Object.assign(new Error(message), { fix });
+// An argument as a shell word in a fix line.
+const word = (s) => (/^[A-Za-z0-9#._/:\\=,+-]+$/.test(String(s)) ? String(s) : `"${String(s).replace(/"/g, '\\"')}"`);
+
 function flags(argv) {
   const pos = [];
   const opt = {};
@@ -352,10 +376,13 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'outline', 'full'].includes(name)) opt[name] = true;
       else {
-        const { value, repaired } = undoGitBashPath(argv[(i += 1)]);
-        if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
+        // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
+        // value that it cannot repair warns.
+        const { value } = undoGitBashPath(argv[(i += 1)]);
+        const warn = unrepairedWarning(`--${name}`, value);
+        if (warn) process.stderr.write(warn);
         opt[name] = value;
       }
     } else pos.push(fromGitBashPath(a));
@@ -473,7 +500,7 @@ function statusText(s) {
 
 // ---------------------------------------------------------------- index
 
-export const INDEX_HEADER = '# .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
+export { INDEX_HEADER };
 
 const rowOf = (fm, slug) => [slug, fm.status ?? '', fm['workflow-type'] ?? 'standard', fm.branch ?? '', fm['updated-at'] ?? ''].join('\t');
 
@@ -537,6 +564,37 @@ export async function reconcileIndex(root, { write = true } = {}) {
     bootstrapped: !existed && rows.size > 0, changed, count: rows.size, added, removed, updated, invalid,
     reserved: sorted.filter((s) => reserved.has(s)),
   };
+}
+
+/**
+ * Update or add the row of one workflow in INDEX.md from its index, and keep the header and the
+ * sort. With no INDEX.md yet, it rebuilds the whole file. A workflow with no readable index leaves
+ * the file as it is. Returns `{ changed }`.
+ */
+export async function refreshIndexRow(root, slug) {
+  const file = join(wfRoot(root), 'INDEX.md');
+  if (!existsSync(file)) return { changed: (await reconcileIndex(root)).changed };
+  const fm = frontmatterOf(join(wfRoot(root), slug), INDEX_NAME);
+  if (!fm) return { changed: false };
+  const before = readFileSync(file, 'utf8');
+  const rows = parseIndex(before);
+  rows.set(slug, rowOf(fm, slug));
+  const sorted = [...rows.keys()].sort((a, b) => a.localeCompare(b));
+  const text = `${[INDEX_HEADER, ...sorted.map((s) => rows.get(s))].join('\n')}\n`;
+  if (text === before.replace(/\r\n/g, '\n')) return { changed: false };
+  writeFileSync(file, text);
+  return { changed: true };
+}
+
+/** The commands that change the index of a workflow: their success refreshes its INDEX.md row. */
+function indexChanged(cmd, pos) {
+  if (cmd !== 'record' || !pos[1] || !pos[2]) return false;
+  const [verb, , , ...rest] = pos;
+  if (verb === 'stage-done') return true;
+  if (verb === 'set') return recordName(rest[0] ?? '') === INDEX_NAME;
+  // A put with no names puts every draft, so the index may be one of them.
+  if (verb === 'put') return !rest.length || rest.some((p) => recordName(p.split(/[\\/]/).pop()) === INDEX_NAME);
+  return false;
 }
 
 function indexText(r) {
@@ -690,18 +748,22 @@ export function runStep(pos, opt) {
     return 0;
   }
   if (!slice) throw new Error(`step ${verb}: <slice> is required`);
+  // The same step command with other arguments, for the fix line of a refusal.
+  const again = (v, s, tail = '') => `wf.mjs step ${v} ${word(root)} ${word(slug)} ${word(s)}${tail}`;
   if (['start', 'done', 'complete'].includes(verb)) {
     const refused = sliceRefusal(dir, slug, slice);
-    if (refused) throw new Error(`step ${verb}: ${refused}`);
+    const one = refused && /its one slice is (\S+)$/.exec(refused)?.[1];
+    if (refused) throw refuse(`step ${verb}: ${refused}`, one ? again(verb, one, n != null ? ` ${n}` : '') : null);
   }
   const step = n == null ? null : Number(n);
   const where = () => whereOf(dir, slice, stepGit(projectRoot, dir));
+  const commitThenDone = `git commit -m "<what step ${step} does>" && ${again('done', slice, ` ${step} --sha HEAD`)}`;
   const done = () => {
     if (opt['no-change']) {
-      if (opt.sha) throw new Error('step done: give --sha or --no-change, not both');
+      if (opt.sha) throw refuse('step done: give --sha or --no-change, not both', again('done', slice, ` ${step} --no-change`));
       return { slice, event: 'done', step, noChange: true, head: head(), branch };
     }
-    if (!opt.sha) throw new Error('step done: --sha <commit> is required, or --no-change for a step that changed no file');
+    if (!opt.sha) throw refuse('step done: --sha <commit> is required, or --no-change for a step that changed no file', again('done', slice, ` ${step} --sha HEAD`));
     const s = sha();
     // A step commit moves HEAD: the sha of the start, or of another done step, is not this step's commit.
     const run = readSteps(dir).filter((r) => r.slice === slice);
@@ -709,17 +771,17 @@ export function runStep(pos, opt) {
     run.forEach((r, i) => { if (r.event === 'complete') from = i + 1; });
     const current = run.slice(from);
     const start = [...current].reverse().find((r) => r.event === 'start' && r.step === step);
-    if (start?.head && start.head === s) throw new Error(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change`);
+    if (start?.head && start.head === s) throw refuse(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change when the step changed no file`, commitThenDone);
     const owner = current.find((r) => r.event === 'done' && r.step !== step && r.sha === s);
-    if (owner) throw new Error(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`);
+    if (owner) throw refuse(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`, commitThenDone);
     return { slice, event: 'done', step, sha: s, ...commitIdentity(checkout, s), branch };
   };
   const complete = () => {
     const w = where();
     const skip = opt.skip ? String(opt.skip).split(',').map((x) => Number(x.trim())).filter(Number.isInteger) : [];
-    if (skip.length && !opt.reason) throw new Error('step complete: --skip needs --reason');
+    if (skip.length && !opt.reason) throw refuse('step complete: --skip needs --reason', again('complete', slice, ` --skip ${skip.join(',')} --reason "<why>"`));
     const open = w.steps.filter((s) => !w.done.some((d) => d.n === s.n) && !skip.includes(s.n)).map((s) => s.n);
-    if (open.length) throw new Error(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip ${open.join(',')} --reason "<why>"`);
+    if (open.length) throw refuse(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip`, again('complete', slice, ` --skip ${[...skip, ...open].join(',')} --reason "<why>"`));
     const plan = readPlan(readDoc(dir, `04-plan-${slice}.md`)?.body ?? '');
     return { slice, event: 'complete', sha: sha(), planHash: plan.hash, ...(skip.length ? { skipped: skip.map((x) => ({ n: x, reason: opt.reason })) } : {}), branch };
   };
@@ -771,7 +833,7 @@ export function runProfile(pos, opt) {
     // One read: the run records only the suite time, so the budget stays the same.
     const profile = readProfile(projectRoot);
     const suite = profile[a];
-    if (!suite?.command) throw new Error(`profile run: the test profile has no command for the ${a} suite; set it with profile set first`);
+    if (!suite?.command) throw noCommand(a, 'profile run: ');
     const t0 = Date.now();
     const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
     const seconds = Math.round((Date.now() - t0) / 100) / 10;
@@ -875,15 +937,31 @@ export function fieldOf(arg) {
   const at = arg.indexOf('=');
   if (at < 1) throw new Error(`record set: ${arg} is not key=value`);
   // Git Bash turns `key=/wf ...` into `key=C:/Program Files/Git/wf ...`; lib/msys.mjs undoes it.
-  const { value: raw, repaired } = undoGitBashPath(arg.slice(at + 1));
-  if (repaired) process.stderr.write(`wf.mjs: ${arg.slice(0, at)} began with the Git install path, which Git Bash put in front of /wf; it is set to ${raw}\n`);
+  const { value: raw } = undoGitBashPath(arg.slice(at + 1));
+  const warn = unrepairedWarning(arg.slice(0, at), raw);
+  if (warn) process.stderr.write(warn);
   let value;
   try { value = raw === '' ? '' : parseYaml(raw); } catch { value = raw; }
   return [arg.slice(0, at), value];
 }
 
 
-const RECORD_VERBS = ['put', 'get', 'draft', 'set', 'stage-done', 'list', 'where', 'migrate', 'evidence'];
+const RECORD_VERBS = ['put', 'get', 'draft', 'set', 'edit', 'stage-done', 'list', 'where', 'migrate', 'evidence'];
+
+// A plain `record get` of a record over this size prints its outline, not the whole record.
+const BIG_RECORD = 20 * 1024;
+
+function outlineText(name, o) {
+  const size = (b) => (b >= 1024 ? `${(b / 1024).toFixed(1)} KB` : `${b} B`);
+  return [
+    `${name}: ${size(o.bytes)}`,
+    'fields:',
+    ...o.fields.map((f) => `  ${f.name}  ${size(f.bytes)}${f.items === undefined ? '' : ` (${f.items} item(s))`}`),
+    'sections:',
+    ...(o.top ? [`  (before the first ##)  ${size(o.top)}`] : []),
+    ...o.sections.map((s) => `  ## ${s.heading}  ${size(s.bytes)}`),
+  ].join('\n');
+}
 
 
 function runRecord(pos, opt) {
@@ -899,7 +977,8 @@ function runRecord(pos, opt) {
       const local = join(localWorkflowsRoot(resolve(root)), slug);
       const homes = local === dir ? [dir] : [local, dir];
       const drafts = rest.length
-        ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
+        // A named draft that was put already is in .draft/.put/ until the stage ends: put it again.
+        ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? homes.map((h) => keptPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
         : homes.flatMap(draftsOf);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
       const results = drafts.map((p) => putChecked(dir, p));
@@ -912,19 +991,40 @@ function runRecord(pos, opt) {
     case 'get': {
       if (!rest.length) throw new Error('record get: <name> is required');
       // Several names read in one call; --fields a,b prints only those frontmatter fields.
+      // --section, --field and --outline read one part; a record over 20 KB prints its outline
+      // unless --full (or --json) asks for all of it.
       const keys = opt.fields ? String(opt.fields).split(',').map((k) => k.trim()).filter(Boolean) : null;
-      const docs = rest.map((name) => ({ name, doc: readDoc(dir, recordName(name)) }));
+      const docs = rest.map((name) => {
+        const n = resolveRecord(dir, name, 'record get');
+        return { name, n, doc: readDoc(dir, n) };
+      });
       const missing = docs.filter((d) => !d.doc);
       for (const d of missing) process.stderr.write(`wf.mjs: ${noRecord(d.name, slug, dir)}\n`);
       const found = docs.filter((d) => d.doc);
-      const view = (d) => (keys ? pick(d.doc.frontmatter ?? {}, keys) : d.doc);
+      const part = (d) => {
+        if (opt.outline) return outlineOf(d.doc);
+        if (opt.section !== undefined) return sectionText(d.doc.body, String(opt.section));
+        if (opt.field !== undefined) return getPath(d.doc.frontmatter ?? {}, String(opt.field));
+        return keys ? pick(d.doc.frontmatter ?? {}, keys) : d.doc;
+      };
       const many = rest.length > 1;
-      if (opt.json) out(many ? Object.fromEntries(found.map((d) => [recordName(d.name), view(d)])) : found[0] ? view(found[0]) : null);
+      if (opt.json) process.stdout.write(`${JSON.stringify(many ? Object.fromEntries(found.map((d) => [d.n, part(d)])) : found[0] ? part(found[0]) : null, null, 2)}\n`);
       else {
         for (const d of found) {
-          if (many) process.stdout.write(`==> ${recordName(d.name)} <==\n`);
-          if (keys) process.stdout.write(stringifyYaml(view(d)));
-          else process.stdout.write(`---\n${stringifyYaml(d.doc.frontmatter ?? {})}\n---\n${d.doc.body ?? ''}`);
+          if (many) process.stdout.write(`==> ${d.n} <==\n`);
+          const v = part(d);
+          if (opt.outline) process.stdout.write(`${outlineText(d.n, v)}\n`);
+          else if (opt.section !== undefined) process.stdout.write(v);
+          else if (opt.field !== undefined) process.stdout.write(v !== null && typeof v === 'object' ? stringifyYaml(v).replace(/\n?$/, '\n') : `${v}\n`);
+          else if (keys) process.stdout.write(stringifyYaml(v).replace(/\n?$/, '\n'));
+          else {
+            const text = docText(d.doc);
+            if (opt.full || Buffer.byteLength(text, 'utf8') <= BIG_RECORD) process.stdout.write(text);
+            else {
+              process.stdout.write(`${outlineText(d.n, outlineOf(d.doc))}\n`);
+              process.stdout.write(`${d.n} is over 20 KB, so this is its outline. Read one part with --section <heading> or --field <path>, or all of it with --full.\n`);
+            }
+          }
           if (many) process.stdout.write('\n');
         }
       }
@@ -934,14 +1034,19 @@ function runRecord(pos, opt) {
       const [stage, slice] = rest;
       if (!stage) throw new Error(`record stage-done: <stage> is required; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
       const changes = stageDone(dir, slug, stage, slice ?? null, { next: opt.next ?? null, status: opt.status ?? null });
-      out(opt.json ? changes : `${stage}${slice ? ` ${slice}` : ''} done: progress.${stage}=${changes[`progress.${stage}`]}; next ${changes['next-invocation']}`);
+      // The drafts that were put in this stage are kept until here, for a second edit.
+      for (const h of new Set([join(localWorkflowsRoot(resolve(root)), slug), dir])) clearKept(h, { slice: slice ?? null });
+      // An implement stage of a project with no suite for implement gets the receipt that says so.
+      const none = stage === 'implement' && slice ? noSuiteReceipt(resolve(root), dir, slice, { now: nowIso() }) : null;
+      const receipt = none?.result === 'none' ? `; receipt: none (${NO_SUITE})` : '';
+      out(opt.json ? { ...changes, ...(receipt ? { receipt: `none (${NO_SUITE})` } : {}) } : `${stage}${slice ? ` ${slice}` : ''} done: progress.${stage}=${changes[`progress.${stage}`]}; next ${changes['next-invocation']}${receipt}`);
       return 0;
     }
     case 'draft': {
       // The record as a draft, ready for an edit and a put: the change of a body in three steps.
       const [name] = rest;
       if (!name) throw new Error('record draft: <name> is required');
-      const n = recordName(name);
+      const n = resolveRecord(dir, name, 'record draft');
       const doc = readDoc(dir, n);
       if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
       const path = draftPath(join(localWorkflowsRoot(resolve(root)), slug), n);
@@ -953,9 +1058,26 @@ function runRecord(pos, opt) {
     case 'set': {
       const [name, ...fields] = rest;
       if (!name || !fields.length) throw new Error(`record set: <name> <key=value>... are required. The forms are: ${PATH_FORMS}`);
-      const r = setRecordPaths(dir, recordName(name), fields, { slug });
-      out(opt.json ? r.frontmatter : `set ${r.keys.join(', ')} in ${recordName(name)}`);
+      const n = resolveRecord(dir, name, 'record set');
+      const r = setRecordPaths(dir, n, fields, { slug });
+      out(opt.json ? r.frontmatter : `set ${r.keys.join(', ')} in ${n}`);
       return 0;
+    }
+    case 'edit': {
+      // One section or one exact text of a body, changed in place with the checks of put.
+      const [name] = rest;
+      const bySection = opt.section !== undefined && opt.from !== undefined;
+      const byReplace = opt.replace !== undefined && opt.with !== undefined;
+      if (!name || bySection === byReplace) {
+        throw new Error('record edit: <name> and one of --section <heading> --from <file> or --replace <old> --with <new> are required');
+      }
+      const n = resolveRecord(dir, name, 'record edit');
+      const change = bySection
+        ? { section: String(opt.section), text: readFileSync(resolve(String(opt.from)), 'utf8') }
+        : { replace: String(opt.replace), with: String(opt.with) };
+      const r = editRecord(dir, n, change, { slug });
+      out(opt.json ? r : r.errors.length ? `refused ${r.name}: ${r.errors.join('; ')}` : `edit ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`);
+      return r.errors.length ? 1 : 0;
     }
     case 'list': {
       const names = listDocs(dir);
@@ -1293,7 +1415,7 @@ function flushInBackground() {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -1434,13 +1556,20 @@ export async function main(argv = process.argv.slice(2)) {
   const [cmd, ...rest] = argv;
   const known = helpText(cmd);
   if (known === null && !HIDDEN_COMMANDS.has(cmd)) { process.stderr.write(`wf.mjs: no command ${cmd}\n${helpText()}\n`); return 2; }
+  // A bare form (`wf.mjs record`, `wf.mjs decide add`) asks for the forms: the help, exit 0.
+  const bare = bareHelp(cmd, rest);
+  if (bare !== null) { out(bare); return 0; }
   const verbs = formsOf(cmd);
-  if (verbs && (!rest.length || (!rest[0].startsWith('-') && !verbs.has(rest[0])))) {
-    process.stderr.write(`wf.mjs: ${rest.length ? `${cmd} has no form ${rest[0]}` : `${cmd} needs a form`}. Its forms:\n${known}\n`);
+  if (verbs && rest.length && !rest[0].startsWith('-') && !verbs.has(rest[0])) {
+    process.stderr.write(`wf.mjs: ${cmd} has no form ${rest[0]}. Its forms:\n${known}\n`);
     return 2;
   }
   const { pos, opt } = flags(rest);
   const code = await runMain(cmd, pos, opt);
+  // Scripts keep INDEX.md: a change of the index of a workflow refreshes its row.
+  if (code === 0 && indexChanged(cmd, pos)) {
+    try { await refreshIndexRow(resolve(pos[1]), pos[2]); } catch (e) { process.stderr.write(`wf.mjs: INDEX.md not refreshed: ${e.message}\n`); }
+  }
   const target = code === 0 ? changed(cmd, pos, opt) : null;
   if (target) {
     const [root, slug] = [resolve(target[0]), target[1]];
@@ -1632,7 +1761,7 @@ async function runMain(cmd, pos, opt) {
           if (!existsSync(file)) { out(opt.json ? { reusable: false, reason: 'no receipt' } : 'no receipt'); return 1; }
           const held = JSON.parse(readFileSync(file, 'utf8'));
           const state = receiptState(projectRoot, held);
-          out(opt.json ? { ...state, receipt: held } : state.reusable ? `receipt reusable: ${held.commands.join(', ')} passed at ${String(held.sha).slice(0, 8)}` : `receipt stale: ${state.reason}`);
+          out(opt.json ? { ...state, receipt: held } : state.reusable ? `receipt reusable: ${held.commands.join(', ')} passed at ${String(held.sha).slice(0, 8)}` : held.result === 'none' ? `no receipt: ${state.reason}` : `receipt stale: ${state.reason}`);
           return state.reusable ? 0 : 1;
         }
         const g = (args) => spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8', windowsHide: true });
@@ -1642,12 +1771,18 @@ async function runMain(cmd, pos, opt) {
         // hash of the file that the suites run with, so a reader can tell when it changes.
         const dirty = treeChanges(projectRoot);
         const profile = readProfile(projectRoot);
-        const names = opt.suites ? String(opt.suites).split(',').map((s) => s.trim()).filter(Boolean) : STAGE_SUITES.implement.filter((s) => profile[s]?.command);
-        if (!names.length) throw new Error('receipt: the test profile has no suite for implement; set one with profile set');
+        const names = opt.suites ? String(opt.suites).split(',').map((s) => s.trim()).filter(Boolean) : implementSuites(profile);
+        if (!names.length) {
+          // No suite for implement: the receipt says so, and the stage goes on. Setup asks once.
+          const none = noSuiteReceipt(projectRoot, dir, slice, { now: nowIso() });
+          out(opt.json ? { pass: true, runs: [], receipt: file, result: none.result, reason: none.reason ?? null } : `receipt: ${none.result === 'none' ? `none (${NO_SUITE})` : `${file} (kept)`}`);
+          return 0;
+        }
+        const missing = names.find((name) => !profile[name]?.command);
+        if (missing) throw noCommand(missing, 'receipt: ');
         const runs = [];
         for (const name of names) {
           const suite = profile[name];
-          if (!suite?.command) throw new Error(`receipt: the test profile has no command for the ${name} suite`);
           const t0 = Date.now();
           const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
           const seconds = Math.round((Date.now() - t0) / 100) / 10;
@@ -1658,7 +1793,8 @@ async function runMain(cmd, pos, opt) {
         const pass = runs.length === names.length && runs.every((r) => r.pass);
         const receipt = { sha: head.stdout.trim(), commands: runs.map((r) => r.command), result: 'pass', at: nowIso(), dirty };
         if (pass) writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
-        const named = dirty.length ? ` with ${dirty.length} change(s) that HEAD lacks: ${dirty.map((d) => d.path).join(', ')}` : '';
+        // A change that HEAD lacks is in no commit of the slice: the receipt records it in dirty.
+        const named = dirty.length ? `; recorded ${dirty.length} change(s) that are in no commit of the slice: ${dirty.map((d) => d.path).join(', ')}` : '';
         out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : `no receipt: ${runs.find((r) => !r.pass)?.suite} failed`);
         return pass ? 0 : 1;
       }
@@ -1689,20 +1825,88 @@ async function runMain(cmd, pos, opt) {
         return 2;
     }
   } catch (e) {
-    process.stderr.write(`wf.mjs: ${e.message}\n${hintOf(cmd, pos, e.message)}`);
+    process.stderr.write(`wf.mjs: ${e.message}\n${hintOf(cmd, pos, e.message, e.fix)}`);
     return 1;
   }
 }
 
 // The hint after an error: a slug in the place of the root, or the forms of the command.
-function hintOf(cmd, pos, message) {
-  const roots = { decide: 1, step: 1, record: 1, findings: 1, progress: 1, profile: 1, defer: 1, consent: 1, lease: 1, msg: 1 };
-  const at = Object.hasOwn(roots, cmd) ? 1 : 0;
+// The allowed values of the enum arguments of a form, listed with the forms of a usage error.
+const ENUM_ARGS = {
+  'decide add': { '--by': [...DECISION_BY, 'standing:<id>'], '--kind': DECISION_KINDS },
+  'decide list': { '--by': [...DECISION_BY, 'standing'], '--kind': DECISION_KINDS },
+  'step stop': { '--kind': STOP_KINDS },
+  'findings add': { '--source': FINDING_SOURCES },
+  'findings list': { '--source': FINDING_SOURCES },
+  'findings table': { '--source': FINDING_SOURCES },
+  'findings metrics': { '--source': FINDING_SOURCES },
+  'findings set': { '<status>': FINDING_STATUSES },
+  'profile set': { '<suite>': SUITES },
+  'profile record': { '<suite>': SUITES },
+  'profile run': { '<suite>': SUITES },
+  'profile timebox': { '<stage>': Object.keys(STAGE_SUITES) },
+  'profile budget': { '--preset': Object.keys(BUDGET_PRESETS) },
+  'progress set': { '--status': PROGRESS_STATUSES },
+  'record stage-done': { '<stage>': Object.keys(STAGE_FILES) },
+  'board add': { '<kind>': BOARD_KINDS },
+};
+
+/** The verbs that the form line of a help block names (`record put` → [put]), or null. */
+function verbsOfForm(line) {
+  const t = line.trim().split(/\s+/)[1] ?? '';
+  const list = /^<([a-z][a-z|-]*\|[a-z|-]*)>$/.exec(t)?.[1] ?? (/^[a-z][a-z|-]*$/.test(t) ? t : null);
+  return list ? list.split('|') : null;
+}
+
+/** The help blocks of one verb of a command (every block of the command when `verb` is null). */
+function blocksOf(cmd, verb = null) {
+  const blocks = headerBlocks(fileURLToPath(import.meta.url)).filter((b) => b.name === cmd);
+  return verb == null ? blocks : blocks.filter((b) => verbsOfForm(b.lines[0])?.includes(verb));
+}
+
+/**
+ * The help of a call that stops before a required argument (`wf.mjs record`, `wf.mjs decide add`):
+ * the call asks for the forms. Null when the call is a whole form, or names no form.
+ */
+export function bareHelp(cmd, rest) {
+  if (rest.length > 1 || rest.some((a) => a.startsWith('-'))) return null;
+  const verb = rest[0] ?? null;
+  const verbs = formsOf(cmd);
+  if (verb != null && !verbs?.has(verb)) return null;
+  const blocks = blocksOf(cmd, verb);
+  if (!blocks.length) return null;
+  // With no verb, a command of forms needs one; else the next word of each form must be required.
+  const at = verb == null ? 1 : 2;
+  const needs = (verb == null && verbs) || blocks.every((b) => (b.lines[0].trim().split(/\s+/)[at] ?? '').startsWith('<'));
+  if (!needs) return null;
+  const values = verb != null && ENUM_ARGS[`${cmd} ${verb}`];
+  return [...blocks.map((b) => b.lines.join('\n')), ...(values ? [valuesLine(values)] : [])].join('\n');
+}
+
+const valuesLine = (values) => `values: ${Object.entries(values).map(([k, v]) => `${k} ${v.join('|')}`).join('; ')}`;
+
+// The lines after an error: a slug in the place of the root, the forms and the allowed values of
+// a usage error, and last the fix line, `fix: <command>`, when a command fixes the refusal.
+function hintOf(cmd, pos, message, fix = null) {
+  const verbs = formsOf(cmd);
+  const at = verbs ? 1 : 0;
+  const verb = verbs && verbs.has(pos[0]) ? pos[0] : null;
   const root = pos[at];
+  const lines = [];
+  let fixLine = fix;
   if (/no workflow folder/.test(message) && root && !existsSync(join(resolve(root), '.ai')) && existsSync(join(process.cwd(), '.ai'))) {
-    return `wf.mjs: ${root} is not a project root. The project root comes first: wf.mjs ${cmd} ${at ? `${pos[0]} ` : ''}"<project root>" <slug> ...\n`;
+    lines.push(`wf.mjs: ${root} is not a project root. The project root comes first: wf.mjs ${cmd} ${at ? `${pos[0]} ` : ''}"<project root>" <slug> ...`);
+  } else if (/no workflow folder/.test(message) && root) {
+    fixLine ??= `wf.mjs status ${word(root)}`;
   }
-  return /are required|is required|unknown verb|must be one of/.test(message) && cmd ? `wf.mjs: run wf.mjs help ${cmd} for its forms and flags\n` : '';
+  if (/are required|is required|needs <|unknown verb|must be one of|is not key=value|is not a stage/.test(message) && cmd) {
+    const blocks = blocksOf(cmd, verb);
+    if (blocks.length) lines.push(`wf.mjs: the forms of ${cmd}${verb ? ` ${verb}` : ''}:`, ...blocks.map((b) => b.lines.join('\n')));
+    const values = verb && ENUM_ARGS[`${cmd} ${verb}`];
+    if (values) lines.push(valuesLine(values));
+  }
+  if (fixLine) lines.push(`fix: ${root ? fixLine.replace(/<root>/g, word(root)) : fixLine}`);
+  return lines.length ? `${lines.join('\n')}\n` : '';
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

@@ -65,6 +65,20 @@ test('buildBrief: card, slice sections, the plan sections of the stage, and the 
   } finally { f.done(); }
 });
 
+test('buildBrief: the decisions carry their keys, and one line says when a question is answered', () => {
+  const f = fixture();
+  try {
+    addDecision(f.dir, { key: 'db', question: 'Which store?', answer: 'sqlite' });
+    addDecision(f.dir, { kind: 'steer', key: 'standing:retry', answer: 'retry twice' });
+    const b = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'implement', slice: 'api' });
+    assert.match(b.parts.decisions, /^- D-001 \[db\] Which store\? → sqlite \(answer\)$/m);
+    assert.match(b.parts.decisions, /^- D-002 \[standing:retry\] retry twice \(steer\)$/m);
+    const rule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` is also answered when a `[standing:<kind>]` entry is listed: use its answer, and record the case with `--by standing:<id>` of that entry.';
+    assert.equal(b.text.split(rule).length, 2, 'the rule is in the brief once');
+    assert.match(b.text, /## Decisions\n\nA question whose key is listed here/);
+  } finally { f.done(); }
+});
+
 test('buildBrief: a stage with no plan sections, no slice, and the missing parts', () => {
   const f = fixture();
   try {
@@ -78,7 +92,8 @@ test('buildBrief: a stage with no plan sections, no slice, and the missing parts
     assert.match(b.parts.slice, /Acceptance Criteria \(02-shape\.md\)\n\n- The list shows\./);
     assert.deepEqual(b.missing, ['the ## Card section of reference/plan.md']);
     assert.match(b.text, /No live decisions in this scope\./);
-    const v = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'verify', slice: 'gone' });
+    assert.doesNotMatch(b.text, /A question whose key is listed here/, 'no decisions, no rule');
+    const v =buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'verify', slice: 'gone' });
     assert.deepEqual(v.missing, ['the ## Card section of reference/verify.md', '.ai/workflows/demo/slice-gone.yaml#slice', '.ai/workflows/demo/slice-gone.yaml#plan']);
     assert.throws(() => buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'nope', stage: 'plan' }), /no workflow folder/);
   } finally { f.done(); }

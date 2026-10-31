@@ -124,6 +124,34 @@ test('index: bootstraps, keeps an unreadable row, drops a missing folder, and na
   }
 });
 
+test('index: a record set of the index and a first record put of an index each change the INDEX.md row', async () => {
+  const { root, wf } = repo();
+  const cli = (...args) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, SDLC_HOME: path.join(root, '.sdlc-home') } });
+  try {
+    wf('beta', stampOf('index', { slug: 'beta', now: '2026-10-01T00:00:00Z' }).replace(/ {2}#.*$/gm, '').replace(/^---\n|\n---$/g, ''));
+    await reconcileIndex(root);
+    const file = path.join(root, '.ai', 'workflows', 'INDEX.md');
+    const rowOf = (slug) => readFileSync(file, 'utf8').split('\n').find((l) => l.startsWith(`${slug}\t`));
+    assert.match(rowOf('beta'), /^beta\tactive\t/);
+
+    const set = cli('record', 'set', root, 'beta', 'index', 'status=closed');
+    assert.equal(set.status, 0, set.stderr);
+    assert.match(rowOf('beta'), /^beta\tclosed\t/);
+
+    const draft = path.join(root, '.ai', 'workflows', 'alpha', '.draft', '00-index.md');
+    mkdirSync(path.dirname(draft), { recursive: true });
+    writeFileSync(draft, `${stampOf('index', { slug: 'alpha' }).replace(/ {2}#.*$/gm, '')}\n`);
+    const put = cli('record', 'put', root, 'alpha');
+    assert.equal(put.status, 0, put.stdout + put.stderr);
+    const lines = readFileSync(file, 'utf8').trim().split('\n');
+    assert.equal(lines[0], INDEX_HEADER);
+    assert.deepEqual(lines.slice(1).map((l) => l.split('\t')[0]), ['alpha', 'beta']);
+    assert.match(rowOf('alpha'), /^alpha\tactive\tstandard\t/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('status: groups, staleness, the next command, and the detail of one slug', async () => {
   const { root, wf } = repo();
   try {

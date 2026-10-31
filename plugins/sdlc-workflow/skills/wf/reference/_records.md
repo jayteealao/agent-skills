@@ -28,7 +28,11 @@ A section keeps the frontmatter and the body of its record, and its record name.
 
 1. Read the brief of the stage first, when the stage has one (`<wf> brief <root> <slug> <stage> [<slice>]`). It holds the slice, its acceptance criteria and the plan sections that the stage acts on.
 2. For any other record, run `<wf> record get <root> <slug> <name>`. It prints the record as Markdown with its frontmatter. A missing record exits 1 and prints nothing on stdout.
-3. Run `<wf> record list <root> <slug>` for the names of every record of the workflow.
+3. To read one part, add `--section <heading>` (the text under one `##` heading), `--field <path>` (one value, with a path of `record set`, for example `slices[api].status`) or `--outline` (the fields and the `##` headings, with their sizes). Do not pipe `record get` to `sed`, `head` or `grep`.
+4. A record over 20 KB prints its outline. Add `--full` to print all of it.
+5. Run `<wf> record list <root> <slug>` for the names of every record of the workflow.
+
+A `<name>` of `get`, `set`, `edit` and `draft` can leave out `.md`, the number or the slice: `implement-api`, `05-implement` and `implement` name `05-implement-api.md` when no other record fits. When a name fits more than one record, the command lists them and exits 1.
 
 You may also read a record file with the file-read tool. Each section has `name`, `frontmatter` and `body`.
 
@@ -36,10 +40,15 @@ You may also read a record file with the file-read tool. Each section has `name`
 
 1. Get the frontmatter template of the record type: `<wf> stamp <type> --slug <slug> [--slice <slice>]`.
 2. Write the whole record, frontmatter and body, to the draft `.ai/workflows/<slug>/.draft/<name>` with the file-write tool. The write-time checks run on the draft.
-3. Run `<wf> record put <root> <slug>`. Each draft must print `put <name> → <file>#<section>`, and the command deletes the draft.
+3. Run `<wf> record put <root> <slug>`. Each draft must print `put <name> → <file>#<section>`. The command moves the draft to `.draft/.put/<name>`, and `record stage-done` deletes it.
 4. When the command prints `refused <name>: <errors>`, nothing was written for that draft. Correct the draft and run step 3 again.
 
-To change the body of a record, run `<wf> record draft <root> <slug> <name>`: it writes the record as its draft and prints the path. Edit the draft with the file-edit tool, then run `<wf> record put <root> <slug>`. A draft replaces the whole section. A record name can leave out `.md`.
+## Change a body
+
+1. To change one section, write its new text to a file and run `<wf> record edit <root> <slug> <name> --section <heading> --from <file>`. The heading stays.
+2. To change one line or one phrase, run `<wf> record edit <root> <slug> <name> --replace "<old>" --with "<new>"`. The command refuses when `<old>` matches nothing or more than once, and says which.
+3. `record edit` runs the checks of `record put` and needs no draft.
+4. To change much of the body, run `<wf> record draft <root> <slug> <name>`, edit the draft that it names, and run `<wf> record put <root> <slug>`. A draft replaces the whole section. To edit the same record again in the same stage, edit `.draft/.put/<name>` and run `<wf> record put <root> <slug> <name>`.
 
 ## Change a field
 
@@ -67,6 +76,7 @@ The command reads the file, merges the change and writes the file in one step. S
 - Do not Write or Edit `state.yaml`, `meta.yaml` or any other record file. The pre-write check refuses it.
 - Do not Write a record name beside the records, such as `.ai/workflows/<slug>/04-plan-api.md`. The check refuses it and names the draft path.
 - Do not make an `.ai/` folder below the project root. The check refuses it.
+- Do not edit `INDEX.md`: `wf.mjs` writes the row of a workflow each time its index changes.
 
 ## The records repo
 

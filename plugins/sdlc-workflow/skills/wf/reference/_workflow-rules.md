@@ -4,15 +4,14 @@
 - Write no explainer and no sibling `.yaml`, unless the stage reference names that file. Only the review stage and the audit intake mode name a sibling `.yaml`, because agents read those files.
 - Before you write a stage artifact, read every input in the stage's `## Requires` table, per [_requires.md](_requires.md).
 - A stage artifact names its next step in frontmatter: `next-command`, `next-invocation`, and `recommended-routes` (every option with a `reason`; exactly one entry has `default: true`, and its `invocation` equals `next-invocation`). A stage artifact has no `## Recommended Next Stage` section and no `recommended-next-*` key.
-- Timestamps are real: for `created-at` / `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
+- Get each real `created-at` / `updated-at` timestamp per [_timestamp.md](_timestamp.md).
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
-- Keep the decision store (`decisions.yaml`) as the cumulative record of product-owner decisions, per [_decisions.md](_decisions.md). Keep the slug stable after intake.
-- `00-index.md` always has: title, slug, current-stage, stage-status, updated-at, selected-slice, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files. It holds current state only, and keeps `current-stage` in its first 4,000 characters. Keep no prose in YAML comments there. Append history notes, old next-step commentary and finished sub-pass telemetry to `index-history.jsonl` per [_control-file-ownership.md](_control-file-ownership.md). The deferral list (cleared entries too), the intent risks, the charter and the `revisions:` ledger stay in the index.
-- Ask multiple-choice PO questions as gate questions per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Record every answer with `decide add --stage <stage>` per [_decisions.md](_decisions.md).
+- Record product-owner decisions in `decisions.yaml` per [_decisions.md](_decisions.md), and keep the slug stable per [intake/_intake-context.md](intake/_intake-context.md).
+- The schema owns the fields of `00-index.md` (`state.yaml` and `meta.yaml`), and `wf.mjs stamp index` prints them; [_control-file-ownership.md](_control-file-ownership.md) says who writes them and what moves to `index-history.jsonl`.
+- Ask and record PO questions per [_gate-question.md](_gate-question.md), [_question-craft.md](_question-craft.md) and [_decisions.md](_decisions.md).
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- Read and honor every `if-present` input that exists, per [_requires.md](_requires.md) "Before you write".
-- Use parallel sub-agents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up sub-agents for trivial work.
+- Use sub-agents for multi-domain research per [_subagents.md](_subagents.md).
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: STOP, and ask the person to reconcile it. Do not cut the branch from it.
 - **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.

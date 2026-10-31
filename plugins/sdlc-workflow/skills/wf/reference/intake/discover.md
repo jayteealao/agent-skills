@@ -193,7 +193,7 @@ confidence: <high|medium|low>
 augmentations: []
 ```
 
-Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line description of the hypothesis + pointer to `01-discover.md` and the verdict. (A successor invoked with `from <slug>` reads the closed artifact via `_intake-provenance-consume.md`; closure hides nothing.)
+Body: one-line description of the hypothesis + pointer to `01-discover.md` and the verdict. (A successor invoked with `from <slug>` reads the closed artifact via `_intake-provenance-consume.md`; closure hides nothing.)
 
 # Step 5 — Hand off to user
 

@@ -23,8 +23,8 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   for readability, but the index is canonical — the standard stage commands and `/wf status recap` read it there).
 - **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
   (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, slice: …, …}` with
-  enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set
-  from [intake/default.md](default.md). Add `workflow-type: <mode>`. A missing field or wrong `status`
+  enum values `not-started|in-progress|complete|skipped`, NOT a list). Start it from
+  `wf.mjs stamp index`, per the Index template section below. Add `workflow-type: <mode>`. A missing field or wrong `status`
   → schema-invalid → a render-time warn-banner on every overview.
 - **Downstream planning stages use STANDARD types** authored **un-suffixed, single-slice**:
   `02-shape.md` (`type: shape`), `03-slice.md` (`type: slice-index` — even with one slice: a one-entry
@@ -109,78 +109,38 @@ When design is needed, the person is present, so run the design stage (`design/s
 
 ## Index template (`00-index.md`, `type: index`)
 
-Every change-mode writes the **full `type: index`** overview — the same heavy index a
-standard feature workflow uses, per the required set in `intake/default.md`. Write it to the draft
-`.ai/workflows/<slug>/.draft/00-index.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. One template,
-slots from the value table:
+Every change-mode writes the full `type: index`, the same index as a standard feature workflow.
+
+1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires.
+2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+3. Fill `title`, `branch-strategy` (`dedicated` or `none`), `branch` (empty when `branch-strategy: none`) and `base-branch`. Then set or add these keys, with the slots from the value table:
 
 ```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "<title>"
 workflow-type: <mode>
-status: active
 current-stage: plan
 stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
 selected-slice: <slug>
-branch-strategy: <dedicated|none>
-branch: "<branch, or empty when branch-strategy: none>"
-base-branch: "<base>"
 review-scope: slug-wide
 review-scope-confirmed: true
 appetite: small
-pr-url: ""
-pr-number: 0
-open-questions: []
 tags: <tags>
-stack:
-  detected-at: "<iso-8601>"
-  platforms: []
-  languages: []
-  ui: []
-  build: []
-  package-managers: []
-  testing: []
-  observability: []
-  integrations: []
-  available-skills: []
-  available-mcp: []
-  user-confirmed: <true|false per the stack policy>
+stack: <the Step 0 stack block; user-confirmed per the stack policy>
 ux-impact: <none|visual|flow|new-surface>
 ux-impact-confirmed: <true|false>
 origin-investigate: <source-slug>
 next-command: <next-command>
 next-invocation: "<next-invocation>"
-workflow-files:
-  - 00-index.md
-  - 01-<mode>.md
-  - 02-shape.md
-  - 03-slice.md
-  - 04-plan.md
+workflow-files: [00-index.md, 01-<mode>.md, 02-shape.md, 03-slice.md, 04-plan.md]
 slices:
   - slug: <slug>
     status: defined
     complexity: <complexity>
-progress:
-  intake: complete
-  design: <complete|skipped>
-  slice: complete
-  plan: complete
-  implement: not-started
-  verify: not-started
-  review: not-started
-  ship: not-started
-  retro: not-started
----
+progress: {intake: complete, design: <complete|skipped>, slice: complete, plan: complete, implement: not-started, verify: not-started, review: not-started, ship: not-started, retro: not-started}
 ```
 
-Write no YAML comments in the index. `workflow-type` is the authoritative discriminator that the standard commands and resume read. Write an `origin-<type>` key only when provenance attached. `review-scope: slug-wide` gives one `07-review.md` for the single slice; plan confirms it.
+4. Run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
-Then **register the slug in `.ai/workflows/INDEX.md`** per `_intake-context.md` → Register the workflow in INDEX.md.
+Write no YAML comments in the index. `workflow-type` is the authoritative discriminator that the standard commands and resume read. Write an `origin-<type>` key only when provenance attached. `review-scope: slug-wide` gives one `07-review.md` for the single slice; plan confirms it.
 
 ## Tripwire-breach recording (the family mechanism)
 

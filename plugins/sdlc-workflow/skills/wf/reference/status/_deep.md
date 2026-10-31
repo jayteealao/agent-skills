@@ -37,8 +37,8 @@ read-only detail view.
    `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. **Overwrite
    freely** each run (no history append).
 7. **Bookkeeping touch:** add `00-sync.md` to `workflow-files` with
-   `record set "<root>" <slug> index "workflow-files=[<current entries>, 00-sync.md]"`
-   (and set the matching `updated-at` column in `INDEX.md`). Do not change `status`/`current-stage`.
+   `record set "<root>" <slug> index "workflow-files+=00-sync.md"`. The script updates the row of
+   `INDEX.md`. Do not change `status`/`current-stage`.
 
 Recommended-actions in the report point at real commands: `/wf plan <slug>` (stale plan refs),
 `/wf intake <slug> <scope>` (new scope surfaced), `/wf status <slug> deep` (re-check after fixes).

@@ -323,11 +323,12 @@ export function runDelegatedIn(slugDir) {
 
 // ---------------------------------------------------------------- text
 
-/** One line per entry, for a brief or a list. */
+/** One line per entry, for a brief or a list. The key of the entry, when it has one, follows its id as `[key]`. */
 export function decisionLine(e) {
   const where = Object.entries(cleanScope(e.scope)).map(([k, v]) => `${k}=${[].concat(v).join(',')}`).join(' ');
+  const key = e.key ? `[${e.key}] ` : '';
   const q = e.question ? `${e.question} → ` : '';
   const tail = [e.kind, e.by !== 'person' ? `by ${e.by}` : null, where || null, e['superseded-by'] ? `superseded by ${e['superseded-by']}` : null]
     .filter(Boolean).join('; ');
-  return `${e.id} ${q}${e.answer} (${tail})`;
+  return `${e.id} ${key}${q}${e.answer} (${tail})`;
 }

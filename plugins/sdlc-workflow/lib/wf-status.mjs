@@ -123,7 +123,7 @@ export async function statusBrief(root, slug) {
   }
   const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key && q?.question ? `${q.key}: ${q.question}` : q?.key ?? q?.question ?? JSON.stringify(q)));
   const deferrals = openDeferrals(dir).map((d) => d.id ?? d.ac ?? d.slice ?? 'deferral');
-  const outcome = readDriverOutcome(dir);
+  const outcome = readDriverOutcome(dir, { root });
   const progress = s.workflow.progress;
   return {
     slug: s.workflow.slug,

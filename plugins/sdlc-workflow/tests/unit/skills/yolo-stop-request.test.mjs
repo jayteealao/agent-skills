@@ -140,7 +140,7 @@ test('the driver journals by root and slug, keeps found.json in the drafts, and 
   assert.match(src, /`\$\{DRAFT_DIR\}\/found\.json --source review/);
   assert.doesNotMatch(src, /\.found\.json/);
   assert.match(src, /const RECORDS_ROOT = typeof OPT\.recordsRoot === 'string'/);
-  assert.match(src, /const CONTROL_PATH = `\$\{WF_DIR\}\/\.control\.json`/);
+  assert.match(src, /const CONTROL_PATH = `\$\{projectRoot\}\/\.ai\/run\/\$\{slug\}\/\.control\.json`/);
 });
 
 test('every stage boundary carries the stop check, and no fix round does', () => {

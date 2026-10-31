@@ -44,7 +44,6 @@ Do this step once, right after the path question. On a resume, start at the firs
    - `## Acceptance Checks`: one line per check. Each line names how the result is observed.
    - `## Change`, `## Checks Run`, `## Result`: empty for now.
 4. Run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Each draft must print `put`.
-5. Register the workflow in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md).
 
 # Step 2 — Implement
 

@@ -1,7 +1,7 @@
 # Intake shared context
 
 The single source of truth for the rules every `/wf intake` mode shares — the output boundary,
-the workflow-registry / slug semantics, and the registration in `INDEX.md`. The dispatcher
+the workflow-registry / slug semantics, and the rule for `INDEX.md`. The dispatcher
 (`reference/intake.md`), `intake/default.md`, and every mode reference under `intake/` defer to
 this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
@@ -41,16 +41,6 @@ When a derived or given slug is in this set, ask for another slug with the "Pick
 option of the `intake/default.md` collision prompt. Every mode that creates a workflow applies this
 rule. An existing slug keeps its name, and `/wf status` flags it.
 
-# Register the workflow in INDEX.md
+# INDEX.md
 
-This is the additive bootstrap. Every mode that creates a new workflow registers it in `.ai/workflows/INDEX.md`. Do this after `00-index.md` is final. Read the index again with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)), so the row has the final values. Branch, status, and workflow-type can change between Step 0 and the end of the run.
-
-- **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
-  ```
-  # .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
-  ```
-  Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf intake simplify`) is now enabled."*
-- **If `.ai/workflows/INDEX.md` exists AND the slug is already present**, do nothing. A matching row means this is a resume on a row that an earlier intake run wrote. Leave the existing row in place so sync owns updates.
-- **If `.ai/workflows/INDEX.md` exists AND the slug is missing**, append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
-- **Mutate no other row.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.
-- **A build work packet of a list is not registered here.** `campaign.mjs open` writes its folder and its row (`campaign.md`, step 3).
+Scripts write `.ai/workflows/INDEX.md`. Do not edit it, per [_records.md](../_records.md). The put of a new `00-index.md` adds the row of the workflow. Each later change of the index refreshes that row.

@@ -190,8 +190,6 @@ Write the draft of `00-index.md` from the index template of `_change-mode-tail.m
 - `design-skip-reason: "an optimize loop changes code toward a metric; it draws no surface"`.
 - `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`.
 
-Then register the slug in `.ai/workflows/INDEX.md` per `intake/_intake-context.md` → Register the workflow in INDEX.md.
-
 # Step 5 — Hand off
 
 End with the dispatcher's summary block. The narrative says the metric and its baseline run, the guard, the allowed paths, the budget and the branch rounds, and that the person confirmed the spec. `Next: /wf loop optimize <slug>`.

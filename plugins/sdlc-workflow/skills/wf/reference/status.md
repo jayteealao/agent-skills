@@ -26,7 +26,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `08-handoff.md` | artifact | mode:roster | |
 | `.driver-journal.jsonl` | artifact | mode:detail | |
-| `cost.jsonl` | artifact | if-present | |
 | `status/_renders.md` | procedure | always | |
 | `status/_deep.md` | procedure | mode:deep | |
 | `02-shape.md` | artifact | mode:advise | |

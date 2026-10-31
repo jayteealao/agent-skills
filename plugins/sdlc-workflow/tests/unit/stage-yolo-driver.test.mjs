@@ -147,11 +147,12 @@ test('--slug: the run-decisions answer of the launch sets delegate', async () =>
   }
 });
 
-test('the stage briefs reuse an answer to the same question under another key', () => {
+test('the stage agents test a key with decide answered before they ask', () => {
   const yolo = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-  assert.match(yolo, /When an entry answers the same question in substance under another key/);
-  assert.match(yolo, /or a standing answer \(key standing:<kind>\) covers the kind of the question/);
-  assert.equal((yolo.match(/sameQuestionClause\(\) \+/g) || []).length, 2, 'the question contract and delegate mode');
+  assert.equal(yolo.split('Before you ask, run \\`${wfCmd} decide answered "${projectRoot}" ${slug} --key <key>\\`').length, 2, 'one owner of the rule');
+  assert.equal((yolo.match(/sameQuestionClause\((wfCmd)?\) \+/g) || []).length, 2, 'the question contract and delegate mode');
+  assert.doesNotMatch(yolo, /When an entry answers the same question in substance under another key/);
+  assert.doesNotMatch(yolo, /decide list "\$\{projectRoot\}" \$\{slug\} --kind steer --json/);
   const ref = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'reference', 'yolo.md'), 'utf8');
   assert.match(ref, /--kind steer --key run-decisions/);
   assert.match(ref, /"Reverse any of these\?"/, 'the end digest is one list and one question');

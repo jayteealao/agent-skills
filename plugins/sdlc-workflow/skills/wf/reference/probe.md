@@ -171,11 +171,12 @@ This is the one mutation `probe` makes to `00-index.md` beyond standard bookkeep
 
 Per `_compressed-slice.md`:
 
-1. Append `03-slice-probe-<descriptor>.md` to `00-index.md.workflow-files`.
-2. Append `{slug: probe-<descriptor>, slice-type: probe, created-at: "<iso>"}` to `00-index.md.compressed-slices`.
-3. Make changes 1 and 2 in one draft: get the index, change both lists, write the draft of `00-index.md` and put it.
-4. If `03-slice.md` exists, append `{slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}` to `slices` and bump `total-slices`. Get the record, change it, write the draft of `03-slice.md` and put it.
-5. Rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md`.
+1. Add the slice to the index in one call:
+   `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "workflow-files+=03-slice-probe-<descriptor>.md" "compressed-slices+={slug: probe-<descriptor>, slice-type: probe, created-at: <iso>}"`
+2. If `03-slice.md` exists, add the slice to the roster in one call:
+   `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 03-slice "slices+={slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}" total-slices=<n+1>`
+
+The script updates the row of `INDEX.md`.
 
 Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. Probe slices are additive and do not advance the main lifecycle.
 

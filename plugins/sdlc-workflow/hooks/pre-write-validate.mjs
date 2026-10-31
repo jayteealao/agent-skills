@@ -45,7 +45,8 @@ import {
   workflowPathInfo,
 } from '../lib/hook-utils.mjs';
 import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
-import { linkedProject, localRelOf, localWorkflowsRoot, nestedAiDir, recordPathOf, recordsRel, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
+import { evidenceDir, linkedProject, localRelOf, localWorkflowsRoot, nestedAiDir, parseWorkflowPath, recordPathOf, recordsRel, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
+import { EVIDENCE_LOG, maxFileBytes } from '../lib/run-files.mjs';
 import { otherLease } from '../lib/leases.mjs';
 
 function validateFilename(filename) {
@@ -92,7 +93,7 @@ export async function run(input) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
     return;
   }
-  const refusal = filePath ? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? cloneDraftRefusal(filePath, projectRoot) ?? leaseRefusal(filePath, projectRoot) : null;
+  const refusal = filePath ? capRefusal(filePath, content, projectRoot) ?? recordWriteRefusal(filePath, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? cloneDraftRefusal(filePath, projectRoot) ?? leaseRefusal(filePath, projectRoot) : null;
   if (refusal) {
     refuseWrite(checksModeOf(config), refusal);
     return;
@@ -196,7 +197,7 @@ export async function run(input) {
 // So a Write or Edit of a record file, or of an old record name beside the records, is refused.
 // The log of the person's answers (lib/answers.mjs) is refused too: only the question hook
 // appends to it.
-const ANSWER_LOG = /(?:^|\/)\.ai\/workflows\/answers\.jsonl$/;
+const ANSWER_LOG = /(?:^|\/)\.ai\/(?:workflows|run)\/answers\.jsonl$/;
 
 // The manifest and the layout of the design surface, and the design records (comments,
 // approval pictures, check results), have script writers only.
@@ -228,6 +229,22 @@ function recordWriteRefusal(filePath, projectRoot) {
       `Write the record as the draft ${DRAFT_DIR}/${info.filename} in the same folder, then run \`${cli} record put <root> ${info.slug}\`.\n`;
   }
   return null;
+}
+
+// A workflow folder holds only files that sync, so a file over the size cap (records.max-file-mb)
+// is refused there. A trace, a video or a large log goes to the evidence folder of the project,
+// and the next records commit lists it in the record.
+function capRefusal(filePath, content, projectRoot) {
+  if (typeof content !== 'string') return null;
+  const bytes = Buffer.byteLength(content);
+  const limit = maxFileBytes();
+  if (bytes <= limit) return null;
+  const abs = resolveProjectPath(projectRoot, filePath);
+  const info = parseWorkflowPath(abs);
+  if (!info) return null;
+  const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `wf-validate: blocked a write of ${mb(bytes)} to ${abs}. A workflow file stays under ${mb(limit)} (records.max-file-mb), so every record syncs. ` +
+    `Write a trace, a video or a large log to ${evidenceDir(projectRoot, info.slug)} instead; the next records commit lists it in ${EVIDENCE_LOG}.\n`;
 }
 
 // A linked project keeps its records in the records home, and only the drafts stay in the local

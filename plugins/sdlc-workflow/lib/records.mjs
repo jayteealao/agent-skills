@@ -41,6 +41,8 @@ export const DRAFT_DIR = '.draft';
 export const OLD_DIR = '.old';
 export const REDIRECTS_FILE = 'redirects.yaml';
 export const INDEX_NAME = '00-index.md';
+/** The header line of `.ai/workflows/INDEX.md`. */
+export const INDEX_HEADER = '# .ai/workflows/INDEX.md — global workflow registry. Written by scripts only: wf.mjs rebuilds it (index, status) and refreshes the row of a workflow when its index changes (record put, record set, record stage-done). Do not edit it. Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.';
 
 // The fields of the index that change at each stage. The rest of the index is cold.
 export const HOT_FIELDS = new Set([
@@ -324,8 +326,40 @@ export function markSuperseded(dir, superseded, by) {
 /** The draft path of a record. */
 export const draftPath = (dir, name) => join(dir, DRAFT_DIR, basename(name));
 
+// A draft that was put moves to .draft/.put/ and stays there until the stage ends
+// (`record stage-done` clears the folder). So an agent can edit the same draft again and run
+// `record put <name>` once more: put takes the kept draft when .draft/ has none of that name.
+export const KEPT_DIR = '.put';
+
+/** The kept draft of a record, beside its draft. */
+export const keptPath = (dir, name) => join(dir, DRAFT_DIR, KEPT_DIR, basename(name));
+
 /**
- * Check a draft and write it into its section, then delete the draft. Returns
+ * Delete the kept drafts of a workflow folder. Returns the number deleted. With `slice`, only the
+ * kept drafts of that slice go (`*-<slice>.md`), so a parallel slice keeps its own.
+ */
+export function clearKept(dir, { slice = null } = {}) {
+  const d = join(dir, DRAFT_DIR, KEPT_DIR);
+  if (!existsSync(d)) return 0;
+  const names = readdirSync(d).filter((n) => !slice || n.replace(/\.[^.]+$/, '').endsWith(`-${slice}`));
+  for (const n of names) rmSync(join(d, n), { recursive: true, force: true });
+  if (!readdirSync(d).length) rmSync(d, { recursive: true, force: true });
+  return names.length;
+}
+
+/** After a put: a draft in .draft/ moves to .draft/.put/, a kept draft stays, any other file goes. */
+function keepDraft(path) {
+  const home = dirname(path);
+  if (basename(home) === KEPT_DIR && basename(dirname(home)) === DRAFT_DIR) return;
+  if (basename(home) !== DRAFT_DIR) { rmSync(path, { force: true }); return; }
+  const to = join(home, KEPT_DIR, basename(path));
+  mkdirSync(dirname(to), { recursive: true });
+  rmSync(to, { force: true });
+  renameSync(path, to);
+}
+
+/**
+ * Check a draft and write it into its section, then move the draft to .draft/.put/. Returns
  * { name, file, section, errors }. A draft with errors stays, and nothing is written.
  */
 export function putDraft(dir, path) {
@@ -345,8 +379,98 @@ export function putDraft(dir, path) {
   }
   if (errors.length) return { name, file: null, section: null, errors };
   const loc = writeDoc(dir, name, { frontmatter: fm, body: parsed.content });
-  rmSync(path, { force: true });
+  keepDraft(path);
   return { name, file: loc.file, section: loc.section, errors: [] };
+}
+
+// ---------------------------------------------------------------- parts of a record
+
+// A heading of level 1 or 2 outside a code fence ends a `##` section; `###` and below belong to it.
+const HEADING = /^(#{1,2})\s+(.*?)(?:\s+#+)?\s*$/;
+const FENCE = /^\s*(```|~~~)/;
+
+/**
+ * The `##` sections of a body: [{ heading, start, end }], where `start` is the index of the
+ * heading line and `end` the index after the last body line. `top` is the text before the first.
+ */
+export function sectionsOf(body) {
+  const lines = String(body ?? '').replace(/\r\n/g, '\n').split('\n');
+  const out = [];
+  let fence = null;
+  for (let i = 0; i < lines.length; i += 1) {
+    const f = FENCE.exec(lines[i]);
+    if (f) { fence = fence === null ? f[1] : fence === f[1] ? null : fence; continue; }
+    if (fence) continue;
+    const h = HEADING.exec(lines[i]);
+    if (!h) continue;
+    if (out.length && out.at(-1).end === null) out.at(-1).end = i;
+    if (h[1] === '##') out.push({ heading: h[2], start: i, end: null });
+  }
+  if (out.length && out.at(-1).end === null) out.at(-1).end = lines.length;
+  return { lines, sections: out };
+}
+
+const plainHeading = (h) => String(h).replace(/^#+\s*/, '').trim().toLowerCase();
+
+/** The one section whose heading is `heading` (the case aside; a unique prefix fits too), or an error that names the headings. */
+function findSection(body, heading, verb) {
+  const { lines, sections } = sectionsOf(body);
+  const want = plainHeading(heading);
+  let hits = sections.filter((s) => s.heading.toLowerCase() === want);
+  if (!hits.length) hits = sections.filter((s) => s.heading.toLowerCase().startsWith(want));
+  const list = sections.map((s) => s.heading).join(' | ') || 'none';
+  if (!hits.length) throw new Error(`${verb}: no section "${heading}"; the ## headings are: ${list}`);
+  if (hits.length > 1 && new Set(hits.map((s) => s.heading)).size === 1) {
+    throw new Error(`${verb}: the heading "${hits[0].heading}" appears ${hits.length} times; read them with --full, or change one with --replace`);
+  }
+  if (hits.length > 1) throw new Error(`${verb}: "${heading}" fits ${hits.length} sections: ${hits.map((s) => s.heading).join(' | ')}; name one of them in full`);
+  return { lines, section: hits[0] };
+}
+
+/** The body under one `##` heading, without the heading line. */
+export function sectionText(body, heading, verb = 'record get') {
+  const { lines, section } = findSection(body, heading, verb);
+  return `${lines.slice(section.start + 1, section.end).join('\n').trim()}\n`;
+}
+
+/** The body with the text under one `##` heading replaced; the heading stays. */
+export function replaceSection(body, heading, text, verb = 'record edit') {
+  const { lines, section } = findSection(body, heading, verb);
+  const last = section.end >= lines.length;
+  const middle = ['', ...String(text).replace(/\r\n/g, '\n').trim().split('\n'), ...(last ? [] : [''])];
+  return [...lines.slice(0, section.start + 1), ...middle, ...lines.slice(section.end)].join('\n').replace(/\n*$/, '\n');
+}
+
+/** The body with one exact text replaced; an error when it matches zero times or more than once. */
+export function replaceOnce(body, old, text, verb = 'record edit') {
+  const b = String(body ?? '');
+  if (!old) throw new Error(`${verb}: --replace needs a text`);
+  const n = b.split(old).length - 1;
+  if (n === 0) throw new Error(`${verb}: the text of --replace matches nothing in the body`);
+  if (n > 1) throw new Error(`${verb}: the text of --replace matches ${n} times in the body; give more of the text, so that it matches once`);
+  const at = b.indexOf(old);
+  return b.slice(0, at) + text + b.slice(at + old.length);
+}
+
+const bytes = (s) => Buffer.byteLength(String(s ?? ''), 'utf8');
+
+/** The record as text, as `record get` prints it. */
+export const docText = (doc) => `---\n${stringify(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`;
+
+/** The size of a record, its fields and its `##` sections: { bytes, fields: [{ name, bytes, items? }], top, sections: [{ heading, bytes }] }. */
+export function outlineOf(doc) {
+  const fm = doc.frontmatter ?? {};
+  const fields = Object.entries(fm).map(([name, v]) => ({
+    name, bytes: bytes(stringify({ [name]: v })), ...(Array.isArray(v) ? { items: v.length } : {}),
+  }));
+  const { lines, sections } = sectionsOf(doc.body);
+  const top = bytes(lines.slice(0, sections[0]?.start ?? lines.length).join('\n').trim());
+  return {
+    bytes: bytes(docText(doc)),
+    fields,
+    top,
+    sections: sections.map((s) => ({ heading: s.heading, bytes: bytes(lines.slice(s.start, s.end).join('\n')) })),
+  };
 }
 
 /** Every draft of a workflow, oldest name first: the index last, so it sees the stage records. */

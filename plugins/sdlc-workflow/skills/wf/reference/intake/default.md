@@ -46,7 +46,7 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it. When the slug is a reserved name ([_intake-context.md](_intake-context.md)), STOP and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
 2. **Registry collision check.** Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
-   - **If `INDEX.md` does NOT exist**, no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do not bail out: Step 10 bootstraps `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection. Intake only does additive "append self if absent"; `/wf status` owns the full reconcile.
+   - **If `INDEX.md` does NOT exist**, no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do not bail out: the put of `00-index.md` writes `.ai/workflows/INDEX.md` with this workflow's row, so the *next* intake gets full collision detection.
    - **If `INDEX.md` exists**, search for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
      - **Row exists AND status column ≠ `closed`**: the slug is already in active use. STOP and ask the gate question per [_gate-question.md](../_gate-question.md):
        ```
@@ -86,9 +86,9 @@ You are a **workflow orchestrator**, not a problem solver.
 
 Run the probes in `intake/default/_stack-fingerprint.md`: repo signals (manifests, platforms, UI framework, build, testing, observability, integration markers) and the session catalog (skills, commands, MCP servers visible to this run). Write the result into the index (the draft of `00-index.md`) as the `stack:` block with `user-confirmed: false`. Record only what is detected; omit rather than guess. Recommend nothing here; that conversation belongs in shape, after Batch B confirms or corrects the fingerprint.
 
-# Step 0.6 — Test profile estimate (no run)
+# Step 0.6 — Test profile (asked once for the project)
 
-Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it prints `no test profile`, or a suite is missing, estimate the four suites from the manifests and the test tooling of the stack fingerprint:
+The first-run setup asks for the suites once for the project ([../setup.md](../setup.md)). Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it prints a suite, use the profile as it is: do not ask about a missing suite, because the repo has none, and implement records `receipt: none (no suite in the profile)`. Do the rest of this step only when it prints `no test profile` and `.ai/sdlc-config.json` has no `project.setupAt`: a repo that was set up before the setup step. Then estimate the four suites from the manifests and the test tooling of the stack fingerprint:
 
 | Suite | What it runs |
 |---|---|
@@ -97,7 +97,7 @@ Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it pr
 | `full` | every automated suite of the repo |
 | `heavy` | the device, browser or end-to-end suites, when the repo has them |
 
-For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
+For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command. After the answer, run `node "<skill-dir>/scripts/wf.mjs" setup "<projectRoot>"` once: it stamps `project.setupAt`, so no later run asks again, even when the repo has no suite.
 
 Also list the known long runs of the repo with an estimate, per "The known long runs" of [../_check-budget.md](../_check-budget.md). When `wf.mjs profile budget` prints `no budget`, add the budget question of that file to Batch B. Record the answer with `wf.mjs profile budget`.
 
@@ -148,11 +148,10 @@ Do this in order:
 7. Write `next-invocation: "/wf intake <slug>"`, and the same invocation as the one entry of the `01-intake.md` `recommended-routes`. A stop before the shape phase resumes there; the shape phase writes the routes that follow intake.
 8. Update the index: `current-stage: intake`, `progress.intake: in-progress`, and the `next-invocation` of item 7. Run `record set "<root>" <slug> index current-stage=intake progress.intake=in-progress "next-invocation=/wf intake <slug>"`. The `intent-risks` and `charter` ledgers of Steps 6a–6b hold text entries: get the index, add them, write the draft of `00-index.md` and put it. The shape phase sets `progress.intake: complete`.
 9. Write the draft `.ai/workflows/<slug>/.draft/01-intake.md` per the template in `intake/default/_artifact.md`, and put it.
-10. **Register this workflow in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
 # Continue into the shape phase
 
-After Step 10, do not stop and do not ask the person to type a new command:
+After Step 9, do not stop and do not ask the person to type a new command:
 
 - When `01-intake.md` has `status: complete`, load [shape.md](../shape.md) and run the shape phase for `<slug>` now, in this run. The shape phase asks only the questions that this brief left open, and it writes the routes that follow intake.
 - When `01-intake.md` has `status: awaiting-input`, STOP. Name the open questions. The next `/wf intake <slug>` call answers them, then runs the shape phase.

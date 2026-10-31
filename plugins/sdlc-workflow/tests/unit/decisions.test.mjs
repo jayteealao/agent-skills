@@ -177,7 +177,7 @@ test('wf.mjs decide: add, list, answered, drop and import from the command line'
   try {
     let r = cli('add', f.root, 'demo', '--key', 'db', '--question', 'Which store?', '--answer', 'sqlite', '--slice', 'api', '--files', 'src/db,src/x.js');
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /^D-001 Which store\? → sqlite \(answer; slice=api files=src\/db,src\/x\.js\)/);
+    assert.match(r.stdout, /^D-001 \[db\] Which store\? → sqlite \(answer; slice=api files=src\/db,src\/x\.js\)/);
     r = cli('add', f.root, 'demo', '--key', 'db', '--answer', 'postgres', '--slice', 'api', '--files', 'src/x.js,src/db');
     assert.match(r.stdout, /supersedes D-001/);
     r = cli('list', f.root, 'demo', '--slice', 'api', '--json');
@@ -192,6 +192,8 @@ test('wf.mjs decide: add, list, answered, drop and import from the command line'
     assert.deepEqual(JSON.parse(cli('drop', f.root, 'demo', qf, '--slice', 'api', '--json').stdout).ask, [{ key: 'auth' }]);
     writeFileSync(path.join(f.dir, 'steer.md'), '- prefer the queue\n');
     assert.match(cli('import', f.root, 'demo').stdout, /imported 1, already held 0/);
+    const free = cli('list', f.root, 'demo', '--kind', 'steer').stdout;
+    assert.match(free, /^D-003 prefer the queue \(steer/m, 'a free steer has no key, so its line has no [key]');
     const none = cli('list', f.root, 'nope');
     assert.equal(none.status, 1);
     assert.match(none.stderr, /no workflow folder/);

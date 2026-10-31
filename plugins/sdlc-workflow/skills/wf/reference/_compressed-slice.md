@@ -46,16 +46,23 @@ refs:
 
 ## Index updates (after the put of the slice record)
 
-1. Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`.
-2. Append `03-slice-<slice-slug>.md` to `workflow-files`.
-3. Append `{slug: <slice-slug>, slice-type: <op>, created-at: "<iso>"}` to a top-level `compressed-slices:` array. Create the array if it does not exist on the index yet.
-4. Update `updated-at` to the current ISO timestamp.
-5. Leave `current-stage`, `stage-number`, `selected-slice`, `status`, `branch`, and `progress` unchanged. The compressed slice is additive; it does not advance the main lifecycle. Write the draft of `00-index.md` with these changes and put it.
-6. **Global registry.** Open `.ai/workflows/INDEX.md`. Locate the row whose first tab-separated column equals `<slug>`. Rewrite **only** the `updated-at` column (last column) to the same ISO timestamp used in step 4; leave `status`, `workflow-type`, and `branch` unchanged, because the parent workflow's lifecycle position is unchanged. If the row is missing (registry drift), append a new row using the values just read from `00-index.md` (`<slug>\t<status>\t<workflow-type>\t<branch>\t<updated-at>`); the next `/wf status` reconciles sort order.
+Run one command. It appends to both lists and moves `updated-at` itself:
+
+```
+node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "workflow-files+=03-slice-<slice-slug>.md" "compressed-slices+={slug: <slice-slug>, slice-type: <op>, created-at: <iso>}"
+```
+
+Change no other field of the index: not `current-stage`, `stage-number`, `selected-slice`, `status`, `branch` or `progress`. The compressed slice is additive. It does not advance the main lifecycle.
 
 ## Slice-index update (conditional)
 
-If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice.md` exits 0: in its output, append `{slug: <slice-slug>, status: defined, slice-type: <op>, compressed: true}` to `slices`; bump `total-slices` by 1; update `updated-at`; leave `best-first-slice` unchanged, because compressed slices are additive, not part of the planned implementation order; write the draft of `03-slice.md` and put it. If `03-slice.md` does not exist (the workflow has not reached slicing yet), skip this step entirely; the entry in `00-index.md.compressed-slices` is the single source of truth.
+When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice.md --fields total-slices` exits 0, it prints `total-slices: <n>`. Run one command:
+
+```
+node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 03-slice "slices+={slug: <slice-slug>, status: defined, slice-type: <op>, compressed: true}" total-slices=<n+1>
+```
+
+Do not change `best-first-slice`: a compressed slice is not part of the planned order. When `03-slice.md` does not exist (the workflow has not reached slicing yet), skip this step. The entry in `compressed-slices` of the index is then the single source of truth.
 
 ## Branch behavior and suppressed companions
 

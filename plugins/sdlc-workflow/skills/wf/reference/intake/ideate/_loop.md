@@ -125,7 +125,7 @@ A control word that names no known idea gets the titles back and changes nothing
 `done` ends the loop.
 
 - **One idea or more is `take`.** Set `selected:` to the taken ideas, in rank order. Run `# Pick — decision closure` of `intake/ideate.md` with them. The proposed order of its step 3 is the rank order. `decision-note:` holds the reasons that the person gave during triage, in the person's words. Do not ask for the pick reason again.
-- **No idea is `take`.** Ask one question: keep the run open and decide later, or close it with no list. A close runs `record set "<root>" <slug> index status=closed close-reason=no-pick closed-at=<timestamp> next-command=none`, and updates the slug's row in `.ai/workflows/INDEX.md`.
+- **No idea is `take`.** Ask one question: keep the run open and decide later, or close it with no list. A close runs `record set "<root>" <slug> index status=closed close-reason=no-pick closed-at=<timestamp> next-command=none`.
 
 The `later` ideas stay in `ideas:` after the close.
 
@@ -141,7 +141,7 @@ The `later` ideas stay in `ideas:` after the close.
 `/wf intake ideate <slug>` with a complete `01-ideate.md` goes into the loop.
 
 1. Snapshot `01-ideate.md` to `history/`, and add a `revisions:` entry with `trigger: resume`, per [_additive-write.md](../../_additive-write.md).
-2. When the run is closed and holds `later` or `open` ideas, reopen it: `record set "<root>" <slug> index status=ready next-command=user-picks "next-invocation=/wf intake ideate <slug>"`, and update the slug's row in `.ai/workflows/INDEX.md`. A closed run with no such idea stays closed: say so, and end the run.
+2. When the run is closed and holds `later` or `open` ideas, reopen it: `record set "<root>" <slug> index status=ready next-command=user-picks "next-invocation=/wf intake ideate <slug>"`. A closed run with no such idea stays closed: say so, and end the run.
 3. Tell the story of the last sitting when `## Sessions` holds one.
 4. Show where we are, in plain words: the taken ideas, the open ideas in rank order, the later ideas, the drops as titles only, and what each round looked at.
 5. Ask the first question of Step 5 again, with "Go through the open ideas one by one" as the first option.

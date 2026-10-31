@@ -2,28 +2,15 @@
 
 ## `00-index.md`
 
+1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires, with the allowed values of each enum.
+2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+3. Fill `title`, `branch-strategy`, `branch` and `base-branch`. Then set or add these keys:
+
 ```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "<human-readable title>"
-status: active
-current-stage: intake
 stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-selected-slice: ""
-branch-strategy: <dedicated|shared|none>
-branch: "<feat/slug or empty>"
-base-branch: "<main|master|develop>"
 review-scope: slug-wide
 review-scope-confirmed: true
 appetite: <small|medium|large>
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: []
 stack:
   detected-at: "<iso-8601>"
   platforms: []
@@ -57,28 +44,18 @@ charter:
     source: "01-intake.md#<section>"
     status: honored
     po-ratified: <true|false>
-next-command: wf-intake                 # the shape phase writes the next stage
-next-invocation: "/wf intake <slug>"   # a stop before the shape phase resumes it
-workflow-files:
-  - 00-index.md
-  - 01-intake.md
-  - decisions.yaml
-progress:
-  intake: in-progress                   # complete when the shape phase writes 02-shape.md
-  design: not-started
-  slice: not-started
-  plan: not-started
-  implement: not-started
-  verify: not-started
-  review: not-started
-  ship: not-started
-  retro: not-started
----
+next-command: wf-intake
+next-invocation: "/wf intake <slug>"
+workflow-files: [00-index.md, 01-intake.md, decisions.yaml]
+progress: {intake: in-progress, design: not-started, slice: not-started, plan: not-started, implement: not-started, verify: not-started, review: not-started, ship: not-started, retro: not-started}
 ```
+
+4. Put the draft, per [_records.md](../../_records.md).
 
 The index has no markdown body. The frontmatter is the current state of the workflow. Apply these rules:
 
 - Write no YAML comments in the index.
+- `next-command: wf-intake` holds until the shape phase writes the next stage. A stop before the shape phase resumes with `next-invocation`. `progress.intake` becomes `complete` when the shape phase writes `02-shape.md`.
 - Append history (old notes, old next-step commentary) to `index-history.jsonl`, one JSON object per line: `{"at","kind","text","stage"}`.
 - Keep the deferral list, `intent-risks`, `charter`, and `revisions:` in the index.
 - `review-scope: slug-wide` is the rule: one review per work packet. Nobody is asked. A person who wants a review per slice sets `review-scope: per-slice` with `/wf intake <slug> amend` before the first review.

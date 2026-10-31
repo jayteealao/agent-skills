@@ -127,76 +127,40 @@ Write the five reconstructed artifacts per [intake/adopt/_artifacts.md](adopt/_a
 
 # Step 4 — Write `00-index.md` (conformant `type: index`)
 
-Write the draft of the **full 22-field `type: index`** overview (`00-index.md`), and put it, using the template + required-field set from [intake/default.md](default.md) (the `## Write 00-index.md` block) — the same heavy index a standard feature workflow uses. Adoption-specific values:
+Write the full `type: index`, the same index as a standard feature workflow.
+
+1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires.
+2. Write the output to the draft `.ai/workflows/<slug>/.draft/00-index.md`. Remove the `# one of:` comments.
+3. Fill `title`, `branch` (the current branch name) and `base-branch`. Then set or add these adoption values:
 
 ```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "<human-readable title>"
 provenance: adopted
 workflow-type: adopt
-status: active
 current-stage: implement
 stage-number: 5
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
 selected-slice: <slug>
 branch-strategy: none
-branch: "<current branch name>"
-base-branch: "<base>"
 review-scope: slug-wide
 review-scope-confirmed: true
 appetite: small
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: []
-stack:
-  detected-at: "<iso-8601>"
-  platforms: []
-  languages: []
-  ui: []
-  build: []
-  package-managers: []
-  testing: []
-  observability: []
-  integrations: []
-  available-skills: []
-  available-mcp: []
-  user-confirmed: false
+stack: <the stack block, per intake/default/_artifact.md; user-confirmed: false>
 runtime-evidence-deferrals: []
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
-workflow-files:
-  - 00-index.md
-  - 01-adopt.md
-  - 02-shape.md
-  - 03-slice.md
-  - 04-plan.md
-  - 05-implement.md
+workflow-files: [00-index.md, 01-adopt.md, 02-shape.md, 03-slice.md, 04-plan.md, 05-implement.md]
 slices:
   - slug: <slug>
     status: complete
     complexity: <xs|s|m>
-progress:
-  intake: complete
-  slice: complete
-  plan: complete
-  implement: complete
-  verify: not-started
-  review: not-started
-  ship: not-started
-  retro: not-started
----
+progress: {intake: complete, slice: complete, plan: complete, implement: complete, verify: not-started, review: not-started, ship: not-started, retro: not-started}
 ```
+
+4. Run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
 Notes:
 - Write no YAML comments in the index. `review-scope: slug-wide` gives one `07-review.md` for the single slice. `runtime-evidence-deferrals` receives the proxy and deferral resolutions from `04-plan`.
 - `current-stage: implement` with `implement: complete` in `progress` — the reconstructed execution is done; `verify` is the first *not-started* stage, and `next-invocation` points there. (Use the standard `current-stage` enum — `implement` — never a bespoke `adopted` value; the adoption fact lives in `provenance` and `workflow-type`, not in `current-stage`.)
 - `branch-strategy: none` is deliberate — adoption inherits whatever branch the work was done on.
-- Then **register the slug in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md, with `workflow-type` column = `adopt`.
 
 # Step 5 — Hand off
 

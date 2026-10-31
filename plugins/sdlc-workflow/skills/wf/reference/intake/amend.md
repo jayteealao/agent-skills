@@ -77,20 +77,18 @@ and "quietly repoint a workflow at the wrong trunk."
 
 # Step 2 — Write
 
-1. Apply the confirmed changes to the index: get it, change the fields, refresh `updated-at`, write the draft `.ai/workflows/<slug>/.draft/00-index.md` and put it with `record put "<root>" <slug>`. The changes of items 4 and 5 go into the same draft.
-2. Mirror any changed `branch` into the workflow's row in `.ai/workflows/INDEX.md`, and refresh that
-   row's `updated-at`.
-3. Follow [_control-file-ownership.md](../_control-file-ownership.md): get the index immediately before
+1. Apply the confirmed changes to the index: get it, change the fields, refresh `updated-at`, write the draft `.ai/workflows/<slug>/.draft/00-index.md` and put it with `record put "<root>" <slug>`. The changes of items 3 and 4 go into the same draft. The put refreshes the row of the workflow in `INDEX.md`.
+2. Follow [_control-file-ownership.md](../_control-file-ownership.md): get the index immediately before
    you write the draft, and put the draft at once. A driver may be
    running on this slug.
-4. Record the amendment in the index's `revisions:` ledger with `trigger: manual` and a one-phrase
+3. Record the amendment in the index's `revisions:` ledger with `trigger: manual` and a one-phrase
    `because` — the *why* is the whole value of a config change ("PR target moved to the release
    train"). The entry shape is the `revisions:` shape from [_additive-write.md](../_additive-write.md)
    (that contract's *scope* covers stage artifacts; the index borrows only the entry shape, which
    the index schema declares and the overview renders as the revision-ledger strip).
-5. If the amended field was `review-scope`, also set `review-scope-confirmed: true` (see the
+4. If the amended field was `review-scope`, also set `review-scope-confirmed: true` (see the
    whitelist guard).
-6. Write **nothing else**. No stage artifact, no slice file, no new numbered file. Amend produces no
+5. Write **nothing else**. No stage artifact, no slice file, no new numbered file. Amend produces no
    artifact of its own.
 
 # Step 3 — Chat return
@@ -101,7 +99,7 @@ wf intake amend complete: <slug>
 <Narrative — what config moved and why it mattered, in one short paragraph.>
 
 Amended: <field: old → new, one per line>
-Artifacts: .ai/workflows/<slug>/00-index.md (+ INDEX.md row when the branch changed)
+Artifacts: .ai/workflows/<slug>/00-index.md
 Next: <the command the amendment unblocks — usually whatever the workflow was already doing>
 ```
 

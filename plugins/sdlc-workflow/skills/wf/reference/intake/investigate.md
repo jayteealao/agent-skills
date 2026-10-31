@@ -195,8 +195,7 @@ starts the successor — it prints the invocation and stops.
    at pick time (from `## Tripwire warnings`, or "none").
 3. **Close the workflow.** Run `record set "<root>" <slug> index status=closed close-reason=option-picked
    superseded-by=pending closed-at=<timestamp> next-command=none
-   "next-invocation=none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
-   to `closed`. `superseded-by: pending` is corrected to the successor slug by the downstream
+   "next-invocation=none — decision recorded"`. `superseded-by: pending` is corrected to the successor slug by the downstream
    mode's link-back (`_intake-provenance-consume.md`); updating that one field on a closed index is
    additive and safe.
 4. **Print the next invocation** with provenance, per the effort routing in the artifact `## Routing` —

@@ -22,11 +22,7 @@ export function parseSetArg(arg, { onRepair = null } = {}) {
   const m = /^([^=+-][^=]*?)(\+=|-=|=)([\s\S]*)$/.exec(String(arg));
   if (!m) throw new Error(`record set: ${arg} is not a path form. The forms are: ${PATH_FORMS}`);
   const [, key, op, rawValue] = m;
-  const path = key.split('.').map((seg) => {
-    const s = SEGMENT.exec(seg);
-    if (!s) throw new Error(`record set: ${key} is not a path. The forms are: ${PATH_FORMS}`);
-    return s[2] === undefined ? { key: s[1] } : { key: s[1], sel: s[2] };
-  });
+  const path = parsePath(key, 'record set');
   // Git Bash turns `key=/wf ...` into `key=C:/Program Files/Git/wf ...`; lib/msys.mjs undoes it.
   const { value: raw, repaired } = undoGitBashPath(rawValue);
   if (repaired && onRepair) onRepair(key, raw);
@@ -35,16 +31,46 @@ export function parseSetArg(arg, { onRepair = null } = {}) {
   return { path, op, value, key };
 }
 
-function selectIn(list, sel, where) {
-  if (!Array.isArray(list)) throw new Error(`record set: ${where} is not a list`);
+/** `a.b`, `list[<slug>].field` or `list[0]` → [{ key, sel? }]. `verb` names the command in an error. */
+export function parsePath(key, verb = 'record set') {
+  return String(key).split('.').map((seg) => {
+    const s = SEGMENT.exec(seg);
+    if (!s) throw new Error(`${verb}: ${key} is not a path. The forms are: ${PATH_FORMS}`);
+    return s[2] === undefined ? { key: s[1] } : { key: s[1], sel: s[2] };
+  });
+}
+
+function selectIn(list, sel, where, verb = 'record set') {
+  if (!Array.isArray(list)) throw new Error(`${verb}: ${where} is not a list`);
   if (/^\d+$/.test(sel)) {
     const i = Number(sel);
-    if (i >= list.length) throw new Error(`record set: ${where} has ${list.length} item(s); position ${i} is not one of them`);
+    if (i >= list.length) throw new Error(`${verb}: ${where} has ${list.length} item(s); position ${i} is not one of them`);
     return i;
   }
   const i = list.findIndex((item) => keyOf(item) === sel);
-  if (i < 0) throw new Error(`record set: ${where} has no item ${sel}; its items are: ${list.map(keyOf).filter(Boolean).join(', ') || 'none'}`);
+  if (i < 0) throw new Error(`${verb}: ${where} has no item ${sel}; its items are: ${list.map(keyOf).filter(Boolean).join(', ') || 'none'}`);
   return i;
+}
+
+/**
+ * The value at a path of `record set` (`slices[api].status`, `progress.plan`), for `record get
+ * --field`. A field that is not there is an error that names the fields at that level.
+ */
+export function getPath(fm, key) {
+  const verb = 'record get';
+  let at = fm;
+  const path = parsePath(key, verb);
+  for (let n = 0; n < path.length; n += 1) {
+    const { key: k, sel } = path[n];
+    const where = path.slice(0, n + 1).map((p) => p.key).join('.');
+    if (!at || typeof at !== 'object' || Array.isArray(at) || !Object.hasOwn(at, k)) {
+      const fields = at && typeof at === 'object' && !Array.isArray(at) ? Object.keys(at) : [];
+      throw new Error(`${verb}: no field ${where}; the fields there are: ${fields.join(', ') || 'none'}`);
+    }
+    at = at[k];
+    if (sel !== undefined) at = at[selectIn(at, sel, where, verb)];
+  }
+  return at;
 }
 
 /** A copy of a map or a list, so a change never edits the object that was read. */

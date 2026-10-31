@@ -65,6 +65,14 @@ function writeProfile(root, mutate) {
   return result;
 }
 
+/** The command that sets a suite, with `<root>` for the project root. */
+export const setSuiteFix = (suite) => `wf.mjs profile set <root> ${suite} --command "<command>" --estimate <seconds>`;
+
+/** The refusal for a suite that has no command; its `fix` names the command that sets one. */
+export function noCommand(suite, prefix = '') {
+  return Object.assign(new Error(`${prefix}the test profile has no command for the ${suite} suite`), { fix: setSuiteFix(suite) });
+}
+
 // Change one suite of the profile and write the config back. Returns the suite entry.
 function updateSuite(root, suite, change) {
   if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
@@ -84,7 +92,7 @@ export function setSuite(root, suite, { command, estimateSeconds }) {
 export function recordRun(root, suite, seconds, { now = nowIso(), passedAt = null } = {}) {
   if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('seconds must be a number of 0 or more');
-  if (!readProfile(root)[suite]?.command) throw new Error(`the test profile has no command for the ${suite} suite`);
+  if (!readProfile(root)[suite]?.command) throw noCommand(suite);
   return updateSuite(root, suite, (s) => ({ ...s, measuredSeconds: Math.round(seconds), measuredAt: now, ...(passedAt ? { passedAt } : {}) }));
 }
 

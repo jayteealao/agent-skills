@@ -6,7 +6,8 @@
 // never currency. The Stop hook (hooks/cost-ledger.mjs) drives this module once
 // per turn; the renderers, `/wf status`, and the eval comparison read the rows.
 //
-// One file per slug: `.ai/workflows/<slug>/cost.jsonl`, one JSON row per turn:
+// One file per slug and month: `.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl` (an older
+// `cost.jsonl` is read too, and `splitCostLedger` splits it), one JSON row per turn:
 //   { ts, host, session, turn, key, slug, slice,
 //     main: { model, input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens } | null,
 //     subagents: [{ agent_id, model, …usage }],
@@ -28,7 +29,7 @@
 
 import {
   appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync,
-  renameSync, statSync, writeFileSync,
+  renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
@@ -631,26 +632,93 @@ function endsWithNewline(file) {
   } catch { return true; }
 }
 
+/** A monthly ledger file: `cost-<yyyy-mm>.jsonl`. */
+export const MONTH_FILE_RE = /^cost-(\d{4})-(\d{2})\.jsonl$/;
+
+/** The monthly ledger file of a time (an ISO string or a Date; else this month), by UTC month. */
+export function costFileName(ts = new Date()) {
+  const d = ts instanceof Date ? ts : new Date(Date.parse(String(ts)));
+  const at = Number.isFinite(d.getTime()) ? d : new Date();
+  return `cost-${at.toISOString().slice(0, 7)}.jsonl`;
+}
+
+/** Every ledger file of a slug, oldest first: the old `cost.jsonl`, then the monthly files. */
+export function costFiles(slugDir) {
+  if (!slugDir) return [];
+  let names = [];
+  try { names = readdirSync(slugDir); } catch { return []; }
+  const months = names.filter((n) => MONTH_FILE_RE.test(n)).sort();
+  return [...(names.includes(COST_FILE) ? [COST_FILE] : []), ...months].map((n) => join(slugDir, n));
+}
+
 /**
- * Append one row to `<slugDir>/cost.jsonl` as one O_APPEND write. Two sessions
- * on one slug each add their own line; a read-modify-write-rename would let
- * the later writer drop the earlier row. A line torn by a crash mid-write is
- * closed with a newline first and skipped by `readCostRows`. Returns the
+ * Append one row to the monthly ledger of the slug, `<slugDir>/cost-<yyyy-mm>.jsonl` by the
+ * month of `row.ts`, as one O_APPEND write. One file a month keeps each ledger under the size
+ * cap of a synced file. Two sessions on one slug each add their own line; a
+ * read-modify-write-rename would let the later writer drop the earlier row. A line torn by a
+ * crash mid-write is closed with a newline first and skipped by `readCostRows`. Returns the
  * ledger path.
  */
 export function appendCostRow(slugDir, row) {
-  const file = join(slugDir, COST_FILE);
+  const file = join(slugDir, costFileName(row?.ts));
   mkdirSync(slugDir, { recursive: true });
   appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${JSON.stringify(row)}\n`, 'utf-8');
   return file;
 }
 
-/** Every well-formed row of a slug's ledger; a torn or foreign line is skipped. */
-export function readCostRows(slugDir) {
-  const file = join(slugDir ?? '', COST_FILE);
-  if (!slugDir || !existsSync(file)) return [];
+/** Every well-formed row of one ledger file; a torn or foreign line is skipped. */
+export function readCostFile(file) {
+  if (!file || !existsSync(file)) return [];
   return parseJsonLines(readFileSync(file, 'utf-8').split(/\r?\n/).filter(Boolean))
     .filter((r) => r && typeof r === 'object' && typeof r.slug === 'string');
+}
+
+/** Every well-formed row of a slug's ledger files (the old `cost.jsonl` and each month). */
+export function readCostRows(slugDir) {
+  return costFiles(slugDir).flatMap((f) => readCostFile(f));
+}
+
+/**
+ * Split the old `cost.jsonl` of a slug into its monthly files. Each line goes to the month of
+ * its `ts`; a line with no readable time goes with the line before it. A line that a monthly
+ * file already holds is not added again, so a split that stopped can run again. The old file is
+ * removed only after every one of its lines is found in its monthly file. Returns
+ * `{ split, lines, months }`, or `{ split: false, reason }`.
+ */
+export function splitCostLedger(slugDir) {
+  const old = join(slugDir ?? '', COST_FILE);
+  if (!slugDir || !existsSync(old)) return { split: false, reason: 'no cost.jsonl' };
+  const lines = readFileSync(old, 'utf-8').split(/\r?\n/).filter((l) => l.trim());
+  const byFile = new Map();
+  let last = null;
+  const pending = [];
+  for (const line of lines) {
+    let ts = null;
+    try { ts = JSON.parse(line)?.ts ?? null; } catch { /* a torn line */ }
+    const name = ts && Number.isFinite(Date.parse(ts)) ? costFileName(ts) : last;
+    if (!name) { pending.push(line); continue; }
+    if (!byFile.has(name)) byFile.set(name, []);
+    if (pending.length) byFile.get(name).push(...pending.splice(0));
+    byFile.get(name).push(line);
+    last = name;
+  }
+  if (pending.length) {
+    const name = costFileName(statSync(old).mtime);
+    byFile.set(name, [...(byFile.get(name) ?? []), ...pending]);
+  }
+  const held = (file) => new Set(existsSync(file) ? readFileSync(file, 'utf-8').split(/\r?\n/).filter(Boolean) : []);
+  for (const [name, rows] of byFile) {
+    const file = join(slugDir, name);
+    const have = held(file);
+    const add = rows.filter((l) => !have.has(l));
+    if (add.length) appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${add.join('\n')}\n`, 'utf-8');
+  }
+  for (const [name, rows] of byFile) {
+    const have = held(join(slugDir, name));
+    if (rows.some((l) => !have.has(l))) return { split: false, reason: `${name} does not hold every line of cost.jsonl` };
+  }
+  rmSync(old, { force: true });
+  return { split: true, lines: lines.length, months: Object.fromEntries([...byFile].map(([n, r]) => [n, r.length])) };
 }
 
 /** Map one usage object (Claude-shaped or Codex-shaped) onto the four display columns. */

@@ -815,14 +815,10 @@ function smallChangeClause(stage) {
     `Return no routeBack for a small change that passes its checks.`
 }
 
-// A repeated question: an earlier stage asked it under another key, and the person answered it.
-function sameQuestionClause() {
-  return `When it prints no answer, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\` and ` +
-    `\`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer --json\`, with --slice <your slice> when you run on ` +
-    `a slice. When an entry answers the same question in substance under another key (the same choice in other ` +
-    `words), or a standing answer (key standing:<kind>) covers the kind of the question, that entry settles it: ` +
-    `cite its id in the decision that you record (--by standing:<id> for a standing answer), and do not ask again. ` +
-    `Give a question that can come again the key <kind>:<case>, so a standing answer finds it. `
+// A decided question: the Decisions of the brief list each live answer with its key, and say
+// when a question is answered.
+function sameQuestionClause(wfCmd = WF_CMD) {
+  return `Before you ask, run \`${wfCmd} decide answered "${projectRoot}" ${slug} --key <key>\`: a live answer settles it. `
 }
 
 // A failing item that a live decision already settles is accepted, in every mode.
@@ -858,9 +854,8 @@ function delegateAcceptClause(sliceArg) {
 
 // Delegate mode: the person delegated the intent-bearing decisions of this run.
 function delegateClause(wfCmd) {
-  return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. When you reach one, ` +
-    `run \`${wfCmd} decide answered "${projectRoot}" ${slug} --key <key>\` first: a live answer settles it. ` +
-    sameQuestionClause() +
+  return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. ` +
+    sameQuestionClause(wfCmd) +
     `Otherwise settle it by the option you would recommend, record it with \`${wfCmd} decide add "${projectRoot}" ` +
     `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
     `<stage>\`, and continue. Return no questions. When your own slice moves a measured product behaviour ` +
@@ -976,7 +971,7 @@ const steer = (role) => steeringClause(STEER_CMD, role, `${referenceRoot}/_decis
 // ---------------------------------------------------------------------------
 // STOP AT THE NEXT BOUNDARY (YOLO-COMMENTARY-PLAN G1-G3). The person says "stop
 // after the current verify" in chat; the main session writes
-// .ai/workflows/<slug>/.control.json through scripts/yolo-watch.mjs control. This
+// .ai/run/<slug>/.control.json through scripts/yolo-watch.mjs control. This
 // script cannot read the file, so the agent that starts each stage reads it, fresh,
 // by path. When the request holds, the agent does no work
 // and returns status 'stopped', and the driver ends cleanly with stoppedAt
@@ -985,7 +980,8 @@ const steer = (role) => steeringClause(STEER_CMD, role, `${referenceRoot}/_decis
 // A stop request is a control signal, not steering: it says WHEN the driver ends,
 // never HOW a stage works.
 // ---------------------------------------------------------------------------
-const CONTROL_PATH = `${WF_DIR}/.control.json`
+// The stop request is a run file of this machine, in the project, never in the records folder.
+const CONTROL_PATH = `${projectRoot}/.ai/run/${slug}/.control.json`
 
 // The command reads the stop request and the journal, so the rule lives in code (yolo-watch stopCheck),
 // and the check finds the request wherever the records live.
@@ -1042,8 +1038,7 @@ const DECISION_CONTRACT =
 function questionContract(stage) {
   return `\n\nQUESTION CONTRACT. Wherever the reference asks the user (AskUserQuestion) or pauses for a human, ` +
     `DO NOT ask. Settle an implementation-detail decision yourself by the card of your brief, and record it. ` +
-    `For an intent-bearing decision (per ${referenceRoot}/_decision-classes.md), run ` +
-    `\`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\` first: a live answer settles it. ` +
+    `An intent-bearing decision (per ${referenceRoot}/_decision-classes.md) is a question. ` +
     sameQuestionClause() +
     (DELEGATE
       ? `Otherwise follow DELEGATE MODE below.`

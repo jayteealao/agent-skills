@@ -19,7 +19,7 @@ Then list the known long runs of the repo, per "The known long runs" of [_check-
 Ask in one question round, per [_gate-question.md](_gate-question.md):
 
 1. "This repo is <your line>. Is that right?" The answers are your line and a field for the person's own line.
-2. "These commands test the repo: <fast>, <affected>, <full>, <heavy>. Are they right?" The answers are the commands and a field for corrections. Omit a suite that the repo does not have.
+2. "These commands test the repo: <fast>, <affected>, <full>, <heavy>. Are they right?" The answers are the commands and a field for corrections. Omit a suite that the repo does not have. This is the one place that asks for the suites: no stage asks again. A repo with no suite for implement gets `receipt: none (no suite in the profile)` at the end of implement.
 3. The budget question of [_check-budget.md](_check-budget.md), with the suite estimates and the known long runs of Step 1 in its text. Skip it when `wf.mjs profile budget` prints a budget.
 4. Only when Step 1 found a pre-push command in no suite: "The push hook runs <command> (<file>, about <estimate>). Add it to the `heavy` suite, so that the review runs it once per packet before the push?" Name each such command with its estimate. The answers are yes, no, and a field for corrections.
 

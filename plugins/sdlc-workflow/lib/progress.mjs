@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import { readSteps, whereOf } from './steps.mjs';
 import { workflowsRoot } from './records-root.mjs';
+import { ensureRunFolder, runDirOf } from './run-files.mjs';
 import { undoGitBashPath } from './msys.mjs';
 
 export const PROGRESS_FILE = 'progress.json';
@@ -29,7 +30,7 @@ export function readProgress(slugDir) {
 }
 
 /** Merge a change into the record and write it. A new run id starts a new record. */
-export function writeProgress(slugDir, change, { now = nowIso() } = {}) {
+export function writeProgress(slugDir, change, { now = nowIso(), root = null } = {}) {
   // `complete` is the word of the stage records; the run record says `done`.
   if (change.status === 'complete' || change.status === 'completed') change = { ...change, status: 'done' };
   if (change.status && !STATUSES.includes(change.status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
@@ -44,27 +45,37 @@ export function writeProgress(slugDir, change, { now = nowIso() } = {}) {
   renameSync(`${file}.tmp`, file);
   // The end of a driver run (its last `progress set`) saves the outcome on this machine.
   if (next.driver && change.status && change.status !== 'running') {
-    writeDriverOutcome(slugDir, { run: next.run ?? null, driver: next.driver, status: next.status, stage: next.stage ?? null, slice: next.slice ?? null, reason: next.reason ?? null, resume: next.resume ?? null }, { now });
+    writeDriverOutcome(slugDir, { run: next.run ?? null, driver: next.driver, status: next.status, stage: next.stage ?? null, slice: next.slice ?? null, reason: next.reason ?? null, resume: next.resume ?? null }, { now, root });
   }
   return next;
 }
 
-/** The outcome of the last driver run on this machine; it stays local (lib/records-root.mjs). */
+/**
+ * The outcome of the last driver run on this machine. It lives in the run folder of the project,
+ * <root>/.ai/run/<slug>/ (lib/run-files.mjs); `root` names the project when the caller knows it.
+ */
 export const OUTCOME_FILE = '.driver-outcome.json';
 
 /** Merge `outcome` into the saved outcome of the run; a new run replaces the old outcome. */
-export function writeDriverOutcome(slugDir, outcome, { now = nowIso() } = {}) {
-  const old = readDriverOutcome(slugDir);
+export function writeDriverOutcome(slugDir, outcome, { now = nowIso(), root = null } = {}) {
+  const old = readDriverOutcome(slugDir, { root });
   const base = old && old.run === (outcome.run ?? old.run) ? old : {};
   const next = { ...base, ...Object.fromEntries(Object.entries(outcome).filter(([, v]) => v !== undefined)), at: now };
-  const file = join(slugDir, OUTCOME_FILE);
+  const run = runDirOf(slugDir, root);
+  const dir = run ? ensureRunFolder(run) : slugDir;
+  const file = join(dir, OUTCOME_FILE);
   writeFileSync(`${file}.tmp`, `${JSON.stringify(next, null, 2)}\n`);
   renameSync(`${file}.tmp`, file);
   return next;
 }
 
-export function readDriverOutcome(slugDir) {
-  try { return JSON.parse(readFileSync(join(slugDir, OUTCOME_FILE), 'utf8')); } catch { return null; }
+/** The saved outcome: the run folder first, then the workflow folder where an older plugin wrote it. */
+export function readDriverOutcome(slugDir, { root = null } = {}) {
+  const dir = runDirOf(slugDir, root);
+  for (const d of dir ? [dir, slugDir] : [slugDir]) {
+    try { return JSON.parse(readFileSync(join(d, OUTCOME_FILE), 'utf8')); } catch { /* the next place */ }
+  }
+  return null;
 }
 
 // The newest `at` of the driver journal, or NaN.

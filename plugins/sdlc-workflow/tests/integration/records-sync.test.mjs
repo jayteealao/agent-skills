@@ -275,7 +275,7 @@ test('a project that is not linked here is read from git, and a post to it pushe
   } finally { w.done(); }
 });
 
-test('a record file above the size limit stays in the clone folder and out of every commit', () => {
+test('a record file above the size limit moves to the evidence folder of the project and out of every commit', () => {
   const w = world();
   try {
     const a = w.as(w.machine('alpha'));
@@ -290,7 +290,9 @@ test('a record file above the size limit stays in the clone folder and out of ev
     const files = gitIn(clone, ['ls-tree', '-r', '--name-only', 'refs/heads/live/notes/w1']).stdout.split('\n');
     assert.ok(files.includes('notes/w1/verify-evidence/checks.md'));
     assert.ok(!files.includes('notes/w1/verify-evidence/trace.zip'), 'the large file is in no commit');
-    assert.ok(existsSync(join(workflowDir(a.root, 'w1'), 'verify-evidence', 'trace.zip')), 'the large file stays in the clone folder');
+    assert.ok(!existsSync(join(workflowDir(a.root, 'w1'), 'verify-evidence', 'trace.zip')), 'the large file left the clone folder');
+    assert.ok(existsSync(join(a.root, '.ai', 'evidence', 'w1', 'verify-evidence', 'trace.zip')), 'the large file is in the evidence folder');
+    assert.ok(files.includes('notes/w1/local-evidence.jsonl'), 'the record lists it');
     // A sync makes no commit for it.
     const tip = gitIn(clone, ['rev-parse', 'refs/heads/live/notes/w1']).stdout;
     syncRecords(a.root);

@@ -41,9 +41,11 @@ test('a standing answer settles each later question of its kind, and every brief
   assert.match(ref('_question-craft.md'), /8\. \*\*Offer a standing option for a question that can come again\.\*\*/);
   assert.match(ref('_question-craft.md'), /decide add --kind steer --key standing:<kind>/);
   assert.match(ref('_decision-classes.md'), /\*\*A standing answer settles a named kind\.\*\*/);
-  const lookup = 'Before you return or ask a question, run `wf.mjs decide list --kind steer` and `wf.mjs decide list --by person`.';
+  // The brief owns the lookup: its Decisions carry the keys and the rule; the stage cards hold no copy.
+  const brief = readFileSync(path.join(pluginRoot, 'lib', 'brief.mjs'), 'utf8');
+  assert.equal(brief.split('record the case with `--by standing:<id>` of that entry').length, 2);
   for (const name of ['plan.md', 'implement.md', 'verify.md', 'review.md']) {
-    assert.ok(ref(name).includes(lookup), `${name} looks for a standing answer before it asks`);
+    assert.doesNotMatch(ref(name), /Before you return or ask a question, run `wf\.mjs decide list --kind steer`/, `${name} holds no copy of the lookup`);
   }
   assert.match(ref('yolo.md'), /Settled by a standing answer: /);
 });

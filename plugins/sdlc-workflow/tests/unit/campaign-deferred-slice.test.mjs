@@ -38,9 +38,12 @@ test('a slice in progress still holds the work packet open', () => {
 test('the roster schema and the verify stage know the deferred status', () => {
   const schema = readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8');
   assert.equal((schema.match(/"defined", "in-progress", "complete", "deferred", "skipped", "dropped"/g) || []).length, 3);
+  // `record stage-done` owns the rule (lib/stage-done.mjs); the verify card cites it.
   const verify = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'verify.md'), 'utf8');
-  assert.match(verify, /A `partial` whose only residue is open runtime-evidence deferrals sets `status: deferred`/);
-  assert.match(verify, /`\/wf ship` still blocks on each open deferral of `runtime-evidence-deferrals`/);
+  assert.match(verify, /`record stage-done` sets the roster status\./);
+  assert.doesNotMatch(verify, /A `partial` whose only residue is open runtime-evidence deferrals sets `status: deferred`/);
+  const stageDone = readFileSync(path.join(pluginRoot, 'lib', 'stage-done.mjs'), 'utf8');
+  assert.match(stageDone, /residue is open deferrals gives `deferred`/);
 });
 
 test('a write-back that reports ok but wrote nothing is logged as a failure', () => {

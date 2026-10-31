@@ -29,11 +29,14 @@ const TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$|^\.watch-state\.json\.\d+\.tmp$/;
 
 const posix = (p) => p.split('\\').join('/');
 
+/** The folders of .ai/ that hold the files of one checkout: the run files and the large evidence. */
+const LOCAL_FOLDERS = new Set(['run', 'evidence']);
+
 /** True for a path (relative to .ai/, posix) that the sync never copies: machine-local files, render caches, its own temp files. */
 export function isSkipped(rel) {
   const parts = rel.split('/');
   const base = parts[parts.length - 1];
-  return MACHINE_LOCAL.has(base) || parts.includes('_view') || TEMP_RE.test(base);
+  return MACHINE_LOCAL.has(base) || LOCAL_FOLDERS.has(parts[0]) || parts.includes('_view') || TEMP_RE.test(base);
 }
 
 export function hashFile(abs) {

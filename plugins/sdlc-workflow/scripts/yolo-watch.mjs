@@ -19,7 +19,7 @@
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
  *   node yolo-watch.mjs control <projectRoot> <slug> clear|show
- *       Write, delete or print .ai/workflows/<slug>/.control.json (the stop request, G1).
+ *       Write, delete or print .ai/run/<slug>/.control.json (the stop request, G1).
  *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>] [--reason <text>] [--run <id>]
  *       Append a run-end line to the driver journal. The main session runs it when
  *       the Workflow returns, so the watch ends at once. The driver's last step runs
@@ -39,7 +39,7 @@
  * S1 Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
  *    protected files every 20 s, the usage readings every 60 s. A poll needs no
  *    file-change events, so it works on Windows.
- * S3 The offsets persist in .ai/workflows/<slug>/.watch-state.json. A re-armed
+ * S3 The offsets persist in .ai/run/<slug>/.watch-state.json. A re-armed
  *    watch starts where the last watch stopped and misses no event.
  * S4 The script exits by itself after the run-end event: a run-end journal line,
  *    or a journal whose newest line is an agent-end and that stays silent past
@@ -75,7 +75,8 @@ import { readDoc } from '../lib/records.mjs';
 import { clearStopRequest } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
-import { realPathOf, workflowDir } from '../lib/records-root.mjs';
+import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
+import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
@@ -85,6 +86,7 @@ export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify
 export { STALE_FLOOR_MS };
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 const STATE_FILE = '.watch-state.json';
+const CONTROL_FILE = '.control.json';
 // The events that are not news: they go to commentary.md, and a --once watch keeps polling
 // after them. Every other event (stage-end, decision, stop, stale, protected-change,
 // run-end, look-in) ends a --once watch.
@@ -94,8 +96,11 @@ export const isNews = (ev) => Boolean(ev) && !ev.quiet && !NOT_NEWS_EVENTS.inclu
 const STATE_VERSION = 1;
 
 export const journalPath = (root, slug) => path.join(workflowDir(root, slug), '.driver-journal.jsonl');
-export const statePath = (root, slug) => path.join(workflowDir(root, slug), STATE_FILE);
-export const controlPath = (root, slug) => path.join(workflowDir(root, slug), '.control.json');
+// The watch offsets and the stop request are run files of this machine: <root>/.ai/run/<slug>/.
+// A reader also reads the workflow folder, where an older plugin wrote them.
+export const statePath = (root, slug) => path.join(runDir(root, slug), STATE_FILE);
+export const controlPath = (root, slug) => path.join(runDir(root, slug), CONTROL_FILE);
+const controlFiles = (root, slug) => [controlPath(root, slug), oldRunFile(root, slug, CONTROL_FILE)];
 export const commentaryPath = (root, slug) => path.join(workflowDir(root, slug), 'commentary.md');
 
 const iso = (ms) => new Date(ms).toISOString();
@@ -410,7 +415,7 @@ function freshSlugState() {
 }
 
 export function loadState(root, slug) {
-  const s = readJson(statePath(root, slug));
+  const s = readJson(findRunFile(root, slug, STATE_FILE) ?? statePath(root, slug));
   return s && s.version === STATE_VERSION ? { ...freshSlugState(), ...s } : null;
 }
 
@@ -547,7 +552,7 @@ export function createWatcher({
   function save() {
     for (const [slug, { st }] of states) {
       try {
-        mkdirSync(workflowDir(root, slug), { recursive: true });
+        ensureRunDir(root, slug);
         writeJsonAtomic(statePath(root, slug), st);
       } catch (e) { process.stderr.write(`yolo-watch: cannot save state for ${slug}: ${e.message}\n`); }
     }
@@ -757,8 +762,11 @@ export function writeFact(file, name, text, nowMs) {
 
 export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
   const file = controlPath(root, slug);
-  if (action === 'clear') return clearStopRequest(file, journalPath(root, slug), { force: rest.includes('force') }).kept || null;
-  if (action === 'show') return readJson(file);
+  if (action === 'clear') {
+    const kept = controlFiles(root, slug).map((f) => clearStopRequest(f, journalPath(root, slug), { force: rest.includes('force') }).kept).find(Boolean);
+    return kept || null;
+  }
+  if (action === 'show') return readJson(findRunFile(root, slug, CONTROL_FILE) ?? file);
   let value;
   if (action === 'stop') {
     const after = rest[0] || 'current';
@@ -767,7 +775,7 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
   } else {
     throw new Error('control: the action is stop, clear, or show');
   }
-  mkdirSync(path.dirname(file), { recursive: true });
+  ensureRunDir(root, slug);
   writeJsonAtomic(file, value);
   return value;
 }
@@ -779,8 +787,8 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
  * Returns `{ stop, reason?, request? }`.
  */
 export function stopCheck(root, slug) {
-  const file = controlPath(root, slug);
-  if (!existsSync(file)) return { stop: false };
+  const file = findRunFile(root, slug, CONTROL_FILE);
+  if (!file) return { stop: false };
   let request = readJson(file);
   if (!request || typeof request !== 'object') {
     pause(200);

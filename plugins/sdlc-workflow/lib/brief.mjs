@@ -146,6 +146,9 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
 
   const live = liveDecisions(decisionsOf(dir), slice ? { slice } : {});
   const decisionsText = live.length ? live.map((e) => `- ${decisionLine(e)}`).join('\n') : null;
+  // The rule of lib/decisions.mjs answeredBy: the key itself, or a standing answer of its kind.
+  const answeredRule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` ' +
+    'is also answered when a `[standing:<kind>]` entry is listed: use its answer, and record the case with `--by standing:<id>` of that entry.';
 
   const cli = wfCli ? `\n\nThe decision commands are \`node "${String(wfCli).replace(/\\/g, '/')}" decide <verb> "${String(projectRoot).replace(/\\/g, '/')}" ${slug} ...\`.` : '';
   // A linked project keeps the files of the workflow in the records home; the drafts stay local.
@@ -161,7 +164,7 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     `## ${slice ? `Slice ${slice}` : 'Workflow'}\n\n${sliceText ?? '(none)'}`,
     ...(want ? [`## Plan\n\n${planText ?? '(none)'}`] : []),
     ...(suites ? [`## Tests\n\n${testsText ?? '(no test profile)'}`] : []),
-    `## Decisions\n\n${decisionsText ?? 'No live decisions in this scope.'}`,
+    `## Decisions\n\n${decisionsText ? `${answeredRule}\n\n${decisionsText}` : 'No live decisions in this scope.'}`,
     ...(missing.length ? [`## Missing\n\n${missing.map((m) => `- ${m}`).join('\n')}`] : []),
   ].join('\n\n');
   return { text: `${text}\n`, parts, missing };

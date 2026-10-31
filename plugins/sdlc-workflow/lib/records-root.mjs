@@ -95,6 +95,24 @@ export const workflowDir = (projectRoot, slug) => join(workflowsRoot(projectRoot
 /** The folder of one workflow, relative to the project root, with forward slashes. */
 export const workflowRel = (slug) => `${WORKFLOWS_REL}/${slug}`;
 
+/**
+ * The run files of this machine: the answer log, the stop request, the watch offsets, the outcome
+ * of the last driver run and the log of the wf scripts. They live in <root>/.ai/run/, also for a
+ * linked project, so the records clone holds only files that git commits.
+ */
+export const RUN_FILES = Object.freeze(['answers.jsonl', '.control.json', '.watch-state.json', '.driver-outcome.json', '.api-log.jsonl']);
+export const RUN_DIR = 'run';
+export const EVIDENCE_DIR = 'evidence';
+
+/** The run folder of a project: <root>/.ai/run/. The answer log sits at its top. */
+export const runRoot = (projectRoot) => join(projectRoot, AI_DIR, RUN_DIR);
+
+/** The run files of one workflow on this machine: <root>/.ai/run/<slug>/. */
+export const runDir = (projectRoot, slug) => join(runRoot(projectRoot), slug);
+
+/** The large evidence of one workflow on this machine (traces, videos, files over the cap): <root>/.ai/evidence/<slug>/. */
+export const evidenceDir = (projectRoot, slug) => join(projectRoot, AI_DIR, EVIDENCE_DIR, slug);
+
 /** True when a directory holds a record store. */
 export const ownsRecords = (dir) => existsSync(localWorkflowsRoot(dir));
 
@@ -106,6 +124,11 @@ const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
  * with its reason. Every other file of a workflow folder syncs: the records, the step record
  * (`steps.jsonl`, the old `.implement-progress.jsonl`), the test receipts, the handover notes and
  * the driver journal (`.driver-journal.jsonl`), which goes into the clone with the next commit.
+ *
+ * The run files now live in <root>/.ai/run/<slug>/ (runDir), and each records commit first moves
+ * an old one out of the clone (sweepRunFiles of lib/run-files.mjs). This list stays as a guard
+ * until no clone holds such a file; then it, `keptOutOfCommits` of lib/records-sync.mjs and
+ * LOCAL_ONLY_NAMES of hooks/_adapter.mjs can go.
  */
 export const LOCAL_ONLY_ENTRIES = Object.freeze({
   '.draft': 'the drafts of the agents of this session',
@@ -201,7 +224,7 @@ export function workflowDirOf(filePath) {
 const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
 
 // The entries of `.ai/` that the plugin writes. Another tool may keep its own `.ai/` folder.
-const OWNED = /^(workflows|solutions|simplify|profiles|docs|design|_view|sdlc-config\.json|ship-plan(-audit)?\.md|observability.*\.md)$/;
+const OWNED = /^(workflows|run|evidence|solutions|simplify|profiles|docs|design|_view|sdlc-config\.json|ship-plan(-audit)?\.md|observability.*\.md)$/;
 
 /**
  * The nested `.ai/` folder that a write to `filePath` would use, or null when the write is

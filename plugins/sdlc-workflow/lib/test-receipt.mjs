@@ -6,11 +6,44 @@
 // reuses the receipt only while the tree is the tree that ran: the commit `sha` plus the changes
 // of `dirty` with the same hashes. Any other change outside .ai, in a commit after `sha` or in
 // the work tree, in a file that a suite reads or not, makes the receipt stale.
+//
+// A project whose test profile has no suite for implement gets a receipt of result `none`: the
+// receipt and `record stage-done` write it and go on, and verify runs its own checks. The setup
+// asks for the suites once for the project.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { STAGE_SUITES, readProfile } from './test-profile.mjs';
 
 const git = (root, args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+
+// The reason of a receipt of result `none`.
+export const NO_SUITE = 'no suite in the profile';
+
+/** The file of the receipt of a slice. */
+export const receiptFile = (dir, slice) => join(dir, `.test-receipt-${slice}.json`);
+
+/** The implement suites of a test profile that have a command. */
+export const implementSuites = (profile) => STAGE_SUITES.implement.filter((s) => profile?.[s]?.command);
+
+/**
+ * When the test profile of the project has no suite for implement, write the receipt of result
+ * `none` for the slice (a pass receipt that is already there stays) and return it; else null.
+ */
+export function noSuiteReceipt(root, dir, slice, { now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') } = {}) {
+  if (implementSuites(readProfile(root)).length) return null;
+  const file = receiptFile(dir, slice);
+  if (existsSync(file)) {
+    try {
+      const held = JSON.parse(readFileSync(file, 'utf8'));
+      if (held?.result === 'pass' || held?.result === 'none') return held;
+    } catch { /* a broken receipt is written again */ }
+  }
+  const head = git(root, ['rev-parse', 'HEAD']);
+  const receipt = { sha: head.status === 0 ? head.stdout.trim() : null, commands: [], result: 'none', reason: NO_SUITE, at: now };
+  writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
+  return receipt;
+}
 
 /**
  * The tracked files outside .ai whose work-tree content differs from a commit (HEAD by default),
@@ -37,6 +70,7 @@ export function treeChanges(root, base = 'HEAD') {
  * list, each with the same hash. A code commit after `sha` differs from it, so it is stale too.
  */
 export function receiptState(root, receipt) {
+  if (receipt?.result === 'none') return { reusable: false, reason: `none (${receipt.reason ?? NO_SUITE})` };
   if (!receipt || receipt.result !== 'pass') return { reusable: false, reason: 'the receipt is not a pass' };
   if (!receipt.sha) return { reusable: false, reason: 'the receipt names no commit' };
   let now;

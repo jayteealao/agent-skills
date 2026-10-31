@@ -1,6 +1,7 @@
 // The end of a stage in one call: `wf.mjs record stage-done <root> <slug> <stage> [<slice>]`.
 // It writes `current-stage`, `progress.<stage>`, `next-command` and `next-invocation` into the
-// index, sets `selected-slice`, and adds the stage files to `workflow-files`. The next route is
+// index, sets `selected-slice`, and adds the stage files to `workflow-files`. After implement
+// and verify it also sets the roster status of the slice in `03-slice.md`. The next route is
 // the default route of the stage (below); `next` replaces it when the stage chose another one.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,7 +29,43 @@ export const SMALL_STAGE_FILES = {
 export const SLICE_STAGES = [['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']];
 const PER_SLICE = new Set(SLICE_STAGES.map(([s]) => s));
 const DESIGN_IMPACT = new Set(['visual', 'flow', 'new-surface']);
-const SLICE_DONE = new Set(['complete', 'skipped', 'dropped']);
+// A `deferred` slice is built and verified except for the runtime evidence of an open deferral:
+// the walk goes past it, and ship blocks on the deferral.
+const SLICE_DONE = new Set(['complete', 'deferred', 'skipped', 'dropped']);
+// The roster statuses that stage-done never changes.
+const ROSTER_FIXED = new Set(['complete', 'skipped', 'dropped']);
+
+/**
+ * The roster status of a slice after implement or verify, or null for no change. Implement
+ * gives `in-progress`. Verify reads `result` and `convergence` of its record and the open
+ * runtime-evidence deferrals of the index: a pass gives `complete`; a partial whose only
+ * residue is open deferrals gives `deferred`; each other outcome gives `in-progress`.
+ */
+function rosterStatusAfter(dir, stage, slice, index) {
+  if (stage === 'implement') return 'in-progress';
+  if (stage !== 'verify') return null;
+  const verify = frontmatterOfDoc(dir, `06-verify-${slice}.md`) ?? {};
+  const result = String(verify.result ?? '');
+  if (result === 'pass') return 'complete';
+  const deferrals = Array.isArray(index['runtime-evidence-deferrals']) ? index['runtime-evidence-deferrals'] : [];
+  const open = deferrals.some((d) => d && !d['cleared-by']
+    && (d.slice === slice || (Array.isArray(d['absorbed-by']) && d['absorbed-by'].includes(slice))));
+  if (result === 'partial' && open && verify.convergence !== 'escalated') return 'deferred';
+  return 'in-progress';
+}
+
+/** Write the roster status of one slice into 03-slice.md. No roster, no entry or a fixed status: no change. */
+function writeRosterStatus(dir, slice, status) {
+  const roster = frontmatterOfDoc(dir, '03-slice.md')?.slices;
+  if (!status || !Array.isArray(roster)) return null;
+  const at = roster.findIndex((s) => (typeof s === 'string' ? s : s?.slug) === slice);
+  if (at < 0) return null;
+  const entry = typeof roster[at] === 'string' ? { slug: roster[at], status: 'defined' } : roster[at];
+  if (ROSTER_FIXED.has(String(entry.status)) || entry.status === status) return null;
+  const slices = roster.map((s, i) => (i === at ? { ...entry, status } : s));
+  setFields(dir, '03-slice.md', { slices });
+  return status;
+}
 
 const sliceSlugs = (dir) => {
   const roster = frontmatterOfDoc(dir, '03-slice.md')?.slices;
@@ -75,7 +112,7 @@ const invocationOf = (slug, route) => (route ? `/wf ${route.stage} ${slug}${rout
  * Record the end of a stage in the index. `next` is an invocation (`/wf ship <slug>`) that
  * replaces the default route. `status` is the progress value (default `complete`; a per-slice
  * stage reads `in-progress` until each open slice of the roster has it). Returns the fields
- * that were written.
+ * that were written into the index, and `roster-status` when the roster changed.
  */
 export function stageDone(dir, slug, stage, slice = null, { next = null, status = null } = {}) {
   if (!Object.hasOwn(STAGE_FILES, stage)) throw new Error(`record stage-done: ${stage} is not a stage; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
@@ -93,6 +130,7 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
     : stage === 'plan' && !slice ? roster.map((x) => `04-plan-${x}.md`)
       : ((small ? SMALL_STAGE_FILES[stage] : null) ?? STAGE_FILES[stage])(slice);
   if (stage === 'slice') names.push(...roster.map((x) => `03-slice-${x}.md`));
+  const rosterStatus = slice ? writeRosterStatus(dir, slice, rosterStatusAfter(dir, stage, slice, index)) : null;
   const files = names.filter((f) => frontmatterOfDoc(dir, f));
   if (stage === 'review' && existsSync(join(dir, 'findings.yaml'))) files.push('findings.yaml');
   let progress = status ?? 'complete';
@@ -114,5 +152,5 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
     ...(slice ? { 'selected-slice': slice } : {}),
   };
   setFields(dir, INDEX_NAME, changes);
-  return changes;
+  return rosterStatus ? { ...changes, 'roster-status': rosterStatus } : changes;
 }

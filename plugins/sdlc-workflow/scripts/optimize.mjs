@@ -57,6 +57,8 @@ import {
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal,
 } from '../lib/optimize.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
+import { findRunFile } from '../lib/run-files.mjs';
+import { costFiles, readCostRows } from '../lib/cost-ledger.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune|ablate> <projectRoot> <slug> ...';
@@ -67,7 +69,6 @@ const wfDir = workflowDir;
 const optDir = (root, slug) => join(wfDir(root, slug), 'optimize');
 const statePath = (root, slug) => join(optDir(root, slug), 'state.json');
 const resultsPath = (root, slug) => join(optDir(root, slug), 'results.jsonl');
-const controlPath = (root, slug) => join(wfDir(root, slug), '.control.json');
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 function writeAtomic(file, text) {
@@ -175,22 +176,20 @@ function withIdeas(root, slug, fn) {
 }
 const readProfile = (root, slug) => (existsSync(profileFile(root, slug)) ? JSON.parse(readFileSync(profileFile(root, slug), 'utf8')) : null);
 
+// The stop request is a run file: <root>/.ai/run/<slug>/.control.json, else the workflow folder of an older run.
 function readControl(root, slug) {
-  const f = controlPath(root, slug);
-  if (!existsSync(f)) return null;
+  const f = findRunFile(root, slug, '.control.json');
+  if (!f) return null;
   try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return { action: 'stop', reason: '.control.json does not parse' }; }
 }
 
 /** The tokens of the slug since the start, from the cost ledger (lib/cost-ledger.mjs). */
 function tokensSince(root, slug, startedAt) {
-  const f = join(wfDir(root, slug), 'cost.jsonl');
-  if (!existsSync(f)) return null;
+  const dir = wfDir(root, slug);
+  if (!costFiles(dir).length) return null;
   let sum = 0;
   const t0 = Date.parse(startedAt);
-  for (const line of readFileSync(f, 'utf8').split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    let row;
-    try { row = JSON.parse(line); } catch { continue; }
+  for (const row of readCostRows(dir)) {
     if (Date.parse(row.ts) < t0) continue;
     const add = (u) => { if (u) sum += Number(u.input_tokens ?? 0) + Number(u.output_tokens ?? 0); };
     add(row.main);

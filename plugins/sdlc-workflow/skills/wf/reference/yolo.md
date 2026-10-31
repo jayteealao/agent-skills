@@ -64,10 +64,10 @@ The target itself — the slug-wide review in slug mode, the named slice in slic
 
 # Control files while a driver is live
 
-While a driver is running for a slug — or is presumed-dead and not yet reconciled — that slug's `00-index.md` and the global `.ai/workflows/INDEX.md` are driver-owned. Any writer, foreground or delegated:
+While a driver is running for a slug — or is presumed-dead and not yet reconciled — that slug's `00-index.md` is driver-owned. The scripts write `.ai/workflows/INDEX.md`; no writer edits it. Any writer, foreground or delegated:
 
-1. **Changes an index field with `record set`**, per [_control-file-ownership.md](_control-file-ownership.md). The command merges the change in one step. **Re-reads `.ai/workflows/INDEX.md` immediately before every edit.** Never edit from a copy read earlier in the same agent.
-2. **Treats an edit rejection as "the other writer moved"** — re-read, re-derive the change, retry once. Never force a stale string through; never rewrite the whole file to dodge the conflict.
+1. **Changes an index field with `record set`**, per [_control-file-ownership.md](_control-file-ownership.md). The command merges the change in one step.
+2. **Treats a refused write as "the other writer moved"** — re-read, re-derive the change, retry once. Never force a stale value through.
 3. **Never runs a second driver** (another `yolo`) for the same slug while one is live.
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.

@@ -65,9 +65,12 @@ If no browser tool is available, fall through to Playwright (candidate 3 below).
 ### 3. Playwright directly
 If configured in the project, run existing Playwright test suites or write inline scripts.
 
+- Keep a trace only for a failed test: `trace: 'retain-on-failure'` (CLI: `--trace retain-on-failure`). Never `trace: 'on'`: a trace is 4 to 60 MB.
+- Write the test output (traces, videos, reports) to `<project root>/.ai/evidence/<slug>/<slice-slug>/`: `outputDir` in the config, or `--output <dir>`. That folder stays on this machine; the next records commit lists each file in `local-evidence.jsonl`.
+
 ## Observe
 - **Multi-point screenshots:** For each criterion drive, capture evidence at three distinct moments: the initial response immediately after triggering the action, the transition or loading state while the system is processing, and the final settled state after completion. Use whatever screenshot mechanism the chosen driver provides. Report on each frame: was a loading indicator shown? Did transitions complete cleanly? Was there any blank or broken intermediate state?
-- **Video recording (mandatory for UI criteria):** Record video of each criterion drive using the chosen driver's recording capability. All major web drivers (Playwright, Cypress, WebdriverIO) and dev-browser support screen recording. The video captures intermediate states, animations, and transitions that discrete screenshots miss. Store the recording in the evidence directory and note the path.
+- **Video recording (mandatory for UI criteria):** Record video of each criterion drive using the chosen driver's recording capability. All major web drivers (Playwright, Cypress, WebdriverIO) and dev-browser support screen recording. The video captures intermediate states, animations, and transitions that discrete screenshots miss. Store the recording in `<project root>/.ai/evidence/<slug>/<slice-slug>/video/`, not in the workflow folder, and note the path.
 - **Web Vitals:** After driving each criterion, capture Core Web Vitals — Largest Contentful Paint (LCP), Cumulative Layout Shift (CLS), and Interaction to Next Paint (INP). Use whatever measurement mechanism the driver supports: the browser's Performance API via script evaluation, Lighthouse, Playwright's built-in tracing, or a web-vitals library injected into the page. Record the values as structured data. INP > 200 ms is a HIGH issue; LCP > 2500 ms is WARN; CLS > 0.1 is WARN.
 - Browser console messages — check for errors after each interaction.
 - Network requests — verify correct requests sent, responses received when the criterion involves API calls.
@@ -100,8 +103,11 @@ Watch for `dependency-collapse` (unrelated surface blanking) and `branch-gap` (a
   <criterion-or-target-slug>.console.log      # console output
   <criterion-or-target-slug>.network.json     # network captures (if applicable)
   <criterion-or-target-slug>.web-vitals.json  # {lcp, cls, inp} from CDP
+
+<project root>/.ai/evidence/<slug>/<slice-slug>/
   video/
     <criterion-or-target-slug>.webm           # full interaction recording
+  <test-name>/trace.zip                       # a failed test only (retain-on-failure)
 ```
 
 ## Remediation hints (surface in bootstrap-failure)

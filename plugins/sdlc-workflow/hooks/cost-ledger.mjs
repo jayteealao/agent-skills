@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * hooks/cost-ledger.mjs — Stop hook: append this turn's exact token usage to
- * `.ai/workflows/<slug>/cost.jsonl` (WIDE-VIEW-REPAIR-PLAN §10).
+ * `.ai/workflows/<slug>/cost-<yyyy-mm>.jsonl`, one file a month (WIDE-VIEW-REPAIR-PLAN §10).
  *
  * Behavior:
  * - Exit 0 for all outcomes; a parse or write failure logs through
@@ -14,7 +14,7 @@
  *   attributed turn (that is how a gate-question turn is attributed).
  * - Read every sub-agent, Workflow agents included (`subagents/workflows/<run>/`),
  *   and book each to the slug it writes in: one row per slug per turn.
- * - Write ONLY cost.jsonl. Never touch 00-index.md.
+ * - Write ONLY the monthly cost ledger. Never touch 00-index.md.
  *
  * Hosts (one entrypoint, three payload shapes):
  * - Claude Code: hooks/hooks.json runs hooks/cost-ledger.mjs; stdin carries
