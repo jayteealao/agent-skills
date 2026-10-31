@@ -504,8 +504,8 @@ test('post-write-verify mock-evidence gate blocks result: pass with a user-obser
   }
 });
 
-function auditLedger({ triageStatus, triage, severity = 'HIGH', status = 'open', lastRun = 1, awaitingSince } = {}) {
-  const head = ['kind: ship-plan-audit', 'audited-plan-version: 1', `last-run: ${lastRun}`, 'verdict: unsound'];
+function auditLedger({ kind = 'ship-plan-audit', triageStatus, triage, severity = 'HIGH', status = 'open', lastRun = 1, awaitingSince } = {}) {
+  const head = [`kind: ${kind}`, 'audited-plan-version: 1', `last-run: ${lastRun}`, 'verdict: unsound'];
   if (triageStatus) head.push(`triage-status: ${triageStatus}`);
   if (awaitingSince !== undefined) head.push(`awaiting-since: ${awaitingSince}`);
   const finding = [
@@ -587,6 +587,58 @@ test('post-write-verify ship-plan audit triage gate blocks an untriaged ledger a
     r = run();
     equal(r.status, 0, r.stderr);
     match(JSON.parse(r.stdout).systemMessage, /triage gate BLOCKED[^]*checks: warn, so the write stands/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify observability audit triage gate follows the same steps as the ship-plan ledger', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/observability-audit.md';
+    const p = join(tmp, '.ai', 'observability-audit.md');
+    const ledger = (opts) => auditLedger({ kind: 'observability-audit', ...opts });
+    const run = () => runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+
+    writeFile(p, ledger({ triageStatus: 'pending' }));
+    let r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /observability audit triage gate BLOCKED/);
+    match(r.stderr, /reference\/observability\/audit\.md/);
+    match(r.stderr, /triage-status is `pending`/);
+
+    writeFile(p, ledger());
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /\(missing\)/);
+
+    // An accept decision must be recorded, so the next run does not ask again.
+    writeFile(p, ledger({ triageStatus: 'complete' }));
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /carry no `triage: accept`/);
+
+    writeFile(p, ledger({ triageStatus: 'complete', triage: 'accept' }));
+    r = run();
+    equal(r.status, 0, r.stderr);
+    equal(r.stderr, '');
+
+    writeFile(p, ledger({ triageStatus: 'awaiting-user', awaitingSince: 1 }));
+    equal(run().status, 0);
+    writeFile(p, ledger({ triageStatus: 'awaiting-user', lastRun: 2, awaitingSince: 1 }));
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /the escape lasts one run/);
+
+    writeFile(p, ledger({ triageStatus: 'complete', status: 'acknowledged' }));
+    equal(run().status, 0);
+    writeFile(p, ledger({ severity: 'MED' }));
+    equal(run().status, 0);
+
+    // Never schema-gated.
+    writeFile(p, ledger({ triageStatus: 'complete', triage: 'accept' }));
+    r = run();
+    ok(!/frontmatter validation FAILED/.test(r.stderr), r.stderr);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

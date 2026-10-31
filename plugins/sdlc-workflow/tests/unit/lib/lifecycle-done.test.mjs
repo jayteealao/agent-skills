@@ -6,10 +6,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { judgeLifecycle, lifecycleDone, reviewGate, verifyGate } from '../../../lib/lifecycle-done.mjs';
+import { judgeLifecycle, lifecycleDone, reviewGate, reviewScopeOf, verifyGate } from '../../../lib/lifecycle-done.mjs';
 
 const clean = { verify: { convergence: 'converged', result: 'pass' }, review: { verdict: 'ship', 'metric-findings-blocker': 0 } };
-function judge(files, { index = { 'workflow-type': 'standard' }, roster = [{ slug: 'a' }, { slug: 'b' }], design } = {}) {
+function judge(files, { index = { 'workflow-type': 'standard', 'review-scope': 'per-slice' }, roster = [{ slug: 'a' }, { slug: 'b' }], design } = {}) {
   return judgeLifecycle({ index, roster, artifact: (n) => (n in files ? files[n] : null), design });
 }
 const base = { '02-shape.md': { status: 'complete' }, '03-slice-a.md': {}, '03-slice-b.md': {} };
@@ -56,6 +56,33 @@ test('slug-wide review needs every verify clean and one 07-review.md', () => {
   const index = { 'workflow-type': 'standard', 'review-scope': 'slug-wide' };
   assert.deepEqual(judge(files, { index }).next, { stage: 'review', slice: null });
   assert.equal(judge({ ...files, '07-review.md': clean.review }, { index }).verdict, 'met');
+});
+
+test('with no review-scope key, the review is slug-wide unless only per-slice review records exist', () => {
+  const index = { 'workflow-type': 'standard' };
+  const files = { ...base, ...sliceDone('a'), ...sliceDone('b') };
+  assert.equal(judge(files, { index }).verdict, 'met', 'only per-slice records: per-slice');
+  delete files['07-review-a.md'];
+  delete files['07-review-b.md'];
+  assert.deepEqual(judge(files, { index }).next, { stage: 'review', slice: null }, 'no review record: slug-wide');
+  assert.equal(judge({ ...files, '07-review-a.md': clean.review, '07-review.md': { verdict: 'dont-ship' } }, { index }).verdict, 'blocked', 'both kinds: slug-wide');
+});
+
+test('reviewScopeOf: the key wins; with no key, the review records on disk decide', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'review-scope '));
+  try {
+    const dir = path.join(root, 'w');
+    mkdirSync(dir, { recursive: true });
+    assert.equal(reviewScopeOf({}, dir), 'slug-wide', 'no record: slug-wide');
+    assert.equal(reviewScopeOf({ 'review-scope': 'per-slice' }, dir), 'per-slice', 'the key wins');
+    writeFileSync(path.join(dir, '07-review-one.md'), '---\nverdict: ship\n---\n');
+    assert.equal(reviewScopeOf({}, dir), 'per-slice', 'only per-slice records: per-slice');
+    assert.equal(reviewScopeOf({ 'review-scope': 'slug-wide' }, dir), 'slug-wide', 'the key wins');
+    writeFileSync(path.join(dir, '07-review.md'), '---\nverdict: ship\n---\n');
+    assert.equal(reviewScopeOf({}, dir), 'slug-wide', 'a slug-wide record: slug-wide');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('a change mode uses the un-suffixed files', () => {

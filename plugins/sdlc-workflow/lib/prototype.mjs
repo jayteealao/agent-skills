@@ -166,7 +166,7 @@ export function commitPlan(ledger, decisionId, wfRel) {
     decision: d,
     paths,
     skipped: [...new Set(skipped)],
-    message: `poc(${ledger.slug}): accept ${d.component}`,
+    message: `poc: accept ${d.component}`,
     warning: d.generalized === true ? null : 'the component was accepted without a generalize check (generalized: false)',
   };
 }

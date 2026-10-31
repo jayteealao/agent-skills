@@ -62,7 +62,7 @@ test('the commit plan: explicit paths, no scratch, the records, and the generali
   const l = ledger();
   const plan = commitPlan(l, 'D-01', '.ai/workflows/faces');
   assert.deepEqual(plan.paths, ['poc/P-01.py', 'poc/config.json', '.ai/workflows/faces/00-index.md', '.ai/workflows/faces/prototype-ledger.json', '.ai/workflows/faces/01-prototype.md', '.ai/workflows/faces/report.html']);
-  assert.equal(plan.message, 'poc(faces): accept the stage 1 fit');
+  assert.equal(plan.message, 'poc: accept the stage 1 fit');
   assert.equal(plan.warning, null);
   l.decisions[0].proofs.push('P-02');
   l.decisions[0].generalized = false;

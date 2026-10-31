@@ -75,8 +75,7 @@ quantities instead of abstract statements.
    (`wf.mjs profile show`). Recommend a slower option only when the faster one
    cannot give a valid answer, and say why in one clause. When the
    recommended option is over `budget.long`, the options include at least one
-   faster path of [_long-runs.md](_long-runs.md): a pilot, a split across
-   machines, a sample, or the move to the packet end.
+   faster path of [_long-runs.md](_long-runs.md) L3.
 
 **Scope of authority — a PO answer decides only the question it was asked.**
 When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*

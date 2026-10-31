@@ -141,10 +141,12 @@ function addedRecordFiles(root, base, run) {
   return [];
 }
 
-export function readyGaps(root, { run = defaultRun, base = null } = {}) {
+// `allowNoPlan` leaves out the no-plan gap: at ship, the missing-plan gate of the PR phase owns a
+// missing plan, and only that gate offers the answer that the release is external.
+export function readyGaps(root, { run = defaultRun, base = null, allowNoPlan = false } = {}) {
   const plan = readShipPlan(root);
   const gaps = [];
-  if (!plan) gaps.push({ code: 'no-plan', task: 'Write the ship plan: /wf project ship-plan init' });
+  if (!plan && !allowNoPlan) gaps.push({ code: 'no-plan', task: 'Write the ship plan: /wf project ship-plan init' });
   const login = run('gh', ['auth', 'status'], { cwd: root });
   if (!ok(login)) gaps.push({ code: 'no-gh-login', task: 'Log in to GitHub: gh auth login' });
   else {

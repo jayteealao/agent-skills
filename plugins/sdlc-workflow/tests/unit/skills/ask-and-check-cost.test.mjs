@@ -100,17 +100,23 @@ test('long runs: measure first, check validity, the fastest valid path, in the b
     assert.ok(l.includes(h), h);
   }
   assert.match(l, /Do not wait in a `sleep` loop/);
-  assert.match(ref('plan.md'), /A long run \(a fit, a proof, a calibration, a coverage pass, or any command longer than `budget\.slice`\) is never a slice step/);
-  for (const name of ['implement.md', 'verify.md', 'review.md']) {
-    assert.match(ref(name), /A command longer than the longest check of your brief is a long run\. Follow \[_long-runs\.md\]/, name);
+  // _long-runs.md owns the rules. The stage cards cite it and keep no copy of the summary.
+  const fullCopy = /measure it first with a pilot, check that a later change does not make its result stale, take the fastest path/;
+  assert.match(ref('plan.md'), /A long run is never a slice step \(\[_long-runs\.md\]\(_long-runs\.md\) L5\)/);
+  for (const name of ['implement.md', 'verify.md']) {
+    assert.match(ref(name), /A long run is never a slice step \(`_long-runs\.md` L5\): record it under `## Packet Checks`\./, name);
+    assert.doesNotMatch(ref(name), /run it in the background/, name);
   }
+  for (const name of ['plan.md', 'implement.md', 'verify.md']) assert.doesNotMatch(ref(name), fullCopy, name);
+  assert.match(ref('review.md'), /Follow \[_long-runs\.md\]\(_long-runs\.md\)/);
 });
 
 test('an option that runs a check states its time, and the recommendation is the fastest valid path', () => {
   const q = ref('_question-craft.md');
   assert.match(q, /9\. \*\*State the time of a check\.\*\*/);
   assert.match(q, /10\. \*\*Recommend the fastest valid path\.\*\*/);
-  assert.match(q, /the options include at least one\s+faster path/);
+  assert.match(q, /the options include at least one\s+faster path of \[_long-runs\.md\]\(_long-runs\.md\) L3\./);
+  assert.doesNotMatch(q, /a pilot, a split across\s+machines, a sample/);
 });
 
 test('the verify sub-agents run no whole unit suite, no base build and no sibling suite', () => {
@@ -136,7 +142,7 @@ function extractFn(src, name) {
   throw new Error(`unbalanced ${name}`);
 }
 const { verifyClean, decisionDigest, acceptedResiduals } = new Function(
-  ['verifyClean', 'decisionDigest', 'acceptedResiduals'].map((n) => extractFn(yolo, n)).join('\n') +
+  ['stageResults', 'personAccepted', 'verifyClean', 'decisionDigest', 'acceptedResiduals'].map((n) => extractFn(yolo, n)).join('\n') +
   '\nreturn { verifyClean, decisionDigest, acceptedResiduals };',
 )();
 

@@ -51,8 +51,11 @@ const {
   // YOLO-DRIVER-LIFECYCLE W3/W4 — the aggregation-truth and tripwire rollups.
   classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
   collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness,
+  stageResults, acceptedResiduals,
 } = new Function(
   [
+    extractFn(yoloSrc, 'stageResults'),
+    extractFn(yoloSrc, 'acceptedResiduals'),
     extractFn(yoloSrc, 'acKey'),
     extractFn(yoloSrc, 'verifyClean'),
     extractFn(yoloSrc, 'evaluateGate'),
@@ -68,7 +71,7 @@ const {
     extractFn(yoloSrc, 'collectSubagentErrors'),
     extractFn(yoloSrc, 'clearingTripwire'),
     extractFn(yoloSrc, 'judgeLiveness'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness };',
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness, stageResults, acceptedResiduals };',
   ].join('\n')
 )();
 
@@ -608,6 +611,49 @@ test('collectSubagentErrors: the slug-wide review is scanned too (it lives outsi
 });
 
 // ---------------------------------------------------------------------------
+// One walk over the stage results of an outcome: every roll-up reads the same list.
+// ---------------------------------------------------------------------------
+test('stageResults: the update-deps review sits in ran and in slugWide, and counts once', () => {
+  const rev = { stage: 'review', errors: [{ what: 'ledger merge retry' }], steeringHonored: ['no new deps'], decisions: [{ class: 'implementation-detail', decision: 'keep the lockfile' }] };
+  const exec = { stage: 'verify', errors: [], decisions: [{ class: 'implementation-detail', decision: 'pin the minor' }] };
+  const o = { mode: 'update-deps', ran: [exec, rev], slugWide: rev };
+  assert.deepEqual(stageResults(o), [exec, rev]);
+  assert.equal(collectSubagentErrors(o).recovered, 1, 'the review errors count once');
+  assert.deepEqual(steeringDigest(o).honored.map(h => h.honored), ['no new deps'], 'the review steering counts once');
+  assert.equal(decisionDigest(o).total, 2);
+});
+
+test('stageResults: slug mode sees the decisions and accepted items of the slug-wide review', () => {
+  const o = {
+    results: [{ ran: [{ stage: 'verify', slice: 'a', decisions: [{ class: 'implementation-detail', decision: 'retry once' }] }] }],
+    slugWide: {
+      stage: 'review',
+      decisions: [{ class: 'intent-bearing', decision: 'drop the legacy route', ac: 'AC-9', classification: 'scope' }],
+      terminal: { acceptedItems: [{ item: 'AC-9', by: 'D-4' }] },
+    },
+  };
+  const d = decisionDigest(o);
+  assert.equal(d.total, 2);
+  assert.deepEqual(d.intentBearing.map(x => x.decision), ['drop the legacy route']);
+  assert.deepEqual(acceptedResiduals(o), [{ slice: null, item: 'AC-9', by: 'D-4' }]);
+  assert.equal(classificationIndex(o, []).get('AC9').classification, 'scope');
+});
+
+test('stageResults: no outcome, or an outcome with no results, is an empty list; a null stage stays', () => {
+  assert.deepEqual(stageResults(null), []);
+  assert.deepEqual(stageResults({}), []);
+  assert.deepEqual(stageResults({ ran: [null] }), [null]);
+  assert.deepEqual(collectDeferrals({}), [], 'no outcome shape crashes the deferral roll-up');
+});
+
+test('every hand-back roll-up walks the stage results through stageResults', () => {
+  assert.equal((yoloSrc.match(/Array\.isArray\(o(?: && o)?\.results\)/g) || []).length, 1, 'only stageResults reads the outcome shape');
+  for (const fn of ['steeringDigest', 'collectDeferrals', 'classificationIndex', 'collectSubstantiveFailures', 'collectSubagentErrors', 'decisionDigest', 'acceptedResiduals']) {
+    assert.match(fnSrc(fn), /stageResults\(o\)/, `${fn} walks the stage results`);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // W4 — clearing-event tripwire. An AC shipped uncleared while its clearing event
 // ("device available for AC6") came true on-screen in the same session.
 // ---------------------------------------------------------------------------
@@ -720,6 +766,7 @@ test('checkpoint: skipped when no work since the last checkpoint touched the cha
 // ---------------------------------------------------------------------------
 const { steeringClause, steeringDigest } = new Function(
   [
+    extractFn(yoloSrc, 'stageResults'),
     extractFn(yoloSrc, 'steeringClause'),
     extractFn(yoloSrc, 'steeringDigest'),
     'return { steeringClause, steeringDigest };',
@@ -802,7 +849,7 @@ test('steering: every judging or writing agent carries the clause; bookkeeping a
     assert.ok(review.includes(call), `driveReview lacks ${call}`);
   }
   // The review writer is runStage, which carries steer('writer').
-  assert.match(review, /return await runStage\('review', sliceArg, idx, \{\n\s+scan:/);
+  assert.match(review, /const res = await runStage\('review', sliceArg, idx, \{\n\s+scan:/);
   assert.match(review, /selection\.steeringPresent === true/);
   for (const fn of ['ensureBranch', 'writeBackSliceStatus', 'runEnd']) {
     assert.ok(!fnSrc(fn).includes('steer('), `${fn} is bookkeeping and must not carry the clause`);
@@ -811,5 +858,61 @@ test('steering: every judging or writing agent carries the clause; bookkeeping a
 
 test('steering: a veto the built code crosses stops the run at the steering checkpoint', () => {
   assert.match(yoloSrc, /const vetoes = \(cp\.steeringViolations \|\| \[\]\)\.filter\(v => v && v\.kind === 'veto'\)/);
-  assert.match(yoloSrc, /stoppedAt: 'steering-checkpoint'/);
+  assert.match(yoloSrc, /return stopOut\('steering-checkpoint', /);
+});
+
+// ---------------------------------------------------------------------------
+// The review classifies its own decisions, so every walk that runs a review stamps them.
+// ---------------------------------------------------------------------------
+test('driveReview classifies the decisions of every review path; no walk classifies a review again', () => {
+  const review = fnSrc('driveReview');
+  assert.equal((review.match(/await classifyDecisions\(/g) || []).length, 4, 'ledger-only, single-agent, answered and fan-out paths');
+  for (const fn of ['driveUpdateDeps', 'slugWideReview', 'driveChain']) {
+    assert.doesNotMatch(fnSrc(fn), /classifyDecisions\(/, `${fn} leaves the classification to settle and driveReview`);
+  }
+  assert.match(fnSrc('settle'), /if \(res && res\.stage !== 'review'\) res = await classifyDecisions\(res, idx\)/);
+  assert.match(fnSrc('slugWideReview'), /await driveReview\(null, idx, OPT\.reviewFindings === true\n\s+\? \{ ledgerOnly: true \}/);
+});
+
+test('settle: a stop request joins nothing; other results are classified, join ran, and questions stop', async () => {
+  const classified = [];
+  // extractFn starts at `function`, so the async keyword goes back in front.
+  const settle = new Function('classifyDecisions', `async ${extractFn(yoloSrc, 'settle')}; return settle;`)(
+    async (r) => { classified.push(r.stage); return { ...r, classifiedNow: true }; });
+  const ran = [];
+  const stopped = await settle({ stage: 'plan', status: 'stopped' }, {}, ran);
+  assert.deepEqual([stopped.stop, ran.length, classified.length], ['stop-request', 0, 0]);
+  const asked = await settle({ stage: 'plan', status: 'questions' }, {}, ran);
+  assert.deepEqual([asked.stop, asked.res.classifiedNow, ran.length], ['questions', true, 1]);
+  const review = await settle({ stage: 'review', status: 'complete' }, {}, ran);
+  assert.deepEqual([review.stop, review.res.classifiedNow, ran.length], [null, undefined, 2], 'driveReview already classified the review');
+  const lost = await settle(null, {}, ran);
+  assert.deepEqual([lost.stop, ran[2]], [null, null], 'a null return joins ran, so the error count sees it');
+  assert.equal((await settle({ stage: 'review', status: 'complete' }, {}, null)).stop, null, 'a walk with no ran list');
+  assert.deepEqual(classified, ['plan']);
+});
+
+test('stopOut: every stop has one shape, and the chain names its stop point stoppedAt', () => {
+  const stopOut = new Function(`${extractFn(yoloSrc, 'stopOut')}; return stopOut;`)();
+  assert.deepEqual(stopOut('review', 'blocked', { slice: 'a', ran: [] }), { ok: false, stopped: true, stoppedAt: 'review', reason: 'blocked', slice: 'a', ran: [] });
+  assert.doesNotMatch(yoloSrc, /\bat: (?:'|stage\b)/, 'no chain stop uses the old at field');
+  assert.doesNotMatch(yoloSrc, /chain\.at\b/);
+  assert.equal((yoloSrc.match(/stopped: true, stoppedAt:/g) || []).length, 1, 'only stopOut builds a stop by hand');
+});
+
+// ---------------------------------------------------------------------------
+// Orientation blocks every workflow type that yolo does not drive.
+// ---------------------------------------------------------------------------
+test('orient: audit is terminal analysis with its own route, and task is refused', () => {
+  const orientSrc = fnSrc('orient');
+  assert.match(orientSrc, /5a\. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ \{investigate, discover, ideate, audit, brainstorm\}/);
+  assert.match(orientSrc, /audit → "each finding's route in 07-review\.md \(## Triage ` \+\s+`Decisions\)"/);
+  assert.match(orientSrc, /TASK — workflow-type 'task'\. Its blast-radius gates are never resolved unattended\. yolo drives ` \+\s+`NOTHING here\./);
+  assert.match(orientSrc, /route='\/wf intake task \$\{slug\}'\. Do NOT fall through to 5d\./);
+});
+
+test('orient: an absent review-scope follows the rule of reviewScopeOf, not a per-slice default', () => {
+  const orientSrc = fnSrc('orient');
+  assert.doesNotMatch(orientSrc, /default 'per-slice' if the field is absent/);
+  assert.match(orientSrc, /the rule of reviewScopeOf in \$\{referenceRoot\}\/\.\.\/\.\.\/\.\.\/lib\/lifecycle-done\.mjs: the key wins when it is set; ` \+\s+`with no key, 'per-slice' only when 07-review-<slice>\.md records exist and 07-review\.md does not, else ` \+\s+`'slug-wide'/);
 });

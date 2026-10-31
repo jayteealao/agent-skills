@@ -104,95 +104,12 @@ dashboard text, and (where behavior is claimed) the real dependency source via `
 ONLY if it survives, with a concrete **failure-scenario** (the inputs/state → the wrong debugging outcome).
 Default to dropping anything you cannot ground. A short list of real findings beats a long list of plausible ones.
 
-# Step 3 — Synthesize + adversarial gate
+# Steps 3 to 5 — Synthesize, merge into the ledger, triage
 
-1. **Collect** all lens findings. **Dedupe** by `(target + root cause)` — keep the most specific severity, merge
-   rationales, tag with every lens that raised it.
-2. **Normalize severity** to BLOCKER / HIGH / MED / LOW / NIT.
-3. **Second refutation on the load-bearing ones.** For each BLOCKER and HIGH, independently re-read the cited
-   evidence yourself and confirm the failure-scenario is real before it enters the ledger as `open`. Refute by
-   default: if you cannot reproduce the reasoning from the evidence, downgrade its confidence or drop it.
-4. **Assign a stable `id`**: `<lens>:<target-slug>:<issue-slug>` (e.g.
-   `schema-consistency:checkout-api:user-id-key-drift`). The id is what the ledger dedupes on across runs.
-5. **Route each finding** (Step 6 table).
+Apply Steps 3 to 5 of [_audit-ledger.md](../_audit-ledger.md) with `<ledger>` = `.ai/observability-audit.md`, `<plan>` = `.ai/observability.md`, `<audit>` = `/wf project observability audit` and `<harm>` = production debugging. These steps refute each BLOCKER and HIGH a second time, merge the survivors into the accumulating ledger, and record each triage decision, `accept` included.
 
-# Step 4 — Merge into the accumulating ledger
-
-The ledger `.ai/observability-audit.md` **accumulates** — never overwritten. Reconcile this run's survivors
-against the parsed prior `findings[]`:
-- **Still present** (same `id`) → keep `status: open`; update `last-seen`; refresh severity/evidence if changed.
-- **New** (id not seen before) → add with `status: open`, `surfaced-at: <this run>`.
-- **Gone** (a prior `open`/`acknowledged` id no lens raised this run) **and its target still exists** → mark
-  `status: resolved`, `resolved-at: <this run>`. If the target itself is gone, resolve it noting the target
-  vanished. Never silently delete — resolution is recorded.
-- **Acknowledged** findings stay `acknowledged` until they disappear (→ resolved) or the user re-triages
-  (`/wf project observability audit triage`).
-
-Write the ledger with this shape (frontmatter carries machine-readable state; the body tells the story):
-
-```markdown
----
-kind: observability-audit
-audited-plan-version: <plan.plan-version>
-plan-updated-at: <plan.updated-at>
-last-run: <N>
-verdict: <sound | ship-with-caveats | unsound>
-runs:
-  - run: <N>
-    lens-scope: <all | the single lens>
-    plan-version: <v>
-    verdict: <...>
-    counts: { blocker: <n>, high: <n>, med: <n>, low: <n>, nit: <n> }
-findings:
-  - id: <lens>:<target-slug>:<issue-slug>
-    lens: <lens>
-    target: <contract block X | services/checkout/emit.ts:42 | otel-collector-config.yaml | dashboards/error-rate.json>
-    severity: <BLOCKER|HIGH|MED|LOW|NIT>
-    confidence: <high|med|low>
-    status: <open | acknowledged | resolved>
-    surfaced-at: <run N>
-    last-seen: <run N>
-    resolved-at: <run N | ->
-    route: <the exact fixer command>
----
-
-## The Audit
-<Story section (heading `## The Audit`): the state audited, then the
-verdict and the finding that most threatens production debuggability, then the route forward. Name what an
-on-call engineer would fail to see, not a checklist. Plain language throughout.>
-
-## Verdict
-<sound | ship-with-caveats | unsound> — <one sentence, tied to the highest-severity open finding>
-
-## Open findings
-<For each open finding, grouped by severity:>
-### <id> — <severity> · <lens>
-- **Target:** <contract block / file:line / dashboard>
-- **What:** <the defect, one or two sentences>
-- **Evidence:** <the concrete cite — the contract line, the code, the config>
-- **Failure scenario:** <inputs/state → the wrong debugging outcome>
-- **Route:** `<fixer command>`
-
-## Resolved this run
-<findings open last run and gone now — id + what it was + resolved-at>
-
-## Acknowledged (proceeding with known risk)
-<acknowledged findings + the recorded reason>
-```
-
-The ledger is a plain markdown file (like `.ai/observability.md` itself) — it takes **no sibling `.yaml`**
-(those belong to the review and plan artifacts under `.ai/workflows/`).
-
-# Step 5 — Triage the blockers and highs (interactive)
-
-Before finalizing, triage each **BLOCKER and HIGH** open finding with the user as a gate question per
-[_gate-question.md](../_gate-question.md) — present each (finding text + failure scenario + suggested route), one
-decision per finding or batched — and let the user choose **accept** (leave `open`), **acknowledge**
-(known/intentional — record a freeform reason, set `status: acknowledged`), or **reject** (false positive — drop
-it; if it keeps re-surfacing, tighten the lens id). MED/LOW/NIT land as `open` without a prompt.
-
-**`triage` mode** (`$ARGUMENTS` == `triage`) skips the fan-out: re-read the ledger, re-present every
-`acknowledged` finding, let the user re-decide, re-write the ledger, emit the summary.
+- An id example: `schema-consistency:checkout-api:user-id-key-drift`.
+- A `target` example: `contract block X`, `services/checkout/emit.ts:42`, `otel-collector-config.yaml`, `dashboards/error-rate.json`.
 
 # Step 6 — Route every finding to its sanctioned fixer
 

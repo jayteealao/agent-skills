@@ -6,7 +6,7 @@ Load this file from `build.md` Steps 3–16 when audit H, I, or J is Missing or 
 
 Skip if `plan.post-publish-checks[]` is empty.
 
-Add a `post-publish` job to `plan.release-workflow-file` after the publish job. If the job already exists, append only the missing check steps to it.
+Add a `post-publish` job to `plan.ci-pipeline.release-workflow-file` after the publish job. If the job already exists, append only the missing check steps to it.
 
 ```yaml
 # Added by wf ship-plan build — plan v<N>, <YYYY-MM-DD>

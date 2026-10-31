@@ -6,7 +6,7 @@ Load this file from `build.md` Steps 3–16 when audit B, C, E, F, or G is Missi
 
 ## 4a — Create or patch the release workflow file
 
-**If `plan.release-workflow-file` does not exist** — create it with the full structure below.
+**If `plan.ci-pipeline.release-workflow-file` does not exist** — create it with the full structure below.
 
 **If it exists** — read it; apply only the targeted fixes identified in Audits B, C, E, F, G. Do not touch compliant sections.
 

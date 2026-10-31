@@ -161,7 +161,7 @@ test('decide commits explicit paths only: no weights, no scratch, no staged stra
 
     const d = run(root, 'decide', 'D-01');
     assert.equal(d.ok, true, JSON.stringify(d));
-    assert.equal(git(wt, 'log', '-1', '--format=%s'), 'poc(faces): accept the fit');
+    assert.equal(git(wt, 'log', '-1', '--format=%s'), 'poc: accept the fit');
     const files = git(wt, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort();
     assert.deepEqual(files, [
       '.ai/workflows/faces/intake.yaml', '.ai/workflows/faces/meta.yaml', '.ai/workflows/faces/prototype-ledger.json',

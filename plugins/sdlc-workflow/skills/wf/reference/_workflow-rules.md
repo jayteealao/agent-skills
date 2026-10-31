@@ -15,6 +15,12 @@
 - Use parallel sub-agents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up sub-agents for trivial work.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: STOP, and ask the person to reconcile it. Do not cut the branch from it.
+- **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.
+  1. Stage the code files that this step changed, each by its path: `git add -- <path> <path>`.
+  2. Stage the workflow records under `.ai/workflows/<slug>/` by path.
+  3. Any other dirty path is not yours. Fail closed: do not stage it, and ask the person.
+  4. Never run `git add -A`, `git add .`, `git commit -a` or a `git add` with no path. A sweep commits the work of other sessions.
+  5. Write the message as `implement/_steps.md` says: `<type>: <what the change does>`. Name no slug, no slice, no step number and no finding id.
 - **Run the code of another commit only in a scratch worktree.** This applies when a step needs the code of a commit that is not checked out: the base of a slice (to see whether a test failed before the slice), a release tag, or a commit to bisect.
   1. Run `node "<skill-dir>/scripts/wf.mjs" worktree add "<root>" <slug> <name> <commit>`. Name the copy by its use, for example `base-<slice>`. The command prints the path, `.scratch/worktrees/<slug>/<name>/`.
   2. Run the check in that path. When the check needs packages, run the install inside the copy.

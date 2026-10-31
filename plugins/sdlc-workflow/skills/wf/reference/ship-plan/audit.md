@@ -113,120 +113,12 @@ text, and (where behavior is claimed) the real dependency source via `study-sour
 it survives the refutation, and attach a concrete **failure-scenario** (the inputs/state → the wrong outcome).
 Default to dropping anything you cannot ground. A short list of real findings beats a long list of plausible ones.
 
-# Step 3 — Synthesize + adversarial gate
+# Steps 3 to 5 — Synthesize, merge into the ledger, triage
 
-1. **Collect** all lens findings. **Dedupe** by `(target + root cause)` — keep the most specific severity, merge
-   rationales, tag with every lens that raised it.
-2. **Normalize severity** to BLOCKER / HIGH / MED / LOW / NIT (map any other scale first).
-3. **Second refutation on the load-bearing ones.** For each BLOCKER and HIGH, independently re-read the cited
-   evidence yourself (the workflow lines, the plan block, the file) and confirm the failure-scenario is real
-   before it enters the ledger as `open`. Refute-by-default: if you cannot reproduce the reasoning from the
-   evidence, downgrade its confidence or drop it. This is the guard against a confident-but-wrong blocker.
-4. **Assign a stable `id`** to each survivor: `<lens>:<target-slug>:<issue-slug>` (e.g.
-   `release-safety:release-yml:bump-after-tag`). The id is what the ledger dedupes on across runs, so it must be
-   deterministic for "the same problem."
-5. **Route each finding** (Step 6 table).
+Apply Steps 3 to 5 of [_audit-ledger.md](../_audit-ledger.md) with `<ledger>` = `.ai/ship-plan-audit.md`, `<plan>` = `.ai/ship-plan.md`, `<audit>` = `/wf project ship-plan audit` and `<harm>` = a release. These steps refute each BLOCKER and HIGH a second time, merge the survivors into the accumulating ledger, and record each triage decision, `accept` included.
 
-# Step 4 — Merge into the accumulating ledger
-
-The ledger `.ai/ship-plan-audit.md` **accumulates** — it is never overwritten. Reconcile this run's survivors
-against the parsed prior `findings[]`:
-
-- **Still present** (same `id`) → keep `status: open`; update `last-seen` to this run; refresh severity/evidence
-  if they changed.
-- **New** (id not seen before) → add with `status: open`, `surfaced-at: <this run>`.
-- **Gone** (a prior `open`/`acknowledged` id that no lens raised this run) **and its target still exists** →
-  mark `status: resolved`, `resolved-at: <this run>`. If the target itself is gone (file/block deleted), also
-  resolve it, noting the target vanished. Never silently delete a finding — resolution is recorded, so the
-  ledger tells the story of what got fixed.
-- **Acknowledged** findings (Step 5) stay `acknowledged` until they either disappear (→ resolved) or the user
-  re-triages them (`/wf project ship-plan audit triage`).
-- **Accepted** findings (`triage: accept`) keep that field while the id is still present. Step 5 re-asks only
-  for ids that have no decision yet.
-
-Write the ledger with this shape (frontmatter carries the machine-readable state; the body tells the story):
-
-```markdown
----
-kind: ship-plan-audit
-audited-plan-version: <plan.plan-version>
-plan-updated-at: <plan.updated-at>
-last-run: <N>
-verdict: <sound | ship-with-caveats | unsound>
-triage-status: <complete | awaiting-user>
-awaiting-since: <run N | ->        # awaiting-user only — the run that asked the gate; must equal last-run
-runs:
-  - run: <N>
-    lens-scope: <all | the single lens>
-    plan-version: <v>
-    verdict: <...>
-    counts: { blocker: <n>, high: <n>, med: <n>, low: <n>, nit: <n> }
-findings:
-  - id: <lens>:<target-slug>:<issue-slug>
-    lens: <lens>
-    target: <plan block X | .github/workflows/release.yml:42 | package.json>
-    severity: <BLOCKER|HIGH|MED|LOW|NIT>
-    confidence: <high|med|low>
-    status: <open | acknowledged | resolved>
-    surfaced-at: <run N>
-    last-seen: <run N>
-    resolved-at: <run N | ->
-    triage: <accept | ->            # BLOCKER/HIGH only — set by Step 5; carried across runs while the id is unchanged
-    route: <the exact fixer command>
----
-
-## The Audit
-<Story section (heading `## The Audit`): the state audited, then the
-verdict and the finding that most threatens a real release, then the route forward. Name what a release would
-actually get wrong, not a checklist. Plain language throughout.>
-
-## Verdict
-<sound | ship-with-caveats | unsound> — <one sentence of why, tied to the highest-severity open finding>
-
-## Open findings
-<For each open finding, grouped by severity:>
-### <id> — <severity> · <lens>
-- **Target:** <plan block / workflow file:line / codebase path>
-- **What:** <the defect, one or two sentences>
-- **Evidence:** <the concrete cite — the plan line, the YAML lines, the file>
-- **Failure scenario:** <inputs/state → the wrong release outcome>
-- **Route:** `<fixer command>`
-
-## Resolved this run
-<findings that were open last run and are gone now — id + what it was + resolved-at>
-
-## Acknowledged (proceeding with known risk)
-<acknowledged findings + the recorded reason>
-```
-
-The ledger is a plain markdown file (like `.ai/ship-plan.md` itself) — it takes **no sibling `.yaml`**
-(those belong to rich-tier artifacts under `.ai/workflows/`).
-
-# Step 5 — Triage the blockers and highs (interactive)
-
-Before finalizing, triage each **BLOCKER and HIGH** open finding with the user as a gate question per [_gate-question.md](../_gate-question.md) (one decision
-per finding, or batched; show each finding's text + failure scenario + suggested route): **accept** (leave `open`; it needs fixing), **acknowledge** (known/intentional — record
-a freeform reason, set `status: acknowledged`; the ledger keeps it until it disappears), or **reject** (false
-positive — drop it, and if it keeps re-surfacing, tighten the lens id so it stays dropped). MED/LOW/NIT land as
-`open` without a prompt.
-
-**Record every decision in the ledger, in the same turn.** `accept` sets `triage: accept` on the finding.
-`acknowledge` sets `status: acknowledged` and records the reason. `reject` drops the finding. When every open
-BLOCKER/HIGH carries a decision, set the top-level `triage-status: complete`. If the turn must end while the
-user answers the gate (a host whose question tool ends the turn), set `triage-status: awaiting-user` with
-`awaiting-since: <last-run>`, and record the decisions on the next write. The escape lasts one run: a later run
-that still carries `awaiting-user` with a stale `awaiting-since` must ask the gate again or record the decisions.
-
-**This step is enforced at write time.** The post-write verifier blocks a write of `.ai/ship-plan-audit.md`
-whose `triage-status` is neither `complete` nor `awaiting-user` while an open BLOCKER/HIGH finding exists,
-blocks `complete` while such a finding has no `triage: accept`, and blocks `awaiting-user` whose
-`awaiting-since` does not equal `last-run`. Where the host wires an end-of-turn re-check
-(see [_host-invocation.md](../_host-invocation.md), managed-artifact enforcement), it re-runs the same check, so
-the turn cannot end on an untriaged ledger. A `pending` value is not a state this step recognizes.
-
-**`triage` mode** (`$ARGUMENTS` == `triage`) skips the fan-out entirely: re-read the ledger, re-present every
-`acknowledged` finding, and let the user re-decide (a plan may have changed since they waved it through). Then
-re-write the ledger and emit the summary.
+- An id example: `release-safety:release-yml:bump-after-tag`.
+- A `target` example: `plan block X`, `.github/workflows/release.yml:42`, `package.json`.
 
 # Step 6 — Route every finding to its sanctioned fixer
 

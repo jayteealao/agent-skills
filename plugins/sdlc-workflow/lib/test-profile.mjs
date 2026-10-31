@@ -49,20 +49,26 @@ export function timeBox(profile, suites, { workSeconds = 0, factor = TIME_BOX_FA
   return { seconds: Math.max(floor, Math.round(factor * tests + workSeconds)), from };
 }
 
-// Change one suite of the profile and write the config back. It keeps the other settings,
-// the two-space indent and the line endings.
-function updateSuite(root, suite, change) {
-  if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
+// Read the config, let `mutate` change the test profile in place, and write the config back.
+// It keeps the other settings, the two-space indent and the line endings. Returns what
+// `mutate` returns.
+function writeProfile(root, mutate) {
   const file = configFile(root);
   const cfg = readConfig(root);
   const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
-  profile[suite] = change(profile[suite] ?? {});
+  const result = mutate(profile);
   cfg.testProfile = profile;
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   writeFileSync(`${file}.tmp`, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
   renameSync(`${file}.tmp`, file);
-  return profile[suite];
+  return result;
+}
+
+// Change one suite of the profile and write the config back. Returns the suite entry.
+function updateSuite(root, suite, change) {
+  if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
+  return writeProfile(root, (profile) => (profile[suite] = change(profile[suite] ?? {})));
 }
 
 /** Set the command and the estimate of a suite. A measured time stays. Returns the suite entry. */
@@ -114,14 +120,6 @@ export function checkLimit(profile, stage) {
   return { seconds: box.seconds, from: 'time box' };
 }
 
-/** True when a command of this many seconds is a long run: longer than `budget.slice`, or than the time box floor. */
-export function isLongRun(profile, seconds) {
-  if (!Number.isFinite(seconds)) return false;
-  const b = readBudget(profile);
-  const limit = b && Number.isInteger(b.slice) ? b.slice : TIME_BOX_FLOOR_SECONDS;
-  return seconds > limit;
-}
-
 /** True when a long run of this many seconds is over `budget.long`. No budget or no limit is never over. */
 export function overLongBudget(profile, seconds) {
   const b = readBudget(profile);
@@ -130,7 +128,8 @@ export function overLongBudget(profile, seconds) {
 
 /**
  * Set the budget. A preset gives slice and long; --slice, --long and --machines change one
- * field. Keeps the suites and the other settings. Returns the budget.
+ * field. A slice or long value that differs from the preset drops the preset label. Keeps the
+ * suites and the other settings. Returns the budget.
  */
 export function setBudget(root, { preset = null, slice, long, machines } = {}) {
   if (preset != null && !BUDGET_PRESETS[preset]) throw new Error(`the preset must be one of ${Object.keys(BUDGET_PRESETS).join(', ')}`);
@@ -141,22 +140,19 @@ export function setBudget(root, { preset = null, slice, long, machines } = {}) {
     if (!Number.isInteger(n) || n < 0) throw new Error(`${name} must be a whole number of seconds, or none`);
     return n;
   };
-  const file = configFile(root);
-  const cfg = readConfig(root);
-  const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
-  const next = { ...(readBudget(profile) ?? {}), ...(preset ? { preset, ...BUDGET_PRESETS[preset] } : {}) };
-  const s = secs(slice, 'slice'); if (s !== undefined) next.slice = s;
-  const l = secs(long, 'long'); if (l !== undefined) next.long = l;
-  if (machines !== undefined) next.machines = String(machines).split(',').map((m) => m.trim()).filter(Boolean);
-  if (!Array.isArray(next.machines)) next.machines = [];
-  next.setAt = nowIso();
-  profile.budget = next;
-  cfg.testProfile = profile;
-  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
-  const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  writeFileSync(`${file}.tmp`, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
-  renameSync(`${file}.tmp`, file);
-  return next;
+  return writeProfile(root, (profile) => {
+    const next = { ...(readBudget(profile) ?? {}), ...(preset ? { preset, ...BUDGET_PRESETS[preset] } : {}) };
+    delete next.setAt;
+    const s = secs(slice, 'slice'); if (s !== undefined) next.slice = s;
+    const l = secs(long, 'long'); if (l !== undefined) next.long = l;
+    if (machines !== undefined) next.machines = String(machines).split(',').map((m) => m.trim()).filter(Boolean);
+    if (!Array.isArray(next.machines)) next.machines = [];
+    // The preset label names its slice and long values. When one of them differs, drop the label.
+    const named = BUDGET_PRESETS[next.preset];
+    if (next.preset != null && (!named || named.slice !== next.slice || named.long !== next.long)) delete next.preset;
+    profile.budget = next;
+    return next;
+  });
 }
 
 /** One line for the budget, or null when the person did not choose one. */

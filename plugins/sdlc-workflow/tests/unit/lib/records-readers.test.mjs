@@ -27,7 +27,7 @@ function seed() {
   const put = (name, frontmatter, body = '') => writeDoc(dir, name, { frontmatter: { schema: 'sdlc/v1', slug: 'demo', ...frontmatter }, body });
   put('00-index.md', {
     type: 'index', title: 'Demo', status: 'active', 'current-stage': 'review', 'selected-slice': 'a',
-    'updated-at': '2026-10-25T00:00:00Z', 'next-invocation': '/wf review demo a',
+    'updated-at': '2026-10-25T00:00:00Z', 'next-invocation': '/wf review demo a', 'review-scope': 'per-slice',
     'runtime-evidence-deferrals': [{ slice: 'a', reason: 'needs a device', 'cleared-by': '' }],
   });
   put('01-intake.md', { type: 'intake', status: 'complete' }, '## Success Criteria\n\n- it works\n');

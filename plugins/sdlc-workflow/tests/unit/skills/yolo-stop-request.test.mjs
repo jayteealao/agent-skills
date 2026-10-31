@@ -59,6 +59,8 @@ function chainHarness(answers, answered = []) {
     ${extractFn('sliceOf')}
     ${extractFn('questionsOf')}
     ${extractFn('questionsText')}
+    ${extractFn('stopOut')}
+    ${extractFn('settle')}
     ${extractFn('questionStop')}
     ${extractFn('answeredFor')}
     ${extractFn('driveChain')}
@@ -95,7 +97,7 @@ test('a stopped stage agent ends the chain cleanly at stop-request, before the s
   const h = chainHarness({ review: STOPPED('review') });
   const chain = await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);
   assert.equal(chain.stopped, true);
-  assert.equal(chain.at, 'stop-request');
+  assert.equal(chain.stoppedAt, 'stop-request');
   assert.equal(chain.stopRequest, true);
   assert.match(chain.reason, /stopped before review:auth/);
   assert.deepEqual(chain.ran.map((r) => r.stage), ['plan', 'implement', 'verify'], 'the stopped stage did not run, so it is not in ran');
@@ -164,7 +166,7 @@ test('a review that returns questions stops the chain at review with the questio
   const h = chainHarness({ review: ASK('review') });
   const chain = await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);
   assert.equal(chain.stopped, true);
-  assert.equal(chain.at, 'review');
+  assert.equal(chain.stoppedAt, 'review');
   assert.deepEqual(chain.questions.map((q) => q.key), ['finding:design-1']);
   assert.equal(chain.questions[0].stage, 'review');
   assert.equal(chain.questions[0].slice, 'auth');
@@ -195,7 +197,7 @@ test('an answer reaches only the stage and slice that asked it', async () => {
 });
 
 test('an answered verify that the person accepted passes the gate with its residual items', async () => {
-  const failing = { stage: 'verify', slice: 'auth', status: 'complete', artifactPath: 'x/06.md', accepted: true, acceptedByPerson: true, terminal: { statusField: 'complete', convergence: 'escalate', result: 'fail', substantiveResidual: true } };
+  const failing = { stage: 'verify', slice: 'auth', status: 'complete', artifactPath: 'x/06.md', accepted: true, terminal: { statusField: 'complete', convergence: 'escalate', result: 'fail', substantiveResidual: true, acceptedItems: [{ item: 'AC-3', by: 'person' }] } };
   const h = chainHarness({ verify: failing }, [{ key: 'verify:auth', stage: 'verify', answer: 'accept it' }]);
   const chain = await h.driveChain(['verify'], 'auth', IDX);
   assert.equal(chain.stopped, false);
@@ -229,9 +231,9 @@ test('a route back without an answer is ignored, and a route back that repeats s
 });
 
 test('the slice and slug outcomes carry the chain route and the questions; the slug-wide review sends nothing back', () => {
-  assert.ok(src.includes("route = chain.route || `address the gate at '${chain.at}'"), 'slice mode');
+  assert.ok(src.includes("route = chain.route || `address the gate at '${chain.stoppedAt}'"), 'slice mode');
   assert.ok(src.includes("...(chain.questions ? { questions: chain.questions } : {})"), 'the slice mode carries the questions');
-  assert.ok(src.includes("? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }"), 'slug-wide review');
+  assert.ok(src.includes("if (stop === 'questions') return { mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }"), 'slug-wide review');
   assert.doesNotMatch(src, /amendFindings|amendStopReason|routeBackSlices|findings questions/);
 });
 
@@ -245,14 +247,16 @@ test('a run that waits on questions ends as waiting, with the resume command and
 // The slug-wide review with its dispatches stubbed: `reviews` is the list of the review results
 // in order.
 function slugWideHarness(reviews, { opt = {}, answered = [] } = {}) {
-  const calls = { review: [], stage: [], chain: [] };
+  const calls = { review: [], stage: [], chain: [], classify: [] };
   const build = new Function('stubs', `
-    const { driveReview, runStage, driveChain, log, slug, ANSWERED, OPT } = stubs
+    const { driveReview, runStage, driveChain, classifyDecisions, log, slug, ANSWERED, OPT } = stubs
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('sliceOf')}
     ${extractFn('questionsOf')}
     ${extractFn('questionsText')}
+    ${extractFn('stopOut')}
+    ${extractFn('settle')}
     ${extractFn('questionStop')}
     ${extractFn('answeredFor')}
     ${extractFn('slugWideReview')}
@@ -268,6 +272,7 @@ function slugWideHarness(reviews, { opt = {}, answered = [] } = {}) {
     driveReview: async (slice, idx, extra) => { calls.review.push(extra); return next(); },
     runStage: async (stage, slice, idx, extra) => { calls.stage.push({ stage, extra }); return next(); },
     driveChain: async (stages, slice) => { calls.chain.push({ stages, slice }); return { stopped: false, slice, ran: [] }; },
+    classifyDecisions: async (r) => { calls.classify.push(r && r.stage); return r; },
   });
   return { slugWideReview: fn, calls };
 }
@@ -298,8 +303,8 @@ test('with findings from the walk, the review fixes the ledger and runs no scan'
   const h = slugWideHarness([{ ...CLEAN_REVIEW, fixCommits: ['c1'] }, CLEAN_REVIEW], { opt: { reviewFindings: true } });
   const out = await h.slugWideReview(ROSTER, []);
   assert.equal(out.ok, true);
-  assert.deepEqual(h.calls.stage.map((s) => [s.stage, s.extra.ledgerOnly]), [['review', true]]);
-  assert.equal(h.calls.review.length, 0, 'no scan of the whole packet and no scan of the fix commits');
+  assert.deepEqual(h.calls.review, [{ ledgerOnly: true }], 'one ledger-only review: no scan of the whole packet and no scan of the fix commits');
+  assert.deepEqual(h.calls.classify, [], 'driveReview classified the review; the slug-wide walk does not classify it again');
 });
 
 test('an answered verify fixes a small change and routes back only a change that is not small; the review has no such clause', () => {
@@ -334,11 +339,10 @@ test('an answered verify fixes a small change and routes back only a change that
 
 // driveReview with every agent stubbed: 'selection' is what the rubric selection returns, and
 // 'found' the findings of each scout.
-function reviewHarness(selection, found = []) {
-  const calls = { agents: [], stages: [] };
+function reviewHarness(selection, found = [], opt = {}) {
+  const calls = { agents: [], stages: [], classified: [] };
   const build = new Function('stubs', `
-    const { agent, parallel, runStage, log } = stubs
-    const OPT = {}
+    const { agent, parallel, runStage, classifyDecisions, log, OPT } = stubs
     const slug = 'demo'
     const projectRoot = '/repo'
     const referenceRoot = '/plugin/skills/wf/reference'
@@ -360,6 +364,8 @@ function reviewHarness(selection, found = []) {
   `);
   const fn = build({
     log: () => {},
+    OPT: opt,
+    classifyDecisions: async (r) => { calls.classified.push(r); return { ...r, classified: true }; },
     parallel: async (fns) => Promise.all(fns.map((f) => f())),
     agent: async (prompt, opts) => {
       calls.agents.push({ label: opts.label, prompt });
@@ -372,6 +378,24 @@ function reviewHarness(selection, found = []) {
   return { driveReview: fn, calls };
 }
 const REVIEW_IDX = { branch: { base: 'main' }, slices: [] };
+
+test('every review path gives the decisions of the writer their classes', async () => {
+  const sel = { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false };
+  const cases = [
+    ['fan-out', reviewHarness(sel), {}],
+    ['answered', reviewHarness(sel), { answered: { key: 'k' } }],
+    ['ledger only', reviewHarness(sel), { ledgerOnly: true }],
+    ['single agent', reviewHarness(sel, [], { reviewFanout: false }), {}],
+  ];
+  for (const [name, h, extra] of cases) {
+    const out = await h.driveReview(null, REVIEW_IDX, extra);
+    assert.equal(out.classified, true, `${name}: the result comes back classified`);
+    assert.equal(h.calls.classified.length, 1, `${name}: one classification round`);
+  }
+  const ledger = reviewHarness(sel);
+  await ledger.driveReview(null, REVIEW_IDX, { ledgerOnly: true });
+  assert.deepEqual([ledger.calls.agents.length, ledger.calls.stages[0].ledgerOnly], [0, true], 'a ledger-only review runs the writer only');
+});
 
 test('the slug-wide scan reads the whole packet diff, and an answered review runs no scan', async () => {
   const h = reviewHarness({ rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false });

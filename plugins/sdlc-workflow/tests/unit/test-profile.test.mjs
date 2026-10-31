@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { TIME_BOX_FLOOR_SECONDS, readProfile, recordRun, suiteSeconds, timeBox } from '../../lib/test-profile.mjs';
+import { BUDGET_PRESETS, TIME_BOX_FLOOR_SECONDS, readBudget, readProfile, recordRun, setBudget, suiteSeconds, timeBox } from '../../lib/test-profile.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -140,7 +140,7 @@ test('wf.mjs profile: show, record and timebox', () => {
 });
 
 test('the check budget: presets, the longest check of a stage, long runs, and the CLI', async () => {
-  const { setBudget, checkLimit, isLongRun, overLongBudget, budgetLine } = await import('../../lib/test-profile.mjs');
+  const { setBudget, checkLimit, overLongBudget, budgetLine } = await import('../../lib/test-profile.mjs');
   const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 60 } } });
   try {
     const p0 = readProfile(f.root);
@@ -155,17 +155,17 @@ test('the check budget: presets, the longest check of a stage, long runs, and th
     assert.deepEqual(checkLimit(p, 'implement'), { seconds: 120, from: 'budget' });
     assert.deepEqual(checkLimit(p, 'verify'), { seconds: 120, from: 'budget' });
     assert.equal(checkLimit(p, 'review').from, 'time box', 'the review runs the packet suites');
-    assert.equal(isLongRun(p, 300), true, 'over budget.slice');
-    assert.equal(isLongRun(p, 90), false);
+    assert.equal('setAt' in b, false, 'no write time');
     assert.equal(overLongBudget(p, 4000), true);
     assert.equal(overLongBudget(p, 3000), false);
     assert.match(budgetLine(p), /^budget \(fast-loop\): slice checks up to 120s; one long run up to 3600s; machines: desk-1, laptop$/);
     setBudget(f.root, { long: 'none' });
     assert.equal(overLongBudget(readProfile(f.root), 99999), false, 'no limit');
+    assert.equal(readBudget(readProfile(f.root)).preset, undefined, 'a long value off the preset drops the label');
     assert.throws(() => setBudget(f.root, { preset: 'fast' }), /preset must be one of/);
     assert.throws(() => setBudget(f.root, { slice: 1.5 }), /whole number/);
     const show = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'show', f.root], { encoding: 'utf8' });
-    assert.match(show.stdout, /^budget \(fast-loop\): slice checks up to 120s; one long run up to no limit/m);
+    assert.match(show.stdout, /^budget: slice checks up to 120s; one long run up to no limit/m);
     const set = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'budget', f.root, '--preset', 'balanced', '--json'], { encoding: 'utf8' });
     assert.equal(set.status, 0, set.stderr);
     assert.equal(JSON.parse(set.stdout).slice, 600);
@@ -178,5 +178,19 @@ test('profile run warns when a run is over the long-run budget', () => {
     const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'run', f.root, 'heavy', '--json'], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stderr, /^WARNING: the heavy suite took [\d.]+s, over the long-run budget of 0s/m);
+  } finally { f.done(); }
+});
+
+test('setBudget keeps the preset label only while slice and long match the preset', () => {
+  const f = fixture({});
+  try {
+    const preset = BUDGET_PRESETS['fast-loop'];
+    setBudget(f.root, { preset: 'fast-loop' });
+    assert.equal(setBudget(f.root, { slice: preset.slice }).preset, 'fast-loop', 'the same slice keeps the label');
+    const b = setBudget(f.root, { slice: preset.slice + 180 });
+    assert.equal(b.preset, undefined, 'another slice drops the label');
+    assert.equal(b.slice, preset.slice + 180);
+    assert.equal(b.long, preset.long);
+    assert.equal(readBudget(readProfile(f.root)).preset, undefined, 'the file has no label');
   } finally { f.done(); }
 });

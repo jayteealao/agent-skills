@@ -268,9 +268,9 @@
  *   ship     facts <root> [--base b] [--json]
  *             the merge rules of the repo: allowed methods, rulesets, protection, merge queue
  *             Example: wf.mjs ship facts . --base main
- *   ship     ready <root> [<slug>] [--json]
+ *   ship     ready <root> [<slug>] [--allow-no-plan] [--json]
  *             the gaps before ship that a script sees; with a slug, each gap is a person task of
- *             the workflow; exit 1 when there is a gap
+ *             the workflow; exit 1 when there is a gap; --allow-no-plan leaves out the no-plan gap
  *             Example: wf.mjs ship ready . demo
  *   ship     merge <root> <slug> [--pr N] [--print]
  *             merge the PR by the method of the facts, or print the one command when a review
@@ -352,7 +352,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan'].includes(name)) opt[name] = true;
       else {
         const { value, repaired } = undoGitBashPath(argv[(i += 1)]);
         if (repaired) process.stderr.write(`wf.mjs: --${name} began with the Git install path, which Git Bash put in front of /wf; it is set to ${value}\n`);
@@ -768,7 +768,9 @@ export function runProfile(pos, opt) {
   if (verb === 'run') {
     // Run the command of a suite in the project root, and record its time: no timer by hand.
     if (!a) throw new Error('profile run: <suite> is required');
-    const suite = readProfile(projectRoot)[a];
+    // One read: the run records only the suite time, so the budget stays the same.
+    const profile = readProfile(projectRoot);
+    const suite = profile[a];
     if (!suite?.command) throw new Error(`profile run: the test profile has no command for the ${a} suite; set it with profile set first`);
     const t0 = Date.now();
     const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
@@ -776,8 +778,8 @@ export function runProfile(pos, opt) {
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
     if (!r.error) recordRun(projectRoot, a, seconds, { passedAt: head });
-    const budget = readBudget(readProfile(projectRoot));
-    if (overLongBudget(readProfile(projectRoot), seconds)) {
+    const budget = readBudget(profile);
+    if (overLongBudget(profile, seconds)) {
       process.stderr.write(`WARNING: the ${a} suite took ${seconds}s, over the long-run budget of ${budget.long}s. Before the next run, offer the faster paths of _long-runs.md: run the touched part, a pilot, a sample, a split, or the packet end.\n`);
     }
     out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status, ...(head ? { passedAt: head } : {}) } : `${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
@@ -1056,7 +1058,7 @@ function runShip(pos, opt) {
     return f.ok ? 0 : 1;
   }
   if (verb === 'ready') {
-    const gaps = readyGaps(projectRoot, { base });
+    const gaps = readyGaps(projectRoot, { base, allowNoPlan: Boolean(opt['allow-no-plan']) });
     if (slug) {
       // Each gap is a person task; a gap that closed leaves the list.
       const kept = (Array.isArray(index['person-tasks']) ? index['person-tasks'] : []).filter((t) => !String(t?.id ?? '').startsWith(TASK_PREFIX));

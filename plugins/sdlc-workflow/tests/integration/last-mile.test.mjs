@@ -92,6 +92,23 @@ test('ship facts: the plan method when the repo allows it, the rulesets narrow i
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('ready gaps: allowNoPlan drops the no-plan gap and keeps every other gap', () => {
+  const root = tmp('lm-noplan-');
+  try {
+    assert.deepEqual(readyGaps(root, { run: fakeRun(), allowNoPlan: true }), []);
+    // gh is not logged in: that gap stays, with or without a plan.
+    const run = fakeRun();
+    const noLogin = (cmd, args, opts) => (cmd === 'gh' && args[0] === 'auth' ? { status: 1, stdout: '', stderr: 'not logged in' } : run(cmd, args, opts));
+    assert.deepEqual(readyGaps(root, { run: noLogin }).map((g) => g.code), ['no-plan', 'no-gh-login']);
+    assert.deepEqual(readyGaps(root, { run: noLogin, allowNoPlan: true }).map((g) => g.code), ['no-gh-login']);
+    // With a plan, the option changes nothing.
+    mkdirSync(path.join(root, '.ai'));
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\ntype: ship-plan\ngovernance:\n  merge:\n    method: merge\n---\n');
+    const rules = JSON.stringify([{ type: 'pull_request', parameters: { allowed_merge_methods: ['squash'] } }]);
+    assert.deepEqual(readyGaps(root, { run: fakeRun({ FAKE_GH_RULES: rules }), allowNoPlan: true }).map((g) => g.code), ['plan-method-forbidden']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('finish: a merged PR fast-forwards the base, switches to it, and deletes the branch here and there', () => {
   const p = repoPair();
   try {

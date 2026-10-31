@@ -215,13 +215,23 @@ function steeringClause(steerCmd, role, contractPath) {
     `entry forbids. When an entry names a concern your task covers, weigh it.`
 }
 
+// stageResults() — every stage result of an outcome, in one list, for each hand-back roll-up.
+// Slug mode keeps them in results[].ran, slice mode and update-deps in ran; the slug-wide
+// review rides in slugWide and is added once (update-deps also has it in ran). A null entry
+// (an agent that returned nothing) stays in the list: the error count reads it as fatal.
+function stageResults(o) {
+  if (!o) return []
+  const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
+  const out = chains.flatMap(c => (c && c.ran) || [])
+  if (o.slugWide && !out.includes(o.slugWide)) out.push(o.slugWide)
+  return out
+}
+
 // steeringDigest() — the hand-back's steering line: what each stage said it honored,
 // the stages that stopped on a steering conflict, and the checkpoint violations.
 // Null when nothing in the run reported steering (no steer entry, or no entry applied).
 function steeringDigest(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  const stages = chains.flatMap(c => (c && c.ran) || [])
-  if (o && o.slugWide) stages.push(o.slugWide)
+  const stages = stageResults(o)
   const honored = []
   const conflicts = []
   for (const r of stages) {
@@ -357,6 +367,12 @@ function verifyClean(t, residual) {
   return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
 }
 
+// The answer of the person accepted the slice with its failing items: verify lists each of them
+// in terminal.acceptedItems with by 'person'.
+function personAccepted(t) {
+  return !!t && Array.isArray(t.acceptedItems) && t.acceptedItems.some(a => a && a.by === 'person')
+}
+
 // acKey() — canonical AC identity for deferral dedupe/matching. Verify subagents
 // routinely emit the SAME deferral in two shapes: fully-labeled in
 // terminal.deferrals[] ("AC2 — three consecutive turns …", with a probe receipt)
@@ -422,7 +438,6 @@ function evaluateGate(stage, res) {
 // the hand-back names them so the user knows what /wf ship will refuse until a
 // /wf probe (or a re-verify in a capable environment) clears each one.
 function collectDeferrals(o) {
-  const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
   const out = []
   const seen = new Set()
   const push = (slice, ac, reason, probe) => {
@@ -436,19 +451,17 @@ function collectDeferrals(o) {
     // /wf ship's block list and the run summary show RECEIPTED deferrals — omitted when absent.
     out.push(probe ? { slice, ac, reason, probe } : { slice, ac, reason })
   }
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      if (!r || r.stage !== 'verify') continue
-      const t = r.terminal || {}
-      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason, d && d.probe)
-      // Verify subagents sometimes park the deferral in the sibling residual[] instead of
-      // terminal.deferrals[] (the same mis-placement verifyClean now tolerates). Surface
-      // those too — entries carrying an `ac` — so the run's ship-block hand-back isn't
-      // blind to a mis-placed deferral. Enforcement is the 00-index registry the subagent
-      // writes regardless of array; this only keeps the run summary honest. Dedup by
-      // (slice, ac) so a deferral recorded in BOTH arrays counts once.
-      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason, d.probe)
-    }
+  for (const r of stageResults(o)) {
+    if (!r || r.stage !== 'verify') continue
+    const t = r.terminal || {}
+    if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason, d && d.probe)
+    // Verify subagents sometimes park the deferral in the sibling residual[] instead of
+    // terminal.deferrals[] (the same mis-placement verifyClean now tolerates). Surface
+    // those too — entries carrying an `ac` — so the run's ship-block hand-back isn't
+    // blind to a mis-placed deferral. Enforcement is the 00-index registry the subagent
+    // writes regardless of array; this only keeps the run summary honest. Dedup by
+    // (slice, ac) so a deferral recorded in BOTH arrays counts once.
+    if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason, d.probe)
   }
   return out
 }
@@ -485,13 +498,10 @@ function classificationIndex(o, priorDeferrals) {
     if (cls) map.set(acKey(d.ac), { classification: String(cls), source: 'index-ledger' })
   }
   // Higher precedence: a classification this run's own stage decisions recorded.
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      for (const d of (r && r.decisions) || []) {
-        if (!d || !d.ac || !d.classification) continue
-        map.set(acKey(d.ac), { classification: String(d.classification), source: 'recorded-decision' })
-      }
+  for (const r of stageResults(o)) {
+    for (const d of (r && r.decisions) || []) {
+      if (!d || !d.ac || !d.classification) continue
+      map.set(acKey(d.ac), { classification: String(d.classification), source: 'recorded-decision' })
     }
   }
   return map
@@ -534,15 +544,12 @@ function reconcileDeferrals(o, deferrals, priorDeferrals) {
 // recorded fail semantics explicitly, beside the deferrals, never merged into them.
 // ---------------------------------------------------------------------------
 function collectSubstantiveFailures(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
   const out = []
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      if (!r || r.stage !== 'verify') continue
-      const t = r.terminal || {}
-      if (t.result === 'fail' || t.substantiveResidual === true) {
-        out.push({ slice: r.slice || null, result: t.result || null, substantiveResidual: t.substantiveResidual === true, artifactPath: r.artifactPath || null })
-      }
+  for (const r of stageResults(o)) {
+    if (!r || r.stage !== 'verify') continue
+    const t = r.terminal || {}
+    if (t.result === 'fail' || t.substantiveResidual === true) {
+      out.push({ slice: r.slice || null, result: t.result || null, substantiveResidual: t.substantiveResidual === true, artifactPath: r.artifactPath || null })
     }
   }
   return out
@@ -561,7 +568,6 @@ function collectSubstantiveFailures(o) {
 // cited there, not redefined here.
 // ---------------------------------------------------------------------------
 function collectSubagentErrors(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
   const agents = []
   let recovered = 0
   let fatal = 0
@@ -572,8 +578,7 @@ function collectSubagentErrors(o) {
     recovered += errs.length
     agents.push({ agent: `${r.stage || '?'}${r.slice ? ':' + r.slice : ''}`, recovered: errs.length, what: errs.map(e => (e && e.what) || '').filter(Boolean) })
   }
-  for (const c of chains) for (const r of (c && c.ran) || []) consider(r)
-  if (o && o.slugWide) consider(o.slugWide)
+  for (const r of stageResults(o)) consider(r)
   if (!recovered && !fatal) return null
   return { recovered, fatal, agents }
 }
@@ -618,24 +623,22 @@ function deferralPressure(priorDeferrals, runDeferrals) {
 // the guarantee it qualifies is stated: 'exact' when everything is classified,
 // 'suspect' when anything is not.
 function decisionDigest(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const stages = stageResults(o)
   const groups = {}
   let total = 0
   const intentBearing = []
   const unclassified = []
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      for (const d of (r && r.decisions) || []) {
-        if (!d) continue
-        total++
-        const cls = d.class && String(d.class).trim()
-        if (!cls) {
-          unclassified.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
-          continue
-        }
-        groups[cls] = (groups[cls] || 0) + 1
-        if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+  for (const r of stages) {
+    for (const d of (r && r.decisions) || []) {
+      if (!d) continue
+      total++
+      const cls = d.class && String(d.class).trim()
+      if (!cls) {
+        unclassified.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+        continue
       }
+      groups[cls] = (groups[cls] || 0) + 1
+      if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
     }
   }
   if (!total) return null
@@ -645,24 +648,22 @@ function decisionDigest(o) {
     intentBearing,
     unclassified,
     // The doubtful decisions that a stage settled because they can be undone inside the packet.
-    contested: chains.flatMap(c => ((c && c.ran) || []).flatMap(r => ((r && r.decisions) || [])
-      .filter(d => d && d.contested === true).map(d => ({ slice: r.slice, stage: r.stage, decision: d.decision || '' })))),
+    contested: stages.flatMap(r => ((r && r.decisions) || [])
+      .filter(d => d && d.contested === true).map(d => ({ slice: r.slice, stage: r.stage, decision: d.decision || '' }))),
     // The load-bearing qualifier. 'suspect' means the run cannot honestly claim
     // zero intent-bearing escapes — some decisions were never checked.
     intentBearingGuarantee: unclassified.length ? 'suspect' : 'exact',
   }
 }
 
-// The verify items that a live decision accepted this run, from every verify result.
+// The verify items that a decision accepted this run, from every verify result: the person's
+// answer (by 'person'), a live decision (by its id), or a delegate accept (by 'delegate').
 function acceptedResiduals(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
   const out = []
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      const t = (r && r.terminal) || {}
-      for (const a of Array.isArray(t.acceptedItems) ? t.acceptedItems : []) {
-        if (a && a.item) out.push({ slice: r.slice || null, item: String(a.item), by: String(a.by || '?') })
-      }
+  for (const r of stageResults(o)) {
+    const t = (r && r.terminal) || {}
+    for (const a of Array.isArray(t.acceptedItems) ? t.acceptedItems : []) {
+      if (a && a.item) out.push({ slice: r.slice || null, item: String(a.item), by: String(a.by || '?') })
     }
   }
   return out
@@ -776,8 +777,8 @@ function answeredClause(a, stage, sliceArg = null) {
         `the miss", "continue to the next slice"), run no fix and no check round to make it pass: keep the result ` +
         `as it is, write accepted-by: '${by}', accepted-at (UTC now) and accepted-items (each failing acceptance ` +
         `criterion or residual, one line each) in the verify frontmatter, set its status: complete, and return ` +
-        `acceptedByPerson: true. When the answer asks for a small fix inside this slice's plan, make it, verify ` +
-        `again, and return acceptedByPerson: false.`
+        `each of those items in terminal.acceptedItems as { item, by: 'person' }. When the answer asks for a ` +
+        `small fix inside this slice's plan, make it, verify again, and list no item with by: 'person'.`
       : '') +
     (stage === 'verify'
       ? smallChangeClause(stage) +
@@ -1264,8 +1265,6 @@ const STAGE_RESULT = {
         },
       },
     },
-    // An answered verify that accepts the slice with its failing or residual items.
-    acceptedByPerson: { type: 'boolean' },
     // An answered implement or verify that needs a new plan or new code.
     routeBack: { enum: ['plan', 'implement'] },
     // The review: the commit of each fix step, in order. The driver scans them once more.
@@ -1320,8 +1319,9 @@ const STAGE_RESULT = {
         // un-producible runtime evidence. This is the load-bearing distinction: a
         // substantive residual still HARD-STOPs; a pure-deferral residual does not.
         substantiveResidual: { type: 'boolean' },
-        // verify → the failing items that a live decision accepts: { item, by } where by is the id
-        // of that decision, or 'delegate' for a delegate accept. An accepted item is cleared.
+        // verify → the failing items that a decision accepts: { item, by } where by is the id of a
+        // live decision, 'delegate' for a delegate accept, or 'person' when the answer of the
+        // person accepts the slice with its items. An accepted item is cleared.
         acceptedItems: {
           type: 'array',
           items: { type: 'object', required: ['item', 'by'], properties: { item: { type: 'string' }, by: { type: 'string' } } },
@@ -1479,7 +1479,9 @@ async function orient() {
     `names and nothing else. Do NOT read index-history.jsonl or history/ — finished history (old next-step ` +
     `commentary, finished sub-pass telemetry) is not state, and must not be mixed into the open deferrals or the ` +
     `charter you report. Parse: status, current-stage, review-scope ` +
-    `(default 'per-slice' if the field is absent), workflow-type, branch-strategy (default 'none' if absent), ` +
+    `(the rule of reviewScopeOf in ${referenceRoot}/../../../lib/lifecycle-done.mjs: the key wins when it is set; ` +
+    `with no key, 'per-slice' only when 07-review-<slice>.md records exist and 07-review.md does not, else ` +
+    `'slug-wide'), workflow-type, branch-strategy (default 'none' if absent), ` +
     `branch, and base-branch. ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
@@ -1531,19 +1533,20 @@ async function orient() {
     `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake (the brief and the shape) autonomously; intake owns ` +
     `product-owner alignment). First CLASSIFY by 00-index.md workflow-type — only workflows with a decided build are ` +
     `drivable, and a non-build type must NOT fall through to the slice check:\n` +
-    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate, brainstorm} (00-index.md ` +
+    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate, audit, brainstorm} (00-index.md ` +
     `type: workflow-index; by design NO 03-slice.md/04-plan.md). Unlike rca, these do NOT converge on one build: ` +
     `investigate emits 2–3 UNPICKED option sketches and writes NO 02-shape.md; discover emits a yes/no VERDICT whose ` +
     `only follow-up is more analysis (e.g. /wf intake rca), not a build; ideate emits a RANKED MENU whose ideas each ` +
-    `become their OWN new workflow; brainstorm keeps an OPEN BOARD the person continues by hand. The missing ingredient is a human product decision (pick an option / act on the ` +
-    `verdict / choose an idea) — exactly the intake+shape alignment yolo must not make. So yolo drives NOTHING here; ` +
+    `become their OWN new workflow; audit emits FINDINGS, each with its own route in 07-review.md; brainstorm keeps an OPEN BOARD the person continues by hand. The missing ingredient is a human product decision (pick an option / act on the ` +
+    `verdict / choose an idea / route a finding) — exactly the intake+shape alignment yolo must not make. So yolo drives NOTHING here; ` +
     `'missing 03-slice.md' is EXPECTED and must NEVER route to '/wf slice'. These are also never continued IN PLACE ` +
     `(investigate has no shape to plan) — each SEEDS A NEW /wf intake workflow, so do NOT route to '/wf plan ${slug}' ` +
     `either. Set ok=false, blockReason naming the terminal type, and set route from the workflow's OWN recorded next ` +
     `step (00-index.md next-invocation / the 01-<mode>.md lead): ideate → its recorded '/wf intake <chosen-idea>'; ` +
     `investigate → 'pick an option in 01-investigate.md, then /wf intake fix <option> (or /wf intake <option>) — ` +
     `/wf yolo drives it once intaked+shaped'; discover → 'act on the verdict in 01-discover.md (/wf intake rca ` +
-    `<symptom> if it failed; no build if it holds)'; brainstorm → '/wf intake brainstorm ${slug} to continue, or a ` +
+    `<symptom> if it failed; no build if it holds)'; audit → "each finding's route in 07-review.md (## Triage ` +
+    `Decisions)"; brainstorm → '/wf intake brainstorm ${slug} to continue, or a ` +
     `candidate entry command from 01-brainstorm.md once distilled'.\n` +
     `   5b. RCA with a DECIDED build — workflow-type 'rca'. The diagnosis IS the intake and 02-shape.md is its ` +
     `synthesized shape, so intake+shape are already COMPLETE and yolo may drive plan→implement→verify→review over ` +
@@ -1572,6 +1575,9 @@ async function orient() {
     `   5b2. PROTOTYPE — workflow-type 'prototype'. A person-steered proof loop: the person starts every round, ` +
     `and no driver runs one. yolo drives NOTHING here. Set ok=false, blockReason='a prototype is steered by the ` +
     `person, one round at a time', route='/wf loop prototype ${slug} <request>'. Do NOT fall through to 5d.\n` +
+    `   5b3. TASK — workflow-type 'task'. Its blast-radius gates are never resolved unattended. yolo drives ` +
+    `NOTHING here. Set ok=false, blockReason='a task resolves its blast-radius gates with the person', ` +
+    `route='/wf intake task ${slug}'. Do NOT fall through to 5d.\n` +
     `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf loop optimize: a person confirms ` +
     `its spec (02-optimize-spec.md, confirmed-by), and the loop runs under its own driver. yolo never runs a trial. ` +
     `READINESS: 05-implement-optimize.md exists with status: complete (the loop's finish wrote it, with ` +
@@ -1855,9 +1861,9 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `stopped, 'questions' when an intent-bearing decision waits for the person` +
     `${extra.stopCheck === true ? ", 'stopped' when the stop-request check stopped you" : ''}), the primary ` +
     `artifactPath, and terminal fields — plan/implement: statusField; verify: convergence + result + deferrals ` +
-    `([{ac, reason, probe}]; [] if none) + substantiveResidual; review: verdict + blockerCount ` +
+    `([{ac, reason, probe}]; [] if none) + substantiveResidual + acceptedItems; review: verdict + blockerCount ` +
     `(= metric-findings-blocker, OPEN) + couldNotFixBlockers, and fixCommits — plus the questions, the class-stamped decisions you recorded, any ` +
-    `residual (could-not-fix) notes, your recovered-error list, acceptedByPerson or routeBack when the answered ` +
+    `residual (could-not-fix) notes, your recovered-error list, routeBack when the answered ` +
     `question asks for one, and steeringHonored (plus steeringConflict when a steering entry stopped you) when a ` +
     `steer entry exists.` +
     heartbeatClause(label, 'Drive', stage, sliceArg),
@@ -1975,8 +1981,9 @@ async function driveVerify(sliceArg, idx, extra = {}) {
     if (extra.answered && (last.routeBack === 'plan' || last.routeBack === 'implement')) return last
     if (last.status === 'hard-stop' || last.status === 'stopped' || last.status === 'questions') return last
     // The person accepted the slice with its failing or residual items: it passes on that answer.
-    // Only an answered verify can accept; no fix round runs after it.
-    if (extra.answered && last.acceptedByPerson === true) {
+    // Only an answered verify can accept; no fix round runs after it. The accepted items stay in
+    // terminal.acceptedItems with by 'person', so the hand-back names them.
+    if (extra.answered && personAccepted(last.terminal)) {
       log(`verify:${sliceArg} accepted by ${extra.answered.by || 'person'} (${extra.answered.key || 'answer'}) with result=${(last.terminal || {}).result}`)
       return { ...last, accepted: true }
     }
@@ -2116,7 +2123,8 @@ async function driveWallProbe(sliceArg, idx, fresh = null) {
 // Anything it still cannot classify stays `unclassified` and is reported as SUSPECT.
 // ---------------------------------------------------------------------------
 async function classifyDecisions(res, idx) {
-  const bare = (res.decisions || []).filter(d => d && !(d.class && String(d.class).trim()))
+  if (!res || !Array.isArray(res.decisions)) return res
+  const bare = res.decisions.filter(d => d && !(d.class && String(d.class).trim()))
   if (!bare.length) return res
   const listed = bare.map((d, i) => `    ${i + 1}. ${d.decision || d.what || d.summary || JSON.stringify(d)}`).join('\n')
   const out = await agent(
@@ -2188,9 +2196,16 @@ function repoPath(p) {
 // merges the findings into the ledger with `wf.mjs findings add` and writes the review
 // file whole from it. Opt-out (args.reviewFanout === false): wrap review.md in ONE
 // subagent (it runs the scouts and refuters itself per the reference).
+// With extra.ledgerOnly, the walk put the defects of a fidelity row or a try-out in the findings
+// ledger: the writer fixes them and nothing scans the work packet.
+// Every path gives the decisions of the review writer their classes here, so each walk that
+// runs a review (a slice chain, the slug-wide review, update-deps) classifies them the same way.
 async function driveReview(sliceArg, idx, extra = {}) {
+  if (extra.ledgerOnly) {
+    return await classifyDecisions(await runStage('review', sliceArg, idx, { stopCheck: true, ledgerOnly: true }), idx)
+  }
   if (OPT.reviewFanout === false) {
-    return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered || null })
+    return await classifyDecisions(await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered || null }), idx)
   }
   phase('Review')
   // The fan-out agents journal too, so the watch and the status see the review run.
@@ -2200,7 +2215,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
   // An answered review runs the writer again with the answer, over the ledger of the last run.
   if (extra.answered) {
-    return await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered })
+    return await classifyDecisions(await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered }), idx)
   }
   // 0. Select the rubrics the way the wrapped review stage does (review/_stage.md Step 2 +
   //    review/_select.md), so the fan-out reviews the same dimensions a manual review would.
@@ -2297,10 +2312,11 @@ async function driveReview(sliceArg, idx, extra = {}) {
   log(`review fan-out: ${raw.length} raw findings → ${findings.length - refuted} stand, ${refuted} refuted (kept in the ledger with the refuter's reason)`)
   const dimensions = [...new Set([...rubrics.map(r => r.rubric), ...(steeringScout ? ['steering'] : [])])]
   // 3. Wrapped writer — review.md owns the ledger merge, triage, fix loop and review file.
-  return await runStage('review', sliceArg, idx, {
+  const res = await runStage('review', sliceArg, idx, {
     scan: { dimensions, findings, affectedFiles: affected, files: [...new Set(rubrics.map(r => r.file))] },
     ...(extra.answered ? { answered: extra.answered } : {}),
   })
+  return await classifyDecisions(res, idx)
 }
 
 // The commit at HEAD, read by a bookkeeping agent: the script has no shell. Null when the
@@ -2373,6 +2389,7 @@ async function driveUpdateDeps(idx) {
   const entry = idx.slices[0] || {}
   const done = entry.stages || {}
   const ran = []
+  const out = (at, reason, extra = {}) => stopOut(at, reason, { mode: 'update-deps', ran, ...extra })
   let execProbeGaps = []   // ACs the exec deferred without a probe receipt — surfaced, not re-run (no round loop here)
   // 05 and 06 are authored together in one intake pass, so from yolo's view the exec
   // is one stage: skip it only when implement AND verify are both terminal-clean.
@@ -2380,19 +2397,14 @@ async function driveUpdateDeps(idx) {
     log(`skip update-deps exec (05/06 already terminal-clean)`)
   } else {
     log(`yolo → update-deps self-managed exec ${slug} (self-authors 05/06)`)
-    let exec = await runUpdateDepsExec(idx)
-    // W3.3 — same corrective classification round the per-slice chain runs.
-    if (exec && Array.isArray(exec.decisions) && exec.decisions.length) exec = await classifyDecisions(exec, idx)
-    if (exec && exec.status === 'stopped') {
-      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'stop-request', reason: exec.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
-    }
-    ran.push(exec)
-    if (exec && exec.status === 'questions') return { ok: false, mode: 'update-deps', ...questionStop(exec), ran }
+    const { res: exec, stop: execStop } = await settle(await runUpdateDepsExec(idx), idx, ran)
+    if (execStop === 'stop-request') return out('stop-request', exec.stopReason || 'stop request', { route: `/wf yolo ${slug}` })
+    if (execStop === 'questions') return { mode: 'update-deps', ...questionStop(exec), ran }
     if (!exec || exec.status === 'hard-stop') {
-      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: (exec && exec.hardStopReason) || 'update-deps self-managed exec stopped', ran, route: `address the exec blocker, then re-run /wf yolo ${slug}` }
+      return out('exec', (exec && exec.hardStopReason) || 'update-deps self-managed exec stopped', { route: `address the exec blocker, then re-run /wf yolo ${slug}` })
     }
     if (evaluateGate('verify', exec) === 'hard-stop') {
-      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: `update-deps verify did not clear the gate: ${JSON.stringify(exec.terminal || {})}`, ran, route: `address the verify residual, then re-run /wf yolo ${slug}` }
+      return out('exec', `update-deps verify did not clear the gate: ${JSON.stringify(exec.terminal || {})}`, { route: `address the verify residual, then re-run /wf yolo ${slug}` })
     }
     // No round loop on this path (the plan/exec is one pass), so a probe-less deferral is
     // surfaced in the hand-back rather than triggering a corrective re-run — the standard
@@ -2405,32 +2417,43 @@ async function driveUpdateDeps(idx) {
   }
   // slug-wide review over the branch diff — same endpoint as the standard slug-wide path.
   log(`yolo → review ${slug} (slug-wide, update-deps)`)
-  let rev = await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })
-  if (rev && rev.status === 'stopped') {
-    return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'stop-request', reason: rev.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
-  }
-  if (rev && Array.isArray(rev.decisions) && rev.decisions.length) rev = await classifyDecisions(rev, idx)
-  ran.push(rev)
-  if (rev && rev.status === 'questions') return { ok: false, mode: 'update-deps', ...questionStop(rev), ran, slugWide: rev }
+  const { res: rev, stop: revStop } = await settle(await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) }), idx, ran)
+  if (revStop === 'stop-request') return out('stop-request', rev.stopReason || 'stop request', { route: `/wf yolo ${slug}` })
+  if (revStop === 'questions') return { mode: 'update-deps', ...questionStop(rev), ran, slugWide: rev }
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
   const probeGapsField = execProbeGaps.length ? { probeGaps: execProbeGaps } : {}
   return stopped
-    ? { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', ran, slugWide: rev, ...probeGapsField, route: `address the review blockers, then re-run /wf yolo ${slug}` }
+    ? out('review', (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', { slugWide: rev, ...probeGapsField, route: `address the review blockers, then re-run /wf yolo ${slug}` })
     : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, ...probeGapsField, route: `/wf ship ${slug}` }
 }
 
+// stopOut() — the one shape of a stop. `at` is the stop point (a stage, 'stop-request', 'exec',
+// a checkpoint); `extra` carries the fields of the walk that stopped (mode, slice, ran, route).
+function stopOut(at, reason, extra) {
+  return { ok: false, stopped: true, stoppedAt: at, reason, ...extra }
+}
+
+// settle() — the steps after a stage returns, the same in every walk. A stop request means the
+// stage did no work, so it joins nothing. Otherwise the decisions get their classes (one
+// corrective round; driveReview classifies a review itself), the result joins `ran` when the
+// walk keeps one, and status 'questions' stops the walk. Returns { res, stop }, where stop is
+// 'stop-request', 'questions' or null.
+async function settle(res, idx, ran) {
+  if (res && res.status === 'stopped') return { res, stop: 'stop-request' }
+  if (res && res.stage !== 'review') res = await classifyDecisions(res, idx)
+  if (ran) ran.push(res)
+  return { res, stop: res && res.status === 'questions' ? 'questions' : null }
+}
 
 // The stop of a stage that returned questions: the run stops, and the main session asks them.
 function questionStop(res) {
   const questions = questionsOf(res)
   const at = (res && res.stage) || 'stage'
-  return {
-    stopped: true, stoppedAt: at, questions,
-    reason: questions.length
+  return stopOut(at,
+    questions.length
       ? `${at} waits for the person: ${questionsText(questions)}`
       : `${at} returned status questions without a question`,
-    route: `answer the questions, then re-run /wf yolo ${slug}`,
-  }
+    { questions, route: `answer the questions, then re-run /wf yolo ${slug}` })
 }
 
 // The stages of a slice, in walk order. A route back runs its target and every later stage again.
@@ -2584,11 +2607,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
 
     // C2: an implement that hard-stopped SPLIT_AFTER_STOPS times on this slice runs no third time.
     if (stage === 'implement' && ((entry && entry.implementStops) || 0) >= SPLIT_AFTER_STOPS) {
-      return {
-        stopped: true, at: 'implement', slice: sliceArg, ran, split: true,
-        reason: `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
+      return stopOut('implement',
+        `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
           `or record a retry (\`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}\`) and run /wf yolo ${slug} again`,
-      }
+        { slice: sliceArg, ran, split: true })
     }
     // The answer that reaches this stage: one a route back carries, or one from args.answered.
     const answered = carried || answeredFor(ANSWERED, stage, sliceArg)
@@ -2597,33 +2619,30 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     const firstVerify = stage === 'verify' && selfVerified && (carried || !answered) ? selfVerified : null
     if (firstVerify) log(`verify:${sliceArg} ran in the implement agent (complexity ${entry.complexity}) — no separate verify agent`)
     if (stage === 'implement') selfVerified = null
-    let res =
+    const dispatched =
       stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify)
       : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
       : await runStage(stage, sliceArg, idx, { stopCheck: true, answered })
-    // G2 — the stage agent found a stop or pause request and did no work. The stage did
-    // not run, so it joins neither ran nor the write-back; the resume runs it again.
-    if (res && res.status === 'stopped') {
-      return { stopped: true, at: 'stop-request', slice: sliceArg, ran, stopRequest: true, reason: `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}` }
+    // A stage agent that found a stop or pause request did no work: the stage joins neither
+    // ran nor the write-back, and the resume runs it again.
+    const { res, stop } = await settle(dispatched, idx, ran)
+    if (stop === 'stop-request') {
+      return stopOut('stop-request', `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}`, { slice: sliceArg, ran, stopRequest: true })
     }
-    // W3.3 — one corrective classification round for decisions the stage left
-    // unstamped. Read-only and cheap; never re-runs the stage itself.
-    if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(res, idx)
-    ran.push(res)
     ranStages.push(stage)
     // An intent-bearing decision waits for the person: the chain stops, and the run with it.
-    if (res && res.status === 'questions') {
+    if (stop === 'questions') {
       const q = questionStop({ ...res, stage, slice: sliceArg })
-      return { stopped: true, at: stage, slice: sliceArg, ran, questions: q.questions, reason: q.reason, route: `answer the questions, then re-run /wf yolo ${slug}${idx.mode === 'slice' ? ' ' + sliceArg : ''}` }
+      return stopOut(stage, q.reason, { slice: sliceArg, ran, questions: q.questions, route: `answer the questions, then re-run /wf yolo ${slug}${idx.mode === 'slice' ? ' ' + sliceArg : ''}` })
     }
     // An answered stage routes back: its target and every later stage of the slice run again.
     const back = res && answered && CHAIN_ORDER.includes(res.routeBack) && CHAIN_ORDER.indexOf(res.routeBack) <= CHAIN_ORDER.indexOf(stage)
       ? res.routeBack : null
     if (back) {
       if (routeBacks >= MAX_ROUTE_BACKS) {
-        return { stopped: true, at: stage, slice: sliceArg, ran, reason: `${stage} of '${sliceArg}' routed back to ${back} ${routeBacks + 1} times on one answer — the answer does not settle; ask the person again` }
+        return stopOut(stage, `${stage} of '${sliceArg}' routed back to ${back} ${routeBacks + 1} times on one answer — the answer does not settle; ask the person again`, { slice: sliceArg, ran })
       }
       routeBacks++
       const again = CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(back)).filter(s => s === back || stages.includes(s))
@@ -2637,11 +2656,11 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       continue
     }
     if (!res || res.status === 'hard-stop') {
-      return { stopped: true, at: stage, slice: sliceArg, ran, reason: (res && res.hardStopReason) || `${stage} stopped` }
+      return stopOut(stage, (res && res.hardStopReason) || `${stage} stopped`, { slice: sliceArg, ran })
     }
     // A verify that the person accepted on an answer passes with its residual items.
     if (!(stage === 'verify' && res.accepted === true) && evaluateGate(stage, res) === 'hard-stop') {
-      return { stopped: true, at: stage, slice: sliceArg, ran, reason: `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` }
+      return stopOut(stage, `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}`, { slice: sliceArg, ran })
     }
     if (stage === 'plan') refresh = null
     if (stage === 'implement') codeMoved++
@@ -2680,20 +2699,21 @@ async function slugWideReview(idx, results) {
   log(`yolo → review ${slug} (slug-wide)`)
   // The walk put the defects of a fidelity row or a try-out in the ledger: the review fixes
   // them and does not scan the work packet again.
-  const rev = OPT.reviewFindings === true
-    ? await runStage('review', null, idx, { stopCheck: true, ledgerOnly: true })
-    : await driveReview(null, idx, { answered: answeredFor(ANSWERED, 'review', null) })
-  const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
-  return !rev
-    // A null return = the review subagent was skipped or died on a transient error: a re-run retries it.
-    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', transient: true, reason: 'the slug-wide review did not return (subagent skipped or hit a transient API error) — re-run to retry it; resume skips completed stages', results, route: `/wf yolo ${slug}` }
-    : rev.status === 'stopped'
-    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'stop-request', reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
-    : rev.status === 'questions'
-    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
-    : stopped
-    ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: rev.hardStopReason || ((rev.terminal || {}).couldNotFixBlockers ? `the review could not fix ${rev.terminal.couldNotFixBlockers} BLOCKER finding(s)` : 'slug-wide review did not clear the gate'), results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-    : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
+  const dispatched = await driveReview(null, idx, OPT.reviewFindings === true
+    ? { ledgerOnly: true }
+    : { answered: answeredFor(ANSWERED, 'review', null) })
+  const out = (at, reason, extra = {}) => stopOut(at, reason, { mode: 'slug', reviewScope: 'slug-wide', results, ...extra })
+  // A null return = the review subagent was skipped or died on a transient error: a re-run retries it.
+  if (!dispatched) {
+    return out('review', 'the slug-wide review did not return (subagent skipped or hit a transient API error) — re-run to retry it; resume skips completed stages', { transient: true, route: `/wf yolo ${slug}` })
+  }
+  const { res: rev, stop } = await settle(dispatched, idx, null)
+  if (stop === 'stop-request') return out('stop-request', `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, { route: `/wf yolo ${slug}` })
+  if (stop === 'questions') return { mode: 'slug', reviewScope: 'slug-wide', ...questionStop(rev), results, slugWide: rev }
+  if (rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop') {
+    return out('review', rev.hardStopReason || ((rev.terminal || {}).couldNotFixBlockers ? `the review could not fix ${rev.terminal.couldNotFixBlockers} BLOCKER finding(s)` : 'slug-wide review did not clear the gate'), { slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` })
+  }
+  return { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf ship ${slug}` }
 }
 
 // CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).
@@ -2852,13 +2872,13 @@ if (idx.workflowType === 'update-deps') {
   const next = i >= 0 && i < sliceList.length - 1 ? sliceList[i + 1] : null
   let route
   if (chain.stopped) {
-    route = chain.route || `address the gate at '${chain.at}', then re-run /wf yolo ${slug} ${idx.targetSlice}`
+    route = chain.route || `address the gate at '${chain.stoppedAt}', then re-run /wf yolo ${slug} ${idx.targetSlice}`
   } else if (next) {
     route = `/wf yolo ${slug} ${next}`
   } else {
     route = idx.reviewScope === 'slug-wide' ? `/wf yolo ${slug}` : `/wf ship ${slug}`   // last slice → finalizer
   }
-  outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.at, reason: chain.reason, ran: chain.ran, route, ...(chain.questions ? { questions: chain.questions } : {}) }
+  outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.stoppedAt, reason: chain.reason, ran: chain.ran, route, ...(chain.questions ? { questions: chain.questions } : {}) }
 } else {
   // ---- Slug mode — sequential over the roster. ---------------------------
   // Each slice runs plan → implement → verify before the next slice plans. Implement
@@ -2891,6 +2911,8 @@ if (idx.workflowType === 'update-deps') {
   // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
   // whole list cleared. `bounded` marks the re-challenge sweep (W2.2).
   async function driveRoster(list, bounded) {
+    // The fields of every stop of the roster walk.
+    const walk = { mode: 'slug', reviewScope: idx.reviewScope, results }
     // A checkpoint window in which no stage ran cannot drift the charter, so it is
     // not re-checked: a resumed run otherwise re-checks every finished slice first.
     let workSinceCheckpoint = false
@@ -2908,7 +2930,7 @@ if (idx.workflowType === 'update-deps') {
       results.push(chain)
       if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
       if (chain.stopped) {
-        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: chain.route || `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) }
+        return stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: s.slice, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) })
       }
       // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
@@ -2926,14 +2948,14 @@ if (idx.workflowType === 'update-deps') {
           const atRisk = (cp.commitments || []).filter(c => c && c.status === 'at-risk')
           if (atRisk.length) log(`charter checkpoint after '${s.slice}': ${atRisk.length} commitment(s) at-risk — ${atRisk.map(c => c.id).join(', ')}`)
           if (broken.length) {
-            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'charter-checkpoint', stoppedSlice: s.slice, reason: `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, results, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` }
+            return stopOut('charter-checkpoint', `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, { ...walk, stoppedSlice: s.slice, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` })
           }
           // Standing steering — a crossed veto outranks every auto-resolve, so it stops the run.
           const vetoes = (cp.steeringViolations || []).filter(v => v && v.kind === 'veto')
           const prefs = (cp.steeringViolations || []).filter(v => v && v.kind === 'preference')
           if (prefs.length) log(`steering check after '${s.slice}': ${prefs.length} preference(s) not followed — ${prefs.map(v => v.entry).join('; ')}`)
           if (vetoes.length) {
-            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'steering-checkpoint', stoppedSlice: s.slice, reason: `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in the decision store`, results, charterCheckpoints, route: `read the crossed veto(es) with wf.mjs decide list --kind steer, fix the code or supersede the entry, then re-run /wf yolo ${slug}` }
+            return stopOut('steering-checkpoint', `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in the decision store`, { ...walk, stoppedSlice: s.slice, charterCheckpoints, route: `read the crossed veto(es) with wf.mjs decide list --kind steer, fix the code or supersede the entry, then re-run /wf yolo ${slug}` })
           }
         }
       }

@@ -32,7 +32,7 @@ This file never hand-edits `.ai/ship-plan.md`, never bumps `plan-version` itself
 Run `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. It finds the gaps that a script can see: no plan, no GitHub login, no GitHub remote, a plan merge method that the repo refuses, and a stacked plan with no gh-stack. With the slug, it records each gap as a person task in the index (`person-tasks`, id `ship-ready:<code>`), and drops a task whose gap closed.
 
 - **At the start of a workflow or a list** (the shape phase of intake, the walk's Step 0): list the gaps to the person in one block, as person tasks, and continue. A gap does not stop the start. The run stops only when the next step needs the task now.
-- **At ship** (this file, called by `ship.md` or `handoff.md`): a gap is a gate. STOP with the gap and its task, before Step R1.
+- **At ship** (this file, called by `ship.md` or `handoff.md`): run it with `--allow-no-plan` (the `allowNoPlan` option of `readyGaps`). It leaves out the no-plan gap, because Step R1 owns a missing plan, and only the gate of Step R3 offers *Shipping is external*. Another gap is a gate. STOP with the gap and its task, before Step R1. When ship Step 0.4 ran R0 in this run, the PR phase does not run it again.
 
 # Step R1 — Plan presence
 
@@ -77,5 +77,5 @@ Whatever the path, stamp `ship-plan-readiness: <ok | missing | drift | acknowled
 
 - **The start of a workflow or a list** — run Step R0 only, in its listing form.
 
-- **`/wf ship`** — run this pre-check inside Step 0 immediately after reading `.ai/ship-plan.md`. `missing`/`drift`/`cancel` all STOP before the 13-step sequence. `ok`, `acknowledged`, and `amended-inline` proceed.
+- **`/wf ship`** — Step 0.4 runs Step R0 only, with `--allow-no-plan`. The PR phase runs the plan gates (R1 to R4) once. Step 0.6 uses the `ship-plan-readiness` stamp that the PR phase wrote in this run. It runs R1 to R4 again (caller = `ship`) only when the stamp is from an earlier run, and a `not-applicable` stamp stands while the plan is still missing. `not-applicable` STOPs the run after the PR is ready: the release is external. `missing`/`drift`/`cancel` all STOP before the 13-step sequence. `ok`, `acknowledged`, and `amended-inline` proceed.
 - **The PR phase of `/wf ship`** — run this pre-check once the roster and commit range are known (after the fingerprint/roster report, before packaging). `missing`/`drift` STOP and route via the index fields `recommended-next-*` (`node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index recommended-next-command=<command> recommended-next-invocation=<invocation>`; no partial package written, but `resume-orientation` **is** written per Step R3.5 so the resumed run skips re-deriving the roster and prereqs); `ok`, `acknowledged`, `amended-inline`, and `not-applicable` proceed to packaging. In batch mode the lead owns the single check.

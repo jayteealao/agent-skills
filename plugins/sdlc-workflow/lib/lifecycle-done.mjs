@@ -16,7 +16,7 @@
 
 import { missingDesignFiles } from './design-surface.mjs';
 import { designNeeded, designSettled } from './design-lane.mjs';
-import { frontmatterOfDoc, hasDoc } from './records.mjs';
+import { frontmatterOfDoc, hasDoc, listDocs } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 /** The change modes: one slice, un-suffixed stage files. */
@@ -65,6 +65,27 @@ export function reviewGate(fm) {
   return { state: 'open', reason: `review is not clean (verdict ${str(fm.verdict) || 'none'})` };
 }
 
+// The review scope rule: the `review-scope` key wins. With no key, the scope is per-slice only
+// when per-slice review records exist and the slug-wide record does not; else it is slug-wide.
+function scopeRule(key, hasPerSlice, hasSlugWide) {
+  const k = str(key);
+  if (k === 'per-slice' || k === 'slug-wide') return k;
+  return hasPerSlice && !hasSlugWide ? 'per-slice' : 'slug-wide';
+}
+
+/**
+ * The review scope of a workflow: `per-slice` or `slug-wide`. `index` is the 00-index.md
+ * frontmatter; `dir` is the workflow directory. The `review-scope` key wins. With no key, it
+ * is `per-slice` only when 07-review-<slice>.md records exist in `dir` and 07-review.md does
+ * not; else `slug-wide`.
+ */
+export function reviewScopeOf(index, dir) {
+  const k = str(index?.['review-scope']);
+  if (k === 'per-slice' || k === 'slug-wide') return k;
+  const names = dir ? listDocs(dir) : [];
+  return scopeRule(null, names.some((n) => /^07-review-.+\.md$/.test(n)), names.includes('07-review.md'));
+}
+
 /** A stage artifact that stopped at its own gate. */
 const awaiting = (fm) => str(fm?.status) === 'awaiting-input';
 
@@ -76,9 +97,10 @@ const awaiting = (fm) => str(fm?.status) === 'awaiting-input';
  * @param {Array<{slug:string,status?:string}>|null} input.roster  the 03-slice.md roster
  * @param {(name:string) => object|null} input.artifact  the frontmatter of a stage file, or null when absent
  * @param {{needed:boolean, settled:boolean}} [input.design]  the design lane, when the caller read it
+ * @param {'per-slice'|'slug-wide'} [input.reviewScope]  the scope of reviewScopeOf, when the caller read the disk
  * @returns {{verdict:'met'|'not-met'|'blocked', reason:string, next:{stage:string,slice:string|null}|null, suffixed:boolean, slices:object[]}}
  */
-export function judgeLifecycle({ index, roster, artifact, design = { needed: false, settled: true } }) {
+export function judgeLifecycle({ index, roster, artifact, design = { needed: false, settled: true }, reviewScope = null }) {
   const out = (verdict, reason, next = null, extra = {}) => ({ verdict, reason, next, suffixed: false, slices: [], ...extra });
   if (!index) return out('blocked', 'no 00-index.md: start the workflow with /wf intake');
   const type = str(index['workflow-type']) || 'standard';
@@ -105,9 +127,10 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
       ? out('not-met', 'the optimize loop has not finished', { stage: 'optimize', slice: null })
       : out('not-met', 'no slice roster yet', { stage: 'slice', slice: null });
   }
-  const scope = str(index['review-scope']) === 'slug-wide' ? 'slug-wide' : 'per-slice';
   // Multi-slice standard work has per-slice files; a change mode and single-scope work do not.
   const suffixed = !CHANGE_MODES.includes(type) && slices.some((s) => artifact(`03-slice-${s}.md`) !== null || artifact(`04-plan-${s}.md`) !== null);
+  // The rule of reviewScopeOf. Without the disk, look for the review records of the roster slices.
+  const scope = reviewScope ?? scopeRule(index['review-scope'], slices.some((s) => artifact(`07-review-${s}.md`) !== null), artifact('07-review.md') !== null);
   const file = (num, stage, s) => (suffixed ? `${num}-${stage}-${s}.md` : `${num}-${stage}.md`);
   const rows = [];
   for (const s of slices) {
@@ -159,5 +182,5 @@ export function lifecycleDone(root, slug) {
     const needed = designNeeded(index, hasDoc(dir, '02b-design.md'));
     design = { needed, settled: !needed || designSettled(index, contract, missingDesignFiles(root, dir, contract)) };
   }
-  return judgeLifecycle({ index, roster: readRoster(dir), artifact: read, design });
+  return judgeLifecycle({ index, roster: readRoster(dir), artifact: read, design, reviewScope: index ? reviewScopeOf(index, dir) : null });
 }

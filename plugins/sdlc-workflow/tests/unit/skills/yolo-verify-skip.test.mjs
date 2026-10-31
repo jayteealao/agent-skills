@@ -54,6 +54,8 @@ function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
     ${extractFn('sliceOf')}
     ${extractFn('questionsOf')}
     ${extractFn('questionsText')}
+    ${extractFn('stopOut')}
+    ${extractFn('settle')}
     ${extractFn('questionStop')}
     ${extractFn('answeredFor')}
     ${extractFn('driveChain')}
@@ -117,6 +119,7 @@ function verifyHarness(rounds, wall) {
     const { runStage, driveWallProbe, log } = stubs
     ${extractFn('acKey')}
     ${extractFn('verifyClean')}
+    ${extractFn('personAccepted')}
     ${extractFn('probeGaps')}
     ${extractFn('driveVerify')}
     return driveVerify
@@ -205,4 +208,30 @@ test('driveVerify: a self-verify that did not converge stops without a verify ag
   const ok = await driveVerify('auth', { priorDeferrals: [] }, { first: CLEAN('verify') });
   assert.equal(ok.status, 'complete');
   assert.equal(runs.length, 0);
+});
+
+// The person's accept is one shape: terminal.acceptedItems with by 'person', the same list that
+// a live decision or a delegate accept fills, so the hand-back names the accepted items.
+const PERSON_ACCEPT = { stage: 'verify', slice: 'auth', status: 'complete', artifactPath: 'v.md', terminal: { convergence: 'escalated', result: 'fail', substantiveResidual: true, acceptedItems: [{ item: 'AC-3 loads under 2 s', by: 'person' }] } };
+
+test('an answered verify that lists items with by person passes on the answer, and the hand-back names them', async () => {
+  const h = verifyHarness([PERSON_ACCEPT], null);
+  const res = await h.driveVerify('auth', { priorDeferrals: [] }, { answered: { key: 'verify:auth', answer: 'accept it', by: 'person' } });
+  assert.equal(res.accepted, true);
+  assert.equal(h.calls.verify, 1, 'no fix round after the accept');
+  const acceptedResiduals = new Function(`${extractFn('stageResults')}\n${extractFn('acceptedResiduals')}\nreturn acceptedResiduals`)();
+  assert.deepEqual(acceptedResiduals({ ran: [res] }), [{ slice: 'auth', item: 'AC-3 loads under 2 s', by: 'person' }]);
+});
+
+test('without an answer, items with by person do not accept a failing verify', async () => {
+  const h = verifyHarness([PERSON_ACCEPT, PERSON_ACCEPT], null);
+  const res = await h.driveVerify('auth', { priorDeferrals: [] });
+  assert.equal(res.accepted, undefined);
+  assert.equal(res.status, 'hard-stop');
+});
+
+test('the verify prompt and the stage schema carry one accept shape', () => {
+  assert.doesNotMatch(src, /acceptedByPerson/);
+  assert.match(src, /return ` \+\s+`each of those items in terminal\.acceptedItems as \{ item, by: 'person' \}/);
+  assert.match(src, /'person' when the answer of the\n\s+\/\/ person accepts the slice with its items/);
 });

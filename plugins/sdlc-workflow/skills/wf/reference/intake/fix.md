@@ -215,7 +215,7 @@ Gate: <proceeded | adjusted | escalated | auto-proceeded (low-risk)>
 Next: /wf implement <slug>
 ```
 
-If escalated, replace `Next:` with `Restart bigger: /wf intake <description>`.
+If escalated, `Next:` is the successor invocation that the tail printed: `/wf intake "<description>" from <slug>`.
 
 # Workflow rules
 Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md) (artifact home, frontmatter + real timestamps, drafts and puts, resume-from-first-unwritten). Resume mode (Step 0) picks up from the first unwritten planning artifact: if interrupted after `02-shape.md` but before `03-slice.md`, it writes slice + plan + index and gates.

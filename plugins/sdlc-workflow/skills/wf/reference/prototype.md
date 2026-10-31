@@ -30,7 +30,7 @@ Read every row before the first round. [_requires.md](_requires.md) defines the 
 - **A decide round commits.** Only a decide round makes a commit, through the prototype script. Other rounds commit nothing.
 - **A failure stays.** A failed or unresolved proof stays in the ledger and on the report, with its reason.
 
-CAUTION: do not stage with `git add -A` in the worktree. A proof writes model weights, downloads and virtual environments, and `-A` commits them. The prototype script stages explicit paths only.
+CAUTION: stage by path, per the commit rule of [_workflow-rules.md](_workflow-rules.md). A proof writes model weights, downloads and virtual environments, and a sweep commits them. The prototype script stages explicit paths only.
 
 ## Step 0 — Resolve
 
@@ -96,7 +96,7 @@ A decide round accepts a component only from the person's words.
 3. Record the decision in `decisions` (`D-NN`): `component`, `proofs`, `words` (the person's words), `generalized`, and `generalize-proof` when there is one. Without a generalize proof, `generalized` is `false`.
 4. Add the component to `pipeline`: `stage`, `component`, `settings`, `decision`, and the measured `time` and `cost` when you have them.
 5. Update `01-prototype.md` (Step 4).
-6. Run `decide <D-NN>`. The script builds the report, stages the decision's files and the prototype's records by explicit path, and commits `poc(<slug>): accept <component>`. It refuses a missing, ignored or oversized file, and staged files that the decision does not name.
+6. Run `decide <D-NN>`. The script builds the report, stages the decision's files and the prototype's records by explicit path, and commits `poc: accept <component>`. It refuses a missing, ignored or oversized file, and staged files that the decision does not name.
 
 ## Step 4 — Write the person's document
 

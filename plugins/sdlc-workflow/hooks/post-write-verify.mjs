@@ -329,22 +329,35 @@ export function auditTriageViolation(data) {
   };
 }
 
-async function enforceShipPlanAuditTriage(paths, config) {
+// The audit ledgers that share the triage steps of reference/_audit-ledger.md. Each is
+// kind-keyed (no sdlc/v1 type), so it never enters the schema gate.
+const AUDIT_LEDGERS = {
+  'ship-plan-audit': { label: 'ship-plan', card: 'reference/ship-plan/audit.md' },
+  'observability-audit': { label: 'observability', card: 'reference/observability/audit.md' },
+};
+
+function isAuditLedgerPath(filePath) {
+  return isShipPlanAuditPath(filePath) ||
+    /(?:^|\/)\.ai\/observability-audit\.md$/.test(normalizePathForMatch(filePath));
+}
+
+async function enforceAuditLedgerTriage(paths, config) {
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
     if (!hasFrontmatterFence(text)) continue;
     const { data } = safeParseFrontmatter(text, { filePath: path.absolute });
-    if (!data || String(data.kind ?? '') !== 'ship-plan-audit') continue;
+    const ledger = data && AUDIT_LEDGERS[String(data.kind ?? '')];
+    if (!ledger) continue;
     const violation = auditTriageViolation(data);
     if (!violation) continue;
     refuseWrite(checksModeOf(config),
-      `wf-postwrite-verify: ship-plan audit triage gate BLOCKED ${path.original}\n\n${violation.reason}\n\n` +
-      'Step 5 of reference/ship-plan/audit.md requires a gate question for every open BLOCKER/HIGH finding\n' +
-      'before the ledger is finalized. Ask the gate now (per reference/_gate-question.md), then record each\n' +
-      'decision in the ledger: accept -> `triage: accept` on the finding; acknowledge -> `status: acknowledged`\n' +
-      '+ the reason; reject -> drop the finding. Then set `triage-status: complete`. If the turn must end while\n' +
-      'the user answers, set `triage-status: awaiting-user` and `awaiting-since: <last-run>` instead; that escape\n' +
-      'lasts one run.\n',
+      `wf-postwrite-verify: ${ledger.label} audit triage gate BLOCKED ${path.original}\n\n${violation.reason}\n\n` +
+      `Step 5 of ${ledger.card} (reference/_audit-ledger.md) requires a gate question for every open\n` +
+      'BLOCKER/HIGH finding before the ledger is finalized. Ask the gate now (per reference/_gate-question.md),\n' +
+      'then record each decision in the ledger: accept -> `triage: accept` on the finding; acknowledge ->\n' +
+      '`status: acknowledged` + the reason; reject -> drop the finding. Then set `triage-status: complete`. If the\n' +
+      'turn must end while the user answers, set `triage-status: awaiting-user` and `awaiting-since: <last-run>`\n' +
+      'instead; that escape lasts one run.\n',
     );
   }
 }
@@ -564,13 +577,13 @@ export async function run(input) {
     await logError('post-write-verify:code-lints', err, { projectRoot }).catch(() => {});
   }
 
-  // The ship-plan audit ledger is kind-keyed (never schema-gated) but has its own
-  // triage gate; it is collected separately so it never enters the Ajv pass.
+  // The audit ledgers are kind-keyed (never schema-gated) but have their own
+  // triage gate; they are collected separately so they never enter the Ajv pass.
   const auditPaths = collectToolInputPaths(input)
-    .filter((path) => isShipPlanAuditPath(path))
+    .filter((path) => isAuditLedgerPath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
-  if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
+  if (auditPaths.length) await enforceAuditLedgerTriage(auditPaths, config);
 
   const boardPaths = collectToolInputPaths(input)
     .filter((path) => isBrainstormBoardPath(path))

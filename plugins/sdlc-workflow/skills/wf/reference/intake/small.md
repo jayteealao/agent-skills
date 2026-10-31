@@ -50,7 +50,7 @@ Do this step once, right after the path question. On a resume, start at the firs
 
 1. Make the change that the acceptance checks need. Add or change a test for each check that code can test.
 2. Run the `fast` suite and the `affected` suite: `node "<skill-dir>/scripts/wf.mjs" profile show "<root>"` names their commands. Run each one with `node "<skill-dir>/scripts/wf.mjs" profile run "<root>" <suite>`: it runs the command and records its time. Each suite must pass before the commit.
-3. Stage each changed file by its path, then commit. CAUTION: do not run `git add -A`, `git add .` or `git commit -a`. They stage the work of other sessions into this commit.
+3. Stage each changed file by its path, then commit, per the commit rule of [../_workflow-rules.md](../_workflow-rules.md).
 4. The commit message describes the product change. Read the SHA with `git rev-parse HEAD`.
 5. Get the note, fill `## Change` (the files and one line each) and `commit-sha: [<sha>]`, write the draft and put it. Then run `record set "<root>" <slug> index progress.implement=complete progress.verify=in-progress current-stage=verify stage-number=6`.
 

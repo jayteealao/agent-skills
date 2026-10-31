@@ -138,3 +138,24 @@ test('hook — the intake ledger lint never fires on compressed-mode intake arti
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ── Stack gate — one table, cited by each stage ──────────────────────────────
+test('stack gate — one table in runtime-adapters.md, and each stage cites its column', () => {
+  const ref = (name) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', name), 'utf-8');
+  const adapters = ref('runtime-adapters.md');
+  const section = adapters.slice(adapters.indexOf('## Stack gate'), adapters.indexOf('## Adapter selection'));
+  assert.match(section, /\| State \| shape \| slice \| plan \| verify \| probe \|/);
+  for (const state of ['missing', 'unconfirmed', 'unconfirmed by policy', 'confirmed']) {
+    assert.ok(section.includes(`\n| **${state}** (`), state);
+  }
+  // Intake leaves the stack unconfirmed on purpose for these modes: a caveat, never a question.
+  const policy = section.split('\n').find((l) => l.startsWith('| **unconfirmed by policy**'));
+  for (const mode of ['hotfix', 'update-deps', 'adopt']) assert.ok(policy.includes(`\`${mode}\``), mode);
+  assert.equal((policy.match(/Ask no question/g) || []).length, 4, 'shape, slice, plan and verify ask no question');
+  assert.match(policy, /`stack-source: unconfirmed-auto-detect` and write a caveat in `## Caveats`/);
+  for (const stage of ['shape', 'slice', 'plan', 'verify', 'probe']) {
+    const text = ref(`${stage}.md`);
+    assert.ok(text.includes(`Apply the ${stage} column of the table in [runtime-adapters.md](runtime-adapters.md) → Stack gate.`), stage);
+    assert.doesNotMatch(text, /If `stack\.user-confirmed: false`/, `${stage} keeps no copy of the gate`);
+  }
+});

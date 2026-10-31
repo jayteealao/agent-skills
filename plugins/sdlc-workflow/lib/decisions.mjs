@@ -88,12 +88,12 @@ export const isLive = (e) => !e['superseded-by'];
 export const STANDING_PREFIX = 'standing:';
 
 /** True when an entry was settled by a standing answer: its `by` is `standing:<id>`. */
-const bySteer = (by) => typeof by === 'string' && by.startsWith(STANDING_PREFIX);
+const byStanding = (by) => typeof by === 'string' && by.startsWith(STANDING_PREFIX);
 
 /** The live entries in a scope, in the order of writing. `by: 'standing'` takes the cases that a standing answer settled. */
 export function liveDecisions(list, query = {}, { by = null, kind = null } = {}) {
   return list.filter((e) => isLive(e) && inScope(e, query)
-    && (!by || (by === 'standing' ? bySteer(e.by) : e.by === by)) && (!kind || e.kind === kind));
+    && (!by || (by === 'standing' ? byStanding(e.by) : e.by === by)) && (!kind || e.kind === kind));
 }
 
 /** The kind of a question key: the part before the first colon, or null for a key with no colon. */
@@ -141,7 +141,7 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
   if (!KINDS.includes(kind)) {
     throw new Error(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`);
   }
-  if (!BY.includes(by) && !/^standing:D-\d+$/.test(by)) throw new Error(`by must be one of ${BY.join(', ')}, or standing:<id> of a standing answer`);
+  if (!BY.includes(by) && !(byStanding(by) && /^D-\d+$/.test(by.slice(STANDING_PREFIX.length)))) throw new Error(`by must be one of ${BY.join(', ')}, or standing:<id> of a standing answer`);
   if (input.answer == null || String(input.answer).trim() === '') throw new Error('an answer is required');
   if (kind !== 'steer' && !input.key) throw new Error(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`);
   const max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);

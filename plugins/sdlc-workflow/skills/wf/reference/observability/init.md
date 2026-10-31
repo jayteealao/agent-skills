@@ -132,6 +132,8 @@ lines, citing Step 1/2)**, then let the user confirm, refine, or replace it (as 
 `Other (describe)` always present; otherwise ask in chat and WAIT). These are **real forks with tradeoffs**, not a
 quiz. Bias every option by the discovered stack and the ship-plan — never propose a JS default on a non-JS repo.
 
+The decision letters are the block letters of the contract template ([init/_artifact.md](init/_artifact.md)), which `build` and `audit` read.
+
 ## Decision A — Wide-event schema (language-agnostic)
 The canonical field vocabulary every unit will emit: correlation (`request_id`/`trace_id`), service identity
 (`service`, `version`, `env`), request/unit outcome (`operation`, `duration_ms`, `outcome`, `status`), actor
@@ -139,16 +141,26 @@ The canonical field vocabulary every unit will emit: correlation (`request_id`/`
 keys (one `user.id`, not `userId`/`user_id`/`uid`). Author this against the shared doctrine so `instrument` and
 this contract never drift.
 
-## Decision B — Sampling
-Tail-sampling policy: the **always-keep** classes (errors, slow, VIP/important cohorts, feature-flagged traffic) +
-a base rate for the noise + the cost posture. Present the doctrine's default (keep 100% of signal, sample ~5% of
-the rest) and let the user tune to their volume.
+## Decision B — Emit layer (per unit and language)
+For each unit that Step 1 found, name the language and the emit mechanism: one context-rich event per unit of work,
+built request-scoped and emitted once at completion. Name the planned path of the event builder. Extend the logger or
+SDK that the unit already uses. This becomes Block B, and `build` reads the language of each unit from it.
 
 ## Decision C — PII / redaction
 The security contract: the denylist (secrets, tokens, PANs, SSNs), hash-vs-drop for identifiers, sensitive-field
 handling. This becomes Block C and is enforced by `audit`'s `pii-and-redaction` lens.
 
-## Decision D — Backend / platform (the consultative fork)
+## Decision D — Sampling
+Tail-sampling policy: the **always-keep** classes (errors, slow, VIP/important cohorts, feature-flagged traffic) +
+a base rate for the noise + the cost posture. Present the doctrine's default (keep 100% of signal, sample ~5% of
+the rest) and let the user tune to their volume.
+
+## Decision E — Collection pipeline
+How events travel from the process to the backend: **direct SDK export** (simplest), **OTel Collector** (a
+vendor-neutral hop — recommended when multiple units or a possible backend switch), a **host/agent** forwarder, or
+**log-shipping** (stdout → Fluent Bit/Vector → backend). Bias by unit count and the deploy target.
+
+## Decision F — Backend / platform (the consultative fork)
 Present **2–3 real paths**, biased by the ship-plan's cloud and any vendor already in the tree, trading
 cost / ops-burden / lock-in plainly:
 - **Self-hosted OSS** — Grafana stack (Loki logs + Tempo traces + Prometheus metrics + Grafana dashboards) driven
@@ -158,17 +170,12 @@ cost / ops-burden / lock-in plainly:
 - **Cloud-native** — CloudWatch (Logs Insights) / GCP Cloud Logging + Trace / Azure Monitor. Integrated with the
   cloud you already deploy to; querying and cardinality vary by provider.
 
-## Decision E — Collection pipeline
-How events travel from the process to the backend: **direct SDK export** (simplest), **OTel Collector** (a
-vendor-neutral hop — recommended when multiple units or a possible backend switch), a **host/agent** forwarder, or
-**log-shipping** (stdout → Fluent Bit/Vector → backend). Bias by unit count and the deploy target.
-
-## Decision F — Dashboards
+## Decision G — Dashboards
 Which analyses matter — the canonical wide-event queries materialized as dashboards: **error-rate by cohort**,
 **latency by dependency/region**, **feature-flag rollout impact**, plus any domain analysis (e.g. checkout funnel).
 Record the **dashboard-as-code target** (Grafana JSON / vendor dashboard API / Terraform).
 
-## Decision G — Provisioning approach (the ceiling `build` must not exceed)
+## Decision H — Provisioning approach (the ceiling `build` must not exceed)
 How far `/wf project observability build` should go, recorded so `build` never over-reaches:
 - **local compose only** — a `docker-compose` self-hosted stack for local/dev.
 - **emit IaC files** — Helm/Terraform/collector config written to the repo; the user applies them. *(Recommended
@@ -177,7 +184,7 @@ How far `/wf project observability build` should go, recorded so `build` never o
   only with an explicit per-run confirm and a print-only fallback. Never silent, never with stored credentials.
 - **print-only** — `build` emits nothing to any remote; it writes the exact commands to the compliance artifact.
 
-## Decision H — Client / edge scope (optional)
+## Client / edge scope (optional, no block letter)
 Whether the contract covers a browser/edge tier (client wide events, error boundary, `sendBeacon` transport) or
 server units only. Default: server units first; client/edge is an opt-in extension.
 

@@ -13,7 +13,7 @@ Skip if the list is empty.
 - **Non-compliant:** PR workflow exists but one or more check names are absent as jobs.
 
 ## Audit B — Release trigger and workflow file (`plan.ci-pipeline.release-trigger`, `plan.ci-pipeline.release-workflow-file`)
-- Does `plan.release-workflow-file` exist?
+- Does `plan.ci-pipeline.release-workflow-file` exist?
 - If yes: does its `on:` block match the trigger?
   - `tag-on-main` → `push: tags: ['v[0-9]*']`
   - `merge-to-main` → `push: branches: [<base-branch>]`
@@ -23,7 +23,7 @@ Skip if the list is empty.
 - **Non-compliant:** file exists but `on:` does not match.
 
 ## Audit C — Release jobs (`plan.ci-pipeline.release-jobs[]`)
-- Does `plan.release-workflow-file` contain each job in `release-jobs[]`?
+- Does `plan.ci-pipeline.release-workflow-file` contain each job in `release-jobs[]`?
 - **Missing:** one or more jobs absent.
 - **Non-compliant:** jobs present but `needs:` wiring does not reflect the implied sequential order.
 
@@ -33,7 +33,7 @@ Skip if `publish-dry-run-cmd` is empty.
 - **Missing:** command does not appear in any PR workflow.
 
 ## Audit E — Publish command (`plan.ci-pipeline.publish-cmd`)
-- Does `plan.release-workflow-file` contain a step running `publish-cmd`?
+- Does `plan.ci-pipeline.release-workflow-file` contain a step running `publish-cmd`?
 - **Missing:** command does not appear in the release workflow.
 
 ## Audit F — Required secrets (`plan.ci-pipeline.required-secrets[]`)
@@ -62,7 +62,20 @@ Skip if `rollback-mechanism` ∈ {`feature-flag-off`, `git-revert`} — those ar
 
 ---
 
-The remaining audits cover the **inbound** half of the plan. Run them only when the plan has the corresponding block (`code-quality` / `local-dx` / `governance`); skip silently otherwise.
+The remaining audits (K to S) cover the **inbound** half of the plan. Run an audit only when the plan has its block. When the block is absent, skip the audit silently. Plans written before a block was added do not have its key.
+
+## The block table
+
+This table is the one map from a plan block to its audits. Other cards cite it.
+
+| Plan block | Key | Audits |
+|---|---|---|
+| H, code quality | `plan.code-quality` | K, L |
+| I, local developer experience | `plan.local-dx` | M, N |
+| J, governance and merge | `plan.governance` (Audit R needs `plan.governance.merge`) | O, R |
+| K, security | `plan.security` | P |
+| A, environment protection | `plan.ship-environments[].protection` | Q |
+| C, CI ergonomics | `plan.ci-pipeline.ci-ergonomics` | S |
 
 ## Audit K — Code-quality CI gates (`plan.code-quality`)
 For each of `format-check`, `lint`, `type-check`, `test-coverage` whose `cmd` is non-empty:
@@ -103,6 +116,7 @@ Skip if `framework: none`.
 - **Compliant (stronger):** live protection exceeds the plan — report and do not weaken (see Step 12b in [governance.md](governance.md)).
 
 ## Audit P — Security & supply-chain gates (`plan.security`)
+Skip if the plan has no `security` block.
 For each gate that isn't `none`:
 - `sast` → does a SAST workflow exist (CodeQL `.github/workflows/codeql*.yml`, or the configured tool as a CI step) running on PR and/or schedule?
 - `dependency-audit` → does a PR workflow run the audit `cmd` with the planned `fail-on` threshold?

@@ -53,8 +53,9 @@ this file instead of restating them.
    never silently disappears, and it feeds the stage's escalation state
    (`convergence: escalated`, `could-not-fix`, `readiness-verdict: blocked`).
 7. **Commit discipline.** When fixes landed and `branch-strategy` is
-   `dedicated`/`shared`: stage ONLY the files the fix sub-agents touched and
-   commit with the stage's `fix(<slug>): …` message template. Never push from
+   `dedicated`/`shared`: stage ONLY the files the fix sub-agents touched, by
+   path, per the commit rule of [_workflow-rules.md](_workflow-rules.md). Commit
+   as `<type>: <what the fix does>` ([implement/_steps.md](implement/_steps.md)). Never push from
    the fix loop (handoff's orchestrator batch-push is the sanctioned exception,
    defined in `handoff/_pr-ci-handoff.md`). When `branch-strategy: none`, skip the
    commit — the fixes remain in the working tree.

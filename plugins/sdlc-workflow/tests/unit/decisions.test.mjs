@@ -220,3 +220,11 @@ test('a standing answer settles each later question of its kind, and no other ki
     assert.match(r.stdout, new RegExp(steer.id));
   } finally { f.done(); }
 });
+
+test('the by row of _decisions.md names each by value that the store accepts', async () => {
+  const { BY, STANDING_PREFIX } = await import('../../lib/decisions.mjs');
+  const card = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_decisions.md'), 'utf8');
+  const row = card.split(/\r?\n/).find((l) => l.startsWith('| `by` |'));
+  assert.ok(row, 'the card has a by row');
+  for (const value of [...BY, `${STANDING_PREFIX}<id>`]) assert.ok(row.includes(`\`${value}\``), `the by row names ${value}`);
+});

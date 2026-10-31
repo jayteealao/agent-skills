@@ -34,7 +34,7 @@ You are running `wf project ship-plan build`. Your job: read the ship plan as th
 # Step 0 — Orient
 
 1. Parse `$ARGUMENTS` for `--dry-run`. If present, run all audit steps and generate the full gap report but write nothing. Label every planned change `[DRY RUN — not written]`.
-2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf project ship-plan init` first."* Parse all blocks A–K into in-memory state. (Plans authored before a given inbound block simply lack its key — `code-quality` / `local-dx` / `governance` / `security` plus the `ship-environments[].protection` and `ci-pipeline.ci-ergonomics` extensions — and the matching audits among K–S then skip.)
+2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf project ship-plan init` first."* Parse all blocks A–K into in-memory state. A plan written before an inbound block was added does not have its key, and its audits skip (see the block table in [build/_audits.md](build/_audits.md)).
 3. **Detect the language/runtime ecosystem** from the plan's `version-source-of-truth[]` paths and `publish-cmd` content:
 
    | Signal | Ecosystem |
@@ -49,13 +49,13 @@ You are running `wf project ship-plan build`. Your job: read the ship plan as th
 
 4. **Enumerate `.github/workflows/*.yml`.** Read each file fully. Build an in-memory index: `filename → on-triggers → job-names → step-run-commands → secret-refs`. Secret refs are all `${{ secrets.<NAME> }}` patterns.
 5. **Determine the base branch** from `plan.ship-environments[0].name` or default `main`. (Prefer `plan.governance.branch-protection.base-branch` when present.)
-6. **Index inbound-DX state** (only for blocks the plan actually carries; plans authored before a block simply skip its audits — `code-quality` → K/L, `local-dx` → M/N, `governance` → O/R, `security` → P, env `protection` → Q, `ci-ergonomics` → S). Probe the conventional paths for existing config: commitlint config, hook framework (`.husky/`, `lefthook.{yml,yaml}`, `.pre-commit-config.yaml`, `simple-git-hooks` in `package.json`), `.editorconfig`, runtime-version files, task-runner files, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml` / `renovate.json` / `.renovaterc*`, `CONTRIBUTING.md`, CodeQL/SAST + audit/secret/SBOM/license workflows. Build a `path → present?` index. Record `plan.governance.branch-protection.apply-via` (and any env `apply-via`) — it decides whether Steps 12/14/15 may call `gh api`.
+6. **Index inbound-DX state** (only for blocks the plan has; the block table in [build/_audits.md](build/_audits.md) maps each block to its audits). Probe the conventional paths for existing config: commitlint config, hook framework (`.husky/`, `lefthook.{yml,yaml}`, `.pre-commit-config.yaml`, `simple-git-hooks` in `package.json`), `.editorconfig`, runtime-version files, task-runner files, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml` / `renovate.json` / `.renovaterc*`, `CONTRIBUTING.md`, CodeQL/SAST + audit/secret/SBOM/license workflows. Build a `path → present?` index. Record `plan.governance.branch-protection.apply-via` (and any env `apply-via`) — it decides whether Steps 12/14/15 may call `gh api`.
 
 ---
 
 # Step 1 — Compliance audit
 
-Evaluate each requirement as **Compliant / Missing / Non-compliant** and record the exact delta needed. Run the nineteen audits (A–S) in [build/_audits.md](build/_audits.md). Audits K–S cover the inbound half of the plan; run each only when the plan carries its block, and skip it silently otherwise.
+Evaluate each requirement as **Compliant / Missing / Non-compliant** and record the exact delta needed. Run the nineteen audits (A–S) in [build/_audits.md](build/_audits.md). Audits K–S cover the inbound half of the plan. Run each only when the plan has its block (the block table in [build/_audits.md](build/_audits.md)), and skip it silently otherwise.
 
 ---
 
@@ -64,7 +64,7 @@ Evaluate each requirement as **Compliant / Missing / Non-compliant** and record 
 Present the audit results as a structured table — one row per audit with Requirement, Status, and Planned action; the shape is the *Gap report table* in [build/_audits.md](build/_audits.md). Then confirm before writing anything.
 
 
-Inbound audit rows (K–S) appear only when the plan carries the matching block. The plan-block → audit map: **H (code-quality) → K, L** · **I (local-dx) → M, N** · **J (governance + merge) → O, R** · **K (security) → P** · **A (env protection) → Q** · **C (ci-ergonomics) → S**.
+Inbound audit rows (K–S) appear only when the plan has the matching block, per the block table in [build/_audits.md](build/_audits.md).
 
 Then ask a gate question per [_gate-question.md](../_gate-question.md):
 

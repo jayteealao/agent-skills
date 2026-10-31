@@ -24,6 +24,21 @@ Callers should re-use the `stack:` block written by `/wf intake` Step 0.5 (and c
 2. If `stack:` is missing or `user-confirmed: false`, fall back to running every adapter's detection signal against the repo as described below.
 3. If `stack.available-skills` or `stack.available-mcp` names a session-visible helper that an adapter calls out under **Skill catalog hints**, surface that helper as a *suggested companion* — not a required tool. Record the PO's choice in the calling artifact (`verify` per slice, `probe` once per slug).
 
+## Stack gate
+
+Shape, slice, plan, verify and probe read the `stack:` block of `00-index.md` before they use it. Do not re-detect the stack in these stages. Find the state of the block, then do the action of your stage:
+
+| State | shape | slice | plan | verify | probe |
+|---|---|---|---|---|---|
+| **missing** (no `stack:` block) | Record an open question. Propose to run `/wf intake <slug>` again. | STOP: "Run `/wf intake <slug>` again to capture the stack." | STOP, as slice. | STOP, as slice. | Warn, set `stack-source: probe-detected-from-repo`, and continue. |
+| **unconfirmed** (`user-confirmed: false`) | Record an open question. Propose the intake Batch B confirm. | Ask one gate question: confirm in intake Batch B, or continue with the risk. On continue, the stack is advice only and does not set slice boundaries. | Ask the same gate question. On continue, set `stack-source: unconfirmed-auto-detect`. | Ask the verify gate question below. Never continue without an answer. On continue, set `stack-source: unconfirmed-auto-detect` and write a caveat in `## Caveats`. | Warn, set `stack-source: unconfirmed-auto-detect`, and continue. |
+| **unconfirmed by policy** (`user-confirmed: false` and `workflow-type` is `hotfix`, `update-deps` or `adopt`) | Note the caveat. Ask no question. | Use the stack as advice only. Ask no question. | Set `stack-source: unconfirmed-auto-detect`. Ask no question. | Set `stack-source: unconfirmed-auto-detect` and write a caveat in `## Caveats`. Ask no question. | As unconfirmed. |
+| **confirmed** (`user-confirmed: true`) | Match `stack.platforms` to the adapters. | Continue. The slices may cite the confirmed platforms and tools. | Continue, and set `stack-source: confirmed`. Sub-agent 3 reads the stack. | Continue. Intersect the matched adapters with `stack.platforms`. | Set `stack-source: confirmed`. Intersect the matched adapters with `stack.platforms`. |
+
+- Intake writes `user-confirmed: false` on purpose for `hotfix`, `update-deps` and `adopt` (the stack policy of [intake/_change-mode-tail.md](intake/_change-mode-tail.md)). The caveat carries the risk, so these runs get no stack question.
+- When the plan record carries `stack-source: unconfirmed-auto-detect`, verify writes the same stamp and caveat.
+- The verify gate question: header `"Stack unconfirmed"`, options `Stop (recommended)` / `Proceed with unconfirmed stack`. The question says that adapter selection may be wrong, and that review and ship may refuse a result with weak provenance.
+
 ## Adapter selection (read by callers)
 
 1. Run every adapter's detection signal against the repo.

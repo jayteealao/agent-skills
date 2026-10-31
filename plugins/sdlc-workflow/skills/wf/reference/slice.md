@@ -64,10 +64,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 3. **Check prerequisites:**
    - `01-intake.md` and `02-shape.md` exist: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` exits 0 for each. If one exits 1 → STOP. Tell the user which command to run first ("Run `/wf intake <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
-   - **Stack gate (do not silently re-detect).** Inspect the `stack:` block in `00-index.md`.
-     - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it."
-     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling or platform (which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask it as a gate question per [_gate-question.md](_gate-question.md). If the user proceeds, treat the unconfirmed stack as advisory only; it does not drive slice boundaries.
-     - If `stack.user-confirmed: true` → proceed. The slice strategy may reference confirmed platforms and tooling to justify groupings, and introduces no tooling assumptions beyond `stack:`.
+   - **Stack gate.** Apply the slice column of the table in [runtime-adapters.md](runtime-adapters.md) → Stack gate.
    - If `current-stage` is already past slice → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revisions and appends the `revisions:` ledger.
 4. **Use the design artifacts when present.**
    - `02b-design.md`: extract the content inventory, the state list (empty / error / loading / first-run), and the visual direction. State transitions (empty vs populated) and visual surface boundaries (main view vs settings drawer) inform slice boundaries: either each distinct state or surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` justifies the grouping with one sentence per state or surface.

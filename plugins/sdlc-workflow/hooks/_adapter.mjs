@@ -400,8 +400,8 @@ export function isManagedArtifactPath(path) {
     /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(n) ||
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n) ||
     /(?:^|\/)\.ai\/ship-plan\.md$/.test(n) ||
-    // The ship-plan audit ledger is kind-keyed (never schema-gated) but carries
-    // its own triage gate in post-write-verify, so the Stop re-check must see it.
-    /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(n)
+    // The audit ledgers are kind-keyed (never schema-gated) but carry their own
+    // triage gate in post-write-verify, so the Stop re-check must see them.
+    /(?:^|\/)\.ai\/(?:ship-plan|observability)-audit\.md$/.test(n)
   );
 }
