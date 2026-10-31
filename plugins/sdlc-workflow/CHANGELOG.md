@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.11] - 2026-10-31
+
+- refactor(sdlc-workflow): a faster design check, one owner for each design rule, and a captures command
+- fix(sdlc-workflow): a long label fits GitHub, and a trace or video never enters the records
+- feat(sdlc-workflow): the design check groups its failures by cause, and the canvas plays a screen's links
+- fix(sdlc-workflow): a month of cost rows over 4 MB goes on in parts
+
 ## [10.0.0-next.10] - 2026-10-31
 
 - fix(sdlc-workflow): the dispatch reads only cached PR answers for the close question
