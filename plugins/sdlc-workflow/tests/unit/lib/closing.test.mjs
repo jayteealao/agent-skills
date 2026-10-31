@@ -80,3 +80,13 @@ test('close writes the close record and the index fields; decline only records t
     assert.equal(closeWorkflow(root, 'zzz').ok, false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('offline: a stale PR answer makes no gh call and is reported as stale', () => {
+  const calls = [];
+  const run = (cmd, args) => { calls.push(cmd); return { status: 0, stdout: '{"state":"MERGED"}' }; };
+  const ws = [{ directorySlug: 'b', frontmatter: { status: 'active', branch: 'feat/b', 'base-branch': 'main', 'pr-number': 7 } }];
+  const stale = [];
+  assert.deepEqual(closeCandidates('/offline-root', ws, { run, offline: true, stale }), []);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(stale, ['/offline-root::b']);
+});

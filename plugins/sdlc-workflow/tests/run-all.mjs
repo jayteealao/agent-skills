@@ -134,6 +134,8 @@ if (!process.env.SDLC_HOME || !process.env.SDLC_HOME.trim()) {
   process.env.SDLC_HOME = tempHome;
 }
 process.env.SDLC_STATE_GUARD_BASELINE = JSON.stringify(stateFingerprint(REAL_STATE_DIR));
+// The dispatch starts a detached close check for a stale PR answer; a test run starts none.
+process.env.SDLC_CLOSE_CHECK ??= 'off';
 console.error(`[run-all] SDLC_HOME=${process.env.SDLC_HOME}; guarding ${REAL_STATE_DIR}`);
 
 function runNodeTest(list) {

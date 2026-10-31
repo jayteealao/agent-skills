@@ -4,7 +4,8 @@
 // dispatch prints a `close-ask:` line per workflow. A workflow is merged when its PR is merged on
 // GitHub (a squash merge leaves no trace in git), or, with no PR, when its branch tip is in the
 // base and its implement stage is complete. The answer of a PR check is cached on this machine for
-// a while, so the call stays fast. A person who says no is not asked again.
+// a while, so the call stays fast. The dispatch reads only that cache (`offline`), and a
+// background check refreshes a stale answer for the next call. A person who says no is not asked again.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { sdlcHomeDir } from './home.mjs';
@@ -33,7 +34,7 @@ const isOpen = (fm) => {
 };
 
 /** Why the branch of one workflow counts as merged, or null. */
-export function mergedReason(root, fm, { run = defaultRun, cache = {}, key = null, now = Date.now() } = {}) {
+export function mergedReason(root, fm, { run = defaultRun, cache = {}, key = null, now = Date.now(), offline = false, stale = null } = {}) {
   const branch = String(fm?.branch ?? '').trim();
   const base = String(fm?.['base-branch'] ?? '').trim();
   if (!branch || !base || branch === base || fm['close-declined-at']) return null;
@@ -41,6 +42,8 @@ export function mergedReason(root, fm, { run = defaultRun, cache = {}, key = nul
   if (pr) {
     const hit = key ? cache[key] : null;
     if (hit && hit.pr === pr && (hit.state === 'MERGED' || now - Date.parse(hit.at) < CHECK_TTL_MS)) return hit.state === 'MERGED' ? `PR ${pr} is merged` : null;
+    // Offline, a stale answer waits for the background check: no network call here.
+    if (offline) { stale?.push(key); return null; }
     const r = run('gh', ['pr', 'view', String(pr), '--json', 'state'], { cwd: root });
     let state = null;
     try { state = r.status === 0 ? JSON.parse(r.stdout).state : null; } catch { state = null; }
@@ -53,8 +56,12 @@ export function mergedReason(root, fm, { run = defaultRun, cache = {}, key = nul
   return run('git', ['merge-base', '--is-ancestor', branch, ref], { cwd: root }).status === 0 ? `${branch} is in ${ref}` : null;
 }
 
-/** The open workflows whose branch is merged: `[{ slug, reason }]`. */
-export function closeCandidates(root, workflows, { run = defaultRun, now = Date.now() } = {}) {
+/**
+ * The open workflows whose branch is merged: `[{ slug, reason }]`. With `offline`, a PR whose
+ * cached answer is stale is not checked; `stale` collects its key, and the caller starts the
+ * background check (`wf.mjs close-check`).
+ */
+export function closeCandidates(root, workflows, { run = defaultRun, now = Date.now(), offline = false, stale = null } = {}) {
   const cache = readCache();
   const before = JSON.stringify(cache);
   const out = [];
@@ -62,7 +69,7 @@ export function closeCandidates(root, workflows, { run = defaultRun, now = Date.
     const fm = w.frontmatter ?? {};
     if (w.classification === 'invalid' || !isOpen(fm)) continue;
     const slug = w.directorySlug ?? w.slug;
-    const reason = mergedReason(root, fm, { run, cache, key: `${root}::${slug}`, now });
+    const reason = mergedReason(root, fm, { run, cache, key: `${root}::${slug}`, now, offline, stale });
     if (reason) out.push({ slug, reason });
   }
   if (JSON.stringify(cache) !== before) writeCache(cache);

@@ -465,7 +465,10 @@ async function runDispatch(pos, opt) {
   // The registry is generated in the clone: a pull at the claim that moved a folder rebuilds it.
   if (rec.pulled) await reconcileIndex(projectRoot);
   // The open workflows whose branch is merged: the person is asked whether to close each one.
-  r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }));
+  // A PR answer older than the cache time is checked in the background, for the next call.
+  const stale = [];
+  r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }), { offline: true, stale });
+  if (stale.length) closeCheckInBackground(projectRoot);
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
   r.firstRun = Boolean(r.key && r.key !== 'status' && needsSetup(projectRoot));
   // The queued GitHub edits and the person's comments on the issue of the workflow come in the
@@ -1468,6 +1471,14 @@ function runMsg(pos, opt) {
 }
 
 /** Start `gh flush` in the background; `[root, slug]` also imports the comments of that workflow's issue. */
+/** Refresh the cached PR answers of the close check, detached: the dispatch reads only the cache. */
+function closeCheckInBackground(root) {
+  if (process.env.SDLC_CLOSE_CHECK === 'off') return;
+  try {
+    spawn(process.execPath, [fileURLToPath(import.meta.url), 'close-check', root], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } catch { /* the next call checks again */ }
+}
+
 function flushInBackground(target = []) {
   inBackground(['gh', 'flush', ...target, '--background']);
 }
@@ -1526,7 +1537,7 @@ function runGh(pos, opt) {
 
 // Commands that run but have no help block: none today. A command must have a help block, so
 // `describe` and the unknown-command rule see it.
-const HIDDEN_COMMANDS = new Set();
+const HIDDEN_COMMANDS = new Set(['close-check']);
 
 /**
  * The first words (the forms) of a command whose blocks start with a form, such as `record put`
@@ -1655,6 +1666,11 @@ async function runMain(cmd, pos, opt) {
   try {
     switch (cmd) {
       case 'dispatch': return await runDispatch(pos, opt);
+      case 'close-check': {
+        const root = resolve(pos[0] ?? '.');
+        closeCandidates(root, await scanWorkflowIndexes({ projectRoot: root }));
+        return 0;
+      }
       case 'run': return await runRun(pos, opt);
       case 'describe': {
         const d = describeAll();
