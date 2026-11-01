@@ -5,6 +5,11 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.12] - 2026-11-01
+
+- fix(sdlc-workflow): a verify whose failing items a decision accepted stays done on the next run
+- feat(sdlc-workflow): brainstorm done settles each open item before a campaign packet is built
+
 ## [10.0.0-next.11] - 2026-10-31
 
 - refactor(sdlc-workflow): a faster design check, one owner for each design rule, and a captures command
