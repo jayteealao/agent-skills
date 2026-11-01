@@ -1562,6 +1562,10 @@ async function orient() {
     `where EVERY open runtime-evidence-deferral for this slice in priorDeferrals has authorized=true — a ` +
     `PO-authorized deferral is settled and needs no re-verify; a partial with any open UN-authorized deferral stays ` +
     `'todo' so the next verify re-challenges the wall)\n` +
+    `     ALSO 'done', whatever its convergence: artifact present AND accepted-items is not empty AND result is not ` +
+    `blocked-runtime-evidence-missing AND every failing or residual item that the artifact names is in ` +
+    `accepted-items. A decision accepted those items and the verify gate cleared the slice on them; a new verify ` +
+    `only accepts them again. An item that fails and is not in accepted-items keeps verify 'todo'.\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
     `   dependsOn: the slice's depends-on list in the roster of 03-slice.md ([] when it has none).\n` +

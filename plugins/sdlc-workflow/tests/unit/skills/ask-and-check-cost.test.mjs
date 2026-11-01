@@ -241,6 +241,18 @@ test('verifyClean: an item that a live decision accepts is cleared, whatever its
   assert.equal(verifyClean({ ...accepted, acceptedItems: [] }, []), false);
 });
 
+test('orient counts a verify whose failing items a decision accepted as done, as verifyClean does', () => {
+  // Without this rule, each new run verifies an accepted slice again and accepts the same items again.
+  assert.match(yolo, /ALSO 'done', whatever its convergence: artifact present AND accepted-items is not empty AND result is not /);
+  assert.match(yolo, /`blocked-runtime-evidence-missing AND every failing or residual item that the artifact names is in `/);
+  assert.match(yolo, /An item that fails and is not in accepted-items keeps verify 'todo'\./);
+  // The same three conditions in the gate: accepted items, no item outside them, and evidence that is not missing.
+  const t = { convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-3', by: 'D-067' }] };
+  assert.equal(verifyClean(t, []), true);
+  assert.equal(verifyClean({ ...t, substantiveResidual: true }, []), false);
+  assert.equal(verifyClean({ ...t, result: 'blocked-runtime-evidence-missing' }, []), false);
+});
+
 test('the hand-back lists the accepted verify items and the contested decisions', () => {
   const o = { results: [{ ran: [
     { stage: 'verify', slice: 'speed', terminal: { acceptedItems: [{ item: 'AC-41', by: 'D-100' }] }, decisions: [{ class: 'implementation-detail', decision: 'cache the table', contested: true }] },
