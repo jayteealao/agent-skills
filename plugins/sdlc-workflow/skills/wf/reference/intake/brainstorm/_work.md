@@ -17,7 +17,7 @@ Agree these with the person, in plain words, and give your view with its reason.
 | `target-slug` | For `extension`, `fix` and `hotfix`: the existing workflow slug. |
 | `order` | The place of the work packet in the list. Every work packet has one, write-now work packets included. The orders are 1 to n, each used once. The list is the safe serial order: work packet N may use anything that work packets 1 to N−1 built. |
 | `why-here` | On each work packet after order 1: why the work packet comes after the work packets before it, in the person's words, for example "billing waits until the limits ship". When the position has no reason other than value, the note says so, for example "less urgent than the work packets before it". |
-| `items` | The kept items the work packet carries. Each kept decision is in exactly one work packet. |
+| `items` | The kept items the work packet carries. Each kept decision is in exactly one work packet. Each open item with `left-to-build` is in exactly one build work packet. |
 | `research`, `references` | The research notes (`R<NN>`) and references (`F<NN>`, or a repo path) the work packet draws on. |
 | `design-form` | `design` or `design-direction` when a design focus adds the design stage to the work packet ([_design.md](_design.md)); otherwise `none`. |
 | `sketches` | With a design focus: the carried sketches, by key. The work packet file carries each key with its path: `.ai/design/explore/<key>.html`, or a path under this board's `design/sketches/` on an older board. |
@@ -39,6 +39,8 @@ The brainstorm writes each build work packet (form `intake`, `fix`, `hotfix`, `e
 | `ux-impact`, `ux-impact-confirmed` | Propose `none`, `visual`, `flow` or `new-surface` per `design/_lane.md`. The person confirms it. Then write `ux-impact-confirmed: true`. |
 | `try-out` | `yes` when `ux-impact` is not `none`, or when the work packet adds a user-facing command. Otherwise `no`. The person confirms it. A work packet with `try-out: yes` gets a try-out pause in the walk. |
 | `estimated-slices` | Your estimate of the capability slices of the work packet (Size, below). |
+
+**Open items.** The person settles each open item of a kept area in the scope walk ([../brainstorm.md](../brainstorm.md) 3.2 step 6). An item left to the build travels in the work packet file as `left-to-build`. `campaign.mjs open` puts each `ask` item into `open-questions` of the work packet's index, and the walk asks it before the slice. It puts each `decide` item into the decision store of the work packet as a steer, and into the `## Unknowns / Open Questions` of its shape.
 
 **The stack.** Detect the stack once for the list: run the probes in `intake/default/_stack-fingerprint.md`. Ask the person to confirm or correct it. Write it to the board's top-level `stack` with `user-confirmed: true`. The `write` command copies it into `work/index.md`, and `open` copies it into each work packet.
 
@@ -109,6 +111,8 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    - a work packet with no `order`, or a list with a gap or a repeat: the orders are 1 to n, each used once;
    - a work packet after order 1 with no `why-here` note;
    - a kept decision that lands in no work packet, or in two work packets;
+   - an open question, an open tension or a named assumption that touches a build work packet and that the person did not settle (3.2 step 6): it touches the work packet when it is in the items, on a thread, or (a tension) names a carried decision;
+   - an item with `left-to-build` that is not in the items of exactly one build work packet;
    - a work packet with no `slug`, two work packets with one slug, or an `extension`, `fix` or `hotfix` work packet with no `target-slug`;
    - a build work packet with no `goal`, no `acceptance-criteria`, or a `ux-impact` that the person did not confirm;
    - a build work packet with `try-out: no` and a `ux-impact` other than `none`;
@@ -173,7 +177,7 @@ The first `/wf campaign <slug>` on a board with an old campaign ledger migrates 
 2. Take the units that are not started, in their old order. Propose work packets from them under the Size rules. Every kept decision goes into exactly one work packet. Do not confirm the decisions again. When you merge work packets, count their decisions after step 1, not before.
 3. A unit with intake and shape already written (`01-intake.md` and `02-shape.md`) can stay one work packet. Keep its slug as the work packet slug. `open` then keeps its folder, and the walk does not slice it again when it has `03-slice.md`.
 4. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `<wf-dir>/../<packet-slug>/` before the walk opens the work packet: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <unit-slug> 02c-craft.md` to the draft `<wf-dir>/../<packet-slug>/.draft/02c-craft.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <packet-slug>` (per [_records.md](../../_records.md)), and move the `design/` folder. The design stage of the work packet then starts from them.
-5. Write the write-up of each new build work packet, and confirm the stack, as at `done`.
+5. Write the write-up of each new build work packet, and confirm the stack, as at `done`. Settle with the person each open item that touches a new build work packet ([../brainstorm.md](../brainstorm.md) 3.2 step 6).
 6. Confirm the whole list with the person as in 3.4: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
 7. Run the check and the `write` command.
 

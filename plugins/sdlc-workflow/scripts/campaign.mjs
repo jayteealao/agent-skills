@@ -322,8 +322,13 @@ function nextStep(root, src, packet) {
   const block = designBlock(root, slug);
   if (block) return { step: 'design', reason: block, route: `/wf design ${slug}` };
   if (packet.state === 'open') {
-    if (!hasDoc(wfDir(root, slug), ROSTER_DOC)) return { step: 'slice' };
-    return { step: 'yolo' };
+    // The questions that the person left to the build wait in open-questions; step 9 asks them first.
+    const held = (recordFm(wfDir(root, slug), INDEX_NAME)?.['open-questions'] ?? [])
+      .filter((q) => q && typeof q === 'object' && q.stage === 'slice' && q.key)
+      .map((q) => ({ key: q.key, question: q.question ?? q.key }));
+    const questions = held.length ? { questions: held } : {};
+    if (!hasDoc(wfDir(root, slug), ROSTER_DOC)) return { step: 'slice', ...questions };
+    return { step: 'yolo', ...questions };
   }
   // built. A fix slice that is not built yet sends the packet back to the driver (6.1 step 13).
   const unbuilt = openSlices(root, slug);
@@ -456,6 +461,12 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
   const constraints = sectionList(packetText, 'Constraints');
   const risks = sectionList(packetText, 'Risks');
   const measures = sectionList(packetText, 'Measures');
+  // The open items that the person left to the build at brainstorm done: `ask` waits in
+  // open-questions until the walk asks it before the slice; `decide` is a steer to the build.
+  const leftToBuild = Array.isArray(packet['left-to-build']) ? packet['left-to-build'].filter((q) => q?.key && q?.text) : [];
+  const askItems = leftToBuild.filter((q) => q.how === 'ask');
+  const decideItems = leftToBuild.filter((q) => q.how === 'decide');
+  const askText = (q) => (q.kind === 'tension' ? `Which way does this go: ${q.text}` : q.kind === 'assumption' ? `Is this true: ${q.text}` : q.text);
   const ux = packet['ux-impact'] ?? 'none';
   const stack = { ...(list?.stack ?? {}), 'user-confirmed': true };
   const index = {
@@ -477,7 +488,7 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
     'review-scope-confirmed': true,
     'pr-url': '',
     'pr-number': 0,
-    'open-questions': [],
+    'open-questions': askItems.map((q) => ({ key: q.key, question: askText(q), stage: 'slice', 'held-at': now })),
     tags: [],
     stack,
     'ux-impact': ux,
@@ -546,7 +557,10 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
     ...(measures.length ? ['## Measures', '', ...measures.map((m) => `- ${m}`), ''] : []),
     '## Out of Scope', '', ...(outScope.length ? outScope.map((o) => `- ${o}`) : ['- None.']), '',
     '## Unknowns / Open Questions', '',
-    ...(risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** (carried to the slug-wide review) — ${r}`) : ['- None.']), '',
+    ...risks.map((r, i) => `- **RIM-${i + 1}** (carried to the slug-wide review) — ${r}`),
+    ...askItems.map((q) => `- **${q.key}** (the walk asks the person before the slice) — ${q.text}`),
+    ...decideItems.map((q) => `- **${q.key}** (left to the build: choose the option that best fits the acceptance criteria, and record the choice as an assumption) — ${q.text}`),
+    ...(risks.length || leftToBuild.length ? [] : ['- None.']), '',
     '## Intake Fidelity', '',
     '| Intake directive | Disposition | How | Authority |',
     '|---|---|---|---|',
@@ -560,6 +574,12 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
   const store = [];
   for (const d of decisions) {
     appendEntry(store, { kind: 'answer', key: d.key, answer: d.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${d.key}` }, { now });
+  }
+  for (const q of decideItems) {
+    appendEntry(store, {
+      kind: 'steer', key: q.key, question: q.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${q.key}`,
+      answer: 'The person left this to the build. Choose the option that best fits the acceptance criteria, and record the choice as an assumption.',
+    }, { now });
   }
   return {
     [INDEX_NAME]: { frontmatter: index, body: '' },

@@ -68,6 +68,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
   - `core: true` marks a decision the person named as core when the area closed; `first-version: true` marks a decision in the area's first version.
   - `top-risk: true` marks the accepted risk that worries the person most in its area.
   - `accepted-risk` is the consequence the person accepted with a decision, in one plain sentence.
+  - `left-to-build` is set on an open question, an open tension or a named assumption that the person left to the build at `done`: `ask` (the campaign walk asks the person before it slices the work packet) or `decide` (the build chooses, and records the choice as an assumption). The item is in the `items` of exactly one build work packet.
   - `replaced-by` is the key of the newer decision that replaced this one.
   - `design: true` marks an item about how the idea looks or behaves. These items travel to the design stage.
   - `was` holds a legacy id after a conversion.

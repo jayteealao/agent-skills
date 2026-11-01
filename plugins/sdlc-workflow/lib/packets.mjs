@@ -205,6 +205,29 @@ export function checkList(board, { isIgnored = null } = {}) {
     else if (owners.length > 1) errors.push(`kept decision ${item.key} lands in ${owners.map((p) => p.key).join(', ')}: put it in exactly one packet.`);
   }
 
+  // Open items: no shape runs for a build packet, so each open question, open tension and
+  // named assumption that touches a build packet that is not started is settled with the
+  // person at done: answered, dropped, or left to the build in exactly one build packet.
+  const unsettled = new Map();
+  for (const packet of packets.filter(isBuildPacket)) {
+    if (writtenUp(packet) || packet.state === 'dropped') continue;
+    for (const item of openItemsOf(board, packet)) {
+      if (LEFT_TO_BUILD.includes(item['left-to-build'])) continue;
+      if (!unsettled.has(item.key)) unsettled.set(item.key, { item, keys: [] });
+      unsettled.get(item.key).keys.push(packet.key);
+    }
+  }
+  for (const { item, keys } of unsettled.values()) {
+    errors.push(`open ${item.kind} ${item.key} ("${item.text}") touches packet ${keys.join(', ')} and is not settled. Ask the person: answer it now, ask it before the slice, let the build decide, or drop it.`);
+  }
+  for (const item of board.items ?? []) {
+    if (!LEFT_TO_BUILD.includes(item['left-to-build']) || !isOpenItem(item)) continue;
+    const owners = (homes.get(item.key) ?? []).filter(isBuildPacket);
+    if (owners.length !== 1) {
+      errors.push(`${item.kind} ${item.key} is left to the build and is in the items of ${owners.length ? owners.map((p) => p.key).join(', ') : 'no build packet'}: put it in the items of exactly one build packet.`);
+    }
+  }
+
   // The write-up of each build packet that is not started (4.3): goal, acceptance criteria,
   // the confirmed ux-impact, the try-out, and the slice estimate.
   let buildNotStarted = 0;
@@ -319,6 +342,40 @@ export function touchingItems(board, packet, kind, predicate = isLive) {
 const liveAssumption = (i) => isLive(i) && i.state !== 'rejected';
 const openTension = (i) => i.state === 'open' && !i['replaced-by'];
 
+/** What the person can leave to the build: `ask` (the walk asks before the slice) or `decide` (the build decides). */
+export const LEFT_TO_BUILD = Object.freeze(['ask', 'decide']);
+
+/** An item that the person has not settled: an open question, an open tension, or an assumption that is only named. */
+export function isOpenItem(item) {
+  if (!isLive(item)) return false;
+  if (item.kind === 'question') return item.state !== 'answered';
+  if (item.kind === 'tension') return item.state !== 'resolved';
+  if (item.kind === 'assumption') return item.state !== 'confirmed' && item.state !== 'rejected';
+  return false;
+}
+
+/** The open items that touch a packet: in its items, on its threads, or a tension that names one of its carried decisions. */
+export function openItemsOf(board, packet) {
+  const seen = new Set();
+  const out = [];
+  for (const kind of ['question', 'tension', 'assumption']) {
+    for (const item of touchingItems(board, packet, kind, isOpenItem)) {
+      if (!seen.has(item.key)) { seen.add(item.key); out.push(item); }
+    }
+  }
+  return out;
+}
+
+/** The open items that the person left to the build of this packet: in its items, with `left-to-build`. */
+export function leftToBuildItems(board, packet) {
+  return itemsOfKind(board, packet, ['question', 'tension', 'assumption'], (i) => isOpenItem(i) && LEFT_TO_BUILD.includes(i['left-to-build']));
+}
+
+const LEFT_TO_BUILD_NOTE = {
+  ask: ' Left to the build: the walk asks the person before it slices the packet.',
+  decide: ' Left to the build: the build chooses, and records the choice as an assumption.',
+};
+
 function researchLink(id, researchFiles) {
   const file = researchFiles.find((f) => f === `${id}.md` || f.startsWith(`${id}-`));
   return file ? `[${id}](../research/${file})` : id;
@@ -357,6 +414,7 @@ export function packetFrontmatter(board, packet, { revision = 1, generatedAt = n
   const decisions = carriedDecisionItems(board, packet);
   const keysOf = (l) => l.map((i) => i.key);
   const build = isBuildPacket(packet);
+  const leftToBuild = build ? leftToBuildItems(board, packet) : [];
   return {
     schema: 'sdlc/v1',
     type: 'packet',
@@ -387,6 +445,9 @@ export function packetFrontmatter(board, packet, { revision = 1, generatedAt = n
     ]),
     findings: keysOf(touchingItems(board, packet, 'finding')),
     assumptions: keysOf(touchingItems(board, packet, 'assumption', liveAssumption)),
+    ...(build && leftToBuild.length ? {
+      'left-to-build': leftToBuild.map((i) => ({ key: i.key, kind: i.kind, text: i.text, how: i['left-to-build'] })),
+    } : {}),
     later: keysOf(threadItems(board, packet, (i) => i.scope === 'later')),
     research: packet.research ?? [],
     references: packet.references ?? [],
@@ -459,14 +520,15 @@ export function renderPacket(board, packet, { revision = 1, generatedAt = null, 
   lines.push('');
 
   lines.push('## What is still open', '');
+  const openLine = (i) => `${itemLine(i, { boardFile: files.board })}${LEFT_TO_BUILD_NOTE[i['left-to-build']] ?? ''}`;
   const openAll = [...open, ...openQuestions, ...openTensions];
-  lines.push(...(openAll.length ? openAll.map((i) => itemLine(i, { boardFile: files.board })) : [none]), '');
+  lines.push(...(openAll.length ? openAll.map(openLine) : [none]), '');
 
   lines.push('## What we found', '');
   lines.push(...(findings.length ? findings.map((i) => itemLine(i, { boardFile: files.board })) : [none]), '');
 
   lines.push('## What we assume', '');
-  const assumeLines = [...assumptions.map((i) => itemLine(i, { boardFile: files.board })), ...risks.map((i) => `- Accepted risk with **${i.key}**: ${i['accepted-risk']}`)];
+  const assumeLines = [...assumptions.map(openLine),...risks.map((i) => `- Accepted risk with **${i.key}**: ${i['accepted-risk']}`)];
   lines.push(...(assumeLines.length ? assumeLines : [none]), '');
 
   lines.push('## Left for later and cut', '');

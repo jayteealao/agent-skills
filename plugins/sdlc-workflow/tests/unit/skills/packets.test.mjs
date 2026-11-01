@@ -416,6 +416,76 @@ test('archive moves closed items and old sessions; the document caps warn', () =
   deepEqual(docCheck('## The Brainstorm\nshort.\n'), []);
 });
 
+test('an open question, tension or named assumption that touches a build packet must be settled at done', () => {
+  const open = [
+    { key: 'replay-format', kind: 'question', thread: 'replay', text: 'Which format does a replay file use?', source: 'agent', state: 'for-plan' },
+    { key: 'ticks-are-fixed', kind: 'assumption', thread: 'module-shape', text: 'A tick is always 100 ms.', source: 'agent', state: 'named' },
+    { key: 'facts-vs-replay', kind: 'tension', thread: 'other', text: 'Facts only pulls against replays that explain.', between: ['events-are-facts'], source: 'agent', state: 'open' },
+  ];
+  const b = board();
+  b.items.push(...open);
+  const errs = errorsOf(b);
+  match(errs, /open question replay-format \("Which format does a replay file use\?"\) touches packet replay-builder and is not settled/);
+  match(errs, /open assumption ticks-are-fixed .* touches packet engine-modules/);
+  match(errs, /open tension facts-vs-replay .* touches packet engine-modules/);
+
+  // Settled items pass: answered, confirmed, resolved, dropped.
+  const settled = board();
+  settled.items.push(
+    { ...open[0], state: 'answered' },
+    { ...open[1], state: 'confirmed' },
+    { ...open[2], state: 'resolved' },
+    { key: 'replay-colour', kind: 'question', thread: 'replay', text: 'Which colour?', source: 'agent', state: 'open', scope: 'cut' },
+  );
+  deepEqual(checkList(settled).errors, []);
+
+  // Left to the build: the item must be in the items of exactly one build packet.
+  const left = board();
+  left.items.push({ ...open[0], 'left-to-build': 'ask' });
+  match(errorsOf(left), /question replay-format is left to the build and is in the items of no build packet/);
+  left.work[1].items.push('replay-format');
+  deepEqual(checkList(left).errors, []);
+  left.work[0].items.push('replay-format');
+  match(errorsOf(left), /is in the items of engine-modules, replay-builder: put it in the items of exactly one build packet/);
+
+  // A started packet is not checked again.
+  const started = board();
+  started.items.push(open[0]);
+  started.work[1].state = 'open';
+  doesNotMatch(errorsOf(started), /replay-format/);
+});
+
+test('an item left to the build travels to the packet file, the open questions of the index, the store and the shape', async () => {
+  const { packetFolderRecords } = await import('../../../scripts/campaign.mjs');
+  const b = board();
+  b.items.push(
+    { key: 'replay-format', kind: 'question', thread: 'replay', text: 'Which format does a replay file use?', source: 'agent', state: 'for-plan', 'left-to-build': 'ask' },
+    { key: 'replay-is-local', kind: 'assumption', thread: 'replay', text: 'A replay stays on the device.', source: 'agent', state: 'named', 'left-to-build': 'decide' },
+  );
+  b.work[1].items.push('replay-format', 'replay-is-local');
+  deepEqual(checkList(b).errors, []);
+  const packet = b.work[1];
+  const text = renderPacket(b, packet, { revision: 1 });
+  const fm = safeParseFrontmatter(text).data;
+  deepEqual(fm['left-to-build'], [
+    { key: 'replay-format', kind: 'question', text: 'Which format does a replay file use?', how: 'ask' },
+    { key: 'replay-is-local', kind: 'assumption', text: 'A replay stays on the device.', how: 'decide' },
+  ]);
+  ok(validateFrontmatter(fm).valid, 'the packet frontmatter validates');
+  match(text, /\*\*replay-format\*\* — Which format does a replay file use\?.* Left to the build: the walk asks the person before it slices the packet\./);
+  match(text, /\*\*replay-is-local\*\* — A replay stays on the device\..* Left to the build: the build chooses/);
+  equal(packetFrontmatter(b, b.work[0])['left-to-build'], undefined, 'a packet with no item left to the build has no field');
+
+  const r = packetFolderRecords({ src: SLUG, packet: { ...fm, file: 'replay-builder.md' }, packetText: text, list: {}, trunk: 'main', now: '2026-11-01T10:00:00Z' });
+  deepEqual(r['00-index.md'].frontmatter['open-questions'], [
+    { key: 'replay-format', question: 'Which format does a replay file use?', stage: 'slice', 'held-at': '2026-11-01T10:00:00Z' },
+  ]);
+  match(r['02-shape.md'].body, /- \*\*replay-format\*\* \(the walk asks the person before the slice\) — Which format/);
+  match(r['02-shape.md'].body, /- \*\*replay-is-local\*\* \(left to the build: choose the option that best fits the acceptance criteria, and record the choice as an assumption\) — A replay stays/);
+  match(r['decisions.yaml'], /kind: steer\n\s+key: replay-is-local/);
+  doesNotMatch(r['decisions.yaml'], /key: replay-format/, 'an ask item waits for the person; it is not in the store');
+});
+
 test('a packet carries its measures into the packet file and into the shape of its workflow', async () => {
   const { packetFolderRecords } = await import('../../../scripts/campaign.mjs');
   const b = board();

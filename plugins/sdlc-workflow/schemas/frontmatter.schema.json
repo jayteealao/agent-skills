@@ -2190,6 +2190,7 @@
               "first-version": { "type": "boolean" },
               "top-risk": { "type": "boolean" },
               "accepted-risk": { "type": "string" },
+              "left-to-build": { "enum": ["ask", "decide"], "description": "An open question, an open tension or a named assumption that the person left to the build at done: ask (the campaign walk asks the person before it slices the packet) or decide (the build chooses, and records the choice as an assumption). The item is in the items of exactly one build packet." },
               "replaced-by": { "$ref": "#/$defs/brainstormKey" },
               "design": { "type": "boolean" },
               "was": { "type": "string" }
@@ -2327,6 +2328,20 @@
         "open-ideas": { "$ref": "#/$defs/stringArray" },
         "findings": { "$ref": "#/$defs/stringArray" },
         "assumptions": { "$ref": "#/$defs/stringArray" },
+        "left-to-build": {
+          "type": "array",
+          "description": "The open items that the person left to the build of this packet at brainstorm done. campaign.mjs open puts each ask item into open-questions of the index (the walk asks it before the slice), and each decide item into the decision store as a steer.",
+          "items": {
+            "type": "object",
+            "required": ["key", "kind", "text", "how"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "kind": { "enum": ["question", "tension", "assumption"] },
+              "text": { "type": "string" },
+              "how": { "enum": ["ask", "decide"] }
+            }
+          }
+        },
         "later": { "$ref": "#/$defs/stringArray" },
         "research": { "$ref": "#/$defs/stringArray" },
         "references": { "$ref": "#/$defs/stringArray" },

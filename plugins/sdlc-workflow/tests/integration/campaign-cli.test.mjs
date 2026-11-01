@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { migrateApply, migrationReport, removeWorktree, run } from '../../scripts/campaign.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
@@ -923,5 +924,28 @@ test('the stacked shape: each build packet lands on its own layer, made by gh st
     assert.deepEqual(calls.filter((c) => c[0] === 'stack').map((c) => c.slice(0, 2)), [['stack', 'init'], ['stack', 'add']]);
     assert.equal(git(root, 'branch', '--show-current'), `packets/${SRC}--ui`);
     assert.equal(git(root, 'merge-base', '--is-ancestor', `packets/${SRC}--engine`, 'HEAD') === '', true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a question left to the build waits in open-questions; status shows it, and an answer clears it', () => {
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one', 'q-format'], goal: 'Build the engine.', 'acceptance-criteria': ['The engine runs.'], ...WRITE_UP },
+    ], ['d-one']);
+    const boardFile = path.join(dir, 'brainstorm-board.json');
+    const board = JSON.parse(readFileSync(boardFile, 'utf8'));
+    board.items.push({ key: 'q-format', kind: 'question', thread: 'main', text: 'Which format does the export use?', source: 'agent', state: 'for-plan', 'left-to-build': 'ask' });
+    writeFileSync(boardFile, JSON.stringify(board, null, 2));
+    assert.equal(run(['write', dir]).ok, true);
+    assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+
+    const st = run(['status', root, SRC]);
+    assert.equal(st.current.step, 'slice');
+    assert.deepEqual(st.current.questions, [{ key: 'q-format', question: 'Which format does the export use?' }]);
+
+    execFileSync(process.execPath, [fileURLToPath(new URL('../../scripts/wf.mjs', import.meta.url)), 'decide', 'add', root, 'demo-engine', '--kind', 'answer', '--key', 'q-format', '--stage', 'slice', '--question', 'Which format does the export use?', '--answer', 'CSV'], { encoding: 'utf8' });
+    assert.deepEqual(rec(root, 'demo-engine', '00-index.md')['open-questions'], []);
+    assert.equal(run(['status', root, SRC]).current.questions, undefined);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
