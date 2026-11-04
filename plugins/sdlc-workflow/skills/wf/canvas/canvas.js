@@ -458,7 +458,7 @@
     const s = boardScreens().find((x) => x.key === key);
     if (!s) return;
     focusFrom = document.activeElement;
-    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false, play: false, trail: [], restoring: '', rounds: [] };
+    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false, play: false, trail: [], restoring: '', rounds: [], scroll: 0 };
     drawFocus();
     $('#focus').hidden = false;
     $('#focus .close')?.focus();
@@ -481,7 +481,7 @@
     if (list.length < 2) return;
     const i = list.findIndex((s) => s.key === focusState.key);
     const next = list[(i + by + list.length) % list.length];
-    focusState = { ...focusState, key: next.key, compare: '', restoring: '', commenting: false, trail: [] };
+    focusState = { ...focusState, key: next.key, compare: '', restoring: '', commenting: false, trail: [], scroll: 0 };
     drawFocus();
     $(`#focus [data-step="${by}"]`)?.focus();
   }
@@ -503,7 +503,7 @@
       const key = url && /\/screens\/([a-z0-9-]+)\.html$/.exec(url.pathname)?.[1];
       if (!key || !boardScreens().some((x) => x.key === key)) { say('That link leads to no screen'); return; }
       const st = url.searchParams.get('state');
-      focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
+      focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', scroll: 0, trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
       drawFocus();
     });
   }
@@ -562,38 +562,104 @@
     const view = h('div', { class: 'view' });
     const named = past ? draftName(past) : 'Now';
     const live = shot(f.compare || f.capture ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state, ui.version || null), size, scale);
-    const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` });
+    const ifr = live.querySelector('iframe');
+    const screenDoc = () => { try { return ifr.contentDocument; } catch { return null; } };
+    // The layer moves with the page of the screen, so the pins and the boxes stay on their elements.
+    const layer = h('div', { class: 'layer' });
+    const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` }, layer);
+    ifr.addEventListener('load', () => {
+      const win = screenDoc()?.defaultView;
+      if (!win) return;
+      win.scrollTo({ top: f.scroll, behavior: 'instant' });
+      const follow = () => { f.scroll = win.scrollY; layer.style.transform = `translateY(${-win.scrollY * scale}px)`; };
+      win.addEventListener('scroll', follow);
+      follow();
+    });
     // In play, nothing covers the screen, so its links and controls take the pointer.
     if (f.play) {
       live.classList.add('playing');
-      const ifr = live.querySelector('iframe');
       ifr.removeAttribute('tabindex');
       ifr.addEventListener('load', () => playLinks(ifr));
     } else live.append(overlay);
     if (f.checks && !past) {
       for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
-        if (x.rect) overlay.append(boxAt(x.rect, scale, CHECK_NAMES[x.check] || x.check, x.message));
+        if (x.rect) layer.append(boxAt(x.rect, scale, CHECK_NAMES[x.check] || x.check, x.message));
       }
     }
     const findings = auditOf(s.key);
     if (f.audit && !past) {
       for (const x of findings.filter((q) => q.state === f.state && q.rects?.[f.viewport])) {
-        overlay.append(boxAt(x.rects[f.viewport], scale, x.rule || 'Audit', x.message, 'audit'));
+        layer.append(boxAt(x.rects[f.viewport], scale, x.rule || 'Audit', x.message, 'audit'));
       }
     }
     s.threads.forEach((t, i) => {
       if (past || (!f.all && !t.open)) return;
       if ((t.anchor?.state || 'default') !== f.state || t.anchor?.x === null || t.anchor?.x === undefined) return;
-      overlay.append(h('div', { class: `pinmark${t.open ? '' : ' closed'}`, style: `left:${t.anchor.x * size.width * scale}px;top:${t.anchor.y * size.height * scale}px`, title: t.comments[0]?.text || '', onclick: (e) => { e.stopPropagation(); $(`#t-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }); } }, String(i + 1)));
+      layer.append(h('div', { class: `pinmark${t.open ? '' : ' closed'}`, style: `left:${t.anchor.x * size.width * scale}px;top:${t.anchor.y * size.height * scale}px`, title: t.comments[0]?.text || '', onclick: (e) => { e.stopPropagation(); $(`#t-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }); } }, String(i + 1)));
     });
+    // Comment mode: the pointer outlines the element under it, and a click or a tap selects it.
+    const hovered = h('div', { class: 'pick', hidden: true }, h('span'));
+    const selected = h('div', { class: 'pick held', hidden: true }, h('span'));
+    layer.append(hovered, selected);
+    const elementAt = (e) => {
+      const r = overlay.getBoundingClientRect();
+      const el = screenDoc()?.elementFromPoint((e.clientX - r.left) / scale, (e.clientY - r.top) / scale);
+      return el && el.tagName !== 'BODY' && el.tagName !== 'HTML' ? el : null;
+    };
+    const outline = (box, el) => {
+      box.hidden = !el;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const win = screenDoc().defaultView;
+      box.style.cssText = `left:${(r.left + win.scrollX) * scale}px;top:${(r.top + win.scrollY) * scale}px;width:${r.width * scale}px;height:${r.height * scale}px`;
+      box.firstChild.textContent = selectorOf(el).split(' > ').at(-1);
+    };
+    let pick = null;
+    const field = h('textarea', { placeholder: 'Comment', 'aria-label': 'Comment' });
+    const target = h('small');
+    const wider = h('button', { type: 'button', class: 'btn quiet', onclick: () => { pick.el = pick.el.parentElement; showPick(); } }, 'Select the parent');
+    const composer = h('div', { class: 'thread composer', hidden: true },
+      target, field, h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn primary', onclick: () => {
+          if (!field.value.trim()) { field.focus(); return; }
+          post(s.key, { text: field.value, anchor: { x: pick.x, y: pick.y, selector: pick.el ? selectorOf(pick.el) : null, state: f.state, viewport: f.viewport } });
+        } }, 'Comment'),
+        wider,
+        h('button', { type: 'button', class: 'btn quiet', onclick: () => { pick = null; composer.hidden = true; selected.hidden = true; } }, 'Cancel')));
+    function showPick() {
+      outline(selected, pick.el);
+      composer.hidden = false;
+      target.textContent = pick.el ? `On ${selectorOf(pick.el)}` : 'On this point of the screen';
+      wider.hidden = !pick.el || !pick.el.parentElement || pick.el.parentElement.tagName === 'BODY';
+    }
     overlay.addEventListener('click', (e) => {
       if (!f.commenting) return;
       const r = overlay.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width; const y = (e.clientY - r.top) / r.height;
-      let selector = null;
-      try { selector = selectorOf(live.querySelector('iframe').contentDocument.elementFromPoint(x * size.width, y * size.height)); } catch { selector = null; }
-      newThread({ x, y, selector, state: f.state, viewport: f.viewport });
+      pick = { el: elementAt(e), x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top + f.scroll * scale) / r.height };
+      hovered.hidden = true;
+      showPick();
+      field.focus();
     });
+    overlay.addEventListener('wheel', (e) => {
+      const win = screenDoc()?.defaultView;
+      if (!win) return;
+      const from = win.scrollY;
+      win.scrollBy({ top: e.deltaY / scale, behavior: 'instant' });
+      if (win.scrollY !== from) e.preventDefault();
+      if (f.commenting) outline(hovered, elementAt(e));
+    }, { passive: false });
+    // A finger on the screen scrolls the page in comment mode, because a tap is what selects.
+    let fingerY = null;
+    overlay.addEventListener('pointerdown', (e) => { fingerY = f.commenting && e.pointerType !== 'mouse' ? e.clientY : null; });
+    overlay.addEventListener('pointerup', () => { fingerY = null; });
+    overlay.addEventListener('pointercancel', () => { fingerY = null; });
+    overlay.addEventListener('pointermove', (e) => {
+      if (fingerY !== null) {
+        screenDoc()?.defaultView.scrollBy({ top: (fingerY - e.clientY) / scale, behavior: 'instant' });
+        fingerY = e.clientY;
+      } else if (f.commenting && e.pointerType === 'mouse') outline(hovered, elementAt(e));
+    });
+    overlay.addEventListener('pointerleave', () => { hovered.hidden = true; });
     view.append(live);
     // On a touch screen, a sideways swipe over the screens walks to the next or the previous one.
     let swipe = null;
@@ -628,7 +694,7 @@
     const backTitle = back ? data.screens.find((x) => x.key === back.key)?.title || back.key : '';
     const header = h('header', {},
       h('h2', {}, s.title, draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}` }, 'Draft') : null, h('small', {}, metaOf(s))),
-      back ? h('button', { type: 'button', class: 'btn', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, trail: f.trail.slice(0, -1) }; drawFocus(); } }, `← ${backTitle}`) : null,
+      back ? h('button', { type: 'button', class: 'btn', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, scroll: 0, trail: f.trail.slice(0, -1) }; drawFocus(); } }, `← ${backTitle}`) : null,
       stepper,
       h('button', { type: 'button', class: 'close', onclick: closeFocus, 'aria-label': 'Close' }, '×'));
     const tools = h('div', { class: 'tools' },
@@ -638,7 +704,7 @@
       past ? null : toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
       findings.length && !past ? toggle('Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }) : null,
       SNAP ? null : toggle('Play', f.play, () => { f.play = !f.play; f.commenting = false; f.trail = []; drawFocus(); }),
-      data.writable && !past ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
+      data.writable && !past ? toggle(f.commenting ? 'Select an element' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
       toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
@@ -648,7 +714,8 @@
     const side = h('section', { class: 'side' }, versionList(s, f), past ? null : [
       h('h3', {}, 'Comments', openN ? h('span', { class: 'count' }, String(openN)) : null,
         s.threads.length > openN ? h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), 'Show resolved') : null),
-      shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then tap a point of the screen.' : 'No open comment.'),
+      composer,
+      shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then select an element of the screen.' : 'No open comment.'),
       h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
       failures.length ? failures.map((x) => h('div', { class: 'check' },
         h('b', {}, CHECK_NAMES[x.check] || x.check), x.places > 1 ? h('span', { class: 'sev' }, `${x.places} places`) : null,
@@ -759,10 +826,6 @@
       ...((audit.findings || []).length ? audit.findings.map((x) => findingView(x, true)) : [h('p', { class: 'none' }, 'No finding.')])];
   }
 
-  function newThread(anchor) {
-    const text = window.prompt('Comment on this point of the screen');
-    if (text && text.trim()) post(focusState.key, { text, anchor });
-  }
   function author() {
     let a = null;
     try { a = localStorage.getItem('wf-canvas-author'); } catch { a = null; }
@@ -856,7 +919,8 @@
         return;
       }
       if (e.key !== 'Escape') return;
-      if (focusState) closeFocus();
+      if (focusState?.commenting) { focusState.commenting = false; drawFocus(); }
+      else if (focusState) closeFocus();
       else if ($('#filters').open) $('#filters').open = false;
       else if (ui.panel) closePanel();
     });
