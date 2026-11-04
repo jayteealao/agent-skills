@@ -97,6 +97,7 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .mark.issue { color: var(--issue); background: var(--issue-tint); }
 .mark.note { color: var(--note-ink); background: var(--note); }
 .mark.ok { color: var(--ok); padding: 0 2px; }
+.mark.draft { color: var(--pencil); border: 1px dashed currentColor; }
 .mark.ok::before { content: ""; width: 12px; height: 12px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; }
 .empty { position: absolute; left: 0; top: 0; max-width: 420px; color: var(--pencil); }
 .empty b { display: block; margin-bottom: 4px; font-size: 18px; color: var(--ink); }
@@ -177,6 +178,14 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .thread small { display: block; color: var(--pencil); font-size: 12px; overflow-wrap: anywhere; }
 .thread textarea { width: 100%; min-height: 56px; margin-top: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); resize: vertical; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.side h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--pencil); }
+.version { margin: 0 0 8px; padding: 10px 12px; border-radius: var(--r); background: var(--sunk); }
+.version.on { outline: 2px solid var(--line); }
+.version .cap-row small { margin-left: auto; color: var(--pencil); }
+.version p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.version .acts { display: flex; gap: 8px; margin-top: 8px; }
+.rounds { margin: 0 0 8px 12px; }
+.rounds summary { min-height: 24px; color: var(--pencil); cursor: pointer; }
 .check { margin: 0 0 8px; padding: 10px 12px; border-radius: var(--r); background: var(--issue-tint); }
 .check b { color: var(--issue); }
 .check p { margin: 2px 0 0; }

@@ -2,7 +2,7 @@
 // snapshot inlines. The canvas reads nothing else.
 //
 // It holds the screens with their states, links, approvals, history, open comments and check
-// failures; the positions of the layout; the explore sketches; the references with their check;
+// failures; the versions of each workflow; the positions of the layout; the explore sketches; the references with their check;
 // the token sheet; the design decisions of the workflows; and one design card per slice.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { capturesOf, groupFailures, readComments, readChecks } from './design-records.mjs';
+import { versionsOf } from './design-versions.mjs';
 import { LAYOUT_FILE, STATES, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { readDoc } from './records.mjs';
@@ -142,6 +143,7 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
     areas: m.areas,
     workflows,
     screens,
+    versions: versionsOf(root, workflows),
     explore: listExplore(root),
     references: checkReferences(root).references,
     tokens: tokensOf(tokensCss),

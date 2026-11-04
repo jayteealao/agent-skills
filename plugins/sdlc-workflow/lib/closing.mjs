@@ -8,6 +8,7 @@
 // background check refreshes a stale answer for the next call. A person who says no is not asked again.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { dropRounds } from './design-versions.mjs';
 import { sdlcHomeDir } from './home.mjs';
 import { defaultRun } from './last-mile.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields, writeDoc } from './records.mjs';
@@ -109,6 +110,7 @@ export function closeWorkflow(root, slug, { reason = 'merged', note = null, decl
     status: 'closed', 'close-reason': reason, 'closed-at': at,
     'next-invocation': 'Done', ...(files.includes('99-close.md') ? {} : { 'workflow-files': [...files, '99-close.md'] }),
   });
+  dropRounds(root, slug);
   return { ok: true, closed: true };
 }
 

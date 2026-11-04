@@ -1,7 +1,7 @@
 // The design canvas: every screen of one repo on one board.
 //
 // The design server serves this page at /r/<repo>/ with the data at ./state.json and the screen
-// pages at ./s/screens/<key>.html. A published snapshot sets window.WF_STATE and
+// pages at ./s/screens/<key>.html, a saved version at ./versions/<workflow>/<id>/. A published snapshot sets window.WF_STATE and
 // window.WF_SNAPSHOT (the page text of each screen), and has no write route.
 (() => {
   'use strict';
@@ -17,11 +17,11 @@
       else if (k === 'text') el.textContent = v;
       else el.setAttribute(k, v === true ? '' : v);
     }
-    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
     return el;
   };
   const params = new URLSearchParams(location.search);
-  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false };
+  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false, version: '' };
   let data = null;
   // The last design audit of the repo (./audit.json): a read-only agent's report, not a check.
   let audit = null;
@@ -35,7 +35,7 @@
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const CHECK_NAMES = {
     contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states',
-    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', script: 'Script error',
+    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', script: 'Script error', version: 'Not a saved version',
   };
   const DIMENSION_NAMES = { accessibility: 'Accessibility', performance: 'Performance', theming: 'Theming', responsive: 'Responsive', integrity: 'Integrity' };
   /** The audit findings of one screen, when the last audit is done. */
@@ -55,6 +55,71 @@
   /** The second line of a screen: its key, its flow and its workflows. */
   const metaOf = (s) => [s.key, s.flow ? `${s.flow} flow` : null, (s.workflows || []).length ? `from ${s.workflows.join(', ')}` : null].filter(Boolean).join(', ');
 
+  // ------------------------------------------------------------ versions
+
+  // A round is a draft on the way to a decision; an approved version is the decision. A ref is
+  // `<workflow>/<id>`, and a snapshot has none, because only the server holds the pages.
+  function allVersions() {
+    if (SNAP) return [];
+    const out = [];
+    for (const [workflow, list] of Object.entries(data.versions || {})) {
+      const last = list.approved.at(-1)?.number ?? 0;
+      for (const v of [...list.approved, ...list.rounds]) {
+        const draft = v.kind === 'round';
+        out.push({ ...v, ref: `${workflow}/${v.id}`, name: draft ? `v${v.number} round ${v.round}` : v.id, draft, pending: draft && v.number > last, open: list.open });
+      }
+    }
+    return out.sort((a, b) => String(b.at).localeCompare(String(a.at)) || b.number - a.number || (b.round ?? 0) - (a.round ?? 0));
+  }
+  const versionAt = (ref) => (ref ? allVersions().find((v) => v.ref === ref) ?? null : null);
+  const longName = (v) => (Object.keys(data.versions || {}).length > 1 ? `${v.workflow} ${v.name}` : v.name);
+  const draftName = (v) => (v.draft ? `Draft: ${longName(v)}` : longName(v));
+  /** The newest draft that changed a screen after its last approval. */
+  const draftOf = (s) => allVersions().find((v) => v.pending && (v.changed || []).includes(s.key)) ?? null;
+  /** The screens of the board: as they are now, or as the chosen version holds them. */
+  function boardScreens() {
+    const v = versionAt(ui.version);
+    if (!v) return data.screens;
+    return v.screens.map((e) => ({ approvals: [], failures: [], threads: [], captures: [], history: [], links: [], workflows: [v.workflow], ...data.screens.find((x) => x.key === e.key), ...e }));
+  }
+  function drawVersions() {
+    const rows = allVersions().filter((v) => !ui.workflow || v.workflow === ui.workflow);
+    $('#version-pick').hidden = !rows.length;
+    if (!rows.some((v) => v.ref === ui.version)) ui.version = '';
+    fill($('#version'), [['', 'Now'], ...rows.map((v) => [v.ref, draftName(v)])], ui.version);
+  }
+  /** Put a version back on the surface. The server saves it as a new round, never as an approval. */
+  async function restore(v) {
+    const r = await fetch(`${BASE}versions/${v.workflow}/restore`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: v.id }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(`Not restored: ${j.reason || r.status}`); return; }
+    const keep = focusState && { ...focusState, restoring: '', compare: '' };
+    await load();
+    if (keep) { focusState = keep; drawFocus(); }
+    say(j.tokensDiffer ? 'Restored as a new round. The token sheet stays as it is now.' : 'Restored as a new round. It needs a new approval.');
+  }
+  /** The versions of one screen: the drafts in progress, then each approved version with its rounds. */
+  function versionList(s, f) {
+    const held = allVersions().filter((v) => v.screens.some((e) => e.key === s.key));
+    if (!held.length) return null;
+    const row = (v) => h('div', { class: `version${f.compare === v.ref ? ' on' : ''}` },
+      h('div', { class: 'cap-row' }, h('span', { class: v.draft ? 'mark draft' : 'mark ok' }, v.draft ? 'Draft' : ''), h('b', {}, longName(v)), h('small', {}, String(v.at).slice(0, 10))),
+      v.reason ? h('p', {}, v.reason) : null,
+      h('div', { class: 'acts' },
+        h('button', { type: 'button', class: 'btn quiet', 'aria-pressed': String(f.compare === v.ref), onclick: () => { f.compare = f.compare === v.ref ? '' : v.ref; drawFocus(); } }, 'Compare'),
+        data.writable && v.open ? h('button', { type: 'button', class: 'btn quiet', onclick: () => { if (f.restoring === v.ref) restore(v); else { f.restoring = v.ref; drawFocus(); } } }, f.restoring === v.ref ? 'Confirm restore' : 'Restore') : null));
+    const under = (v) => held.filter((r) => r.draft && r.workflow === v.workflow && r.number === v.number);
+    const pending = held.filter((v) => v.pending);
+    const approved = held.filter((v) => !v.draft);
+    return [
+      h('h3', {}, 'Versions', approved.length ? h('span', { class: 'count' }, String(approved.length)) : null),
+      pending.length ? [h('h4', {}, 'In progress'), ...pending.map(row)] : null,
+      ...approved.map((v) => [row(v), under(v).length ? h('details', { class: 'rounds', open: f.rounds.includes(v.ref),
+        ontoggle: (e) => { f.rounds = e.target.open ? [...new Set([...f.rounds, v.ref])] : f.rounds.filter((x) => x !== v.ref); } },
+      h('summary', {}, plural(under(v).length, 'round')), ...under(v).map(row)) : null]),
+    ];
+  }
+
   // ------------------------------------------------------------ data
 
   async function load() {
@@ -73,6 +138,7 @@
     fill($('#viewport'), names.map((n) => [n, phone() ? cap(n) : `${cap(n)} ${data.viewports[n].replace('x', '×')}`]), ui.viewport);
     fill($('#area'), [['', 'All areas'], ...data.areas.map((a) => [a, cap(a)])], ui.area);
     fill($('#workflow'), [['', 'All workflows'], ...data.workflows.map((w) => [w, w])], ui.workflow);
+    drawVersions();
     drawStates();
     filterCount();
     barHeight();
@@ -94,7 +160,7 @@
   function barHeight() {
     document.documentElement.style.setProperty('--bar-h', `${$('.bar').offsetHeight}px`);
   }
-  const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}at/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
+  const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}${at.includes('/') ? 'versions' : 'at'}/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
   function frameFor(key, state, at = null) {
     const f = h('iframe', { title: key, loading: 'lazy', tabindex: '-1', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
     // A snapshot screen has no query string, so the state is set after the page's own script.
@@ -160,7 +226,8 @@
     const edges = $('#edges');
     board.replaceChildren(edges);
     edges.replaceChildren();
-    const list = data.screens;
+    const list = boardScreens();
+    const past = versionAt(ui.version);
     if (!list.length) {
       board.append(h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Run wf.mjs design screen add to add the first one.'));
       place();
@@ -173,11 +240,13 @@
     const scale = CARD_W() / v.width;
     for (const s of list) {
       const p = at(s);
-      const failures = (s.failures || []).filter((f) => f.viewport === ui.viewport && f.state === ui.state);
+      // The comments, the checks and the audit are of the page as it is now, not of a past version.
+      const failures = past ? [] : (s.failures || []).filter((f) => f.viewport === ui.viewport && f.state === ui.state);
       const approved = (s.approvals || []).at(-1);
+      const draft = past ? null : draftOf(s);
       const open = () => focus(s.key);
       const frame = h('div', { class: 'frame', role: 'button', tabindex: '0', 'aria-label': `Open ${s.title}`, style: `height:${Math.round(v.height * scale)}px`, onclick: open,
-        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } }, frameFor(s.key, ui.state));
+        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } }, frameFor(s.key, ui.state, ui.version || null));
       const iframe = frame.firstChild;
       iframe.style.width = `${v.width}px`;
       iframe.style.height = `${v.height}px`;
@@ -186,18 +255,20 @@
         frame,
         h('header', { class: 'cap' },
           h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
-            s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
+            !past && s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
             failures.length ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures.length, 'issue')) : null,
-            auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
-            approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
+            !past && auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
+            past ? h('span', { class: past.draft ? 'mark draft' : 'mark ok', title: past.reason }, past.draft ? 'Draft' : past.name)
+              : draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}` }, 'Draft')
+                : approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
           h('div', { class: 'meta', title: metaOf(s) }, metaOf(s))));
-      if (!phone() && data.writable && ui.view === 'grid') dragCard(card.querySelector('.cap'), card, s);
+      if (!phone() && data.writable && ui.view === 'grid' && !past) dragCard(card.querySelector('.cap'), card, s);
       board.append(card);
     }
     if (ui.view === 'flow' && !phone()) drawEdges(list, at);
     // Arrange shows only while a dragged screen is out of its column.
     const moved = list.some((s) => s.position && (s.position.x !== pos[s.key].x || s.position.y !== pos[s.key].y));
-    $('#arrange').hidden = !(data.writable && ui.view === 'grid' && !phone() && moved);
+    $('#arrange').hidden = !(data.writable && ui.view === 'grid' && !phone() && moved && !past);
     if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
   }
 
@@ -384,10 +455,10 @@
   let focusState = null;
   let focusFrom = null;
   function focus(key, opts = {}) {
-    const s = data.screens.find((x) => x.key === key);
+    const s = boardScreens().find((x) => x.key === key);
     if (!s) return;
     focusFrom = document.activeElement;
-    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false, play: false, trail: [] };
+    focusState = { key, viewport: opts.viewport || ui.viewport, state: opts.state || ui.state, checks: true, audit: true, commenting: false, compare: '', capture: false, all: false, play: false, trail: [], restoring: '', rounds: [] };
     drawFocus();
     $('#focus').hidden = false;
     $('#focus .close')?.focus();
@@ -397,9 +468,10 @@
    * With a filter, only the screens that match it; the open screen always stays in the walk.
    */
   function walk() {
-    const { pos } = autoLayout(data.screens);
-    const shown = data.screens.filter((s) => matches(s) || s.key === focusState?.key);
-    const list = shown.length > 1 ? shown : data.screens;
+    const all = boardScreens();
+    const { pos } = autoLayout(all);
+    const shown = all.filter((s) => matches(s) || s.key === focusState?.key);
+    const list = shown.length > 1 ? shown : all;
     const by = ui.view === 'flow' ? ['y', 'x'] : ['x', 'y'];
     return [...list].sort((a, b) => pos[a.key][by[0]] - pos[b.key][by[0]] || pos[a.key][by[1]] - pos[b.key][by[1]]);
   }
@@ -409,7 +481,7 @@
     if (list.length < 2) return;
     const i = list.findIndex((s) => s.key === focusState.key);
     const next = list[(i + by + list.length) % list.length];
-    focusState = { ...focusState, key: next.key, compare: '', commenting: false, trail: [] };
+    focusState = { ...focusState, key: next.key, compare: '', restoring: '', commenting: false, trail: [] };
     drawFocus();
     $(`#focus [data-step="${by}"]`)?.focus();
   }
@@ -429,7 +501,7 @@
       let url = null;
       try { url = new URL(a.getAttribute('href'), doc.baseURI); } catch { url = null; }
       const key = url && /\/screens\/([a-z0-9-]+)\.html$/.exec(url.pathname)?.[1];
-      if (!key || !data.screens.some((x) => x.key === key)) { say('That link leads to no screen'); return; }
+      if (!key || !boardScreens().some((x) => x.key === key)) { say('That link leads to no screen'); return; }
       const st = url.searchParams.get('state');
       focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
       drawFocus();
@@ -480,12 +552,16 @@
   let focusDrawn = null;
   function drawFocus() {
     const f = focusState;
-    const s = data.screens.find((x) => x.key === f.key);
+    const s = boardScreens().find((x) => x.key === f.key);
+    const past = versionAt(ui.version);
+    const other = versionAt(f.compare);
+    const draft = past ? null : draftOf(s);
     const size = vp(f.viewport);
     const scale = focusScale(f);
     focusDrawn = { scale, phone: phone() };
     const view = h('div', { class: 'view' });
-    const live = shot(f.compare || f.capture ? 'Now' : `${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state), size, scale);
+    const named = past ? draftName(past) : 'Now';
+    const live = shot(f.compare || f.capture ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state, ui.version || null), size, scale);
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` });
     // In play, nothing covers the screen, so its links and controls take the pointer.
     if (f.play) {
@@ -494,19 +570,19 @@
       ifr.removeAttribute('tabindex');
       ifr.addEventListener('load', () => playLinks(ifr));
     } else live.append(overlay);
-    if (f.checks) {
+    if (f.checks && !past) {
       for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
         if (x.rect) overlay.append(boxAt(x.rect, scale, CHECK_NAMES[x.check] || x.check, x.message));
       }
     }
     const findings = auditOf(s.key);
-    if (f.audit) {
+    if (f.audit && !past) {
       for (const x of findings.filter((q) => q.state === f.state && q.rects?.[f.viewport])) {
         overlay.append(boxAt(x.rects[f.viewport], scale, x.rule || 'Audit', x.message, 'audit'));
       }
     }
     s.threads.forEach((t, i) => {
-      if (!f.all && !t.open) return;
+      if (past || (!f.all && !t.open)) return;
       if ((t.anchor?.state || 'default') !== f.state || t.anchor?.x === null || t.anchor?.x === undefined) return;
       overlay.append(h('div', { class: `pinmark${t.open ? '' : ' closed'}`, style: `left:${t.anchor.x * size.width * scale}px;top:${t.anchor.y * size.height * scale}px`, title: t.comments[0]?.text || '', onclick: (e) => { e.stopPropagation(); $(`#t-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }); } }, String(i + 1)));
     });
@@ -530,14 +606,16 @@
       swipe = null;
       if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
     });
-    if (f.compare) view.append(shot(`At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
+    if (f.compare) view.append(shot(other ? draftName(other) : `At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
     if (f.capture) {
       const approval = (s.approvals || []).at(-1);
       const shotOf = (s.captures || [])[0];
       const src = shotOf ? `${BASE}${shotOf.url}` : (approval ? `${BASE}approvals/${approval.commit}/${s.key}.png` : '');
       view.append(shot(shotOf ? `Built, slice ${shotOf.slice}` : approval ? 'Approval picture' : 'No capture yet', h('img', { alt: shotOf ? 'The built screen' : 'The approved screen', src }), size, scale));
     }
-    const versions = [...(s.approvals || []).map((a) => [a.commit, `Approved ${String(a.at).slice(0, 10)}`]),
+    // A saved version comes first. An approval from before the versions compares at its commit.
+    const versions = [...allVersions().filter((v) => v.screens.some((e) => e.key === s.key)).map((v) => [v.ref, draftName(v)]),
+      ...(s.approvals || []).filter((a) => !a.version).map((a) => [a.commit, `Approved ${String(a.at).slice(0, 10)}`]),
       ...(s.history || []).filter((c) => !(s.approvals || []).some((a) => a.commit === c.commit)).map((c) => [c.commit, `${String(c.at).slice(0, 10)}: ${c.subject}`])];
     const order = walk();
     const at = order.findIndex((x) => x.key === s.key);
@@ -549,7 +627,7 @@
     const back = f.play && f.trail.length ? f.trail.at(-1) : null;
     const backTitle = back ? data.screens.find((x) => x.key === back.key)?.title || back.key : '';
     const header = h('header', {},
-      h('h2', {}, s.title, h('small', {}, metaOf(s))),
+      h('h2', {}, s.title, draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}` }, 'Draft') : null, h('small', {}, metaOf(s))),
       back ? h('button', { type: 'button', class: 'btn', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, trail: f.trail.slice(0, -1) }; drawFocus(); } }, `← ${backTitle}`) : null,
       stepper,
       h('button', { type: 'button', class: 'close', onclick: closeFocus, 'aria-label': 'Close' }, '×'));
@@ -557,17 +635,17 @@
       segOf(Object.keys(data.viewports), f.viewport, (v) => { f.viewport = v; drawFocus(); }, 'Viewport'),
       segOf(data.states, f.state, (v) => { f.state = v; drawFocus(); }, 'State'),
       h('span', { class: 'gap' }),
-      toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
-      findings.length ? toggle('Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }) : null,
+      past ? null : toggle('Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }),
+      findings.length && !past ? toggle('Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }) : null,
       SNAP ? null : toggle('Play', f.play, () => { f.play = !f.play; f.commenting = false; f.trail = []; drawFocus(); }),
-      data.writable ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
+      data.writable && !past ? toggle(f.commenting ? 'Tap the screen' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
       toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
     const shown = s.threads.filter((t) => f.all || t.open);
     const failures = groupsOf(s);
     const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
-    const side = h('section', { class: 'side' },
+    const side = h('section', { class: 'side' }, versionList(s, f), past ? null : [
       h('h3', {}, 'Comments', openN ? h('span', { class: 'count' }, String(openN)) : null,
         s.threads.length > openN ? h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), 'Show resolved') : null),
       shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then tap a point of the screen.' : 'No open comment.'),
@@ -575,9 +653,9 @@
       failures.length ? failures.map((x) => h('div', { class: 'check' },
         h('b', {}, CHECK_NAMES[x.check] || x.check), x.places > 1 ? h('span', { class: 'sev' }, `${x.places} places`) : null,
         h('p', {}, x.message),
-        h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : ''}`)))
+        h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : x.check === 'version' ? ' Save a round, or restore the version.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
-      findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null);
+      findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null]);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
   }
   /**
@@ -758,9 +836,11 @@
     const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'audit') panel('audit', true); });
     filter('#area', 'area', (t) => t.value);
     filter('#workflow', 'workflow', (t) => t.value);
+    $('#workflow').addEventListener('change', () => { const was = ui.version; drawVersions(); if (was !== ui.version) render(); });
     filter('#open', 'open', (t) => t.checked);
     filter('#failing', 'failing', (t) => t.checked);
     $('#viewport').addEventListener('change', (e) => { ui.viewport = e.target.value; render(); });
+    $('#version').addEventListener('change', (e) => { ui.version = e.target.value; render(); });
     $('#q').addEventListener('input', (e) => { ui.q = e.target.value; applyFilter(); });
     $('#zin').addEventListener('click', () => zoomBy(1.25));
     $('#zout').addEventListener('click', () => zoomBy(0.8));

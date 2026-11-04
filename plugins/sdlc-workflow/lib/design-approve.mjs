@@ -4,14 +4,15 @@
 // The design stage asks the approval question with the host question tool, and the question
 // hook writes the answer event to answers.jsonl (lib/answers.mjs). `approveDesign` reads that
 // event. On an approve, it commits the screens in the product repo, adds the approval to the
-// manifest, stores one picture per screen in the records, and writes the confirmation fields
-// into `02c-craft.md`.
+// manifest, saves the approved version and one picture per screen in the records, and writes the
+// confirmation fields into `02c-craft.md`.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { findAnswer } from './answers.mjs';
 import { captureScreens } from './design-check.mjs';
 import { approvalPicture, commitDesignRecords, readChecks } from './design-records.mjs';
+import { saveApproved } from './design-versions.mjs';
 import { MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, listScreens, readManifest, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -57,7 +58,7 @@ export function approvalKeys(root, slug, { keys = null, slice = null } = {}) {
  * answer event to the approval question is newer than the last approval, or when the answer is
  * not an approve.
  */
-export async function approveDesign(root, slug, { keys = null, slice = null, since = null, now = new Date(), browser = undefined } = {}) {
+export async function approveDesign(root, slug, { keys = null, slice = null, since = null, reason = null, now = new Date(), browser = undefined } = {}) {
   const dir = workflowDir(root, slug);
   if (!frontmatterOfDoc(dir, INDEX_NAME)) return { ok: false, reason: `no workflow ${slug}` };
   const contract = frontmatterOfDoc(dir, '02c-craft.md');
@@ -72,10 +73,11 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
   const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...(existsSync(join(surfaceDir(root), TOKENS_FILE)) ? [`${SURFACE_REL}/${TOKENS_FILE}`] : [])];
   const { commit, changed } = commitSurface(root, surface, `design: approve ${approved.join(', ')} for ${slug}`);
   const at = nowIso(now);
+  const version = saveApproved(root, slug, approved, { commit, reason, slice, now });
   const m = readManifest(root);
   for (const key of approved) {
     const s = m.screens[key];
-    s.approvals = [...(s.approvals ?? []), { commit, at, workflow: slug, ...(slice ? { slice } : {}) }];
+    s.approvals = [...(s.approvals ?? []), { commit, version, at, workflow: slug, ...(slice ? { slice } : {}) }];
   }
   writeManifest(root, m);
   commitSurface(root, [`${SURFACE_REL}/${MANIFEST_FILE}`], `design: record the approval of ${slug}`);
@@ -87,13 +89,14 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, png);
     }
-    commitDesignRecords(root, `design: approval pictures of ${slug}`);
   }
+  commitDesignRecords(root, `design: ${version} of ${slug}`);
   const checks = readChecks(root);
   const failures = (checks?.failures ?? []).filter((f) => approved.includes(f.screen));
   const fields = {
     screens: approved,
     'approval-commit': commit,
+    'design-version': version,
     'direction-confirmed-by': 'answer-event',
     'confirmed-at': at,
     'answered-at': answer.at,
@@ -101,5 +104,5 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
     'check-failures': checks ? failures.length : null,
   };
   setFields(dir, '02c-craft.md', fields);
-  return { ok: true, slug, screens: approved, commit, committed: changed, pictures: pictures ? Object.keys(pictures).length : 0, checkFailures: fields['check-failures'], answer: answer.answer };
+  return { ok: true, slug, screens: approved, commit, version, committed: changed, pictures: pictures ? Object.keys(pictures).length : 0, checkFailures: fields['check-failures'], answer: answer.answer };
 }

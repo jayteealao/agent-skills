@@ -594,10 +594,12 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
       <h3 class="group" id="ds-approve">Checks and approval <em>only your answer approves</em></h3>
       <ul class="rules">
-        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state, and flags each color that is not a token. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>. The Audit panel of the canvas runs a read-only agent over the screens and the built code.</span></li>
-        <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, and writes the approval commit into the contract. Agreement in free chat is not an approval.</span></li>
+        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state, and flags each color that is not a token and each page that differs from its approved version with no round that holds the change. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>. The Audit panel of the canvas runs a read-only agent over the screens and the built code.</span></li>
+        <li data-s><b>Rounds</b><span>The agent saves the pages as a draft after each decision round, with the decisions as its reason. A draft has no authority, and the workflow close deletes it.</span></li>
+        <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, saves the pages as a numbered version in the records, and writes the approval commit and the version into the contract. Agreement in free chat is not an approval.</span></li>
         <li data-s><b>Adjust</b><span>The agent changes the screens that you name, runs the check again, and asks again. Each adjustment is a recorded decision.</span></li>
         <li data-s><b>Stop</b><span>The contract stays unwritten, and the workflow waits for you.</span></li>
+        <li data-s><b>Restore</b><span>The canvas, or <code>wf.mjs design restore</code>, puts the pages of a version back as a new draft. A restore is never an approval: the screens need a new one.</span></li>
         <li data-s><b>The settled rule</b><span>A contract that names screens is settled only when a script recorded the approval and every screen page exists. Slice, yolo and the campaign stop until then.</span></li>
         <li data-s><b>You always see the screens</b><span>A confirmed PRODUCT.md or an earlier <code>teach</code> answer never replaces the approval.</span></li>
       </ul>
@@ -617,7 +619,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       </div>
 
       <h3 class="group" id="ds-canvas">The canvas and the design server <em>review from the phone</em></h3>
-      <p class="aside" data-s>The canvas shows every screen of a repo on one board, in each viewport and state, with the check failures, the comment threads, the flows, the history and a card for each slice. One design server per computer serves the canvas of every registered repo, on 127.0.0.1 and on the tailnet address. The server writes two things only: a comment on a screen that exists, and the positions that you drag. In the commands, <code>wf.mjs</code> is <code>node &lt;plugin&gt;/scripts/wf.mjs</code>.</p>
+      <p class="aside" data-s>The canvas shows every screen of a repo on one board, in each viewport and state, with the check failures, the comment threads, the flows, the history and a card for each slice. One design server per computer serves the canvas of every registered repo, on 127.0.0.1 and on the tailnet address. The server writes three things only: the restore of a version, a comment on a screen that exists, and the positions that you drag. In the commands, <code>wf.mjs</code> is <code>node &lt;plugin&gt;/scripts/wf.mjs</code>.</p>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>
@@ -630,6 +632,11 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code>wf.mjs design comments &lt;root&gt;</code></td><td>Prints the open comment threads. The agent reads them before each round.</td></tr>
             <tr data-s><td><code>wf.mjs design viewports &lt;root&gt; [name=WxH…]</code></td><td>Shows or sets the viewports. The defaults are phone 375×812, tablet 768×1024 and desktop 1280×800.</td></tr>
             <tr data-s><td><code>wf.mjs design areas &lt;root&gt; [area…]</code></td><td>Shows or sets the order of the areas, the order of the product's navigation. The canvas shows its columns in this order.</td></tr>
+            <tr data-s><td><code>wf.mjs design round &lt;root&gt; &lt;slug&gt;</code></td><td>Saves the pages as a draft in the records. A change-free round saves nothing.</td></tr>
+            <tr data-s><td><code>wf.mjs design versions &lt;root&gt; &lt;slug&gt;</code></td><td>Lists the approved versions and the rounds of a workflow, each with its reason.</td></tr>
+            <tr data-s><td><code>wf.mjs design approved &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the file of each page of the newest approved version. The build reads these files.</td></tr>
+            <tr data-s><td><code>wf.mjs design restore &lt;root&gt; &lt;slug&gt; &lt;version&gt;</code></td><td>Puts the pages of a version back as a new draft, which needs a new approval.</td></tr>
+            <tr data-s><td><code>wf.mjs design rounds drop &lt;root&gt; &lt;slug&gt;</code></td><td>Deletes the drafts of a closed workflow. The approved versions stay.</td></tr>
           </tbody>
         </table>
       </div>

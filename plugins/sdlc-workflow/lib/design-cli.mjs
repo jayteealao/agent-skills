@@ -9,6 +9,9 @@ import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestP
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, commitDesignRecords, openThreads } from './design-records.mjs';
 import { migrateDesign } from './design-migrate.mjs';
+import { approvedPages, dropRounds, listVersions, restoreVersion, saveRound, versionName } from './design-versions.mjs';
+import { frontmatterOfDoc } from './records.mjs';
+import { workflowDir } from './records-root.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   init <root>                                   make .ai/design/: the manifest, tokens.css, the git rule, the repo entry
@@ -18,7 +21,13 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   tokens <root>                                 write tokens.css from DESIGN.md
   track <root> [--check]                        keep .ai/design/ tracked in git
   check <root> [key...] [--workflow slug]       the screen checks, in each viewport and state
-  approve <root> <slug> [key...] [--slice s]    record the approval from the answer event: commit, pictures, 02c-craft.md
+  round <root> <slug> [--reason r]              save the pages as a draft, with the decisions since the last draft
+  approve <root> <slug> [key...] [--slice s] [--reason r]
+                                                record the approval from the answer event: commit, version, pictures, 02c-craft.md
+  versions <root> <slug>                        the approved versions and the rounds of a workflow
+  approved <root> <slug>                        the pages of the newest approved version, for the build
+  restore <root> <slug> <version>               put the pages of a version back, as a new round that needs a new approval
+  rounds drop <root> <slug>                     delete the rounds of a closed workflow
   viewports <root> [name=WxH...]                the viewports of the surface; with pairs, set them
   areas <root> [area...]                        the areas in the order of the navigation; with names, set the order
   refs check <root>                             exit 1 when a reference is not a readable file in the repo
@@ -39,7 +48,7 @@ const namePart = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && 
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server', 'refs'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs', 'rounds'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') ? rest.shift() : null;
   if (verb === 'server') return runServer(sub, opt, out);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
@@ -93,11 +102,45 @@ export async function runDesign(pos, opt, out) {
     }
     case 'approve': {
       if (!key) throw new Error('design approve <root> <slug> is required');
-      const r = await approveDesign(projectRoot, key, { keys: rest.slice(2), slice: opt.slice ?? null });
+      const r = await approveDesign(projectRoot, key, { keys: rest.slice(2), slice: opt.slice ?? null, reason: opt.reason ?? null });
       out(opt.json ? r : r.ok
-        ? `approved ${r.screens.join(', ')} for ${r.slug} in ${r.commit.slice(0, 8)}${r.committed ? '' : ' (no change since the last commit)'}; ${r.pictures} picture(s); ${r.checkFailures ?? 'no'} check failure(s)`
+        ? `approved ${r.screens.join(', ')} for ${r.slug} as ${r.version} in ${r.commit.slice(0, 8)}${r.committed ? '' : ' (no change since the last commit)'}; ${r.pictures} picture(s); ${r.checkFailures ?? 'no'} check failure(s)`
         : [`not approved: ${r.reason}`, ...(r.question ? [`ask: ${r.question}`] : [])].join('\n'));
       return r.ok ? 0 : 1;
+    }
+    case 'round': {
+      if (!key) throw new Error('design round <root> <slug> is required');
+      const r = saveRound(projectRoot, key, { reason: opt.reason ?? null });
+      out(opt.json ? r : !r.ok ? `no round: ${r.reason}` : r.saved ? `saved ${versionName(r.id)} of ${key}: ${r.changed.join(', ')}` : `no round: no page changed since ${versionName(r.id)}`);
+      return r.ok ? 0 : 1;
+    }
+    case 'versions': {
+      if (!key) throw new Error('design versions <root> <slug> is required');
+      const v = listVersions(projectRoot, key);
+      const line = (x) => `${versionName(x.id)}  ${x.at}  ${x.reason}`;
+      out(opt.json ? v : [...v.approved, ...v.rounds].map(line).join('\n') || `${key} has no version`);
+      return 0;
+    }
+    case 'approved': {
+      if (!key) throw new Error('design approved <root> <slug> is required');
+      const v = approvedPages(projectRoot, key);
+      const commit = frontmatterOfDoc(workflowDir(projectRoot, key), '02c-craft.md')?.['approval-commit'] ?? null;
+      out(opt.json ? v ?? { version: null, commit } : v ? [v.version, ...v.pages.map((p) => `${p.key} ${p.file}`)].join('\n') : `no version: read the pages at commit ${commit ?? 'none'}`);
+      return v || commit ? 0 : 1;
+    }
+    case 'restore': {
+      const id = rest[2];
+      if (!key || !id) throw new Error('design restore <root> <slug> <version> is required');
+      const r = restoreVersion(projectRoot, key, id);
+      out(opt.json ? r : !r.ok ? `not restored: ${r.reason}` : [`restored ${versionName(r.restored)} as ${versionName(r.id)}: it needs a new approval`,
+        ...(r.tokensDiffer ? ['the token sheet differs from that version: change the roles in DESIGN.md, then run design tokens, to bring its colors back'] : [])].join('\n'));
+      return r.ok ? 0 : 1;
+    }
+    case 'rounds': {
+      if (sub !== 'drop' || !key) throw new Error('design rounds drop <root> <slug> is required');
+      const dropped = dropRounds(projectRoot, key);
+      out(opt.json ? { dropped } : dropped ? `deleted the rounds of ${key}` : `${key} has no rounds`);
+      return 0;
     }
     case 'viewports': {
       const pairs = rest.slice(1);

@@ -118,6 +118,8 @@ Run one `record set "<root>" <slug> index` call: `status=closed`, `close-reason=
 `closed-at=<timestamp>`, `next-command=none`, `next-invocation=none`, and
 `"workflow-files=[<current entries>, 99-close.md]"`. `updated-at` moves by itself. Do not change `current-stage` — it reflects the last stage reached.
 
+Then run `node "<skill-dir>/scripts/wf.mjs" design rounds drop "<root>" <slug>`. The command deletes the design drafts of the workflow. The approved versions stay.
+
 ## Step W5 — Hand off
 Lead with the narrative per [_chat-return.md](../_chat-return.md) (section *The narrative*), then a compact receipt (reason, last
 stage, stages completed, `99-close.md` path, "artifacts preserved"). Then a manual-actions checklist:

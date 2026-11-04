@@ -36,6 +36,7 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person approv
 # Written by `wf.mjs design approve`, never by the agent:
 screens: [every approved screen key]
 approval-commit: <the commit of the product repo that holds the approved screens>
+design-version: <the approved version in the records, for example v2>
 direction-confirmed-by: answer-event
 confirmed-at: <timestamp>
 image-gate: <pass|skipped:<reason>>

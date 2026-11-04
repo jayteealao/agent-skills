@@ -15,6 +15,7 @@ import { browserCandidates } from '../scripts/design-boards.mjs';
 import { groupFailures, readChecks, writeChecks } from './design-records.mjs';
 import { tokensOf } from './design-state.mjs';
 import { STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenUrl, surfaceDir } from './design-surface.mjs';
+import { versionDrift } from './design-versions.mjs';
 import { killTree } from './proc.mjs';
 
 export { groupFailures };
@@ -442,6 +443,9 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
     const missing = STATES.filter((st) => !s.states.includes(st));
     if (!s.exists) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: 'The screen page is missing', rect: null, move: CHECK_MOVES.states });
     else if (missing.length) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: `The page has no ${missing.join(', ')} state`, rect: null, move: CHECK_MOVES.states });
+  }
+  for (const d of versionDrift(root, screens.map((s) => s.key))) {
+    failures.push({ screen: d.screen, check: 'version', viewport: null, state: null, message: `The page differs from ${d.version} of ${d.workflow}, and no round holds the change`, rect: null, move: null });
   }
   const b = await openBrowser(root, { ...(browser === undefined ? {} : { browser }), pages: PAGES });
   if (!b) {

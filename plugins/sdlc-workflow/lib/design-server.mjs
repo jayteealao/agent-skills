@@ -3,8 +3,8 @@
 // the tailnet.
 //
 // The server is static: it reads the files of each request, and it keeps no version state, no
-// render queue and no reap. It writes in two cases only: a comment on a screen that exists, and
-// the saved positions of the canvas layout. It starts one process: the read-only design audit
+// render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
+// saved positions of the canvas layout, and the restore of a version as a new round. It starts one process: the read-only design audit
 // agent of the Audit button (design-audit.mjs), one run per repo at a time. Each write names a
 // listed repo, and every other path is refused. It listens on 127.0.0.1 and on the tailnet
 // address only; the tailnet is its only protection.
@@ -19,6 +19,7 @@ import { pidAlive } from './proc.mjs';
 import { CANVAS_DIR, canvasState } from './design-state.mjs';
 import { addComment, approvalPicture, capturePicture } from './design-records.mjs';
 import { readAudit, startAudit } from './design-audit.mjs';
+import { restoreVersion, versionDir } from './design-versions.mjs';
 import { KEY_RE, LAYOUT_FILE, SURFACE_REL, readDesignRepos, readManifest, surfaceDir } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { PAGE_REL } from './brainstorm-page.mjs';
@@ -184,6 +185,10 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
             const r = addComment(root, rest[0], { thread: body.thread ?? null, text: String(body.text ?? ''), author: String(body.author ?? 'someone').slice(0, 60), anchor: body.anchor ?? null, resolve: body.resolve === true, reopen: body.reopen === true });
             return r.ok === false ? fail(res, 400, r.reason) : json(res, 200, { ...r, ok: true });
           }
+          if (kind === 'versions' && rest.length === 2 && rest[1] === 'restore') {
+            const r = restoreVersion(root, rest[0], String(body.id ?? ''));
+            return r.ok ? json(res, 200, r) : fail(res, 400, r.reason);
+          }
           if (kind === 'layout' && rest.length === 0) return json(res, 200, { ok: true, ...saveLayout(root, body.positions) });
           if (kind === 'audit' && rest.length === 0) {
             const workflow = body.workflow ? String(body.workflow) : null;
@@ -207,6 +212,15 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         if (!inside(surfaceDir(root), rel)) return fail(res, 400, 'a bad path');
         const buf = atCommit(root, rest[0], rel);
         return buf ? send(res, 200, buf, { 'content-type': TYPES[extname(rel).toLowerCase()] ?? 'application/octet-stream' }) : fail(res, 404, 'not in that commit');
+      }
+      if (kind === 'versions' && rest.length >= 3) {
+        const dir = versionDir(root, rest[0], rest[1]);
+        if (!dir) return fail(res, 400, 'a bad version');
+        const rel = rest.slice(2).join('/');
+        const own = inside(dir, rel);
+        // A version keeps the pages and the token sheet. Any other file of a page, such as the
+        // picture of a legacy frame, comes from the surface.
+        return file(res, own && existsSync(own) ? own : inside(surfaceDir(root), rel));
       }
       if (kind === 'approvals' && rest.length === 2 && SHA_RE.test(rest[0]) && /^[a-z0-9-]+\.png$/.test(rest[1])) return file(res, approvalPicture(root, rest[0], rest[1].slice(0, -4)));
       if (kind === 'captures' && rest.length === 3 && rest.slice(0, 2).every((p) => /^[a-z0-9._-]+$/i.test(p)) && /^[a-z0-9-]+\.png$/.test(rest[2])) {
