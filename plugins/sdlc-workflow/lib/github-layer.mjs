@@ -4,7 +4,9 @@
 // The records are the truth. The layer only mirrors them, so an agent never reads it for state.
 // `wf.mjs` is its one writer: each change of a workflow's state puts one entry in an ordered
 // outbox on this machine, and a flush sends the entries to GitHub in order. A machine that is
-// offline keeps its entries, and the next flush catches up.
+// offline keeps its entries, and the next flush catches up. A `/wf` call starts a flush, and so
+// does a change, at most once a minute, so a driver that makes no `/wf` call keeps the issues
+// current.
 //
 // One issue per workflow on every machine: the flush writes the issue number into the workflow
 // folder (`layer.json`, which syncs with the records) and commits it. Before it makes an issue,
@@ -24,7 +26,7 @@ import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { defaultRun } from './last-mile.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
-import { commitWorkflow } from './records-sync.mjs';
+import { commitWorkflow, inBackground } from './records-sync.mjs';
 import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 
 export const STATUS_SCHEMA = 'wf-status/1';
@@ -368,6 +370,31 @@ export function flushOutbox({ run = defaultRun, retryMs = NET_RETRY_MS, wait = s
     if (!takeLock()) break;
   }
   return total;
+}
+
+const flushStartPath = () => join(outboxDir(), 'flush.started');
+export const FLUSH_GAP_MS = 60_000;
+// Each failed flush counts toward parking an entry, so an offline machine tries less often.
+export const FLUSH_FAILED_GAP_MS = 30 * 60_000;
+
+/** True when a change may start a flush: the queue holds an entry and the last start is old enough. */
+export function flushDue({ now = Date.now() } = {}) {
+  if (!readOutbox().length) return false;
+  const gap = readState().error ? FLUSH_FAILED_GAP_MS : FLUSH_GAP_MS;
+  try { return now - statSync(flushStartPath()).mtimeMs >= gap; } catch { return true; }
+}
+
+/**
+ * Start the background flush after a change, when one is due. An entry that comes inside the gap
+ * goes with the next change or the next `/wf` call. SDLC_RECORDS_PUSH=off leaves the flush out, as
+ * it leaves out the push.
+ */
+export function startFlush(root) {
+  if (process.env.SDLC_RECORDS_PUSH === 'off' || !layerOf(root) || !flushDue()) return false;
+  mkdirSync(outboxDir(), { recursive: true });
+  writeFileSync(flushStartPath(), nowIso());
+  inBackground(['gh', 'flush', '--background']);
+  return true;
 }
 
 /** One pass over the entries that the outbox holds now. */

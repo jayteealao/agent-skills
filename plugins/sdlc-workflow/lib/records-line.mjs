@@ -62,10 +62,13 @@ export function recordsLine(root, { target = null, host = null, now = Date.now()
   }
   if (layer) {
     const flush = lastLogged(['flush']);
-    if (flush?.error && newer(flush.at)) facts.push(`the last send of the GitHub issue edits failed at ${flush.at}: ${flush.error}`);
-    const queue = readOutbox();
-    const oldest = Date.parse(queue[0]?.at ?? '');
-    if (oldest && now - oldest > DAY_MS && newer(new Date(oldest + DAY_MS).toISOString())) facts.push(`${queue.length} GitHub issue edit(s) wait since ${queue[0].at}`);
+    // A queue alone asks nothing: the dispatch that reads it starts the flush itself.
+    if (flush?.error && newer(flush.at)) {
+      facts.push(`the last send of the GitHub issue edits failed at ${flush.at}: ${flush.error}`);
+      const queue = readOutbox();
+      const oldest = Date.parse(queue[0]?.at ?? '');
+      if (oldest && now - oldest > DAY_MS) facts.push(`${queue.length} GitHub issue edit(s) wait since ${queue[0].at}`);
+    }
   }
   if (!facts.length) return { line: null, pulled };
   return { line: askLine(`${upper(facts.join('; '))}. Retry in the background?`, `records retry ${r}${target ? ` ${target}` : ''}`, `records dismiss ${r}`), pulled };

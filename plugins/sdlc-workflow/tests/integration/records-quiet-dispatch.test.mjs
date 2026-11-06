@@ -5,12 +5,14 @@
 // A fake gh stands in for GitHub; nothing reaches the network.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { afterChange } from '../../lib/after-change.mjs';
+import { FLUSH_FAILED_GAP_MS, FLUSH_GAP_MS, flushDue, readOutbox } from '../../lib/github-layer.mjs';
 import { INDEX_NAME } from '../../lib/records.mjs';
 import { linkProject, pushRecords } from '../../lib/records-sync.mjs';
 
@@ -162,6 +164,42 @@ test('the link queues each workflow for its issue as its last step; the flush wr
   } finally { w.done(); }
 });
 
+test('a change with no /wf call starts the flush, at most once in the gap, and a failed flush waits longer', () => {
+  const w = world({ repo: 'me/wf-records' });
+  try {
+    assert.equal(linkProject(w.root, 'notes').ok, true);
+    const gh = fakeGh(w.top);
+    Object.assign(process.env, gh);
+    delete process.env.SDLC_RECORDS_PUSH;
+    const index = join(w.clone, 'notes', 'w1', INDEX_NAME);
+    const change = (stage) => {
+      writeFileSync(index, readFileSync(index, 'utf8').replace(/current-stage: \S+/, `current-stage: ${stage}`));
+      afterChange(w.root, 'w1', { label: `w1: ${stage}` });
+    };
+    const stamp = join(w.home, 'outbox', 'flush.started');
+    const age = (ms) => { const at = new Date(Date.now() - ms); utimesSync(stamp, at, at); };
+
+    change('implement');
+    assert.equal(readOutbox().length, 0, 'the first change sends its edit');
+    assert.match(readFileSync(gh.FAKE_GH_LOG, 'utf8'), /^issue create --repo me\/wf-records/m);
+
+    change('verify');
+    assert.equal(readOutbox().length, 1, 'a change inside the gap leaves its edit in the queue');
+    age(FLUSH_GAP_MS + 1_000);
+    change('review');
+    assert.equal(readOutbox().length, 0, 'the next change after the gap sends both edits');
+
+    process.env.FAKE_GH_FAIL = 'HTTP 422: Validation Failed';
+    age(FLUSH_GAP_MS + 1_000);
+    change('ship');
+    assert.equal(readOutbox().length, 1, 'the failed edit stays in the queue');
+    age(FLUSH_GAP_MS + 1_000);
+    assert.equal(flushDue(), false, 'a failed flush waits for the longer gap');
+    age(FLUSH_FAILED_GAP_MS + 1_000);
+    assert.equal(flushDue(), true);
+  } finally { w.done(); }
+});
+
 test('the dispatch imports no comments and calls no gh; a failed flush and a queue older than one day are one ask line', () => {
   const w = world({ repo: 'me/wf-records' });
   try {
@@ -176,8 +214,7 @@ test('the dispatch imports no comments and calls no gh; a failed flush and a que
     mkdirSync(join(w.home, 'outbox'), { recursive: true });
     writeFileSync(join(w.home, 'outbox', 'github.jsonl'), `${JSON.stringify({ id: 'old-1', at: iso(Date.now() - 2 * 86_400_000), op: 'comment', repo: 'me/wf-records', project: 'notes', slug: 'w1', root: w.root, body: 'x' })}\n`);
     const first = cli(w, ['dispatch', w.root, '--host', 'claude', '--', 'status'], { ...gh, FAKE_GH_FAIL: 'HTTP 422: Validation Failed' });
-    const [line] = recordsLines(first.stdout);
-    assert.match(line, /^records: ask "1 GitHub issue edit\(s\) wait since \S+\. Retry in the background\?" yes=`wf\.mjs records retry ".+"` no=`wf\.mjs records dismiss ".+"`$/);
+    assert.deepEqual(recordsLines(first.stdout), [], 'a queue alone asks nothing: this dispatch starts the flush');
     const second = cli(w, ['dispatch', w.root, '--host', 'claude', '--', 'status'], { ...gh, FAKE_GH_FAIL: 'HTTP 422: Validation Failed' });
     assert.match(recordsLines(second.stdout)[0], /^records: ask "The last send of the GitHub issue edits failed at \S+: no issue yet for notes\/w1; 1 GitHub issue edit\(s\) wait since /);
     assert.ok(!existsSync(gh.FAKE_GH_LOG) || !/issue view/.test(readFileSync(gh.FAKE_GH_LOG, 'utf8')), 'the dispatch of a status call imports no comments');

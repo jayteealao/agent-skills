@@ -5,8 +5,10 @@
 // 2. A linked project commits the workflow folder on the main branch of the records clone. The
 //    commit starts the background push; for a closed workflow, the push also releases the lease.
 // 3. When the lease ref of the last sync names another machine, the session is told to stop.
+// 4. The background flush starts when one is due, so a driver that makes no `/wf` call keeps the
+//    issues current.
 import { join } from 'node:path';
-import { noteAnswer, noteChange } from './github-layer.mjs';
+import { noteAnswer, noteChange, startFlush } from './github-layer.mjs';
 import { otherLease, leaseLostLine } from './leases.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -38,5 +40,6 @@ export function afterChange(root, slug, { label, answer = null, warn = (line) =>
       warn(`${leaseLostLine(slug, other)}. Stop the stage: another computer writes this workflow now.`);
     }
   } catch (e) { warn(`the records commit failed: ${e.message}`); }
+  try { startFlush(root); } catch (e) { warn(`the GitHub layer did not start the flush: ${e.message}`); }
   return result;
 }
