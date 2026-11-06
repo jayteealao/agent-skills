@@ -162,7 +162,8 @@
   }
   const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}${at.includes('/') ? 'versions' : 'at'}/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
   function frameFor(key, state, at = null) {
-    const f = h('iframe', { title: key, loading: 'lazy', tabindex: '-1', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
+    // A screen is an artboard, not a window: a scrollbar would take width from the page.
+    const f = h('iframe', { title: key, loading: 'lazy', tabindex: '-1', scrolling: 'no', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
     // A snapshot screen has no query string, so the state is set after the page's own script.
     if (SNAP) f.srcdoc = (SNAP.screens[key] || '').replace('</head>', `<style>${SNAP.tokens || ''}</style><script>document.documentElement.dataset.state=${JSON.stringify(state)}<\/script></head>`);
     else f.src = screenUrl(key, state, at);
@@ -530,10 +531,28 @@
     style: `left:${r.x * scale}px;top:${r.y * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }, h('span', {}, label));
   function shot(caption, content, size, scale) {
     const box = h('div', { class: 'shot', style: `width:${Math.round(size.width * scale)}px;height:${Math.round(size.height * scale)}px` }, h('div', { class: 'cap' }, caption), content);
+    const fit = (height) => {
+      content.style.height = `${height}px`;
+      box.style.height = `${Math.round(height * scale)}px`;
+    };
     content.style.width = `${size.width}px`;
     content.style.height = `${size.height}px`;
     content.style.transform = `scale(${scale})`;
+    if (content.tagName === 'IFRAME') content.addEventListener('load', () => hug(content, size, fit));
     return box;
+  }
+  /**
+   * An artboard is as tall as its page, and the view around it scrolls. A page that takes its height
+   * from the window grows with the frame, so that page keeps the device height and scrolls in the frame.
+   */
+  function hug(ifr, size, fit) {
+    let root = null;
+    try { root = ifr.contentDocument?.documentElement; } catch { root = null; }
+    if (!root) return;
+    const tall = root.scrollHeight;
+    if (tall <= size.height) return;
+    fit(tall);
+    if (root.scrollHeight > tall) fit(size.height);
   }
   function segOf(values, value, on, label) {
     return h('div', { class: 'seg', role: 'group', 'aria-label': label },
@@ -541,15 +560,19 @@
   }
   const toggle = (text, on, fn) => h('button', { type: 'button', class: 'btn', 'aria-pressed': String(Boolean(on)), onclick: fn }, text);
 
-  /** The scale of the screens in the screen view: one or two panes in the room of the window. */
+  /** The other device sizes that the screen view shows beside the screen. */
+  const otherSizes = (f) => (f.sizes && !phone() ? Object.keys(data.viewports).filter((n) => n !== f.viewport) : []);
+  /** The scale of the screens in the screen view: the widths of the panes fit the room of the window. */
   function focusScale(f) {
-    const size = vp(f.viewport);
-    const panes = f.compare || f.capture ? 2 : 1;
+    const width = vp(f.viewport).width;
+    const widths = [width, ...(f.compare || f.capture ? [width] : []), ...otherSizes(f).map((n) => vp(n).width)];
     const room = phone() ? window.innerWidth - 32 : window.innerWidth - 32 - 340 - 48;
-    return Math.min(1, (room - (panes - 1) * 24) / panes / size.width, phone() ? 1 : (window.innerHeight - 240) / size.height);
+    return Math.min(1, (room - (widths.length - 1) * 24) / widths.reduce((a, b) => a + b));
   }
   // The scale and the layout of the last drawn screen view: a resize that keeps both keeps the view.
   let focusDrawn = null;
+  // What scrolls the artboards: the view, and on a phone the whole sheet.
+  const focusScroller = () => $(phone() ? '#focus .sheet' : '#focus .view');
   function drawFocus() {
     const f = focusState;
     const s = boardScreens().find((x) => x.key === f.key);
@@ -558,7 +581,9 @@
     const draft = past ? null : draftOf(s);
     const size = vp(f.viewport);
     const scale = focusScale(f);
-    focusDrawn = { scale, phone: phone() };
+    // A redraw of the same screen stays where the person scrolled it.
+    const top = focusDrawn?.key === f.key ? focusScroller()?.scrollTop || 0 : 0;
+    focusDrawn = { scale, phone: phone(), key: f.key };
     const view = h('div', { class: 'view' });
     const named = past ? draftName(past) : 'Now';
     const live = shot(f.compare || f.capture ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state, ui.version || null), size, scale);
@@ -574,11 +599,13 @@
       const follow = () => { f.scroll = win.scrollY; layer.style.transform = `translateY(${-win.scrollY * scale}px)`; };
       win.addEventListener('scroll', follow);
       follow();
+      focusScroller().scrollTop = top;
     });
     // In play, nothing covers the screen, so its links and controls take the pointer.
     if (f.play) {
       live.classList.add('playing');
       ifr.removeAttribute('tabindex');
+      ifr.removeAttribute('scrolling');
       ifr.addEventListener('load', () => playLinks(ifr));
     } else live.append(overlay);
     if (f.checks && !past) {
@@ -598,8 +625,8 @@
       layer.append(h('div', { class: `pinmark${t.open ? '' : ' closed'}`, style: `left:${t.anchor.x * size.width * scale}px;top:${t.anchor.y * size.height * scale}px`, title: t.comments[0]?.text || '', onclick: (e) => { e.stopPropagation(); $(`#t-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }); } }, String(i + 1)));
     });
     // Comment mode: the pointer outlines the element under it, and a click or a tap selects it.
-    const hovered = h('div', { class: 'pick', hidden: true }, h('span'));
-    const selected = h('div', { class: 'pick held', hidden: true }, h('span'));
+    const hovered = h('div', { class: 'el-box', hidden: true }, h('span'));
+    const selected = h('div', { class: 'el-box held', hidden: true }, h('span'));
     layer.append(hovered, selected);
     const elementAt = (e) => {
       const r = overlay.getBoundingClientRect();
@@ -635,7 +662,7 @@
     overlay.addEventListener('click', (e) => {
       if (!f.commenting) return;
       const r = overlay.getBoundingClientRect();
-      pick = { el: elementAt(e), x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top + f.scroll * scale) / r.height };
+      pick = { el: elementAt(e), x: (e.clientX - r.left) / r.width, y: ((e.clientY - r.top) / scale + f.scroll) / size.height };
       hovered.hidden = true;
       showPick();
       field.focus();
@@ -655,7 +682,10 @@
     overlay.addEventListener('pointercancel', () => { fingerY = null; });
     overlay.addEventListener('pointermove', (e) => {
       if (fingerY !== null) {
-        screenDoc()?.defaultView.scrollBy({ top: (fingerY - e.clientY) / scale, behavior: 'instant' });
+        const win = screenDoc()?.defaultView;
+        const from = win?.scrollY;
+        win?.scrollBy({ top: (fingerY - e.clientY) / scale, behavior: 'instant' });
+        if (win?.scrollY === from) focusScroller().scrollTop += fingerY - e.clientY;
         fingerY = e.clientY;
       } else if (f.commenting && e.pointerType === 'mouse') outline(hovered, elementAt(e));
     });
@@ -672,6 +702,7 @@
       swipe = null;
       if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
     });
+    for (const n of otherSizes(f)) view.append(shot(cap(n), frameFor(s.key, f.state, ui.version || null), vp(n), scale));
     if (f.compare) view.append(shot(other ? draftName(other) : `At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
     if (f.capture) {
       const approval = (s.approvals || []).at(-1);
@@ -706,6 +737,7 @@
       SNAP ? null : toggle('Play', f.play, () => { f.play = !f.play; f.commenting = false; f.trail = []; drawFocus(); }),
       data.writable && !past ? toggle(f.commenting ? 'Select an element' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; f.play = false; drawFocus(); }) : null,
       toggle('Capture', f.capture, () => { f.capture = !f.capture; drawFocus(); }),
+      Object.keys(data.viewports).length > 1 && !phone() ? toggle('All sizes', f.sizes, () => { f.sizes = !f.sizes; drawFocus(); }) : null,
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
     const shown = s.threads.filter((t) => f.all || t.open);
