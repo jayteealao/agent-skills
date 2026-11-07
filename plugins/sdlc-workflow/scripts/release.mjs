@@ -13,7 +13,8 @@
  *   publish    one commit of those paths only, an annotated tag, a push of master and the tag
  *   delivered  origin/master and the remote tags carry the release
  *   install    a reinstall on each host of this machine, then doctor must say OK and the
- *              smoke flow must pass on each host (scripts/smoke-hosts.mjs)
+ *              smoke flow must pass on each host (scripts/smoke-hosts.mjs); a running
+ *              design server starts again from the installed copy
  *   report     the artifact needs a republish when docs/commands.html changed
  *
  * `next` is the channel for daily work: 9.x.y → 10.0.0-next.0 → 10.0.0-next.1 … and
@@ -26,6 +27,7 @@ import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BUILD_SHA_FILE, PI_PACKAGE, readClaudeInstalls, readCodexInstalls, readPiPackages, runDoctor, formatDoctorTable, versionVerdict, MARKETPLACE, PLUGIN_NAME } from '../lib/doctor.mjs';
+import { serverStatus } from '../lib/design-server.mjs';
 import { stampVersion } from './stamp-version.mjs';
 import { generate } from './generate.mjs';
 import { COMMAND_PAGE } from './verify-docs.mjs';
@@ -188,6 +190,7 @@ function context(opts = {}) {
     install: opts.install ?? installHosts,
     doctor: opts.doctor ?? ((c) => runDoctor({ pluginRoot: c.root })),
     smoke: opts.smoke ?? smokeHosts,
+    restartDesign: opts.restartDesign ?? restartDesignServer,
     generate: opts.generate ?? ((c) => generate({ root: c.root, write: true })),
     remote: opts.remote ?? 'origin',
     branch: opts.branch ?? 'master',
@@ -383,6 +386,28 @@ async function install(ctx, state) {
   const smoke = ctx.smoke(ctx);
   for (const r of smoke) ctx.log(`[release]   smoke ${smokeLine(r)}`);
   if (smoke.some((r) => !r.skipped && !r.ok)) stop('smoke: a host fails the smoke flow');
+  const design = await ctx.restartDesign(ctx);
+  ctx.log(`[release]   design server: ${design.restarted ? `restarted from ${design.from}` : design.reason}`);
+}
+
+/**
+ * A running design server keeps the code that it started with, and a reinstall does not stop it.
+ * The release stops it and starts it on the same port with the wf.mjs of the installed copy, so
+ * each canvas gets the released code. A failed restart does not stop the release: the release
+ * is pushed, and `wf.mjs design server start` starts the server by hand.
+ */
+export async function restartDesignServer(ctx) {
+  const now = await serverStatus();
+  if (!now.running) return { restarted: false, reason: 'not running' };
+  const installs = readClaudeInstalls().filter((i) => i.installPath);
+  const copy = installs.find((i) => i.scope === 'user') ?? installs[0];
+  const wf = copy ? join(copy.installPath, 'scripts', 'wf.mjs') : null;
+  if (!wf || !existsSync(wf)) return { restarted: false, reason: 'no installed copy of the plugin: run wf.mjs design server start' };
+  const step = (...args) => ctx.run(process.execPath, [wf, 'design', 'server', ...args], { cwd: ctx.root });
+  const down = step('stop');
+  const up = down.status === 0 ? step('start', '--port', String(now.port)) : down;
+  if (up.status !== 0) return { restarted: false, reason: `the restart failed, run wf.mjs design server start: ${(up.stderr || up.stdout).trim()}` };
+  return { restarted: true, from: copy.version ?? copy.installPath };
 }
 
 /** The smoke flow of each host, on the installed copy: pi runs the installed pi package. */

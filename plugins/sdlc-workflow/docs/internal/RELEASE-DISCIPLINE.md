@@ -47,7 +47,10 @@ commit, tag or push.
 5. **install.** The command updates the plugin on each host of this machine
    that has it: `claude plugin marketplace update`, `claude plugin update` for
    each scope (a local scope runs from its project folder), and
-   `codex plugin marketplace upgrade`. Then doctor must report OK.
+   `codex plugin marketplace upgrade`. Then doctor must report OK. When a
+   design server runs, the command stops it and starts it on the same port
+   from the installed copy, so each canvas gets the released code. A failed
+   restart is logged and does not stop the release.
 6. **report.** When `docs/commands.html` changed since the previous tag, the
    command says so: republish the artifact of the command page from the local
    copy. The `verify:docs` gate already holds the page to the keys.

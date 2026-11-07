@@ -96,7 +96,7 @@ function fixture() {
   return { root, work, remote, cleanup };
 }
 
-const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, smoke: () => [], generate: () => [] };
+const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, smoke: () => [], restartDesign: () => ({ restarted: false, reason: 'not running' }), generate: () => [] };
 const doctorOk = () => ({ ok: true, shipped: 'x', buildId: null, hosts: { claude: [], codex: [], codexConfig: null }, cleanup: { done: true, left: [] }, verdicts: { claude: 'absent', codex: 'absent' } });
 
 test('release next: end to end, with a stop at a gate and a stop at doctor, each resumed', async () => {
@@ -126,7 +126,10 @@ test('release next: end to end, with a stop at a gate and a stop at doctor, each
     await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk, smoke: () => [{ host: 'pi', status: true, intake: false, slugs: [], ok: false, tail: 'no index' }] }), /smoke/);
 
     // The next resume reinstalls and finishes; it makes no second commit.
-    const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk });
+    // The install step starts a running design server again from the installed copy.
+    const lines = [];
+    const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk, log: (l) => lines.push(l), restartDesign: () => ({ restarted: true, from: '10.0.0-next.0' }) });
+    assert.ok(lines.includes('[release]   design server: restarted from 10.0.0-next.0'));
     assert.equal(state.version, '10.0.0-next.0');
     assert.equal(git(work, 'rev-parse', 'HEAD'), commit);
     assert.ok(!existsSync(path.join(root, STATE_FILE)), 'the last step deletes the state file');
