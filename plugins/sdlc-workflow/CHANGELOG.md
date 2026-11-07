@@ -5,6 +5,17 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.13] - 2026-11-07
+
+- feat(sdlc-workflow): an open design canvas updates live
+- perf(sdlc-workflow): the design canvas loads in under a second and keeps its pages
+- feat(sdlc-workflow): a component library for the design surface, and a canvas with no panel tabs
+- feat(sdlc-workflow): the canvas shows a screen as an artboard with no scrollbars
+- fix(sdlc-workflow): a change starts the GitHub flush, and a queue alone asks nothing
+- feat(sdlc-workflow): comment mode on the canvas selects an element of the screen
+- test(sdlc-workflow): delete the fingerprint test of the real state dir
+- feat(sdlc-workflow): design rounds and approved versions kept in the records
+
 ## [10.0.0-next.12] - 2026-11-01
 
 - fix(sdlc-workflow): a verify whose failing items a decision accepted stays done on the next run
