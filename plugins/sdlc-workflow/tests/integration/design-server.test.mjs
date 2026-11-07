@@ -125,7 +125,7 @@ test('an open canvas gets each change of its repo, with the pages that changed',
     for (let i = 0; i < 80 && !events.length; i += 1) await new Promise((ok) => setTimeout(ok, 100));
     assert.ok(events.length, 'a change came');
     assert.deepEqual([events[0].pages, events[0].all], [['basket'], false]);
-    assert.match(events[0].etag, /^"[0-9a-f]+"$/);
+    assert.match(events[0].etag, /^"[0-9a-f]+-[0-9a-z]+"$/);
   } finally {
     stream?.destroy();
     for (const s of servers) s.close();

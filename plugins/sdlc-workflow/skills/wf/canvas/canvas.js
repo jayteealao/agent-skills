@@ -147,6 +147,7 @@
       SNAP ? null : fetchAudit(),
     ]);
     data = state;
+    seenInit();
     if (!SNAP) pollAudit();
     $('#repo').textContent = data.repo || 'Design canvas';
     document.title = `${data.repo || 'Design'} canvas`;
@@ -446,6 +447,7 @@
     const draft = past ? null : draftOf(s);
     const head = h('header', { class: 'cap' },
       h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
+        !past && unseenOf(s) ? h('span', { class: 'mark changed', title: unseenOf(s) === 'new' ? 'A new screen that you did not open yet' : 'The page changed since you last opened it' }, unseenOf(s) === 'new' ? 'New' : 'Changed') : null,
         !past && s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
         failures ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures, 'issue')) : null,
         !past && auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
@@ -846,6 +848,7 @@
     const past = versionAt(ui.version);
     const other = versionAt(f.compare);
     const draft = past ? null : draftOf(s);
+    if (!past) queueMicrotask(() => markSeen(s.key));
     const size = vp(f.viewport);
     const scale = focusScale(f);
     // A redraw of the same screen stays where the person scrolled it.
@@ -1163,21 +1166,79 @@
     const commented = data.screens.filter((s) => s.openComments);
     return { failing, commented, comments: commented.reduce((n, s) => n + s.openComments, 0) };
   }
+  // ------------------------------------------------------------ seen pages
+
+  // This browser keeps the fingerprint of each page that the person saw. A page whose fingerprint
+  // differs carries the mark Changed until the person opens it in the screen view; a screen with no
+  // fingerprint carries New. On the first visit, the board takes every page as seen. Each device
+  // keeps its own fingerprints.
+  let seen = null;
+  const seenKey = () => `wf-canvas-seen:${data.repo || location.pathname}`;
+  function saveSeen() {
+    try { localStorage.setItem(seenKey(), JSON.stringify(seen)); } catch { /* the marks last for this visit */ }
+  }
+  function seenInit() {
+    if (SNAP || seen) return;
+    try { seen = JSON.parse(localStorage.getItem(seenKey()) || 'null'); } catch { seen = null; }
+    if (!seen || typeof seen !== 'object') {
+      seen = Object.fromEntries(data.screens.map((s) => [s.key, s.fingerprint]));
+      saveSeen();
+    }
+  }
+  /** 'new', 'changed', or null when the person saw the page as it is now. */
+  function unseenOf(s) {
+    if (!seen || !s.fingerprint || !s.exists) return null;
+    const f = seen[s.key];
+    return f === undefined ? 'new' : f === s.fingerprint ? null : 'changed';
+  }
+  const unseen = () => boardScreens().filter((s) => unseenOf(s));
+  function markSeen(...keys) {
+    let changed = false;
+    for (const key of keys) {
+      const s = data.screens.find((x) => x.key === key);
+      if (!seen || !s?.fingerprint || seen[key] === s.fingerprint) continue;
+      seen[key] = s.fingerprint;
+      changed = true;
+    }
+    if (!changed) return;
+    saveSeen();
+    drawHealth();
+    render();
+    if (ui.panel === 'health') panel('health', true);
+  }
+  function changesPanel() {
+    if (SNAP) return [];
+    const list = unseen();
+    const head = h('h3', {}, 'Changes');
+    if (!list.length) return [head, h('p', { class: 'none' }, 'You saw every page as it is now.')];
+    const open = (key) => () => { closePanel(); focus(key); };
+    return [head,
+      h('p', {}, `${plural(list.length, 'screen')} changed since you last opened ${list.length === 1 ? 'it' : 'them'}. Open a screen to clear its mark.`),
+      h('ul', { class: 'changes' }, ...list.map((s) => h('li', {},
+        h('button', { type: 'button', class: 'btn quiet', onclick: open(s.key) }, s.title),
+        h('span', { class: 'sub' }, unseenOf(s) === 'new' ? 'New' : 'Changed')))),
+      h('button', { type: 'button', class: 'btn quiet', onclick: () => markSeen(...list.map((s) => s.key)) }, 'Mark all as seen')];
+  }
+
   /** The health control of the bar: what still needs a look on the board, in one line. */
   function drawHealth() {
     const { failing, comments } = reviewCounts();
     const parts = [data.checks ? (failing.length ? `${plural(failing.length, 'screen')} failing` : 'Checks pass') : 'No check yet'];
+    const changed = unseen().length;
+    if (changed) parts.unshift(`${changed} changed`);
     if (comments) parts.push(plural(comments, 'comment'));
     if (audit?.status === 'running') parts.push('Audit running');
     else if (audit?.status === 'done') parts.push(plural((audit.findings || []).length, 'finding'));
     const b = $('#health');
     b.textContent = parts.join(' · ');
     b.classList.toggle('bad', failing.length > 0);
+    b.classList.toggle('fresh', changed > 0);
   }
   function healthPanel() {
     const { failing, commented, comments } = reviewCounts();
     const only = (key, id) => h('button', { type: 'button', class: 'btn quiet', onclick: () => { ui[key] = true; $(id).checked = true; filterCount(); applyFilter(); closePanel(); } }, 'Show only these screens');
     return [h('h2', {}, 'Review'), h('p', { class: 'lede' }, 'What still needs a look on this board.'),
+      ...changesPanel(),
       h('h3', {}, 'Checks'),
       !data.checks ? h('p', { class: 'none' }, 'No check has run.')
         : failing.length ? h('div', { class: 'row' }, h('p', {}, `${plural(failing.length, 'screen')} ${failing.length === 1 ? 'fails' : 'fail'} a check.`), only('failing', '#failing'))

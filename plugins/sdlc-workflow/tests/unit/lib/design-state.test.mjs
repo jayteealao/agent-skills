@@ -156,3 +156,23 @@ test('the slim state holds failure counts, and the stamp changes only with a fil
     assert.notEqual(stateStamp(root), before, 'a changed page changes the stamp');
   } finally { done(); }
 });
+
+test('the fingerprint of a screen changes with its page and the files of its folder, and with nothing else', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    addScreen(root, 'cart', { title: 'Cart', workflow: 'w1' });
+    const prints = () => Object.fromEntries(canvasState(root, { full: false }).screens.map((s) => [s.key, s.fingerprint]));
+    const before = prints();
+    assert.match(before.pay, /^[0-9a-f]{16}$/);
+    assert.deepEqual(prints(), before, 'nothing changed');
+    writeFileSync(screenFile(root, 'pay'), '<html><body><section data-state="default">new</section></body></html>');
+    const paged = prints();
+    assert.notEqual(paged.pay, before.pay, 'a changed page');
+    assert.equal(paged.cart, before.cart, 'another screen keeps its fingerprint');
+    mkdirSync(join(root, '.ai', 'design', 'screens', 'cart'), { recursive: true });
+    writeFileSync(join(root, '.ai', 'design', 'screens', 'cart', 'step.html'), '<p>step</p>');
+    assert.notEqual(prints().cart, paged.cart, 'a file of the folder of the screen');
+  } finally { done(); }
+});

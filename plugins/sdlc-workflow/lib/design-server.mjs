@@ -133,6 +133,9 @@ function file(res, abs, headers = {}) {
 // The canvas state of each repo root: `{ stamp, body, gzipped, etag }`, and the build that runs.
 const states = new Map();
 const building = new Map();
+// The ETag of a state carries the start of this server too: a new server can build a state of a
+// new shape from the same files, and a browser must not keep the state of the old code.
+const BOOT = Date.now().toString(36);
 const WORKER = new URL('./design-state-worker.mjs', import.meta.url);
 function buildState(root, repo) {
   return new Promise((ok, no) => {
@@ -154,7 +157,7 @@ export async function stateOf(root, repo, files = undefined) {
   if (run?.stamp === stamp) return run.promise;
   const promise = buildState(root, repo).then((json) => {
     const body = Buffer.from(json);
-    const s = { stamp, body, gzipped: gzipSync(body), etag: `"${stamp}"` };
+    const s = { stamp, body, gzipped: gzipSync(body), etag: `"${stamp}-${BOOT}"` };
     states.set(root, s);
     return s;
   }).finally(() => { if (building.get(root)?.promise === promise) building.delete(root); });

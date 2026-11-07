@@ -208,6 +208,26 @@ function designDecisions(root, workflows) {
 }
 
 /**
+ * The fingerprint of what a screen shows: its page and the files of its folder `screens/<key>/`.
+ * The canvas keeps the fingerprint of each page that a person saw, and marks a page as changed
+ * when its fingerprint differs.
+ */
+export function pageFingerprint(root, key, html) {
+  const hash = createHash('sha1').update(html);
+  const walk = (dir) => {
+    let names = [];
+    try { names = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const d of names.sort((x, y) => x.name.localeCompare(y.name))) {
+      const p = join(dir, d.name);
+      if (d.isDirectory()) walk(p);
+      else { try { hash.update(`\n${d.name}\n`).update(readFileSync(p)); } catch { /* it went away */ } }
+    }
+  };
+  walk(join(surfaceDir(root), SCREENS_DIR, key));
+  return hash.digest('hex').slice(0, 16);
+}
+
+/**
  * The whole canvas state of a repo. The design server asks for it with `full: false`: then a screen
  * carries the counts of its failures, not the failures and their groups, which the server serves
  * for one screen at `failures/<key>.json` (`screenFailures`). The CLI and a published snapshot keep
@@ -235,6 +255,7 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
     const changes = history.get(screenRel(s.key)) ?? [];
     return {
       ...s,
+      fingerprint: pageFingerprint(root, s.key, html),
       tokens: tokensUsed(html),
       components: used.get(s.key),
       history: changes,
