@@ -6,6 +6,7 @@ import { failureLines, runChecks } from './design-check.mjs';
 import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
+import { addComponent, foundation, linkComponent, listComponents, setNoComponents, verifyComponents } from './design-components.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, commitDesignRecords, openThreads } from './design-records.mjs';
 import { migrateDesign } from './design-migrate.mjs';
@@ -15,6 +16,13 @@ import { workflowDir } from './records-root.mjs';
 
 export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   init <root>                                   make .ai/design/: the manifest, tokens.css, the git rule, the repo entry
+  foundation <root>                             the tokens and the components; exit 1 until a new screen can be drawn
+  component add <root> <key> [--title t] [--code file --name n] [--workflow slug]
+                                                add a component: --code names the code that has it; with no --code it is new
+  component link <root> <key> --code file --name n   record the code of a new component, after the build makes it
+  components <root> [--workflow slug]           the component library, each with its code and its screens
+  components none <root> --reason r             record that the product has no reusable parts
+  components verify <root> <slug> [--slice s]   exit 1 when the code does not have or use a component of the screens
   screen add <root> <key> [--title t] [--area a] [--flow f] [--order n] [--workflow slug] [--slice s]
   list <root> [--workflow slug]                 the screens (one workflow with --workflow), their states and links
   explore add <root> <key> [--title t] [--link slug]
@@ -48,7 +56,7 @@ const namePart = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && 
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server', 'refs', 'rounds'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') || (verb === 'components' && ['none', 'verify'].includes(rest[0])) ? rest.shift() : null;
   if (verb === 'server') return runServer(sub, opt, out);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
@@ -63,8 +71,41 @@ export async function runDesign(pos, opt, out) {
     }
     case 'screen': {
       if (sub !== 'add' || !key) throw new Error('design screen add <root> <key> is required');
+      const ready = foundation(projectRoot);
+      if (!readManifest(projectRoot).screens[key] && !ready.ok) {
+        out(opt.json ? { ok: false, missing: ready.missing } : [`not added: a new screen waits for the foundation`, ...ready.missing].join('\n'));
+        return 1;
+      }
       const r = addScreen(projectRoot, key, { title: opt.title ?? null, area: opt.area ?? null, flow: opt.flow ?? null, order: opt.order ?? null, workflow: opt.workflow ?? null, slice: opt.slice ?? null });
       out(opt.json ? r : `${r.created ? 'added' : 'changed'} screen ${key} → ${r.file}`);
+      return 0;
+    }
+    case 'foundation': {
+      const f = foundation(projectRoot);
+      out(opt.json ? f : [`tokens: ${f.tokens}`, `components: ${f.none ? `none (${f.none})` : f.components}`, ...(f.ok ? ['ready'] : f.missing)].join('\n'));
+      return f.ok ? 0 : 1;
+    }
+    case 'component': {
+      if (!key || !['add', 'link'].includes(sub)) throw new Error('design component add|link <root> <key> is required');
+      const r = sub === 'add' ? addComponent(projectRoot, key, { title: opt.title ?? null, code: opt.code ?? null, name: opt.name ?? null, workflow: opt.workflow ?? null })
+        : linkComponent(projectRoot, key, { code: opt.code ?? null, name: opt.name ?? null });
+      out(opt.json ? r : r.component.code ? `component ${key}: ${r.component.name} in ${r.component.code}` : `component ${key}: new, the build must make it${r.file ? `; show it in ${r.file}` : ''}`);
+      return 0;
+    }
+    case 'components': {
+      if (sub === 'none') {
+        const r = setNoComponents(projectRoot, opt.reason);
+        out(opt.json ? r : `no components: ${r.reason}`);
+        return 0;
+      }
+      if (sub === 'verify') {
+        if (!key) throw new Error('design components verify <root> <slug> is required');
+        const r = verifyComponents(projectRoot, key, { slice: opt.slice ?? null });
+        out(opt.json ? r : [`${r.used.length} component(s)${r.ok ? ': the code has and uses each' : ''}`, ...r.problems].join('\n'));
+        return r.ok ? 0 : 1;
+      }
+      const list = listComponents(projectRoot, { workflow: opt.workflow ?? null });
+      out(opt.json ? list : list.map((c) => `${c.key}: ${c.title} [${c.code ? `${c.name} in ${c.code}` : 'to build'}]${c.screens.length ? ` on ${c.screens.join(', ')}` : ''}`).join('\n') || 'no components');
       return 0;
     }
     case 'explore': {
@@ -133,7 +174,8 @@ export async function runDesign(pos, opt, out) {
       if (!key || !id) throw new Error('design restore <root> <slug> <version> is required');
       const r = restoreVersion(projectRoot, key, id);
       out(opt.json ? r : !r.ok ? `not restored: ${r.reason}` : [`restored ${versionName(r.restored)} as ${versionName(r.id)}: it needs a new approval`,
-        ...(r.tokensDiffer ? ['the token sheet differs from that version: change the roles in DESIGN.md, then run design tokens, to bring its colors back'] : [])].join('\n'));
+        ...(r.tokensDiffer ? ['the token sheet differs from that version: change the roles in DESIGN.md, then run design tokens, to bring its colors back'] : []),
+        ...(r.componentsDiffer ? ['the component sheet differs from that version: the sheet is shared, so it stays as it is'] : [])].join('\n'));
       return r.ok ? 0 : 1;
     }
     case 'rounds': {

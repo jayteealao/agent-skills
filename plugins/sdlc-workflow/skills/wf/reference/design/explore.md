@@ -30,7 +30,7 @@ An explore run may link to a workflow: a brainstorm, an intake, or a feature. It
 
 ## Step 3 — Exact picks
 
-1. Show the sketches on the canvas: the Explore panel of the URL that `<wf> design server url` prints, as `/r/<repo>/`. When the person cannot reach the server, run `<wf> design publish <root>` and publish the page with the host's page tool.
+1. Show the sketches on the canvas: the Sketches lane, left of the screens, at the URL that `<wf> design server url` prints, as `/r/<repo>/`. When the person cannot reach the server, run `<wf> design publish <root>` and publish the page with the host's page tool.
 2. Number every option, 1 to n, in the question text. The person can pick one number, or a mix.
 3. Before you make a mix, state which trait you take from which option, for example: "the layout of 2, the type of 3, the color of 1". The person confirms the mix in one answer.
 4. When the explore run links to a workflow, record each pick with `<wf> decide add <root> <slug> --stage design --key <key> --answer "<pick>"` per [_decisions.md](../_decisions.md). The design stage reads the picks as its starting direction.

@@ -19,7 +19,7 @@ An item with `scope: cut` or `scope: later` is not carried. When no source exist
 
 ## The file is the source
 
-The sketch file is the design. Every stage reads the file. The person sees it on the canvas, in the Explore panel ([_surface.md](_surface.md)).
+The sketch file is the design. Every stage reads the file. The person sees it on the canvas, in the Sketches lane ([_surface.md](_surface.md)).
 
 1. **Give the file and the canvas.** Each time you name a sketch, give its path and the canvas URL.
 2. **A sketch from before the design surface.** When a carried sketch is a file in `<wf-dir>/design/sketches/`, make it an explore sketch: run `node "<skill-dir>/scripts/wf.mjs" design explore add "<root>" <key> --title "<caption>" --link <slug>`, and copy an HTML file to `.ai/design/explore/<key>.html`. Add a PNG sketch as a reference with `wf.mjs design refs add`. A sketch path can be `<file>#<artboard>`: copy the file once, and keep the `#<artboard>` anchor in the record of each key.

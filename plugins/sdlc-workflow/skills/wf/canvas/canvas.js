@@ -21,7 +21,7 @@
     return el;
   };
   const params = new URLSearchParams(location.search);
-  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false, version: '' };
+  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false, version: '', trace: null, hover: null };
   let data = null;
   // The last design audit of the repo (./audit.json): a read-only agent's report, not a check.
   let audit = null;
@@ -29,13 +29,16 @@
   // On a phone the card is the width of the page less its gutters (canvas.css).
   const CARD_W = () => (phone() ? window.innerWidth - 32 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 300);
   const GAP_X = 64;
+  // The lanes of the board around the screens: the sketches and references before them, the
+  // components and tokens after them. A lane is narrower than a screen column.
+  const LANE_W = () => (phone() ? CARD_W() : 220);
   const LABEL_H = 56;
   const CAPTION_H = 64;
   const cap = (s) => (s ? `${String(s)[0].toUpperCase()}${String(s).slice(1)}` : '');
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const CHECK_NAMES = {
     contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states',
-    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', script: 'Script error', version: 'Not a saved version',
+    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', component: 'Not a component', script: 'Script error', version: 'Not a saved version',
   };
   const DIMENSION_NAMES = { accessibility: 'Accessibility', performance: 'Performance', theming: 'Theming', responsive: 'Responsive', integrity: 'Integrity' };
   /** The audit findings of one screen, when the last audit is done. */
@@ -140,6 +143,7 @@
     fill($('#workflow'), [['', 'All workflows'], ...data.workflows.map((w) => [w, w])], ui.workflow);
     drawVersions();
     drawStates();
+    drawHealth();
     filterCount();
     barHeight();
     render();
@@ -179,26 +183,78 @@
     if (ui.workflow && !(s.workflows || []).includes(ui.workflow)) return false;
     if (ui.open && !s.openComments) return false;
     if (ui.failing && !(s.failures || []).length) return false;
+    // A traced token or component leaves only the screens that use it.
+    const t = ui.hover || ui.trace;
+    if (t && !((t.kind === 'token' ? s.tokens : s.components) || []).includes(t.key)) return false;
     return true;
   }
-  /** Dim the cards that the search box and the filters leave out, with no new screen frame. */
+  const traceId = (t) => (t ? `${t.kind}:${t.key}` : '');
+  /** Dim the cards that the search box, the filters and the trace leave out, with no new screen frame. */
   function applyFilter() {
     if (!data) return;
-    const byKey = new Map(data.screens.map((s) => [s.key, s]));
+    const byKey = new Map(boardScreens().map((s) => [s.key, s]));
     for (const card of document.querySelectorAll('#board > .card')) {
       const s = byKey.get(card.dataset.key);
       card.classList.toggle('dim', Boolean(s) && !matches(s));
     }
+    const on = traceId(ui.hover || ui.trace);
+    for (const el of document.querySelectorAll('[data-trace]')) el.classList.toggle('on', el.dataset.trace === on);
   }
+  /** Pin a trace, or clear it: the same token or component again clears it. */
+  function traceTo(t) {
+    ui.trace = t && traceId(t) !== traceId(ui.trace) ? t : null;
+    ui.hover = null;
+    const chip = $('#trace');
+    chip.hidden = !ui.trace;
+    if (ui.trace) {
+      const name = ui.trace.kind === 'token' ? ui.trace.key : data.components.find((c) => c.key === ui.trace.key)?.title || ui.trace.key;
+      const n = boardScreens().filter(matches).length;
+      chip.textContent = `${plural(n, 'screen')} use${n === 1 ? 's' : ''} ${name} ×`;
+      chip.setAttribute('aria-label', `Show every screen, not only the screens that use ${name}`);
+    }
+    barHeight();
+    applyFilter();
+  }
+  /** While the pointer is on a token or a component, show the screens that use it. */
+  const traceHover = (t) => ({
+    onpointerenter: (e) => { if (e.pointerType === 'mouse') { ui.hover = t; applyFilter(); } },
+    onpointerleave: () => { if (ui.hover) { ui.hover = null; applyFilter(); } },
+  });
 
   const frameH = () => Math.round(CARD_W() * vp().height / vp().width);
 
-  /** The automatic place of each screen: columns by area (or rows by flow), in flow order. */
+  /** The second line of a slice row: its screens, its approval, its checks and its comments. */
+  const sliceSummary = (c, n) => [plural(n, 'screen'),
+    c.approval ? 'Approved' : 'Not approved',
+    c.checks ? (c.checks.passed ? 'Checks pass' : `${plural(c.checks.failures, 'check')} fail${c.checks.failures === 1 ? 's' : ''}`) : null,
+    c.openComments ? plural(c.openComments, 'open comment') : null].filter(Boolean).join(' · ');
+  /**
+   * The automatic place of each screen: columns by area, rows by flow, or rows by slice, in flow
+   * order. `places` holds every card of the board. In the slices layout a screen of two slices
+   * shows in both rows, and `pos` holds its first place.
+   */
   function autoLayout(list) {
     const w = CARD_W() + GAP_X;
     const cardH = frameH() + CAPTION_H;
     const pos = {};
+    const places = [];
     const labels = [];
+    if (ui.view === 'slice') {
+      const shown = new Set(list.map((s) => s.key));
+      let y = 0;
+      const row = (text, sub, keys) => {
+        labels.push({ text, sub, x: 0, y, slug: true });
+        keys.forEach((key, i) => { const p = { x: i * w, y: y + LABEL_H }; places.push({ key, ...p }); pos[key] ??= p; });
+        y += cardH + LABEL_H + 48;
+      };
+      for (const c of data.cards) {
+        const keys = c.screens.map((x) => x.key).filter((k) => shown.has(k));
+        if (keys.length) row(`${c.workflow}${c.slice && !String(c.slice).startsWith('(') ? `, slice ${c.slice}` : ''}`, sliceSummary(c, keys.length), keys);
+      }
+      const rest = list.filter((s) => !(s.key in pos)).map((s) => s.key);
+      if (rest.length) row('No slice', plural(rest.length, 'screen'), rest);
+      return { pos, places, labels };
+    }
     const groupKey = ui.view === 'flow' ? (s) => s.flow || 'No flow' : (s) => s.area || 'No area';
     // Areas follow the manifest's list, the order of the product's navigation. A flow follows
     // the area of its first screen. A screen with no area or no flow goes last.
@@ -217,7 +273,8 @@
         members.forEach((s, i) => { pos[s.key] = { x: gi * w, y: LABEL_H + i * (cardH + 32) }; });
       }
     });
-    return { pos, labels };
+    for (const s of list) places.push({ key: s.key, ...pos[s.key] });
+    return { pos, places, labels };
   }
 
   function render() {
@@ -229,18 +286,29 @@
     edges.replaceChildren();
     const list = boardScreens();
     const past = versionAt(ui.version);
+    // The lanes show with the areas, and with the board as it is now: a past version keeps no lane.
+    const { left, right } = ui.view === 'grid' && !past ? lanes() : { left: [], right: [] };
+    const laneStep = LANE_W() + GAP_X;
+    // On a phone the board is one list, and the screens come first.
+    if (phone()) right.unshift(...left.splice(0));
+    left.forEach((l, i) => board.append(laneView(l, { x: -(left.length - i) * laneStep })));
     if (!list.length) {
       board.append(h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Run wf.mjs design screen add to add the first one.'));
-      place();
+      right.forEach((l, i) => board.append(laneView(l, { x: 420 + GAP_X + i * laneStep })));
+      if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
       return;
     }
-    const { pos, labels } = autoLayout(list);
+    const { pos, places, labels } = autoLayout(list);
     const at = (s) => (ui.view === 'grid' && s.position ? s.position : pos[s.key]);
-    if (!phone()) for (const l of labels) board.append(h('h2', { class: 'area-label', style: `left:${l.x}px;top:${l.y}px` }, cap(l.text), h('small', {}, plural(l.n, 'screen'))));
+    if (!phone()) for (const l of labels) board.append(h('h2', { class: `area-label${l.slug ? ' slug' : ''}`, style: `left:${l.x}px;top:${l.y}px` }, l.slug ? l.text : cap(l.text), h('small', {}, l.sub ?? plural(l.n, 'screen'))));
     const v = vp();
     const scale = CARD_W() / v.width;
-    for (const s of list) {
-      const p = at(s);
+    const byKey = new Map(list.map((s) => [s.key, s]));
+    let edge = 0;
+    for (const place0 of places) {
+      const s = byKey.get(place0.key);
+      const p = ui.view === 'grid' && s.position ? s.position : place0;
+      edge = Math.max(edge, p.x + CARD_W());
       // The comments, the checks and the audit are of the page as it is now, not of a past version.
       const failures = past ? [] : (s.failures || []).filter((f) => f.viewport === ui.viewport && f.state === ui.state);
       const approved = (s.approvals || []).at(-1);
@@ -266,11 +334,72 @@
       if (!phone() && data.writable && ui.view === 'grid' && !past) dragCard(card.querySelector('.cap'), card, s);
       board.append(card);
     }
+    right.forEach((l, i) => board.append(laneView(l, { x: edge + GAP_X + i * laneStep })));
     if (ui.view === 'flow' && !phone()) drawEdges(list, at);
     // Arrange shows only while a dragged screen is out of its column.
     const moved = list.some((s) => s.position && (s.position.x !== pos[s.key].x || s.position.y !== pos[s.key].y));
     $('#arrange').hidden = !(data.writable && ui.view === 'grid' && !phone() && moved && !past);
     if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
+    applyFilter();
+  }
+
+  // ------------------------------------------------------------ the lanes
+
+  /** A page scaled down to the width of a lane, as a button that opens its detail. */
+  function thumb(src, width, height, label, onclick) {
+    const w = LANE_W();
+    const box = h('button', { type: 'button', class: 'frame', 'aria-label': label, style: `height:${Math.round(w * height / width)}px`, onclick });
+    if (!src) box.classList.add('blank');
+    else box.append(h('iframe', { src, title: label, loading: 'lazy', tabindex: '-1', scrolling: 'no', sandbox: 'allow-scripts allow-same-origin',
+      style: `width:${width}px;height:${height}px;transform:scale(${w / width})` }));
+    return box;
+  }
+  const itemCap = (title, mark, meta) => h('div', { class: 'cap' }, h('div', { class: 'cap-row' }, h('b', { title }, title), mark), meta ? h('div', { class: 'meta', title: meta }, meta) : null);
+  /**
+   * The lanes of the board. Before the screens: the sketches of brainstorms and intakes, and the
+   * references that the screens draw on. After the screens: the components that the screens reuse,
+   * and the tokens. A lane with nothing in it does not show.
+   */
+  function lanes() {
+    const sketchOf = (x) => x.title || x.key;
+    const sketches = data.explore.map((x) => h('article', { class: 'item' },
+      thumb(SNAP ? null : `${BASE}s/explore/${x.key}.html`, 1280, 800, `Open the sketch ${sketchOf(x)}`, () => panel(`sketch:${x.key}`)),
+      itemCap(sketchOf(x), null, x.link ? `For ${x.link}` : null)));
+    const references = data.references.map((r) => {
+      const open = () => panel(`reference:${r.key}`);
+      const label = `Open the reference ${r.key}`;
+      const pic = !SNAP && r.readable && r.kind === 'image';
+      const page = !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind);
+      const frame = page ? thumb(`${BASE}ref/${r.key}`, 1280, 800, label, open)
+        : h('button', { type: 'button', class: `frame${pic ? '' : ' doc'}`, 'aria-label': label, style: `height:${Math.round(LANE_W() * 0.625)}px`, onclick: open },
+          pic ? h('img', { src: `${BASE}ref/${r.key}`, alt: '', loading: 'lazy' }) : h('span', {}, cap(r.kind || 'other')));
+      return h('article', { class: 'item' }, frame,
+        itemCap(r.key, r.readable ? null : h('span', { class: 'mark issue', title: r.problem }, 'Unreadable'), r.note || null));
+    });
+    const components = data.components.map((c) => {
+      const t = { kind: 'component', key: c.key };
+      return h('article', { class: 'item', 'data-trace': traceId(t), ...traceHover(t) },
+        thumb(SNAP ? null : `${BASE}s/components/${c.key}.html`, 400, 200, `Open the component ${c.title}`, () => panel(`component:${c.key}`)),
+        itemCap(c.title, h('span', { class: `mark ${c.code ? 'ok' : 'draft'}` }, c.code ? 'In code' : 'To build'), c.screens.length ? `Used by ${plural(c.screens.length, 'screen')}` : 'No screen uses it yet'));
+    });
+    if (!components.length && data.noComponents) components.push(h('p', { class: 'none' }, `No reusable parts: ${data.noComponents}`));
+    const tokens = data.tokens.length ? [h('div', { class: 'toklist' }, ...data.tokens.map((t) => {
+      const tr = { kind: 'token', key: t.name };
+      const n = data.screens.filter((s) => (s.tokens || []).includes(t.name)).length;
+      return h('button', { type: 'button', class: 'tok', 'data-trace': traceId(tr), title: `${t.value}. ${n ? `Used by ${plural(n, 'screen')}` : 'No screen uses it'}. Select it to show only those screens.`,
+        onclick: () => traceTo(tr), ...traceHover(tr) },
+      h('span', { class: `swatch${t.value.startsWith('var(') ? ' alias' : ''}`, style: t.value.startsWith('var(') ? '' : `background:${t.value}` }),
+      h('span', { class: 'tname' }, t.name, h('small', {}, t.value)));
+    })), h('p', { class: 'none' }, 'From DESIGN.md. Change them there.')] : [];
+    const lane = (title, sub, items) => (items.length ? { title, sub, items } : null);
+    return {
+      left: [lane('Sketches', 'before any screen', sketches), lane('References', 'what the screens draw on', references)].filter(Boolean),
+      right: [lane('Components', components.length && data.components.length ? plural(data.components.length, 'part') : '', components), lane('Tokens', 'select one to trace it', tokens)].filter(Boolean),
+    };
+  }
+  function laneView(l, { x }) {
+    return h('section', { class: 'lane', 'aria-label': l.title, style: phone() ? '' : `left:${x}px;top:0;width:${LANE_W()}px` },
+      h('h2', { class: 'lane-label' }, l.title, l.sub ? h('small', {}, l.sub) : null), ...l.items);
   }
 
   function drawEdges(list, at) {
@@ -330,9 +459,9 @@
     const r = $('#stage').getBoundingClientRect();
     zoomTo(ui.zoom * factor, r.width / 2, r.height / 2);
   }
-  /** Show every screen: the board at the zoom that fits the stage, never above 100 %. */
+  /** Show every screen and lane: the board at the zoom that fits the stage, never above 100 %. */
   function fit() {
-    const items = [...document.querySelectorAll('#board > .card, #board > .area-label')];
+    const items = [...document.querySelectorAll('#board > .card, #board > .area-label, #board > .lane, #board > .empty')];
     if (!items.length) { place(); return; }
     let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
     for (const c of items) {
@@ -473,7 +602,7 @@
     const { pos } = autoLayout(all);
     const shown = all.filter((s) => matches(s) || s.key === focusState?.key);
     const list = shown.length > 1 ? shown : all;
-    const by = ui.view === 'flow' ? ['y', 'x'] : ['x', 'y'];
+    const by = ui.view === 'grid' ? ['x', 'y'] : ['y', 'x'];
     return [...list].sort((a, b) => pos[a.key][by[0]] - pos[b.key][by[0]] || pos[a.key][by[1]] - pos[b.key][by[1]]);
   }
   /** Open the screen `step` places away in the walk, with the same viewport, state and toggles. */
@@ -748,14 +877,44 @@
         s.threads.length > openN ? h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), 'Show resolved') : null),
       composer,
       shown.length ? shown.map((t) => threadView(s, t)) : h('p', { class: 'none' }, data.writable ? 'No open comment. Choose Comment, then select an element of the screen.' : 'No open comment.'),
+      whyView(s),
+      s.components?.length ? [h('h3', {}, 'Components', h('span', { class: 'count' }, String(s.components.length))),
+        h('ul', { class: 'parts' }, ...s.components.map((k) => {
+          const c = data.components.find((x) => x.key === k);
+          const name = c?.title || k;
+          return h('li', {}, c ? h('button', { type: 'button', class: 'linkish', title: `Show the screens that use ${name}`, onclick: () => traceFrom({ kind: 'component', key: k }) }, name) : name,
+            h('span', { class: `mark ${!c ? 'issue' : c.code ? 'ok' : 'draft'}` }, !c ? 'Not in the library' : c.code ? 'In code' : 'To build'));
+        }))] : null,
+      s.tokens?.length ? [h('h3', {}, 'Tokens', h('span', { class: 'count' }, String(s.tokens.length))),
+        h('div', { class: 'chips' }, ...s.tokens.map((t) => h('button', { type: 'button', title: `${data.tokens.find((x) => x.name === t)?.value ?? 'Not in the token sheet'}. Show the screens that use it.`, onclick: () => traceFrom({ kind: 'token', key: t }) }, t)))] : null,
       h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
       failures.length ? failures.map((x) => h('div', { class: 'check' },
         h('b', {}, CHECK_NAMES[x.check] || x.check), x.places > 1 ? h('span', { class: 'sev' }, `${x.places} places`) : null,
         h('p', {}, x.message),
-        h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : x.check === 'version' ? ' Save a round, or restore the version.' : ''}`)))
+        h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : x.check === 'version' ? ' Save a round, or restore the version.' : x.check === 'component' ? ' Use a component of the library, or add the part to it.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
       findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null]);
     $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
+  }
+  /** Close the screen view, and show on the board the screens that use a token or a component. */
+  function traceFrom(t) {
+    closeFocus();
+    ui.trace = null;
+    traceTo(t);
+  }
+  /**
+   * Why a screen looks as it does: the design decisions of its workflows, and the rules of the
+   * visual contract for its slices. A decision names its workflow, not its screens, so a screen
+   * shows every design decision of its workflows.
+   */
+  function whyView(s) {
+    const decisions = data.decisions.filter((d) => (s.workflows || []).includes(d.workflow));
+    const rules = [...new Set(data.cards.filter((c) => c.screens.some((x) => x.key === s.key)).flatMap((c) => c.rules))];
+    if (!decisions.length && !rules.length) return null;
+    const many = new Set(decisions.map((d) => d.workflow)).size > 1;
+    return [h('h3', {}, 'Why it looks like this'),
+      ...decisions.map((d) => h('div', { class: 'why' }, h('b', {}, d.question || d.id), h('p', {}, d.answer ?? ''), many ? h('small', {}, d.workflow) : null)),
+      rules.length ? [h('h4', {}, 'Rules of the visual contract'), h('ul', { class: 'rules' }, ...rules.map((r) => h('li', {}, r)))] : null];
   }
   /**
    * The check failures of one screen, one entry for each cause, for example one raw color in five
@@ -816,10 +975,11 @@
       await fetchAudit();
       if (audit?.status !== 'running') {
         say(audit?.status === 'done' ? 'The audit is done' : 'The audit failed');
+        drawHealth();
         render();
         if (focusState) drawFocus();
       }
-      if (ui.panel === 'audit') panel('audit', true);
+      if (ui.panel === 'health') panel('health', true);
       pollAudit();
     }, 5000);
   }
@@ -828,11 +988,42 @@
     const body = await r.json().catch(() => ({}));
     if (!r.ok) { say(`The audit did not start: ${body.reason || r.status}`); return; }
     audit = body;
-    panel('audit', true);
+    drawHealth();
+    panel('health', true);
     pollAudit();
   }
+  /** The screens with a failing check, and the open comments of the board. */
+  function reviewCounts() {
+    const failing = data.screens.filter((s) => (s.failures || []).length);
+    const commented = data.screens.filter((s) => s.openComments);
+    return { failing, commented, comments: commented.reduce((n, s) => n + s.openComments, 0) };
+  }
+  /** The health control of the bar: what still needs a look on the board, in one line. */
+  function drawHealth() {
+    const { failing, comments } = reviewCounts();
+    const parts = [data.checks ? (failing.length ? `${plural(failing.length, 'screen')} failing` : 'Checks pass') : 'No check yet'];
+    if (comments) parts.push(plural(comments, 'comment'));
+    if (audit?.status === 'running') parts.push('Audit running');
+    else if (audit?.status === 'done') parts.push(plural((audit.findings || []).length, 'finding'));
+    const b = $('#health');
+    b.textContent = parts.join(' · ');
+    b.classList.toggle('bad', failing.length > 0);
+  }
+  function healthPanel() {
+    const { failing, commented, comments } = reviewCounts();
+    const only = (key, id) => h('button', { type: 'button', class: 'btn quiet', onclick: () => { ui[key] = true; $(id).checked = true; filterCount(); applyFilter(); closePanel(); } }, 'Show only these screens');
+    return [h('h2', {}, 'Review'), h('p', { class: 'lede' }, 'What still needs a look on this board.'),
+      h('h3', {}, 'Checks'),
+      !data.checks ? h('p', { class: 'none' }, 'No check has run.')
+        : failing.length ? h('div', { class: 'row' }, h('p', {}, `${plural(failing.length, 'screen')} ${failing.length === 1 ? 'fails' : 'fail'} a check.`), only('failing', '#failing'))
+          : h('p', {}, 'Every check passes.'),
+      h('h3', {}, 'Comments'),
+      comments ? h('div', { class: 'row' }, h('p', {}, `${plural(comments, 'open comment')} on ${plural(commented.length, 'screen')}.`), only('open', '#open'))
+        : h('p', { class: 'none' }, 'No open comment.'),
+      ...auditPanel()];
+  }
   function auditPanel() {
-    const head = [h('h2', {}, 'Design audit'), h('p', { class: 'lede' }, 'A read-only Sonnet agent checks the screens and the built code against DESIGN.md and the audit rules. It changes no file and writes no record.')];
+    const head = [h('h3', {}, 'Design audit'), h('p', { class: 'sub' }, 'A read-only Sonnet agent checks the screens and the built code against DESIGN.md and the audit rules. It changes no file and writes no record.')];
     if (SNAP) return [...head, h('p', {}, 'The audit runs only on the design server.')];
     const runningNow = audit?.status === 'running';
     const scope = ui.workflow ? `the screens of ${ui.workflow}` : 'every screen';
@@ -849,12 +1040,12 @@
     return [...head, run,
       h('p', {}, audit.summary || ''),
       h('p', { class: 'sub' }, `${audit.workflow || 'Every screen'}, ${audit.platform && audit.platform !== 'unknown' ? `${audit.platform}, ` : ''}${when(audit.endedAt)}${typeof audit.costUsd === 'number' ? `, $${audit.costUsd.toFixed(2)}` : ''}.`),
-      h('h3', {}, 'Scores (0 to 4)'),
+      h('h4', {}, 'Scores (0 to 4)'),
       h('div', { class: 'scores' }, ...Object.keys(DIMENSION_NAMES).flatMap((d) => [
         h('span', {}, DIMENSION_NAMES[d]),
         h('span', { class: 'bar', role: 'img', 'aria-label': `${DIMENSION_NAMES[d]}: ${sc[d] ?? 'no score'} of 4` }, ...[1, 2, 3, 4].map((i) => h('i', { class: sc[d] >= i ? 'on' : null }))),
         h('b', {}, sc[d] === null || sc[d] === undefined ? '–' : String(sc[d]))])),
-      h('h3', {}, 'Findings', counts ? h('span', { class: 'sub' }, ` ${counts}`) : null),
+      h('h4', {}, 'Findings', counts ? h('span', { class: 'sub' }, ` ${counts}`) : null),
       ...((audit.findings || []).length ? audit.findings.map((x) => findingView(x, true)) : [h('p', { class: 'none' }, 'No finding.')])];
   }
 
@@ -889,33 +1080,54 @@
     ui.panel = name;
     document.querySelectorAll('[data-panel]').forEach((b) => b.classList.toggle('on', b.dataset.panel === name));
     const close = h('button', { type: 'button', class: 'close', 'aria-label': 'Close', onclick: closePanel }, '×');
-    const approvalText = (c) => (c.approval ? `Approved on ${String(c.approval.at).slice(0, 10)} in ${c.approval.commit.slice(0, 8)}.` : 'Not approved yet.');
-    const checksText = (c) => (c.checks ? (c.checks.passed ? 'All checks pass.' : `${plural(c.checks.failures, 'check')} fail.`) : 'No check has run.');
-    const body = {
-      cards: () => [h('h2', {}, 'Design cards'), h('p', { class: 'lede' }, 'One card for each slice that changes screens.'),
-        ...(data.cards.length ? data.cards.map((c) => h('div', { class: 'dcard' },
-          h('b', {}, c.workflow, h('span', { class: 'sub' }, c.slice && !String(c.slice).startsWith('(') ? `, slice ${c.slice}` : ', the whole workflow')),
-          h('h3', {}, 'Screens and states'),
-          h('ul', {}, ...c.screens.map((s) => h('li', {}, h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key) }, s.title),
-            h('span', { class: 'states-inline' }, ...s.states.map((st) => h('button', { type: 'button', class: 'linkish', onclick: () => focus(s.key, { state: st }) }, st)))))),
-          h('h3', {}, 'Tokens'), h('div', { class: 'chips' }, ...(c.tokens.length ? c.tokens.map((t) => h('span', {}, t)) : ['None'])),
-          h('h3', {}, 'Rules'), c.rules.length ? h('ul', {}, ...c.rules.map((r) => h('li', {}, r))) : h('p', {}, 'No rule of the visual contract names these screens.'),
-          h('h3', {}, 'Approval and checks'), h('p', {}, approvalText(c), ' ', checksText(c)),
-          h('h3', {}, 'Open comments'), h('p', {}, c.openComments ? h('button', { type: 'button', class: 'linkish', onclick: () => { ui.open = true; ui.workflow = c.workflow; $('#open').checked = true; $('#workflow').value = c.workflow; filterCount(); applyFilter(); } }, `Show the ${plural(c.openComments, 'open comment')}`) : 'None.')))
-          : [h('p', {}, 'No screen belongs to a slice yet.')])],
-      decisions: () => [h('h2', {}, 'Design decisions'), h('p', { class: 'lede' }, 'The answers that shaped these screens.'),
-        data.decisions.length ? h('ul', {}, ...data.decisions.map((d) => h('li', {}, h('b', {}, d.question || d.id), h('br'), d.answer ?? '', h('span', { class: 'sub' }, ` (${d.workflow})`)))) : h('p', {}, 'No design decision is recorded.')],
-      tokens: () => [h('h2', {}, 'Tokens'), h('p', { class: 'lede' }, 'From DESIGN.md. Change them there.'),
-        h('ul', { class: 'tokens' }, ...data.tokens.map((t) => h('li', {}, h('span', { class: 'swatch', style: `background:${t.value.startsWith('var(') ? 'transparent' : t.value}` }), h('span', {}, t.name, h('br'), h('code', {}, t.value)))))],
-      references: () => [h('h2', {}, 'References'), h('p', { class: 'lede' }, 'The files the screens draw on.'),
-        data.references.length ? h('ul', {}, ...data.references.map((r) => h('li', {}, SNAP ? r.key : h('a', { href: `${BASE}ref/${r.key}`, target: '_blank', rel: 'noopener' }, r.key),
-          ` (${r.kind || 'other'})${r.note ? `: ${r.note}` : ''} `, r.readable ? h('span', { class: 'mark ok' }, 'Readable') : h('span', { class: 'mark issue', title: r.problem }, r.problem)))) : h('p', {}, 'No reference yet.')],
-      explore: () => [h('h2', {}, 'Explore'), h('p', { class: 'lede' }, 'Sketches from brainstorms and intakes, before any screen.'),
-        data.explore.length ? h('ul', {}, ...data.explore.map((x) => h('li', {}, SNAP ? x.title || x.key : h('a', { href: `${BASE}s/explore/${x.key}.html`, target: '_blank', rel: 'noopener' }, x.title || x.key), x.link ? `, for ${x.link}` : ''))) : h('p', {}, 'No explore sketch yet.')],
-      audit: auditPanel,
-    }[name];
-    p.replaceChildren(close, ...body());
+    const body = detailOf(name);
+    if (!body) { closePanel(); return; }
+    p.replaceChildren(close, ...body.flat(Infinity).filter((x) => x !== null && x !== undefined && x !== false));
     p.hidden = false;
+  }
+  /**
+   * The content of the panel: the review of the board (`health`), or the detail of one item of a
+   * lane (`sketch:<key>`, `reference:<key>`, `component:<key>`). Null when the item is gone.
+   */
+  function detailOf(name) {
+    if (name === 'health') return healthPanel();
+    const [kind, key] = name.split(':');
+    const newTab = (href, text) => h('p', {}, h('a', { href, target: '_blank', rel: 'noopener' }, text));
+    if (kind === 'sketch') {
+      const x = data.explore.find((e) => e.key === key);
+      if (!x) return null;
+      return [h('h2', {}, x.title || x.key), h('p', { class: 'lede' }, x.link ? `A sketch for ${x.link}, before any screen.` : 'A sketch from a brainstorm or an intake, before any screen.'),
+        SNAP ? null : h('iframe', { class: 'part tall', title: x.title || x.key, sandbox: 'allow-scripts allow-same-origin', src: `${BASE}s/explore/${x.key}.html` }),
+        SNAP ? null : newTab(`${BASE}s/explore/${x.key}.html`, 'Open the sketch in a new tab'),
+        h('p', { class: 'sub' }, h('code', {}, x.file))];
+    }
+    if (kind === 'reference') {
+      const r = data.references.find((e) => e.key === key);
+      if (!r) return null;
+      const src = `${BASE}ref/${r.key}`;
+      return [h('h2', {}, r.key), h('p', { class: 'lede' }, `${cap(r.kind || 'other')}${r.note ? `: ${r.note}` : ''}`),
+        r.readable ? null : h('div', { class: 'check' }, h('b', {}, 'Unreadable'), h('p', {}, r.problem)),
+        !SNAP && r.readable && r.kind === 'image' ? h('img', { class: 'part', src, alt: r.note || r.key }) : null,
+        !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind) ? h('iframe', { class: 'part tall', title: r.key, src }) : null,
+        !SNAP && r.readable ? newTab(src, 'Open the file in a new tab') : null,
+        r.link ? newTab(r.link, 'Open the source') : null,
+        r.file ? h('p', { class: 'sub' }, h('code', {}, r.file)) : null];
+    }
+    if (kind === 'component') {
+      const c = data.components.find((e) => e.key === key);
+      if (!c) return null;
+      const t = { kind: 'component', key };
+      const on = traceId(ui.trace) === traceId(t);
+      return [h('h2', {}, c.title, ' ', h('span', { class: `mark ${c.code ? 'ok' : 'draft'}` }, c.code ? 'In code' : 'To build')),
+        h('p', { class: 'lede' }, 'A part that the screens reuse. The code must use it.'),
+        SNAP ? null : h('iframe', { class: 'part', title: c.title, loading: 'lazy', sandbox: 'allow-scripts allow-same-origin', src: `${BASE}s/components/${c.key}.html` }),
+        c.code ? h('p', {}, h('code', {}, c.name), ' in ', h('code', {}, c.code)) : h('p', {}, 'New. The build makes it, and the code must use it.'),
+        h('h3', {}, 'Used by', c.screens.length ? h('span', { class: 'count' }, String(c.screens.length)) : null),
+        c.screens.length ? [h('ul', {}, ...c.screens.map((k) => h('li', {}, h('button', { type: 'button', class: 'linkish', onclick: () => focus(k) }, data.screens.find((x) => x.key === k)?.title || k)))),
+          h('button', { type: 'button', class: 'btn', 'aria-pressed': String(on), onclick: () => { traceTo(t); panel(name, true); } }, on ? 'Show every screen' : 'Show only these screens')]
+          : h('p', { class: 'none' }, 'No screen uses it yet.')];
+    }
+    return null;
   }
 
   // ------------------------------------------------------------ controls
@@ -928,7 +1140,8 @@
       render();
     }));
     document.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => panel(b.dataset.panel)));
-    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'audit') panel('audit', true); });
+    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'health') panel('health', true); });
+    $('#trace').addEventListener('click', () => traceTo(null));
     filter('#area', 'area', (t) => t.value);
     filter('#workflow', 'workflow', (t) => t.value);
     $('#workflow').addEventListener('change', () => { const was = ui.version; drawVersions(); if (was !== ui.version) render(); });
@@ -955,6 +1168,7 @@
       else if (focusState) closeFocus();
       else if ($('#filters').open) $('#filters').open = false;
       else if (ui.panel) closePanel();
+      else if (ui.trace) traceTo(null);
     });
     // A resize comes many times a second, and on a phone also while the person scrolls. Once a
     // frame, the board redraws when the phone layout changes. The screen view redraws only when

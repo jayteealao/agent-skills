@@ -91,6 +91,7 @@ web-vitals-lcp-ms: <N | null>                  # null if non-web; WARN if > 2500
 web-vitals-cls: <N | null>                     # WARN if > 0.1
 web-vitals-inp-ms: <N | null>                  # HIGH if > 200 ms
 design-comparison: <pairs | no-screens | not-applicable>  # no-screens: no visual pass, no mock-fidelity pass
+component-check: <pass | fail | not-applicable>  # fail: the code does not have or use a component of the screens
 tags: []
 refs:
   index: 00-index.md

@@ -65,10 +65,11 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; display: grid; gap: 12px; width: 280px; padding: 14px; background: var(--surface); border-radius: var(--r); box-shadow: var(--raise); }
 .pop label:not(.chk) { display: grid; gap: 4px; color: var(--pencil); font-size: 13px; }
 .pop select { width: 100%; color: var(--ink); }
-.tabs { display: flex; gap: 2px; margin-left: auto; }
-.tabs button { border: 0; background: transparent; color: var(--pencil); padding: 4px 10px; min-height: 32px; border-radius: 8px; }
-.tabs button:hover { color: var(--ink); background: var(--sunk); }
-.tabs button.on { color: var(--ink); background: var(--sunk); font-weight: 600; }
+/* The health control: what still needs a look, in one line. It opens the review panel. */
+.health { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); white-space: nowrap; }
+.health:hover, .health.on { border-color: var(--ink); }
+.health.bad::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--issue); }
+.chip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--focus); border-radius: 8px; background: color-mix(in srgb, var(--focus) 12%, var(--surface)); color: var(--ink); white-space: nowrap; }
 
 /* ------------------------------------------------------------ the board */
 
@@ -80,7 +81,7 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 #edges path { fill: none; stroke: var(--pencil); stroke-width: 1.5; stroke-dasharray: 5 5; opacity: .7; }
 #edges .head { fill: var(--pencil); opacity: .7; }
 .area-label { position: absolute; display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; color: var(--ink); white-space: nowrap; }
-.area-label::first-letter { text-transform: uppercase; }
+.area-label:not(.slug)::first-letter { text-transform: uppercase; }
 .area-label small { font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--pencil); }
 
 .card { position: absolute; width: var(--card-w); transition: opacity .15s; }
@@ -99,6 +100,26 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .mark.ok { color: var(--ok); padding: 0 2px; }
 .mark.draft { color: var(--pencil); border: 1px dashed currentColor; }
 .mark.ok::before { content: ""; width: 12px; height: 12px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* The lanes around the screens: sketches and references before them, components and tokens after. */
+.lane { position: absolute; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; }
+.lane-label { display: flex; align-items: baseline; gap: 10px; height: 36px; margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; color: var(--pencil); white-space: nowrap; }
+.lane-label small { font-size: 13px; font-weight: 400; letter-spacing: 0; }
+.item .frame { display: block; width: 100%; padding: 0; border: 0; }
+.item .frame.blank, .item .frame.doc { display: grid; place-items: center; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--line); color: var(--pencil); font-size: 13px; }
+.item .frame.blank { border: 1px dashed var(--line); box-shadow: none; }
+.item .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.item .cap { padding: 8px 2px 0; }
+.item .cap-row b { font-size: 14px; }
+.item.on .frame, .item.on .frame:hover { box-shadow: 0 0 0 2px var(--focus), var(--lift); }
+.lane .none { margin: 0; color: var(--pencil); font-size: 12.5px; }
+.toklist { display: grid; gap: 2px; padding: 6px; border-radius: 8px; background: var(--surface); box-shadow: var(--lift); }
+.tok { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; text-align: left; }
+.tok:hover { background: var(--sunk); }
+.tok.on { background: color-mix(in srgb, var(--focus) 14%, transparent); }
+.tname { min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tname small { display: block; color: var(--pencil); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+.swatch.alias { background: repeating-linear-gradient(45deg, var(--sunk) 0 4px, var(--line) 4px 5px); }
+.tok .swatch { width: 22px; height: 22px; }
 .empty { position: absolute; left: 0; top: 0; max-width: 420px; color: var(--pencil); }
 .empty b { display: block; margin-bottom: 4px; font-size: 18px; color: var(--ink); }
 
@@ -125,18 +146,12 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 #panel p.lede { margin: 0 0 16px; }
 .close { position: absolute; right: 12px; top: 12px; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--pencil); font-size: 20px; line-height: 1; }
 .close:hover { background: var(--sunk); color: var(--ink); }
-.dcard { padding: 14px 0 16px; border-top: 1px solid var(--line); }
-.dcard:first-of-type { border-top: 0; padding-top: 4px; }
-.dcard > b { font-size: 15px; }
 .sub { color: var(--pencil); font-weight: 400; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.chips span { padding: 1px 8px; border-radius: 6px; background: var(--sunk); border: 1px solid var(--line); font-size: 12px; }
 .linkish { border: 0; background: none; padding: 0; min-height: 24px; color: var(--focus); text-decoration: underline; text-underline-offset: 2px; }
-.states-inline { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; margin-left: 6px; }
-.tokens { list-style: none; padding: 0 !important; display: grid; gap: 6px; }
-.tokens li { display: flex; align-items: center; gap: 10px; }
 .swatch { flex: none; width: 28px; height: 28px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
-.tokens code { font: 12.5px/1.3 inherit; color: var(--pencil); }
+.part.tall { height: 260px; }
+img.part { height: auto; max-height: 320px; object-fit: contain; }
 
 /* ------------------------------------------------------------ one screen */
 
@@ -172,11 +187,22 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .box span { position: absolute; left: -2px; bottom: 100%; margin-bottom: 2px; padding: 1px 6px; border-radius: 4px; background: var(--issue); color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .pinmark { position: absolute; width: 26px; height: 26px; margin: -26px 0 0 -2px; display: grid; place-items: center; border-radius: 13px 13px 13px 2px; background: var(--note); color: var(--note-ink); font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgb(0 0 0 / 25%); cursor: pointer; }
 .pinmark.closed { background: var(--line); color: var(--pencil); }
+.part { display: block; width: 100%; height: 150px; margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.parts { margin: 0; padding: 0; list-style: none; }
+.parts li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
 .side { overflow: auto; padding: 16px 18px 24px; border-left: 1px solid var(--line); }
 .side h3 { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--pencil); }
 .side h3:first-child { margin-top: 0; }
 .side h3 .chk { margin-left: auto; font-weight: 400; }
 .side .none { color: var(--pencil); margin: 0; }
+.side .chips button { padding: 1px 8px; min-height: 24px; border-radius: 6px; background: var(--sunk); border: 1px solid var(--line); font-size: 12px; }
+.side .chips button:hover { border-color: var(--pencil); }
+.why { margin: 0 0 10px; }
+.why p { margin: 2px 0 0; }
+.why small { color: var(--pencil); font-size: 12px; }
+.rules { margin: 0 0 8px; padding-left: 18px; }
+#panel h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--pencil); }
+#panel .row { align-items: center; justify-content: space-between; }
 .thread { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--note); border-radius: var(--r); background: var(--sunk); }
 .thread.closed { opacity: .7; border-color: var(--line); }
 .thread .c { margin: 0 0 6px; }
@@ -228,7 +254,10 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
   .search { order: 5; flex-basis: 100%; max-width: none; }
   .filters { order: 4; }
   .pop { left: auto; right: 0; width: min(300px, calc(100vw - 32px)); }
-  .tabs { order: 6; flex-basis: 100%; margin: 0 -16px; padding: 0 12px; overflow-x: auto; scrollbar-width: none; }
+  .health { order: 3; margin-left: 0; }
+  .chip { order: 6; flex-basis: 100%; }
+  .lane { position: static; width: auto !important; gap: 16px; }
+  .lane-label { height: auto; font-size: 18px; }
   #stage { overflow: visible; touch-action: auto; cursor: default; background-attachment: local; }
   #board { position: static; transform: none !important; display: grid; gap: 28px; padding: 20px 16px 112px; }
   #edges, .area-label, .zoom { display: none; }

@@ -105,14 +105,36 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 ## Typography
 [Families with fallbacks. The hierarchy roles (display, headline, title, body, label) with weight, size and line height. The body measure.]
 
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| font-body | | | body text |
+| font-display | | | headings |
+| text-sm, text-md, text-lg | | | the type scale |
+
 ## Layout
 [The grid or spatial model, container behavior, density, responsive changes, and the spacing rhythm.]
+
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| space-1, space-2, space-3, space-4 | | | the spacing scale |
 
 ## Elevation & Depth
 [Shadows, tonal layers, or both. With no shadows, say how depth shows.]
 
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| shadow-raised | | | raised panels |
+
 ## Shapes
 [The radius strategy, borders, clipping, and recurring geometry.]
+
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| radius-sm, radius-md | | | controls and panels |
 
 ## Components
 [The component library, if any, and the icon library. For each main component (buttons, inputs, cards, navigation): its shape, color roles and states.]
@@ -121,7 +143,7 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 [Concrete guardrails from the existing system or the person's choices. Start each with "Do" or "Don't".]
 ```
 
-Fill the token roles that a source gives. The design stage fills the rest at freeze ([record.md](record.md) → Token roles at freeze). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
+Give each role of a scale its own row. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
 
 ## Step 3b: Write the `.ai/design/` record
 

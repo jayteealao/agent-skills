@@ -6,6 +6,8 @@ This file belongs to [../verify.md](../verify.md), Step 4. Load it when `02c-cra
 
 Launch only if `02c-craft.md` exists or the `augmentations:` list is non-empty. Enforces contracts the standard test suites do not catch. Give it the paths of the screen pages and the approval pictures, never a canvas URL: a sub-agent reads files.
 
+**Component check (when `02c-craft.md` names `components:`).** Run `node "<skill-dir>/scripts/wf.mjs" design components verify "<projectRoot>" <slug> --slice <slice>`. It exits 1 and prints one line for each component of the screens of the slice that the code does not have or does not use. Each line is a finding: the code must use the library. Record `component-check: pass` or `component-check: fail`. Then read the built code of each screen, and report a part that a `## Component map` row covers when the code builds it again.
+
 **Screen comparison (when `02c-craft.md` names `screens:`).** When the stack can capture the running surface, capture each built screen to the path that `node "<skill-dir>/scripts/wf.mjs" design capture-path "<projectRoot>" <slug> <slice> <key>` prints, and the `worst` state as `<key>--worst`. After the last capture, run `node "<skill-dir>/scripts/wf.mjs" design captures "<projectRoot>" <slug> <slice>`: it commits the captures to the records. Pair each capture with the approval picture of its screen by key in `## Design Comparison`, and list the differences (`design/_surface.md`). The differences are evidence for review, not a pass rule.
 
 **Design audit (when `02c-craft.md` names `screens:`).** Run the Diagnostic Scan of `design/audit.md` over the built UI of this slice: the files that `05-implement-<slice-slug>.md` names, read against the screens of the slice. Weigh three rules most:

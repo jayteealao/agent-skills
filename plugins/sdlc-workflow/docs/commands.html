@@ -585,16 +585,18 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">4</span><b>Inspect</b><span class="who auto">agent</span><p>Four sub-agents read the code. When the product runs, each touched surface is captured as it is now.</p></li>
           <li class="phase"><span class="pn">5</span><b>The form</b><span class="who you">you</span><p>One question: the whole feature, three directions first, a flow of states, or changes to existing screens.</p></li>
           <li class="phase"><span class="pn">6</span><b>Directions</b><span class="who you">you, when open</span><p>Three named directions on different axes, plus the category standard. You pick one, mix two, or ask for another round.</p></li>
-          <li class="phase"><span class="pn">7</span><b>Draw</b><span class="who auto">agent</span><p>Every changed screen of the whole feature, in five states: default, empty, loading, error and worst. Each step of a flow is a link.</p></li>
-          <li class="phase"><span class="pn">8</span><b>Rounds</b><span class="who you">you</span><p>Three to five decisions per round, with numbered options, until no decision is open. The canvas comments feed each round.</p></li>
-          <li class="phase"><span class="pn">9</span><b>Check and approve</b><span class="who you">you</span><p>The check runs. You answer Approve, Adjust or Stop, with each failure in view.</p></li>
-          <li class="phase"><span class="pn">10</span><b>Record</b><span class="who auto">script</span><p>Commits the screens, keeps one picture of each, writes the visual contract, and updates the tokens in DESIGN.md.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Foundation</b><span class="who auto">agent</span><p>The tokens and the component library, before the first screen. The agent reuses each component of the code and adds a new one only for a part that nothing covers.</p></li>
+          <li class="phase"><span class="pn">8</span><b>Draw</b><span class="who auto">agent</span><p>Every changed screen of the whole feature, in five states: default, empty, loading, error and worst. Each step of a flow is a link.</p></li>
+          <li class="phase"><span class="pn">9</span><b>Rounds</b><span class="who you">you</span><p>Three to five decisions per round, with numbered options, until no decision is open. The canvas comments feed each round.</p></li>
+          <li class="phase"><span class="pn">10</span><b>Check and approve</b><span class="who you">you</span><p>The check runs. You answer Approve, Adjust or Stop, with each failure in view.</p></li>
+          <li class="phase"><span class="pn">11</span><b>Record</b><span class="who auto">script</span><p>Commits the screens, keeps one picture of each, writes the visual contract, and updates the tokens in DESIGN.md.</p></li>
         </ol>
       </div>
 
       <h3 class="group" id="ds-approve">Checks and approval <em>only your answer approves</em></h3>
       <ul class="rules">
-        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state, and flags each color that is not a token and each page that differs from its approved version with no round that holds the change. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>. The Audit panel of the canvas runs a read-only agent over the screens and the built code.</span></li>
+        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state, and flags each color that is not a token and each page that differs from its approved version with no round that holds the change. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>. The review of the canvas, which the health control of its bar opens, runs a read-only agent over the screens and the built code.</span></li>
+        <li data-s><b>Foundation</b><span>Before the first screen, the agent sets the tokens and the component library. It reuses each component of the code, and adds a new one only for a part that nothing covers. A new component names no code yet: the build makes it, and verify fails until the code uses it.</span></li>
         <li data-s><b>Rounds</b><span>The agent saves the pages as a draft after each decision round, with the decisions as its reason. A draft has no authority, and the workflow close deletes it.</span></li>
         <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, saves the pages as a numbered version in the records, and writes the approval commit and the version into the contract. Agreement in free chat is not an approval.</span></li>
         <li data-s><b>Adjust</b><span>The agent changes the screens that you name, runs the check again, and asks again. Each adjustment is a recorded decision.</span></li>
@@ -609,7 +611,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>Stage</th><th>What it does with the screens</th></tr></thead>
           <tbody>
-            <tr data-s><td>slice</td><td>Writes the screen keys of each slice into its scope and its own <code>ux-impact</code>. The canvas shows a design card for each slice.</td></tr>
+            <tr data-s><td>slice</td><td>Writes the screen keys of each slice into its scope and its own <code>ux-impact</code>. The Slices layout of the canvas shows one row for each slice.</td></tr>
             <tr data-s><td>plan</td><td>Cites the screen keys in the steps that build each screen.</td></tr>
             <tr data-s><td>implement</td><td>Reads each screen page at the approval commit. It makes the worst-case content loadable in development, never in production code.</td></tr>
             <tr data-s><td>verify</td><td>Captures each built screen, and its worst state, beside its approved picture, and lists the differences.</td></tr>
@@ -632,6 +634,12 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code>wf.mjs design comments &lt;root&gt;</code></td><td>Prints the open comment threads. The agent reads them before each round.</td></tr>
             <tr data-s><td><code>wf.mjs design viewports &lt;root&gt; [name=WxH…]</code></td><td>Shows or sets the viewports. The defaults are phone 375×812, tablet 768×1024 and desktop 1280×800.</td></tr>
             <tr data-s><td><code>wf.mjs design areas &lt;root&gt; [area…]</code></td><td>Shows or sets the order of the areas, the order of the product's navigation. The canvas shows its columns in this order.</td></tr>
+            <tr data-s><td><code>wf.mjs design foundation &lt;root&gt;</code></td><td>Shows the tokens and the components. It exits 1 until a new screen can be drawn, and <code>design screen add</code> refuses a new screen until then.</td></tr>
+            <tr data-s><td><code>wf.mjs design component add &lt;root&gt; &lt;key&gt; [--code f --name n]</code></td><td>Adds a component to the library. With <code>--code</code>, the code has it. With no <code>--code</code>, it is new, and the build must make it.</td></tr>
+            <tr data-s><td><code>wf.mjs design component link &lt;root&gt; &lt;key&gt; --code f --name n</code></td><td>Records the code of a new component, after the build makes it.</td></tr>
+            <tr data-s><td><code>wf.mjs design components &lt;root&gt;</code></td><td>Lists the library, each component with its code and its screens.</td></tr>
+            <tr data-s><td><code>wf.mjs design components none &lt;root&gt; --reason r</code></td><td>Records that the product has no reusable parts, for example a terminal surface.</td></tr>
+            <tr data-s><td><code>wf.mjs design components verify &lt;root&gt; &lt;slug&gt; [--slice s]</code></td><td>Exits 1 when the code does not have or use a component of the screens.</td></tr>
             <tr data-s><td><code>wf.mjs design round &lt;root&gt; &lt;slug&gt;</code></td><td>Saves the pages as a draft in the records. A change-free round saves nothing.</td></tr>
             <tr data-s><td><code>wf.mjs design versions &lt;root&gt; &lt;slug&gt;</code></td><td>Lists the approved versions and the rounds of a workflow, each with its reason.</td></tr>
             <tr data-s><td><code>wf.mjs design approved &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the file of each page of the newest approved version. The build reads these files.</td></tr>

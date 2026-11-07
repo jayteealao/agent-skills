@@ -132,7 +132,7 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '',
     '## Steps',
     '',
-    '1. Read `DESIGN.md` and `.ai/design/tokens.css`. They hold the design system and its tokens.',
+    '1. Read `DESIGN.md`, `.ai/design/tokens.css` and `.ai/design/components.css`. They hold the design system, its tokens and its component styles.',
     platforms.length
       ? `2. The platform of the built UI is ${columns}. The platform map below keeps only ${platforms.length > 1 ? 'the columns of those platforms' : 'the column of that platform'}.`
       : '2. Find the platform of the built UI from the repo: web, Android with Jetpack Compose, iOS, or desktop. Use the column of that platform in the platform map below.',

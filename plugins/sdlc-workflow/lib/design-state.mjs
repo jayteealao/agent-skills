@@ -11,7 +11,10 @@ import { spawnSync } from 'node:child_process';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { capturesOf, groupFailures, readComments, readChecks } from './design-records.mjs';
 import { versionsOf } from './design-versions.mjs';
-import { LAYOUT_FILE, STATES, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir } from './design-surface.mjs';
+import { componentsUsed, listComponents } from './design-components.mjs';
+import { COMPONENTS_FILE, LAYOUT_FILE, STATES, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir, tokensOf } from './design-surface.mjs';
+
+export { tokensOf };
 import { checkReferences } from './design-references.mjs';
 import { readDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -20,11 +23,6 @@ export const STATE_SCHEMA = 'sdlc/design-canvas/v1';
 
 function readJson(file, fallback) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fallback; }
-}
-
-/** The custom properties of the token sheet: `[{ name, value }]`. */
-export function tokensOf(css) {
-  return [...String(css ?? '').matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((m) => ({ name: m[1], value: m[2].trim() }));
 }
 
 /** The tokens that a screen page uses: each `var(--name)`. */
@@ -123,6 +121,7 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
     return {
       ...s,
       tokens: tokensUsed(html),
+      components: componentsUsed(html),
       history: historyOf(root, s.key),
       threads,
       openComments: threads.filter((t) => t.open).length,
@@ -147,6 +146,8 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
     explore: listExplore(root),
     references: checkReferences(root).references,
     tokens: tokensOf(tokensCss),
+    components: listComponents(root),
+    noComponents: m['no-components'] ?? null,
     decisions: designDecisions(root, workflows),
     cards: designCards(root, screens, checks),
     checks: checks ? { at: checks.at, passed: checks.passed, failures: checks.failures?.length ?? 0 } : null,
@@ -166,7 +167,7 @@ const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u
 export function snapshotHtml(root, { repo = null } = {}) {
   const state = canvasState(root, { repo, writable: false });
   const screens = Object.fromEntries(state.screens.filter((s) => existsSync(screenFile(root, s.key))).map((s) => [s.key, readFileSync(screenFile(root, s.key), 'utf8')]));
-  const tokens = existsSync(join(surfaceDir(root), TOKENS_FILE)) ? readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8') : '';
+  const tokens = [TOKENS_FILE, COMPONENTS_FILE].map((f) => join(surfaceDir(root), f)).filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
   const page = readFileSync(join(CANVAS_DIR, 'index.html'), 'utf8');
   const css = readFileSync(join(CANVAS_DIR, 'canvas.css'), 'utf8');
   const js = readFileSync(join(CANVAS_DIR, 'canvas.js'), 'utf8').replace(/<\/script/gi, '<\\/script');

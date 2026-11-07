@@ -12,8 +12,9 @@ import { spawnSync } from 'node:child_process';
 import { findAnswer } from './answers.mjs';
 import { captureScreens } from './design-check.mjs';
 import { approvalPicture, commitDesignRecords, readChecks } from './design-records.mjs';
+import { workflowComponents } from './design-components.mjs';
 import { saveApproved } from './design-versions.mjs';
-import { MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, listScreens, readManifest, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
+import { COMPONENTS_DIR, COMPONENTS_FILE, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, listScreens, readManifest, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
@@ -32,6 +33,10 @@ export function commitSurface(root, paths, message) {
   if (!git(root, ['rev-parse', '--is-inside-work-tree']).ok) throw new Error('the product repo is not a git repo: the approval needs a commit');
   const add = git(root, ['add', '--', ...paths]);
   if (!add.ok) throw new Error(`git add failed: ${add.err}`);
+  // A folder with no file, such as an empty components folder, is no path that git knows, and a
+  // commit that names it fails. Commit only the paths that git knows after the add.
+  paths = paths.filter((p) => git(root, ['ls-files', '--', p]).out);
+  if (!paths.length) return { commit: git(root, ['rev-parse', 'HEAD']).out, changed: false };
   const changed = !git(root, ['diff', '--cached', '--quiet', '--', ...paths]).ok;
   if (changed) {
     const c = git(root, ['commit', '-q', '-m', message, '--', ...paths]);
@@ -70,7 +75,8 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
   const approved = approvalKeys(root, slug, { keys, slice });
   if (!approved.length) return { ok: false, reason: `no screen of ${slug}${slice ? ` slice ${slice}` : ''} is on the surface` };
 
-  const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...(existsSync(join(surfaceDir(root), TOKENS_FILE)) ? [`${SURFACE_REL}/${TOKENS_FILE}`] : [])];
+  const library = workflowComponents(root, approved);
+  const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...[TOKENS_FILE, COMPONENTS_FILE, COMPONENTS_DIR].filter((f) => existsSync(join(surfaceDir(root), f))).map((f) => `${SURFACE_REL}/${f}`)];
   const { commit, changed } = commitSurface(root, surface, `design: approve ${approved.join(', ')} for ${slug}`);
   const at = nowIso(now);
   const version = saveApproved(root, slug, approved, { commit, reason, slice, now });
@@ -97,6 +103,8 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
     screens: approved,
     'approval-commit': commit,
     'design-version': version,
+    components: library.used,
+    'components-to-build': library.toBuild,
     'direction-confirmed-by': 'answer-event',
     'confirmed-at': at,
     'answered-at': answer.at,

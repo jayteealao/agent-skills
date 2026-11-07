@@ -10,7 +10,7 @@
 //     v1/                  an approved version
 //     rounds/v2-r1/        a draft toward v2
 //
-// Each folder holds version.json, tokens.css and screens/<key>.html. A later squash cannot lose
+// Each folder holds version.json, tokens.css, components.css and screens/<key>.html. A later squash cannot lose
 // a version, because the pages are copies, not a commit id. An approved version holds every
 // approved screen of the workflow: an approval of some screens carries the others from the
 // version before it.
@@ -18,7 +18,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statS
 import { join } from 'node:path';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { commitDesignRecords, designRecordsDir } from './design-records.mjs';
-import { SCREENS_DIR, TOKENS_FILE, addScreen, listScreens, readManifest, surfaceDir, writeJson } from './design-surface.mjs';
+import { COMPONENTS_FILE, SCREENS_DIR, TOKENS_FILE, addScreen, listScreens, readManifest, surfaceDir, writeJson } from './design-surface.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
@@ -89,11 +89,14 @@ function copyPage(from, to, key) {
 const surfaceScreens = (root) => join(surfaceDir(root), SCREENS_DIR);
 const screensOf = (root, v) => join(versionDir(root, v.workflow, v.id), SCREENS_DIR);
 
-/** The screens of `keys` whose page differs from the version `v`. */
+const sheetText = (dir) => { try { return readFileSync(join(dir, COMPONENTS_FILE), 'utf8').replace(/\r\n/g, '\n'); } catch { return null; } };
+
+/** The screens of `keys` whose page differs from the version `v`, and the component sheet when it differs. */
 function changedSince(root, keys, v) {
   if (!v) return keys;
   const had = screensOf(root, v);
-  return keys.filter((k) => pageText(surfaceScreens(root), k) !== pageText(had, k));
+  const sheet = sheetText(surfaceDir(root)) !== sheetText(versionDir(root, v.workflow, v.id)) ? [COMPONENTS_FILE] : [];
+  return [...keys.filter((k) => pageText(surfaceScreens(root), k) !== pageText(had, k)), ...sheet];
 }
 
 /** The design decisions of a workflow after `since`, as one line. */
@@ -117,8 +120,10 @@ function writeFolder(root, dir, meta, surface, carried = [], carriedFrom = null)
   mkdirSync(to, { recursive: true });
   for (const key of surface) copyPage(surfaceScreens(root), to, key);
   for (const key of carried) copyPage(carriedFrom, to, key);
-  const tokens = join(surfaceDir(root), TOKENS_FILE);
-  if (existsSync(tokens)) cpSync(tokens, join(dir, TOKENS_FILE));
+  for (const sheet of [TOKENS_FILE, COMPONENTS_FILE]) {
+    const from = join(surfaceDir(root), sheet);
+    if (existsSync(from)) cpSync(from, join(dir, sheet));
+  }
   // A folder with no version.json does not exist for a reader, so a stopped copy shows nothing.
   writeJson(join(dir, VERSION_FILE), meta);
 }
@@ -196,7 +201,7 @@ export function restoreVersion(root, slug, id, { now = new Date() } = {}) {
   const after = saveRound(root, slug, { reason: `Restored from ${versionName(id)}`, now });
   if (!after.ok) return after;
   const tokens = (dir) => { try { return readFileSync(join(dir, TOKENS_FILE), 'utf8').replace(/\r\n/g, '\n'); } catch { return null; } };
-  return { ok: true, id: after.id, restored: v.id, saved: after.saved, tokensDiffer: tokens(versionDir(root, slug, id)) !== tokens(surfaceDir(root)) };
+  return { ok: true, id: after.id, restored: v.id, saved: after.saved, componentsDiffer: sheetText(versionDir(root, slug, id)) !== sheetText(surfaceDir(root)), tokensDiffer: tokens(versionDir(root, slug, id)) !== tokens(surfaceDir(root)) };
 }
 
 /** Delete the rounds of a workflow when it closes. The approved versions stay. */

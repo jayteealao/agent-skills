@@ -37,6 +37,8 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person approv
 screens: [every approved screen key]
 approval-commit: <the commit of the product repo that holds the approved screens>
 design-version: <the approved version in the records, for example v2>
+components: [every component that the approved screens use]
+components-to-build: [those components that the code does not have yet]
 direction-confirmed-by: answer-event
 confirmed-at: <timestamp>
 image-gate: <pass|skipped:<reason>>
@@ -53,8 +55,9 @@ Body sections, in order, under these exact `##` headings (later stages cite them
 - `## Own world` — what makes the design recognizable with all content removed.
 - `## North-star screen` — the north-star screen key, the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note. Add the first-viewport memory test: name the one thing a person remembers after five seconds. When the honest answer is a mood, the direction is not committed yet.
 - `## Screens` — one row per approved screen: `| Key | Surface | States | Slices |`, from `<wf> design list <root> --workflow <slug>`.
+- `## Component map` — one row per component that the screens use, from `<wf> design components <root> --workflow <slug>`: `| Key | Code | Status | Screens |`. The code column names the file and the name in the code. A component with the status `to build` names where the build makes it. The build uses each row, and it adds no second component for the same part.
 - `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <screen key and where on it> — <why non-negotiable>`.
-- `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (each animation's gate result — frequency tier and named purpose — its curve token and duration or spring, and the rejected candidates that stay still; `animate.md` carries the rules and `_platforms.md` the platform forms); **finish & detail** (concentric radius, optical alignment, shadows versus borders, target size; `polish.md`); **state coverage** per interactive element.
+- `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (each variant that a `## Component map` row needs); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (each animation's gate result — frequency tier and named purpose — its curve token and duration or spring, and the rejected candidates that stay still; `animate.md` carries the rules and `_platforms.md` the platform forms); **finish & detail** (concentric radius, optical alignment, shadows versus borders, target size; `polish.md`); **state coverage** per interactive element.
 - `## Anti-patterns to avoid` — from the brief's anti-goals plus the refusals in `_craft-floor.md`, specific to this feature. Stage Step 4 loaded the floor before this step.
 - `## Implementation references` — the reference docs `/wf implement` consults (`typeset.md`, `animate.md`, `harden.md`, and so on).
 

@@ -2,7 +2,8 @@
 //
 // Each screen is one interactive HTML page with mock data, in `screens/<key>.html`. It has the
 // five named states (default, empty, loading, error, worst) and links to the screens that follow
-// it in a flow. One token stylesheet, `tokens.css`, comes from the token roles of DESIGN.md.
+// it in a flow. One token stylesheet, `tokens.css`, comes from the token roles of DESIGN.md. The
+// component library (lib/design-components.mjs) is `components/<key>.html` and `components.css`.
 // `screens.json` is the manifest: the screens with their product area, flow and order, the
 // workflows and slices that changed them, and their approvals. Only scripts write the manifest.
 // The canvas lays the screens out from it, and `layout.json` keeps the positions that the person
@@ -24,6 +25,8 @@ export const MANIFEST_FILE = 'screens.json';
 export const LAYOUT_FILE = 'layout.json';
 export const REFERENCES_FILE = 'references.json';
 export const TOKENS_FILE = 'tokens.css';
+export const COMPONENTS_DIR = 'components';
+export const COMPONENTS_FILE = 'components.css';
 export const SCREENS_SCHEMA = 'sdlc/design-screens/v1';
 export const STATES = Object.freeze(['default', 'empty', 'loading', 'error', 'worst']);
 export const DEFAULT_VIEWPORTS = Object.freeze({ phone: '375x812', tablet: '768x1024', desktop: '1280x800' });
@@ -53,13 +56,13 @@ export function parseViewport(text) {
   return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
 }
 
-export const emptyManifest = () => ({ schema: SCREENS_SCHEMA, viewports: { ...DEFAULT_VIEWPORTS }, areas: [], screens: {}, explore: {} });
+export const emptyManifest = () => ({ schema: SCREENS_SCHEMA, viewports: { ...DEFAULT_VIEWPORTS }, areas: [], screens: {}, explore: {}, components: {} });
 
 /** The manifest, or an empty one. */
 export function readManifest(root) {
   const m = readJson(join(surfaceDir(root), MANIFEST_FILE), null);
   if (!m || typeof m !== 'object') return emptyManifest();
-  return { ...emptyManifest(), ...m, screens: m.screens ?? {}, explore: m.explore ?? {} };
+  return { ...emptyManifest(), ...m, screens: m.screens ?? {}, explore: m.explore ?? {}, components: m.components ?? {} };
 }
 export function writeManifest(root, m) {
   mkdirSync(surfaceDir(root), { recursive: true });
@@ -81,19 +84,32 @@ export function manifestProblems(m, root = null) {
 
 // ---------------------------------------------------------------- tokens
 
+/** The custom properties of a token sheet: `[{ name, value }]`. */
+export function tokensOf(css) {
+  return [...String(css ?? '').matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((m) => ({ name: m[1], value: m[2].trim() }));
+}
+
 /**
- * The token stylesheet from DESIGN.md: each row of a `| Role | Token | Value |` table under
- * `## Colors` gives `--<role>: <value>`, and the token name, when it is one, an alias.
+ * The token stylesheet from DESIGN.md: each row of a `| Role | Token | Value |` table gives
+ * `--<role>: <value>`, and the token name, when it is one, an alias. Under `## Colors` every table
+ * row counts. In a section of type, space, depth, shape or motion, only a table with that header
+ * counts, because those sections can hold other tables.
  */
 export function tokensFromDesign(text) {
-  const lines = String(text ?? '').split(/\r?\n/);
-  const at = lines.findIndex((l) => /^##\s+Colou?rs\b/i.test(l));
-  if (at < 0) return [];
   const out = [];
-  for (const l of lines.slice(at + 1)) {
-    if (/^##\s/.test(l)) break;
+  let section = null;
+  let table = false;
+  for (const l of String(text ?? '').split(/\r?\n/)) {
+    if (/^##\s/.test(l)) {
+      section = /^##\s+Colou?rs\b/i.test(l) ? 'colors' : /^##\s+(Typography|Layout|Elevation|Shapes|Motion)\b/i.test(l) ? 'other' : null;
+      table = false;
+      continue;
+    }
+    if (!section) continue;
     const cells = l.split('|').map((c) => c.trim());
-    if (cells.length < 4 || /^-+$/.test(cells[1]) || /^role$/i.test(cells[1])) continue;
+    if (cells.length < 4) { table = false; continue; }
+    if (/^role$/i.test(cells[1])) { table = /^token$/i.test(cells[2]) && /^value$/i.test(cells[3]); continue; }
+    if (/^-+$/.test(cells[1]) || (section === 'other' && !table)) continue;
     const [, role, token, value] = cells;
     if (!role || !value || !/^[a-z][a-z0-9-]*$/i.test(role)) continue;
     out.push({ role: role.toLowerCase(), token: /^--[a-z0-9-]+$/i.test(token) ? token : null, value });
@@ -107,13 +123,13 @@ export function writeTokens(root) {
   const rows = existsSync(design) ? tokensFromDesign(readFileSync(design, 'utf8')) : [];
   const body = rows.flatMap((r) => [`  --${r.role}: ${r.value};`, ...(r.token && r.token !== `--${r.role}` ? [`  ${r.token}: var(--${r.role});`] : [])]);
   mkdirSync(surfaceDir(root), { recursive: true });
-  writeFileSync(join(surfaceDir(root), TOKENS_FILE), `/* From DESIGN.md, ## Colors. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);
+  writeFileSync(join(surfaceDir(root), TOKENS_FILE), `/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);
   return rows;
 }
 
 // ---------------------------------------------------------------- screens
 
-/** The page of a new screen: the five states, the token sheet, and the state switch. */
+/** The page of a new screen: the five states, the token and component sheets, and the state switch. */
 export function screenTemplate(key, title) {
   return `<!doctype html>
 <html lang="en">
@@ -123,6 +139,7 @@ export function screenTemplate(key, title) {
 <meta name="wf:screen" content="${key}">
 <title>${title}</title>
 <link rel="stylesheet" href="../${TOKENS_FILE}">
+<link rel="stylesheet" href="../${COMPONENTS_FILE}">
 <style>
   body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--ground, #fff); color: var(--text, #111); }
   body [data-state] { display: none; }
@@ -314,12 +331,14 @@ export function registerRepo(root) {
   return { name, root: abs, added: true };
 }
 
-/** Make the surface: the folders, the manifest, the token sheet, the git rule and the repo entry. */
+/** Make the surface: the folders, the manifest, the token and component sheets, the git rule and the repo entry. */
 export function initSurface(root) {
   const dir = surfaceDir(root);
   const created = !existsSync(join(dir, MANIFEST_FILE));
   mkdirSync(join(dir, SCREENS_DIR), { recursive: true });
   mkdirSync(join(dir, EXPLORE_DIR), { recursive: true });
+  mkdirSync(join(dir, COMPONENTS_DIR), { recursive: true });
+  if (!existsSync(join(dir, COMPONENTS_FILE))) writeFileSync(join(dir, COMPONENTS_FILE), '/* The style of each component of the library. Use tokens only. */\n');
   if (created) writeManifest(root, emptyManifest());
   if (!existsSync(join(dir, REFERENCES_FILE))) writeJson(join(dir, REFERENCES_FILE), { references: [] });
   const tokens = writeTokens(root);

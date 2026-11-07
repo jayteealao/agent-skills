@@ -136,5 +136,6 @@ When invoked as `/wf design extract` with no slug:
 
 In both cases, update the design record:
 - Summarize the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`.
+- For each component that the code has, run `node "<skill-dir>/scripts/wf.mjs" design component add "<root>" <key> --title "<title>" --code <file> --name <its name in the code>`, so the library lists it ([_surface.md](_surface.md) → The foundation).
 - Follow the format in [record.md](record.md).
 - Do not record a floor refusal as a system pattern. Record it under `## Design debt` per [_craft-floor.md](_craft-floor.md) → Record guard.

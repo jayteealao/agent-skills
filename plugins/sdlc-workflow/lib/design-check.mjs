@@ -13,8 +13,7 @@ import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { browserCandidates } from '../scripts/design-boards.mjs';
 import { groupFailures, readChecks, writeChecks } from './design-records.mjs';
-import { tokensOf } from './design-state.mjs';
-import { STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenUrl, surfaceDir } from './design-surface.mjs';
+import { COMPONENTS_FILE, STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, screenUrl, surfaceDir, tokensOf } from './design-surface.mjs';
 import { versionDrift } from './design-versions.mjs';
 import { killTree } from './proc.mjs';
 
@@ -26,7 +25,7 @@ export { groupFailures };
  */
 export const CHECK_MOVES = Object.freeze({
   contrast: 'colorize', 'target-size': 'adapt', 'viewport-fit': 'layout', 'worst-case': 'harden', states: 'harden',
-  display: 'harden', overlap: 'layout', token: 'colorize', script: null,
+  display: 'harden', overlap: 'layout', token: 'colorize', component: null, script: null,
 });
 /** One rule for target size: a pointer target is at least 24 by 24 CSS pixels. */
 export const MIN_TARGET = 24;
@@ -58,7 +57,7 @@ export function selectorRect(selector) {
 
 // Runs in the screen page. It returns `[{ check, message, rect, selector }]`. `tokens` are the
 // color tokens of the token sheet, `[{ name, value }]`, for the token check; empty skips it.
-function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
+function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '', components = [] } = {}) {
   const out = [];
   const canvas = document.createElement('canvas');
   canvas.width = 1; canvas.height = 1;
@@ -214,7 +213,7 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
   }
 
   // Tokens: a color written in the page, not taken from the token sheet.
-  const swatches = tokens.map((t) => ({ ...t, c: rgba(t.value) })).filter((t) => !/^var\(/.test(t.value));
+  const swatches = tokens.filter((t) => !/^var\(/.test(t.value) && CSS.supports('color', t.value)).map((t) => ({ ...t, c: rgba(t.value) }));
   if (swatches.length) {
     const COLOR = /^(color|background-color|border-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)-color|outline-color|fill|stroke|box-shadow|text-shadow|text-decoration-color|caret-color|accent-color|column-rule-color)$/;
     const RAW = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)/i;
@@ -247,7 +246,10 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
       }
     };
     const flat = (list) => [...list].flatMap((r) => (r.cssRules && !r.selectorText ? flat(r.cssRules) : [r]));
-    for (const sheet of document.styleSheets) {
+    // The browser hides a linked sheet from a file page, so the component sheet comes as text.
+    const shared = new CSSStyleSheet();
+    shared.replaceSync(componentsCss);
+    for (const sheet of [...document.styleSheets, shared]) {
       if (sheet.href && /tokens\.css$/.test(sheet.href)) continue;
       let list;
       try { list = sheet.cssRules; } catch { continue; }
@@ -259,6 +261,18 @@ function pageChecks(minTarget, { worst = false, tokens = [] } = {}) {
       }
     }
     for (const el of document.body.querySelectorAll('[style]')) if (shown(el)) scan(el.style, `the style of ${selector(el)}`, el);
+  }
+
+  // Components: with a library, a screen reuses it, and a control stands inside a component.
+  if (components.length) {
+    for (const el of document.body.querySelectorAll('[data-component]')) {
+      if (!components.includes(el.dataset.component)) add('component', el, `The library has no component ${el.dataset.component}`, el.dataset.component);
+    }
+    for (const el of document.body.querySelectorAll('button, input, select, textarea, [role=button], [role=tab], [role=switch], [role=checkbox], [role=radio]')) {
+      if (!shown(el) || el.closest('[data-component]')) continue;
+      const kind = el.getAttribute('role') || el.tagName.toLowerCase();
+      add('component', el, `A ${kind} of this page is not a component of the library`, kind);
+    }
   }
   return out;
 }
@@ -456,13 +470,16 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
   // every viewport.
   let tokens = [];
   try { tokens = tokensOf(readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8')); } catch { tokens = []; }
+  let componentsCss = '';
+  try { componentsCss = readFileSync(join(surfaceDir(root), COMPONENTS_FILE), 'utf8'); } catch { componentsCss = ''; }
+  const library = Object.keys(readManifest(root).components);
   try {
     const script = `((pageBox) => (${pageChecks.toString()}))(${pageBox.toString()})`;
     const vps = surfaceViewports(root);
-    const loads = screens.filter((x) => x.exists).flatMap((s) => vps.flatMap((vp, n) => s.states.map((state) => ({ s, vp, state, scan: state === 'default' && n === 0 }))));
-    const results = await overPool(b.pages ?? [b], loads, async (page, { s, vp, state, scan }) => {
+    const loads = screens.filter((x) => x.exists).flatMap((s) => vps.flatMap((vp, n) => s.states.map((state) => ({ s, vp, state, first: n === 0, scan: state === 'default' && n === 0 }))));
+    const results = await overPool(b.pages ?? [b], loads, async (page, { s, vp, state, first, scan }) => {
       await page.open(screenUrl(root, s.key, state), vp);
-      const found = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: scan ? tokens : [] })})`);
+      const found = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: scan ? tokens : [], componentsCss: scan ? componentsCss : '', components: first ? library : [] })})`);
       return { found: found ?? [], errors: page.errors?.() ?? [] };
     });
     // A script error is one failure of the screen, at the first viewport and state that shows it.

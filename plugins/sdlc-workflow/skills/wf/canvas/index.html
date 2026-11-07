@@ -12,6 +12,7 @@
   <div class="seg" role="group" aria-label="Layout">
     <button type="button" data-view="grid" class="on" aria-pressed="true">Areas</button>
     <button type="button" data-view="flow" aria-pressed="false">Flows</button>
+    <button type="button" data-view="slice" aria-pressed="false">Slices</button>
   </div>
   <label class="search"><span class="sr">Search screens</span><input id="q" type="search" placeholder="Search screens"></label>
   <details class="filters" id="filters">
@@ -23,14 +24,8 @@
       <label class="chk"><input type="checkbox" id="failing"> Only screens with failing checks</label>
     </div>
   </details>
-  <nav class="tabs" aria-label="Panels">
-    <button type="button" data-panel="cards">Cards</button>
-    <button type="button" data-panel="decisions">Decisions</button>
-    <button type="button" data-panel="tokens">Tokens</button>
-    <button type="button" data-panel="references">References</button>
-    <button type="button" data-panel="explore">Explore</button>
-    <button type="button" data-panel="audit">Audit</button>
-  </nav>
+  <button type="button" id="trace" class="chip" hidden></button>
+  <button type="button" id="health" class="health" data-panel="health" aria-haspopup="dialog">Review</button>
 </header>
 <main id="stage" aria-label="Screens">
   <div id="board"><svg id="edges" aria-hidden="true"></svg></div>

@@ -7,13 +7,13 @@ The project-level design memory. Every workflow that needs design reads it, and 
 | Part | File | Written by |
 |---|---|---|
 | Identity | `PRODUCT.md` (project root) | `/wf design setup`, `/wf design teach` |
-| System | `DESIGN.md` (project root) | `/wf design setup`, `/wf design teach`, `/wf design sync`; the design stage writes the token roles at freeze |
+| System | `DESIGN.md` (project root) | `/wf design setup`, `/wf design teach`, `/wf design sync`; the design stage writes the token roles at its foundation step |
 | Current design | `.ai/design/current.md` | `/wf design setup`, `/wf design extract`, `retro`; the design stage creates it when it is missing |
 | Direction | `.ai/design/direction.md` | `/wf design setup`, `/wf design direction`, `retro` (only after the person answers); the design stage creates it when it is missing and adds the open decisions the person keeps |
 
 Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, `wf.mjs design init` keeps `.ai/design/` tracked ([_surface.md](_surface.md)).
 
-**Token roles at approval.** At approval (design stage Step 6), the design stage writes the token roles that `02c-craft.md` settles into `DESIGN.md` → `## Colors` → `### Token roles` ([setup.md](setup.md) gives the template). Show the person the change before the write. Keep every other row and section of `DESIGN.md`.
+**Token roles.** The design stage writes the token roles into the `### Token roles` tables of `DESIGN.md` at its foundation step (Step 3c), and writes each role that the rounds changed at approval (Step 6). [setup.md](setup.md) gives the template. Show the person the change before the write. Keep every other row and section of `DESIGN.md`.
 
 ## `.ai/design/current.md`
 
@@ -75,7 +75,7 @@ Keep `DESIGN.md` and the canvas design system in step, per `_host-surfaces.md`, 
 
 ## Floor guard
 
-Every write to the design record follows the Record guard. It covers `setup`, `teach`, `sync`, `direction`, `extract`, the token roles at freeze, and the retro write-back.
+Every write to the design record follows the Record guard. It covers `setup`, `teach`, `sync`, `direction`, `extract`, the token roles, and the retro write-back.
 1. Before you write `DESIGN.md` or `.ai/design/current.md`, load [_craft-floor.md](_craft-floor.md) → Record guard.
 2. Write a refused element as a design debt in `## Design debt`. Never write it as a system rule.
 
