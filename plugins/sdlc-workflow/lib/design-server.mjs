@@ -2,13 +2,16 @@
 // `~/.sdlc/design-repos.json` and the brainstorm pages of those repos. The phone reaches it over
 // the tailnet.
 //
-// The server is static: it reads the files of each request, and it keeps no version state, no
-// render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
+// The server reads the files of each request. It keeps one thing in memory: the canvas state of
+// each repo, which a worker thread builds and which stays until a file that it reads changes
+// (`stateStamp`). It keeps no version state, no render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
 // saved positions of the canvas layout, and the restore of a version as a new round. It starts one process: the read-only design audit
 // agent of the Audit button (design-audit.mjs), one run per repo at a time. Each write names a
 // listed repo, and every other path is refused. It listens on 127.0.0.1 and on the tailnet
 // address only; the tailnet is its only protection.
 import { createServer } from 'node:http';
+import { Worker } from 'node:worker_threads';
+import { gzipSync } from 'node:zlib';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -16,8 +19,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { pidAlive } from './proc.mjs';
-import { CANVAS_DIR, canvasState } from './design-state.mjs';
-import { addComment, approvalPicture, capturePicture } from './design-records.mjs';
+import { CANVAS_DIR, screenFailures, stateStamp } from './design-state.mjs';
+import { addComment, approvalPicture, capturePicture, readComments } from './design-records.mjs';
 import { readAudit, startAudit } from './design-audit.mjs';
 import { restoreVersion, versionDir } from './design-versions.mjs';
 import { KEY_RE, LAYOUT_FILE, SURFACE_REL, readDesignRepos, readManifest, surfaceDir } from './design-surface.mjs';
@@ -90,16 +93,72 @@ function indexPage(repos) {
 <body><h1>Design</h1>${repos.length ? `<ul>${rows}</ul>` : '<p>No repo yet. Run <code>wf.mjs design init &lt;root&gt;</code> in a product repo.</p>'}</body></html>`;
 }
 
+// Text compresses about ten times; a picture or a font is compressed already.
+const COMPRESS = /^(text\/|application\/json|image\/svg)/;
 function send(res, status, body, headers = {}) {
-  const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
-  res.writeHead(status, { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-length': buf.length, ...headers });
+  let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+  const out = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers };
+  if (buf.length > 1024 && COMPRESS.test(String(out['content-type'] ?? '')) && /\bgzip\b/.test(String(res.req?.headers['accept-encoding'] ?? ''))) {
+    buf = headers.gzipped ?? gzipSync(buf);
+    out['content-encoding'] = 'gzip';
+    out.vary = 'accept-encoding';
+  }
+  delete out.gzipped;
+  res.writeHead(status, { ...out, 'content-length': buf.length });
   res.end(buf);
+}
+/** A 304 when the browser holds this version already: it asked with the same ETag. */
+function fresh(res, etag) {
+  if (res.req?.headers['if-none-match'] !== etag) return false;
+  res.writeHead(304, { etag, 'cache-control': 'no-cache' });
+  res.end();
+  return true;
 }
 const json = (res, status, value) => send(res, status, value, { 'content-type': TYPES['.json'] });
 const fail = (res, status, reason) => json(res, status, { ok: false, reason });
+/**
+ * A file, with an ETag of its size and time. The browser keeps it and asks again each time
+ * (`no-cache`), so a changed page shows at once and an unchanged one costs a 304.
+ */
 function file(res, abs, headers = {}) {
-  if (!abs || !existsSync(abs) || !statSync(abs).isFile()) return fail(res, 404, 'not found');
-  return send(res, 200, readFileSync(abs), { 'content-type': TYPES[extname(abs).toLowerCase()] ?? 'application/octet-stream', ...headers });
+  let st = null;
+  try { st = abs ? statSync(abs) : null; } catch { st = null; }
+  if (!st?.isFile()) return fail(res, 404, 'not found');
+  const etag = `W/"${st.size}-${Math.round(st.mtimeMs)}"`;
+  if (fresh(res, etag)) return undefined;
+  return send(res, 200, readFileSync(abs), { 'content-type': TYPES[extname(abs).toLowerCase()] ?? 'application/octet-stream', 'cache-control': 'no-cache', etag, ...headers });
+}
+
+// The canvas state of each repo root: `{ stamp, body, gzipped, etag }`, and the build that runs.
+const states = new Map();
+const building = new Map();
+const WORKER = new URL('./design-state-worker.mjs', import.meta.url);
+function buildState(root, repo) {
+  return new Promise((ok, no) => {
+    const w = new Worker(WORKER, { workerData: { root, repo } });
+    w.once('message', (m) => (m.ok ? ok(m.json) : no(new Error(m.error))));
+    w.once('error', no);
+    w.once('exit', (code) => { if (code) no(new Error(`the state build stopped with code ${code}`)); });
+  });
+}
+/**
+ * The canvas state of a repo. It is built again only when a file that it reads changed; requests
+ * that come during a build wait for that one build.
+ */
+export async function stateOf(root, repo) {
+  const stamp = stateStamp(root);
+  const held = states.get(root);
+  if (held?.stamp === stamp) return held;
+  const run = building.get(root);
+  if (run?.stamp === stamp) return run.promise;
+  const promise = buildState(root, repo).then((json) => {
+    const body = Buffer.from(json);
+    const s = { stamp, body, gzipped: gzipSync(body), etag: `"${stamp}"` };
+    states.set(root, s);
+    return s;
+  }).finally(() => { if (building.get(root)?.promise === promise) building.delete(root); });
+  building.set(root, { stamp, promise });
+  return promise;
 }
 
 function readBody(req) {
@@ -183,7 +242,8 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         try {
           if (kind === 'comments' && rest.length === 1) {
             const r = addComment(root, rest[0], { thread: body.thread ?? null, text: String(body.text ?? ''), author: String(body.author ?? 'someone').slice(0, 60), anchor: body.anchor ?? null, resolve: body.resolve === true, reopen: body.reopen === true });
-            return r.ok === false ? fail(res, 400, r.reason) : json(res, 200, { ...r, ok: true });
+            // The answer carries the threads of the screen, so the canvas redraws that screen only.
+            return r.ok === false ? fail(res, 400, r.reason) : json(res, 200, { ...r, ok: true, threads: readComments(root, rest[0]).threads });
           }
           if (kind === 'versions' && rest.length === 2 && rest[1] === 'restore') {
             const r = restoreVersion(root, rest[0], String(body.id ?? ''));
@@ -203,7 +263,12 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         if (!url.pathname.endsWith('/')) return send(res, 301, '', { location: `${url.pathname}/${url.search}` });
         return file(res, join(CANVAS_DIR, 'index.html'));
       }
-      if (kind === 'state.json' && rest.length === 0) return json(res, 200, canvasState(root, { repo: repo.name, writable: true }));
+      if (kind === 'state.json' && rest.length === 0) {
+        const s = await stateOf(root, repo.name);
+        if (fresh(res, s.etag)) return undefined;
+        return send(res, 200, s.body, { 'content-type': TYPES['.json'], 'cache-control': 'no-cache', etag: s.etag, gzipped: s.gzipped });
+      }
+      if (kind === 'failures' && rest.length === 1 && /^[a-z0-9-]+\.json$/.test(rest[0])) return json(res, 200, screenFailures(root, rest[0].slice(0, -5)));
       if (kind === 'audit.json' && rest.length === 0) return json(res, 200, audit.read(root));
       if (kind === 's') return file(res, inside(surfaceDir(root), rest.join('/')));
       if (kind === 'at' && rest.length >= 2) {
@@ -211,7 +276,8 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         const rel = rest.slice(1).join('/');
         if (!inside(surfaceDir(root), rel)) return fail(res, 400, 'a bad path');
         const buf = atCommit(root, rest[0], rel);
-        return buf ? send(res, 200, buf, { 'content-type': TYPES[extname(rel).toLowerCase()] ?? 'application/octet-stream' }) : fail(res, 404, 'not in that commit');
+        // A file at a commit never changes.
+        return buf ? send(res, 200, buf, { 'content-type': TYPES[extname(rel).toLowerCase()] ?? 'application/octet-stream', 'cache-control': 'max-age=31536000, immutable' }) : fail(res, 404, 'not in that commit');
       }
       if (kind === 'versions' && rest.length >= 3) {
         const dir = versionDir(root, rest[0], rest[1]);

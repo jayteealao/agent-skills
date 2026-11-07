@@ -26,19 +26,33 @@ export const checksPath = (root) => join(designRecordsDir(root), 'checks.json');
 /** The picture of a screen as verify captured it from the built product, per slice. */
 export const capturePicture = (root, workflow, slice, key) => join(designRecordsDir(root), 'captures', workflow, slice, `${key}.png`);
 
-/** The captures of one screen: `[{ workflow, slice, url }]`, with `url` relative to the canvas. */
-export function capturesOf(root, key) {
+/**
+ * The captures of every screen, in one walk of the captures folder: a Map from the screen key to
+ * `[{ workflow, slice, url }]`, with `url` relative to the canvas.
+ */
+export function capturesIndex(root) {
   const dir = join(designRecordsDir(root), 'captures');
-  const out = [];
+  const out = new Map();
   if (!existsSync(dir)) return out;
   for (const workflow of readdirSync(dir)) {
     const wdir = join(dir, workflow);
     if (!statSync(wdir).isDirectory()) continue;
     for (const slice of readdirSync(wdir)) {
-      if (existsSync(join(wdir, slice, `${key}.png`))) out.push({ workflow, slice, url: `captures/${workflow}/${slice}/${key}.png` });
+      const sdir = join(wdir, slice);
+      if (!statSync(sdir).isDirectory()) continue;
+      for (const f of readdirSync(sdir)) {
+        if (!f.endsWith('.png')) continue;
+        const key = f.slice(0, -4);
+        if (!out.has(key)) out.set(key, []);
+        out.get(key).push({ workflow, slice, url: `captures/${workflow}/${slice}/${key}.png` });
+      }
     }
   }
   return out;
+}
+/** The captures of one screen: `[{ workflow, slice, url }]`, with `url` relative to the canvas. */
+export function capturesOf(root, key) {
+  return capturesIndex(root).get(key) ?? [];
 }
 
 /** Commit the design records of a linked project on the main branch of the records clone; the push follows in the background. */

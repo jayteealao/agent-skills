@@ -28,7 +28,8 @@ Each design fact lives in one place, and every other record cites it by key: the
 
 - A **screen key** is kebab-case and names the screen, for example `basket` or `order-detail`. It is unique in the repo. Records cite screen keys.
 - A screen page has the five states: `default`, `empty`, `loading`, `error` and `worst`. Each state is an element with `data-state="<name>"`. The page shows the state that `?state=<name>` names. The `worst` state holds the worst-case content of [harden.md](harden.md).
-- A screen uses the tokens of `tokens.css` (`var(--<role>)`) and the components of `components.css`. It holds its layout and every other style and script in the page. It loads nothing from the network. It uses real copy and realistic mock data.
+- A screen uses the tokens of `tokens.css` (`var(--<role>)`) and the components of `components.css`. It holds its own layout and its own scripts in the page. It loads nothing from the network. It uses real copy and realistic mock data.
+- A style that two or more screens share goes in `components.css` as a component, for example the app frame or the navigation. Do not copy it into each page: each copy loads again in every page of the canvas, and the copies drift apart.
 - A link to `<key>.html` in a screen is an edge of a flow. Make every step of a flow a link, so the person can click through it.
 - A screen is a design, not product code. Do not import product code into it, and do not build a working feature in it.
 - **A terminal surface.** Capture the real output, or write it as text with its ANSI codes. Render it into the screen page with `node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>`, and copy the result into each state of the screen. `campbell` is a dark scheme; `solarized-light` is a light scheme. Draw the screen in each scheme that `_platforms.md` → Terminal names, as two screens when the schemes differ.

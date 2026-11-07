@@ -125,7 +125,22 @@
 
   // ------------------------------------------------------------ data
 
+  // The failures of each screen that the screen view opened: the state holds only their counts.
+  const failCache = new Map();
+  function failuresFor(s) {
+    if (s.failures) return { failures: s.failures, failureGroups: s.failureGroups };
+    if (SNAP) return { failures: [], failureGroups: [] };
+    const held = failCache.get(s.key);
+    if (held) return held === 'loading' ? null : held;
+    failCache.set(s.key, 'loading');
+    fetch(`${BASE}failures/${s.key}.json`, { cache: 'no-store' }).then((r) => r.json())
+      .then((j) => { failCache.set(s.key, j); if (focusState?.key === s.key) drawFocus(); })
+      .catch(() => failCache.delete(s.key));
+    return null;
+  }
+
   async function load() {
+    failCache.clear();
     // The state and the audit load at the same time; the board draws once, when both are here.
     const [state] = await Promise.all([
       window.WF_STATE || fetch(`${BASE}state.json`, { cache: 'no-store' }).then((r) => r.json()),
@@ -165,13 +180,66 @@
     document.documentElement.style.setProperty('--bar-h', `${$('.bar').offsetHeight}px`);
   }
   const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}${at.includes('/') ? 'versions' : 'at'}/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
+  // A snapshot screen has no query string, so the state is set after the page's own script.
+  const snapDoc = (key, state) => (SNAP.screens[key] || '').replace('</head>', `<style>${SNAP.tokens || ''}</style><script>document.documentElement.dataset.state=${JSON.stringify(state)}<\/script></head>`);
   function frameFor(key, state, at = null) {
     // A screen is an artboard, not a window: a scrollbar would take width from the page.
-    const f = h('iframe', { title: key, loading: 'lazy', tabindex: '-1', scrolling: 'no', sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
-    // A snapshot screen has no query string, so the state is set after the page's own script.
-    if (SNAP) f.srcdoc = (SNAP.screens[key] || '').replace('</head>', `<style>${SNAP.tokens || ''}</style><script>document.documentElement.dataset.state=${JSON.stringify(state)}<\/script></head>`);
-    else f.src = screenUrl(key, state, at);
+    const f = h('iframe', { title: key, tabindex: '-1', scrolling: 'no', 'data-state': state, sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
+    if (SNAP) f.srcdoc = snapDoc(key, state);
+    else {
+      f.src = screenUrl(key, state, at);
+      // The state can change before the page loads; the page then shows the state of the frame.
+      f.addEventListener('load', () => { try { f.contentDocument.documentElement.dataset.state = f.dataset.state; } catch { /* no access */ } });
+    }
     return f;
+  }
+  /**
+   * Show another state of a page. A page shows the state that its root element names, so a loaded
+   * page changes state with no reload. A snapshot page has no origin to reach, so it loads again.
+   */
+  function setFrameState(f, key, state, at = null) {
+    if (f.dataset.state === state) return;
+    f.dataset.state = state;
+    if (SNAP) { f.srcdoc = snapDoc(key, state); return; }
+    try { f.contentDocument.documentElement.dataset.state = state; } catch { f.src = screenUrl(key, state, at); }
+  }
+
+  // ------------------------------------------------------------ live frames
+
+  // A live page is a whole document: on a board of 200 screens, 200 documents. So a frame holds its
+  // page only while it is near the view, and zoomed far out, a screen whose approval picture still
+  // shows its page shows that picture. A frame has `make`, which makes its page, and `pic`.
+  const FAR = 0.35;
+  let watcher = null;
+  let wasFar = false;
+  function watch(frame) {
+    const root = phone() ? null : $('#stage');
+    if (watcher?.root !== root) {
+      watcher?.io.disconnect();
+      const io = new IntersectionObserver((entries) => { for (const e of entries) { e.target.near = e.isIntersecting; fillFrame(e.target); } }, { root, rootMargin: '50%' });
+      watcher = { root, io };
+      for (const f of document.querySelectorAll('#board .frame')) if (f.make && f !== frame) io.observe(f);
+    }
+    watcher.io.observe(frame);
+  }
+  function unwatch(el) {
+    for (const f of el.matches('.frame') ? [el] : el.querySelectorAll('.frame')) watcher?.io.unobserve(f);
+  }
+  /** Give a frame what its place asks for: nothing away from the view, the picture far out, else the page. */
+  function fillFrame(frame) {
+    const want = !frame.near ? 'none' : frame.pic && ui.zoom < FAR && !phone() ? 'pic' : 'live';
+    if (frame.dataset.fill === want) return;
+    frame.dataset.fill = want;
+    frame.querySelector(':scope > iframe, :scope > img.pic')?.remove();
+    if (want === 'live') frame.append(frame.make());
+    else if (want === 'pic') frame.append(h('img', { class: 'pic', src: frame.pic, alt: '' }));
+  }
+  /** After a zoom across the far line, swap the pages and the pictures. */
+  function zoomFill() {
+    const far = ui.zoom < FAR;
+    if (far === wasFar) return;
+    wasFar = far;
+    for (const f of document.querySelectorAll('#board .frame')) if (f.pic) fillFrame(f);
   }
 
   // ------------------------------------------------------------ the board
@@ -182,7 +250,7 @@
     if (ui.area && s.area !== ui.area) return false;
     if (ui.workflow && !(s.workflows || []).includes(ui.workflow)) return false;
     if (ui.open && !s.openComments) return false;
-    if (ui.failing && !(s.failures || []).length) return false;
+    if (ui.failing && !failTotal(s)) return false;
     // A traced token or component leaves only the screens that use it.
     const t = ui.hover || ui.trace;
     if (t && !((t.kind === 'token' ? s.tokens : s.components) || []).includes(t.key)) return false;
@@ -277,70 +345,116 @@
     return { pos, places, labels };
   }
 
+  /** The number of check failures of a screen in one viewport and state, and in all. */
+  const failCount = (s, viewport, state) => (s.failureCounts ? s.failureCounts[`${viewport}|${state}`] ?? 0 : (s.failures || []).filter((f) => f.viewport === viewport && f.state === state).length);
+  const failTotal = (s) => s.failureTotal ?? (s.failures || []).length;
+
+  /**
+   * Draw the board. A card keeps its element and its page from one draw to the next: a page moves
+   * in the document only by a reload, so the draw moves, sizes and relabels the cards in place, and
+   * a new viewport or state changes the page with no reload. Only a new version makes new pages.
+   */
   function render() {
     // A resize can come before the data does.
     if (!data) return;
     const board = $('#board');
     const edges = $('#edges');
-    board.replaceChildren(edges);
     edges.replaceChildren();
+    for (const el of board.querySelectorAll(':scope > .area-label, :scope > .empty')) el.remove();
     const list = boardScreens();
     const past = versionAt(ui.version);
-    // The lanes show with the areas, and with the board as it is now: a past version keeps no lane.
-    const { left, right } = ui.view === 'grid' && !past ? lanes() : { left: [], right: [] };
+    const { left, right } = laneEls(board, past);
     const laneStep = LANE_W() + GAP_X;
-    // On a phone the board is one list, and the screens come first.
-    if (phone()) right.unshift(...left.splice(0));
-    left.forEach((l, i) => board.append(laneView(l, { x: -(left.length - i) * laneStep })));
+    left.forEach((el, i) => { el.style.left = `${-(left.length - i) * laneStep}px`; });
     if (!list.length) {
+      for (const c of board.querySelectorAll(':scope > .card')) { unwatch(c); c.remove(); }
       board.append(h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Run wf.mjs design screen add to add the first one.'));
-      right.forEach((l, i) => board.append(laneView(l, { x: 420 + GAP_X + i * laneStep })));
+      right.forEach((el, i) => { if (phone()) el.style.order = String(100000 + i); else el.style.left = `${420 + GAP_X + i * laneStep}px`; });
       if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
       return;
     }
     const { pos, places, labels } = autoLayout(list);
     const at = (s) => (ui.view === 'grid' && s.position ? s.position : pos[s.key]);
     if (!phone()) for (const l of labels) board.append(h('h2', { class: `area-label${l.slug ? ' slug' : ''}`, style: `left:${l.x}px;top:${l.y}px` }, l.slug ? l.text : cap(l.text), h('small', {}, l.sub ?? plural(l.n, 'screen'))));
-    const v = vp();
-    const scale = CARD_W() / v.width;
     const byKey = new Map(list.map((s) => [s.key, s]));
+    const old = new Map([...board.querySelectorAll(':scope > .card')].map((c) => [c.dataset.slot, c]));
+    const count = new Map();
     let edge = 0;
-    for (const place0 of places) {
+    places.forEach((place0, i) => {
       const s = byKey.get(place0.key);
+      // A screen of two slices has two cards: the slot tells them apart.
+      const n = count.get(s.key) ?? 0;
+      count.set(s.key, n + 1);
+      const slot = `${s.key}#${n}`;
       const p = ui.view === 'grid' && s.position ? s.position : place0;
       edge = Math.max(edge, p.x + CARD_W());
-      // The comments, the checks and the audit are of the page as it is now, not of a past version.
-      const failures = past ? [] : (s.failures || []).filter((f) => f.viewport === ui.viewport && f.state === ui.state);
-      const approved = (s.approvals || []).at(-1);
-      const draft = past ? null : draftOf(s);
-      const open = () => focus(s.key);
-      const frame = h('div', { class: 'frame', role: 'button', tabindex: '0', 'aria-label': `Open ${s.title}`, style: `height:${Math.round(v.height * scale)}px`, onclick: open,
-        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } }, frameFor(s.key, ui.state, ui.version || null));
-      const iframe = frame.firstChild;
-      iframe.style.width = `${v.width}px`;
-      iframe.style.height = `${v.height}px`;
-      iframe.style.transform = `scale(${scale})`;
-      const card = h('article', { class: `card${matches(s) ? '' : ' dim'}`, 'data-key': s.key, style: phone() ? '' : `left:${p.x}px;top:${p.y}px` },
-        frame,
-        h('header', { class: 'cap' },
-          h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
-            !past && s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
-            failures.length ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures.length, 'issue')) : null,
-            !past && auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
-            past ? h('span', { class: past.draft ? 'mark draft' : 'mark ok', title: past.reason }, past.draft ? 'Draft' : past.name)
-              : draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}` }, 'Draft')
-                : approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
-          h('div', { class: 'meta', title: metaOf(s) }, metaOf(s))));
-      if (!phone() && data.writable && ui.view === 'grid' && !past) dragCard(card.querySelector('.cap'), card, s);
-      board.append(card);
-    }
-    right.forEach((l, i) => board.append(laneView(l, { x: edge + GAP_X + i * laneStep })));
+      let card = old.get(slot);
+      old.delete(slot);
+      if (card && card.dataset.at !== (ui.version || '')) { unwatch(card); card.remove(); card = null; }
+      if (!card) {
+        card = newCard(s, slot);
+        board.append(card);
+      }
+      updateCard(card, s, past, p, i);
+    });
+    for (const c of old.values()) { unwatch(c); c.remove(); }
+    right.forEach((el, i) => { if (phone()) el.style.order = String(100000 + i); else el.style.left = `${edge + GAP_X + i * laneStep}px`; });
     if (ui.view === 'flow' && !phone()) drawEdges(list, at);
     // Arrange shows only while a dragged screen is out of its column.
     const moved = list.some((s) => s.position && (s.position.x !== pos[s.key].x || s.position.y !== pos[s.key].y));
     $('#arrange').hidden = !(data.writable && ui.view === 'grid' && !phone() && moved && !past);
     if (!ui.fitted && !phone()) { ui.fitted = true; fit(); } else place();
     applyFilter();
+  }
+  /** A new card: its frame makes the page of the screen when the frame comes near the view. */
+  function newCard(s, slot) {
+    const key = s.key;
+    const open = () => focus(key);
+    const frame = h('div', { class: 'frame', role: 'button', tabindex: '0', 'aria-label': `Open ${s.title}`, onclick: open,
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } });
+    const at = ui.version || '';
+    frame.make = () => sized(frameFor(key, frame.dataset.state, at || null));
+    const card = h('article', { class: 'card', 'data-key': key, 'data-slot': slot, 'data-at': at }, frame, h('header', { class: 'cap' }));
+    watch(frame);
+    return card;
+  }
+  /** Size a page to the viewport, and scale it to the width of a card. */
+  function sized(f) {
+    const v = vp();
+    f.style.width = `${v.width}px`;
+    f.style.height = `${v.height}px`;
+    f.style.transform = `scale(${CARD_W() / v.width})`;
+    return f;
+  }
+  /** Move, size and relabel a card for this draw, and give its page this state. */
+  function updateCard(card, s, past, p, i) {
+    const frame = card.firstChild;
+    const v = vp();
+    card.classList.toggle('dim', !matches(s));
+    card.style.cssText = phone() ? `order:${i}` : `left:${p.x}px;top:${p.y}px`;
+    frame.style.height = `${Math.round(v.height * CARD_W() / v.width)}px`;
+    frame.dataset.state = ui.state;
+    const live = frame.querySelector(':scope > iframe');
+    if (live) setFrameState(sized(live), s.key, ui.state, ui.version || null);
+    // An approval picture shows the default state at its viewport, and the page as it is now.
+    const pic = !past && s.picture && ui.state === 'default' && ui.viewport === data.pictureViewport ? `${BASE}${s.picture}` : null;
+    if (frame.pic !== pic) { frame.pic = pic; delete frame.dataset.fill; frame.querySelector(':scope > img.pic')?.remove(); }
+    fillFrame(frame);
+    // The comments, the checks and the audit are of the page as it is now, not of a past version.
+    const failures = past ? 0 : failCount(s, ui.viewport, ui.state);
+    const approved = (s.approvals || []).at(-1);
+    const draft = past ? null : draftOf(s);
+    const head = h('header', { class: 'cap' },
+      h('div', { class: 'cap-row' }, h('b', { title: s.title }, s.title),
+        !past && s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
+        failures ? h('span', { class: 'mark issue', title: 'Checks that fail in this viewport and state' }, plural(failures, 'issue')) : null,
+        !past && auditOf(s.key).length ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(auditOf(s.key).length, 'finding')) : null,
+        past ? h('span', { class: past.draft ? 'mark draft' : 'mark ok', title: past.reason }, past.draft ? 'Draft' : past.name)
+          : draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}` }, 'Draft')
+            : approved ? h('span', { class: 'mark ok', title: `Approved in ${approved.commit.slice(0, 8)}` }, 'Approved') : null),
+      h('div', { class: 'meta', title: metaOf(s) }, metaOf(s)));
+    card.lastChild.replaceWith(head);
+    if (!phone() && data.writable && ui.view === 'grid' && !past) dragCard(head, card, s);
   }
 
   // ------------------------------------------------------------ the lanes
@@ -349,9 +463,10 @@
   function thumb(src, width, height, label, onclick) {
     const w = LANE_W();
     const box = h('button', { type: 'button', class: 'frame', 'aria-label': label, style: `height:${Math.round(w * height / width)}px`, onclick });
-    if (!src) box.classList.add('blank');
-    else box.append(h('iframe', { src, title: label, loading: 'lazy', tabindex: '-1', scrolling: 'no', sandbox: 'allow-scripts allow-same-origin',
-      style: `width:${width}px;height:${height}px;transform:scale(${w / width})` }));
+    if (!src) { box.classList.add('blank'); return box; }
+    box.make = () => h('iframe', { src, title: label, tabindex: '-1', scrolling: 'no', sandbox: 'allow-scripts allow-same-origin',
+      style: `width:${width}px;height:${height}px;transform:scale(${w / width})` });
+    watch(box);
     return box;
   }
   const itemCap = (title, mark, meta) => h('div', { class: 'cap' }, h('div', { class: 'cap-row' }, h('b', { title }, title), mark), meta ? h('div', { class: 'meta', title: meta }, meta) : null);
@@ -397,9 +512,28 @@
       right: [lane('Components', components.length && data.components.length ? plural(data.components.length, 'part') : '', components), lane('Tokens', 'select one to trace it', tokens)].filter(Boolean),
     };
   }
-  function laneView(l, { x }) {
-    return h('section', { class: 'lane', 'aria-label': l.title, style: phone() ? '' : `left:${x}px;top:0;width:${LANE_W()}px` },
+  function laneView(l, side) {
+    return h('section', { class: 'lane', 'aria-label': l.title, 'data-side': side, style: phone() ? '' : `top:0;width:${LANE_W()}px` },
       h('h2', { class: 'lane-label' }, l.title, l.sub ? h('small', {}, l.sub) : null), ...l.items);
+  }
+  /**
+   * The lane elements of the board, left and right of the screens. They stay while their data is
+   * the same, so their pages do not load again; `render` places them. On a phone the board is one
+   * list, and every lane comes after the screens.
+   */
+  function laneEls(board, past) {
+    const on = ui.view === 'grid' && !past;
+    const sig = on ? JSON.stringify([phone(), LANE_W(), data.explore, data.references, data.components, data.noComponents, data.tokens, data.screens.map((s) => s.tokens)]) : '';
+    if (board.dataset.lanes !== sig) {
+      for (const el of board.querySelectorAll(':scope > .lane')) { unwatch(el); el.remove(); }
+      board.dataset.lanes = sig;
+      if (on) {
+        const { left, right } = lanes();
+        board.append(...left.map((l) => laneView(l, 'left')), ...right.map((l) => laneView(l, 'right')));
+      }
+    }
+    const els = [...board.querySelectorAll(':scope > .lane')];
+    return phone() ? { left: [], right: els } : { left: els.filter((e) => e.dataset.side === 'left'), right: els.filter((e) => e.dataset.side === 'right') };
   }
 
   function drawEdges(list, at) {
@@ -447,6 +581,7 @@
     stage.style.backgroundSize = `${g}px ${g}px`;
     stage.style.backgroundPosition = `${ui.x}px ${ui.y}px`;
     $('#zval').textContent = `${Math.round(ui.zoom * 100)}%`;
+    zoomFill();
   }
   function zoomTo(next, mx, my) {
     const z = Math.min(3, Math.max(0.15, next));
@@ -712,33 +847,51 @@
     const scale = focusScale(f);
     // A redraw of the same screen stays where the person scrolled it.
     const top = focusDrawn?.key === f.key ? focusScroller()?.scrollTop || 0 : 0;
-    focusDrawn = { scale, phone: phone(), key: f.key };
-    const view = h('div', { class: 'view' });
+    // The page of the screen stays while the screen, the version, the viewport, the scale and play
+    // stay: a toggle or a new state redraws the sheet around the page, and the page does not reload.
+    const liveKey = [s.key, ui.version, f.viewport, scale, f.play, phone()].join('|');
+    const kept = focusDrawn?.liveKey === liveKey ? $('#focus .view > .shot.now') : null;
+    focusDrawn = { scale, phone: phone(), key: f.key, liveKey };
+    const view = kept ? kept.parentElement : h('div', { class: 'view' });
     const named = past ? draftName(past) : 'Now';
-    const live = shot(f.compare || f.capture ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`, frameFor(s.key, f.state, ui.version || null), size, scale);
+    const caption = f.compare || f.capture ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)}, ${f.state} state${f.play ? ', playing' : ''}`;
+    const live = kept ?? shot(caption, frameFor(s.key, f.state, ui.version || null), size, scale);
+    live.classList.add('now');
     const ifr = live.querySelector('iframe');
     const screenDoc = () => { try { return ifr.contentDocument; } catch { return null; } };
     // The layer moves with the page of the screen, so the pins and the boxes stay on their elements.
     const layer = h('div', { class: 'layer' });
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` }, layer);
-    ifr.addEventListener('load', () => {
+    live.layer = layer;
+    if (kept) {
+      live.querySelector(':scope > .cap').textContent = caption;
+      live.querySelector(':scope > .overlay')?.remove();
+      for (const c of [...view.children]) if (c !== live) c.remove();
+      setFrameState(ifr, s.key, f.state, ui.version || null);
       const win = screenDoc()?.defaultView;
-      if (!win) return;
-      win.scrollTo({ top: f.scroll, behavior: 'instant' });
-      const follow = () => { f.scroll = win.scrollY; layer.style.transform = `translateY(${-win.scrollY * scale}px)`; };
-      win.addEventListener('scroll', follow);
-      follow();
-      focusScroller().scrollTop = top;
-    });
-    // In play, nothing covers the screen, so its links and controls take the pointer.
-    if (f.play) {
-      live.classList.add('playing');
-      ifr.removeAttribute('tabindex');
-      ifr.removeAttribute('scrolling');
-      ifr.addEventListener('load', () => playLinks(ifr));
-    } else live.append(overlay);
+      if (win) layer.style.transform = `translateY(${-win.scrollY * scale}px)`;
+    } else {
+      ifr.addEventListener('load', () => {
+        const win = screenDoc()?.defaultView;
+        if (!win) return;
+        win.scrollTo({ top: f.scroll, behavior: 'instant' });
+        const follow = () => { if (focusState) focusState.scroll = win.scrollY; live.layer.style.transform = `translateY(${-win.scrollY * scale}px)`; };
+        win.addEventListener('scroll', follow);
+        follow();
+        focusScroller().scrollTop = top;
+      });
+      // In play, nothing covers the screen, so its links and controls take the pointer.
+      if (f.play) {
+        live.classList.add('playing');
+        ifr.removeAttribute('tabindex');
+        ifr.removeAttribute('scrolling');
+        ifr.addEventListener('load', () => playLinks(ifr));
+      }
+    }
+    if (!f.play) live.append(overlay);
+    const fx = past ? { failures: [], failureGroups: [] } : failuresFor(s);
     if (f.checks && !past) {
-      for (const x of (s.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
+      for (const x of (fx?.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state)) {
         if (x.rect) layer.append(boxAt(x.rect, scale, CHECK_NAMES[x.check] || x.check, x.message));
       }
     }
@@ -819,18 +972,21 @@
       } else if (f.commenting && e.pointerType === 'mouse') outline(hovered, elementAt(e));
     });
     overlay.addEventListener('pointerleave', () => { hovered.hidden = true; });
-    view.append(live);
-    // On a touch screen, a sideways swipe over the screens walks to the next or the previous one.
-    let swipe = null;
-    view.addEventListener('pointerdown', (e) => { swipe = e.pointerType !== 'mouse' && !f.commenting ? { x: e.clientX, y: e.clientY } : null; });
-    view.addEventListener('pointercancel', () => { swipe = null; });
-    view.addEventListener('pointerup', (e) => {
-      if (!swipe) return;
-      const dx = e.clientX - swipe.x;
-      const dy = e.clientY - swipe.y;
-      swipe = null;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
-    });
+    // A kept page stays where it is: a page that moves in the document loads again.
+    if (!kept) {
+      view.append(live);
+      // On a touch screen, a sideways swipe over the screens walks to the next or the previous one.
+      let swipe = null;
+      view.addEventListener('pointerdown', (e) => { swipe = e.pointerType !== 'mouse' && !focusState?.commenting ? { x: e.clientX, y: e.clientY } : null; });
+      view.addEventListener('pointercancel', () => { swipe = null; });
+      view.addEventListener('pointerup', (e) => {
+        if (!swipe) return;
+        const dx = e.clientX - swipe.x;
+        const dy = e.clientY - swipe.y;
+        swipe = null;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+      });
+    }
     for (const n of otherSizes(f)) view.append(shot(cap(n), frameFor(s.key, f.state, ui.version || null), vp(n), scale));
     if (f.compare) view.append(shot(other ? draftName(other) : `At ${f.compare.slice(0, 8)}`, frameFor(s.key, f.state, f.compare), size, scale));
     if (f.capture) {
@@ -870,7 +1026,7 @@
       SNAP || !versions.length ? null : h('label', {}, 'Compare', sel(['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'Nothing'], ...versions]))));
     const openN = s.threads.filter((t) => t.open).length;
     const shown = s.threads.filter((t) => f.all || t.open);
-    const failures = groupsOf(s);
+    const failures = fx ? groupsOf(fx) : null;
     const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
     const side = h('section', { class: 'side' }, versionList(s, f), past ? null : [
       h('h3', {}, 'Comments', openN ? h('span', { class: 'count' }, String(openN)) : null,
@@ -887,14 +1043,19 @@
         }))] : null,
       s.tokens?.length ? [h('h3', {}, 'Tokens', h('span', { class: 'count' }, String(s.tokens.length))),
         h('div', { class: 'chips' }, ...s.tokens.map((t) => h('button', { type: 'button', title: `${data.tokens.find((x) => x.name === t)?.value ?? 'Not in the token sheet'}. Show the screens that use it.`, onclick: () => traceFrom({ kind: 'token', key: t }) }, t)))] : null,
-      h('h3', {}, 'Checks', failures.length ? h('span', { class: 'count' }, String(failures.length)) : null),
-      failures.length ? failures.map((x) => h('div', { class: 'check' },
+      h('h3', {}, 'Checks', failures?.length ? h('span', { class: 'count' }, String(failures.length)) : null),
+      !failures ? h('p', { class: 'none' }, 'Loading the checks.') : failures.length ? failures.map((x) => h('div', { class: 'check' },
         h('b', {}, CHECK_NAMES[x.check] || x.check), x.places > 1 ? h('span', { class: 'sev' }, `${x.places} places`) : null,
         h('p', {}, x.message),
         h('small', {}, `${x.viewports.length ? `${list(x.viewports.map(cap))}, ` : ''}${list(x.states) || 'every'} state${x.states.length > 1 ? 's' : ''}.${x.move ? ` The ${x.move} move fixes it.` : x.check === 'script' ? ' Fix the script of the screen page.' : x.check === 'version' ? ' Save a round, or restore the version.' : x.check === 'component' ? ' Use a component of the library, or add the part to it.' : ''}`)))
         : h('p', { class: 'none' }, 'No check fails.'),
       findings.length ? [h('h3', {}, 'Audit', h('span', { class: 'count' }, String(findings.length))), ...findings.map((x) => findingView(x))] : null]);
-    $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
+    const sheet = kept && $('#focus .sheet');
+    if (sheet) {
+      sheet.querySelector(':scope > header').replaceWith(header);
+      sheet.querySelector(':scope > .tools').replaceWith(tools);
+      sheet.querySelector(':scope > .side').replaceWith(side);
+    } else $('#focus').replaceChildren(h('div', { class: 'sheet' }, header, tools, view, side));
   }
   /** Close the screen view, and show on the board the screens that use a token or a component. */
   function traceFrom(t) {
@@ -923,6 +1084,7 @@
    */
   function groupsOf(s) {
     if (Array.isArray(s.failureGroups)) return s.failureGroups;
+    if (!s.failures) return [];
     const groups = new Map();
     for (const x of s.failures || []) {
       const k = `${x.check}|${x.cause ?? x.message}`;
@@ -994,7 +1156,7 @@
   }
   /** The screens with a failing check, and the open comments of the board. */
   function reviewCounts() {
-    const failing = data.screens.filter((s) => (s.failures || []).length);
+    const failing = data.screens.filter((s) => failTotal(s));
     const commented = data.screens.filter((s) => s.openComments);
     return { failing, commented, comments: commented.reduce((n, s) => n + s.openComments, 0) };
   }
@@ -1060,10 +1222,18 @@
   }
   async function post(key, body) {
     const r = await fetch(`${BASE}comments/${key}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, author: author() }) });
-    if (!r.ok) { say(`Not saved: ${(await r.json().catch(() => ({}))).reason || r.status}`); return; }
-    const keep = focusState && { ...focusState };
-    await load();
-    if (keep) { focusState = keep; focusState.commenting = false; drawFocus(); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { say(`Not saved: ${j.reason || r.status}`); return; }
+    // The answer carries the threads of the screen: only that screen and its counts change.
+    const s = data.screens.find((x) => x.key === key);
+    if (s && Array.isArray(j.threads)) {
+      s.threads = j.threads;
+      s.openComments = j.threads.filter((t) => t.open).length;
+      for (const c of data.cards) if (c.screens.some((x) => x.key === key)) c.openComments = c.screens.reduce((n, x) => n + (data.screens.find((y) => y.key === x.key)?.openComments ?? 0), 0);
+      drawHealth();
+      render();
+    } else await load();
+    if (focusState) { focusState.commenting = false; drawFocus(); }
     say('Saved');
   }
 

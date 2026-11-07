@@ -12,7 +12,7 @@ import { addScreen, initSurface, readManifest, screenFile, setViewports } from '
 import { addComment, openThreads, writeChecks } from '../../../lib/design-records.mjs';
 import { addReference, checkReferences, readReferences } from '../../../lib/design-references.mjs';
 import { runDesign } from '../../../lib/design-cli.mjs';
-import { canvasState, snapshotHtml, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
+import { canvasState, screenFailures, snapshotHtml, stateStamp, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
 
 function repo() {
   const top = mkdtempSync(join(tmpdir(), 'design-state-'));
@@ -135,5 +135,24 @@ test('the canvas state sends the failure groups of each screen, so the canvas co
       { check: 'token', cause: '#1a74e8', message: 'The color #1a74e8 of .a is not a token', move: 'colorize', screens: ['pay'], viewports: ['phone'], states: ['default'], places: 2 },
     ]);
     assert.deepEqual(s.screens.find((x) => x.key === 'basket').failureGroups, []);
+  } finally { done(); }
+});
+
+test('the slim state holds failure counts, and the stamp changes only with a file that the state reads', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    writeChecks(root, { at: '2026-11-07T10:00:00Z', passed: false, failures: [
+      { screen: 'pay', check: 'contrast', viewport: 'phone', state: 'default', message: 'low' },
+      { screen: 'pay', check: 'contrast', viewport: 'phone', state: 'default', message: 'low too' },
+      { screen: 'pay', check: 'states', viewport: null, state: null, message: 'no worst state' }] });
+    const pay = canvasState(root, { full: false }).screens[0];
+    assert.deepEqual([pay.failures, pay.failureGroups, pay.failureCounts, pay.failureTotal], [undefined, undefined, { 'phone|default': 2 }, 3]);
+    assert.equal(screenFailures(root, 'pay').failures.length, 3);
+    const before = stateStamp(root);
+    assert.equal(stateStamp(root), before, 'nothing changed');
+    writeFileSync(screenFile(root, 'pay'), '<html><body><section data-state="default">new</section></body></html>');
+    assert.notEqual(stateStamp(root), before, 'a changed page changes the stamp');
   } finally { done(); }
 });

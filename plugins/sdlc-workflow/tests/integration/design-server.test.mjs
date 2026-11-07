@@ -72,7 +72,14 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
 
     const c = await post(port, '/r/shop/comments/basket', { text: 'Bigger total', author: 'po', anchor: { x: 0.5, y: 0.5, state: 'default' } });
     assert.equal(c.status, 200);
-    assert.equal(JSON.parse((await raw(port, '/r/shop/state.json')).text).screens[0].openComments, 1);
+    assert.equal(JSON.parse(c.text).threads.length, 1, 'the answer carries the threads of the screen');
+    const fresh = await raw(port, '/r/shop/state.json');
+    const slim = JSON.parse(fresh.text).screens[0];
+    assert.deepEqual([slim.openComments, slim.failures, slim.failureTotal], [1, undefined, 0], 'the state holds the counts of the failures, not the failures');
+    assert.ok(fresh.headers.etag, 'the state has an ETag');
+    assert.equal((await raw(port, '/r/shop/state.json', { headers: { 'if-none-match': fresh.headers.etag } })).status, 304, 'an unchanged state is not sent again');
+    assert.deepEqual(JSON.parse((await raw(port, '/r/shop/failures/basket.json')).text), { failures: [], failureGroups: [] });
+    assert.equal((await raw(port, '/canvas/canvas.js', { headers: { 'accept-encoding': 'gzip' } })).headers['content-encoding'], 'gzip');
     assert.equal((await post(port, '/r/shop/comments/ghost', { text: 'x' })).status, 400, 'no comment on a screen that does not exist');
     assert.equal((await raw(port, '/r/shop/comments/basket', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{"text":"x"}' })).status, 403, 'a write must be JSON');
     assert.equal((await post(port, '/r/shop/comments/basket', { text: 'x' }, { origin: 'http://evil.test' })).status, 403, 'a write from another page is refused');

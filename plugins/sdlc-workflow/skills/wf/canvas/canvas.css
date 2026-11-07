@@ -90,6 +90,8 @@ select { appearance: none; border: 1px solid var(--line); border-radius: 8px; ba
 .frame:hover { box-shadow: var(--raise); }
 .frame:focus-visible { outline-offset: 4px; }
 .frame iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
+/* Zoomed far out, a card shows the approval picture of its page in place of the live page. */
+.frame img.pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; pointer-events: none; }
 .card .cap { padding: 10px 2px 0; cursor: move; user-select: none; touch-action: none; }
 .cap-row { display: flex; align-items: center; gap: 8px; }
 .cap-row b { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

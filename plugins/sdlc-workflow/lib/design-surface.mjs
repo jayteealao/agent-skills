@@ -244,15 +244,18 @@ export function addScreen(root, key, { title = null, area = null, flow = null, o
   return { key, created, screen: s, file };
 }
 
-/** The screens, with their states and links read from the pages; `workflow` filters to one workflow. */
-export function listScreens(root, { workflow = null } = {}) {
+/**
+ * The screens, with their states and links read from the pages; `workflow` filters to one workflow.
+ * With `withHtml`, each screen also carries its page text, so a caller reads each page once.
+ */
+export function listScreens(root, { workflow = null, withHtml = false } = {}) {
   const m = readManifest(root);
   return Object.entries(m.screens)
     .filter(([, s]) => !workflow || (s.workflows ?? []).includes(workflow))
     .map(([key, s]) => {
       const file = screenFile(root, key);
       const html = existsSync(file) ? readFileSync(file, 'utf8') : '';
-      return { key, ...s, exists: Boolean(html), states: statesOf(html), links: linksOf(html) };
+      return { key, ...s, exists: Boolean(html), states: statesOf(html), links: linksOf(html), ...(withHtml ? { html } : {}) };
     })
     .sort((a, b) => String(a.area ?? '').localeCompare(String(b.area ?? '')) || String(a.flow ?? '').localeCompare(String(b.flow ?? '')) || (a.order ?? 999) - (b.order ?? 999) || a.key.localeCompare(b.key));
 }

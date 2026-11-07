@@ -4,15 +4,16 @@
 // It holds the screens with their states, links, approvals, history, open comments and check
 // failures; the versions of each workflow; the positions of the layout; the explore sketches; the references with their check;
 // the token sheet; the design decisions of the workflows; and one design card per slice.
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { liveDecisions, readDecisions } from './decisions.mjs';
-import { capturesOf, groupFailures, readComments, readChecks } from './design-records.mjs';
+import { approvalPicture, capturesIndex, designRecordsDir, groupFailures, readComments, readChecks } from './design-records.mjs';
 import { versionsOf } from './design-versions.mjs';
 import { componentsUsed, listComponents } from './design-components.mjs';
-import { COMPONENTS_FILE, LAYOUT_FILE, STATES, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir, tokensOf } from './design-surface.mjs';
+import { COMPONENTS_FILE, LAYOUT_FILE, SCREENS_DIR, STATES, SURFACE_REL, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir, tokensOf } from './design-surface.mjs';
 
 export { tokensOf };
 import { checkReferences } from './design-references.mjs';
@@ -30,14 +31,104 @@ export function tokensUsed(html) {
   return [...new Set([...String(html ?? '').matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1]))].sort();
 }
 
-/** The commits that changed a screen page, newest first. */
-function historyOf(root, key, limit = 20) {
-  const r = spawnSync('git', ['-C', root, 'log', `-${limit}`, '--format=%H%x09%cI%x09%s', '--', screenRel(key)], { encoding: 'utf8', windowsHide: true });
-  if (r.status !== 0) return [];
-  return r.stdout.split('\n').filter(Boolean).map((l) => {
-    const [commit, at, subject] = l.split('\t');
-    return { commit, at, subject };
-  });
+/**
+ * The commits that changed each screen page, newest first, `limit` for each page: a Map from the
+ * page path to `[{ commit, at, subject }]`. One git log covers every page, because one log for
+ * each page costs a walk of the whole history for each page.
+ */
+function historyAll(root, limit = 20) {
+  const r = spawnSync('git', ['-C', root, 'log', '--format=%x1e%H%x09%cI%x09%s', '--name-only', '--', `${SURFACE_REL}/${SCREENS_DIR}`],
+    { encoding: 'utf8', windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  const out = new Map();
+  if (r.status !== 0) return out;
+  for (const block of r.stdout.split('\x1e').slice(1)) {
+    const [head, ...files] = block.split('\n');
+    const [commit, at, ...subject] = head.split('\t');
+    for (const f of files) {
+      if (!f) continue;
+      if (!out.has(f)) out.set(f, []);
+      const list = out.get(f);
+      if (list.length < limit) list.push({ commit, at, subject: subject.join('\t') });
+    }
+  }
+  return out;
+}
+
+/** The screen pages that differ from the last commit: one git status for every page. */
+function dirtyPages(root) {
+  const r = spawnSync('git', ['-C', root, 'status', '--porcelain', '--untracked-files=all', '--', `${SURFACE_REL}/${SCREENS_DIR}`], { encoding: 'utf8', windowsHide: true });
+  return new Set(r.status === 0 ? r.stdout.split('\n').filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '')) : []);
+}
+
+/**
+ * The approval picture of a screen when it still shows the page: the approval commit is the newest
+ * commit of the page, and the page has no change since. The board shows it in place of a live
+ * page when it is zoomed far out. The approval takes it in the default state at one viewport.
+ */
+function currentPicture(root, s, history, dirty) {
+  const a = (s.approvals ?? []).at(-1);
+  if (!a?.commit || history[0]?.commit !== a.commit || dirty.has(screenRel(s.key))) return null;
+  return existsSync(approvalPicture(root, a.commit, s.key)) ? `approvals/${a.commit}/${s.key}.png` : null;
+}
+
+/**
+ * The check failures of one screen, as the board needs them: the count for each viewport and state
+ * (`"<viewport>|<state>"`), and the total. The canvas reads the failures themselves only for the
+ * screen that it opens.
+ */
+function failureCounts(failures) {
+  const counts = {};
+  for (const f of failures) if (f.viewport && f.state) counts[`${f.viewport}|${f.state}`] = (counts[`${f.viewport}|${f.state}`] ?? 0) + 1;
+  return counts;
+}
+
+// The git folder of each repo, found once: a commit changes its `HEAD` reflog.
+const gitDirs = new Map();
+function gitDirOf(root) {
+  if (!gitDirs.has(root)) {
+    const r = spawnSync('git', ['-C', root, 'rev-parse', '--absolute-git-dir'], { encoding: 'utf8', windowsHide: true });
+    gitDirs.set(root, r.status === 0 ? r.stdout.trim() : null);
+  }
+  return gitDirs.get(root);
+}
+function statsOf(dir, recursive, out) {
+  let names = [];
+  try { names = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const d of names) {
+    const p = join(dir, d.name);
+    if (d.isDirectory()) { if (recursive) statsOf(p, true, out); continue; }
+    try { const s = statSync(p); out.push(`${p}\t${s.size}\t${s.mtimeMs}`); } catch { /* it went away */ }
+  }
+}
+/**
+ * A stamp of every file that the canvas state reads: the surface, the design records, the files of
+ * each workflow of the screens, the references, and the git history. The state is the same while
+ * the stamp is the same, so the design server keeps one state for each stamp. It stats files and
+ * reads none, so it costs milliseconds where a build costs seconds.
+ */
+export function stateStamp(root) {
+  const out = [];
+  statsOf(surfaceDir(root), true, out);
+  statsOf(designRecordsDir(root), true, out);
+  const m = readManifest(root);
+  for (const w of new Set(Object.values(m.screens).flatMap((s) => s.workflows ?? []))) statsOf(workflowDir(root, w), false, out);
+  for (const r of readJson(join(surfaceDir(root), 'references.json'), {}).references ?? []) {
+    if (!r?.file) continue;
+    try { const s = statSync(resolve(root, r.file)); out.push(`${r.file}\t${s.size}\t${s.mtimeMs}`); } catch { out.push(`${r.file}\tmissing`); }
+  }
+  const git = gitDirOf(root);
+  if (git) {
+    for (const f of ['HEAD', join('logs', 'HEAD')]) {
+      try { const s = statSync(join(git, f)); out.push(`${f}\t${s.size}\t${s.mtimeMs}`); } catch { /* no reflog */ }
+    }
+  }
+  return createHash('sha1').update(out.join('\n')).digest('hex').slice(0, 20);
+}
+
+/** The check failures of one screen and their groups, for the screen that the canvas opens. */
+export function screenFailures(root, key) {
+  const failures = (readChecks(root)?.failures ?? []).filter((f) => f.screen === key);
+  return { failures, failureGroups: groupFailures(failures) };
 }
 
 /** The lines of a `## <heading>` section of a record body. */
@@ -108,28 +199,46 @@ function designDecisions(root, workflows) {
   return out;
 }
 
-/** The whole canvas state of a repo. */
-export function canvasState(root, { repo = null, writable = true } = {}) {
+/**
+ * The whole canvas state of a repo. The design server asks for it with `full: false`: then a screen
+ * carries the counts of its failures, not the failures and their groups, which the server serves
+ * for one screen at `failures/<key>.json` (`screenFailures`). The CLI and a published snapshot keep
+ * the failures.
+ */
+export function canvasState(root, { repo = null, writable = true, full = true } = {}) {
   const m = readManifest(root);
   const checks = readChecks(root);
   const layout = readJson(join(surfaceDir(root), LAYOUT_FILE), {});
   const tokensCss = existsSync(join(surfaceDir(root), TOKENS_FILE)) ? readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8') : '';
-  const screens = listScreens(root).map((s) => {
-    const html = existsSync(screenFile(root, s.key)) ? readFileSync(screenFile(root, s.key), 'utf8') : '';
+  const history = historyAll(root);
+  const dirty = dirtyPages(root);
+  const captures = capturesIndex(root);
+  const failuresOf = new Map();
+  for (const f of checks?.failures ?? []) {
+    if (!failuresOf.has(f.screen)) failuresOf.set(f.screen, []);
+    failuresOf.get(f.screen).push(f);
+  }
+  // Each page is read once: for its states and links, its tokens, and its components.
+  const listed = listScreens(root, { withHtml: true });
+  const used = new Map(listed.map((s) => [s.key, componentsUsed(s.html)]));
+  const screens = listed.map(({ html, ...s }) => {
     const threads = readComments(root, s.key).threads;
-    const failures = (checks?.failures ?? []).filter((f) => f.screen === s.key);
+    const failures = failuresOf.get(s.key) ?? [];
+    const changes = history.get(screenRel(s.key)) ?? [];
     return {
       ...s,
       tokens: tokensUsed(html),
-      components: componentsUsed(html),
-      history: historyOf(root, s.key),
+      components: used.get(s.key),
+      history: changes,
+      picture: currentPicture(root, s, changes, dirty),
       threads,
       openComments: threads.filter((t) => t.open).length,
-      failures,
       // One entry for each cause, with its places: the canvas lists these, the CLI prints the same groups.
-      failureGroups: groupFailures(failures),
+      ...(full ? { failures, failureGroups: groupFailures(failures) } : {}),
+      failureCounts: failureCounts(failures),
+      failureTotal: failures.length,
       position: layout.positions?.[s.key] ?? null,
-      captures: capturesOf(root, s.key),
+      captures: captures.get(s.key) ?? [],
     };
   });
   const workflows = [...new Set(screens.flatMap((s) => s.workflows ?? []))].sort();
@@ -138,6 +247,8 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
     repo,
     writable,
     viewports: m.viewports,
+    // The viewport of the approval pictures (design-check.mjs captureScreens).
+    pictureViewport: m.viewports?.desktop ? 'desktop' : Object.keys(m.viewports ?? {})[0] ?? null,
     states: STATES,
     areas: m.areas,
     workflows,
@@ -146,7 +257,7 @@ export function canvasState(root, { repo = null, writable = true } = {}) {
     explore: listExplore(root),
     references: checkReferences(root).references,
     tokens: tokensOf(tokensCss),
-    components: listComponents(root),
+    components: listComponents(root, { uses: listed.map((s) => ({ key: s.key, components: used.get(s.key) })) }),
     noComponents: m['no-components'] ?? null,
     decisions: designDecisions(root, workflows),
     cards: designCards(root, screens, checks),

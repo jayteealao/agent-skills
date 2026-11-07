@@ -103,9 +103,12 @@ function usesOf(root, { workflow = null } = {}) {
     components: s.exists ? componentsUsed(readFileSync(screenFile(root, s.key), 'utf8')) : [] }));
 }
 
-/** The components, each with the screens that use it. `workflow` keeps the components of one workflow. */
-export function listComponents(root, { workflow = null } = {}) {
-  const uses = usesOf(root);
+/**
+ * The components, each with the screens that use it. `workflow` keeps the components of one
+ * workflow. A caller that read the screen pages passes `uses`, `[{ key, components }]`.
+ */
+export function listComponents(root, { workflow = null, uses = null } = {}) {
+  uses ??= usesOf(root);
   const of = workflow ? new Set(usesOf(root, { workflow }).flatMap((s) => s.components)) : null;
   return Object.entries(readManifest(root).components)
     .filter(([key, c]) => !of || of.has(key) || (c.workflows ?? []).includes(workflow))
