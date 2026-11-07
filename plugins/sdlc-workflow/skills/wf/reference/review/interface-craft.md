@@ -38,7 +38,10 @@ The terms and values come from `design/animate.md`; `design/_platforms.md` gives
 - **One inherited value driving a child's motion is MED**: every child recalculates each frame.
 - **Duration over 300 ms on an Operate or Read surface, with no stated reason, is MED**: a 180 ms dropdown feels more responsive than a 400 ms one.
 - **Symmetric timing on a press-and-hold is LOW**: slow in the deliberate phase, snap in the response.
-- **A built-in curve on a deliberate animation, or a group that enters at once where a 30–80 ms stagger belongs, is LOW.**
+- **A stagger on a high-frequency or keyboard surface is MED**: each use waits for it.
+- **A parent entrance with staggered children is MED**: two layers of entrance.
+- **A uniform stagger is LOW**: equal gaps move like a metronome.
+- **A built-in curve on a deliberate animation is LOW.**
 - **What is the design mode of the surface — Persuade, Operate, Read or Experience?** The Persuade and Experience relaxation never relaxes the performance, accessibility, or retargeting rules.
 - **What platform and motion library are in play?** (They decide the platform forms and the failure modes.)
 - **Are any of these gesture-driven?** Gestures: pointer capture once a drag starts, extra touch points ignored, dismiss on flick velocity, velocity handed to the settling spring, and rubber-banding past an edge.

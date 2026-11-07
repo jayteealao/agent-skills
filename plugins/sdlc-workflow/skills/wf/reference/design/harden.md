@@ -112,7 +112,7 @@ Load each surface with the worst data a real person or system can produce, and r
 4. **Break it.** Render the worst case at the narrowest supported width and with the environment rows applied. Record every break.
 5. **Report, then stop.** Fix only on request.
 
-**People and names** — very long and hyphenated (`Aleksandra Wiśniewska-Kowalczyk`); long with a suffix (`Christopher Alexander Montgomery III`, naive initials give `CI`); two letters and one letter (`Jo`, `J`); a leading accented capital (`Ólafur Darri Ólafsson`); stacked diacritics clipped by a tight line height (`Đặng Thị Ngọc Hân`); CJK with no spaces (`王秀英`); right-to-left (`نور الهدى عبد الرحمن`); apostrophes and lowercase particles (`Seán O'Brien-Ó Súilleabháin`, `María José de la Cruz y Fernández`); all lowercase (`dana`); an emoji first or a joined emoji sequence (`🦊 Fox`, `👩🏽‍💻 Priya`), which naive character slicing splits; leading, trailing and repeated spaces; no name at all.
+**People and names** — very long and hyphenated (`Aleksandra Wiśniewska-Kowalczyk`); long with a suffix (`Christopher Alexander Montgomery III`, naive initials give `CI`); two letters and one letter (`Jo`, `J`); a leading accented capital (`Ólafur Darri Ólafsson`); stacked diacritics clipped by a tight line height (`Đặng Thị Ngọc Hân`); CJK with no spaces (`王秀英`); right-to-left (`نور الهدى عبد الرحمن`); a Persian name with a zero-width non-joiner (`می‌خواهم`); apostrophes and lowercase particles (`Seán O'Brien-Ó Súilleabháin`, `María José de la Cruz y Fernández`); all lowercase (`dana`); an emoji first or a joined emoji sequence (`🦊 Fox`, `👩🏽‍💻 Priya`), which naive character slicing splits; leading, trailing and repeated spaces; no name at all.
 
 **Emails, URLs and identifiers** — unbreakable strings with nowhere to wrap: a 60-character email, the shortest realistic email (`a@b.co`), plus-addressing, many subdomains with a two-part TLD, a long URL whose differing part is at the end, a UUID, a long file name whose version and extension end-truncation hides, a camera file name, handle extremes (`@a`, a 35-character handle).
 
@@ -143,6 +143,10 @@ Load each surface with the worst data a real person or system can produce, and r
 - Leave 30–40% spare space for translation.
 - Never fix the width of a text container.
 - Test with CJK text, emoji and a right-to-left script.
+- Keep the zero-width non-joiner (U+200C) in Persian and Kurdish text. It splits the joined letters of a compound word, and a filter that strips it changes the meaning.
+- Store the Persian and the Arabic forms of Yeh (ی, ي) and Kaf (ک, ك) as typed. For search and validation, treat each pair as one letter, so input from either keyboard matches.
+- Show digits with the locale formatter. Persian and Arabic locales use Eastern Arabic-Indic digits.
+- Use the calendar of the locale: the Solar Hijri calendar for Persian, and the Hijri calendar for many Arabic locales.
 
 ### 13. Concurrent operations
 
@@ -205,6 +209,6 @@ Focus: accessibility and robustness. Checks: the checks above, including the wor
 
 ---
 
-> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`; the Arabic-script rules from `687bc381b`), Apache-2.0.*
 
 > *The worst-case catalog is adapted from Emil Kowalski's `break-ui` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). MIT license.*

@@ -25,6 +25,21 @@ Each recipe is platform-neutral. The terms (cheap property, retargetable animati
 | Crossfade that will not settle | State swap | blur 0 → 2 px → 0, opacity 1 → 0.7 → 1 | `ease`, 200 ms | — | Plain crossfade |
 | Contextual icon swap | State change | opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0 | spring `duration 0.3 s, bounce 0` | Center | Opacity only |
 
+## Choreography recipes
+
+The method and the rules are in [animate.md](animate.md) → Choreography. A form that this table does not name for a platform has the generic rule only.
+
+| Relationship | Web | iOS (SwiftUI) | Android (Compose) |
+|---|---|---|---|
+| Overlap that varies | CSS: an `--index` on each item times a delay variable, with `animation-fill-mode: both`. Motion: `delayChildren: stagger(step, { ease })` on the parent | A delay for each item: `.animation(.easeOut.delay(…), value:)` | `AnimatedVisibility` with `fadeIn(tween(delayMillis = …))` for each index |
+| Together: leave and close the gap | Motion `AnimatePresence mode="popLayout"` | `.transition` on the item, with the list change in `withAnimation` | `Modifier.animateItem()` in a lazy list |
+| Together: swap views in a container that resizes | `popLayout`, with the height measured and animated | `.transition(.opacity)` in a container that animates its frame | `AnimatedContent` with `SizeTransform` |
+| Sequence: one draw after another | The second delay equals the first duration; `animation-fill-mode: forwards` | `withAnimation(…) { } completion: { }` (iOS 17), or a delay | Two `Animatable` values; `animateTo` the second after the first |
+| Carry: move the parent | Animate the parent's `layout` | `matchedGeometryEffect` on the container | `SharedTransitionLayout` with `Modifier.sharedElement` on the container |
+| Coordinate across events | Motion `useAnimate`, and `await Promise.all` before a chain | `async` code that awaits each `withAnimation` completion | A coroutine that calls `animateTo` in order |
+
+Use the imperative form only when several elements coordinate across several events (hover, press, an idle timer) and the next step waits for the last. It is harder to maintain, so a plain stagger never uses it.
+
 ## Notes for each recipe
 
 - **Press feedback.** Applies to any pressable element. Scale also scales the label and icons, which reads as a physical press. A press is not hover: it needs no hover-pointer gate. On iOS and Android, pair it with the platform's light haptic only where the press commits something. Give the component a way to turn the scale off for toolbars of fast-repeated controls.
@@ -34,7 +49,7 @@ Each recipe is platform-neutral. The terms (cheap property, retargetable animati
 - **Drawer.** An offset relative to the element's own height works whatever the content. Add drag and it becomes the drag-to-dismiss recipe.
 - **Toast.** `ease` and a slightly longer time than typical UI make it read as elegant; this matches Sonner's personality, not the generic budget. When stacked toasts reflow, tune opacity against height by eye, then check again the next day. Use a retargetable animation: toasts arrive faster than a restarting animation can finish.
 - **Accordion.** One of the few tolerated layout animations; keep it short. Measure the content height; do not animate to an unknown size.
-- **Group entrance.** Only for a screen seen occasionally, never for a list the person scrolls past all day. The stagger never blocks interaction.
+- **Group entrance.** Only for a screen seen occasionally, never for a list the person scrolls past all day. The stagger never blocks interaction. Vary the gaps by importance, never one equal gap ([animate.md](animate.md) → Choreography).
 - **Hold to confirm.** For destructive actions where a plain tap is too easy. The fill is linear because it is a progress indicator. The release snaps back fast: slow where the person decides, fast where the system responds.
 - **Tab indicator with color.** Duplicate the tab list, style the copy as active, and clip the copy so only the active tab shows. Text and background change in sync, because one element is revealed instead of two colors interpolating.
 - **Scroll reveal.** Persuade and Experience surfaces only, and only once per element. Re-animating on every scroll-by fights the reader.

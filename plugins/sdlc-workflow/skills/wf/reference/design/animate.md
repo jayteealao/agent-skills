@@ -59,6 +59,8 @@ Before you build, write four lines:
 
 Take the focal moment from this product. A generic fade-and-rise is not a thesis.
 
+When two or more elements move on one event, add the **timeline** of [Choreography](#choreography): one row for each moving element, in start order, with its role, start, duration, motion and relationship. Then list 2–5 elements that you kept still, each with the reason.
+
 ## The opportunity sweep
 
 When the job is to find where motion belongs, sweep the interface before you build. Expect to reject most candidates.
@@ -155,7 +157,26 @@ Express a spring as a **duration and a bounce** (`duration 0.5 s, bounce 0.2`); 
 
 ## Choreography
 
-- **Stagger a group entrance 30–80 ms per item.** Longer feels slow. A stagger is decorative: never block interaction while it plays.
+Good choreography cuts moving parts and runs the rest together. Sequence only when the order carries meaning: the reading order, a cause and its effect, or one thing that must arrive before another. A good sequence reads as one wave; a bad one reads as a queue.
+
+1. **Cast.** List each element that moves on the event. Give each one a role. The **lead** is the one thing the person must notice: it moves first and travels the farthest. **Support** follows with less motion. **Decoration** only fades, or does not move. **Static** does not move: a container whose content animates is static. When two elements want to be the lead, the hierarchy has a problem that motion cannot fix: say so.
+2. **Relate each pair.** **Together**: one object or one moment; the same start and the same timing family. **Overlap**: a stagger; the second starts while the first moves. **Sequence**: the second starts as the first ends, with a small overlap; only when both at once look broken (two dense views in a container that resizes in both directions, one element that passes through another, a draw and its effect). **Carry**: animate the parent, and the children move with it.
+3. **Sync** each secondary motion to a moment of the lead (its start, its impact or its settle), never to a delay that looks about right. Accents land with the lead, in the last 20% of its time. A repeat action skips the build-up.
+4. **Scale the time to the change.** Derive the duration from the distance and clamp it, for example 150–270 ms for a resize. Give a small element more bounce than a large one. With only a few states, tune each transition by hand.
+
+The rules:
+- **One entrance per container.** When the panel moves in, its content is already there. Never animate a parent's entrance and stagger its children too.
+- **No stagger on a high-frequency or keyboard surface:** menus, dropdowns, command palettes, tab content, list rows. The items appear together.
+- **No uniform stagger.** Equal gaps move like a metronome. Vary the delay and the travel by importance: the lead travels the farthest, and the gaps shrink along the group.
+- **Product UI: 30–80 ms between items, with the whole group done in about 300 ms.** Stagger only the first few items of a long list; the rest arrive with the last of them. A Persuade or Experience first-run moment may use 100–150 ms steps on 0.5–0.6 s entrances.
+- **Order follows importance, not the order of the code.** A title and its first line can be one beat.
+- **Direction follows the reading direction or the cause:** top to bottom for content, outward from the point of a tap. Forward enters from the end edge, back from the start edge.
+- **An element that leaves stops taking space at once,** so its siblings close the gap while it fades. A view swap in one container is a crossfade, not a wait.
+- **Exits are simultaneous, shorter and simpler.** Never stagger an exit; the person decided to leave.
+- **Choreography never blocks interaction.** An element is usable as soon as it shows.
+- **A sequence survives interruption.** A re-trigger stops the motion in flight before it starts new motion. A loop resumes only after every reset ends.
+- **Reduced motion collapses the choreography:** no delays, no movement, the opacity kept, the group shown together. A sequence that is the explanation jumps between its frames.
+- **An attention loop** (a hint that taps or wiggles) runs first after about 2.5 s, repeats about every 6 s, and stops while the person interacts.
 - **Never give every section the same entrance.** A fade-and-rise on each scrolled section is a template. Keep one authored moment.
 - **Split a large entrance into semantic chunks** (title, description, actions) rather than moving one big container; combine opacity, a small offset (≈12 px) and, where cheap, a light blur (≈4 px) per chunk.
 - **Contextual icon swaps** (play → pause, like → liked): opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0, spring `duration 0.3 s, bounce 0`. Animate only contextual icons; leave navigation and decorative icons alone. When no library is present, keep both icons mounted and cross-fade them with a retargetable animation on the curve `0.2, 0, 0, 1`.
@@ -225,7 +246,10 @@ Swap down a tier: a size change becomes scale; a position change becomes an offs
 | App-thread motion that plays during heavy work | Render-thread motion |
 | Hover motion with no hover-pointer gate | The platform's hover-pointer check |
 | No reduced-motion form | Gentler, not zero |
-| A group that enters all at once | A 30–80 ms stagger |
+| A uniform stagger | Delays and travel that shrink by importance |
+| A parent entrance with staggered children | One entrance per container |
+| A stagger on a menu, a list row or a keyboard surface | The items appear together |
+| A staggered exit | Everything leaves at once |
 | The same entrance on every section | One authored moment |
 | Bounce or elastic easing on an Operate or Read surface | Bounce 0 |
 
@@ -238,6 +262,7 @@ Motion matches the personality of the thing it animates and of the rest of the p
 Motion bugs hide at full speed. Before you call an animation done:
 - **Slow it down** to 2–5 times its duration, or use the platform's slow-animation tool. Do two states overlap? Does the easing stop abruptly? Is the origin right? Do coordinated properties stay in sync?
 - **Step it frame by frame** to catch drift between coordinated properties.
+- **Record a group and step through each handoff.** A wave and a queue look the same at full speed. Then picture the 50th use of the day: when you would skip it, cut it.
 - **Test gestures on a real device**, not with a desktop pointer.
 - **Look again the next day.**
 
@@ -250,4 +275,4 @@ Focus: motion. Checks: the gates and the opportunity sweep. Notes record: the mo
 
 > *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
 
-> *The gates, the opportunity sweep, the tool ladder, the curve tokens and durations, springs, interruption, gesture physics, the performance diagnosis, the never-ship table, cohesion and the feel check are adapted from Emil Kowalski's skills `animate`, `find-animation-opportunities`, `animation-performance`, `review-animations` and `apple-design` ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). The icon micro-animation values, split-and-stagger entrances and skip-on-first-paint guidance are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Both used under MIT license.*
+> *The gates, the opportunity sweep, the tool ladder, the curve tokens and durations, springs, interruption, gesture physics, the performance diagnosis, the never-ship table, cohesion and the feel check are adapted from Emil Kowalski's skills `animate`, `find-animation-opportunities`, `animation-performance`, `review-animations` and `apple-design` ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). The choreography method is adapted from his skill `choreograph` (commit `c8a7962`, 2026-11-04). The icon micro-animation values, split-and-stagger entrances and skip-on-first-paint guidance are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Both used under MIT license.*

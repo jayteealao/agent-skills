@@ -80,6 +80,26 @@ Reduce the motion. Do not remove all of it.
 - Remove each motion with no named purpose ([animate.md](animate.md) → Gate 2).
 - Keep transitions on state changes the person starts: expand, collapse, navigate.
 
+**The removal gate.** Put each animation on trial; "it is already there" and "it looks nice" are no defense. Record the deciding branch:
+- A keyboard trigger (a shortcut, a command palette, a focus jump): delete.
+- 100+ uses a day (core navigation, tab switches, list rows, route changes in the app): delete.
+- Functional data (a chart, a table, a number): delete, unless the motion shows a real change of value on the person's action.
+- No named purpose: delete, except for a rare first-time moment (onboarding, an empty state, a success).
+- Tens of uses a day (hover, a frequent toggle): reduce.
+- Over budget (over 300 ms, or a slide where a fade says the same): reduce.
+
+**Reduce** means a smaller version of the same motion, never a new one: hover → a color or opacity change, 150 ms or less; a frequent entrance → opacity only, 150 ms; a stagger over 80 ms an item or 300 ms in total → 30 ms an item, or one fade of the group; an infinite loop → run it once, or keep its end state. When the reduced motion no longer carries its purpose, delete it.
+
+**Where to look:** motion on keyboard and high-frequency surfaces; reveals on every scrolled section; hover lift on cards that are not the main action; infinite pulses, glows and spins that are not progress; charts that redraw and numbers that count up on each load; a spinner or a shimmer on work under 300 ms; a transition on every property.
+
+**Before you delete, check what depends on the motion:**
+- A start state that hides the element (opacity 0 until the animation runs). Delete it with the animation, or the element stays invisible.
+- Code that waits for the end of the animation, an exit that delays the removal of a view, and focus that moves after the motion. Move each to the moment of the change.
+- A layout animation that hides a jump. When the jump shows, keep the animation and record the jump as a finding.
+- Tests that wait for the motion.
+
+After the removals, delete what they left unused: keyframes, wrappers, variants and imports. Propose the removal of a motion library; never remove it in the pass. The note lists each removal with its branch, and 2–5 animations that you kept, each with the purpose that saved it.
+
 ## Composition
 
 - Reduce the jumps between sizes. Smaller steps read calmer.
@@ -122,3 +142,5 @@ Focus: reducing noise. Checks: the noise diagnosis and the Validate list. Notes 
 ---
 
 > *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
+
+> *The removal gate, the reduce rules and the removal hazards are adapted from Emil Kowalski's skill `remove-animations` ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `a81dbca`, 2026-10-28). MIT license.*
