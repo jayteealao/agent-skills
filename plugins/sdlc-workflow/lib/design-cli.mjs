@@ -6,7 +6,7 @@ import { failureLines, runChecks } from './design-check.mjs';
 import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
-import { addComponent, foundation, linkComponent, listComponents, setNoComponents, verifyComponents } from './design-components.mjs';
+import { addComponent, foundation, linkComponent, listComponents, scanComponents, setNoComponents, verifyComponents } from './design-components.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, commitDesignRecords, openThreads } from './design-records.mjs';
 import { migrateDesign } from './design-migrate.mjs';
@@ -21,6 +21,7 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
                                                 add a component: --code names the code that has it; with no --code it is new
   component link <root> <key> --code file --name n   record the code of a new component, after the build makes it
   components <root> [--workflow slug]           the component library, each with its code and its screens
+  components scan <root>                        the components of the product code, and which the library has
   components none <root> --reason r             record that the product has no reusable parts
   components verify <root> <slug> [--slice s]   exit 1 when the code does not have or use a component of the screens
   screen add <root> <key> [--title t] [--area a] [--flow f] [--order n] [--workflow slug] [--slice s]
@@ -56,7 +57,7 @@ const namePart = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && 
 /** Run one design command. Returns the exit code; `out` prints a value. */
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') || (verb === 'components' && ['none', 'verify'].includes(rest[0])) ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) ? rest.shift() : null;
   if (verb === 'server') return runServer(sub, opt, out);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
@@ -96,6 +97,11 @@ export async function runDesign(pos, opt, out) {
       if (sub === 'none') {
         const r = setNoComponents(projectRoot, opt.reason);
         out(opt.json ? r : `no components: ${r.reason}`);
+        return 0;
+      }
+      if (sub === 'scan') {
+        const found = scanComponents(projectRoot);
+        out(opt.json ? found : found.map((c) => `${c.inLibrary ? 'in the library' : 'not in the library'}  ${c.key}: ${c.name} in ${c.code} (${c.source})`).join('\n') || 'no components in the code');
         return 0;
       }
       if (sub === 'verify') {

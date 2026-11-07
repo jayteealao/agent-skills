@@ -46,6 +46,7 @@ The design agent reads the project's own components (a shadcn registry, Storyboo
 - Sources: https://bolt.new/blog/bolt-design-system-agents, https://ui.shadcn.com/docs/mcp, https://github.com/superdesigndev/superdesign-skill
 - Today: screens are standalone pages, and `_surface.md` forbids importing product code into a screen. A component map would keep that rule, because it maps parts and imports no code.
 - Impact: it shrinks the gap that verify must close, at the source.
+- **Built 2026-11-07:** the component library maps each part to its code (`component add --code --name`), `design components scan` lists the components of the code, and the check flags a screen style that restyles a component. The screens still draw HTML that matches the code; they import no product code, by the rule of `_surface.md`.
 
 ### 4. A design-detector hook during implement — M
 
@@ -111,6 +112,7 @@ The check captures and checks hover, focus, active, disabled and open-menu state
 - Source: https://vercel.com/docs/vercel-toolbar
 - Today: the moves describe hover and focus. The check measures only the five data states.
 - Impact: focus rings and contrast often fail in these brief states.
+- **Built 2026-11-07:** the check forces hover, press and keyboard focus on up to 30 controls per screen, in the default state of the first viewport. It flags a missing focus indicator, a focus ring under 3:1, and text under the contrast minimum in a state. Disabled controls are exempt from contrast. The open-menu state is not built: no pseudo-class opens a menu.
 
 ### 11. A display-bug check — S
 

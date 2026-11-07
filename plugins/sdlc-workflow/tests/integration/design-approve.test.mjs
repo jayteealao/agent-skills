@@ -73,7 +73,7 @@ test('the approval needs the contract and a new approve in the answer log; then 
     const log = execFileSync('git', ['-C', root, 'log', '--format=%s'], { encoding: 'utf8' }).trim().split('\n');
     assert.deepEqual(log, ['design: record the approval of w1', 'design: approve basket for w1']);
     const files = execFileSync('git', ['-C', root, 'show', '--name-only', '--format=', r.commit], { encoding: 'utf8' }).trim().split('\n').sort();
-    assert.deepEqual(files, ['.ai/design/screens.json', '.ai/design/screens/basket.html', '.ai/design/tokens.css'], 'only the surface, never the ignored records');
+    assert.deepEqual(files, ['.ai/design/components.css', '.ai/design/screens.json', '.ai/design/screens/basket.html', '.ai/design/tokens.css'], 'only the surface, never the ignored records');
     assert.equal(readManifest(root).screens.basket.approvals[0].commit, r.commit);
     const c = contractOf(root);
     assert.deepEqual([c['direction-confirmed-by'], c['approval-commit'], c['answered-at'], c['screens']], ['answer-event', r.commit, '2026-10-25T10:05:00.000Z', ['basket']]);

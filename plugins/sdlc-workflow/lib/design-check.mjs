@@ -1,6 +1,7 @@
 // The checks of the screens, before an approval: contrast, target size, viewport fit,
 // worst-case content, display bugs, overlapping text, script errors and colors that are not
-// tokens, in each viewport and each state. A headless Chromium opens each screen page over the
+// tokens, in each viewport and each state. The hover, press and keyboard-focus states of each
+// control are checked too, in the default state of the first viewport. A headless Chromium opens each screen page over the
 // DevTools protocol, and a script in the page measures it. A pool of pages in one browser loads
 // the screen pages side by side.
 //
@@ -25,7 +26,7 @@ export { groupFailures };
  */
 export const CHECK_MOVES = Object.freeze({
   contrast: 'colorize', 'target-size': 'adapt', 'viewport-fit': 'layout', 'worst-case': 'harden', states: 'harden',
-  display: 'harden', overlap: 'layout', token: 'colorize', component: null, script: null,
+  display: 'harden', overlap: 'layout', token: 'colorize', focus: 'harden', component: null, script: null,
 });
 /** One rule for target size: a pointer target is at least 24 by 24 CSS pixels. */
 export const MIN_TARGET = 24;
@@ -55,10 +56,9 @@ export function selectorRect(selector) {
   } catch { return null; } })(${pageBox.toString()})`;
 }
 
-// Runs in the screen page. It returns `[{ check, message, rect, selector }]`. `tokens` are the
-// color tokens of the token sheet, `[{ name, value }]`, for the token check; empty skips it.
-function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '', components = [] } = {}) {
-  const out = [];
+// Runs in the page: the helpers that each page script shares. The colors are measured on a
+// 1×1 canvas, so every color syntax that the browser knows reads as RGBA.
+function pageKit() {
   const canvas = document.createElement('canvas');
   canvas.width = 1; canvas.height = 1;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -95,9 +95,6 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
     return parts.join(' > ');
   };
   const hex = (c) => `#${c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
-  // `cause` is what the failures of one fault share, for example one color pair: the list groups by it.
-  const add = (check, el, message, cause = message) => out.push({ check, message, cause, rect: box(el), selector: selector(el) });
-
   // The background under an element: its layers composited down to white. Null when an image
   // or a gradient is in the way, because no single color is the background then.
   const background = (el) => {
@@ -111,22 +108,40 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
     }
     return layers.reverse().reduce((under, top) => over(top, under), [255, 255, 255, 1]);
   };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  // The contrast of the text of an element: `{ fg, bg, ratio, need, large }`, or null with no single background.
+  const textContrast = (el) => {
+    const cs = getComputedStyle(el);
+    const bg = background(el);
+    if (!bg) return null;
+    const fg = over(rgba(cs.color), bg);
+    const size = parseFloat(cs.fontSize);
+    const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
+    return { fg, bg, ratio: ratio(fg, bg), need: large ? 3 : 4.5, large };
+  };
+  // A disabled control is exempt from contrast (WCAG 1.4.3).
+  const disabled = (el) => Boolean(el.closest('[disabled], [aria-disabled="true"]') || el.matches(':disabled'));
+  const ownText = (el) => [...el.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim());
+  const TARGETS = 'a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [onclick]';
+  return { rgba, over, lum, shown, box, selector, hex, background, ratio, textContrast, disabled, ownText, TARGETS };
+}
+
+// Runs in the screen page. It returns `[{ check, message, rect, selector }]`. `tokens` are the
+// color tokens of the token sheet, `[{ name, value }]`, for the token check; empty skips it.
+// `restyle` checks that the page does not restyle a component of the library.
+function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '', components = [], restyle = false } = {}) {
+  const out = [];
+  const { rgba, over, shown, box, selector, hex, textContrast, disabled, ownText, TARGETS } = pageKit();
+  // `cause` is what the failures of one fault share, for example one color pair: the list groups by it.
+  const add = (check, el, message, cause = message) => out.push({ check, message, cause, rect: box(el), selector: selector(el) });
 
   // Contrast: WCAG AA, 4.5:1, or 3:1 for large text.
   const seen = new Set();
   for (const el of document.body.querySelectorAll('*')) {
-    if (!shown(el)) continue;
-    const own = [...el.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim());
-    if (!own) continue;
-    const cs = getComputedStyle(el);
-    const bg = background(el);
-    if (!bg) continue;
-    const fg = over(rgba(cs.color), bg);
-    const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
-    const ratio = (a + 0.05) / (b + 0.05);
-    const size = parseFloat(cs.fontSize);
-    const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
-    const need = large ? 3 : 4.5;
+    if (!shown(el) || !ownText(el) || disabled(el)) continue;
+    const t = textContrast(el);
+    if (!t) continue;
+    const { fg, bg, ratio, need, large } = t;
     if (ratio + 1e-9 < need) {
       const key = `${hex(fg)}/${hex(bg)}/${need}`;
       if (seen.has(key) && seen.size > 12) continue;
@@ -137,8 +152,7 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
 
   // Target size: one rule, at least minTarget by minTarget CSS pixels. A link inside running
   // text is exempt.
-  const targets = 'a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [onclick]';
-  for (const el of document.body.querySelectorAll(targets)) {
+  for (const el of document.body.querySelectorAll(TARGETS)) {
     if (!shown(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width >= minTarget - 0.5 && r.height >= minTarget - 0.5) continue;
@@ -274,6 +288,124 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
       add('component', el, `A ${kind} of this page is not a component of the library`, kind);
     }
   }
+  // A look-alike: the page's own style changes how a component of the library looks. The page may
+  // place a component (its margin, size and grid place), never restyle it.
+  if (restyle && components.length) {
+    const LOOK = /^(?:color|background|border|outline|box-shadow|font|letter-spacing|line-height|text-(?:decoration|transform|shadow|align)|padding|opacity|filter|fill|stroke|border-radius|cursor)/;
+    const looks = (style) => { const props = []; for (let i = 0; i < style.length; i += 1) if (LOOK.test(style[i])) props.push(style[i]); return props; };
+    const told = new Set();
+    const restyled = (el, where, props) => {
+      const host = el.closest('[data-component]');
+      if (!host || told.has(`${host.dataset.component}|${where}`)) return;
+      told.add(`${host.dataset.component}|${where}`);
+      add('component', el, `The page restyles the component ${host.dataset.component} with ${where} (${props.slice(0, 3).join(', ')}); change it in components.css, or add a variant`, `restyle:${host.dataset.component}`);
+    };
+    const flat = (list) => [...list].flatMap((r) => (r.cssRules && !r.selectorText ? flat(r.cssRules) : [r]));
+    for (const sheet of document.styleSheets) {
+      if (sheet.ownerNode?.tagName !== 'STYLE') continue;
+      let list;
+      try { list = sheet.cssRules; } catch { continue; }
+      for (const r of flat(list)) {
+        if (!r.selectorText || !r.style) continue;
+        const props = looks(r.style);
+        if (!props.length) continue;
+        let els = [];
+        try { els = [...document.querySelectorAll(r.selectorText)]; } catch { els = []; }
+        for (const el of els) if (shown(el)) restyled(el, r.selectorText, props);
+      }
+    }
+    for (const el of document.body.querySelectorAll('[data-component] [style], [data-component][style]')) {
+      const props = looks(el.style);
+      if (props.length && shown(el)) restyled(el, `the style of ${selector(el)}`, props);
+    }
+  }
+  return out;
+}
+
+/* ───────────────────────── the interaction states ───────────────────────── */
+
+// The interaction states that the check forces on each control, with the pseudo-classes of each.
+const INTERACTIONS = [
+  { name: 'hover', classes: ['hover'] },
+  { name: 'press', classes: ['hover', 'active'] },
+  { name: 'keyboard focus', classes: ['focus', 'focus-visible'] },
+];
+const MAX_CONTROLS = 30;
+
+// Runs in the page before the states are forced: it stops transitions, so a forced state shows its
+// end style at once, and marks each enabled control with `data-wf-i`. It keeps the look of each
+// control at rest, to compare with each state. Returns the number of controls.
+function interactionPrep(max) {
+  const { shown, disabled, TARGETS } = pageKit();
+  const still = document.createElement('style');
+  still.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; caret-color: transparent !important; }';
+  document.head.append(still);
+  const els = [...document.body.querySelectorAll(TARGETS)].filter((el) => shown(el) && !disabled(el)).slice(0, max);
+  const look = (el) => { const cs = getComputedStyle(el); return { color: cs.color, background: cs.backgroundColor, outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`, shadow: cs.boxShadow, border: cs.borderColor, decoration: cs.textDecorationLine }; };
+  window.__wfRest = els.map((el, i) => { el.setAttribute('data-wf-i', String(i)); return look(el); });
+  return els.length;
+}
+
+// Runs in the page while one state is forced on control `i`. Returns the failures of that control.
+function interactionMeasure(i, state) {
+  const { rgba, over, shown, box, selector, hex, background, ratio, textContrast, ownText } = pageKit();
+  const el = document.querySelector(`[data-wf-i="${i}"]`);
+  const rest = window.__wfRest?.[i];
+  if (!el || !rest || !shown(el)) return [];
+  const out = [];
+  const kind = el.getAttribute('role') || el.tagName.toLowerCase();
+  const add = (check, message, cause) => out.push({ check, message, cause, rect: box(el), selector: selector(el), interaction: state });
+  const cs = getComputedStyle(el);
+  const now = { color: cs.color, background: cs.backgroundColor, outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`, shadow: cs.boxShadow, border: cs.borderColor, decoration: cs.textDecorationLine };
+  if (state === 'keyboard focus' && el.tabIndex >= 0) {
+    const ring = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
+    const changed = ring || ['shadow', 'border', 'background', 'decoration'].some((k) => now[k] !== rest[k]);
+    if (!changed) add('focus', `The ${kind} shows no focus indicator: its outline, shadow, border and background stay the same on keyboard focus`, `no-ring:${kind}`);
+    else if (ring) {
+      // The ring sits outside the control when its offset is not negative, so the page behind it is its background.
+      const behind = parseFloat(cs.outlineOffset) >= 0 ? background(el.parentElement ?? el) : background(el);
+      const ringColor = rgba(cs.outlineColor);
+      if (behind && ringColor[3] > 0) {
+        const r = ratio(over(ringColor, behind), behind);
+        if (r + 1e-9 < 3) add('focus', `The focus ring ${hex(over(ringColor, behind))} on ${hex(behind)} is ${r.toFixed(2)}:1; 3:1 is the minimum`, `ring:${hex(over(ringColor, behind))}/${hex(behind)}`);
+      }
+    }
+  }
+  // The text contrast in this state, only when the state changes a color: the rest state is checked already.
+  if (now.color !== rest.color || now.background !== rest.background) {
+    const texts = [el, ...el.querySelectorAll('*')].filter((n) => shown(n) && ownText(n));
+    for (const n of texts.slice(0, 3)) {
+      const t = textContrast(n);
+      if (t && t.ratio + 1e-9 < t.need) {
+        add('contrast', `On ${state}, the text ${hex(t.fg)} on ${hex(t.bg)} is ${t.ratio.toFixed(2)}:1; ${t.need}:1 is the minimum for ${t.large ? 'large' : 'body'} text`, `${state}:${hex(t.fg)}/${hex(t.bg)}`);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Force each interaction state on each control of the open page, through the DevTools protocol,
+ * and measure it. The page must be open; the page has its own state afterwards, so the caller
+ * opens it again before another check.
+ */
+async function interactionChecks(page, kit) {
+  const count = await page.evaluate(`${kit(interactionPrep)}(${MAX_CONTROLS})`);
+  if (!count) return [];
+  await page.send('DOM.enable');
+  await page.send('CSS.enable');
+  const { root } = await page.send('DOM.getDocument', { depth: 0 });
+  const out = [];
+  for (let i = 0; i < count; i += 1) {
+    const { nodeId } = await page.send('DOM.querySelector', { nodeId: root.nodeId, selector: `[data-wf-i="${i}"]` });
+    if (!nodeId) continue;
+    for (const st of INTERACTIONS) {
+      try { await page.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: st.classes }); } catch { continue; }
+      out.push(...(await page.evaluate(`${kit(interactionMeasure)}(${i}, ${JSON.stringify(st.name)})`) ?? []));
+    }
+    await page.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] }).catch(() => {});
+  }
   return out;
 }
 
@@ -401,6 +533,7 @@ export async function openBrowser(root, { browser = checkBrowser(root), pages = 
         await evaluate('document.fonts ? document.fonts.ready.then(() => true) : true');
       },
       evaluate,
+      send: (method, params = {}) => cdp.send(method, params, sessionId),
       async screenshot() {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId);
         return Buffer.from(data, 'base64');
@@ -474,13 +607,18 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
   try { componentsCss = readFileSync(join(surfaceDir(root), COMPONENTS_FILE), 'utf8'); } catch { componentsCss = ''; }
   const library = Object.keys(readManifest(root).components);
   try {
-    const script = `((pageBox) => (${pageChecks.toString()}))(${pageBox.toString()})`;
+    // Each page script gets the box and the kit of shared helpers in its scope.
+    // pageKit is defined inside the wrapper, so that it closes over pageBox.
+    const kit = (fn) => `((pageBox) => { const pageKit = ${pageKit.toString()}; return (${fn.toString()}); })(${pageBox.toString()})`;
+    const script = kit(pageChecks);
     const vps = surfaceViewports(root);
     const loads = screens.filter((x) => x.exists).flatMap((s) => vps.flatMap((vp, n) => s.states.map((state) => ({ s, vp, state, first: n === 0, scan: state === 'default' && n === 0 }))));
     const results = await overPool(b.pages ?? [b], loads, async (page, { s, vp, state, first, scan }) => {
       await page.open(screenUrl(root, s.key, state), vp);
-      const found = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: scan ? tokens : [], componentsCss: scan ? componentsCss : '', components: first ? library : [] })})`);
-      return { found: found ?? [], errors: page.errors?.() ?? [] };
+      const found = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', tokens: scan ? tokens : [], componentsCss: scan ? componentsCss : '', components: first ? library : [], restyle: scan })})`) ?? [];
+      // The interaction states: once for each screen, in the default state of the first viewport.
+      if (scan && page.send) found.push(...await interactionChecks(page, kit));
+      return { found, errors: page.errors?.() ?? [] };
     });
     // A script error is one failure of the screen, at the first viewport and state that shows it.
     const scriptErrors = new Map();

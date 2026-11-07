@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { appendAnswerEvent } from '../../lib/answers.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
 import { checkBrowser, runChecks } from '../../lib/design-check.mjs';
-import { addComponent, componentFile, componentsUsed, foundation, linkComponent, listComponents, setNoComponents, verifyComponents } from '../../lib/design-components.mjs';
+import { addComponent, componentFile, componentNames, componentsUsed, foundation, linkComponent, listComponents, scanComponents, setNoComponents, verifyComponents } from '../../lib/design-components.mjs';
 import { canvasState } from '../../lib/design-state.mjs';
 import { addScreen, initSurface, screenFile, surfaceDir, tokensFromDesign, writeTokens } from '../../lib/design-surface.mjs';
 import { restoreVersion, saveRound, versionDir } from '../../lib/design-versions.mjs';
@@ -181,5 +181,75 @@ test('the check flags a control outside the library, an unknown component and a 
     assert.ok(of('component').some((m) => /A button of this page is not a component/.test(m)));
     assert.ok(!of('component').some((m) => /Pay/.test(m)));
     assert.ok(of('token').some((m) => /#123456 of \.button/.test(m)), of('token').join('; '));
+  } finally { done(); }
+});
+
+test('the scan finds the components of the code: shadcn, Storybook, React, Compose and SwiftUI', () => {
+  const { root, done } = project();
+  try {
+    const put = (rel, text) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text); };
+    put('components.json', JSON.stringify({ aliases: { ui: '@/components/ui' } }));
+    put('src/components/ui/button.tsx', 'export function Button() { return null }\n');
+    put('src/components/Card.tsx', 'export const Card = () => null;\nexport function CardTitle() { return null }\n');
+    put('src/components/Card.stories.tsx', 'export default { title: "Card" };\n');
+    put('src/lib/format.ts', 'export function Format() {}\n');
+    put('src/components/Card.test.tsx', 'export function CardSpy() {}\n');
+    put('app/src/main/kotlin/Parts.kt', '@Composable\nfun UsageRow(x: Int) {}\n@Composable\nfun HomeScreen() {}\n@Preview @Composable\nfun UsageRowPreview() {}\n');
+    put('ios/Views/Badge.swift', 'struct Badge: View { var body: some View { Text("") } }\n');
+    addComponent(root, 'card', { code: 'src/components/Card.tsx', name: 'Card' });
+    const found = scanComponents(root);
+    const by = (name) => found.find((c) => c.name === name);
+    assert.equal(by('Button').source, 'shadcn');
+    assert.equal(by('Button').key, 'button');
+    assert.equal(by('Card').source, 'storybook');
+    assert.equal(by('Card').inLibrary, true);
+    assert.equal(by('CardTitle').key, 'card-title');
+    assert.equal(by('UsageRow').code, 'app/src/main/kotlin/Parts.kt');
+    assert.ok(by('Badge'), 'a SwiftUI view');
+    for (const name of ['Format', 'CardSpy', 'HomeScreen', 'UsageRowPreview']) assert.equal(by(name), undefined, `${name} is not a part`);
+    assert.equal(found.at(-1).inLibrary, true, 'the parts that the library has come last');
+    assert.deepEqual(componentNames('src/ui/Toggle.vue', ''), ['Toggle']);
+    const r = wf(root, 'components', 'scan', root);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /not in the library {2}button: Button in src\/components\/ui\/button\.tsx \(shadcn\)/);
+  } finally { done(); }
+});
+
+test('the check flags a page that restyles a component, and the hover, press and focus states of each control', async (t) => {
+  const { root, done } = project();
+  try {
+    if (!checkBrowser(root)) { t.skip('no browser'); return; }
+    for (const key of ['button', 'link', 'card']) addComponent(root, key);
+    writeFileSync(join(surfaceDir(root), 'components.css'), [
+      '.button { color: #ffffff; background: #1a5fb4; border: 0; padding: 8px 12px; transition: background 1s; }',
+      '.button:hover { background: #9ec5f8; }',
+      '.button:focus { outline: none; }',
+      '.button[disabled] { color: #bbbbbb; background: #eeeeee; }',
+      '.link { color: #1a5fb4; display: inline-block; padding: 4px; }',
+      '.link:focus-visible { outline: 2px solid #1a5fb4; outline-offset: 2px; }',
+      '.faint:focus-visible { outline: 2px solid #eeeeee; outline-offset: 2px; }',
+    ].join('\n'));
+    addScreen(root, 'basket', { workflow: 'w1' });
+    writeFileSync(screenFile(root, 'basket'), page('<style>.wide { width: 100%; } .card h2 { color: #333333; }</style>'
+      + '<button class="button" data-component="button">Pay</button>'
+      + '<a class="link" data-component="link" href="#help">Help</a>'
+      + '<a class="link faint" data-component="link" href="#more">More</a>'
+      + '<button class="button" data-component="button" disabled>Off</button>'
+      + '<div class="card wide" data-component="card"><h2>Total</h2></div>'));
+    const r = await runChecks(root, { workflow: 'w1' });
+    assert.equal(r.ran, true, r.reason);
+    const of = (check) => r.failures.filter((f) => f.check === check);
+    const restyle = of('component').filter((f) => /restyles/.test(f.message));
+    assert.equal(restyle.length, 1, restyle.map((f) => f.message).join('; '));
+    assert.match(restyle[0].message, /restyles the component card with \.card h2 \(color\)/);
+    const focus = of('focus');
+    assert.ok(focus.some((f) => /The button shows no focus indicator/.test(f.message) && f.interaction === 'keyboard focus' && f.move === 'harden'));
+    assert.ok(focus.some((f) => /The focus ring #eeeeee on #ffffff is 1\.\d\d:1/.test(f.message)));
+    assert.ok(!focus.some((f) => /a:nth-of-type\(1\)/.test(f.selector) && /ring/.test(f.message)), 'the Help ring passes');
+    const states = of('contrast').filter((f) => f.interaction);
+    assert.ok(states.some((f) => f.interaction === 'hover' && /^On hover, the text #ffffff on #9ec5f8/.test(f.message)), states.map((f) => f.message).join('; '));
+    assert.ok(states.some((f) => f.interaction === 'press'));
+    assert.ok(!of('contrast').some((f) => /#bbbbbb/.test(f.message)), 'a disabled control is exempt from contrast');
+    assert.ok(r.failures.every((f) => !f.interaction || (f.state === 'default' && f.viewport === 'phone')), 'the states run once, in the default state of the first viewport');
   } finally { done(); }
 });

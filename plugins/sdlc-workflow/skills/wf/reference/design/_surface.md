@@ -50,7 +50,7 @@ The tokens and the component library come before the first screen of a repo. [st
 - The page of a component is a mock, like a screen. It shows each variant and state, for example primary, disabled and loading. Do not import product code into it. For a component that the code has, it matches the look of that code.
 - A screen marks the outer element of each use with `data-component="<key>"`. Write the markup and the class of the component page. Do not restyle a component in a screen: add a variant to the library.
 - `<wf> design foundation <root>` exits 1 until the surface has tokens and either components or `<wf> design components none`. Until then, `<wf> design screen add` refuses a new screen.
-- `<wf> design check` reads the library. It flags a `data-component` that the library does not have, a control that stands outside a component, and a raw color in `components.css`.
+- `<wf> design check` reads the library. It flags a `data-component` that the library does not have, a control that stands outside a component, a raw color in `components.css`, and a screen style that changes the look of a component. A screen may place a component (its margin, size and grid place), never restyle it.
 
 ## Arranging the screens
 

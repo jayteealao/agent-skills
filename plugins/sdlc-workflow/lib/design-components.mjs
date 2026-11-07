@@ -162,3 +162,68 @@ export function verifyComponents(root, slug, { slice = null } = {}) {
   }
   return { ok: !problems.length, used, problems };
 }
+
+/* ───────────────────────── the scan of the code ───────────────────────── */
+
+// The files that can hold a component, and the names that each kind of file exports. A file of a
+// shadcn UI folder or a Storybook story names its component even when the export does not match.
+const SCAN_EXT = /\.(?:[jt]sx|vue|svelte|kt|swift)$/;
+const SCAN_SKIP = /(^|\/)(?:node_modules|dist|build|out|\.next|\.ai|\.git|coverage|vendor|Pods)\//;
+const SCAN_TEST = /\.(?:test|spec)\.[jt]sx?$|(^|\/)(?:__tests__|test|tests)\//;
+const MAX_SCAN = 200;
+const NOT_A_PART = /(?:Screen|Page|NavHost|NavGraph|Route|App|Activity|Preview)$/;
+const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+const pascal = (base) => base.replace(/(^|[-_.\s]+)([a-z0-9])/gi, (_, __, c) => c.toUpperCase());
+
+/** The names of the components that one file of the code exports. */
+export function componentNames(file, text) {
+  const ext = file.slice(file.lastIndexOf('.'));
+  const base = file.slice(file.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
+  if (ext === '.vue' || ext === '.svelte') return /^[A-Z]/.test(base) || /(^|\/)components?\//.test(file) ? [pascal(base)] : [];
+  const names = new Set();
+  const re = ext === '.kt' ? /@Composable\s+(?:(?:public|internal|private)\s+)?fun\s+([A-Z]\w*)\s*\(/g
+    : ext === '.swift' ? /struct\s+([A-Z]\w*)\s*:\s*(?:[\w.]+\s*,\s*)*View\b/g
+      : /export\s+(?:default\s+)?(?:function|const|class)\s+([A-Z]\w*)/g;
+  // A whole screen, a navigation host or a preview is not a reusable part.
+  for (const m of String(text).matchAll(re)) if (!NOT_A_PART.test(m[1])) names.add(m[1]);
+  return [...names];
+}
+
+/** The folder of the shadcn UI components, from `components.json`, or null. */
+function shadcnDir(root) {
+  let alias = null;
+  try { alias = JSON.parse(readFileSync(join(root, 'components.json'), 'utf8'))?.aliases?.ui ?? null; } catch { return null; }
+  if (!alias) return null;
+  const rel = String(alias).replace(/^[@~]\//, '');
+  return [`src/${rel}`, rel].find((d) => existsSync(join(root, d))) ?? null;
+}
+
+/**
+ * The components of the product code: a candidate for each part that the screens can draw with the
+ * library. It reads the shadcn UI folder, the Storybook stories, and the component files of React,
+ * Vue, Svelte, Jetpack Compose and SwiftUI that git tracks. Each candidate says whether the library
+ * has it. The scan reads files and never runs code.
+ */
+export function scanComponents(root) {
+  const r = spawnSync('git', ['-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const files = r.status === 0 ? r.stdout.split('\0').filter(Boolean) : [];
+  const ui = shadcnDir(root);
+  const library = new Map(Object.entries(readManifest(root).components).filter(([, c]) => c.code && c.name).map(([key, c]) => [`${c.code}#${c.name}`, key]));
+  const stories = new Set(files.filter((f) => /\.stories\.(?:[jt]sx?|mdx)$/.test(f)).map((f) => f.replace(/\.stories\.(?:[jt]sx?|mdx)$/, '')));
+  const out = [];
+  for (const file of files) {
+    if (!SCAN_EXT.test(file) || SCAN_SKIP.test(file) || SCAN_TEST.test(file) || /\.stories\./.test(file)) continue;
+    const stem = file.replace(/\.[^.]+$/, '');
+    const source = ui && file.startsWith(`${ui}/`) ? 'shadcn' : stories.has(stem) ? 'storybook' : 'code';
+    if (source === 'code' && !/(^|\/)(?:components?|ui|widgets?|views?|design-?system)\//i.test(file) && !/\.(?:kt|swift)$/.test(file)) continue;
+    let text = '';
+    try { text = readFileSync(join(root, file), 'utf8'); } catch { continue; }
+    for (const name of componentNames(file, text)) {
+      const inLibrary = library.get(`${file}#${name}`) ?? null;
+      out.push({ key: inLibrary ?? kebab(name), name, code: file, source, inLibrary: Boolean(inLibrary) });
+    }
+    if (out.length >= MAX_SCAN) break;
+  }
+  const rank = { shadcn: 0, storybook: 1, code: 2 };
+  return out.sort((a, b) => Number(a.inLibrary) - Number(b.inLibrary) || rank[a.source] - rank[b.source] || a.code.localeCompare(b.code));
+}
