@@ -7,7 +7,7 @@
 // (its pid, port and addresses) and removes the file when it stops.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { listenDesignServer, serverInfoPath, serverPort } from '../lib/design-server.mjs';
+import { listenDesignServer, serverInfoPath, serverPort, warmStates } from '../lib/design-server.mjs';
 
 const at = process.argv.indexOf('--port');
 const port = at > 0 ? Number(process.argv[at + 1]) : serverPort();
@@ -19,6 +19,8 @@ try {
   mkdirSync(dirname(info), { recursive: true });
   writeFileSync(info, `${JSON.stringify({ pid: process.pid, port: bound, addresses, startedAt: new Date().toISOString() }, null, 2)}\n`);
   process.stdout.write(`design server: ${addresses.join(' ')}\n`);
+  // The state of each repo is built now, in the background, so the first canvas opens at once.
+  warmStates().catch(() => {});
   const stop = () => {
     for (const s of servers) s.close();
     rmSync(info, { force: true });

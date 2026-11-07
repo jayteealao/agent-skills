@@ -621,7 +621,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       </div>
 
       <h3 class="group" id="ds-canvas">The canvas and the design server <em>review from the phone</em></h3>
-      <p class="aside" data-s>The canvas shows every screen of a repo on one board, in each viewport and state, with the check failures, the comment threads, the flows, the history and a card for each slice. One design server per computer serves the canvas of every registered repo, on 127.0.0.1 and on the tailnet address. The server writes three things only: the restore of a version, a comment on a screen that exists, and the positions that you drag. In the commands, <code>wf.mjs</code> is <code>node &lt;plugin&gt;/scripts/wf.mjs</code>.</p>
+      <p class="aside" data-s>The canvas shows every screen of a repo on one board, in each viewport and state, with the check failures, the comment threads, the flows, the history and a card for each slice. One design server per computer serves the canvas of every registered repo, on 127.0.0.1 and on the tailnet address. The server writes three things only: the restore of a version, a comment on a screen that exists, and the positions that you drag. An open canvas updates live: when an agent writes a page or someone comments from the phone, the canvas reloads only the pages that changed. In the commands, <code>wf.mjs</code> is <code>node &lt;plugin&gt;/scripts/wf.mjs</code>.</p>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>

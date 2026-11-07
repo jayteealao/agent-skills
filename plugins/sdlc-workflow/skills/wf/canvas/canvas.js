@@ -143,7 +143,7 @@
     failCache.clear();
     // The state and the audit load at the same time; the board draws once, when both are here.
     const [state] = await Promise.all([
-      window.WF_STATE || fetch(`${BASE}state.json`, { cache: 'no-store' }).then((r) => r.json()),
+      window.WF_STATE || fetch(`${BASE}state.json`, { cache: 'no-cache' }).then((r) => r.json()),
       SNAP ? null : fetchAudit(),
     ]);
     data = state;
@@ -682,6 +682,7 @@
       e.stopPropagation();
       if (e.pointerType === 'mouse') e.preventDefault();
       handle.setPointerCapture(e.pointerId);
+      ui.dragging = true;
       const sx = e.clientX; const sy = e.clientY;
       const ox = parseFloat(card.style.left); const oy = parseFloat(card.style.top);
       const move = (ev) => {
@@ -689,6 +690,8 @@
         card.style.top = `${oy + (ev.clientY - sy) / ui.zoom}px`;
       };
       const up = () => {
+        ui.dragging = false;
+        if (pending) applyChange(pending);
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
@@ -1356,6 +1359,78 @@
     panZoom();
   }
 
+  // ------------------------------------------------------------ live updates
+
+  // The server pushes each change of the repo: an agent wrote a page, a person commented from the
+  // phone, a check ran. The canvas loads the new state and reloads only the pages that changed.
+  // A drag or a comment that is being written holds the change until it ends.
+  let pending = null;
+  function listen() {
+    if (SNAP || !window.EventSource) return;
+    const es = new EventSource(`${BASE}events`);
+    es.addEventListener('change', (e) => {
+      let change = null;
+      try { change = JSON.parse(e.data); } catch { return; }
+      applyChange(merge(pending, change));
+    });
+  }
+  /** Two changes that wait together: every page and part that either names. */
+  function merge(a, b) {
+    if (!a) return b;
+    return { etag: b.etag, all: a.all || b.all, pages: [...new Set([...a.pages, ...b.pages])], parts: [...new Set([...a.parts, ...b.parts])] };
+  }
+  /** True while a person writes in the screen view: a redraw would lose the text. */
+  function writing() {
+    const el = document.activeElement;
+    return Boolean(focusState && el?.closest?.('#focus') && el.matches('textarea, input[type="text"]'))
+      || [...document.querySelectorAll('#focus textarea')].some((t) => t.value.trim());
+  }
+  /** Reload the page of a frame in place, so the frame keeps its place and its state. */
+  function reloadFrame(ifr) {
+    try { ifr.contentWindow.location.reload(); } catch { const src = ifr.src; ifr.src = src; }
+  }
+  let applying = false;
+  async function applyChange(change) {
+    if (ui.dragging || writing() || applying) { pending = merge(pending, change); holdRetry(); return; }
+    pending = null;
+    applying = true;
+    try {
+      await load();
+      const touched = (key) => change.all || change.pages.includes(key);
+      for (const card of document.querySelectorAll('#board > .card')) {
+        const ifr = card.firstChild.querySelector(':scope > iframe');
+        if (ifr && touched(card.dataset.key)) reloadFrame(ifr);
+      }
+      for (const ifr of document.querySelectorAll('#board .lane iframe')) {
+        if (change.all || change.parts.some((p) => ifr.src.endsWith(`/s/${p}`))) reloadFrame(ifr);
+      }
+      if (focusState) {
+        if (!boardScreens().some((x) => x.key === focusState.key)) closeFocus();
+        else {
+          // A new page of the open screen loads in a new frame; any other change redraws around it.
+          if (touched(focusState.key)) focusDrawn = null;
+          drawFocus();
+        }
+      }
+      const n = change.all ? 'every page' : change.pages.length ? plural(change.pages.length, 'page') : null;
+      if (n) say(`Updated: ${n}`);
+    } catch { /* the next change loads it */ } finally {
+      applying = false;
+      if (pending) applyChange(pending);
+    }
+  }
+  // A held change runs once the comment is sent or its field is left empty. A sent comment clears
+  // its field with no event, so the canvas looks again each second while a change waits.
+  let retry = null;
+  function holdRetry() {
+    if (retry) return;
+    retry = setTimeout(() => {
+      retry = null;
+      if (pending && !applying) applyChange(pending);
+    }, 1000);
+  }
+
   wire();
+  listen();
   load().catch((e) => { $('#board').replaceChildren(h('p', { class: 'empty' }, `The canvas could not load its data: ${e.message}`)); });
 })();

@@ -104,6 +104,8 @@ The canvas is one page per repo that shows every screen of the repo on one board
 
 The design server serves the canvas of every repo on the list `~/.sdlc/design-repos.json`, and the brainstorm pages of those repos. It is one server for the computer. It listens on `127.0.0.1` and on the tailnet address, so the person can review from the phone. It writes three things only: a comment on a screen that exists, the layout positions, and the restore of a version as a new round.
 
+An open canvas updates live. The server watches the files of the repo and tells each open canvas which pages changed. The canvas reloads only those pages, and a change of `tokens.css`, `components.css` or `source/` reloads every page. A comment from the phone shows on the computer at once. A change waits while the person drags a card or writes a comment. Do not tell the person to reload the canvas after a change.
+
 - `<wf> design server start` starts the server in the background. `<wf> design server url` prints its addresses. Give the person the tailnet address for a review from the phone.
 - `<wf> design server status` tells whether the server runs and whether the scheduled task is installed.
 - `<wf> design server install` makes one Windows scheduled task that starts the server at logon. `<wf> design server uninstall` removes the task. After a plugin update, run `install` again, because the task does not change itself. Ask the person before you run either command.

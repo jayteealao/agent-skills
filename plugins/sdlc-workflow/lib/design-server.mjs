@@ -4,7 +4,8 @@
 //
 // The server reads the files of each request. It keeps one thing in memory: the canvas state of
 // each repo, which a worker thread builds and which stays until a file that it reads changes
-// (`stateStamp`). It keeps no version state, no render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
+// (`stateStamp`). While a canvas is open, it watches those files and pushes each change to the
+// canvas over an event stream (`/r/<repo>/events`). It keeps no version state, no render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
 // saved positions of the canvas layout, and the restore of a version as a new round. It starts one process: the read-only design audit
 // agent of the Audit button (design-audit.mjs), one run per repo at a time. Each write names a
 // listed repo, and every other path is refused. It listens on 127.0.0.1 and on the tailnet
@@ -12,18 +13,18 @@
 import { createServer } from 'node:http';
 import { Worker } from 'node:worker_threads';
 import { gzipSync } from 'node:zlib';
-import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, statSync, watch, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { pidAlive } from './proc.mjs';
-import { CANVAS_DIR, screenFailures, stateStamp } from './design-state.mjs';
+import { CANVAS_DIR, screenFailures, stateFiles, stateStamp } from './design-state.mjs';
 import { addComment, approvalPicture, capturePicture, readComments } from './design-records.mjs';
 import { readAudit, startAudit } from './design-audit.mjs';
 import { restoreVersion, versionDir } from './design-versions.mjs';
-import { KEY_RE, LAYOUT_FILE, SURFACE_REL, readDesignRepos, readManifest, surfaceDir } from './design-surface.mjs';
+import { COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, readDesignRepos, readManifest, surfaceDir } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { PAGE_REL } from './brainstorm-page.mjs';
 import { workflowsRoot } from './records-root.mjs';
@@ -145,8 +146,8 @@ function buildState(root, repo) {
  * The canvas state of a repo. It is built again only when a file that it reads changed; requests
  * that come during a build wait for that one build.
  */
-export async function stateOf(root, repo) {
-  const stamp = stateStamp(root);
+export async function stateOf(root, repo, files = undefined) {
+  const stamp = stateStamp(root, files);
   const held = states.get(root);
   if (held?.stamp === stamp) return held;
   const run = building.get(root);
@@ -159,6 +160,90 @@ export async function stateOf(root, repo) {
   }).finally(() => { if (building.get(root)?.promise === promise) building.delete(root); });
   building.set(root, { stamp, promise });
   return promise;
+}
+
+/** Build the state of every listed repo, one at a time, so the first canvas of each opens at once. */
+export async function warmStates(repos = readDesignRepos()) {
+  for (const r of repos) {
+    if (!existsSync(join(surfaceDir(r.root), MANIFEST_FILE))) continue;
+    try { await stateOf(r.root, r.name); } catch { /* the canvas builds it on its first request */ }
+  }
+}
+
+/* ───────────────────────── live updates ───────────────────────── */
+
+// A canvas holds one event stream for its repo. While a repo has a stream, the server watches the
+// folders that its state reads, and checks the files again every few seconds for a change that a
+// watch misses, such as a commit. On a change it builds the new state first, then tells each
+// canvas which pages changed, so the canvas reloads only those pages.
+const feeds = new Map();
+const SETTLE_MS = 250;
+const POLL_MS = 5000;
+const PING_MS = 25000;
+
+/** The pages and the parts of the surface that the changed files touch. */
+export function changeOf(root, paths) {
+  const surface = surfaceDir(root);
+  const pages = new Set();
+  const parts = new Set();
+  let all = false;
+  for (const p of paths) {
+    const rel = relative(surface, p).split(sep).join('/');
+    if (!rel || rel.startsWith('..') || isAbsolute(rel)) continue;
+    const page = /^screens\/([a-z0-9-]+)(?:\.html$|\/)/.exec(rel);
+    if (page) pages.add(page[1]);
+    // A page links the token sheet, the component sheet and the shared sources: each page shows them.
+    else if (rel === TOKENS_FILE || rel === COMPONENTS_FILE || rel.startsWith('source/')) all = true;
+    else if (/^(explore|components)\//.test(rel)) parts.add(rel);
+  }
+  return { pages: [...pages].sort(), parts: [...parts].sort(), all };
+}
+
+async function check(root) {
+  const f = feeds.get(root);
+  if (!f) return;
+  if (f.busy) { f.again = true; return; }
+  f.busy = true;
+  try {
+    const files = stateFiles(root);
+    const changed = [...new Set([...files.keys(), ...f.files.keys()])].filter((p) => files.get(p) !== f.files.get(p));
+    f.files = files;
+    if (!changed.length) return;
+    const state = await stateOf(root, f.repo, files);
+    const message = `event: change\ndata: ${JSON.stringify({ etag: state.etag, ...changeOf(root, changed) })}\n\n`;
+    for (const c of f.clients) c.write(message);
+  } catch { /* the next check tries again */ } finally {
+    f.busy = false;
+    if (f.again) { f.again = false; check(root); }
+  }
+}
+
+function stopFeed(root) {
+  const f = feeds.get(root);
+  if (!f) return;
+  for (const w of f.watchers) w.close();
+  clearInterval(f.poll);
+  clearInterval(f.ping);
+  clearTimeout(f.timer);
+  feeds.delete(root);
+}
+
+/** Add an event stream of a canvas to the feed of its repo, and start the feed when it is the first. */
+function subscribe(root, repo, res) {
+  let f = feeds.get(root);
+  if (!f) {
+    f = { repo, clients: new Set(), files: stateFiles(root), watchers: [], timer: null, busy: false, again: false };
+    const nudge = () => { clearTimeout(f.timer); f.timer = setTimeout(() => check(root), SETTLE_MS); };
+    for (const dir of [surfaceDir(root), workflowsRoot(root)]) {
+      if (!existsSync(dir)) continue;
+      try { f.watchers.push(watch(dir, { recursive: true }, nudge).on('error', () => {})); } catch { /* the poll covers it */ }
+    }
+    f.poll = setInterval(() => check(root), POLL_MS);
+    f.ping = setInterval(() => { for (const c of f.clients) c.write(': ping\n\n'); }, PING_MS);
+    feeds.set(root, f);
+  }
+  f.clients.add(res);
+  res.on('close', () => { f.clients.delete(res); if (!f.clients.size) stopFeed(root); });
 }
 
 function readBody(req) {
@@ -263,6 +348,12 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         if (!url.pathname.endsWith('/')) return send(res, 301, '', { location: `${url.pathname}/${url.search}` });
         return file(res, join(CANVAS_DIR, 'index.html'));
       }
+      if (kind === 'events' && rest.length === 0) {
+        res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-content-type-options': 'nosniff' });
+        res.write('retry: 3000\n\n');
+        subscribe(root, repo.name, res);
+        return undefined;
+      }
       if (kind === 'state.json' && rest.length === 0) {
         const s = await stateOf(root, repo.name);
         if (fresh(res, s.etag)) return undefined;
@@ -288,7 +379,7 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         // picture of a legacy frame, comes from the surface.
         return file(res, own && existsSync(own) ? own : inside(surfaceDir(root), rel));
       }
-      if (kind === 'approvals' && rest.length === 2 && SHA_RE.test(rest[0]) && /^[a-z0-9-]+\.png$/.test(rest[1])) return file(res, approvalPicture(root, rest[0], rest[1].slice(0, -4)));
+      if (kind === 'approvals' && rest.length === 2 && SHA_RE.test(rest[0]) && /^[a-z0-9-]+\.png$/.test(rest[1])) return file(res, approvalPicture(root, rest[0], rest[1].slice(0, -4)), { 'cache-control': 'max-age=31536000, immutable' });
       if (kind === 'captures' && rest.length === 3 && rest.slice(0, 2).every((p) => /^[a-z0-9._-]+$/i.test(p)) && /^[a-z0-9-]+\.png$/.test(rest[2])) {
         return file(res, capturePicture(root, rest[0], rest[1], rest[2].slice(0, -4)));
       }

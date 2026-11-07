@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus } from '../../lib/design-server.mjs';
+import { changeOf, designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -93,6 +93,54 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
     if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
     rmSync(top, { recursive: true, force: true });
   }
+});
+
+test('an open canvas gets each change of its repo, with the pages that changed', async () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-events-'));
+  const root = join(top, 'Shop');
+  mkdirSync(root);
+  execFileSync('git', ['init', '-q', root]);
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = join(top, 'home');
+  let servers = [];
+  let stream = null;
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', { title: 'Basket', workflow: 'w1' });
+    const live = await listenDesignServer({ port: 0, hosts: ['127.0.0.1'] });
+    servers = live.servers;
+    const events = [];
+    await new Promise((ok, no) => {
+      stream = request({ host: '127.0.0.1', port: live.port, path: '/r/shop/events' }, (res) => {
+        assert.equal(res.headers['content-type'], 'text/event-stream; charset=utf-8');
+        res.setEncoding('utf8');
+        res.on('data', (t) => { for (const m of t.matchAll(/event: change\ndata: (.+)\n/g)) events.push(JSON.parse(m[1])); });
+        ok();
+      });
+      stream.on('error', no);
+      stream.end();
+    });
+    writeFileSync(join(root, '.ai', 'design', 'screens', 'basket.html'), '<html><body><section data-state="default">new</section></body></html>');
+    // The watch tells the server at once; the poll of every 5 seconds is the fallback.
+    for (let i = 0; i < 80 && !events.length; i += 1) await new Promise((ok) => setTimeout(ok, 100));
+    assert.ok(events.length, 'a change came');
+    assert.deepEqual([events[0].pages, events[0].all], [['basket'], false]);
+    assert.match(events[0].etag, /^"[0-9a-f]+"$/);
+  } finally {
+    stream?.destroy();
+    for (const s of servers) s.close();
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});
+
+test('the changed files name the pages, the parts, and a change of every page', () => {
+  const root = join(tmpdir(), 'Shop');
+  const at = (rel) => join(root, '.ai', 'design', ...rel.split('/'));
+  assert.deepEqual(changeOf(root, [at('screens/pay.html'), at('screens/basket/part.html'), at('explore/nav.html'), at('layout.json')]),
+    { pages: ['basket', 'pay'], parts: ['explore/nav.html'], all: false });
+  assert.equal(changeOf(root, [at('tokens.css')]).all, true);
+  assert.deepEqual(changeOf(root, [join(root, 'elsewhere.txt')]), { pages: [], parts: [], all: false });
 });
 
 test('the audit routes start one run per repo and serve its report', async () => {

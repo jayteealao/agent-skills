@@ -97,32 +97,40 @@ function statsOf(dir, recursive, out) {
   for (const d of names) {
     const p = join(dir, d.name);
     if (d.isDirectory()) { if (recursive) statsOf(p, true, out); continue; }
-    try { const s = statSync(p); out.push(`${p}\t${s.size}\t${s.mtimeMs}`); } catch { /* it went away */ }
+    try { const st = statSync(p); out.set(p, `${st.size}\t${st.mtimeMs}`); } catch { /* it went away */ }
   }
 }
 /**
- * A stamp of every file that the canvas state reads: the surface, the design records, the files of
- * each workflow of the screens, the references, and the git history. The state is the same while
- * the stamp is the same, so the design server keeps one state for each stamp. It stats files and
- * reads none, so it costs milliseconds where a build costs seconds.
+ * Every file that the canvas state reads, with its size and time: the surface, the design records,
+ * the files of each workflow of the screens, the references, and the git history. A Map from the
+ * path to `"<size>\t<mtime>"`. It stats files and reads none, so it costs milliseconds where a
+ * build costs seconds. The design server compares two of these to find the pages that changed.
  */
-export function stateStamp(root) {
-  const out = [];
+export function stateFiles(root) {
+  const out = new Map();
   statsOf(surfaceDir(root), true, out);
   statsOf(designRecordsDir(root), true, out);
   const m = readManifest(root);
-  for (const w of new Set(Object.values(m.screens).flatMap((s) => s.workflows ?? []))) statsOf(workflowDir(root, w), false, out);
+  for (const w of new Set(Object.values(m.screens).flatMap((x) => x.workflows ?? []))) statsOf(workflowDir(root, w), false, out);
   for (const r of readJson(join(surfaceDir(root), 'references.json'), {}).references ?? []) {
     if (!r?.file) continue;
-    try { const s = statSync(resolve(root, r.file)); out.push(`${r.file}\t${s.size}\t${s.mtimeMs}`); } catch { out.push(`${r.file}\tmissing`); }
+    const p = resolve(root, r.file);
+    try { const st = statSync(p); out.set(p, `${st.size}\t${st.mtimeMs}`); } catch { out.set(p, 'missing'); }
   }
   const git = gitDirOf(root);
   if (git) {
-    for (const f of ['HEAD', join('logs', 'HEAD')]) {
-      try { const s = statSync(join(git, f)); out.push(`${f}\t${s.size}\t${s.mtimeMs}`); } catch { /* no reflog */ }
+    for (const g of ['HEAD', join('logs', 'HEAD')]) {
+      try { const st = statSync(join(git, g)); out.set(join(git, g), `${st.size}\t${st.mtimeMs}`); } catch { /* no reflog */ }
     }
   }
-  return createHash('sha1').update(out.join('\n')).digest('hex').slice(0, 20);
+  return out;
+}
+/**
+ * The stamp of the files that the canvas state reads. The state is the same while the stamp is the
+ * same, so the design server keeps one state for each stamp.
+ */
+export function stateStamp(root, files = stateFiles(root)) {
+  return createHash('sha1').update([...files].map(([p, v]) => `${p}\t${v}`).join('\n')).digest('hex').slice(0, 20);
 }
 
 /** The check failures of one screen and their groups, for the screen that the canvas opens. */
