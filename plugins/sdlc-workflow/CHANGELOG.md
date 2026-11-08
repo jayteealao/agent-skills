@@ -5,6 +5,10 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.18] - 2026-11-08
+
+- fix(sdlc-workflow): a verify with no sub-agent tool makes its fixes itself
+
 ## [10.0.0-next.17] - 2026-11-07
 
 - feat(sdlc-workflow): the design moves choreograph motion and remove the motion that is not needed
