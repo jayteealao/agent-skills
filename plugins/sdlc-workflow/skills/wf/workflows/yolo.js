@@ -1060,7 +1060,10 @@ function questionContract(stage) {
         `line) }. Batch every open question of this stage in that one return. Questions are not a failure: the ` +
         `main session asks them, and the next run carries the answers.`) +
     (stage === 'verify'
-      ? ` RETURN CONTRACT (verify): set the terminal state honestly — convergence: not-needed | converged | ` +
+      ? ` FIX ROUND (verify): when you have no tool that starts a sub-agent, make each fix of the fix round yourself, ` +
+        `one after another, per "No sub-agent tool" in ${referenceRoot}/verify.md Step 7.6. Never return ` +
+        `'hard-stop' or routeBack because no fix sub-agent exists.` +
+        ` RETURN CONTRACT (verify): set the terminal state honestly — convergence: not-needed | converged | ` +
         `escalated; result: pass | fail | partial | blocked-runtime-evidence-missing. Record each deferral ` +
         `EXACTLY ONCE, in terminal.deferrals [{ac, reason, probe}] with the literal probe command and a one-line ` +
         `output tail of THIS run; residual carries only what is not a deferral. Set substantiveResidual: true ` +

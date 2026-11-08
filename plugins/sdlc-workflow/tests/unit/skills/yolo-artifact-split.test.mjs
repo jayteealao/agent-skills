@@ -99,6 +99,21 @@ test('a stage agent records its progress, reads its brief, and returns an intent
   assert.doesNotMatch(plan, /DELEGATE MODE/);
 });
 
+test('a verify agent with no sub-agent tool fixes inline instead of stopping', async () => {
+  const { calls } = await run({}, (label) => {
+    if (label === 'orient') return orientResult({ slices: [slice('a', { plan: 'done', implement: 'done', verify: 'todo', review: 'n-a' })] });
+    if (label === 'verify:a') return { stage: 'verify', slice: 'a', status: 'complete', artifactPath: '/repo/06-verify-a.md', terminal: { convergence: 'converged', result: 'pass', deferrals: [] } };
+    return common(label);
+  });
+  const verify = calls.find((c) => c.label === 'verify:a');
+  assert.ok(verify, 'the driver dispatched the verify agent');
+  assert.match(verify.prompt, /FIX ROUND \(verify\): when you have no tool that starts a sub-agent, make each fix of the fix round yourself/);
+  assert.match(verify.prompt, /"No sub-agent tool" in \/plugin\/skills\/wf\/reference\/verify\.md Step 7\.6/);
+  assert.match(verify.prompt, /Never return 'hard-stop' or routeBack because no fix sub-agent exists/);
+  const plan = (await run({}, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)))).calls.find((c) => c.label === 'plan:a').prompt;
+  assert.doesNotMatch(plan, /FIX ROUND \(verify\)/);
+});
+
 test('an implement agent records each step with the step commands', async () => {
   const { calls } = await run({}, (label) => (label === 'orient'
     ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'done', review: 'n-a' })] })

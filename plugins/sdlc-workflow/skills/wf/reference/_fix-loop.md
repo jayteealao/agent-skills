@@ -12,7 +12,10 @@ this file.
    inline. Every fix is delegated to a dispatched sub-agent; only the
    sub-agent's compact result returns to the orchestrator context. If you catch
    yourself editing code outside the stage's fix-dispatch step, STOP and return
-   to the next unfinished workflow step.
+   to the next unfinished workflow step. One exception: a verify that has no
+   tool to start a sub-agent (a stage agent of a driver) makes each fix itself,
+   one after another, under the same prompt and rules 4 to 7. See "No sub-agent
+   tool" in `verify.md` Step 7.6.
 2. **User gate, with a mechanical carve-out.** A human decision (triage answer,
    approval of a proposed CI fix) precedes dispatch for any finding that is
    scope-changing, behavior-changing, or unclassified. A finding whose class is
