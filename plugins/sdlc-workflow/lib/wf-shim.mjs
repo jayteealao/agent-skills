@@ -40,8 +40,40 @@ function writeIfChanged(file, text) {
 }
 
 /**
+ * Order two plugin versions such as `10.0.0-next.18` and `9.191.1`: negative when `a` is older.
+ * A release sorts after its prereleases. A missing or unreadable version sorts first.
+ */
+export function compareVersions(a, b) {
+  const parse = (v) => {
+    const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/.exec(String(v ?? ''));
+    return m ? { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] ? m[4].split('.') : null } : null;
+  };
+  const x = parse(a);
+  const y = parse(b);
+  if (!x || !y) return (x ? 1 : 0) - (y ? 1 : 0);
+  for (let i = 0; i < 3; i++) if (x.core[i] !== y.core[i]) return x.core[i] - y.core[i];
+  if (!x.pre || !y.pre) return (x.pre ? -1 : 0) - (y.pre ? -1 : 0);
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i++) {
+    const p = x.pre[i];
+    const q = y.pre[i];
+    if (p === undefined || q === undefined) return p === undefined ? -1 : 1;
+    if (p === q) continue;
+    const pn = /^\d+$/.test(p);
+    const qn = /^\d+$/.test(q);
+    if (pn && qn) return Number(p) - Number(q);
+    if (pn !== qn) return pn ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
  * Write the shim and name the wf.mjs of `pluginRoot` as the current one. Returns
  * `{ shim, cli, changed }`. A failure never fails a session start; the caller ignores it.
+ *
+ * The pointer only moves forward. Sessions of several plugin versions run at the same time, and an
+ * old session that resumes or compacts would otherwise point every saved command back at its old
+ * version. A session of an older version leaves the pointer alone while the wf.mjs it names exists.
  */
 export function writeShim(pluginRoot, { version = null, host = null } = {}) {
   const cli = join(pluginRoot, 'scripts', 'wf.mjs');
@@ -50,6 +82,9 @@ export function writeShim(pluginRoot, { version = null, host = null } = {}) {
   const a = writeIfChanged(shimPath(), SHIM);
   const current = { cli, pluginRoot, version, host, shim: SHIM_VERSION };
   const old = readShimCurrent();
+  if (old && old.cli !== cli && old.cli && existsSync(old.cli) && compareVersions(version, old.version) < 0) {
+    return { shim: shimPath(), cli: old.cli, changed: a, kept: old.version };
+  }
   const b = !old || old.cli !== cli || old.version !== version
     ? writeIfChanged(join(shimDir(), 'wf-current.json'), `${JSON.stringify({ ...current, at: new Date().toISOString() }, null, 2)}\n`)
     : false;

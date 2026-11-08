@@ -694,7 +694,14 @@ function publish(root, src, trunk, f) {
   if (push.status !== 0) return { pushed: false, error: push.stderr };
   const listFile = join(workDir(root, src), 'index.md');
   const list = readFm(listFile) ?? {};
-  if (list['pr-number']) return { pushed: true, pr: list['pr-number'] };
+  // A stored PR that merged or closed earlier no longer shows the list branch: open a new draft.
+  // When gh cannot say, trust the stored number.
+  if (list['pr-number']) {
+    const v = gh(root, ['pr', 'view', String(list['pr-number']), '--json', 'state']);
+    let state = '';
+    try { state = v.status === 0 ? String(JSON.parse(v.stdout).state ?? '').toUpperCase() : ''; } catch { state = ''; }
+    if (!state || state === 'OPEN') return { pushed: true, pr: list['pr-number'] };
+  }
   let pr = null;
   try { pr = JSON.parse(gh(root, ['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']).stdout || '[]')[0] ?? null; } catch { pr = null; }
   let opened = false;

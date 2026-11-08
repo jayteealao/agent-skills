@@ -870,6 +870,27 @@ test('a done packet pushes the list branch and opens one draft PR, then only pus
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a stored PR that merged earlier gets a new draft PR', () => {
+  const root = builtPacket(['d-one']);
+  const saved = process.env.FAKE_GH_PR;
+  try {
+    addRemote(root);
+    review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
+    const listFile = path.join(wf(root, SRC), 'work', 'index.md');
+    writeFileSync(listFile, readFileSync(listFile, 'utf8').replace(/^---\r?\n/, '---\npr-number: 3\n'));
+    process.env.FAKE_GH_PR = '{"state":"MERGED"}';
+    let r;
+    const calls = withFakeGh(() => { r = run(['done', root, SRC, 'engine']); });
+    assert.equal(r.ok, true, r.error);
+    assert.deepEqual([r.publish.opened, r.publish.pr], [true, 7], 'the merged PR #3 is replaced by a new draft');
+    assert.ok(calls.some((c) => c[0] === 'pr' && c[1] === 'create'));
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'index.md'))['pr-number'], 7);
+  } finally {
+    if (saved === undefined) delete process.env.FAKE_GH_PR; else process.env.FAKE_GH_PR = saved;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('land refuses to cut the list branch from a trunk that diverged from its remote', () => {
   const root = makeRepo();
   try {
