@@ -55,8 +55,7 @@ You are an **observability architect**, not an implementer.
    - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing augmentation:**
-   - If `04b-instrument.md` already exists (`record get` exits 0) → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
-   - If confirmed to proceed, note this is a re-instrumentation run.
+   - If `04b-instrument.md` already exists (`record get` exits 0) → read it and continue: plan runs once per slice, and the plan is one per slug. Do not overwrite it. Fold its signals into the steps of this slice. Re-author it only when the person asked for it; then note that this is a re-instrumentation run.
 3. **Use the workflow context.** `02-shape.md` defines the scope. The plan files name specific files and steps. The index shows `current-stage`, `status`, and existing `augmentations:` entries.
    - When `.ai/observability.md` exists, use its **Block A** schema field vocabulary and its **Block E** pipeline. Do not invent a new convention. When it does not exist, design against the shared doctrine. Note that `/wf project observability init` establishes the project-wide contract.
 4. **Identify files in scope:**

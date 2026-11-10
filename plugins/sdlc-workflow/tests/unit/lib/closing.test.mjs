@@ -90,3 +90,27 @@ test('offline: a stale PR answer makes no gh call and is reported as stale', () 
   assert.deepEqual(calls, []);
   assert.deepEqual(stale, ['/offline-root::b']);
 });
+
+test('a failed PR check is cached for the time to live: an offline dispatch does not report it stale again', () => {
+  const home = mkdtempSync(join(tmpdir(), 'closing-home-'));
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = home;
+  try {
+    let gh = 0;
+    const run = (cmd) => { if (cmd === 'gh') gh += 1; return { status: 1, stdout: '', stderr: 'gh: not logged in' }; };
+    const ws = [W('a', { status: 'active', branch: 'feat/a', 'base-branch': 'main', 'pr-number': 3 })];
+    const now = Date.parse('2026-11-10T10:00:00Z');
+    assert.deepEqual(closeCandidates('/r', ws, { run, now }), []);
+    assert.equal(gh, 1);
+    const stale = [];
+    assert.deepEqual(closeCandidates('/r', ws, { run, now: now + 60_000, offline: true, stale }), []);
+    assert.deepEqual(stale, [], 'a fresh failed answer starts no background check');
+    assert.deepEqual(closeCandidates('/r', ws, { run, now: now + 60_000 }), []);
+    assert.equal(gh, 1, 'gh is not asked again inside the time to live');
+    closeCandidates('/r', ws, { run, now: now + 16 * 60_000 });
+    assert.equal(gh, 2, 'after the time to live the check runs again');
+  } finally {
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(home, { recursive: true, force: true });
+  }
+});

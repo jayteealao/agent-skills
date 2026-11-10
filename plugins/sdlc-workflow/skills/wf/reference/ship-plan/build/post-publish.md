@@ -87,7 +87,7 @@ jobs:
       - name: Redeploy prior version
         run: <plan.ci-pipeline.publish-cmd — substitute version with inputs.version>
         env:
-<for each secret in plan.required-secrets[]:>
+<for each secret in plan.ci-pipeline.required-secrets[]:>
           <NAME>: ${{ secrets.<NAME> }}
 
 # blue-green-switch:

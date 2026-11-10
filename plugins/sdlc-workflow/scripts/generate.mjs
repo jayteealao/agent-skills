@@ -5,6 +5,7 @@
 //
 //   node scripts/generate.mjs           write every target
 //   node scripts/generate.mjs --check   write nothing; exit 1 and name each target that differs
+import { isMainModule } from '../lib/proc.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -182,7 +183,7 @@ export function generate({ root = PLUGIN_ROOT, write = true } = {}) {
   return changed;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const check = process.argv.includes('--check');
   const changed = generate({ write: !check });

@@ -57,8 +57,9 @@ often it runs: a self-initiated run pins a **free** subscription CLI (`codex`/`c
 # Step 1 — Build the prompt
 
 Compose a single prompt and write it to `.ai/consult/<unix-ts>.prompt.md` (create
-`.ai/consult/` if needed; these files are ephemeral and safe to delete — no hooks
-fire on them):
+`.ai/consult/` if needed). The file is ephemeral: delete it once the runner of
+Step 2 returns, whatever its exit code, so a prompt that inlines code does not stay
+in the tree. It contains:
 
 - A short **preamble** for the inferred intent — e.g. *"You are a senior reviewer.
   Give a one-line VERDICT, then the key FINDINGS (most material first), then a
@@ -85,8 +86,12 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
 - It prints one JSON object: `{ results: [{provider, ok, text, costUsd, usage, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
 - When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to the cost ledger of the slug, `<wf-dir>/cost-<yyyy-mm>.jsonl` in the folder of that workflow (see [_additive-write.md](../wf/reference/_additive-write.md)). Without the variable, no row is written.
-- Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
-  error.
+- On a bare fan-out, `skipped` names every known provider (`codex`, `claude`, `gemini`, `openai`) that it left out, with the reason.
+- Exit `0` = well-formed (per-provider failures are inside `results`); `1` = no
+  provider was available, so the panel is empty (the reasons are in `skipped` and on
+  stderr: report them, do not present an empty panel); `2` = usage error.
+- A CLI oracle that runs past 15 minutes is ended and reported as a `timeout`
+  failure; `SDLC_CONSULT_TIMEOUT_MS` changes the limit.
 
 # Step 3 — Synthesize
 

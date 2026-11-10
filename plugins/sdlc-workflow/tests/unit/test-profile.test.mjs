@@ -1,7 +1,7 @@
 // lib/test-profile.mjs and `wf.mjs profile`: the suites of a project and their times.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -192,5 +192,50 @@ test('setBudget keeps the preset label only while slice and long match the prese
     assert.equal(b.slice, preset.slice + 180);
     assert.equal(b.long, preset.long);
     assert.equal(readBudget(readProfile(f.root)).preset, undefined, 'the file has no label');
+  } finally { f.done(); }
+});
+
+test('four sessions that record suite times at once all land, and a config with a byte order mark reads', async () => {
+  const { spawn } = await import('node:child_process');
+  const { pathToFileURL } = await import('node:url');
+  const f = fixture({ other: 1, testProfile: Object.fromEntries(['fast', 'affected', 'full', 'heavy'].map((s) => [s, { command: 'x', estimateSeconds: 1 }])) });
+  try {
+    const file = path.join(f.root, '.ai', 'sdlc-config.json');
+    writeFileSync(file, `﻿${readFileSync(file, 'utf8')}`);
+    assert.equal(readProfile(f.root).fast.command, 'x', 'the mark is no parse error');
+    const lib = pathToFileURL(path.join(pluginRoot, 'lib', 'test-profile.mjs')).href;
+    const code = (s) => `const P = await import(${JSON.stringify(lib)}); for (let i = 1; i <= 15; i++) P.recordRun(${JSON.stringify(f.root)}, '${s}', i);`;
+    const codes = await Promise.all(['fast', 'affected', 'full', 'heavy'].map((s) => new Promise((res) => spawn(process.execPath, ['--input-type=module', '-e', code(s)], { stdio: ['ignore', 'ignore', 'inherit'] }).on('exit', res))));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    const p = readProfile(f.root);
+    assert.deepEqual(['fast', 'affected', 'full', 'heavy'].map((s) => p[s].measuredSeconds), [15, 15, 15, 15]);
+    assert.equal(JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, '')).other, 1);
+  } finally { f.done(); }
+});
+
+test('profile run passes when the suite passed, even if its time cannot be recorded', () => {
+  const f = fixture({ testProfile: { fast: { command: 'node -e ""', estimateSeconds: 1 } } });
+  try {
+    // A config that cannot be written: the record of the time fails.
+    const file = path.join(f.root, '.ai', 'sdlc-config.json');
+    const locked = process.platform === 'win32' ? file : path.dirname(file);
+    chmodSync(locked, process.platform === 'win32' ? 0o444 : 0o555);
+    let r;
+    try {
+      r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'run', f.root, 'fast', '--json'], { encoding: 'utf8' });
+    } finally { chmodSync(locked, process.platform === 'win32' ? 0o644 : 0o755); }
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, /the time of the fast suite was not recorded/);
+  } finally { f.done(); }
+});
+
+test('a config with the commit of the last passing run is valid against the config schema', async () => {
+  const { validateConfig } = await import('../../lib/config.mjs');
+  const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 5 } } });
+  try {
+    recordRun(f.root, 'fast', 12, { passedAt: 'abc1234' });
+    const config = JSON.parse(readFileSync(path.join(f.root, '.ai', 'sdlc-config.json'), 'utf8'));
+    const r = await validateConfig(config);
+    assert.equal(r.valid, true, JSON.stringify(r.errors));
   } finally { f.done(); }
 });

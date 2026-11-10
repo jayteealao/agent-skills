@@ -20,10 +20,6 @@
  *             return value prints as JSON. All or nothing: a script that throws changes nothing.
  *             Each changed workflow gets one commit. --dry-run lists the changes and applies none
  *             Example: wf.mjs run . .ai/workflows/demo/.draft/verify-all.mjs --slug demo
- *   path     <root> [<slug> [<file>]]
- *             an alias for one release: the workflows folder, the wf-dir of a workflow or a file
- *             in it. The dispatch prints the wf-dir, and every file of a workflow is in it
- *             Example: wf.mjs path . demo verify-evidence/api/run.txt
  *   records  <link|status|sync|push|close|retry|dismiss|migrate> [<root>] [<project>|<slug>] [--problems] [--dry-run] [--json]
  *             the records repo: link a project (its records move into the clone, and each
  *             workflow gets its issue), show the clone (--problems: only the failed pushes, the
@@ -34,7 +30,7 @@
  *             failure), and move the live branches of an older version onto the main branch once
  *             Example: wf.mjs records status . --problems
  *             Example: wf.mjs records migrate --dry-run
- *   lease    <claim|release|show|decline> <root> <slug> [--take] [--json]
+ *   lease    <claim|release|show|decline> <root> <slug> [--take] [--host h] [--json]
  *             the lease of a workflow: the one machine that writes its records now, when two or
  *             more machines are registered. A new claim also pulls (--take: an expired lease of
  *             another machine, after the person said yes; decline: the answer no to a lease
@@ -104,18 +100,45 @@
  *   stamp    <type> [--slug s] [--slice x]
  *             the frontmatter template of an artifact type, with every required field
  *             Example: wf.mjs stamp plan --slug demo --slice api
- *   board    add <root> <slug> <item|thread|area> (--file <entries.json> | --key k [--kind k]
- *                [--thread t] [--text x] [--why w] [--source s] [--name n] [--area a] [--side s])
- *             add an item, a thread or an area to the brainstorm board; the file holds one
- *             entry or a list. The whole board is checked against the schema before the write
+ *   board    add <root> <slug> <item|thread|area|work|log|sketch|budget|brief> (--file <entries.json> | --key k [--kind k]
+ *                [--thread t] [--text x] [--why w] [--source s] [--name n] [--area a] [--side s]
+ *                [--state s]) [--board <file>]
+ *             add entries of one kind to the brainstorm board; the file holds one entry or a
+ *             list. The whole board is checked against the schema before the write, and every
+ *             board form that writes renders the person's document from the board in the same
+ *             call (01-brainstorm.md, design-notes/brainstorm-design.md, or the slug-mode slice).
+ *             --board names the board file when it is not brainstorm-board.json (a slug-mode
+ *             board, or brainstorm-board-design.json of a feature); every board form takes it
  *             Example: wf.mjs board add . ideas item --key cap-warns --kind decision --thread limits --text "A cap warns." --source person
- *   board    move <root> <slug> <item>... (--to <thread> | --new <thread> --name n [--area a])
+ *   board    apply <root> <slug> --file <change.json> [--board <file>]
+ *             one batch in one write: {"add": {"<kind>": [...]}, "set": {"<key>": {...}}, "board": {...},
+ *             "summary": "...", "story": {"session": n, "text": "..."}, "briefs": {"<area>": "..."}, "remove": [...]}
+ *             Example: wf.mjs board apply . ideas --file .draft/batch.json
+ *   board    set <root> <slug> [<key>] <field=value>... [--board <file>]
+ *             set fields of one entry by its key, or of the board itself with no key; a value is
+ *             read as JSON when it parses, else as text; field=null removes the field
+ *             Example: wf.mjs board set . ideas cap-warns scope=keep core=true
+ *   board    prose <root> <slug> <summary|story|brief|carried> (--file <text file> | --text x)
+ *                [--session n] [--date YYYY-MM-DD] [--area a] [--heading h] [--board <file>]
+ *             set the summary, the story of a session (the current one by default), the brief of
+ *             an area, or a carried section (an empty text removes it)
+ *             Example: wf.mjs board prose . ideas summary --file .draft/summary.md
+ *   board    render <root> <slug> [--check] [--board <file>]
+ *             render the person's document from the board now; --check writes nothing and exits 1
+ *             when the document does not show the board
+ *             Example: wf.mjs board render . ideas
+ *   board    adopt <root> <slug> [--board <file>]
+ *             read the prose of a hand-written document (the summary, the area briefs, the
+ *             session stories, and any other section) into the board, after a snapshot of both
+ *             files to history/, then render; text that maps to no field is kept word for word
+ *             Example: wf.mjs board adopt . ideas
+ *   board    move <root> <slug> <item>... (--to <thread> | --new <thread> --name n [--area a]) [--board <file>]
  *             move items into a thread; --new makes the thread first
  *             Example: wf.mjs board move . ideas cap-warns cap-per-run --new caps --name "Spending caps" --area cost
- *   board    regroup <root> <slug> <thread>... --to <area>
+ *   board    regroup <root> <slug> <thread>... --to <area> [--board <file>]
  *             move threads into another area
  *             Example: wf.mjs board regroup . ideas caps alerts --to cost
- *   board    remove <root> <slug> <item>...
+ *   board    remove <root> <slug> <item>... [--board <file>]
  *             remove items that nothing else on the board names (a work packet, a brief, a
  *             budget, a sketch, a tension, a replaced-by)
  *             Example: wf.mjs board remove . ideas old-idea
@@ -139,7 +162,7 @@
  *             and the source says dropped, with moved-to
  *             Example: wf.mjs slice move . demo ui --to demo-ui --reason "its own PR"
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
- *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--json]
+ *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--source s] [--json]
  *             Example: wf.mjs decide add . demo --key db --question "Which database?" --answer postgres
  *   decide   add <root> <slug> --file <answers.json> [--by b] [--stage s] [--json]
  *             record a decision; a live entry with the same key and scope is superseded, and
@@ -189,13 +212,13 @@
  *             Example: wf.mjs profile show .
  *   profile  set <root> <suite> --command c --estimate seconds
  *             the command of a suite and the estimate of intake, with no run
- *             Example: wf.mjs profile set . unit --command "npm test" --estimate 30
+ *             Example: wf.mjs profile set . fast --command "npm test" --estimate 30
  *   profile  record <root> <suite> <seconds>
  *             a real run of a suite: its time replaces the estimate
- *             Example: wf.mjs profile record . unit 42
+ *             Example: wf.mjs profile record . fast 42
  *   profile  run <root> <suite> [--json]
  *             run the command of a suite in the root and record its time; exit 1 when it fails
- *             Example: wf.mjs profile run . unit
+ *             Example: wf.mjs profile run . fast
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
  *             Example: wf.mjs profile timebox . verify
@@ -304,18 +327,20 @@
  *             the gaps before ship that a script sees; with a slug, each gap is a person task of
  *             the workflow; exit 1 when there is a gap; --allow-no-plan leaves out the no-plan gap
  *             Example: wf.mjs ship ready . demo
- *   ship     merge <root> <slug> [--pr N] [--print]
- *             merge the PR by the method of the facts, or print the one command when a review
- *             or a merge queue is in the way (exit 3)
- *             Example: wf.mjs ship merge . demo --print
- *   ship     finish <root> <slug>
- *             after the merge: fast-forward and switch to the base, delete the branch, and mark
- *             the workflow shipped
- *             Example: wf.mjs ship finish . demo
+ *   ship     merge <root> <slug> [--pr N] [--method merge|rebase|squash] [--print]
+ *             merge the PR by --method or else the method of the facts, or print the one
+ *             command when a review or a merge queue is in the way (exit 3); never deletes
+ *             the branch
+ *             Example: wf.mjs ship merge . demo --method rebase
+ *   ship     finish <root> <slug> [--keep-branch]
+ *             after the merge: fast-forward and switch to the base, delete the branch here and
+ *             on the remote (unless --keep-branch), and mark the workflow shipped
+ *             Example: wf.mjs ship finish . demo --keep-branch
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
- *            [--time-box <minutes>] [--json]
+ *            [--review-findings] [--time-box <minutes>] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
- *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/
+ *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/. --review-findings:
+ *             the slug-wide review fixes only the findings that the campaign walk put in the ledger
  *             Example: wf.mjs drive . demo api --time-box 90
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -331,7 +356,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
 import { putChecked } from '../lib/record-put.mjs';
-import { driveScript, readRun } from '../lib/drive.mjs';
+import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
@@ -349,7 +374,7 @@ import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-workt
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
-import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, verdictOf, writeLedger } from '../lib/findings.mjs';
+import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, updateLedger, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, draftsOf, frontmatterOfDoc, keptPath, listDocs, markSuperseded, migrateWorkflow, outlineOf, putDraft, readDoc, redirectOf, sectionText, setFields } from '../lib/records.mjs';
@@ -357,8 +382,11 @@ import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs'
 import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
-import { BOARD_KINDS, boardAdd, boardMove, boardRegroup, boardRemove } from '../lib/board-ops.mjs';
-import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
+import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
+import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
+import { isMainModule } from '../lib/proc.mjs';
+import { writeFileAtomic } from '../lib/atomic-write.mjs';
+import { withFileLock } from '../lib/file-lock.mjs';
 import { STAGE_SUITES, SUITES, BUDGET_PRESETS, budgetLine, noCommand, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
 import { NO_SUITE, implementSuites, noSuiteReceipt, receiptState, treeChanges } from '../lib/test-receipt.mjs';
@@ -368,7 +396,7 @@ import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
-import { decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
+import { checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
 
 // The status and record bodies live in lib/, so the library calls the same functions.
@@ -396,7 +424,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'outline', 'full', 'problems', 'background'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -423,10 +451,7 @@ async function runDrive(pos, opt) {
   const run = opt.resume || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
   const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
   if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
-  const args = {
-    projectRoot, referenceRoot: REFERENCE_ROOT, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
-    ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(opt.delegate || staged.delegate ? { delegate: true } : {}),
-  };
+  const args = driveArgs({ projectRoot, referenceRoot: REFERENCE_ROOT, slug, run, staged, slice, answered, delegate: Boolean(opt.delegate), reviewFindings: Boolean(opt['review-findings']) });
   const r = await driveScript({
     source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,
     resume: opt.resume ? readRun(runDir) : undefined,
@@ -573,10 +598,8 @@ export async function reconcileIndex(root, { write = true } = {}) {
   const removed = [...old.keys()].filter((s) => !rows.has(s));
   const updated = sorted.filter((s) => old.has(s) && old.get(s) !== rows.get(s));
   const changed = text !== before.replace(/\r\n/g, '\n');
-  if (write && changed && (rows.size || existed)) {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, text);
-  }
+  // The whole file goes in one rename, so a reader never sees a part of it.
+  if (write && changed && (rows.size || existed)) writeFileAtomic(file, text);
   return {
     bootstrapped: !existed && rows.size > 0, changed, count: rows.size, added, removed, updated, invalid,
     reserved: sorted.filter((s) => reserved.has(s)),
@@ -593,14 +616,18 @@ export async function refreshIndexRow(root, slug) {
   if (!existsSync(file)) return { changed: (await reconcileIndex(root)).changed };
   const fm = frontmatterOf(join(wfRoot(root), slug), INDEX_NAME);
   if (!fm) return { changed: false };
-  const before = readFileSync(file, 'utf8');
-  const rows = parseIndex(before);
-  rows.set(slug, rowOf(fm, slug));
-  const sorted = [...rows.keys()].sort((a, b) => a.localeCompare(b));
-  const text = `${[INDEX_HEADER, ...sorted.map((s) => rows.get(s))].join('\n')}\n`;
-  if (text === before.replace(/\r\n/g, '\n')) return { changed: false };
-  writeFileSync(file, text);
-  return { changed: true };
+  // The file is read under its lock, just before the new text is made: two sessions that
+  // refresh other rows at once both keep their row.
+  return withFileLock(file, () => {
+    const before = readFileSync(file, 'utf8');
+    const rows = parseIndex(before);
+    rows.set(slug, rowOf(fm, slug));
+    const sorted = [...rows.keys()].sort((a, b) => a.localeCompare(b));
+    const text = `${[INDEX_HEADER, ...sorted.map((s) => rows.get(s))].join('\n')}\n`;
+    if (text === before.replace(/\r\n/g, '\n')) return { changed: false };
+    writeFileAtomic(file, text);
+    return { changed: true };
+  });
 }
 
 /** The commands that change the index of a workflow: their success refreshes its INDEX.md row. */
@@ -669,7 +696,8 @@ export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } 
 
 // ---------------------------------------------------------------- decide
 
-const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice, files: opt.files });
+// `--slice slug-wide` is no slice: the entry is scoped to the whole workflow, as in the file form.
+const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice && opt.slice !== 'slug-wide' ? opt.slice : undefined, files: opt.files });
 
 
 export function runDecide(pos, opt) {
@@ -799,7 +827,7 @@ export function runStep(pos, opt) {
     if (skip.length && !opt.reason) throw refuse('step complete: --skip needs --reason', again('complete', slice, ` --skip ${skip.join(',')} --reason "<why>"`));
     const open = w.steps.filter((s) => !w.done.some((d) => d.n === s.n) && !skip.includes(s.n)).map((s) => s.n);
     if (open.length) throw refuse(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip`, again('complete', slice, ` --skip ${[...skip, ...open].join(',')} --reason "<why>"`));
-    const plan = readPlan(readDoc(dir, `04-plan-${slice}.md`)?.body ?? '');
+    const plan = readPlan(planDocOf(dir, slice)?.body ?? '');
     return { slice, event: 'complete', sha: sha(), planHash: plan.hash, ...(skip.length ? { skipped: skip.map((x) => ({ n: x, reason: opt.reason })) } : {}), branch };
   };
   const rows = {
@@ -814,8 +842,12 @@ export function runStep(pos, opt) {
   // The progress record follows the step of the slice.
   if (verb === 'start') {
     const total = whereOf(dir, slice).total;
-    writeProgress(dir, { stage: 'implement', slice, step: { n: step, of: total || null, title: opt.title ?? null }, ...(readProgress(dir)?.status ? {} : { status: 'running' }) });
-  } else if (verb === 'complete') writeProgress(dir, { slice, step: null });
+    const was = readProgress(dir);
+    writeProgress(dir, { stage: 'implement', slice, step: { n: step, of: total || null, title: opt.title ?? null }, ...(was?.status && !(was.status === 'done' && !was.driver) ? {} : { status: 'running' }) });
+  } else if (verb === 'complete') {
+    // Outside a driver nothing else ends the run: a finished implement is done, not a dead run.
+    writeProgress(dir, { slice, step: null, ...(readProgress(dir)?.driver ? {} : { status: 'done' }) });
+  }
   out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}${line.noChange ? ' (no change)' : ''}${line.kind && line.kind !== 'fail' ? ` (${line.kind})` : ''}`);
   return 0;
 }
@@ -856,7 +888,10 @@ export function runProfile(pos, opt) {
     const seconds = Math.round((Date.now() - t0) / 100) / 10;
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
-    if (!r.error) recordRun(projectRoot, a, seconds, { passedAt: head });
+    // A time that cannot be recorded is a warning: the suite ran, and its result stands.
+    if (!r.error) {
+      try { recordRun(projectRoot, a, seconds, { passedAt: head }); } catch (e) { process.stderr.write(`wf.mjs: the time of the ${a} suite was not recorded: ${e.message}\n`); }
+    }
     const budget = readBudget(profile);
     if (overLongBudget(profile, seconds)) {
       process.stderr.write(`WARNING: the ${a} suite took ${seconds}s, over the long-run budget of ${budget.long}s. Before the next run, offer the faster paths of _long-runs.md: run the touched part, a pilot, a sample, a split, or the packet end.\n`);
@@ -908,8 +943,12 @@ export function runFindings(pos, opt) {
       const found = Array.isArray(doc) ? doc : doc.findings ?? [];
       const dimensions = opt.dimensions ? String(opt.dimensions).split(',').map((d) => d.trim()).filter(Boolean) : (doc.dimensions ?? []);
       const files = opt.files ? String(opt.files).split(',').map((f) => f.trim()).filter(Boolean) : (Array.isArray(doc.affectedFiles) ? doc.affectedFiles : null);
-      const r = mergeRun(ledger, found, { ...scope, dimensions, files, run: opt.run ?? null });
-      writeLedger(dir, r.ledger);
+      // The merge reads the ledger again under its lock, so a parallel writer loses no entry.
+      const r = updateLedger(dir, (now) => {
+        const m = mergeRun(now, found, { ...scope, dimensions, files, run: opt.run ?? null });
+        writeLedger(dir, m.ledger);
+        return m;
+      });
       out(opt.json ? { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, outOfScope: r.outOfScope, verdict: r.verdict } : `added ${r.added.length}, seen again ${r.resurfaced.length}, resolved ${r.resolved.length}${r.outOfScope.length ? `, dropped ${r.outOfScope.length} outside the work packet` : ''}: ${r.verdict}`);
       return 0;
     }
@@ -925,15 +964,13 @@ export function runFindings(pos, opt) {
     }
     case 'set': {
       if (!a || !b) throw new Error('findings set: <id> <status> are required');
-      if (opt.decision) {
-        // A dismissal by a decision names a live answer, steer or approval of the person.
-        const d = decisionsOf(dir).find((x) => x.id === opt.decision);
-        if (!d) throw new Error(`findings set: no decision ${opt.decision}`);
-        if (d['superseded-by']) throw new Error(`findings set: decision ${d.id} is superseded by ${d['superseded-by']}`);
-        if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw new Error(`findings set: decision ${d.id} is not an answer, steer or approval of the person`);
-      }
-      const e = setStatus(ledger, a, b, opt.reason ?? null, { commit: opt.commit ?? null, decision: opt.decision ?? null });
-      writeLedger(dir, ledger);
+      // A dismissal by a decision names a live answer, steer or approval of the person.
+      if (opt.decision) checkDismissDecision(dir, opt.decision);
+      const e = updateLedger(dir, (now) => {
+        const entry = setStatus(now, a, b, opt.reason ?? null, { commit: opt.commit ?? null, decision: opt.decision ?? null });
+        writeLedger(dir, now);
+        return entry;
+      });
       out(opt.json ? e : `${e.id} ${e.status}`);
       return 0;
     }
@@ -1002,6 +1039,9 @@ function runRecord(pos, opt) {
         : homes.flatMap(draftsOf).filter((p, i, all) => all.findIndex((q) => named(q) === named(p)) === i);
       if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
       const results = drafts.map((p) => putChecked(dir, p));
+      // A put that refused one draft exits 1, and the drafts that it did put still get the
+      // follow-up of a change (the INDEX.md row, the records commit): main reads this mark.
+      opt.landed = results.some((r) => !r.errors.length);
       const ev = pruneEvidence(dir);
       out(opt.json ? { results, pruned: ev.pruned } : results.map((r) => (r.errors.length
         ? `refused ${r.name}: ${r.errors.join('; ')}`
@@ -1216,24 +1256,33 @@ function runShip(pos, opt) {
     if (!pr) throw new Error('ship merge: the workflow has no pr-number; pass --pr N');
     const f = shipFacts(projectRoot, base);
     if (!f.ok) throw new Error(f.reason);
-    const cmd = mergeCommand(f, pr);
+    const method = opt.method ? String(opt.method) : null;
+    if (method && !f.allowed.includes(method)) throw new Error(`ship merge: ${f.base} does not allow --method ${method}; allowed: ${f.allowed.join(', ') || 'none'}`);
+    const cmd = mergeCommand(f, pr, { method });
     if (!cmd) throw new Error(`ship merge: the repo allows no merge method for ${f.base}`);
     if (opt.print || !f.direct) {
       out(opt.json ? { merged: false, command: cmd, facts: f } : `run: ${cmd}${f.direct ? '' : ` (${f.mergeQueue ? 'the merge queue merges it' : `${f.requiredReviews} review(s) are required`})`}`);
       return 3;
     }
     const r = defaultRun('gh', cmd.split(' ').slice(1), { cwd: projectRoot });
-    out(opt.json ? { merged: r.status === 0, command: cmd, stderr: r.stderr } : r.status === 0 ? `merged PR ${pr} by ${f.method}` : `the merge failed: ${r.stderr}\nrun: ${cmd}`);
+    out(opt.json ? { merged: r.status === 0, command: cmd, stderr: r.stderr } : r.status === 0 ? `merged PR ${pr} by ${method ?? f.method}` : `the merge failed: ${r.stderr}\nrun: ${cmd}`);
     return r.status === 0 ? 0 : 1;
   }
-  const r = finishShip(projectRoot, { branch: index.branch, base: base ?? 'main', pr });
+  const r = finishShip(projectRoot, { branch: index.branch, base: base ?? 'main', pr, keepBranch: Boolean(opt['keep-branch']) });
   if (r.ok) {
-    setFields(join(wfRoot(projectRoot), slug), INDEX_NAME, {
-      status: 'shipped', 'close-reason': 'shipped', 'closed-at': nowIso(), 'progress.ship': 'complete',
-      'current-stage': 'ship', 'next-invocation': `/wf retro ${slug}`,
-    });
+    // A batch ship marks every slug of the roster of the handoff that is on the same branch.
+    const roster = frontmatterOf(join(wfRoot(projectRoot), slug), '08-handoff.md')?.['branch-slugs'];
+    const followers = (Array.isArray(roster) ? roster : []).map(String)
+      .filter((s) => s !== slug && frontmatterOf(join(wfRoot(projectRoot), s), INDEX_NAME)?.branch === index.branch);
+    for (const s of [slug, ...followers]) {
+      setFields(join(wfRoot(projectRoot), s), INDEX_NAME, {
+        status: 'shipped', 'close-reason': 'shipped', 'closed-at': nowIso(), 'progress.ship': 'complete',
+        'current-stage': 'ship', 'next-invocation': `/wf retro ${s}`,
+      });
+    }
+    r.shipped = [slug, ...followers];
   }
-  out(opt.json ? r : r.ok ? `on ${r.base}; ${r.steps.map(([k, v]) => `${k} ${v ? 'ok' : 'skipped'}`).join(', ')}; ${slug} is shipped` : `not finished: ${r.reason}`);
+  out(opt.json ? r : r.ok ? `on ${r.base}; ${r.steps.map(([k, v]) => `${k} ${v ? 'ok' : 'skipped'}`).join(', ')}${r.kept ? `; kept ${r.branch}` : ''}; ${slug} is shipped` : `not finished: ${r.reason}`);
   return r.ok ? 0 : 1;
 }
 
@@ -1493,7 +1542,7 @@ function backfillProject(projectRoot) {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], ship: ['finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], findings: ['add', 'set'], ship: ['ready', 'finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -1647,11 +1696,14 @@ export async function main(argv = process.argv.slice(2)) {
   }
   const { pos, opt } = flags(rest);
   const code = await runMain(cmd, pos, opt);
+  const putSome = cmd === 'record' && pos[0] === 'put' && code === 1 && opt.landed === true;
   // Scripts keep INDEX.md: a change of the index of a workflow refreshes its row.
-  if (code === 0 && indexChanged(cmd, pos)) {
+  if ((code === 0 || putSome) && indexChanged(cmd, pos)) {
     try { await refreshIndexRow(resolve(pos[1]), pos[2]); } catch (e) { process.stderr.write(`wf.mjs: INDEX.md not refreshed: ${e.message}\n`); }
   }
-  const target = code === 0 ? changed(cmd, pos, opt) : null;
+  // `ship ready` with a slug writes its gaps as person tasks and exits 1 when there is one.
+  const wrote = code === 0 || putSome || (cmd === 'ship' && pos[0] === 'ready' && code === 1);
+  const target = wrote ? changed(cmd, pos, opt) : null;
   if (target) {
     const [root, slug] = [resolve(target[0]), target[1]];
     afterChange(root, slug, {
@@ -1803,18 +1855,9 @@ async function runMain(cmd, pos, opt) {
         out(opt.json ? r : r.entries.length ? r.entries.map(deferralLine).join('\n') : 'no open deferrals');
         return r.stop.length ? 1 : 0;
       }
-      case 'path': {
-        const [root, slug, file] = pos;
-        if (!root) throw new Error('path: <root> is required');
-        const projectRoot = resolve(root);
-        // An alias for one release: the dispatch prints the wf-dir, and every file of a workflow,
-        // its drafts too, is in it.
-        out(!slug ? wfRoot(projectRoot) : !file ? workflowDir(projectRoot, slug) : join(workflowDir(projectRoot, slug), file));
-        return 0;
-      }
       case 'board': {
         const [verb, root, slug, ...keys] = pos;
-        if (!['add', 'move', 'regroup', 'remove'].includes(verb) || !root || !slug) throw new Error('board: <add|move|regroup|remove> <root> <slug> are required');
+        if (!['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'].includes(verb) || !root || !slug) throw new Error('board: <add|move|regroup|remove|apply|set|prose|render|adopt> <root> <slug> are required');
         const dir = join(wfRoot(resolve(root)), slug);
         if (!existsSync(dir)) throw new Error(`board: no workflow folder ${dir}`);
         const file = opt.board ?? null;
@@ -1834,6 +1877,22 @@ async function runMain(cmd, pos, opt) {
         } else if (verb === 'regroup') {
           if (!keys.length || !opt.to) throw new Error('board regroup: <thread>... --to <area> are required');
           r = boardRegroup(dir, keys, opt.to, { file });
+        } else if (verb === 'apply') {
+          if (!opt.file) throw new Error('board apply: --file <change.json> is required');
+          r = boardApply(dir, JSON.parse(readFileSync(resolve(opt.file), 'utf8')), { file });
+        } else if (verb === 'set') {
+          const key = keys[0] && !keys[0].includes('=') ? keys[0] : null;
+          r = boardSet(dir, key, boardFieldArgs(key ? keys.slice(1) : keys), { file });
+        } else if (verb === 'prose') {
+          const [what] = keys;
+          if (!what || (opt.file == null && opt.text == null)) throw new Error(`board prose: <${PROSE_KINDS.join('|')}> and --file <text file> or --text x are required`);
+          const text = opt.file != null ? readFileSync(resolve(opt.file), 'utf8') : String(opt.text);
+          r = boardProse(dir, what, text, { file, session: opt.session ?? null, date: opt.date ?? null, area: opt.area ?? null, heading: opt.heading ?? null });
+        } else if (verb === 'render') {
+          r = boardRender(dir, { file, check: Boolean(opt.check) });
+          if (opt.check) { out(opt.json ? r : `${r.document ?? 'no document'}: ${r.stale ? (r.adopt ? 'written by hand; run board adopt' : 'stale') : 'shows the board'}`); return r.stale ? 1 : 0; }
+        } else if (verb === 'adopt') {
+          r = boardAdopt(dir, { file });
         } else {
           if (!keys.length) throw new Error('board remove: <item>... are required');
           r = boardRemove(dir, keys, { file });
@@ -1879,7 +1938,9 @@ async function runMain(cmd, pos, opt) {
           const t0 = Date.now();
           const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
           const seconds = Math.round((Date.now() - t0) / 100) / 10;
-          if (!r.error) recordRun(projectRoot, name, seconds);
+          if (!r.error) {
+            try { recordRun(projectRoot, name, seconds); } catch (e) { process.stderr.write(`wf.mjs: the time of the ${name} suite was not recorded: ${e.message}\n`); }
+          }
           runs.push({ suite: name, command: suite.command, pass: r.status === 0, seconds });
           if (r.status !== 0) break;
         }
@@ -1942,6 +2003,7 @@ const ENUM_ARGS = {
   'progress set': { '--status': PROGRESS_STATUSES },
   'record stage-done': { '<stage>': Object.keys(STAGE_FILES) },
   'board add': { '<kind>': BOARD_KINDS },
+  'board prose': { '<field>': PROSE_KINDS },
 };
 
 /** The verbs that the form line of a help block names (`record put` → [put]), or null. */
@@ -2002,5 +2064,5 @@ function hintOf(cmd, pos, message, fix = null) {
   return lines.length ? `${lines.join('\n')}\n` : '';
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) process.exitCode = await main();

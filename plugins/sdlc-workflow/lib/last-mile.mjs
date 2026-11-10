@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { linkedProject } from './records-root.mjs';
 
-export const MERGE_METHODS = Object.freeze(['squash', 'rebase', 'merge']);
+export const MERGE_METHODS = Object.freeze(['merge', 'rebase', 'squash']);
 export const SHIP_PLAN = join('.ai', 'ship-plan.md');
 
 export function defaultRun(cmd, args, { cwd, input } = {}) {
@@ -84,7 +84,9 @@ const json = (r) => { try { return ok(r) && r.stdout ? JSON.parse(r.stdout) : nu
 
 /**
  * The merge rules of the repo for `base`. `method` is the plan's method when the repo allows it,
- * else the first allowed of squash, rebase, merge. `direct` is false when a rule needs a review
+ * else the first allowed of merge, rebase, squash: a merge commit keeps the commit of each step
+ * on the base. A linear-history rule rules out a merge commit, so the order then starts at rebase.
+ * `direct` is false when a rule needs a review
  * or a merge queue, so ship prints the one command instead of merging.
  */
 export function shipFacts(root, base, { run = defaultRun, plan = readShipPlan(root) } = {}) {
@@ -122,11 +124,15 @@ export function shipFacts(root, base, { run = defaultRun, plan = readShipPlan(ro
   };
 }
 
-/** The one command that merges a PR under these facts. */
-export function mergeCommand(facts, pr) {
-  if (!facts?.method) return null;
-  const del = facts.deleteBranchOnMerge ? '' : ' --delete-branch';
-  return facts.mergeQueue ? `gh pr merge ${pr} --auto --${facts.method}` : `gh pr merge ${pr} --${facts.method}${del}`;
+/**
+ * The one command that merges a PR under these facts, by `method` when given (it must be an
+ * allowed one), else by the method of the facts. It never deletes the branch: `finishShip` does
+ * that after the merge, unless the person keeps the branch.
+ */
+export function mergeCommand(facts, pr, { method = null } = {}) {
+  const m = method ?? facts?.method ?? null;
+  if (!m || (method && !facts?.allowed?.includes(method))) return null;
+  return facts.mergeQueue ? `gh pr merge ${pr} --auto --${m}` : `gh pr merge ${pr} --${m}`;
 }
 
 // ---------------------------------------------------------------- readiness gaps
@@ -173,23 +179,47 @@ export function readyGaps(root, { run = defaultRun, base = null, allowNoPlan = f
 
 /**
  * After the PR merged: fetch, switch to the base, fast-forward it, delete the local branch, and
- * delete the remote branch when GitHub did not. A branch whose PR is not merged is kept.
+ * delete the remote branch when GitHub did not. A branch whose PR is not merged is kept, and so
+ * is the branch when `keepBranch` is set.
+ *
+ * Before it switches or deletes anything, it checks that the merge holds the branch:
+ * - with a PR, the PR is the one of `branch`, and the local branch has no commit that the PR
+ *   head (or, when gh gives no head, the pushed branch) or the remote base lacks;
+ * - with no PR, the branch is merged into `<remote>/<base>`.
+ * A refused local delete keeps the remote branch too.
  */
-export function finishShip(root, { branch, base, pr = null, remote = 'origin', run = defaultRun, deleteRemote = true } = {}) {
+export function finishShip(root, { branch, base, pr = null, remote = 'origin', run = defaultRun, deleteRemote = true, keepBranch = false } = {}) {
   if (!branch || !base || branch === base) return { ok: false, reason: 'finish needs a branch other than the base' };
-  const state = pr ? json(run('gh', ['pr', 'view', String(pr), '--json', 'state,headRefName'], { cwd: root })) : null;
+  const state = pr ? json(run('gh', ['pr', 'view', String(pr), '--json', 'state,headRefName,headRefOid'], { cwd: root })) : null;
   if (pr && state?.state !== 'MERGED') return { ok: false, reason: `PR ${pr} is ${state?.state ?? 'not readable'}, not merged` };
+  if (pr && state.headRefName && state.headRefName !== branch) return { ok: false, reason: `PR ${pr} is for ${state.headRefName}, not ${branch}` };
   const steps = [];
   const fetch = git(run, root, ['fetch', '--quiet', '--prune', remote]);
   steps.push(['fetch', ok(fetch)]);
+  const sha = (ref) => { const r = git(run, root, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]); return ok(r) && r.stdout ? r.stdout.trim() : null; };
+  const within = (a, b) => ok(git(run, root, ['merge-base', '--is-ancestor', a, b]));
+  const tip = sha(`refs/heads/${branch}`);
+  const remoteBase = `${remote}/${base}`;
+  if (pr) {
+    // A commit made here after the last push is in no PR head: deleting the branch would lose it.
+    const head = state.headRefOid || sha(`refs/remotes/${remote}/${branch}`);
+    if (tip && !within(tip, remoteBase) && !(head && (tip === head || within(tip, head)))) {
+      return { ok: false, steps, reason: `${branch} holds commits that PR ${pr} did not merge (local ${tip.slice(0, 8)}, PR head ${head ? head.slice(0, 8) : 'unknown'}). Push them and merge them, or move them to another branch first` };
+    }
+  } else {
+    const ref = tip ?? sha(`refs/remotes/${remote}/${branch}`);
+    if (!ref || !within(ref, remoteBase)) return { ok: false, steps, reason: `${branch} is not merged into ${remoteBase}, and no PR number proves a merge` };
+  }
   const sw = git(run, root, ['switch', base]);
   if (!ok(sw)) return { ok: false, steps, reason: `git switch ${base} failed: ${sw.stderr}` };
   const ff = git(run, root, ['merge', '--ff-only', '--quiet', `${remote}/${base}`]);
   if (!ok(ff)) return { ok: false, steps, reason: `${base} does not fast-forward to ${remote}/${base}: ${ff.stderr}. Reconcile it by hand.` };
   steps.push(['fast-forward', true]);
+  if (keepBranch) return { ok: true, steps, base, branch, kept: true };
   // A squash or rebase merge leaves the branch unmerged in git's eyes: the merged PR is the proof.
-  const del = git(run, root, ['branch', pr ? '-D' : '-d', branch]);
-  steps.push(['delete-local', ok(del)]);
+  const del = tip ? git(run, root, ['branch', pr ? '-D' : '-d', branch]) : null;
+  steps.push(['delete-local', Boolean(del && ok(del))]);
+  if (del && !ok(del)) return { ok: false, steps, reason: `git branch -d ${branch} refused: ${del.stderr}. The branch stays here and on ${remote}` };
   if (deleteRemote) {
     const still = git(run, root, ['ls-remote', '--exit-code', '--heads', remote, branch]);
     if (ok(still)) steps.push(['delete-remote', ok(git(run, root, ['push', remote, '--delete', branch]))]);

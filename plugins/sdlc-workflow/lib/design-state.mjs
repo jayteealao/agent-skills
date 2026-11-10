@@ -37,7 +37,8 @@ export function tokensUsed(html) {
  * each page costs a walk of the whole history for each page.
  */
 function historyAll(root, limit = 20) {
-  const r = spawnSync('git', ['-C', root, 'log', '--format=%x1e%H%x09%cI%x09%s', '--name-only', '--', `${SURFACE_REL}/${SCREENS_DIR}`],
+  // --relative: the paths start at the root, which may be a folder inside its git repo.
+  const r = spawnSync('git', ['-C', root, 'log', '--relative', '--format=%x1e%H%x09%cI%x09%s', '--name-only', '--', `${SURFACE_REL}/${SCREENS_DIR}`],
     { encoding: 'utf8', windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
   const out = new Map();
   if (r.status !== 0) return out;
@@ -57,7 +58,11 @@ function historyAll(root, limit = 20) {
 /** The screen pages that differ from the last commit: one git status for every page. */
 function dirtyPages(root) {
   const r = spawnSync('git', ['-C', root, 'status', '--porcelain', '--untracked-files=all', '--', `${SURFACE_REL}/${SCREENS_DIR}`], { encoding: 'utf8', windowsHide: true });
-  return new Set(r.status === 0 ? r.stdout.split('\n').filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '')) : []);
+  if (r.status !== 0) return new Set();
+  // git status names paths from the top of the git repo: take off the folder of the root.
+  const prefix = spawnSync('git', ['-C', root, 'rev-parse', '--show-prefix'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() ?? '';
+  return new Set(r.stdout.split('\n').filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, ''))
+    .map((p) => (prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p)));
 }
 
 /**

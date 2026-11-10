@@ -27,6 +27,7 @@
 import { basename } from 'node:path';
 import { loadConfig } from './config.mjs';
 import { logError } from './error-log.mjs';
+import { errorsLogPath } from './home.mjs';
 import { beginSystemMessages, flushSystemMessages, outputSystemMessage, projectRootFromInput } from './hook-utils.mjs';
 import { readStdinJson } from './stdin.mjs';
 
@@ -52,7 +53,7 @@ export function refuseWrite(mode, reason) {
     outputSystemMessage(`${reason.trimEnd()}\n(checks: warn, so the write stands.)`);
     return;
   }
-  process.stderr.write(`${reason.trimEnd()}\nSet checks: warn in .ai/sdlc-config.json to let such a write stand with a warning.\n`);
+  process.stderr.write(`${reason.trimEnd()}\nFix the write. Only the person decides to set checks: warn in .ai/sdlc-config.json, which lets such a write stand with a warning; an agent does not change that setting itself.\n`);
   blockToolCall();
 }
 
@@ -114,20 +115,33 @@ async function safeLog(label, err) {
 }
 
 /**
+ * The refusal of a gate that failed: it names the hook, the error, and where the log of it is.
+ * Pure but for the default log path, so a test can read it.
+ */
+export function hookFailedMessage(name, what, err, logPath = errorsLogPath()) {
+  return `${name}: the hook ${what} (${err?.message ?? err}), so it blocks this tool call.\n`
+    + `To see why: the error and its stack are in ${logPath}, and in .ai/_view/.hook-errors.log of a project that runs workflows.\n`
+    + 'Show the person that error. The person repairs the plugin install, or sets checks: off in .ai/sdlc-config.json; an agent does not change that setting itself.\n';
+}
+
+/**
  * Read the payload once, run the stages `plan(input)` returns
  * (`[[label, run, opts?], …]`), flush systemMessages, return the exit code.
  * A HookBlock → 2 (stop when `stopOnBlock`); any other error is logged and the
- * stage counts as passed — hook infrastructure must never break a tool call.
- * The one exception is a stage with `{ failClosed: true }`, a schema gate: its
- * error also blocks, because a gate that cannot run must not pass the write.
+ * stage counts as passed — an advisory check that breaks must not break a tool call.
+ * A stage with `{ failClosed: true }` is a gate: its error also blocks, because a gate
+ * that cannot run must not pass the write. With `inputFailClosed`, a payload that cannot be
+ * read blocks too, for the same reason: the gates of that process cannot run on it.
  */
-export async function runStages(label, plan, { stopOnBlock = false } = {}) {
+export async function runStages(label, plan, { stopOnBlock = false, inputFailClosed = false } = {}) {
   let input;
   try {
     input = await readStdinJson();
   } catch (err) {
     await safeLog(label, err);
-    return 0;
+    if (!inputFailClosed) return 0;
+    process.stderr.write(hookFailedMessage(label, 'could not read the tool call', err));
+    return 2;
   }
   let stages = [];
   try {
@@ -143,10 +157,7 @@ export async function runStages(label, plan, { stopOnBlock = false } = {}) {
     } catch (err) {
       const blocked = err instanceof HookBlock;
       if (!blocked) await safeLog(name, err);
-      if (!blocked && failClosed) {
-        process.stderr.write(`${name}: the schema gate could not run (${err?.message ?? err}), so it blocks. `
-          + 'Repair the plugin install, or set checks: off in .ai/sdlc-config.json.\n');
-      }
+      if (!blocked && failClosed) process.stderr.write(hookFailedMessage(name, 'failed', err));
       if (blocked || failClosed) {
         code = 2;
         if (stopOnBlock) break;
@@ -158,9 +169,9 @@ export async function runStages(label, plan, { stopOnBlock = false } = {}) {
 }
 
 /** The single-purpose entry: one check, one process. */
-export async function runStandalone(label, run, { failClosed = false } = {}) {
+export async function runStandalone(label, run, { failClosed = false, inputFailClosed = false } = {}) {
   if (hookSuppressed()) process.exit(0);
-  process.exit(await runStages(label, () => [[label, run, { failClosed }]], { stopOnBlock: true }));
+  process.exit(await runStages(label, () => [[label, run, { failClosed }]], { stopOnBlock: true, inputFailClosed }));
 }
 
 /** The per-event entry: every check the payload selects, one process. */

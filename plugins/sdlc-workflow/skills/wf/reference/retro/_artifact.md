@@ -17,6 +17,7 @@ status: complete
 stage-number: 10
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
+revision-count: 0
 revisions: []                      # reason-centric ledger (see ../_additive-write.md)
 workflow-outcome: <completed|abandoned|partial>
 learnings-written: []              # paths of .ai/solutions/ files this retro wrote/updated (empty list allowed)

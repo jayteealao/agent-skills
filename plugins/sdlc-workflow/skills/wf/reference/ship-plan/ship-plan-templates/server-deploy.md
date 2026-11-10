@@ -49,6 +49,10 @@ rollout-strategy: staged
 rollout-stages: ["canary-1pod", "10%", "50%", "100%"]
 rollback-mechanism: redeploy-prior
 rollback-time-estimate-min: 3
+rollback-cmd: ""
+rollback-verify-cmd: ""
+prior-artifact-retention: ""
+irreversible-steps: []
 db-migrations-reversible: false
 
 recovery-playbooks:
@@ -122,7 +126,7 @@ governance:
 ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: [] }, release-concurrency: true, path-filters: true }
 
 # Block J — merge controls (governance.merge) — prod infra: no auto-merge
-merge: { method: squash, auto-merge: false, merge-queue: true }
+merge: { method: merge, auto-merge: false, merge-queue: true }
 
 # Block K — security & supply-chain gates
 security:

@@ -31,7 +31,7 @@
 // spawning, no global mutation) so the scrub/sentinel logic is unit-testable
 // without a live CLI.
 
-import { existsSync, copyFileSync, mkdtempSync } from 'node:fs';
+import { existsSync, copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -120,8 +120,8 @@ export function isolatedHomeParent(sourceHome) {
  * knob (`[features] hooks=false`?) and `--ignore-user-config`/`--ignore-rules`
  * are NOT doc-confirmed, so we deliberately do NOT inject a speculative config
  * flag that could make codex reject the run. The `--sandbox read-only` OS
- * sandbox + the sentinel are the guarantees; copying config.toml verbatim keeps
- * the user's model. Verify the knobs before relying on codex-side hook suppression.
+ * sandbox + the sentinel are the guarantees; the copy of config.toml keeps the
+ * user's model and leaves out the MCP servers (withoutMcpServers). Verify the knobs before relying on codex-side hook suppression.
  *
  * The isolated home is created OUTSIDE the OS temp dir (see isolatedHomeParent) —
  * codex refuses to create its helper binaries under a temp dir.
@@ -135,11 +135,35 @@ export function prepareCodexHome(sourceHome, { mkHome = defaultMkHome } = {}) {
     const home = mkHome(isolatedHomeParent(sourceHome));
     copyFileSync(join(sourceHome, 'auth.json'), join(home, 'auth.json'));
     const cfg = join(sourceHome, 'config.toml');
-    if (existsSync(cfg)) copyFileSync(cfg, join(home, 'config.toml'));
+    if (existsSync(cfg)) writeFileSync(join(home, 'config.toml'), withoutMcpServers(readFileSync(cfg, 'utf8')));
     return home;
   } catch {
     return null;
   }
+}
+
+const TOML_HEADER = /^\s*\[\[?\s*([^[\],]+?)\s*\]\]?\s*(#.*)?$/;
+
+/**
+ * The text of a Codex config.toml without its MCP servers: each `[mcp_servers…]` table, up to the
+ * next table header, and a top-level `mcp_servers…` key. The read-only oracle starts no MCP server
+ * of the user; the rest of the config, such as the model, stays as it is.
+ */
+export function withoutMcpServers(toml) {
+  const out = [];
+  let inMcp = false;
+  let topLevel = true;
+  for (const line of toml.split(/(?<=\n)/)) {
+    const header = TOML_HEADER.exec(line);
+    if (header) {
+      topLevel = false;
+      inMcp = header[1].split('.')[0].replace(/["']/g, '').trim() === 'mcp_servers';
+    }
+    if (inMcp) continue;
+    if (topLevel && /^\s*["']?mcp_servers["']?\s*[.=]/.test(line)) continue;
+    out.push(line);
+  }
+  return out.join('');
 }
 
 function defaultMkHome(parent) {

@@ -26,14 +26,18 @@ prefetched-answers:                 # Step 0.9 — asked BEFORE the atomic seque
   rollout-strategy: "<confirmed strategy>"
   release-window: "<timing / blackout / on-call>"
   compliance-overrides: "<sign-off beyond the plan's list, or none>"
+  post-release-push: <go | no-go | not-asked>   # Step 10.3; not-asked when plan.post-release-version is none
 go-nogo: <go | conditional-go | no-go | pending>   # pending = paused before the step-5 gate (status: awaiting-input)
-merge-strategy: <rebase | squash | merge | none>
-ship-plan-readiness: <ok | acknowledged | amended-inline>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
+merge-strategy: <rebase | squash | merge | none>   # the person's pick at Step 6.1
+branch-after-merge: <delete | keep>   # Step 6.1; keep passes --keep-branch to ship finish
+ship-plan-readiness: <ok | acknowledged | amended-inline>   # ship-plan pre-check verdict (Step 0.6); missing/drift STOP before a run is written
 ship-plan-amended-blocks: [<letter>, ...]   # amended-inline only — blocks the scoped inline edit touched
 ship-plan-version-before-after: "<N>→<M>"   # amended-inline only
 head-sha-at-start: "<sha>"                  # evidence fields are set as steps complete; absent = not yet run
 pre-flight-status: <pass | warn | fail>
 publish-dry-run-passed: <true | false | skipped>
+release-commits-sha: "<the branch tip that Step 1.6 pushed, or empty>"
+release-commits-ci: <green | red | timed-out | skipped>   # Step 1.6; skipped when 1.3 and 1.5 made no commit
 merge-sha: "<sha or empty>"
 release-tag: "<vX.Y.Z or empty>"
 release-workflow-run-id: "<gh run id or empty>"
@@ -68,7 +72,7 @@ Body, as `# Ship Run — <slug> @ <version> @ <environment>`, in order:
 - `## Rollout decision` — strategy, release window, stakeholders, caveats.
 - `## Freshness research delta` — platforms checked, new advisories since the prior run, CI/CD changes since the prior run.
 - `## Go / No-Go` — decision and a one-paragraph rationale.
-- `## Merge` — pr-number, merge-strategy, merge-sha.
+- `## Merge` — pr-number, merge-strategy, branch-after-merge, merge-sha.
 - `## Tag + release` — tag, release URL, notes source.
 - `## Release workflow watch` — workflow file, run id, conclusion, jobs with conclusions.
 - `## Post-publish polling` — each check with kind, status, observed-at, evidence; the propagation window elapsed of max. Skips are listed distinctly.

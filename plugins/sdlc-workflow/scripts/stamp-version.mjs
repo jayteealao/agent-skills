@@ -22,6 +22,7 @@
  *   node scripts/stamp-version.mjs            # stamp from package.json
  *   node scripts/stamp-version.mjs --check    # exit 1 when a carrier would change
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -104,6 +105,6 @@ function main() {
   console.log(`[stamp-version] v${r.version}: ${r.changed.length} stamped, ${r.unchanged.length} already current`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main();
 }

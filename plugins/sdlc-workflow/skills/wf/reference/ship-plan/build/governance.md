@@ -45,6 +45,8 @@ For `mechanism: branch-protection`, build the desired payload (use `checks` — 
 }
 ```
 
+**Merge with the live state.** The PUT replaces the whole protection object, so build each field as the stronger of the live value and the plan value: the union of the required checks, the higher approval count, `true` when either is `true`. Copy the live `restrictions` object when one exists; write `null` only when the live value is null. In the diff, list under **Removed** every live setting that the payload does not keep. When that list is not empty, the gate question below names each one.
+
 `require_code_owner_reviews` is load-bearing: without it the `CODEOWNERS` file generated in 12a is cosmetic. Set it `true` whenever `codeowners[]` is non-empty.
 
 For `mechanism: ruleset`, build the equivalent repository ruleset (`POST` to create / `PUT repos/<owner>/<repo>/rulesets/<id>` to update) with rules `required_status_checks`, `pull_request` (`required_approving_review_count`, `dismiss_stale_reviews_on_push`, `require_code_owner_review`), `required_linear_history`, `non_fast_forward`, and `required_conversation_resolution`, targeting `refs/heads/<base>`.

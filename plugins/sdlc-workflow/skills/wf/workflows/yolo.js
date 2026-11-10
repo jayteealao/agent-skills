@@ -132,7 +132,7 @@ function touchesCharter(results, charter) {
 // returns HEAD before and after its work, so the driver sees a route back that made no commit.
 function implementStepsClause(slice, retry) {
   const step = (rest) => `\`${WF_CMD} step ${rest}\``
-  return `\n\nHEAD. Before any other work, run \`git -C ${projectRoot} rev-parse HEAD\` and return the commit id ` +
+  return `\n\nHEAD. Before any other work, run \`${GIT} rev-parse HEAD\` and return the commit id ` +
     `that it prints as headStart. Immediately before you return, run it again and return that commit id as headEnd.` +
     `\n\nSTEP COMMITS. Before any step, run ${step(`where "${projectRoot}" ${slug} ${slice}`)}: continue at ` +
     `the next open step it names, and never redo a done step. Before each plan step, run ` +
@@ -832,9 +832,11 @@ function settledItemsClause(sliceArg) {
 
 // Delegate mode, last verify round: a failing item is accepted and goes to the review as a finding.
 // `when` names that round: a verify agent's second round, or the self verify of an implement agent.
-function delegateAcceptClause(sliceArg, when = 'this is the last verify round of a delegate run') {
+function delegateAcceptClause(sliceArg, when = 'this is the last verify round of a delegate run', reviewScope = null) {
   const s = sliceArg || slug
   const sliceOpt = sliceArg ? ` --slice ${sliceArg}` : ''
+  // A slug-wide review reads the findings of the whole workflow: the residual goes there with no slice.
+  const findingsSliceOpt = reviewScope === 'slug-wide' ? '' : sliceOpt
   return `\n\nDELEGATE ACCEPT (${when}). When an item still fails after ` +
     `your fix round, do not stop the run. First, when your own slice moved a measured product behaviour outside ` +
     `its pinned range and the cause is not known, spend one bounded round on finding the cause, then fix it or ` +
@@ -844,7 +846,7 @@ function delegateAcceptClause(sliceArg, when = 'this is the last verify round of
     `accepted-items (the item, one line each) in the verify frontmatter; (3) write { "findings": [{ "dimension": ` +
     `"residual", "severity": "HIGH", "file": <the main file of the item, or null>, "line": null, "key": "<item>", ` +
     `"issue": "<the item and its measured gap>" }] } to ${DRAFT_DIR}/residual-${s}.json and run \`${WF_CMD} ` +
-    `findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/residual-${s}.json --source review${sliceOpt} --dimensions ` +
+    `findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/residual-${s}.json --source review${findingsSliceOpt} --dimensions ` +
     `residual\`, so the review tries to fix it. Return each item in terminal.acceptedItems as { item, by: ` +
     `'delegate' }, set substantiveResidual: false, and return status 'complete'. Missing runtime evidence with ` +
     `no deferral is not accepted this way.`
@@ -908,6 +910,8 @@ const EOB =
 const JOURNAL_PATH = `${WF_DIR}/.driver-journal.jsonl`
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
 const WF_CMD = `node "${referenceRoot}/../scripts/wf.mjs"`
+// Every git command of a prompt names the project root in quotes: a root may hold a space.
+const GIT = `git -C "${projectRoot}"`
 // The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
 // `record set`, and writes a whole record as a draft that `record put` checks and writes.
 const REC = (verb, rest) => `${WF_CMD} record ${verb} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
@@ -921,12 +925,12 @@ let AGENT_SEQ = 0
 
 // An agent appends a journal line with the `line` command of
 // yolo-watch, never as text it builds by hand. The command writes the line through
-// JSON.stringify and stamps `at`, so a Windows path always parses. Inside the shell's
-// single quotes, `'` goes out as \u0027.
+// JSON.stringify and stamps `at`, so a Windows path always parses. The fields go as flags, not
+// as one JSON argument: Windows PowerShell 5.1 strips the inner double quotes of an argument.
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
-const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
+const lineFlags = (o) => Object.entries(o).map(([k, v]) => `--${k} "${String(v).replace(/"/g, '')}"`).join(' ')
 // The command names the workflow, not a file, so the line reaches the journal wherever the records live.
-const lineCmd = (o) => `node "${WATCH}" line "${projectRoot}" ${slug} ${jsonArg(o)}`
+const lineCmd = (o) => `node "${WATCH}" line "${projectRoot}" ${slug} ${lineFlags(o)}`
 // The agent-end line says why the agent stopped.
 const END_FLAGS = `--status <the status you return> --errors <the number of tool errors, rejected writes and schema ` +
   `retries you RECOVERED from, 0 if none>. When your status is not complete, add --reason "<one line: why you ` +
@@ -1070,7 +1074,8 @@ function questionContract(stage) {
         `iff an acceptance criterion still fails for a CODE reason after the fix round. Return status ` +
         `'complete' when convergence is not-needed or converged, substantiveResidual is false, and result is ` +
         `pass or a partial with at least one recorded deferral. Return status 'complete' also when every item ` +
-        `that still fails is in terminal.acceptedItems. Otherwise return status 'hard-stop'.`
+        `that still fails is in terminal.acceptedItems. Otherwise return status 'hard-stop' with the terminal state ` +
+        `as it is: after a first round that fails for a code reason, the driver runs a second fix round.`
       : '') +
     (stage === 'review'
       ? ` RETURN CONTRACT (review): the review asks the person nothing and routes nothing back. It fixes or ` +
@@ -1242,6 +1247,19 @@ const ORIENT_RESULT = {
   },
 }
 
+// The questions of a 'questions' return: of a stage, and of the self verify of an implement.
+const STAGE_QUESTIONS = {
+  type: 'array',
+  items: {
+    type: 'object',
+    required: ['key', 'question'],
+    properties: {
+      key: { type: 'string' }, question: { type: 'string' },
+      options: { type: 'array', items: { type: 'string' } },
+      recommended: { type: 'string' }, why: { type: 'string' },
+    },
+  },
+}
 const STAGE_RESULT = {
   type: 'object',
   required: ['stage', 'status', 'artifactPath', 'terminal'],
@@ -1252,18 +1270,7 @@ const STAGE_RESULT = {
     // 'questions' — the stage met intent-bearing decisions that no live answer settles.
     status: { enum: ['complete', 'hard-stop', 'stopped', 'questions'] },
     // The questions of a 'questions' return (the question contract).
-    questions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['key', 'question'],
-        properties: {
-          key: { type: 'string' }, question: { type: 'string' },
-          options: { type: 'array', items: { type: 'string' } },
-          recommended: { type: 'string' }, why: { type: 'string' },
-        },
-      },
-    },
+    questions: STAGE_QUESTIONS,
     // An answered implement or verify that needs a new plan or new code.
     routeBack: { enum: ['plan', 'implement'] },
     // The implement: HEAD before its work and HEAD when it returns. Equal ids mean it made no commit.
@@ -1278,6 +1285,7 @@ const STAGE_RESULT = {
         artifactPath: { type: 'string' },
         terminal: { type: 'object' },
         residual: { type: 'array' },
+        questions: STAGE_QUESTIONS,
         hardStopReason: { type: 'string' },
         sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
       },
@@ -1467,7 +1475,7 @@ async function orient() {
   const res = await agent(
     `You are the ORIENT step of an autonomous SDLC driver. READ-ONLY — do not write, edit, commit, or switch ` +
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
-    `git as \`git -C ${projectRoot} …\`.\n\n` +
+    `git as \`${GIT} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
     `0. Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` first. It reads the records in code: the stage ` +
     `files of each slice, the roster status, the verify result and the convergence of each slice (slices[]), the ` +
@@ -1585,10 +1593,10 @@ async function orient() {
     `the code is built and reviewed; what is missing is fresh proof about an environment wall.\n` +
     `   - 'none' — every stage is 'done' or 'n-a'.\n` +
     `7. Branch posture (READ-ONLY — report, never switch or create): run ` +
-    `\`git -C ${projectRoot} branch --show-current\`. Report branch.current, branch.target (= 00-index.md branch), ` +
+    `\`${GIT} branch --show-current\`. Report branch.current, branch.target (= 00-index.md branch), ` +
     `branch.base (= base-branch), branch.strategy (= branch-strategy: dedicated | shared | none), branch.match ` +
     `(current === target, or target empty), and branch.exists — true iff branch.target resolves as a local ref ` +
-    `(\`git -C ${projectRoot} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
+    `(\`${GIT} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
     `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
     `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n` +
     `8. CLEARING-EVENT TRIPWIRE. Run \`${WF_CMD} defer check "${projectRoot}" ${slug} --json\` once. It runs the ` +
@@ -1624,8 +1632,8 @@ async function ensureBranch(idx) {
   const target = idx.branch.target
   const base = idx.branch.base || ''
   const createCmd = base
-    ? `\`git -C ${projectRoot} switch -c ${target} ${base}\``
-    : `\`git -C ${projectRoot} switch -c ${target}\` (no base-branch recorded → branch from the current HEAD)`
+    ? `\`${GIT} switch -c ${target} ${base}\``
+    : `\`${GIT} switch -c ${target}\` (no base-branch recorded → branch from the current HEAD)`
   const baseStep = base
     ? `6. If the base branch '${base}' itself does not exist (the create fails for that reason) → return ` +
       `{ ok: false, reason: 'base-branch ${base} does not exist; cannot create ${target}' }.\n`
@@ -1633,14 +1641,14 @@ async function ensureBranch(idx) {
   return await agent(
     `Autonomous branch posture for SDLC slug '${slug}' (branch-strategy: dedicated). The working tree is on ` +
     `'${idx.branch.current}' but the workflow's dedicated branch is '${target}'. Land the tree on '${target}' NOW, ` +
-    `before any stage runs. Run git as \`git -C ${projectRoot} …\`; make NO ` +
+    `before any stage runs. Run git as \`${GIT} …\`; make NO ` +
     `commits and change nothing else.\n\n` +
-    `1. If \`git -C ${projectRoot} branch --show-current\` is already '${target}', return ` +
+    `1. If \`${GIT} branch --show-current\` is already '${target}', return ` +
     `{ ok: true, switched: false, action: 'already-on-branch' }.\n` +
-    `2. Does '${target}' exist? Check WITHOUT network: \`git -C ${projectRoot} rev-parse --verify --quiet ` +
+    `2. Does '${target}' exist? Check WITHOUT network: \`${GIT} rev-parse --verify --quiet ` +
     `refs/heads/${target}\` (local) and refs/remotes/origin/${target} (already-fetched remote). Do NOT run ` +
     `\`git fetch\` / \`git ls-remote\`.\n` +
-    `3. If it EXISTS (local or remote-tracking) → \`git -C ${projectRoot} switch ${target}\` (auto-creates a local ` +
+    `3. If it EXISTS (local or remote-tracking) → \`${GIT} switch ${target}\` (auto-creates a local ` +
     `tracking branch from origin when only the remote ref exists). On success return ` +
     `{ ok: true, switched: true, action: 'switched' }.\n` +
     `4. If it does NOT exist → CREATE it from the base branch: ${createCmd}. On success return ` +
@@ -1779,7 +1787,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `${referenceRoot}/_records.md.` +
     questionContract(stage) + (DELEGATE ? delegateClause() : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
-    (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg) : '') +
+    (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
@@ -1796,7 +1804,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
-    `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
+    `\`${GIT} …\`. Do not rely on your working directory — it is not this repo.\n` +
     `- Write SCHEMA-COMPLETE frontmatter: a strict validator enforces the full sdlc/v1 frontmatter and rejects an ` +
     `incomplete write. Match the reference's artifact contract field-for-field.\n` +
     `- Record EVERY autonomous decision into the artifact (## Assumptions / ## Fix Status / ## Verify-Owned ` +
@@ -1826,6 +1834,13 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // procedure in the same session. The slug-wide review, with its refuters, stays the independent check.
 const SELF_VERIFY_SIZES = ['xs', 's']
 
+// The self verify ends with an agent-end line of stage verify, as a verify agent does: a stop
+// request "after verify" waits for that line.
+function selfVerifyEndClause(sliceArg) {
+  return `\nWhen the self verify is done, before your own agent-end line, run: \`${lineCmd({ run: RUN_ID, event: 'agent-end', agent: `verify:${sliceArg}`, phase: 'Drive', stage: 'verify', slice: sliceArg })} ` +
+    `--status <the status of the verify>\`.`
+}
+
 function selfVerifyClause(sliceArg, idx, deferCmd) {
   return `\n\nSELF VERIFY (slice '${sliceArg}' is complexity xs or s, so no separate verify agent runs). After the ` +
     `test receipt, run the verify stage for slice '${sliceArg}' in this session: run \`${WF_CMD} brief ` +
@@ -1833,12 +1848,13 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
     `VERBATIM: the AC gate, the runtime checks with the evidence reuse of verify/_runtime-evidence.md, the deferral ` +
     `rules, and the verify record 06-verify-${sliceArg}.md. When the verify fails, fix the code as a new step, ` +
     `commit it, and verify again: at most 2 verify rounds.` + settledItemsClause(sliceArg) +
-    (DELEGATE ? delegateAcceptClause(sliceArg, 'on your second verify round, in a delegate run') : '') +
+    (DELEGATE ? delegateAcceptClause(sliceArg, 'on your second verify round, in a delegate run', idx.reviewScope) : '') +
     reChallengeClause(idx.priorDeferrals, deferCmd) +
     sliceStatusClause(sliceArg) +
     `\nReturn the verify as \`verify\`: { status, artifactPath, terminal: { convergence, result, deferrals ` +
-    `([{ac, reason, probe}]; [] if none), substantiveResidual, acceptedItems }, residual, sliceWriteBack, hardStopReason }. ` +
-    `The top-level fields stay the implement result.`
+    `([{ac, reason, probe}]; [] if none), substantiveResidual, acceptedItems }, residual, sliceWriteBack, hardStopReason, ` +
+    `questions (status 'questions' only, in the shape of the question contract) }. The top-level fields stay the ` +
+    `implement result.` + selfVerifyEndClause(sliceArg)
 }
 
 // SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
@@ -1910,6 +1926,20 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
 
 
 
+// fixRoundLeft() — whether a verify that returned 'hard-stop' stopped for a code reason only: an
+// acceptance criterion still fails after its fix round. A steering conflict, a question for the
+// person, a route back, or missing evidence that was not deferred is not fixed by another round.
+function fixRoundLeft(res) {
+  if (!res || res.status !== 'hard-stop' || res.routeBack || res.transient) return false
+  if (res.steeringConflict && String(res.steeringConflict).trim()) return false
+  if (/^\s*steering\b/i.test(String(res.hardStopReason || ''))) return false
+  if (Array.isArray(res.questions) && res.questions.length) return false
+  const t = res.terminal
+  if (!t || typeof t !== 'object' || t.result === 'blocked-runtime-evidence-missing') return false
+  if (verifyClean(t, res.residual)) return false
+  return t.substantiveResidual === true || t.convergence === 'escalated' || t.result === 'fail' || t.result === 'partial'
+}
+
 // driveVerify() — verify gets up to N=2 autonomous fix rounds (the reference
 // does one fix round per invocation; a second invocation is round 2). A slice
 // that is clean — including one whose only residual is environment-DEFERRED
@@ -1930,6 +1960,11 @@ async function driveVerify(sliceArg, idx, extra = {}) {
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
     // The answer needs a new plan or new code: the walk goes back to that stage, before any gate.
     if (extra.answered && (last.routeBack === 'plan' || last.routeBack === 'implement')) return last
+    // A first round that stopped for a code reason gets the second fix round.
+    if (round === 1 && !extra.first && fixRoundLeft(last)) {
+      log(`verify:${sliceArg} round 1 stopped for a code reason (result=${(last.terminal || {}).result}) — the second fix round runs`)
+      continue
+    }
     if (last.status === 'hard-stop' || last.status === 'stopped' || last.status === 'questions') return last
     // The person accepted the slice with its failing or residual items: it passes on that answer.
     // Only an answered verify can accept; no fix round runs after it. The accepted items stay in
@@ -2176,13 +2211,13 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `SELECT REVIEW RUBRICS for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}. READ-ONLY — write nothing.\n\n` +
     `Read ${referenceRoot}/review/_stage.md "# Step 2: Select Review Commands" and ${referenceRoot}/review/_select.md, ` +
     `then apply them to this change: read the index with \`${REC('get')} index\` (workflow-type), the ` +
-    `shape and slice records with \`${REC('get')} <name>\`, and \`git -C ${projectRoot} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
+    `shape and slice records with \`${REC('get')} <name>\`, and \`${GIT} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}` +
     `\n\n` +
-    `Return affectedFiles: every file that \`git -C ${projectRoot} diff --name-only ${diffRange}\` prints, and each ` +
-    `file that calls, imports or tests code that the diff changes (find them with \`git -C ${projectRoot} grep\` ` +
+    `Return affectedFiles: every file that \`${GIT} diff --name-only ${diffRange}\` prints, and each ` +
+    `file that calls, imports or tests code that the diff changes (find them with \`${GIT} grep\` ` +
     `on the changed exports and names). Give each path relative to the project root, with forward slashes. ` +
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
@@ -2217,7 +2252,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${r.rubric}' rubric ONLY` +
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
     `${r.focus ? ` — only the '${r.focus}' section` : ' in full'}, and ${referenceRoot}/review/_severity.md for the ` +
-    `severity scale and the finding rules. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
+    `severity scale and the finding rules. Inspect the diff: \`${GIT} diff ${diffRange}\`. Report only ` +
     `findings the diff supports, with dimension '${r.rubric}'.${packetLine} ${shape}\n\n${EOB}` + steer('context') +
     beat(`scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
@@ -2229,7 +2264,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   if (steering) {
     scoutJobs.push(() => agent(
       `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
-      `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Use dimension 'steering'.` +
+      `rubric ONLY. Inspect the diff: \`${GIT} diff ${diffRange}\`. Use dimension 'steering'.` +
       `${packetLine} ${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
       { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
     ).then(s => findingsOf(s).map(f => ({ ...f, dimension: 'steering' }))))
@@ -2297,7 +2332,7 @@ async function runUpdateDepsExec(idx) {
     `Do NOT run /wf review or /wf ship, do NOT claim completion of the whole workflow, and do NOT recommend ` +
     `routes beyond what update-deps.md Steps 6–9 themselves return.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
-    `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
+    `\`${GIT} …\`. Do not rely on your working directory — it is not this repo.\n` +
     `- Write SCHEMA-COMPLETE frontmatter for 05-implement.md and 06-verify.md: a strict validator enforces the full ` +
     `sdlc/v1 contract and rejects an incomplete write. Match update-deps.md Step 7/8 field-for-field.\n` +
     `- Record EVERY autonomous decision into the artifacts (## Updated / ## Blocked / ## Held in 05-implement.md; ` +
@@ -2337,7 +2372,8 @@ async function driveUpdateDeps(idx) {
     log(`yolo → update-deps self-managed exec ${slug} (self-authors 05/06)`)
     const { res: exec, stop: execStop } = await settle(await runUpdateDepsExec(idx), idx, ran)
     if (execStop === 'stop-request') return out('stop-request', exec.stopReason || 'stop request', { route: `/wf yolo ${slug}` })
-    if (execStop === 'questions') return { mode: 'update-deps', ...questionStop(exec), ran }
+    // The exec returns as a verify; its questions are of update-deps, the stage its answers go to.
+    if (execStop === 'questions') return { mode: 'update-deps', ...questionStop({ ...exec, questions: questionsOf(exec).map(q => ({ ...q, stage: 'update-deps' })) }), ran }
     if (!exec || exec.status === 'hard-stop') {
       return out('exec', (exec && exec.hardStopReason) || 'update-deps self-managed exec stopped', { route: `address the exec blocker, then re-run /wf yolo ${slug}` })
     }
@@ -2427,10 +2463,10 @@ const PLAN_CHECK_RESULT = {
 async function planFreshness(sliceArg) {
   const r = await agent(
     `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
-    `The project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n${EOB}\n\n` +
+    `The project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n${EOB}\n\n` +
     `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
     `\`files:\` and \`edges:\`.\n` +
-    `2. Find the commits since the plan was last written: \`git -C ${projectRoot} log --oneline <the last commit ` +
+    `2. Find the commits since the plan was last written: \`${GIT} log --oneline <the last commit ` +
     `that changed ${WF_DIR}/slice-${sliceArg}.yaml>..HEAD\`, or the last 20 commits ` +
     `when that file is not committed.\n` +
     `3. Read the files and interfaces that the plan names, as they are at HEAD.\n` +
@@ -2619,9 +2655,11 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   // A write-back that reports ok but names no record wrote nothing: that is a failure, not a success.
   const wroteSome = (w) => w && w.ok === true && Array.isArray(w.wrote) && w.wrote.length > 0
   const mirrored = ran.find(r => r && wroteSome(r.sliceWriteBack))
-  if (ranStages.length && mirrored) {
+  // A wall probe is read-only: a chain that ran only the probe has no status to write back.
+  const drove = ranStages.some((st) => st !== 'wall-probe')
+  if (drove && mirrored) {
     log(`slice '${sliceArg}' complete → the verify agent wrote status back to ${mirrored.sliceWriteBack.wrote.join(', ')}`)
-  } else if (ranStages.length) {
+  } else if (drove) {
     const wb = await writeBackSliceStatus(sliceArg, idx, ranStages)
     if (wroteSome(wb)) log(`slice '${sliceArg}' complete → wrote status back to ${wb.wrote.join(', ')}`)
     else if (wb && wb.ok) log(`slice '${sliceArg}' complete but the write-back wrote nothing${wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
@@ -2697,7 +2735,7 @@ async function charterCheckpoint(idx, throughSlice) {
   const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
   return await agent(
     `CHARTER FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
-    `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n` +
+    `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n` +
     `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
     `List the records with \`${REC('list')}\`, read the last few implement records with ` +
     `\`${REC('get')} <name>\`, and inspect the built ` +
@@ -2805,10 +2843,15 @@ if (idx.workflowType === 'update-deps') {
   const stages = idx.reviewScope === 'per-slice'
     ? ['plan', 'implement', 'verify', 'review']
     : ['plan', 'implement', 'verify']           // slug-wide: stop before review (it runs once, later)
-  const chain = await driveChain(stages, idx.targetSlice, idx)
-  const sliceList = idx.slices.map(s => s.slice)
-  const i = sliceList.indexOf(idx.targetSlice)
-  const next = i >= 0 && i < sliceList.length - 1 ? sliceList[i + 1] : null
+  // A skipped or dropped slice left the roster: it is not driven, and the route skips such slices.
+  const retired = (s) => s && (s.status === 'skipped' || s.status === 'dropped')
+  const target = idx.slices.find(s => s.slice === idx.targetSlice)
+  const i = idx.slices.findIndex(s => s.slice === idx.targetSlice)
+  const later = i >= 0 ? idx.slices.slice(i + 1).find(s => !retired(s) && s.status !== 'complete') : null
+  const next = later ? later.slice : null
+  const chain = retired(target)
+    ? stopOut('orient', `slice '${idx.targetSlice}' is status: ${target.status} in the roster: there is nothing to drive`, { ran: [], route: next ? `/wf yolo ${slug} ${next}` : `/wf yolo ${slug}` })
+    : await driveChain(stages, idx.targetSlice, idx)
   let route
   if (chain.stopped) {
     route = chain.route || `address the gate at '${chain.stoppedAt}', then re-run /wf yolo ${slug} ${idx.targetSlice}`
@@ -2919,7 +2962,12 @@ if (idx.workflowType === 'update-deps') {
   // produce), but it can no longer starve the work the run was launched for.
   if (!outcome.stopped && sweep.length) {
     const swept = await driveRoster(sweep, true)
-    if (swept) outcome = { ...swept, sweptAfterTarget: true }
+    // The slug-wide review already ran: the hand-back keeps it, and the route resumes at the swept slice.
+    if (swept) {
+      const resume = swept.stoppedSlice && typeof swept.route === 'string' && swept.route.endsWith(`/wf yolo ${slug}`)
+        ? `${swept.route} ${swept.stoppedSlice}` : swept.route
+      outcome = { ...swept, slugWide: outcome.slugWide, sweptAfterTarget: true, route: resume }
+    }
   }
   // Surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
   if (charterCheckpoints.length && !outcome.charterCheckpoints) outcome.charterCheckpoints = charterCheckpoints

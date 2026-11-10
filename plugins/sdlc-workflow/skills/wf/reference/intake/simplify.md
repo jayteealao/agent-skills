@@ -90,7 +90,7 @@ For each marker, emit one finding in the **same `findings:` schema the agents us
 - `suggestion:` the upgrade path named in the marker.
 - `rationale:` "Author-flagged `sdlc-debt:` marker harvested for routing."
 
-Debt findings join the aggregate in **Step 3** and route through the **Step 4** matrix exactly like agent findings — typically `route-fix` (one-file ceiling), `route-refactor` (cross-file), or `route-intake` (architectural). In the sibling-YAML projection they carry **`category: quality`**; the run body notes which `quality` findings originated from a marker, and the chat summary reports the harvested count (e.g., `debt-markers-swept: <N>`). If the scope has no markers, record "No `sdlc-debt:` markers in scope" and continue.
+Debt findings join the aggregate in **Step 3** and route through the **Step 4** matrix exactly like agent findings — typically `route-fix` (one-file ceiling), `route-refactor` (cross-file), or `route-intake` (architectural). The findings carry **`category: quality`**; the run body notes which `quality` findings originated from a marker, and the chat summary reports the harvested count (e.g., `debt-markers-swept: <N>`). If the scope has no markers, record "No `sdlc-debt:` markers in scope" and continue.
 
 ---
 
@@ -179,7 +179,7 @@ After writing, print the `recommended-routes` invocations to chat.
 
 # Resume semantics
 
-Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding. There is no "fixes-pending" state — simplify never applies fixes. The `recommended-routes` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes. If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
+Each run writes a new run artifact when its triage ends; there is no partial artifact to resume, so a stopped run starts again. There is no "fixes-pending" state — simplify never applies fixes. The `recommended-routes` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes. If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
 
 ---
 

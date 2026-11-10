@@ -55,7 +55,7 @@ The index holds every deferral (`runtime-evidence-deferrals`, cleared entries to
 You run the retro stage: you extract lessons and propose improvements, never apply them.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the first argument** (a slug, `pr#N`, or a branch name; absent is allowed): run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`. `scope: slug` → **single-slug retro** (`retro-scope: slug`): continue with items 2–5 for that one slug. `scope: branch` → **batch retro** (`retro-scope: branch`) over its `slugs`: see `## Batch retro` below, then return here per-slug. `ambiguous: true` → ask the user which of its `slugs`. An `error` → STOP and show it.
+1. **Resolve the first argument** (a slug, `pr#N`, or a branch name). With no argument, take the newest `shipped` workflow of `.ai/workflows/INDEX.md` that has no `10-retro.md` record, and use its slug: `target` with no argument takes only open workflows, so it never names a shipped one. Run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`. `scope: slug` → **single-slug retro** (`retro-scope: slug`): continue with items 2–5 for that one slug. `scope: branch` → **batch retro** (`retro-scope: branch`) over its `slugs`: see `## Batch retro` below, then return here per-slug. `ambiguous: true` → ask the user which of its `slugs`. An `error` → STOP and show it.
    - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
@@ -101,7 +101,7 @@ When the workflow trail is large or spans multiple domains, launch parallel sub-
 Charter: read the plan, implement, and verify artifacts plus the git log, and report where the build fought its plan — plan-to-implementation drift with a cause per deviation (stale assumption, thin exploration, scope creep, or legitimate discovery), verification effectiveness (what the checks caught, what should have been caught earlier, what could not be verified and why), and rework signals in the commit history. Every count names the artifact or tool result it came from. The harvest below is CONTRACT — pass it unchanged:
 
 **Deferred-debt harvest (this workflow only):**
-- Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
+- Collect every intentional-simplification marker this workflow introduced: grep the workflow's merged range for `sdlc-debt:`: `git log -p <merge-sha>^1..<merge-sha>` for a merge commit, or the PR's commits (`gh pr view <pr-number> --json commits`) for a squash or a rebase merge; `merge-sha` and `pr-number` are in the ship run and the index and read each slice's `05-implement-<slice>.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
 - For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf intake simplify codebase`'s sweep).
 - Classify each as **act-now** (worth its own follow-up workflow this sprint) or **accept** (a deliberate, acceptable ceiling that just needs to stay visible). The act-now items drive `## Deferred Debt` and Option B routing below.
 
@@ -186,8 +186,8 @@ Do this in order:
 1. Prioritize the improvements by impact and effort.
 2. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
 3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
-4. Mark the workflow as complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete`, unless follow-up work is being opened.
-5. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
+4. Mark the workflow as complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete next-command=none "next-invocation=none — complete"`, unless follow-up work is being opened.
+5. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md). Then run `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> retro`.
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:

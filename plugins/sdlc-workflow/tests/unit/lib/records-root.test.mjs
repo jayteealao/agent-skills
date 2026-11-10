@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { nestedAiDir, parseWorkflowPath, workflowDir, workflowRel, workflowsRoot } from '../../../lib/records-root.mjs';
+import { isLocalOnly, nestedAiDir, parseWorkflowPath, workflowDir, workflowRel, workflowsRoot } from '../../../lib/records-root.mjs';
 
 test('the resolver gives the records folder and the folder of one workflow', () => {
   assert.equal(workflowsRoot('/r'), join('/r', '.ai', 'workflows'));
@@ -39,4 +39,9 @@ test('a write into a nested .ai folder is refused; the project, a checkout and a
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the temp file of a write and the lock of a read-modify-write never go into a records commit', () => {
+  for (const rel of ['w1/state.yaml.4242.a1b2c3d4.tmp', 'w1/records.lock', 'w1/findings.yaml.lock', 'w1/findings.yaml.lock.takeover']) assert.equal(isLocalOnly(rel), true, rel);
+  for (const rel of ['w1/state.yaml', 'w1/findings.yaml', 'w1/cost-2026-11.jsonl']) assert.equal(isLocalOnly(rel), false, rel);
 });

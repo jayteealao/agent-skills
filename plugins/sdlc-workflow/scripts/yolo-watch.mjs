@@ -31,6 +31,8 @@
  *       JSON.stringify; the agent adds only what it alone knows, as flags. `at` is the
  *       clock now. Every line goes out through JSON.stringify, so a path with
  *       backslashes always parses.
+ *   node yolo-watch.mjs line <projectRoot> <slug> --event e --agent a [--phase p] [--stage s] [--slice x] [--seq n] [--run id] ...
+ *       The same line with its fields as flags: no JSON argument for a shell to strip the quotes of.
  *   node yolo-watch.mjs stop-check <projectRoot> <slug>
  *       Print the stop request of the workflow as JSON: whether a stop is asked, and where.
  *   node yolo-watch.mjs help
@@ -70,8 +72,8 @@ import {
 } from '../lib/live-events.mjs';
 import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
-import { pidAlive } from '../lib/proc.mjs';
-import { clearStopRequest } from '../lib/stop-request.mjs';
+import { pidAlive, isMainModule } from '../lib/proc.mjs';
+import { clearStopRequest, lastRunEndAt, madeAfterLastRun } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
@@ -778,7 +780,9 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
  * The stop-request check of a driver agent. A request stops the agent when "after" is
  * "current", or when "after" names a stage and the journal has an agent-end of that stage
  * later than the request. A control file that does not parse is a stop after the current agent.
- * Returns `{ stop, reason?, request? }`.
+ * A request that was made at or before the last run end served an earlier run, whether it names
+ * "current" or a stage: it is dropped, and does not stop a later run (`stale: true`).
+ * Returns `{ stop, stale?, reason?, request? }`.
  */
 export function stopCheck(root, slug) {
   const file = findRunFile(root, slug, CONTROL_FILE);
@@ -791,6 +795,10 @@ export function stopCheck(root, slug) {
   }
   if (request.action !== 'stop') return { stop: false, request };
   const after = request.after || 'current';
+  // A request made at or before the last run end was for that run, with `current` or a stage alike.
+  const runEnd = lastRunEndAt(journalPath(root, slug));
+  const served = runEnd !== null && Number.isFinite(Date.parse(request.requestedAt || '')) && !madeAfterLastRun(request, runEnd);
+  if (served) return { stop: false, stale: true, request };
   if (after === 'current') return { stop: true, reason: 'stop after the current agent', request };
   const asked = Date.parse(request.requestedAt || '') || 0;
   const ended = readJournalFrom(journalPath(root, slug), 0).lines.some((l) => l && l.event === 'agent-end' &&
@@ -831,9 +839,18 @@ export function parseLineJson(text) {
   return JSON.parse(s.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})?/g, (m, g) => (g ? m : '\\\\')));
 }
 
-/** Append one journal line through JSON.stringify. Returns the line. */
+/** The journal fields that a line can take as flags, in the order of a driver line. */
+export const LINE_FIELDS = ['run', 'seq', 'event', 'agent', 'phase', 'stage', 'slice'];
+
+/**
+ * Append one journal line through JSON.stringify. Returns the line. `json` is the line as JSON
+ * text, or null when the fields come as flags (`--event agent-start --agent plan:api …`): a
+ * shell such as Windows PowerShell 5.1 strips the inner double quotes of a JSON argument.
+ */
 export function appendJournalLine(file, json, flags = {}, nowMs = Date.now()) {
-  const obj = parseLineJson(json);
+  const obj = json === null || json === undefined
+    ? Object.fromEntries(LINE_FIELDS.filter((k) => flags[k] !== undefined).map((k) => [k, String(flags[k])]))
+    : parseLineJson(json);
   // --fields: the values only the agent knows, as a JSON object (numbers and short words).
   const extra = flags.fields ? parseLineJson(flags.fields) : {};
   const line = { at: iso(nowMs), ...obj, ...(extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}) };
@@ -987,11 +1004,14 @@ export async function main(argv = process.argv.slice(2)) {
   if (first === 'line') {
     // `line <projectRoot> <slug> '<json>'` names the journal of the workflow; `line <file> '<json>'`
     // names a file, and a local path of a linked project goes to the records home.
+    // With --event, the fields come as flags and no JSON argument follows.
     const [, a, b, c] = pos;
-    const file = c !== undefined ? journalPath(path.resolve(a), b) : a ? realPathOf(path.resolve(a)) : null;
-    const json = c !== undefined ? c : b;
+    const fieldForm = flags.event !== undefined;
+    const project = fieldForm ? b !== undefined : c !== undefined;
+    const file = project ? journalPath(path.resolve(a), b) : a ? realPathOf(path.resolve(a)) : null;
+    const json = fieldForm ? null : project ? c : b;
     if (!file || json === undefined) {
-      process.stderr.write("usage: yolo-watch.mjs line <projectRoot> <slug> '<json>' [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
+      process.stderr.write("usage: yolo-watch.mjs line <projectRoot> <slug> ('<json>' | --event e --agent a [--phase p] [--stage s] [--slice x] [--seq n] [--run id]) [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
       return 2;
     }
     try {
@@ -1017,6 +1037,6 @@ export async function main(argv = process.argv.slice(2)) {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main().then((code) => { process.exitCode = code; }, (e) => { process.stderr.write(`yolo-watch: ${e.message}\n`); process.exitCode = 1; });
 }

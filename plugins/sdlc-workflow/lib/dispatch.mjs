@@ -14,7 +14,7 @@
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { INDEX_NAME, frontmatterOfDoc, hasDoc } from './records.mjs';
+import { INDEX_NAME, frontmatterOfDoc, hasDoc, listDocs } from './records.mjs';
 import { workflowsRoot } from './records-root.mjs';
 import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 
@@ -110,15 +110,34 @@ export function diskFacts(projectRoot, { git = defaultGit } = {}) {
     },
     hasBranch: (name) => SAFE_TOKEN.test(name) && !name.startsWith('-') && git(projectRoot, ['branch', '--list', name]).trim() !== '',
     nextOf: (slug) => {
-      const fm = frontmatterOfDoc(join(wf, slug), INDEX_NAME);
+      const dir = join(wf, slug);
+      const fm = frontmatterOfDoc(dir, INDEX_NAME);
       if (!fm) return null;
       const status = String(fm.status ?? '');
+      // A shipped workflow whose newest ship run is paused is not closed: the ship resumes.
+      if (status === 'shipped' && newestShipRun(dir)?.status === 'awaiting-input') {
+        return { invocation: `/wf ship ${slug}`, closed: false };
+      }
       return {
         invocation: fm['next-invocation'] ?? fm['recommended-next-invocation'] ?? null,
         closed: TERMINAL_WORKFLOW_STATUSES.has(status) || status === 'shipped',
       };
     },
   };
+}
+
+/** The frontmatter of the newest `09-ship-run-<run-id>.md` of a workflow folder, or null. */
+export function newestShipRun(dir) {
+  let names = [];
+  try { names = listDocs(dir).map((d) => (typeof d === 'string' ? d : d?.name)).filter((n) => /^09-ship-run-.+\.md$/.test(n ?? '')); } catch { return null; }
+  let best = null;
+  for (const name of names) {
+    const fm = frontmatterOfDoc(dir, name);
+    if (!fm) continue;
+    const at = String(fm['created-at'] ?? '');
+    if (!best || at > best.at || (at === best.at && name > best.name)) best = { at, name, fm };
+  }
+  return best?.fm ?? null;
 }
 
 function defaultGit(cwd, args) {
@@ -188,10 +207,11 @@ export function dispatch(reg, tokens, disk, { host = null } = {}) {
     }
   }
 
-  // The intake fast path: a mode word that is not also a workflow folder.
+  // The intake fast path: an entry mode word that is not also a workflow folder. A maintenance
+  // word (amend, modernize, close) goes through intake.md, whose branch 0 holds its guards.
   if (key.modes?.length && tokens.length > 1) {
     const mode = key.modes.find((m) => m.name === tokens[1]);
-    if (mode && !disk.hasWorkflowDir(tokens[1])) {
+    if (mode && mode.kind !== 'maintenance' && !disk.hasWorkflowDir(tokens[1])) {
       return {
         key: `${key.name} ${mode.name}`, reference: mode.reference, argsFrom: 2, reason: null,
         firstInput: 'reference/intake/_intake-context.md', hostNote: noteOf(mode),

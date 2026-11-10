@@ -166,3 +166,92 @@ test('release next: end to end, with a stop at a gate and a stop at doctor, each
     cleanup();
   }
 });
+
+const realRun = (cmd, args, { cwd, input, shell = false } = {}) => {
+  const r = spawnSync(cmd, args, { cwd, input, encoding: 'utf8', shell, windowsHide: true });
+  return { status: r.error ? 127 : r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+};
+const changedIn = (work, commit) => git(work, 'show', '--name-only', '--format=', commit).split('\n');
+
+test('a prepare that stops after its first writes resumes and commits every path it wrote', async () => {
+  const { root, work, cleanup } = fixture();
+  try {
+    let fail = true;
+    const generate = () => { if (fail) { fail = false; throw new Error('EBUSY: generate stopped'); } return []; };
+    await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk, generate }), /EBUSY/);
+    const state = JSON.parse(readFileSync(path.join(root, STATE_FILE), 'utf8'));
+    assert.ok(state.paths.includes('CHANGELOG.md') && state.paths.includes('package.json'), 'the state holds the paths written before the stop');
+    await release('next', { ...quiet, root, gates: [], doctor: doctorOk, generate });
+    const files = changedIn(work, 'HEAD');
+    for (const rel of ['CHANGELOG.md', 'package.json', 'package-lock.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) {
+      assert.ok(files.includes(`plugins/sdlc-workflow/${rel}`), `${rel} is in the release commit`);
+    }
+    assert.ok(files.includes('.claude-plugin/marketplace.json'));
+    assert.match(git(work, 'show', 'HEAD:plugins/sdlc-workflow/package.json'), /"version": "10\.0\.0-next\.0"/);
+  } finally { cleanup(); }
+});
+
+test('a resumed release refuses to publish from another branch; back on master, BUILD_SHA names the parent of the release commit', async () => {
+  const { root, work, remote, cleanup } = fixture();
+  try {
+    const source = git(work, 'rev-parse', 'HEAD');
+    const versionGate = [['versioned', ['-e', "process.exit(require('fs').readFileSync('package.json', 'utf8').includes('-next.') ? 3 : 0)"]]];
+    await assert.rejects(release('next', { ...quiet, root, gates: versionGate, doctor: doctorOk }), /the versioned gate failed/);
+    git(work, 'switch', '--quiet', '-c', 'fix');
+    await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk }), /HEAD is on fix: release only from master/);
+    assert.equal(git(remote, 'rev-parse', 'master'), source, 'nothing is pushed');
+    assert.equal(git(work, 'tag', '--list', 'v10.0.0-next.0'), '', 'nothing is tagged');
+    // The fix lands on master, then the release resumes there.
+    git(work, 'switch', '--quiet', 'master');
+    writeFileSync(path.join(root, 'FIX.md'), 'fix\n');
+    git(work, 'add', '--', 'plugins/sdlc-workflow/FIX.md');
+    // The fix commits its own file only; the prepared release paths stay uncommitted.
+    git(work, 'commit', '--quiet', '-m', 'fix: the gate', '--only', '--', 'plugins/sdlc-workflow/FIX.md');
+    const fix = git(work, 'rev-parse', 'HEAD');
+    await release('next', { ...quiet, root, gates: [], doctor: doctorOk });
+    assert.equal(git(work, 'rev-parse', 'HEAD^'), fix);
+    assert.equal(git(work, 'show', 'HEAD:plugins/sdlc-workflow/BUILD_SHA').trim(), fix);
+    assert.equal(git(remote, 'rev-parse', 'master'), git(work, 'rev-parse', 'HEAD'));
+  } finally { cleanup(); }
+});
+
+/** A runner whose first push of master meets a remote that another clone moved. */
+function racedRun(remote, top) {
+  let raced = false;
+  return (cmd, args, opts) => {
+    if (!raced && cmd === 'git' && args.includes('push') && args.includes('HEAD:refs/heads/master')) {
+      raced = true;
+      const other = path.join(top, 'other');
+      git(top, 'clone', '--quiet', remote, other);
+      writeFileSync(path.join(other, 'OTHER.txt'), 'other\n');
+      git(other, 'add', '--', 'OTHER.txt');
+      git(other, 'commit', '--quiet', '-m', 'feat: another push');
+      git(other, 'push', '--quiet', 'origin', 'master');
+    }
+    return realRun(cmd, args, opts);
+  };
+}
+
+for (const how of ['merge', 'rebase']) {
+  test(`a push that failed and a ${how} of the upstream: the resume finds the release commit and pushes it with an annotated tag`, async () => {
+    const { root, work, remote, cleanup } = fixture();
+    try {
+      // A lightweight tag of the release version, made by hand: the release makes it again, annotated.
+      git(work, 'tag', 'v10.0.0-next.0');
+      const top = path.dirname(work);
+      await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk, run: racedRun(remote, top) }), /push/);
+      await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: doctorOk }), /HEAD is behind origin\/master/);
+        // Another session's edit is dirty, so the pull keeps it aside while it runs.
+      git(work, 'pull', '--quiet', how === 'merge' ? '--no-rebase' : '--rebase', '--autostash', 'origin', 'master');
+      const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk });
+      const subject = 'release(sdlc-workflow): v10.0.0-next.0';
+      const commits = git(work, 'log', '--format=%H %s', 'master').split('\n').filter((l) => l.endsWith(subject));
+      assert.equal(commits.length, 1, 'one release commit');
+      const commit = commits[0].split(' ')[0];
+      assert.equal(state.commit, commit);
+      assert.equal(git(remote, 'cat-file', '-t', 'refs/tags/v10.0.0-next.0'), 'tag', 'the pushed tag is annotated');
+      assert.equal(git(remote, 'rev-parse', 'v10.0.0-next.0^{commit}'), commit);
+      assert.equal(git(remote, 'rev-parse', 'master'), git(work, 'rev-parse', 'HEAD'));
+    } finally { cleanup(); }
+  });
+}

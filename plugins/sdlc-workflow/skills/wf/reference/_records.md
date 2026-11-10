@@ -69,7 +69,7 @@ A value outside the enum of the schema is refused, and the refusal names the all
 
 To change several records or several list items, or to read several records with a filter, write a script and run it with `<wf> run`, per [_api.md](_api.md). One script makes one commit, and a script that fails changes nothing.
 
-The command reads the file, merges the change and writes the file in one step. So two writers lose no field, and a re-read before the change is not needed.
+The command reads the file, merges the change and writes the file in one step, under a lock of the workflow folder. So two writers lose no field, and a re-read before the change is not needed. A record file that does not parse refuses the write and names the file: repair it first, because the write would drop what the file held.
 
 ## Prohibitions
 

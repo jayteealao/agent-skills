@@ -83,7 +83,8 @@ export function emptyManifest(slug, { method = 'html', viewports = { desktop: '1
 /** True when `rel` stays inside its folder: no absolute path, no `..` step. */
 export function isInsidePath(rel) {
   const p = posix(rel);
-  if (!p || isAbsolute(p) || /^[a-zA-Z]:/.test(p)) return false;
+  // A scheme (javascript:, data:, a drive letter) is never a path inside the folder.
+  if (!p || isAbsolute(p) || /^[a-z][a-z0-9+.-]*:/i.test(p)) return false;
   return !p.split('/').includes('..');
 }
 

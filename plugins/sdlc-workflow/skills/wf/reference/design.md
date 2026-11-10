@@ -21,6 +21,8 @@ You are running `/wf design`. It has four jobs:
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
 
+The mode of a row is the job that Step 0 resolved: `stage` (also amend and a move), `explore`, `import`, `upkeep`, and `audit` or `critique` for a review. A row applies when it names that job; no `modes:` entry is needed.
+
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
@@ -30,6 +32,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `brainstorm-board-design.json` | artifact | if-present | |
 | the origin brainstorm board named by origin-brainstorm | artifact | mode:stage | |
 | `06-verify-*.md` | artifact | mode:audit | Accessibility Gate; Performance Gate |
+| `06-verify-*.md` | artifact | mode:critique | |
 | `design/_lane.md` | procedure | always | |
 | `design/_output.md` | procedure | always | |
 | `design/stage.md` | procedure | mode:stage | |

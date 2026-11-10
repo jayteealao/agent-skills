@@ -170,7 +170,8 @@ export function parseMetricLine(stdout, key = null) {
     try {
       const o = JSON.parse(last);
       const v = key.split('.').reduce((acc, k) => (acc && typeof acc === 'object' ? acc[k] : undefined), o);
-      const n = typeof v === 'number' ? v : Number(v);
+      // A number, or a string that holds one. null, false, '' and arrays are no value.
+      const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
       return Number.isFinite(n) ? n : null;
     } catch {
       return null;
@@ -245,7 +246,7 @@ export const reachesTarget = (spec, value) => spec.metric.target !== null && val
 /** A glob (`**`, `*`, `?`) as an anchored regular expression over POSIX paths. */
 export function globToRegExp(glob) {
   let re = '';
-  const g = str(glob).replace(/\\/g, '/').replace(/^\.\//, '');
+  const g = str(glob).replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
   for (let i = 0; i < g.length; i++) {
     const c = g[i];
     if (c === '*') {
@@ -257,8 +258,9 @@ export function globToRegExp(glob) {
     } else if (c === '?') re += '[^/]';
     else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
   }
-  // A plain folder name covers what is under it.
-  if (!/[*?]/.test(g) && !/\.[^/]+$/.test(g)) re += '(?:/.*)?';
+  // A path with no wildcard covers what is under it: a folder name may hold a dot (`.github`,
+  // `src/vendor.v2`), and a file path still matches itself.
+  if (!/[*?]/.test(g)) re += '(?:/.*)?';
   return new RegExp(`^${re}$`);
 }
 
@@ -269,8 +271,9 @@ export function commandFiles(commands, exists) {
   const out = new Set();
   for (const c of commands.filter(Boolean)) {
     for (const tok of c.split(/\s+/)) {
-      const t = tok.replace(/^["']|["']$/g, '').replace(/\\/g, '/').replace(/^\.\//, '');
-      if (!t || t.startsWith('-') || /[|&;<>$`]/.test(t) || !/[./]/.test(t)) continue;
+      // `tests/`, `./tests` and a bare `tests` name the same folder.
+      const t = tok.replace(/^["']|["']$/g, '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+      if (!t || t === '.' || t.startsWith('-') || /[|&;<>$`]/.test(t)) continue;
       if (exists(t)) out.add(t);
     }
   }
@@ -279,7 +282,11 @@ export function commandFiles(commands, exists) {
 
 /** The changed paths that break the rule, with the reason for each. */
 export function pathViolations(paths, spec, autoOffLimits = []) {
-  const off = [...spec.offLimits, ...autoOffLimits, '.ai/**', SPEC_FILE];
+  // A path that a command names is off-limits (the tests of the guard), unless allowed-paths
+  // names it or a path under it: a guard such as `eslint src` checks the code that the loop changes.
+  const literal = (g) => str(g).replace(/\\/g, '/').replace(/^\.\//, '').split(/[*?]/)[0].replace(/\/+$/, '');
+  const auto = autoOffLimits.filter((a) => !spec.allowedPaths.some((g) => { const l = literal(g); return l && (l === a || l.startsWith(`${a}/`)); }));
+  const off = [...spec.offLimits, ...auto, '.ai/**', SPEC_FILE];
   const bad = [];
   for (const p of paths) {
     const n = p.replace(/\\/g, '/');
@@ -323,10 +330,33 @@ export function paceOf(lines) {
   };
 }
 
+/**
+ * The longest gap between two commands of a running loop: a proposer and a trial, twice. A longer
+ * gap is a pause (the loop was stopped, or the session was closed), and the wall clock does not count it.
+ */
+export const pauseGapMs = (spec) => 2 * ((spec.budget.trialTimeoutMs ?? 0) + (spec.budget.proposeTimeMs ?? 0));
+
+/**
+ * The time that the loop has run, for the wall-clock budget: `state.activeMs` at the last tick,
+ * plus the time since then up to `gapMs`. A state with no tick yet (the first command after the
+ * baseline ticks it) uses the time since the baseline.
+ */
+export function activeMsOf(state, now = Date.now(), gapMs = Infinity) {
+  if (!Number.isFinite(state.activeMs) || !Number.isFinite(Date.parse(state.clockAt))) return now - Date.parse(state.startedAt);
+  return state.activeMs + Math.min(Math.max(0, now - Date.parse(state.clockAt)), gapMs);
+}
+
+/** Count the time up to `now` into the clock of `state` (see activeMsOf). */
+export function tickClock(state, now = Date.now(), gapMs = Infinity) {
+  state.activeMs = activeMsOf(state, now, gapMs);
+  state.clockAt = new Date(now).toISOString();
+  return state;
+}
+
 /** The trials that the wall clock allows: the trials used, plus the time left over the trial time. null with no wall clock or no pace. */
 export function projectTrials(spec, state, pace, now) {
   if (spec.budget.wallClockMs === null || !pace?.trialMs) return null;
-  const left = Math.max(0, spec.budget.wallClockMs - (now - Date.parse(state.startedAt)));
+  const left = Math.max(0, spec.budget.wallClockMs - activeMsOf(state, now, pauseGapMs(spec)));
   return state.counters.trials + Math.floor(left / pace.trialMs);
 }
 
@@ -351,16 +381,18 @@ export const overtimeRefusal = (lane, over) =>
 
 export function nextAction({ state, spec, now = Date.now(), control = null, tokensUsed = null, ideas = null, pace = null, canApply = null }) {
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
-  if (state.finished) return { state: 'finished', reason: 'finished', detail: `squashed as ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
+  if (state.finished) return { state: 'finished', reason: 'finished', detail: `finished at ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
   if (control && typeof control === 'object') {
     if (control.action === 'stop') return { state: 'stopped', reason: 'stop-request', detail: str(control.reason), next: { action: 'person', why: 'resume with /wf loop optimize <slug> once the request is cleared' } };
   }
   const B = spec.budget.trials;
   const used = state.counters.trials;
-  const overClock = spec.budget.wallClockMs !== null && now - Date.parse(state.startedAt) >= spec.budget.wallClockMs;
+  // The wall clock counts the time that the loop ran, not a pause while it was stopped.
+  const ranMs = activeMsOf(state, now, pauseGapMs(spec));
+  const overClock = spec.budget.wallClockMs !== null && ranMs >= spec.budget.wallClockMs;
   const overTokens = spec.budget.tokens !== null && tokensUsed !== null && tokensUsed >= spec.budget.tokens;
-  const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - (now - Date.parse(state.startedAt));
+  const timeLeft = spec.budget.wallClockMs === null ? null : spec.budget.wallClockMs - ranMs;
   // The end of the clock is kept for the harvest: 2 measurements for the merge step or a bundle,
   // and one more for each keep when the ablation runs.
   const reserveMs = timeLeft !== null && pace?.measureMs ? pace.measureMs * (2 + (spec.ablate !== 'off' ? state.counters.keeps : 0)) : 0;
@@ -467,8 +499,8 @@ export function ablationTable(ablation, spec) {
 export function personNext(reason) {
   switch (reason) {
     case 'budget': return 'choose finish, or a new budget in the spec';
-    case 'plateau': return 'choose finish, a new spec, or a new budget';
-    case 'holdout-regression': return 'look at the trials since the last good checkpoint; then finish, revert, or a new spec';
+    case 'plateau': return 'choose finish, or raise the budget or branch-rounds.max-extra in the spec and run resume';
+    case 'holdout-regression': return 'look at the trials since the last good checkpoint; then finish, resume --revert to go back to that checkpoint, or resume to go on';
     case 'state-error': return 'report; do not repair. state.json and results.jsonl disagree, or the branch moved outside the loop';
     case 'guard-red': return 'the guard fails at the baseline: fix it first. A loop cannot start from a red guard';
     default: return 'read the reason';
@@ -519,32 +551,37 @@ export function pooledOf(gains) {
 }
 
 /**
- * Claim an idea for a lane. A lane has one claim in flight: its older claim with no trial is
- * released. A claim of another lane on the same target is refused. A target that a record holds
- * already is refused unless `again` gives a reason, which goes into the record.
- *   → { ok: true, idea } | { ok: false, reason, idea }
+ * Claim an idea for a lane. A lane holds one claim, and takes it just before each trial: the
+ * proposer claims the hypothesis that runs now, and the loop claims each queued hypothesis just
+ * before its trial, after the trial before it settled its idea. So a new claim replaces the
+ * lane's older one: an older claim with no trial is dropped and listed in `released`, and an older
+ * claim with trials is only let go. A claim of another lane on the same target is refused. A target
+ * that a record holds already is refused unless `again` gives a reason, which goes into the record.
+ *   → { ok: true, idea, released } | { ok: false, reason, idea }
  */
 export function claimIdea(book, { lane, target, family, again = null }) {
   const t = normTarget(target);
   if (!t) return { ok: false, reason: 'idea-claim needs --target: the function or the profile entry that the change targets' };
-  book.ideas = book.ideas.filter((i) => !(i.claim === lane && i.status === 'open' && !i.trials.length && normTarget(i.target) !== t));
-  for (const i of book.ideas) if (i.claim === lane && normTarget(i.target) !== t) i.claim = null;
   const same = book.ideas.filter((i) => normTarget(i.target) === t);
   const busy = same.find((i) => i.claim && i.claim !== lane);
   if (busy) return { ok: false, reason: `${busy.claim} has a claim on this target in flight (${busy.id}): choose another target`, idea: brief(busy) };
   const mine = same.find((i) => i.claim === lane);
-  if (mine) return { ok: true, idea: mine };
   const tried = same.find((i) => i.status !== 'open' || i.trials.length);
   const why = str(again);
-  if (tried && !why) return { ok: false, reason: `this target was tried (${tried.id}: ${tried.status}, pooled gain ${tried.pooled.mean ?? 'none'} over ${tried.pooled.n}): choose another target, or give a new reason with --again`, idea: brief(tried) };
+  if (!mine && tried && !why) return { ok: false, reason: `this target was tried (${tried.id}: ${tried.status}, pooled gain ${tried.pooled.mean ?? 'none'} over ${tried.pooled.n}): choose another target, or give a new reason with --again`, idea: brief(tried) };
+  // The claim holds: only now does it replace the older claim of the lane, so a refused claim keeps it.
+  const released = book.ideas.filter((i) => i.claim === lane && i.status === 'open' && !i.trials.length && normTarget(i.target) !== t).map((i) => i.id);
+  book.ideas = book.ideas.filter((i) => !released.includes(i.id));
+  for (const i of book.ideas) if (i.claim === lane && normTarget(i.target) !== t) i.claim = null;
+  if (mine) return { ok: true, idea: mine, released };
   if (tried) {
     tried.claim = lane;
     tried.again = [...(tried.again ?? []), { lane, reason: why }];
-    return { ok: true, idea: tried };
+    return { ok: true, idea: tried, released };
   }
   const idea = { id: `i${book.next++}`, target: str(target), family: str(family), status: 'open', claim: lane, trials: [], gains: [], pooled: { mean: null, n: 0 }, patches: [] };
   book.ideas.push(idea);
-  return { ok: true, idea };
+  return { ok: true, idea, released };
 }
 
 /** Record the verdict of a trial on its idea. The status keeps the best result: a kept idea stays kept. */
@@ -779,4 +816,37 @@ export function keptTable(results, spec) {
   const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
   const rows = kept.map((r) => `| ${r.trial} | ${r.merge ? `merge of ${r.merge.branch}` : r.branch ?? 'trunk'} | ${String(r.hypothesis?.text ?? '').replace(/\|/g, '\\|')} | ${r.median}${unit} | ${r.delta}${unit} |`);
   return ['| Trial | Lane | Hypothesis | Median | Gain |', '|---|---|---|---|---|', ...rows].join('\n');
+}
+
+/** The first line of a text as a commit subject of at most `max` characters, cut at a word. */
+export function shortSubject(text, max = 72) {
+  const t = String(text ?? '').split(/\r?\n/)[0].replace(/\s+/g, ' ').trim().replace(/[\s.,:;]+$/, '');
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return (space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s.,:;]+$/, '');
+}
+
+/**
+ * The commit message of one kept change at finish: a subject from its hypothesis, and a body with
+ * the measured gain, the metric before and after, the trial, and where the change came from.
+ * `row` is the kept trial line of the trunk; a merged branch names its own kept trials in `merged`.
+ */
+export function keepMessage(row, { before, after, spec, merged = [] }) {
+  const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
+  const more = row.merge && merged.length > 1 ? `, and ${merged.length - 1} more` : '';
+  const text = row.merge ? merged[0]?.hypothesis?.text : row.hypothesis?.text;
+  const subject = `${shortSubject(text, 72 - more.length) || `The change of trial ${row.trial}`}${more}`;
+  const origin = row.merge ? `Merges the branch ${row.merge.branch} of round ${row.merge.round}: trial${merged.length === 1 ? '' : 's'} ${merged.map((m) => m.trial).join(', ') || 'none'}.`
+    : row.port?.kind === 'bundle' ? `Applies the near misses ${row.port.trials.join(', ')} of ${row.port.branch} together.`
+      : row.port ? `Ports trial ${row.port.trial} of ${row.port.branch}.`
+        : row.bundle ? `Tries the ideas ${row.bundle.join(', ')} together.`
+          : row.branch ? `Kept on ${row.branch} in round ${row.round}.` : null;
+  const body = [
+    `Measured gain: ${row.delta}${unit}.`,
+    `Metric: ${before}${unit} before, ${after}${unit} after.`,
+    `Trial: ${row.trial}${row.hypothesis?.id ? ` (${row.hypothesis.id})` : ''}.`,
+    ...(origin ? [origin] : []),
+  ].join('\n');
+  return { subject, body };
 }

@@ -70,6 +70,14 @@ test('frontmatter: parses data, raw matter, and body content', () => {
   match(parsed.content, /# Body/);
 });
 
+test('frontmatter: only a line of exactly --- closes the frontmatter', () => {
+  const parsed = parseFrontmatter('---\na: 1\n---x: 2\n---  \nbody\n');
+  deepStrictEqual(parsed.data, { a: 1, '---x': 2 });
+  equal(parsed.content, 'body\n');
+  equal(parseFrontmatter('---\na: 1\n---').content, '');
+  deepStrictEqual(parseFrontmatter('---\r\na: 1\r\n---\r\nbody').data, { a: 1 });
+});
+
 test('frontmatter: safe parser reports YAML errors without throwing', () => {
   const parsed = safeParseFrontmatter('---\n:\n---\nbody\n');
   equal(parsed.data, null);
@@ -91,6 +99,16 @@ test('schema-validator: validates frontmatter', () => {
   equal(invalid.valid, false);
   ok(invalid.errors.some((err) => err.keyword === 'required'));
 
+});
+
+test('schema-validator: the base fields apply to every artifact type, not only the type branch', () => {
+  const bad = validateFrontmatter({ schema: 'sdlc/v2', type: 'announce', slug: 'Bad Slug!' }, { schemaPath: SCHEMA_PATH });
+  equal(bad.valid, false);
+  ok(bad.errors.some((err) => err.path === '/schema' && err.keyword === 'const'), 'the schema const');
+  ok(bad.errors.some((err) => err.path === '/slug' && err.keyword === 'pattern'), 'the slug pattern');
+  const badType = validateFrontmatter({ ...validIntakeFrontmatter(), regenerable: 'yes' }, { schemaPath: SCHEMA_PATH });
+  equal(badType.valid, false, 'a base field of the wrong type');
+  equal(validateFrontmatter({ schema: 'sdlc/v1', type: 'announce', slug: 'ok-slug' }, { schemaPath: SCHEMA_PATH }).valid, true);
 });
 
 test('schema-validator: provenance is an accepted optional field (adopt mode)', () => {

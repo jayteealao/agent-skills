@@ -39,6 +39,7 @@ Run this check before any read or write. Its result is your first visible output
    - Exit 1: ask the `ask:` question of the output, word for word, with the host question tool. Offer `Yes — <the step>` first and `No — I type each command` second. Then run the `then:` command. When that command does not print `granted`, STOP: the person did not consent, and the `/wf` call does not run.
    - When the call names no existing workflow (a new intake, for example), do not run it: give the person the command to type.
    - Only the answer event of the question tool grants the consent. A hook records it. Do not write `answers.jsonl` or the consent field yourself.
+   - When the person takes the consent back, run `node "<skill-dir>/scripts/wf.mjs" consent revoke "<projectRoot>" <slug>`. A later grant then needs a new yes.
 
 # Step 0.7 — Git precondition
 

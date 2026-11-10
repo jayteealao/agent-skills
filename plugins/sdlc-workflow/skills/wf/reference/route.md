@@ -137,13 +137,13 @@ The dispatch reads the forms of these tables from `skills/wf/keys.json` and chec
 |---|---|---|---|
 | `intake` | `[<slug>] [<mode>] [text]` | Entry dispatcher. A description starts stage 1: the brief, then the shape work in the same run, or the small path when the person chooses it (implement and verify now, one commit on the checked-out branch, one note). A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
 | `shape` | `<slug> [text]` | Alias of `intake` for this release: runs the shape phase of intake on a workflow whose brief is written. Use `/wf intake`. | `02-shape.md` |
-| `design` | `[<slug>] [move\|amend\|import\|audit\|critique\|explore] [text]` · `explore [<slug>] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person approves the screens before drivers run. | `02c-craft.md` |
+| `design` | `[<slug>] [move\|amend\|import\|audit\|critique\|extract\|explore] [text]` · `explore [<slug>] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person approves the screens before drivers run. | `02c-craft.md` |
 | `slice` | `<slug> [text]` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
 | `plan` | `<slug> [<slice> [text]]` · `<slug> all` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
 | `implement` | `<slug> [<slice>\|reviews]` · `<slug> <slice> reviews` | Code the slice. `reviews` runs fix-blockers mode on the selected slice or on the named slice. | `05-implement-<slice>.md` |
 | `verify` | `<slug> [<slice>]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
 | `review` | `<slug> [<slice>\|triage\|<dimension>]` · `<slug> triage [<slice>]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
-| `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Alias of `ship` for this release: ship opens the PR first, then stops at the go/no-go gate. Use `/wf ship`. | `08-handoff.md` |
+| `handoff` | `<slug>` · `pr#N` · `<branch>` | Alias of `ship` for this release: ship opens the PR first, then stops at the go/no-go gate. Use `/wf ship`. | `08-handoff.md` |
 | `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | The last mile: packages the completed slices into a PR and watches CI, stops at the go/no-go gate, then merges and releases via `.ai/ship-plan.md`. Refuses while a required review has unresolved blockers. Batch mode over `pr#N` or a branch is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `08-handoff.md`, `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
 | `retro` | `<slug>\|pr#N\|<branch> [deep]` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
 
@@ -174,6 +174,6 @@ Every key runs on Claude Code, Codex and pi in the same form, with these excepti
 
 - `loop goal` on Claude Code: the mod puts the /goal line into the prompt box.
 - `loop goal` on Codex: the agent calls create_goal.
-- `loop goal` on pi: the person pastes the line that goal.mjs arm prints.
+- `loop goal` on pi: the agent runs the loop in this session; pi has no host goal.
 - `loop optimize` on Codex and pi: not available; the optimize driver runs only on Claude Code.
 <!-- end generated -->

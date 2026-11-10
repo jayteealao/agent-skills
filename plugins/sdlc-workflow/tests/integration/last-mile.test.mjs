@@ -77,8 +77,11 @@ test('ship facts: the plan method when the repo allows it, the rulesets narrow i
     mkdirSync(path.join(root, '.ai'));
     writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\ntype: ship-plan\ngovernance:\n  merge:\n    method: merge\n---\n');
     let f = shipFacts(root, 'main', { run: fakeRun() });
-    assert.deepEqual([f.method, f.allowed, f.direct], ['merge', ['squash', 'merge'], true]);
-    assert.equal(mergeCommand(f, 7), 'gh pr merge 7 --merge --delete-branch');
+    assert.deepEqual([f.method, f.allowed, f.direct], ['merge', ['merge', 'squash'], true]);
+    // The merge never deletes the branch: finish does, unless the person keeps it.
+    assert.equal(mergeCommand(f, 7), 'gh pr merge 7 --merge');
+    assert.equal(mergeCommand(f, 7, { method: 'squash' }), 'gh pr merge 7 --squash');
+    assert.equal(mergeCommand(f, 7, { method: 'rebase' }), null, 'a method the repo refuses gives no command');
     const rules = JSON.stringify([
       { type: 'pull_request', parameters: { required_approving_review_count: 1, allowed_merge_methods: ['squash'] } },
       { type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'ci' }] } },
@@ -130,6 +133,25 @@ test('finish: a merged PR fast-forwards the base, switches to it, and deletes th
   } finally { p.done(); }
 });
 
+test('finish: keepBranch fast-forwards and switches to the base, and keeps the branch here and there', () => {
+  const p = repoPair();
+  try {
+    git(p.root, 'switch', '-q', '-c', 'feat/x');
+    commit(p.root, 'x.txt', 'x\n');
+    git(p.root, 'push', '-q', '-u', 'origin', 'feat/x');
+    git(p.other, 'pull', '-q', 'origin', 'main');
+    commit(p.other, 'x.txt', 'x\n');
+    git(p.other, 'push', '-q', 'origin', 'main');
+    const r = finishShip(p.root, { branch: 'feat/x', base: 'main', pr: 7, run: fakeRun(), keepBranch: true });
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.kept, true);
+    assert.equal(git(p.root, 'branch', '--show-current'), 'main');
+    assert.equal(git(p.root, 'rev-parse', 'main'), git(p.other, 'rev-parse', 'main'));
+    assert.notEqual(git(p.root, 'branch', '--list', 'feat/x'), '', 'the local branch stays');
+    assert.notEqual(git(p.bare, 'branch', '--list', 'feat/x'), '', 'the remote branch stays');
+  } finally { p.done(); }
+});
+
 test('wf.mjs ship finish marks the workflow shipped and names retro next', () => {
   const p = repoPair();
   try {
@@ -142,5 +164,96 @@ test('wf.mjs ship finish marks the workflow shipped and names retro next', () =>
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const index = frontmatterOfDoc(dir, '00-index.md');
     assert.deepEqual([index.status, index['close-reason'], index['next-invocation']], ['shipped', 'shipped', '/wf retro demo']);
+  } finally { p.done(); }
+});
+
+test('finish: a PR of another branch finishes nothing, and the branch stays', () => {
+  const p = repoPair();
+  try {
+    git(p.root, 'switch', '-q', '-c', 'feat/x');
+    commit(p.root, 'x.txt', 'x\n');
+    git(p.root, 'push', '-q', '-u', 'origin', 'feat/x');
+    const r = finishShip(p.root, { branch: 'feat/x', base: 'main', pr: 9, run: fakeRun({ FAKE_GH_PR: '{"state":"MERGED","headRefName":"feat/other"}' }) });
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /PR 9 is for feat\/other, not feat\/x/);
+    assert.notEqual(git(p.root, 'branch', '--list', 'feat/x'), '');
+    assert.notEqual(git(p.bare, 'branch', '--list', 'feat/x'), '');
+  } finally { p.done(); }
+});
+
+test('finish: a commit made after the last push keeps the branch and finishes nothing, even with keepBranch', () => {
+  const p = repoPair();
+  try {
+    git(p.root, 'switch', '-q', '-c', 'feat/x');
+    commit(p.root, 'x.txt', 'x\n');
+    git(p.root, 'push', '-q', '-u', 'origin', 'feat/x');
+    const pushed = git(p.root, 'rev-parse', 'HEAD');
+    // The squash merge of the pushed head happens on the remote; then a version bump is committed here only.
+    git(p.other, 'pull', '-q', 'origin', 'main');
+    commit(p.other, 'x.txt', 'x\n');
+    git(p.other, 'push', '-q', 'origin', 'main');
+    commit(p.root, 'VERSION', '2.0.0\n');
+    const pr = JSON.stringify({ state: 'MERGED', headRefName: 'feat/x', headRefOid: pushed });
+    for (const keepBranch of [false, true]) {
+      const r = finishShip(p.root, { branch: 'feat/x', base: 'main', pr: 7, run: fakeRun({ FAKE_GH_PR: pr }), keepBranch });
+      assert.equal(r.ok, false, `keepBranch ${keepBranch}`);
+      assert.match(r.reason, /holds commits that PR 7 did not merge/);
+      assert.equal(git(p.root, 'branch', '--show-current'), 'feat/x', 'the checkout stays on the branch');
+    }
+    assert.notEqual(git(p.root, 'branch', '--list', 'feat/x'), '');
+    assert.notEqual(git(p.bare, 'branch', '--list', 'feat/x'), '');
+    // Once pushed, the PR head is the local tip again and finish goes through.
+    git(p.root, 'push', '-q', 'origin', 'feat/x');
+    const head = git(p.root, 'rev-parse', 'HEAD');
+    const r = finishShip(p.root, { branch: 'feat/x', base: 'main', pr: 7, run: fakeRun({ FAKE_GH_PR: JSON.stringify({ state: 'MERGED', headRefName: 'feat/x', headRefOid: head }) }) });
+    assert.equal(r.ok, true, r.reason);
+  } finally { p.done(); }
+});
+
+test('finish: with no PR, an unmerged branch finishes nothing and nothing is deleted, even with keepBranch', () => {
+  const p = repoPair();
+  try {
+    git(p.root, 'switch', '-q', '-c', 'feat/x');
+    commit(p.root, 'x.txt', 'x\n');
+    git(p.root, 'push', '-q', '-u', 'origin', 'feat/x');
+    for (const keepBranch of [false, true]) {
+      const r = finishShip(p.root, { branch: 'feat/x', base: 'main', run: fakeRun(), keepBranch });
+      assert.equal(r.ok, false, `keepBranch ${keepBranch}`);
+      assert.match(r.reason, /not merged into origin\/main/);
+    }
+    assert.notEqual(git(p.root, 'branch', '--list', 'feat/x'), '');
+    assert.notEqual(git(p.bare, 'branch', '--list', 'feat/x'), '', 'the remote branch stays');
+    // Merged into the remote base by a real merge: finish deletes it here and there.
+    git(p.other, 'fetch', '-q', 'origin');
+    git(p.other, 'merge', '-q', '--ff-only', 'origin/feat/x');
+    git(p.other, 'push', '-q', 'origin', 'main');
+    const r = finishShip(p.root, { branch: 'feat/x', base: 'main', run: fakeRun() });
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(git(p.root, 'branch', '--list', 'feat/x'), '');
+    assert.equal(git(p.bare, 'branch', '--list', 'feat/x'), '');
+  } finally { p.done(); }
+});
+
+test('wf.mjs ship finish of a batch marks every roster slug on the branch shipped, each with its own retro', () => {
+  const p = repoPair();
+  try {
+    writeFileSync(path.join(p.root, '.gitignore'), '.ai/\n');
+    const index = (slug, branch) => {
+      const dir = path.join(p.root, '.ai', 'workflows', slug);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(path.join(dir, '00-index.md'), `---\nschema: sdlc/v1\ntype: index\nslug: ${slug}\nstatus: active\nbranch: ${branch}\nbase-branch: main\npr-number: 7\n---\n`);
+      return dir;
+    };
+    const lead = index('demo', 'feat/x');
+    index('demo-two', 'feat/x');
+    index('elsewhere', 'feat/y');
+    writeFileSync(path.join(lead, '08-handoff.md'), '---\nschema: sdlc/v1\ntype: handoff\nslug: demo\nbranch-slugs: [demo, demo-two, elsewhere]\n---\n');
+    git(p.root, 'switch', '-q', '-c', 'feat/x');
+    const r = spawnSync(process.execPath, [path.join(PLUGIN_ROOT, 'scripts', 'wf.mjs'), 'ship', 'finish', p.root, 'demo'], { encoding: 'utf8', env: { ...process.env, SDLC_GH_BIN: FAKE_GH } });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const fm = (slug) => frontmatterOfDoc(path.join(p.root, '.ai', 'workflows', slug), '00-index.md');
+    assert.deepEqual([fm('demo').status, fm('demo')['next-invocation']], ['shipped', '/wf retro demo']);
+    assert.deepEqual([fm('demo-two').status, fm('demo-two')['next-invocation']], ['shipped', '/wf retro demo-two']);
+    assert.equal(fm('elsewhere').status, 'active', 'a slug on another branch is not shipped');
   } finally { p.done(); }
 });

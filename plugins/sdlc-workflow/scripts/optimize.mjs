@@ -6,9 +6,9 @@
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
  *   status          <root> <slug>                     running | complete | stopped | finished, and the next action
  *   propose-context <root> <slug> [--on <lane>]       the digest of the next proposer and the worktree of its lane
- *   trial           <root> <slug> <id> [--on <lane>] [--hypothesis t | --hypothesis-file f] [--expected e]
+ *   trial           <root> <slug> <id> [--on <lane>] [--hypothesis t | --hypothesis-file f] [--expected e] [--apply] [--idea <id>]
  *                                                     judge the change in the worktree of the lane: kept, reverted, rejected, crashed, timeout
- *   round-open      <root> <slug> [schedule|plateau]  open a branch round: one branch and one worktree for each branch
+ *   round-open      <root> <slug>                     open a branch round: one branch and one worktree for each branch
  *   round-close     <root> <slug>                     pick the winner, fast-forward the trunk, remove the branch worktrees and branches
  *   merge-consider  <root> <slug> --try b2,b4 --skip "b3:<reason>"
  *                                                     record which candidates of the closed round to merge into the trunk
@@ -16,8 +16,10 @@
  *   merge-close     <root> <slug>                     end the merge step: skip the rest, delete the branches, checkpoint
  *   checkpoint      <root> <slug>                     run the holdout and compare it to the baseline
  *   finish          <root> <slug> [--message m] [--no-ablate] [--no-holdout] [--stash]
- *                                                     squash the kept trials onto the slug branch; write the slice artifacts; clean up
- *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder
+ *                                                     put each kept change on the slug branch as its own commit; write the slice artifacts; clean up
+ *                                                     (a finish that stopped midway is put away first, and named in `recovered`)
+ *   cleanup         <root> <slug>                     remove what finish could not: worktrees, the trunk branch, the build folder,
+ *                                                     the worktree and the branch of a finish that stopped
  *   probe-open      <root> <slug> [--on <lane>]       a probe worktree at the best of the lane, for the proposer to instrument
  *   probe           <root> <slug> [--on <lane>] --cmd "<command>" [--label t]
  *                                                     run one command in the probe worktree, under the measure lock
@@ -29,6 +31,8 @@
  *                                                     record the profile of the profiler agent
  *   prune           <root> <slug>                     give the trials of a trailing branch to a new fork of the leader
  *   ablate          <root> <slug>                     revert each kept change alone and measure what it still gives (finish runs it too)
+ *   resume          <root> <slug> [--revert]          clear a stored stop (plateau, holdout-regression); --revert first puts the trunk
+ *                                                     back at the best of the last good checkpoint
  *
  * `--on <lane>` names a branch that status lists in `next.ready`. A round whose branches have
  * their own worktrees lets the driver edit them at the same time; `trial` holds the measure
@@ -54,15 +58,18 @@ import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
-  ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal,
+  ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
 } from '../lib/optimize.mjs';
+import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { findRunFile } from '../lib/run-files.mjs';
-import { pidAlive as alive } from '../lib/proc.mjs';
+import { isMainModule, runShell } from '../lib/proc.mjs';
 import { costFiles, readCostRows } from '../lib/cost-ledger.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
+import { writeFileAtomic } from '../lib/atomic-write.mjs';
+import { dropLock as dropFileLock, isStaleLock, refreshLock, takeLock as takeFileLock, withLock as withFileLockAt } from '../lib/file-lock.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune|ablate> <projectRoot> <slug> ...';
+const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune|ablate|resume> <projectRoot> <slug> ...';
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SLICE = 'optimize';
 
@@ -72,21 +79,22 @@ const statePath = (root, slug) => join(optDir(root, slug), 'state.json');
 const resultsPath = (root, slug) => join(optDir(root, slug), 'results.jsonl');
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-function writeAtomic(file, text) {
-  mkdirSync(dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, text);
-  for (let i = 0; ; i++) {
-    try { renameSync(tmp, file); return; } catch (e) {
-      if (!['EPERM', 'EBUSY', 'EACCES'].includes(e.code) || i >= 19) { rmSync(tmp, { force: true }); throw e; }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-    }
-  }
-}
+const writeAtomic = (file, text) => writeFileAtomic(file, text);
 
+function gitRun(cwd, args) {
+  return spawnSync('git', ['-c', 'core.longpaths=true', '-C', cwd, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+}
 function git(cwd, args) {
-  const r = spawnSync('git', ['-c', 'core.longpaths=true', '-C', cwd, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const r = gitRun(cwd, args);
   return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+}
+/**
+ * A diff as git prints it, not trimmed: a hunk can end in a blank context line (" \n"), and a
+ * trim cuts it, so the saved patch no longer applies. Empty when git fails.
+ */
+function gitDiff(cwd, args) {
+  const r = gitRun(cwd, ['diff', ...args]);
+  return r.status === 0 ? r.stdout || '' : '';
 }
 const gitOk = (cwd, args, what) => {
   const r = git(cwd, args);
@@ -94,12 +102,16 @@ const gitOk = (cwd, args, what) => {
   return r.out;
 };
 
-/** One shell command in `cwd`, with a timeout. `env` adds variables to the environment of the command. */
+/**
+ * One shell command in `cwd`, with a timeout. `env` adds variables to the environment of the command.
+ * A command that times out is stopped with every process it started, so none of them runs on
+ * into the next measurement. A holder of the measure lock refreshes its stamp first.
+ */
 function runCommand(command, cwd, timeoutMs, env = null) {
+  if (measureLockHeld) refreshLock(measureLockHeld);
   const t0 = Date.now();
-  const r = spawnSync(command, { cwd, shell: true, encoding: 'utf8', windowsHide: true, timeout: timeoutMs ?? undefined, maxBuffer: 64 * 1024 * 1024, env: env ? { ...process.env, ...env } : undefined });
-  const timedOut = r.error?.code === 'ETIMEDOUT' || (r.signal && Date.now() - t0 >= (timeoutMs ?? Infinity));
-  return { code: r.status ?? (timedOut ? 124 : 1), stdout: r.stdout || '', stderr: r.stderr || '', timedOut: !!timedOut, ms: Date.now() - t0 };
+  const r = runShell(command, { cwd, timeoutMs: timeoutMs ?? null, env: env ? { ...process.env, ...env } : process.env });
+  return { code: r.status ?? (r.timedOut ? 124 : 1), stdout: r.stdout || '', stderr: r.stderr || '', timedOut: !!r.timedOut, ms: Date.now() - t0 };
 }
 const tail = (text, n = 20) => String(text ?? '').split(/\r?\n/).filter((l) => l.trim()).slice(-n).join('\n');
 
@@ -156,24 +168,13 @@ function readIdeas(root, slug) {
   try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return emptyIdeas(); }
 }
 function withIdeas(root, slug, fn) {
-  const lock = join(optDir(root, slug), '.ideas.lock');
-  mkdirSync(dirname(lock), { recursive: true });
-  const until = Date.now() + 10_000;
-  for (;;) {
-    try { writeFileSync(lock, String(process.pid), { flag: 'wx' }); break; } catch {
-      let stale = false;
-      try { stale = Date.now() - statSync(lock).mtimeMs > 30_000; } catch { /* gone */ }
-      if (stale) rmSync(lock, { force: true });
-      else if (Date.now() >= until) throw new Error('the ideas ledger is locked by another command: try again');
-      else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
-    }
-  }
-  try {
+  // The lock of a process that is gone is taken over at once (lib/file-lock.mjs).
+  return withFileLockAt(join(optDir(root, slug), '.ideas.lock'), () => {
     const book = readIdeas(root, slug);
     const out = fn(book);
     writeAtomic(ideasPath(root, slug), `${JSON.stringify(book, null, 2)}\n`);
     return out;
-  } finally { rmSync(lock, { force: true }); }
+  }, { waitMs: 10_000, pollMs: 50, busy: () => new Error('the ideas ledger is locked by another command: try again') });
 }
 const readProfile = (root, slug) => (existsSync(profileFile(root, slug)) ? JSON.parse(readFileSync(profileFile(root, slug), 'utf8')) : null);
 
@@ -235,27 +236,32 @@ function ensureBuildDir(state, spec) {
 // Two measured runs on one machine corrupt each other's numbers.
 // ---------------------------------------------------------------------------
 const lockPath = (root, slug) => join(optDir(root, slug), '.measure.lock');
-/** The holder of the lock, or null when no live process holds it. A stale lock is one whose process is dead, or that is older than three trial timeouts. */
+// The measure lock that this process holds now: runCommand refreshes its stamp before each command.
+let measureLockHeld = null;
+/**
+ * The holder of the lock, or null when no process holds it. One trial runs many commands under one
+ * lock, so a process that still runs on this machine holds it however old its stamp is. The lock
+ * of a dead process is stale, and so is the lock of another machine whose stamp is older than
+ * three trial timeouts (lib/file-lock.mjs).
+ */
 function lockHolder(root, slug, trialTimeoutMs) {
   const f = lockPath(root, slug);
-  if (!existsSync(f)) return null;
-  let h;
-  try { h = JSON.parse(readFileSync(f, 'utf8')); } catch { return null; }
-  const old = trialTimeoutMs && Date.now() - Date.parse(h.at) > 3 * trialTimeoutMs;
-  return !h.pid || !alive(h.pid) || old ? null : h;
+  let text;
+  let mtimeMs;
+  try { text = readFileSync(f, 'utf8'); mtimeMs = statSync(f).mtimeMs; } catch { return null; }
+  if (isStaleLock(text, mtimeMs, { staleMs: trialTimeoutMs ? 3 * trialTimeoutMs : undefined })) return null;
+  try { return JSON.parse(text); } catch { return null; }
 }
 function takeLock(root, slug, spec, lane, kind = 'trial') {
   const f = lockPath(root, slug);
-  mkdirSync(dirname(f), { recursive: true });
+  // A stale lock is moved aside and removed; a lock that another process made meanwhile stays.
+  if (takeFileLock(f, { waitMs: 0, staleMs: 3 * spec.budget.trialTimeoutMs, info: { lane, kind } })) {
+    measureLockHeld = f;
+    return { ok: true };
+  }
   const holder = lockHolder(root, slug, spec.budget.trialTimeoutMs);
   if (holder) return { ok: false, busy: true, holder, error: `a ${holder.kind ?? 'measurement'} runs on ${holder.lane ?? 'a lane'} (process ${holder.pid}, since ${holder.at}): measurements run one at a time` };
-  rmSync(f, { force: true });
-  try {
-    writeFileSync(f, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), lane, kind }), { flag: 'wx' });
-  } catch {
-    return { ok: false, busy: true, error: 'another measurement took the lock at the same time: measurements run one at a time' };
-  }
-  return { ok: true };
+  return { ok: false, busy: true, error: 'another measurement took the lock at the same time: measurements run one at a time' };
 }
 const LOCK_POLL_MS = Number(process.env.OPTIMIZE_LOCK_POLL_MS) || 1000;
 const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -274,7 +280,12 @@ function waitLock(root, slug, spec, lane, kind, waitFor) {
     sleepMs(LOCK_POLL_MS);
   }
 }
-const dropLock = (root, slug) => rmSync(lockPath(root, slug), { force: true });
+/** Give up the measure lock. Only a lock that this process holds is removed. */
+function dropLock(root, slug) {
+  const f = lockPath(root, slug);
+  dropFileLock(f);
+  if (measureLockHeld === f) measureLockHeld = null;
+}
 const currentBranch = (cwd) => git(cwd, ['branch', '--show-current']).out;
 const headOf = (cwd) => git(cwd, ['rev-parse', 'HEAD']).out;
 /** The changed paths of the worktree, from the raw `-z` output: a trim would cut the status column. */
@@ -491,6 +502,12 @@ function consistency(root, slug, state, results, spec) {
   if (trials !== state.counters.trials) return `state.json counts ${state.counters.trials} trials and results.jsonl holds ${trials}`;
   if (state.finished || !state.worktree || !existsSync(state.worktree)) return null;
   const branch = currentBranch(state.worktree);
+  // A finish that stopped midway left the trunk worktree on its own branch: the next finish recovers it,
+  // when the trunk branch itself is where the loop left it.
+  if (finishLeft(root, state).trunkOn === branch && branch) {
+    const at = refOf(root, state.trunk);
+    return at && at !== state.best.commit ? `${state.trunk} is at ${at.slice(0, 12)}, and the loop left it at ${state.best.commit.slice(0, 12)}: the branch moved outside the loop` : null;
+  }
   const best = laneBest(state, branch === state.trunk ? 'trunk' : branch);
   if (!best) return `the worktree is on ${branch || 'a detached HEAD'}, which is not a branch of the loop`;
   const head = headOf(state.worktree);
@@ -512,6 +529,8 @@ export function optimizeStatus(root, slug) {
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) return { ok: true, state: 'stopped', reason: 'state-error', detail: err, next: { action: 'person', why: 'report; do not repair' } };
+  const left = state.finished ? null : finishLeft(root, state);
+  const recover = left && anyLeft(left) ? { recover: 'a finish stopped midway: the next finish puts its leftovers away and goes on' } : {};
   const ideas = readIdeas(root, slug);
   // A bundle of the ideas ledger joins only ideas whose last diffs apply together on the trunk.
   const canApply = (trials) => diffsApply(state.worktree, trials.map((t) => join(patchesDir(root, slug), `${t}.patch`)));
@@ -534,6 +553,7 @@ export function optimizeStatus(root, slug) {
   return {
     ok: true,
     ...st,
+    ...recover,
     best: state.best,
     baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}) },
     counters: state.counters,
@@ -773,7 +793,7 @@ function ideaClaim(root, slug, f) {
   if (!state) throw new Error('no baseline: run baseline first');
   const lane = probeLane(state, f);
   const res = withIdeas(root, slug, (book) => claimIdea(book, { lane, target: f.target === true ? '' : f.target, family: f.family === true ? '' : f.family, again: typeof f.again === 'string' ? f.again : null }));
-  return res.ok ? { ok: true, lane, idea: res.idea } : { ok: false, refused: true, error: res.reason, idea: res.idea ?? null };
+  return res.ok ? { ok: true, lane, idea: res.idea, released: res.released } : { ok: false, refused: true, error: res.reason, idea: res.idea ?? null };
 }
 
 /** Write the profile, and keep the instrumentation of the trunk probe worktree as a patch for the next profile. */
@@ -782,8 +802,8 @@ function saveProfile(root, slug, state, entries, source) {
   writeAtomic(profileFile(root, slug), `${JSON.stringify({ commit: state.best.commit, at, trial: state.counters.trials, source, entries }, null, 2)}\n`);
   const wt = probePath(state, 'trunk');
   if (source === 'agent' && existsSync(wt)) {
-    const d = git(wt, ['diff']).out;
-    if (d) writeFileSync(profilePatch(root, slug), `${d}\n`);
+    const d = gitDiff(wt, []);
+    if (d) writeFileSync(profilePatch(root, slug), d);
   }
   state.profile = { commit: state.best.commit, at, trial: state.counters.trials, source, entries: entries.length };
   appendResult(root, slug, { event: 'profile', commit: state.best.commit, source, entries: entries.length, top: entries.slice(0, 5).map((e) => `${e.name} ${Math.round(e.share * 1000) / 10}%`) });
@@ -900,7 +920,34 @@ function trial(root, slug, id, f) {
   const ideaId = port ? (nearSet ? null : port.idea) : bundle ? null
     : typeof f.idea === 'string' && f.idea ? f.idea : readIdeas(root, slug).ideas.find((i) => i.claim === laneName)?.id ?? null;
   if (ideaId) line.idea = ideaId;
+  let appended = false;
+  /**
+   * A step that fails after the commit (a git command, the ideas ledger, a write) would leave the
+   * lane one commit ahead of state.json. The lane goes back to its best, and the trial is
+   * recorded as crashed, so the lane, the state and the ledger agree.
+   */
+  const crash = (e) => {
+    const error = e?.message ?? String(e);
+    let fresh = null;
+    try { fresh = readState(root, slug); } catch { /* the state is written below */ }
+    fresh ??= state;
+    let resetError = '';
+    try { resetTo(root, wt, best.commit); } catch (r) { resetError = `; the reset of ${wt} failed too: ${r.message}`; }
+    if (fresh.counters.trials < n) {
+      fresh.counters.trials = n;
+      if (isTrunk) { fresh.counters.trunkTrials++; fresh.counters.sinceCheckpoint++; fresh.counters.streak++; } else {
+        const b = fresh.round?.branches.find((x) => x.name === laneName);
+        if (b) b.trials++;
+      }
+      if (!appended) appendResult(root, slug, { ...line, verdict: 'crashed', reason: `the trial failed after its commit: ${error}` });
+      saveState(root, slug, fresh);
+    }
+    return { ok: false, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict: 'crashed', error: `${error}${resetError}` };
+  };
   const finish = (verdict, extra = {}) => {
+    try { return record(verdict, extra); } catch (e) { return crash(e); }
+  };
+  const record = (verdict, extra) => {
     Object.assign(line, { verdict, ...extra });
     if (verdict === 'kept' && port) line.additive = nearSet ? { measured: line.delta, sum: port.gain } : { measured: line.delta, alone: port.gain };
     if (verdict === 'kept' && bundle) line.additive = { measured: line.delta, sum: bundleSum };
@@ -908,7 +955,7 @@ function trial(root, slug, id, f) {
     const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
     if (keepPatch) {
       mkdirSync(patchesDir(root, slug), { recursive: true });
-      writeFileSync(join(patchesDir(root, slug), `${n}.patch`), git(wt, ['diff', `${line.commit}~1`, line.commit]).out + '\n');
+      writeFileSync(join(patchesDir(root, slug), `${n}.patch`), gitDiff(wt, [`${line.commit}~1`, line.commit]));
       line.patch = `patches/${n}.patch`;
     }
     if (ideaId) withIdeas(root, slug, (book) => settleIdea(book, ideaId, { trial: n, verdict, gain: line.delta, patch: keepPatch }));
@@ -936,6 +983,7 @@ function trial(root, slug, id, f) {
       branch.trials++;
     }
     appendResult(root, slug, line);
+    appended = true;
     if (port && !mg.order.some((name) => !mg.candidates.find((c) => c.name === name).verdict)) closeMerge(root, slug, state, spec, 'not tried');
     saveState(root, slug, state);
     return { ok: true, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict, reason: line.reason ?? null, median: line.median, delta: line.delta, threshold: line.threshold ?? null, best: isTrunk ? state.best : branch.best, ...(line.output ? { output: line.output } : {}), next: optimizeStatus(root, slug).next };
@@ -953,25 +1001,29 @@ function trial(root, slug, id, f) {
   if (bad.length) return finish('rejected', { reason: `path check: ${bad.map((b) => `${b.path} (${b.reason})`).join(', ')}`, paths });
   gitOk(wt, ['add', '-A'], 'add');
   // The repo hooks run on this commit. A hook that refuses it rejects the trial. The loop never
-  // skips the hooks, because the squash at finish must pass the same hooks.
+  // skips the hooks, because the commits of finish must pass the same hooks.
   const c = git(wt, ['commit', '-q', '-m', `experiment ${id}${text ? `: ${text.split(/\r?\n/)[0].slice(0, 60)}` : ''}`]);
   if (!c.ok) return finish('rejected', { reason: 'the commit hook refused the change', paths, output: tail(`${c.out}\n${c.err}`) });
-  line.commit = headOf(wt);
-  line.paths = paths;
-  // The time of the guard and the measurement goes on the line: the schedule fits a round in the time left with it.
-  const t0 = Date.now();
-  const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
-  line.guard = g.code === 0 ? 'pass' : 'fail';
-  if (g.timedOut) return finish('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
-  if (g.code !== 0) return finish('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
-  const j = judge(root, state, spec, wt, env, best, line);
-  line.ms = Date.now() - t0;
-  if (j.verdict !== 'kept') return finish(j.verdict, j.extra);
-  const kept = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
-  if (isTrunk) state.best = kept;
-  else { branch.best = kept; branch.keeps++; }
-  state.counters.keeps++;
-  return finish('kept');
+  try {
+    line.commit = headOf(wt);
+    line.paths = paths;
+    // The time of the guard and the measurement goes on the line: the schedule fits a round in the time left with it.
+    const t0 = Date.now();
+    const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
+    line.guard = g.code === 0 ? 'pass' : 'fail';
+    if (g.timedOut) return finish('timeout', { reason: 'the guard timed out', output: tail(g.stdout + g.stderr) });
+    if (g.code !== 0) return finish('reverted', { reason: `the guard failed (exit ${g.code})`, output: tail(g.stdout + g.stderr) });
+    const j = judge(root, state, spec, wt, env, best, line);
+    line.ms = Date.now() - t0;
+    if (j.verdict !== 'kept') return finish(j.verdict, j.extra);
+    const kept = { commit: line.commit, value: line.median, trial: n, reachedAt: n };
+    if (isTrunk) state.best = kept;
+    else { branch.best = kept; branch.keeps++; }
+    state.counters.keeps++;
+    return finish('kept');
+  } catch (e) {
+    return crash(e);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1047,15 +1099,24 @@ function prune(root, slug) {
   removeProbes(root, state, [`r${r.n}b${b.k}`], { removed: [], kept: [] });
   const left = (b.limit ?? r.branchTrials) - b.trials;
   Object.assign(b, { pruned: true, limit: b.trials, worktree: null });
+  // The removed worktree is out of state.json before the fork is made, so a failed fork leaves a state that agrees with the disk.
+  saveState(root, slug, state);
   const k = Math.max(...r.branches.map((x) => x.k)) + 1;
   const name = branchNameOf(slug, r.n, k);
   const worktree = join(dirname(state.worktree), `${basename(state.worktree)}--r${r.n}b${k}`);
   if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok || existsSync(worktree)) throw new Error(`${name} or ${worktree} exists from another run. Ask the person.`);
   gitOk(root, ['branch', name, leader.best.commit], 'branch');
-  gitOk(root, ['worktree', 'add', '-q', worktree, name], 'worktree add');
+  // A fork that fails goes again, as roundOpen undoes its branches: the round goes on without it.
+  const undo = () => {
+    if (removeWorktree(root, worktree).removed) git(root, ['branch', '-D', name]);
+    else (state.leftovers ??= []).push({ path: worktree, branch: name });
+    saveState(root, slug, state);
+  };
+  const w = git(root, ['worktree', 'add', '-q', worktree, name]);
+  if (!w.ok) { undo(); return { ok: false, error: `git worktree add ${worktree} failed: ${w.err}` }; }
   if (spec.setup) {
     const s = runCommand(spec.setup, worktree, 60 * 60_000, envOf(state, spec));
-    if (s.code !== 0) return { ok: false, error: `the setup command failed in ${worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr) };
+    if (s.code !== 0) { undo(); return { ok: false, error: `the setup command failed in ${worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr) }; }
   }
   const prof = readProfile(root, slug);
   const used = new Set(r.branches.filter((x) => !x.pruned).map((x) => x.seed).filter(Boolean));
@@ -1077,9 +1138,44 @@ function runCheckpoint(root, slug, state, spec) {
   state.counters.sinceCheckpoint = 0;
   if (regressed) {
     state.stopped = { reason: 'holdout-regression', detail: value === null ? 'the holdout did not print a number' : `the holdout is ${value} against the baseline ${state.baseline.holdout}; trials ${since + 1} to ${state.counters.trials}`, at: nowIso() };
-  } else state.lastCheckpoint = { trial: state.counters.trials, ok: true, value };
+  } else state.lastCheckpoint = { trial: state.counters.trials, ok: true, value, best: { ...state.best } };
   appendResult(root, slug, { event: 'checkpoint', trial: state.counters.trials, value, baseline: state.baseline.holdout, ok: !regressed });
   return { ran: true, value, ok: !regressed };
+}
+
+/**
+ * `resume`: go on after a stop that the loop stored, a plateau or a holdout regression. The person
+ * first raises the budget or changes the spec; `status` then says whether the loop runs again.
+ * `--revert` first puts the trunk back at its best of the last good checkpoint, and the trials
+ * kept after that checkpoint leave the trunk, so finish does not commit them.
+ */
+function resumeLoop(root, slug, f) {
+  const state = readState(root, slug);
+  if (!state) throw new Error('no baseline: run baseline first');
+  if (state.finished) throw new Error('the loop is finished: nothing to resume');
+  const stop = state.stopped;
+  if (!stop) return { ...optimizeStatus(root, slug), ok: true, resumed: null, note: 'the loop has no stored stop: status names the next action' };
+  const out = { resumed: stop.reason };
+  const event = { event: 'resume', reason: stop.reason };
+  if (f.revert === true) {
+    if (state.round || state.merge) throw new Error('a round or a merge step is open: resume --revert works on the trunk only');
+    const cp = state.lastCheckpoint ?? { trial: 0 };
+    const to = cp.best ?? (cp.trial ? null : { commit: state.baseCommit, value: state.baseline.median, trial: 0, reachedAt: 0 });
+    if (!to) throw new Error(`the checkpoint of trial ${cp.trial} holds no commit: finish, or resume without --revert`);
+    assertWorktree(root, state);
+    checkout(root, state, state.trunk);
+    resetTo(root, state.worktree, to.commit);
+    state.best = { ...to };
+    // The kept trials after the checkpoint are no longer in the trunk code.
+    event.reverted = to.commit;
+    event.dropped = readResults(root, slug).filter((r) => r.event === 'trial' && r.verdict === 'kept' && r.trial > cp.trial).map((r) => r.trial);
+    out.reverted = to.commit;
+    out.dropped = event.dropped;
+  }
+  state.stopped = null;
+  appendResult(root, slug, event);
+  saveState(root, slug, state);
+  return { ...optimizeStatus(root, slug), ok: true, ...out };
 }
 
 function roundClose(root, slug) {
@@ -1102,7 +1198,7 @@ function roundClose(root, slug) {
   const results = readResults(root, slug);
   const changed = (commit) => git(root, ['diff', '--name-only', r.from, commit]).out.split(/\r?\n/).filter(Boolean);
   const winnerPaths = winner ? changed(winner.best.commit) : [];
-  const candidates = mergeCandidates(r, winner, spec, base, state.baseline.noise).map((b) => {
+  const candidates = mergeCandidates(r, winner, spec, base, noiseFor(spec, state)).map((b) => {
     const paths = changed(b.best.commit);
     const conflict = !git(root, ['merge-tree', '--write-tree', state.best.commit, b.best.commit]).ok;
     return {
@@ -1319,41 +1415,52 @@ function finish(root, slug, f) {
   if (!state) throw new Error('no baseline: nothing to finish');
   if (state.finished) return { ok: true, already: true, finished: state.finished };
   if (state.round) throw new Error('a branch round is open: run round-close first');
-  // A merge step that a stop left open ends here, without its checkpoint: the finish squashes what the trunk holds.
+  // A finish that stopped midway left its branch, its worktree or its commits: put them away first.
+  // When the slug branch holds the commits already, only the records are left to write.
+  const rec = recoverFinish(root, slug, state);
+  const recovered = rec.recovered.length ? { recovered: rec.recovered } : {};
+  // A merge step that a stop left open ends here, without its checkpoint: the finish commits what the trunk holds.
   if (state.merge) closeMerge(root, slug, state, loadSpec(root, slug).spec, 'finish', { checkpoint: false });
   const { spec } = loadSpec(root, slug);
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
   if (err) throw new Error(`state-error: ${err}`);
-  // The ablation runs before the squash, while the trunk worktree holds the final code.
-  if (ablationDue(spec, state) && f['no-ablate'] !== true) {
+  // The ablation runs before the commits of finish, while the trunk worktree holds the final code.
+  if (!rec.built && ablationDue(spec, state) && f['no-ablate'] !== true) {
     state.ablation = runAblation(root, slug, state, spec);
     saveState(root, slug, state);
   }
-  // A change kept after the last checkpoint is checked on the holdout before the squash.
-  if (spec.holdout && f['no-holdout'] !== true && state.best.commit !== state.baseCommit && (state.lastCheckpoint?.trial ?? 0) < (state.best.trial ?? 0)) {
+  // A change kept after the last checkpoint is checked on the holdout before the commits of finish.
+  if (!rec.built && spec.holdout && f['no-holdout'] !== true && state.best.commit !== state.baseCommit && (state.lastCheckpoint?.trial ?? 0) < (state.best.trial ?? 0)) {
     const cp = runCheckpoint(root, slug, state, spec);
     saveState(root, slug, state);
-    if (!cp.ok) throw new Error(`the holdout regressed before finish: ${state.stopped?.detail ?? `it reads ${cp.value}`}. Look at the trials since the last good checkpoint; finish --no-holdout squashes anyway`);
+    if (!cp.ok) throw new Error(`the holdout regressed before finish: ${state.stopped?.detail ?? `it reads ${cp.value}`}. Look at the trials since the last good checkpoint; finish --no-holdout commits them anyway`);
   }
   const at = nowIso();
-  // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not in the squash.
+  // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not on the trunk.
   const winners = new Set(state.rounds.flatMap((r) => [...(r.winner ? [`${r.n}:${r.winner.name}`] : []), ...(r.merged ?? []).map((name) => `${r.n}:${name}`)]));
-  const lineage = results.filter((r) => r.event !== 'trial' || r.branch === null || winners.has(`${r.round}:${r.branch}`));
+  // A trial that resume --revert took out of the trunk is not on it either.
+  const dropped = new Set(results.filter((r) => r.event === 'resume').flatMap((r) => r.dropped ?? []));
+  const lineage = results.filter((r) => r.event !== 'trial' || ((r.branch === null || winners.has(`${r.round}:${r.branch}`)) && !dropped.has(r.trial)));
   const kept = lineage.filter((r) => r.event === 'trial' && r.verdict === 'kept');
   if (state.best.commit === state.baseCommit) {
     state.finished = { commit: null, at, gain: 0, kept: 0 };
     appendResult(root, slug, { event: 'finish', commit: null, gain: 0 });
     saveState(root, slug, state);
-    return { ok: true, kept: 0, note: 'no trial was kept: nothing to squash. Close the slug, or write a new spec.', cleanup: cleanupAll(root, slug, state) };
+    return { ok: true, kept: 0, note: 'no trial was kept: nothing to commit. Close the slug, or write a new spec.', ...recovered, cleanup: cleanupAll(root, slug, state) };
   }
+  // The finish stopped after the slug branch moved: the commits are there, and only the records are written.
+  if (rec.built) return { ...land(rec.built), ...recovered };
   const branch = state.slugBranch;
   if (branch && currentBranch(root) !== branch) throw new Error(`the main checkout is on ${currentBranch(root) || 'a detached HEAD'}, not on the slug branch ${branch}: switch to it, then finish again`);
-  // --stash puts the person's uncommitted tracked files aside for the squash, and restores them after it.
+  // A finish that stopped with --stash left the person's files in the stash. A new stash would replace their copies.
+  const stashDir = join(optDir(root, slug), 'finish-stash');
+  if (existsSync(stashDir)) throw new Error(`a finish that stopped left the stashed files of the main checkout: \`git stash list\` names "optimize finish ${slug}", and the copies are in ${stashDir}. Put them back with git stash pop --index, delete that folder, then finish again`);
+  // --stash puts the person's uncommitted tracked files aside for the commits of finish, and restores them after.
   const stash = stashForFinish(root, slug, state, f);
   let out;
   try {
-    out = squash();
+    out = { ...land(buildHistory(root, slug, state, spec, results, f)), ...recovered };
   } catch (e) {
     if (stash) e.message += `; ${JSON.stringify(popFinishStash(root, stash))}`;
     throw e;
@@ -1361,19 +1468,14 @@ function finish(root, slug, f) {
   if (stash) out.stash = popFinishStash(root, stash);
   return out;
 
-  function squash() {
-    const m = git(root, ['merge', '--squash', state.trunk]);
-    if (!m.ok) {
-      git(root, ['reset', '--merge']);
-      throw new Error(`the squash of ${state.trunk} does not apply cleanly: ${m.err || m.out}`);
-    }
+  function land(built) {
     const gain = gainOf(spec.metric.direction, state.baseline.median, state.best.value);
     const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
-    const message = String(f.message ?? '').trim() || `${spec.objective}: ${state.baseline.median}${unit} to ${state.best.value}${unit}`;
-    gitOk(root, ['commit', '-q', '-m', message], 'commit');
-    const sha = headOf(root);
-    const files = gitOk(root, ['diff', '--name-only', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean);
-    const stat = gitOk(root, ['diff', '--numstat', `${sha}~1`, sha], 'diff').split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
+    const { base, history, changes } = built;
+    const sha = built.tip;
+    const shas = [...new Set(changes.map((c) => c.commit).filter(Boolean))];
+    const files = gitOk(root, ['diff', '--name-only', base, sha], 'diff').split(/\r?\n/).filter(Boolean);
+    const stat = gitOk(root, ['diff', '--numstat', base, sha], 'diff').split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
     const added = stat.reduce((s, x) => s + (Number(x[0]) || 0), 0);
     const removed = stat.reduce((s, x) => s + (Number(x[1]) || 0), 0);
     const dir = wfDir(root, slug);
@@ -1385,7 +1487,7 @@ function finish(root, slug, f) {
           'total-slices': 1, 'best-first-slice': SLICE, tags: ['optimize'], slices: [{ slug: SLICE, status: 'complete', complexity: 'm', 'depends-on': [] }],
           refs: { index: '00-index.md', spec: SPEC_FILE }, ...next,
         },
-        body: ['# Slice Index', '', `One slice, \`${SLICE}\`: the kept trials of the optimize loop, squashed into one commit.`, ''].join('\n'),
+        body: ['# Slice Index', '', `One slice, \`${SLICE}\`: the kept changes of the optimize loop, on the slug branch.`, ''].join('\n'),
       });
     }
     const holdoutAc = spec.holdout ? `\n3. When the holdout runs, \`${spec.holdout.command}\` is within ${spec.holdout.tolerance.percent !== undefined ? `${spec.holdout.tolerance.percent}%` : spec.holdout.tolerance.absolute} of the baseline holdout ${state.baseline.holdout}.` : '';
@@ -1409,6 +1511,7 @@ function finish(root, slug, f) {
         'commit-sha': sha, 'files-modified': files, tags: ['optimize'],
         'optimize-baseline': state.baseline.median, 'optimize-kept-value': state.best.value, 'optimize-noise': state.baseline.noise,
         'optimize-trials': state.counters.trials, 'optimize-kept': kept.length, 'optimize-rounds': state.rounds.length,
+        'optimize-history': history, 'optimize-commits': shas,
         refs: { index: '00-index.md', 'slice-def': `03-slice-${SLICE}.md`, verify: `06-verify-${SLICE}.md`, results: 'optimize/results.jsonl' }, ...next,
       },
       body: [
@@ -1416,25 +1519,287 @@ function finish(root, slug, f) {
       `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
       `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
     ...(spec.holdout && state.lastCheckpoint?.value !== null && state.lastCheckpoint?.value !== undefined ? [`- The holdout moved from ${state.baseline.holdout} to ${state.lastCheckpoint.value} (checked at trial ${state.lastCheckpoint.trial}).`] : []),
-      `- One squashed commit: ${sha}.`, '', '## Kept Trials', '', keptTable(lineage, spec), '',
+      history === 'per-change'
+        ? `- ${shas.length} commit${shas.length === 1 ? '' : 's'} on the slug branch, one for each kept change, ending at ${sha}.`
+        : `- One commit with every kept change: ${sha}. Each change could not get its own commit: ${built.reason}.`,
+      '', '## Kept Changes', '', changesTable(changes, unit), '',
+      '## Kept Trials', '', keptTable(lineage, spec), '',
       ...(state.ablation ? ['## Ablation', '',
         `Each kept change, reverted alone on the final code and measured in pairs against it. A change whose removal costs no more than ${state.ablation.threshold}${unit} is weak; decide at verify whether it stays.`, '',
         ablationTable(state.ablation, spec), ''] : []),
       '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
       ].join('\n'),
     });
-    state.finished = { commit: sha, at, gain, kept: kept.length };
-    appendResult(root, slug, { event: 'finish', commit: sha, gain, kept: kept.length });
+    // The step ledger records each commit as a done step of the slice, as implement does, and the
+    // last commit completes the slice. The slice has no plan record, so no plan hash.
+    // A finish that stopped after some of these rows wrote them already: a row is written once.
+    const ledgerBranch = built.branch ?? (currentBranch(root) || null);
+    const have = new Set(readSteps(dir).filter((r) => r.slice === SLICE).map((r) => `${r.event}:${r.step ?? ''}:${r.sha}`));
+    shas.forEach((s, i) => { if (!have.has(`done:${i + 1}:${s}`)) appendStep(dir, { slice: SLICE, event: 'done', step: i + 1, sha: s, ...commitIdentity(root, s), branch: ledgerBranch, trials: changes.filter((c) => c.commit === s).map((c) => c.trial) }); });
+    if (!have.has(`complete::${sha}`)) appendStep(dir, { slice: SLICE, event: 'complete', sha, planHash: null, branch: ledgerBranch });
+    const why = built.reason ? { reason: built.reason } : {};
+    state.finished = { commit: sha, commits: shas, history, ...why, at, gain, kept: kept.length };
+    delete state.finishing;
+    if (!results.some((r) => r.event === 'finish' && r.commit === sha)) appendResult(root, slug, { event: 'finish', commit: sha, commits: shas, history, ...why, gain, kept: kept.length });
     saveState(root, slug, state);
     // The loop is done: its worktrees, its trunk branch and its build folder go. A cleanup that
     // cannot remove a worktree never fails the finish; the result names what is left.
-    return { ok: true, commit: sha, gain, kept: kept.length, ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}), files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` } };
+    return {
+      ok: true, commit: sha, commits: shas, history, ...why, gain, kept: kept.length,
+      ...(history === 'per-change' && String(f.message ?? '').trim() ? { message: 'unused: each kept change has its own commit and subject' } : {}),
+      ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}),
+      files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` },
+    };
   }
+}
+
+/** The kept changes of finish as a markdown table: the commit of each on the slug branch and its ablation verdict. */
+function changesTable(changes, unit) {
+  const cell = (s) => String(s ?? '').replace(/\|/g, '\\|');
+  const value = (v) => (v === null || v === undefined ? '—' : `${v}${unit}`);
+  const rows = changes.map((c) => `| ${c.trial ?? '—'} | ${c.commit ? c.commit.slice(0, 12) : '—'} | ${cell(c.subject ?? c.note)} | ${value(c.before)} | ${value(c.after)} | ${value(c.gain)} | ${c.ablation ?? '—'} |`);
+  return ['| Trial | Commit | Change | Before | After | Gain | Ablation |', '|---|---|---|---|---|---|---|', ...rows].join('\n');
+}
+
+const treeOf = (cwd, rev = 'HEAD') => git(cwd, ['rev-parse', `${rev}^{tree}`]).out;
+
+/**
+ * The commits of finish, built on a temporary branch and moved onto the slug branch only when
+ * they are whole.
+ *
+ * The trunk history holds only kept changes: a reverted trial is reset away, a round winner is a
+ * fast-forward of the trunk to the winner's own commits, a port or a bundle is one trial commit,
+ * and a merge trial is one merge commit. Each first-parent commit of the trunk since the baseline
+ * becomes one commit on the slug branch, in the same order, with a message from its trial. A
+ * merge trial becomes one commit, because the loop measured the merged branch as one change.
+ *
+ * The commits are made in the trunk worktree, where the trials passed the same hooks with the
+ * same setup. When a change does not apply on its own, a trunk commit is no kept trial, or the
+ * commits do not give the tree of the trunk, the commits go, and one commit holds every change
+ * instead (`history: 'one-commit'`, with the reason). The result must have the tree that a merge
+ * of the trunk into the slug branch gives. Then the commit hooks run once more as the slug
+ * branch sees them (`hooksAs`). Only then does the slug branch move, by a fast-forward. A commit
+ * that a hook refuses undoes it all: the slug branch does not move.
+ *
+ * state.finishing records the start of the slug branch, and the commits before the fast-forward,
+ * so that a finish that stops midway can be put away by the next one (recoverFinish).
+ */
+function buildHistory(root, slug, state, spec, results, f) {
+  const head = headOf(root);
+  const slugBranch = currentBranch(root) || null;
+  const where = slugBranch || 'HEAD';
+  const mt = git(root, ['merge-tree', '--write-tree', head, state.best.commit]);
+  if (!mt.ok) throw new Error(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${tail(mt.out, 8) || mt.err}`);
+  const want = mt.out.split(/\r?\n/)[0].trim();
+  const temp = finishBranch(state);
+  if (refOf(root, temp)) throw new Error(`the branch ${temp} exists from a finish that stopped: delete it, then finish again`);
+  // The trunk worktree has the setup and the tools of the trials. When it is gone, a worktree of its own.
+  const own = !existsSync(state.worktree);
+  const wt = own ? finishWorktree(state) : state.worktree;
+  if (!own && dirtyPaths(wt).length) throw new Error('the trunk worktree has uncommitted changes: run trial on them, or discard them, then finish again');
+  state.finishing = { branch: slugBranch, base: head, at: nowIso() };
+  saveState(root, slug, state);
+  if (own) gitOk(root, ['worktree', 'add', '-q', '-b', temp, wt, head], 'worktree add');
+  else gitOk(wt, ['checkout', '-q', '-b', temp, head], 'checkout');
+  // Back to where the loop left the trunk worktree, and the temporary branch goes.
+  const close = () => {
+    try { resetTo(root, wt, 'HEAD'); } catch { /* the remove or the checkout below reports it */ }
+    if (own) removeWorktree(root, wt);
+    else git(wt, ['checkout', '-q', state.trunk]);
+    git(root, ['branch', '-D', temp]);
+    delete state.finishing;
+    saveState(root, slug, state);
+  };
+  const fail = (message) => { close(); return new Error(message); };
+
+  const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
+  const kept = results.filter((r) => r.event === 'trial' && r.verdict === 'kept' && r.commit);
+  const verdicts = new Map((state.ablation?.changes ?? []).map((c) => [c.commit, c.verdict]));
+  const commits = git(root, ['rev-list', '--first-parent', '--reverse', `${state.baseCommit}..${state.best.commit}`]).out.split(/\r?\n/).filter(Boolean);
+  let before = state.baseline.median;
+  const changes = commits.map((commit) => {
+    const row = kept.find((r) => r.commit === commit) ?? null;
+    const c = { trial: row?.trial ?? null, trunkCommit: commit, row, before, after: row?.median ?? null, gain: row?.delta ?? null, ablation: verdicts.get(commit) ?? null, commit: null, subject: null };
+    if (row) before = row.median;
+    return c;
+  });
+
+  let reason = null;
+  for (const c of changes) {
+    if (!c.row) { reason = `the trunk commit ${c.trunkCommit.slice(0, 12)} is no kept trial`; break; }
+    const parents = git(root, ['rev-list', '--parents', '-n', '1', c.trunkCommit]).out.split(' ').length - 1;
+    const pick = git(wt, ['cherry-pick', '--no-commit', ...(parents > 1 ? ['-m', '1'] : []), c.trunkCommit]);
+    if (!pick.ok) { reason = `the change of trial ${c.trial} does not apply on its own after the changes before it`; break; }
+    // A change that the slug branch holds already gives no commit: finish never makes an empty one.
+    if (git(wt, ['diff', '--cached', '--quiet']).ok) { c.note = 'the slug branch holds this change already'; continue; }
+    const merged = c.row.merge ? kept.filter((r) => r.round === c.row.merge.round && r.branch === c.row.merge.branch) : [];
+    const msg = keepMessage(c.row, { before: c.before, after: c.after, spec, merged });
+    const made = git(wt, ['commit', '-q', '-m', msg.subject, '-m', msg.body]);
+    if (!made.ok) throw fail(`the commit of trial ${c.trial} failed, and the finish is undone: ${made.err || made.out}`);
+    Object.assign(c, { commit: headOf(wt), subject: msg.subject });
+  }
+  if (!reason && treeOf(wt) !== want) reason = 'the commits of the kept changes do not give the tree of the trunk';
+
+  if (reason) {
+    // One commit with every change, from the tip of the slug branch.
+    resetTo(root, wt, head);
+    const m = git(wt, ['merge', '--squash', state.best.commit]);
+    if (!m.ok) throw fail(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${m.err || m.out}`);
+    if (git(wt, ['diff', '--cached', '--quiet']).ok) throw fail(`${where} holds every kept change already: finish has nothing to commit`);
+    const subject = String(f.message ?? '').trim() || `${spec.objective}: ${state.baseline.median}${unit} to ${state.best.value}${unit}`;
+    const trials = changes.map((c) => c.trial).filter((t) => t !== null);
+    const body = `One commit holds every kept change, because ${reason}.${trials.length ? `\nTrials: ${trials.join(', ')}.` : ''}`;
+    const made = git(wt, ['commit', '-q', '-m', subject, '-m', body]);
+    if (!made.ok) throw fail(`the commit of finish failed, and the finish is undone: ${made.err || made.out}`);
+    const one = headOf(wt);
+    for (const c of changes) Object.assign(c, { commit: one, subject: c.row ? keepMessage(c.row, { before: c.before, after: c.after, spec }).subject : null, note: undefined });
+    if (treeOf(wt) !== want) throw fail('the commit of finish does not give the tree of the trunk, and the finish is undone');
+  }
+  const tip = headOf(wt);
+  if (tip === head) throw fail(`${where} holds every kept change already: finish has nothing to commit`);
+  // The commits were made on the temporary branch. A hook that decides by branch name judges them again on the slug branch.
+  if (slugBranch) {
+    const refused = hooksAs(wt, slugBranch, head, tip);
+    if (refused) throw fail(`the commit hooks refuse the commits of finish on ${slugBranch}, and the finish is undone: ${refused}`);
+  }
+
+  // The commits are whole: the trunk worktree goes back to the trunk, and the slug branch moves.
+  const built = { branch: slugBranch, base: head, tip, history: reason ? 'one-commit' : 'per-change', ...(reason ? { reason } : {}), changes: changes.map(({ row, ...c }) => c) };
+  state.finishing.built = built;
+  saveState(root, slug, state);
+  if (own) removeWorktree(root, wt);
+  else gitOk(wt, ['checkout', '-q', state.trunk], 'checkout');
+  const ff = git(root, ['merge', '--ff-only', '-q', tip]);
+  git(root, ['branch', '-D', temp]);
+  if (!ff.ok) {
+    delete state.finishing;
+    saveState(root, slug, state);
+    throw new Error(`${where} did not fast-forward to the commits of finish, and the finish is undone: ${ff.err || ff.out}`);
+  }
+  return built;
+}
+
+/**
+ * Run the commit hooks of the repo in `wt` as a commit on `branch` would see them, without a commit
+ * on it: HEAD of the worktree names `branch` for the time of the hooks, the index holds the tree of
+ * `tip`, and `pre-commit` runs once, then `commit-msg` once for each message of `base..tip`. The
+ * branch does not move. The worktree is a worktree of the loop, so the main checkout is not touched.
+ * Returns why a hook refused, or null. A hook that changes files is a refusal too: the commits are made.
+ */
+function hooksAs(wt, branch, base, tip) {
+  const back = gitOk(wt, ['symbolic-ref', 'HEAD'], 'symbolic-ref');
+  const msgFile = resolve(wt, git(wt, ['rev-parse', '--git-path', 'OPTIMIZE_FINISH_MSG']).out);
+  const shas = git(wt, ['rev-list', '--reverse', `${base}..${tip}`]).out.split(/\r?\n/).filter(Boolean);
+  let refused = null;
+  gitOk(wt, ['symbolic-ref', 'HEAD', `refs/heads/${branch}`], 'symbolic-ref');
+  try {
+    const pre = git(wt, ['hook', 'run', '--ignore-missing', 'pre-commit']);
+    if (!pre.ok) refused = `pre-commit: ${pre.err || pre.out || 'exit code not 0'}`;
+    for (const s of refused ? [] : shas) {
+      writeFileSync(msgFile, `${git(wt, ['show', '-s', '--format=%B', s]).out}\n`);
+      const r = git(wt, ['hook', 'run', '--ignore-missing', 'commit-msg', '--', msgFile]);
+      if (!r.ok) { refused = `commit-msg: ${r.err || r.out || 'exit code not 0'}`; break; }
+    }
+  } finally {
+    git(wt, ['symbolic-ref', 'HEAD', back]);
+    rmSync(msgFile, { force: true });
+  }
+  const changed = refused ? '' : git(wt, ['status', '--porcelain', '--untracked-files=no']).out;
+  if (changed) refused = `a hook changed tracked files: ${changed.split(/\r?\n/).slice(0, 3).join(', ')}`;
+  return refused;
+}
+
+const finishBranch = (state) => `${state.trunk}--finish`;
+const finishWorktree = (state) => `${state.worktree}--finish`;
+const refOf = (root, name) => { const r = git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}^{commit}`]); return r.ok ? r.out : null; };
+const isAncestor = (root, a, b) => git(root, ['merge-base', '--is-ancestor', a, b]).ok;
+
+/**
+ * What a finish that stopped midway left: its temporary branch, its own worktree, the trunk
+ * worktree on the temporary branch or on the slug branch (while hooksAs ran), and its record in state.json.
+ */
+function finishLeft(root, state) {
+  const temp = finishBranch(state);
+  const slugBranch = state.finishing?.branch ?? state.slugBranch ?? null;
+  const on = state.worktree && existsSync(state.worktree) ? currentBranch(state.worktree) : null;
+  return {
+    temp: refOf(root, temp),
+    own: existsSync(finishWorktree(state)) ? finishWorktree(state) : null,
+    trunkOn: on && (on === temp || on === slugBranch) ? on : null,
+    marker: state.finishing ?? null,
+  };
+}
+const anyLeft = (l) => !!(l.temp || l.own || l.trunkOn || l.marker);
+
+/**
+ * Put away what a finish that stopped left: the trunk worktree goes back on the trunk branch (a
+ * cherry-pick, a merge or staged changes in progress go with a reset), the worktree of finish goes
+ * when it holds no link, and the temporary branch is deleted. The slug branch is not touched.
+ */
+function clearFinishLeft(root, state, left) {
+  const out = { recovered: [], removed: [], kept: [] };
+  const temp = finishBranch(state);
+  if (left.trunkOn) {
+    const wt = state.worktree;
+    const inProgress = ['CHERRY_PICK_HEAD', 'MERGE_HEAD'].filter((r) => git(wt, ['rev-parse', '--verify', '--quiet', r]).ok).map((r) => (r === 'MERGE_HEAD' ? 'a merge' : 'a cherry-pick'));
+    const staged = !git(wt, ['diff', '--cached', '--quiet']).ok;
+    // HEAD names the trunk again before the reset, so the reset puts the worktree at the trunk best and moves no branch.
+    gitOk(wt, ['symbolic-ref', 'HEAD', `refs/heads/${state.trunk}`], 'symbolic-ref');
+    resetTo(root, wt, 'HEAD');
+    const what = [...inProgress, ...(staged && !inProgress.length ? ['staged changes'] : [])];
+    out.recovered.push(`the trunk worktree was on ${left.trunkOn}${what.length ? ` with ${what.join(' and ')}` : ''}: it is back on ${state.trunk}`);
+  }
+  if (left.own) {
+    try { resetTo(root, left.own, 'HEAD'); } catch { /* removeWorktree reports it */ }
+    const res = removeWorktree(root, left.own);
+    if (res.removed) { out.removed.push(left.own); out.recovered.push(`the worktree of finish ${left.own} is removed`); } else out.kept.push({ path: left.own, branch: temp, reason: res.reason });
+  }
+  if (refOf(root, temp)) {
+    const d = git(root, ['branch', '-D', temp]);
+    if (d.ok) { out.removed.push(temp); out.recovered.push(`the branch ${temp} is deleted`); } else out.kept.push({ path: null, branch: temp, reason: `git branch -D failed: ${d.err}` });
+  }
+  return out;
+}
+
+/**
+ * The start of finish after one that stopped midway. The trunk branch must be where the loop left
+ * it, or nothing changes. The slug branch moves only by the last fast-forward, so a finish that
+ * stopped before it left the slug branch as it was: the leftovers go, and finish builds again.
+ * When the slug branch holds the commits of the earlier finish, they are kept, and only the
+ * records are left to write (`built`).
+ */
+function recoverFinish(root, slug, state) {
+  const left = finishLeft(root, state);
+  if (!anyLeft(left)) return { recovered: [], built: null };
+  const trunkAt = refOf(root, state.trunk);
+  if (trunkAt && trunkAt !== state.best.commit) throw new Error(`state-error: a finish stopped midway, and ${state.trunk} is at ${trunkAt.slice(0, 12)}, not at ${state.best.commit.slice(0, 12)} where the loop left it: the branch moved outside the loop, and finish changes nothing`);
+  if (left.own) {
+    const links = linksUnder(left.own);
+    if (links.length) throw new Error(`a finish stopped midway, and its worktree ${left.own} holds links (${links.slice(0, 3).join(', ')}). A recursive delete can follow a link. Remove the links, then finish again`);
+  }
+  const m = left.marker;
+  const slugBranch = m?.branch ?? state.slugBranch ?? null;
+  const slugAt = slugBranch ? refOf(root, slugBranch) : headOf(root);
+  const landed = !!(m?.built && slugAt && isAncestor(root, m.built.tip, slugAt));
+  // The slug branch holds commits of the temporary branch only after the fast-forward.
+  if (!landed && m && left.temp && slugAt && left.temp !== m.base && isAncestor(root, left.temp, slugAt)) {
+    throw new Error(`state-error: ${slugBranch ?? 'HEAD'} holds commits of ${finishBranch(state)} that finish did not move onto it: look at both branches, then delete ${finishBranch(state)}`);
+  }
+  const out = clearFinishLeft(root, state, left);
+  if (out.kept.length) throw new Error(`a finish stopped midway, and its leftovers stay: ${out.kept.map((k) => `${k.path ?? k.branch}: ${k.reason}`).join('; ')}`);
+  if (landed) out.recovered.push(`${slugBranch ?? 'HEAD'} holds the commits of the finish that stopped, up to ${m.built.tip.slice(0, 12)}: finish writes their records`);
+  else {
+    if (m && slugAt && slugAt !== m.base) out.recovered.push(`${slugBranch ?? 'HEAD'} moved since the finish that stopped: the commits are built on its new tip`);
+    delete state.finishing;
+  }
+  if (!out.recovered.length) out.recovered.push('a finish stopped before it made its branch: its record is cleared');
+  saveState(root, slug, state);
+  return { recovered: out.recovered, built: landed ? m.built : null };
 }
 
 /**
  * The stash of finish. Without --stash, uncommitted changes to tracked files stop the finish. With
- * it, each such file is copied to optimize/finish-stash/ and stashed. A file that the squash or the
+ * it, each such file is copied to optimize/finish-stash/ and stashed. A file that the commits or the
  * records of finish also write is refused: its pop would conflict.
  */
 function stashForFinish(root, slug, state, f) {
@@ -1442,10 +1807,10 @@ function stashForFinish(root, slug, state, f) {
   if (!tracked) return null;
   if (f.stash !== true) throw new Error('the main checkout has uncommitted changes to tracked files: commit or stash them, or run finish --stash, then finish again');
   const files = git(root, ['diff', '--name-only', 'HEAD']).out.split(/\r?\n/).filter(Boolean);
-  const squashed = new Set(git(root, ['diff', '--name-only', 'HEAD', state.trunk]).out.split(/\r?\n/).filter(Boolean));
+  const changed = new Set(git(root, ['diff', '--name-only', 'HEAD', state.trunk]).out.split(/\r?\n/).filter(Boolean));
   const records = relative(root, wfDir(root, slug)).split('\\').join('/');
-  const overlap = files.filter((x) => squashed.has(x) || x === records || x.startsWith(`${records}/`));
-  if (overlap.length) throw new Error(`finish --stash: ${overlap.join(', ')} also change in the squash or in the records of finish; commit them first`);
+  const overlap = files.filter((x) => changed.has(x) || x === records || x.startsWith(`${records}/`));
+  if (overlap.length) throw new Error(`finish --stash: ${overlap.join(', ')} also change in the commits or in the records of finish; commit them first`);
   const dir = join(optDir(root, slug), 'finish-stash');
   rmSync(dir, { recursive: true, force: true });
   const copies = files.map((x) => {
@@ -1524,6 +1889,14 @@ function cleanupAll(root, slug, state) {
     if (had) out.removed.push(wt);
     if (branch && git(root, ['branch', '-D', branch]).ok) out.removed.push(branch);
   };
+  // What a finish that stopped midway left: the trunk worktree on its branch, its worktree, its branch.
+  const left = finishLeft(root, state);
+  if (left.trunkOn || left.own || left.temp) {
+    let c;
+    try { c = clearFinishLeft(root, state, left); } catch (e) { c = { removed: [], kept: [{ path: state.worktree, branch: finishBranch(state), reason: e.message }] }; }
+    out.removed.push(...c.removed);
+    out.kept.push(...c.kept);
+  }
   const probeLeft = (p) => /--probe-[^\\/]+$/.test(p ?? '');
   for (const l of state.leftovers ?? []) if (!probeLeft(l.path)) drop(l.path, l.branch);
   removeProbes(root, state, probeTags(state), out);
@@ -1558,12 +1931,28 @@ function cleanup(root, slug) {
   return { ok: out.kept.length === 0, ...out, ...(out.kept.length ? { error: out.kept.map((k) => `${k.path}: ${k.reason}`).join('; ') } : {}) };
 }
 
+/**
+ * The clock of the wall-clock budget, under the measure lock: the time since the last command
+ * counts up to a pause gap, and the time of this command counts whole (lib/optimize.mjs tickClock).
+ */
+function tick(root, slug, gapMs) {
+  const state = readState(root, slug);
+  if (!state || state.finished) return;
+  tickClock(state, Date.now(), gapMs);
+  saveState(root, slug, state);
+}
+
 /** Run `fn` while this process holds the measure lock. */
 function withLock(root, slug, lane, fn) {
   const { spec } = loadSpec(root, slug);
   const l = waitLock(root, slug, spec, lane, 'trial', (h) => h.kind === 'probe');
   if (!l.ok) return l;
-  try { return fn(); } finally { dropLock(root, slug); }
+  try {
+    tick(root, slug, pauseGapMs(spec));
+    const out = fn();
+    tick(root, slug, Infinity);
+    return out;
+  } finally { dropLock(root, slug); }
 }
 
 // ---------------------------------------------------------------------------
@@ -1592,11 +1981,11 @@ export function main(argv = process.argv.slice(2)) {
   let out;
   try {
     switch (cmd) {
-      case 'baseline': out = baseline(root, slug); break;
+      case 'baseline': out = withLock(root, slug, null, () => baseline(root, slug)); break;
       case 'status': out = optimizeStatus(root, slug); break;
       case 'propose-context': out = proposeContext(root, slug, f); break;
       case 'trial': out = withLock(root, slug, typeof f.on === 'string' ? f.on : null, () => trial(root, slug, pos[0], f)); break;
-      case 'round-open': out = roundOpen(root, slug); break;
+      case 'round-open': out = withLock(root, slug, null, () => roundOpen(root, slug)); break;
       case 'round-close': out = withLock(root, slug, null, () => roundClose(root, slug)); break;
       case 'checkpoint': out = withLock(root, slug, null, () => checkpoint(root, slug)); break;
       case 'merge-consider': out = withLock(root, slug, null, () => mergeConsider(root, slug, f)); break;
@@ -1609,8 +1998,9 @@ export function main(argv = process.argv.slice(2)) {
       case 'probe': out = probe(root, slug, f); break;
       case 'idea-claim': out = ideaClaim(root, slug, f); break;
       case 'profile': out = withLock(root, slug, null, () => profileRun(root, slug)); break;
-      case 'profile-record': out = profileRecord(root, slug, f); break;
+      case 'profile-record': out = withLock(root, slug, null, () => profileRecord(root, slug, f)); break;
       case 'prune': out = withLock(root, slug, null, () => prune(root, slug)); break;
+      case 'resume': out = withLock(root, slug, null, () => resumeLoop(root, slug, f)); break;
       default: out = null;
     }
   } catch (e) {
@@ -1623,6 +2013,6 @@ export function main(argv = process.argv.slice(2)) {
 
 export { PLUGIN_ROOT };
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   process.exitCode = main();
 }

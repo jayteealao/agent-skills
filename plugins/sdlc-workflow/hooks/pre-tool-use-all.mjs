@@ -8,6 +8,10 @@
  *     `content`, so it acts on Write only), then leak-guard-write;
  *   - a shell command (`tool_input.command`) → shell-write-guard, then leak-guard-bash.
  * The first blocking check ends the process with exit 2 and its stderr reason.
+ *
+ * pre-write-validate fails closed: when it throws, the write is refused with a message that
+ * names the error log. A payload this process cannot read is refused the same way, since no
+ * check can run on it. The other checks stay advisory on an error: it is logged and the call passes.
  */
 
 import { runFolded } from '../lib/hook-runner.mjs';
@@ -21,7 +25,7 @@ export function planPreToolUse(input) {
   const ti = input?.tool_input ?? {};
   const stages = [];
   if (typeof ti.file_path === 'string') {
-    stages.push(['pre-write-validate', lazy('./pre-write-validate.mjs')]);
+    stages.push(['pre-write-validate', lazy('./pre-write-validate.mjs'), { failClosed: true }]);
     stages.push(['leak-guard-write', lazy('./leak-guard-write.mjs')]);
   }
   if (typeof ti.command === 'string') {
@@ -31,4 +35,4 @@ export function planPreToolUse(input) {
   return stages;
 }
 
-runFolded('pre-tool-use-all', planPreToolUse, { stopOnBlock: true });
+runFolded('pre-tool-use-all', planPreToolUse, { stopOnBlock: true, inputFailClosed: true });

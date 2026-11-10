@@ -15,7 +15,7 @@ CAUTION: do not run `git add -A`, `git add .` or `git commit -a`. They stage the
 Run these from `plugins/sdlc-workflow/`. The plugin runs from its source with Node 22 and has no dependencies, so there is no build and no `npm install`.
 
 ```bash
-npm test                  # the core tests: under 30 s, and they must pass
+npm test                  # the core tests: under 60 s, and they must pass
 npm run test:integration  # git, CLI and process tests, one file at a time
 npm run lint:drift        # forms, links, settings and generated files
 npm run verify:docs       # the command page lists every command of keys.json

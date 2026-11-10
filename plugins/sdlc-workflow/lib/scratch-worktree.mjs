@@ -6,8 +6,8 @@
 // CAUTION: `git worktree remove --force` deletes through a junction or a symbolic link, into the
 // files that the link names. The remove refuses a worktree that holds a link.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmdirSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmdirSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 
 export const SCRATCH_WORKTREES = '.scratch/worktrees';
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -18,7 +18,23 @@ function git(cwd, args) {
   return { ok: !r.error && r.status === 0, out: (r.stdout ?? '').trim(), err: (r.stderr ?? r.error?.message ?? '').trim() };
 }
 const slash = (p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '');
-const fold = (p) => (process.platform === 'win32' ? slash(p).toLowerCase() : slash(p));
+/**
+ * The real path of `p`: git prints real paths, and a root reached through a symbolic link, a
+ * junction or a `subst` drive must still match them. A part of the path that does not exist yet
+ * is joined to the real path of the part that does.
+ */
+function realOf(p) {
+  let head = resolve(p);
+  const tail = [];
+  for (;;) {
+    try { return join(realpathSync.native(head), ...tail); } catch { /* not there yet */ }
+    const up = dirname(head);
+    if (up === head) return resolve(p);
+    tail.unshift(basename(head));
+    head = up;
+  }
+}
+const fold = (p) => { const s = slash(realOf(p)); return process.platform === 'win32' ? s.toLowerCase() : s; };
 const within = (p, dir) => fold(p) === fold(dir) || fold(p).startsWith(`${fold(dir)}/`);
 
 function checkName(kind, v) {
@@ -49,8 +65,9 @@ export function worktrees(root) {
 }
 
 /**
- * The links under a folder. A folder with a CACHEDIR.TAG (a build cache, such as a Cargo target
- * folder) is not read. Returns { links, complete }: `complete` is false when the scan stopped.
+ * The links under a folder. The scan does not go below a folder with a CACHEDIR.TAG (a build
+ * cache, such as a Cargo target folder), but a link right in it still counts. Returns
+ * { links, complete }: `complete` is false when the scan stopped.
  */
 export function linksUnder(dir) {
   const links = [];
@@ -61,14 +78,14 @@ export function linksUnder(dir) {
     const d = stack.pop();
     let entries = [];
     try { entries = readdirSync(d, { withFileTypes: true }); } catch { continue; }
-    if (d !== dir && entries.some((e) => e.name === 'CACHEDIR.TAG')) continue;
+    const cache = d !== dir && entries.some((e) => e.name === 'CACHEDIR.TAG');
     for (const e of entries) {
       if (e.name === '.git') continue;
       const p = join(d, e.name);
       let st;
       try { st = lstatSync(p); } catch { continue; }
       if (st.isSymbolicLink()) links.push(slash(relative(dir, p)));
-      else if (st.isDirectory()) stack.push(p);
+      else if (st.isDirectory() && !cache) stack.push(p);
     }
   }
   return { links, complete: true };

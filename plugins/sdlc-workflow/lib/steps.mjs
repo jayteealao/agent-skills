@@ -25,6 +25,7 @@ import { join } from 'node:path';
 
 import { sectionOf } from './brief.mjs';
 import { INDEX_NAME, frontmatterOfDoc, readDoc } from './records.mjs';
+import { stageFileOf } from './stage-done.mjs';
 
 export const STEPS_FILE = 'steps.jsonl';
 export const LEGACY_PROGRESS = '.implement-progress.jsonl';
@@ -162,16 +163,19 @@ export function planProblems(body) {
   return out;
 }
 
-const planOfSlice = (slugDir, slice) => readPlan(readDoc(slugDir, `04-plan-${slice}.md`)?.body ?? '');
+/**
+ * The plan record of a slice: `04-plan-<slice>.md`, or `04-plan.md` when the workflow keeps
+ * un-suffixed stage files (`stageFileOf` of lib/stage-done.mjs holds the rule).
+ */
+export function planDocOf(slugDir, slice) {
+  return readDoc(slugDir, stageFileOf(slugDir, '04-plan', slice));
+}
+
+const planOfSlice = (slugDir, slice) => readPlan(planDocOf(slugDir, slice)?.body ?? '');
 
 /** The numbered steps of the plan of a slice: [{ n, title }]. */
 export function planSteps(slugDir, slice) {
   return planOfSlice(slugDir, slice).steps;
-}
-
-/** The repeats and the step 0 of the plan of a slice, as warnings. */
-export function planWarnings(slugDir, slice) {
-  return planOfSlice(slugDir, slice).warnings;
 }
 
 /** The slices of the roster of a workflow: the `slices` of 03-slice.md, by slug. */
@@ -196,11 +200,6 @@ export function sliceRefusal(slugDir, slug, slice) {
 // ---------------------------------------------------------------- git
 
 const git = (cwd, args, input) => spawnSync('git', args, { cwd, input, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-
-/** True when a commit is in the history of HEAD of a checkout. */
-export function gitIsAncestor(projectRoot) {
-  return (sha) => git(projectRoot, ['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0;
-}
 
 /** The sha of a revision of a checkout, or null. */
 export function gitRevParse(projectRoot, rev) {

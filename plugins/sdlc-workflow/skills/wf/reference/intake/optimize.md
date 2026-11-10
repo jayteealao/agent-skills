@@ -11,7 +11,7 @@ You are running `/wf intake optimize`. An optimize slug changes code toward one 
 | Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-optimize.md` (`type: intake`, the brief), `02-optimize-spec.md` (`type: optimize-spec`), a conformant `00-index.md` (`type: index`, `workflow-type: optimize`), and the registry row. |
 | Gate | The person confirms the spec. The choice of metric is the largest risk of the loop. |
-| Next | `/wf loop optimize <slug>`. |
+| Next | `/wf loop optimize <slug>`. On a host with no optimize driver, the next step is `/wf loop goal <slug>`. |
 
 Optimize is standalone only. It roots its own slug, so it never attaches to an existing slug as a compressed slice.
 
@@ -110,7 +110,7 @@ next-invocation: "/wf loop optimize <slug>"
 | `branch-rounds.prune` | `on` | A branch with no keep that trails the leader gives its other trials to a new fork of the leader. `off` keeps every branch to the end of the round |
 | `width` | 1 | Trunk proposals for each batch. Measurement stays serial |
 | `checkpoint-every` | 5 | Trunk trials between two holdout checks |
-| `ablate` | `on` | Before the squash, revert each kept change alone and measure what it still gives. `off` squashes with no check |
+| `ablate` | `on` | Before the commits of finish, revert each kept change alone and measure what it still gives. `off` commits the changes with no check |
 | `format` | `null` | A command that formats each change before its commit. Propose it from the commit hooks |
 | `shared-build` | `null` | The variable that moves the build folder. The loop sets it to one folder for every worktree |
 | `profile` | `null` | A command that prints the profile as JSON lines, or `agent` for the profiler agent. The proposers start from it |
@@ -183,8 +183,8 @@ Write the draft of `00-index.md` from the index template of `_change-mode-tail.m
 - `workflow-files`: `00-index.md`, `01-optimize.md`, `02-optimize-spec.md`.
 - `progress`: `intake: complete`, `design: skipped`, `slice: not-started`, `plan: skipped`, and every later stage `not-started`.
 - `design-skip-reason: "an optimize loop changes code toward a metric; it draws no surface"`.
-- `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`.
+- `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`. On a host with no optimize driver, the next step is `/wf loop goal <slug>`: the goal contract carries the loop ([optimize.md](../optimize.md), "Without the driver").
 
 # Step 5 — Hand off
 
-End with the dispatcher's summary block. The narrative says the metric and its baseline run, the guard, the allowed paths, the budget and the branch rounds, and that the person confirmed the spec. `Next: /wf loop optimize <slug>`.
+End with the dispatcher's summary block. The narrative says the metric and its baseline run, the guard, the allowed paths, the budget and the branch rounds, and that the person confirmed the spec. `Next: /wf loop optimize <slug>`; on a host with no optimize driver, `Next: /wf loop goal <slug>`.

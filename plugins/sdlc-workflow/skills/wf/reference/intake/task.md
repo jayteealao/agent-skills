@@ -28,6 +28,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `05-implement.md` | artifact | on-resume | |
 | `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-task.md` | writes | | |
 | `05-implement.md` | writes | | |
@@ -45,6 +47,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
    - The slug that intake consumed, or the first token after `task`, has an index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) with `workflow-type: task` → **resume**. Pick up at the first incomplete step.
    - Intake consumed a non-closed slug of another `workflow-type` → **slug-mode** (see above).
    - Otherwise → **new task**. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `task-<short-description>`.
+1b. **Provenance check:** apply `intake/_intake-provenance.md`: detect an inherited analysis decision (a trailing `from <source-slug>` token, implied when this task runs from a work packet; see [../intake.md](../intake.md), "List work packet"), consume the matching Consume-table row, and link back (record `origin-<type>` here, and `origin-packet` when the source is a work packet). No match → continue; that is the common case.
 2. **Branch decision:** default `branch-strategy: none` — most tasks do not warrant a branch (this inverts the `fix` default deliberately). Create one only when the task will produce a repo diff the user wants isolated; record the decision either way.
 3. **Project context (lightweight):** read `README.md` (top 100 lines) and any file the description names.
 
@@ -69,7 +72,7 @@ Author the brief. Write `01-task.md` and `00-index.md` as drafts `<wf-dir>/.draf
 - `## Acceptance Criteria` — each naming **how it will be observed** (the concrete read-back), not just what should be true.
 - `## Assumptions / Open Questions`, and `## Gate Decision` (written at the gate).
 
-`00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `slice`, `plan` as `skipped`; `review`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
+`00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `slice`, `plan` as `skipped`; `review`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. The put registers the row ([_intake-context.md](_intake-context.md)).
 
 **[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](../_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen.
 

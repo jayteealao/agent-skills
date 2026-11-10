@@ -60,6 +60,8 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 6. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-refactor.md` (`type: intake`)
+**First, write the index.** Before the first question or research of this step, write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values, `progress.intake: in-progress` and `next-invocation: /wf intake refactor <slug>`, and put it. A run that stops before the gate then resumes (the resume test of Step 0 reads this index), and a close or a probe route of a later step has an index to act on.
+
 Ask 3–6 targeted questions (not the 5-round PO interview):
 1. **What is being refactored?** — files/modules/classes/components, specifically.
 2. **Why?** — the structural problem (one class doing three things; copy-paste across N files; nested conditionals; wrong abstraction; perf bottleneck).
@@ -100,8 +102,8 @@ The refactor tripwires are: a step that cannot be made independently green · an
 Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).
 
-# Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Put it.
+# Step 5 — Finish `00-index.md` (conformant `type: index`)
+Get the index that Step 1 wrote (`record get "<root>" <slug> index`) and finish it: write its draft from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (the final `workflow-files`, `progress` and terminus route) (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Put it.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `/wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance-consume.md` (escalated change-mode row) instead of discarding two sub-agents of work.

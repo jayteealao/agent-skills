@@ -34,7 +34,8 @@ Two habits make this reliable:
   execute anything you pull in — you are reading code, not adopting a dependency.
 - **`.scratch/` only.** Never clone or unpack into the project tree. If `.scratch/` is not
   already ignored, add it to `.gitignore` before fetching (do not fetch into a tracked
-  path). Confirm with `git check-ignore .scratch` when unsure.
+  path). Confirm with `git check-ignore -q .scratch/` when unsure (the trailing slash
+  matters: a `.scratch/` pattern matches only a directory, and the folder may not exist yet).
 - **Prefer the resolved version.** Match what the project's lockfile / build resolved, not
   the latest tag, unless the user explicitly wants upstream `HEAD`.
 - **Shallow and narrow.** Clone with `--depth 1` and, for large monorepos, a sparse or

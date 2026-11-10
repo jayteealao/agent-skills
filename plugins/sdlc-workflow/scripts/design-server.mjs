@@ -7,7 +7,9 @@
 // (its pid, port and addresses) and removes the file when it stops.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { listenDesignServer, serverInfoPath, serverPort, warmStates } from '../lib/design-server.mjs';
+import { listenDesignServer, rebindTailnet, serverInfoPath, serverPort, warmStates } from '../lib/design-server.mjs';
+
+const REBIND_MS = 30_000;
 
 const at = process.argv.indexOf('--port');
 const port = at > 0 ? Number(process.argv[at + 1]) : serverPort();
@@ -15,9 +17,14 @@ const info = serverInfoPath();
 
 try {
   const hosts = process.argv.includes('--local') ? ['127.0.0.1'] : undefined;
-  const { servers, addresses, port: bound } = await listenDesignServer({ port, hosts });
+  const live = await listenDesignServer({ port, hosts });
+  const { servers, addresses, port: bound } = live;
+  const startedAt = new Date().toISOString();
+  const writeInfo = () => writeFileSync(info, `${JSON.stringify({ pid: process.pid, port: bound, addresses, startedAt }, null, 2)}\n`);
   mkdirSync(dirname(info), { recursive: true });
-  writeFileSync(info, `${JSON.stringify({ pid: process.pid, port: bound, addresses, startedAt: new Date().toISOString() }, null, 2)}\n`);
+  writeInfo();
+  // The tailnet can come up after the server, at logon: the server listens on it when it does.
+  if (!hosts) setInterval(() => { rebindTailnet(live).then((changed) => { if (changed) writeInfo(); }).catch(() => {}); }, REBIND_MS).unref();
   process.stdout.write(`design server: ${addresses.join(' ')}\n`);
   // The state of each repo is built now, in the background, so the first canvas opens at once.
   warmStates().catch(() => {});

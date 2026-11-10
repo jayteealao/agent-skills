@@ -25,6 +25,7 @@
 //   node scripts/verify-host-neutrality.mjs --json    # machine-readable
 //   node scripts/verify-host-neutrality.mjs --list    # print families + exception list
 
+import { isMainModule } from '../lib/proc.mjs';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -60,9 +61,8 @@ export const DATA_EXCEPTIONS = {
   // consult dispatches EXTERNAL CLIs named codex / claude / gemini as oracle
   // providers. Product names in the provider role are not host mechanics.
   'skills/consult/SKILL.md': ['host-names', 'claude-model-pins'],
-  // The moved cross-host docs describe both hosts by name on purpose.
+  // The moved cross-host doc describes both hosts by name on purpose.
   'reference/shared-hub.md': ['host-names'],
-  'reference/artifact-interop.md': ['host-names'],
   // The external-dispatch design doc documents the oracle PROVIDERS (the codex /
   // claude / gemini CLIs and the built-in image tool) — product names in the
   // provider role, not host mechanics.
@@ -273,7 +273,6 @@ function main() {
   console.log(`[host-neutrality] clean — ${FAMILIES.length} families, ${findings.length - live.length} allowlisted hit(s), ${CONTRACT_FILES.length} contract files`);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/').replace(/^([a-z]):/i, (m) => m.toUpperCase()) ||
-    process.argv[1] && fileURLToPath(import.meta.url).toLowerCase() === process.argv[1].toLowerCase()) {
+if (isMainModule(import.meta.url)) {
   main();
 }

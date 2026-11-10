@@ -79,10 +79,12 @@ test('claudeAnswers gives the AskUserQuestion answers map; a cancelled questionn
   assert.deepEqual(out[2], {});
 });
 
-test('the SubagentStart bridge puts the hook context in front of the Agent prompt', () => {
-  const ctxHook = path.join(mkdtempSync(path.join(tmpdir(), 'pi-hook-')), 'ctx.mjs');
-  writeFileSync(ctxHook, `process.stdin.resume(); let s=''; process.stdin.on('data', d => s += d); process.stdin.on('end', () => { const e = JSON.parse(s); console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: 'CONTEXT for ' + e.agent_type } })) });`);
-  const root = tempPlugin({ SubagentStart: [{ hooks: [{ type: 'command', command: `node "${ctxHook}"` }] }] });
+test('the SubagentStart bridge puts the context of the plugin SubagentStart hook in front of the Agent prompt', () => {
+  // hooks.json registers no SubagentStart entry: the bridge runs hooks/subagent-start.mjs itself.
+  const real = JSON.parse(readFileSync(path.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8')).hooks;
+  assert.equal(real.SubagentStart, undefined);
+  const root = tempPlugin({});
+  writeFileSync(path.join(root, 'hooks', 'subagent-start.mjs'), `process.stdin.resume(); let s=''; process.stdin.on('data', d => s += d); process.stdin.on('end', () => { const e = JSON.parse(s); console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: 'CONTEXT for ' + e.agent_type } })) });`);
   const out = runTs(`
     import { installBridges } from ${JSON.stringify(ext('bridges.ts'))};
     ${FAKE}

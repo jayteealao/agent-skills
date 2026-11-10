@@ -37,6 +37,7 @@ cat node_modules/<pkg>/package.json | grep '"version"'
 
 ```bash
 # Exact published tarball for a version — decompressed source as published
+mkdir -p .scratch/sources/js/
 npm pack <pkg>@<version> --pack-destination .scratch/sources/js/
 tar -xzf .scratch/sources/js/<pkg>-<version>.tgz -C .scratch/sources/js/   # → package/
 

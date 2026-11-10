@@ -1,11 +1,11 @@
 // `wf.mjs design ...`: the commands of the design surface. wf.mjs routes here.
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { canvasState, snapshotHtml } from './design-state.mjs';
 import { failureLines, runChecks } from './design-check.mjs';
 import { approvalQuestion, approveDesign } from './design-approve.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
-import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
+import { addExplore, addScreen, initSurface, listExplore, listScreens, manifestProblems, readManifest, registerRepo, setAreas, setViewports, trackSurface, writeTokens } from './design-surface.mjs';
 import { addComponent, foundation, linkComponent, listComponents, scanComponents, setNoComponents, verifyComponents } from './design-components.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { addComment, capturePicture, commentsBrief, commitDesignRecords, openThreads } from './design-records.mjs';
@@ -27,7 +27,7 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   screen add <root> <key> [--title t] [--area a] [--flow f] [--order n] [--workflow slug] [--slice s]
   list <root> [--workflow slug]                 the screens (one workflow with --workflow), their states and links
   explore add <root> <key> [--title t] [--link slug]
-  tokens <root>                                 write tokens.css from DESIGN.md
+  tokens <root>                                 write tokens.css from DESIGN.md (the root, .agents/context/ or docs/)
   track <root> [--check]                        keep .ai/design/ tracked in git
   check <root> [key...] [--workflow slug]       the screen checks, in each viewport and state
   round <root> <slug> [--reason r]              save the pages as a draft, with the decisions since the last draft
@@ -48,7 +48,8 @@ export const DESIGN_USAGE = `wf.mjs design <command> <root> ...
   state <root>                                  the canvas data, as JSON
   publish <root> [--out file]                   one self-contained canvas page (no comments, no layout saves)
   migrate <root> [slug...] [--check]            move the boards of each workflow onto the surface, once; --check only plans
-  server start|stop|status|url                  the one design server of this computer
+  server start [--port n]|stop|status           the one design server of this computer
+  server url [<root>]                           its addresses; with a root, the canvas URL of that repo
   server install|uninstall                      the Windows scheduled task that starts the server at logon`;
 
 /** A part of a capture path: a name, never a path. */
@@ -58,7 +59,7 @@ const namePart = (v) => /^[a-z0-9._-]+$/i.test(String(v ?? '')) && v !== '.' && 
 export async function runDesign(pos, opt, out) {
   const [verb, ...rest] = pos;
   const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) ? rest.shift() : null;
-  if (verb === 'server') return runServer(sub, opt, out);
+  if (verb === 'server') return runServer(sub, opt, out, rest[0]);
   const [root, key] = rest;
   if (!verb || !root) throw new Error(DESIGN_USAGE);
   const projectRoot = resolve(root);
@@ -130,7 +131,11 @@ export async function runDesign(pos, opt, out) {
     }
     case 'tokens': {
       const rows = writeTokens(projectRoot);
-      out(opt.json ? rows : `tokens.css: ${rows.length} token roles${rows.length ? '' : ' (DESIGN.md has no ## Colors table)'}`);
+      const from = rows.file ? relative(projectRoot, rows.file).split('\\').join('/') : null;
+      out(opt.json ? { rows: [...rows], file: from, skipped: rows.skipped } : [
+        `tokens.css: ${rows.length} token roles${!from ? ' (no DESIGN.md found: the root, .agents/context/ and docs/ hold none)' : rows.length ? ` from ${from}` : ` (${from} has no ## Colors table)`}`,
+        ...rows.skipped.map((c) => `skipped: ${c} (one role name in each Role cell)`),
+      ].join('\n'));
       return 0;
     }
     case 'track': {
@@ -266,7 +271,7 @@ export async function runDesign(pos, opt, out) {
   }
 }
 
-async function runServer(sub, opt, out) {
+async function runServer(sub, opt, out, root = null) {
   const urls = (s) => (s.addresses?.length ? s.addresses : [`http://127.0.0.1:${s.port}/`, ...tailnetAddresses().map((a) => `http://${a}:${s.port}/`)]);
   switch (sub) {
     case 'start': {
@@ -288,7 +293,10 @@ async function runServer(sub, opt, out) {
     }
     case 'url': {
       const s = await serverStatus();
-      out(opt.json ? { running: s.running, urls: urls(s) } : `${urls(s).join('\n')}${s.running ? '' : '\n(the server is stopped: run design server start)'}`);
+      // With a root: the canvas URL of that repo, under the name that the server knows it by.
+      const repo = root ? registerRepo(resolve(root)) : null;
+      const list = repo ? urls(s).map((u) => `${u}r/${encodeURIComponent(repo.name)}/`) : urls(s);
+      out(opt.json ? { running: s.running, urls: list, ...(repo ? { repo: repo.name } : {}) } : `${list.join('\n')}${s.running ? '' : '\n(the server is stopped: run design server start)'}`);
       return 0;
     }
     case 'install': {

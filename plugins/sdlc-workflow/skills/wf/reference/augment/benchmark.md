@@ -23,7 +23,7 @@ existing-workflow/
 
 **Mode (set by the calling stage, not by the invocation):**
 - auto-detect — if no `05c-benchmark.md` exists → baseline; if a baseline exists with no comparison → compare
-- baseline — `plan` loads this file in baseline mode before implement (re-baseline after a major change)
+- baseline — `plan` loads this file in baseline mode before implement (re-baseline after a major change). Plan runs once per slice, and `05c-benchmark.md` is one per slug: when it exists already, a later slice adds its own targets to the baseline and keeps the numbers that are there. It never runs the baseline again over a record that has a comparison.
 - compare — `verify` loads this file in compare mode after implement
 
 | | Detail |

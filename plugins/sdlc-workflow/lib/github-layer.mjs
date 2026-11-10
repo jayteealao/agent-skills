@@ -12,7 +12,9 @@
 // folder (`layer.json`, which syncs with the records) and commits it. Before it makes an issue,
 // it reads `layer.json`, then searches the repo for the issue whose body carries the hidden key
 // `<!-- wf-key: <project>/<slug> -->`. An entry that fails three flushes moves to
-// `outbox/github-parked.jsonl`, so it does not hold back the entries after it. Each comment that
+// `outbox/github-parked.jsonl`, so it does not hold back the entries after it. A failure of the
+// sign-in or a rate limit fails every entry alike, so it parks none: it stops the flush and puts the
+// parked entries back at the head of the queue, and the next flush sends them. Each comment that
 // the layer writes carries `<!-- wf-layer -->`, so the import of comments skips only those.
 //
 // The layer is on when the machine names the records repo (`records.repo` in ~/.sdlc/config.json)
@@ -25,7 +27,8 @@ import { listOf } from './consent.mjs';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { defaultRun } from './last-mile.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
-import { workflowDir } from './records-root.mjs';
+import { dropLock, refreshLock, takeLock as takeFileLock } from './file-lock.mjs';
+import { projectConfigPath, workflowDir } from './records-root.mjs';
 import { commitWorkflow, inBackground } from './records-sync.mjs';
 import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
 
@@ -68,16 +71,8 @@ const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 
  */
 function withStateLock(fn) {
   mkdirSync(outboxDir(), { recursive: true });
-  const until = Date.now() + STATE_LOCK_WAIT_MS;
-  let held = false;
-  while (!held) {
-    try { closeSync(openSync(stateLockPath(), 'wx')); held = true; } catch {
-      try { if (Date.now() - statSync(stateLockPath()).mtimeMs > STATE_LOCK_STALE_MS) rmSync(stateLockPath(), { force: true }); } catch { /* gone */ }
-      if (Date.now() > until) break;
-      sleep(25);
-    }
-  }
-  try { return fn(); } finally { if (held) rmSync(stateLockPath(), { force: true }); }
+  const held = takeFileLock(stateLockPath(), { waitMs: STATE_LOCK_WAIT_MS, staleMs: STATE_LOCK_STALE_MS, tornMs: STATE_LOCK_STALE_MS });
+  try { return fn(); } finally { if (held) dropLock(stateLockPath()); }
 }
 
 const parseLines = (file) => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).flatMap((l) => {
@@ -101,10 +96,13 @@ function enqueue(entry) {
 }
 const idOf = (e) => e.id ?? hashOf(e);
 
-/** The layer of a project: `{ repo, owner, project, board }`, or null when it is off. */
+/**
+ * The layer of a project: `{ repo, owner, project, board }`, or null when it is off. A worktree
+ * with no config of its own uses the config of the main worktree, as the records do.
+ */
 export function layerOf(root) {
   const machine = readMachineConfig().records ?? {};
-  const local = readJson(join(root, '.ai', 'sdlc-config.json'), {}).records ?? {};
+  const local = readJson(projectConfigPath(root), {}).records ?? {};
   if (!machine.repo || !local.project) return null;
   return { repo: machine.repo, owner: String(machine.repo).split('/')[0], project: local.project, board: machine.board ?? null };
 }
@@ -236,14 +234,27 @@ function ensureLabels(state, repo, extra, run) {
 function knownIssue(e, run) {
   const key = keyOf(e.project, e.slug);
   const file = e.root ? readLayerFile(e.root, e.slug) : null;
-  if (file?.number && file.key === key) return { number: file.number, url: file.url, boarded: Boolean(file.boarded), closed: false };
-  const r = run('gh', ['issue', 'list', '--repo', e.repo, '--state', 'all', '--search', `"${key}" in:title,body`, '--json', 'number,url,title,body', '--limit', '30'], {});
+  // The label and the state come from the issue itself: another machine may have set them.
+  if (file?.number && file.key === key) {
+    const v = run('gh', ['issue', 'view', String(file.number), '--repo', e.repo, '--json', 'labels,state'], {});
+    if (v.status !== 0) throw new Error(`gh issue view ${file.number}: ${v.stderr.trim()}`);
+    let seen = {};
+    try { seen = JSON.parse(v.stdout || '{}'); } catch { seen = {}; }
+    return { number: file.number, url: file.url, boarded: Boolean(file.boarded), ...issueFlags(seen) };
+  }
+  const r = run('gh', ['issue', 'list', '--repo', e.repo, '--state', 'all', '--search', `"${key}" in:title,body`, '--json', 'number,url,title,body,labels,state', '--limit', '30'], {});
   if (r.status !== 0) throw new Error(`gh issue list: ${r.stderr.trim()}`);
   let found = [];
   try { found = JSON.parse(r.stdout || '[]'); } catch { found = []; }
   const hit = found.find((i) => String(i.body ?? '').includes(keyMark(key)) || String(i.title ?? '').startsWith(`${key}:`));
-  return hit ? { number: hit.number, url: hit.url, boarded: false, closed: false } : null;
+  return hit ? { number: hit.number, url: hit.url, boarded: false, ...issueFlags(hit) } : null;
 }
+
+/** The needs-me label and the closed state of an issue as gh shows it. */
+const issueFlags = (i) => ({
+  needsMe: (Array.isArray(i?.labels) ? i.labels : []).some((l) => (l?.name ?? l) === NEEDS_ME),
+  closed: String(i?.state ?? '').toUpperCase() === 'CLOSED',
+});
 
 /** Write the issue into the workflow folder and commit it, so every machine uses the same issue. */
 function recordIssue(e, issue) {
@@ -308,13 +319,11 @@ function applyComment(e, state, run) {
   if (r.status !== 0) throw new Error(`gh issue comment ${issue.number}: ${r.stderr.trim()}`);
 }
 
+// The flush lock names its process and its host. The running flush refreshes its stamp after
+// each entry, so a long flush is not taken over; a lock of an ended process is taken over at once.
 function takeLock() {
   mkdirSync(outboxDir(), { recursive: true });
-  try {
-    if (existsSync(lockPath()) && Date.now() - statSync(lockPath()).mtimeMs > LOCK_STALE_MS) rmSync(lockPath(), { force: true });
-    closeSync(openSync(lockPath(), 'wx'));
-    return true;
-  } catch { return false; }
+  return takeFileLock(lockPath(), { waitMs: 0, staleMs: LOCK_STALE_MS, tornMs: LOCK_STALE_MS });
 }
 
 /** The state on disk with the changes of the flush laid over it. */
@@ -332,6 +341,9 @@ function mergeState(disk, mine) {
 export const NET_ERROR = /timeout|timed out|tls|handshake|connect|connection|could not resolve|no such host|network|unreachable|\beof\b|econnreset|etimedout|enotfound|eai_again|offline|http 5\d\d|\b50[234]\b/i;
 export const NET_RETRY_MS = 5_000;
 
+/** A gh failure of the sign-in or of a rate limit: no entry is to blame, so none counts it or is parked. */
+export const AUTH_ERROR = /not logged in|gh auth login|authenticat|unauthori[sz]ed|bad credentials|requires? (?:a )?token|http 40[13]\b|forbidden|rate.?limit|http 429\b|too many requests|abuse detection/i;
+
 const markPath = () => join(outboxDir(), 'flush.again');
 const writeMark = () => { try { mkdirSync(outboxDir(), { recursive: true }); writeFileSync(markPath(), nowIso()); } catch { /* the next trigger flushes */ } };
 
@@ -339,30 +351,33 @@ const writeMark = () => { try { mkdirSync(outboxDir(), { recursive: true }); wri
  * Send the queued entries to GitHub, in order, until the queue is empty. An entry that fails
  * stops the flush and stays at the head of the outbox with every entry after it, until it has
  * failed MAX_FAILS flushes: then it moves to the parked file and the flush goes on. A network
- * error gets one more try after `retryMs` before it counts as a fail.
+ * error gets one more try after `retryMs` before it counts as a fail. A sign-in failure or a rate
+ * limit (AUTH_ERROR) stops the flush with no count, and moves the parked entries back to the head
+ * of the outbox, so the flush after the person signs in, or after the limit resets, sends them.
  *
  * One flush runs at a time. A trigger that finds a flush running writes the mark `flush.again`
  * beside the outbox, and the running flush reads the queue again before it exits, so an entry
- * that came during the flush goes out with it. Returns `{ sent, left, error, parked }`, or
+ * that came during the flush goes out with it. Returns `{ sent, left, error, parked, requeued }`, or
  * `busy: true` when another flush runs.
  */
 export function flushOutbox({ run = defaultRun, retryMs = NET_RETRY_MS, wait = sleep } = {}) {
   if (!takeLock()) {
     writeMark();
     // The running flush may have ended between the two steps: then this trigger flushes.
-    if (!takeLock()) return { sent: 0, left: readOutbox().length, error: null, busy: true, parked: 0 };
+    if (!takeLock()) return { sent: 0, left: readOutbox().length, error: null, busy: true, parked: 0, requeued: 0 };
   }
-  const total = { sent: 0, left: 0, error: null, parked: 0 };
+  const total = { sent: 0, left: 0, error: null, parked: 0, requeued: 0 };
   for (;;) {
     let pass;
     try {
       rmSync(markPath(), { force: true });
       pass = flushPass(run, retryMs, wait);
     } finally {
-      rmSync(lockPath(), { force: true });
+      dropLock(lockPath());
     }
     total.sent += pass.sent;
     total.parked += pass.parked;
+    total.requeued += pass.requeued;
     total.left = pass.left;
     total.error = pass.error;
     if (pass.error || (!pass.left && !existsSync(markPath()))) break;
@@ -406,6 +421,7 @@ function flushPass(run, retryMs, wait) {
   const parked = [];
   let sent = 0;
   let error = null;
+  let requeue = false;
   const apply = (e) => {
     if (e.op === 'sync') applySync(e, state, run, save);
     else if (e.op === 'comment') applyComment(e, state, run);
@@ -414,14 +430,20 @@ function flushPass(run, retryMs, wait) {
     const id = idOf(e);
     try {
       try { apply(e); } catch (first) {
-        if (!NET_ERROR.test(first.message)) throw first;
+        if (AUTH_ERROR.test(first.message) || !NET_ERROR.test(first.message)) throw first;
         wait(retryMs);
         apply(e);
       }
       delete state.fails[id];
       done.add(id);
       sent += 1;
+      refreshLock(lockPath());
     } catch (err) {
+      if (AUTH_ERROR.test(err.message)) {
+        error = err.message;
+        requeue = true;
+        break;
+      }
       const fails = (state.fails[id] ?? 0) + 1;
       if (fails >= MAX_FAILS) {
         delete state.fails[id];
@@ -436,15 +458,21 @@ function flushPass(run, retryMs, wait) {
   }
   state.error = error ? { at: nowIso(), message: error } : null;
   // An entry queued during the flush is kept: only the sent and the parked entries leave.
+  // After a sign-in failure or a rate limit, every parked entry goes back to the head of the
+  // queue, oldest first, without the marks of its parking.
+  let requeued = 0;
   const left = withStateLock(() => {
     writeState(mergeState(readState(), state));
-    if (parked.length) appendFileSync(parkedPath(), parked.map((p) => `${JSON.stringify(p)}\n`).join(''));
+    const back = requeue ? [...readParked(), ...parked].map(({ parkedAt, error: why, ...e }) => e) : [];
+    if (requeue) rmSync(parkedPath(), { force: true });
+    else if (parked.length) appendFileSync(parkedPath(), parked.map((p) => `${JSON.stringify(p)}\n`).join(''));
+    requeued = back.length;
     const now = readOutbox();
-    const keep = now.filter((e) => !done.has(idOf(e)));
+    const keep = [...back, ...now.filter((e) => !done.has(idOf(e)))];
     writeOutbox(keep);
     return keep.length;
   });
-  return { sent, left, error, parked: parked.length };
+  return { sent, left, error, parked: requeue ? 0 : parked.length, requeued };
 }
 
 /** The comments of a workflow's issue, or null when the layer is off or gh failed. */

@@ -10,6 +10,7 @@
  * with no discovered extensions and this plugin's pi package only (the release passes the
  * installed package folder), so the person's pi settings do not change the result. The exit code is 1 when a host fails.
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -128,4 +129,4 @@ function main() {
   process.exit(results.some((r) => !r.skipped && !r.ok) ? 1 : 0);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (isMainModule(import.meta.url)) main();

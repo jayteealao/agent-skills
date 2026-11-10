@@ -229,3 +229,18 @@ test('the dispatch imports no comments and calls no gh; a failed flush and a que
     assert.match(cli(w, ['records', 'status', w.root]).stdout, /^github: 0 queued, 1 parked \(failed 3 flushes\); wf\.mjs gh status /m);
   } finally { w.done(); }
 });
+
+test('ship ready on a workflow commits the person tasks it writes, also when it finds a gap and exits 1', () => {
+  const w = world();
+  try {
+    assert.equal(linkProject(w.root, 'notes').ok, true);
+    const before = git(w.clone, 'rev-list', '--count', 'HEAD');
+    // No ship plan: the no-plan gap is a person task, and the call exits 1.
+    const r = cli(w, ['ship', 'ready', w.root, 'w1'], { SDLC_GH_BIN: join(import.meta.dirname, '..', 'fixtures', 'fake-gh.mjs') });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, /^gap: /m);
+    assert.equal(Number(git(w.clone, 'rev-list', '--count', 'HEAD')), Number(before) + 1, 'one records commit');
+    assert.match(git(w.clone, 'log', '-1', '--format=%s'), /w1: ship ready/);
+    assert.match(git(w.clone, 'show', 'HEAD'), /ship-ready:no-plan/, 'the commit holds the person task');
+  } finally { w.done(); }
+});

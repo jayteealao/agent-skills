@@ -39,7 +39,7 @@ You are running `wf project ship-plan build`. Your job: read the ship plan as th
    | Anything else | Unknown — generate shell-only steps with `# TODO:` markers |
 
 4. **Enumerate `.github/workflows/*.yml`.** Read each file fully. Build an in-memory index: `filename → on-triggers → job-names → step-run-commands → secret-refs`. Secret refs are all `${{ secrets.<NAME> }}` patterns.
-5. **Determine the base branch** from `plan.ship-environments[0].name` or default `main`. (Prefer `plan.governance.branch-protection.base-branch` when present.)
+5. **Determine the base branch:** `plan.governance.branch-protection.base-branch` when present, else the default branch of the repo (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`), else `main`. An environment name is not a branch.
 6. **Index inbound-DX state** (only for blocks the plan has; the block table in [build/_audits.md](build/_audits.md) maps each block to its audits). Probe the conventional paths for existing config: commitlint config, hook framework (`.husky/`, `lefthook.{yml,yaml}`, `.pre-commit-config.yaml`, `simple-git-hooks` in `package.json`), `.editorconfig`, runtime-version files, task-runner files, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml` / `renovate.json` / `.renovaterc*`, `CONTRIBUTING.md`, CodeQL/SAST + audit/secret/SBOM/license workflows. Build a `path → present?` index. Record `plan.governance.branch-protection.apply-via` (and any env `apply-via`) — it decides whether Steps 12/14/15 may call `gh api`.
 
 ---

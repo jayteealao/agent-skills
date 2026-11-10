@@ -51,19 +51,25 @@ export function mainWorktreeOf(projectRoot) {
 }
 
 /**
+ * The .ai/sdlc-config.json of a project: its own, else (a worktree with no config of its own)
+ * the config of the main worktree. The own path when neither exists.
+ */
+export function projectConfigPath(projectRoot) {
+  const own = join(projectRoot, AI_DIR, 'sdlc-config.json');
+  if (existsSync(own)) return own;
+  const main = mainWorktreeOf(projectRoot);
+  const theirs = main ? join(main, AI_DIR, 'sdlc-config.json') : null;
+  return theirs && existsSync(theirs) ? theirs : own;
+}
+
+/**
  * The project name when the project is linked: `records.project` in .ai/sdlc-config.json, a
  * records clone, and the project folder in it. Else null, and the records stay local.
  */
 export function linkedProject(projectRoot) {
-  let file = join(projectRoot, AI_DIR, 'sdlc-config.json');
+  const file = projectConfigPath(projectRoot);
   let mtime;
-  try { mtime = statSync(file).mtimeMs; } catch {
-    // A worktree with no config of its own uses the config of the main worktree.
-    const main = mainWorktreeOf(projectRoot);
-    if (!main) return null;
-    file = join(main, AI_DIR, 'sdlc-config.json');
-    try { mtime = statSync(file).mtimeMs; } catch { return null; }
-  }
+  try { mtime = statSync(file).mtimeMs; } catch { return null; }
   const key = resolve(projectRoot);
   let hit = linkCache.get(key);
   if (!hit || hit.mtime !== mtime) {
@@ -137,8 +143,12 @@ export const LOCAL_ONLY_ENTRIES = Object.freeze({
   '.watch-state.json': 'the read offsets of the watch on this machine',
   '.driver-outcome.json': 'the outcome of the last driver run on this machine',
   '.api-log.jsonl': 'the operations of the wf scripts that ran on this machine',
+  '.design-approval.json': 'the steps of a design approval that stopped part way on this machine',
   '.ai': 'the render output of an old writer that took the records folder as a project root',
 });
+
+// A temp file (`<file>.<pid>.<random>.tmp`), a lock (`<file>.lock`) and a lock moved aside by a takeover.
+const TRANSIENT_RE = /\.tmp$|\.lock$|\.lock\.takeover$/;
 
 /**
  * True for a path, relative to the local workflows folder, that stays on this machine when the
@@ -149,6 +159,8 @@ export const LOCAL_ONLY_ENTRIES = Object.freeze({
 export function isLocalOnly(rel) {
   const parts = slash(rel).split('/').filter(Boolean);
   if (!parts.length || parts[0].startsWith('.') || parts[0] === 'answers.jsonl') return true;
+  // The temp file of a write and the lock of a read-modify-write live only while a write runs.
+  if (TRANSIENT_RE.test(parts.at(-1))) return true;
   if (parts[0].startsWith('_') && parts[0] !== '_design') return true;
   return parts.slice(1).some((p) => Object.hasOwn(LOCAL_ONLY_ENTRIES, p));
 }
@@ -205,6 +217,8 @@ export function parseWorkflowPath(filePath) {
   const n = slash(filePath);
   // Windows paths ignore case: `.AI\Workflows\x\a.md` is a record path too.
   const m = (process.platform === 'win32' ? /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/i : /^(.*?)(?:^|\/)\.ai\/workflows\/([^/]+)\/(.+)$/).exec(n);
+  // `.` and `..` name no workflow folder.
+  if (m && (m[2] === '.' || m[2] === '..')) return null;
   if (m) {
     return {
       root: m[1] ? `${m[1]}/${WORKFLOWS_REL}` : WORKFLOWS_REL,

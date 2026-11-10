@@ -62,3 +62,37 @@ test('stringify writes a value that parses back to the same value', () => {
   assert.equal(stringify({ k: ['x, y'] }, { flow: true }), '{k: ["x, y"]}');
   assert.ok(isPlainSafe('plain words') && !isPlainSafe('yes: no') && !isPlainSafe('null'));
 });
+
+// Strings that a block scalar cannot carry as they are: each must read back the same.
+const AWKWARD = [
+  '\n  x\ny',
+  '  a\nb',
+  '  a\n  b',
+  '\n\n  leading blank lines',
+  'a\r\nb',
+  'only cr\r',
+  '\n',
+  '\n\n',
+  'key: value\nnext: "quoted" \'single\'',
+  'a\n---\nb',
+  '---\n',
+  'x\n\ty\n',
+  '\tfirst tab\nsecond',
+  'trailing\n\n\n',
+  ' ',
+  'colon: \n# not a comment\n',
+];
+
+test('every awkward string reads back the same, in a map, in a list and nested', () => {
+  for (const s of AWKWARD) {
+    for (const value of [{ k: s }, [s], { list: [s, { inner: s }] }, { a: { b: [[s]] } }]) {
+      assert.deepEqual(parse(stringify(value)), value, JSON.stringify(s));
+    }
+  }
+});
+
+test('the reader refuses the key __proto__, so it cannot set the prototype', () => {
+  for (const text of ['__proto__:\n  result: pass\nslug: x\n', 'a: {__proto__: {result: pass}}\n', '"__proto__": 1\n']) {
+    assert.throws(() => parse(text), YamlError, JSON.stringify(text));
+  }
+});

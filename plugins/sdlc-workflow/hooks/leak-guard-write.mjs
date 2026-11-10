@@ -14,12 +14,23 @@
  * Exports `run(input)` for the folded `pre-tool-use-all` entry.
  */
 
+import { isAbsolute, relative } from 'node:path';
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';
-import { blockToolCall, hookConfig, isEntry, runStandalone } from '../lib/hook-runner.mjs';
+import { blockToolCall, hookConfig, hookProjectRoot, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { normalizePathForMatch, outputSystemMessage } from '../lib/hook-utils.mjs';
 
-export function isPublicDocPath(filePath, roots) {
-  const n = normalizePathForMatch(filePath);
+/**
+ * Whether a path is public documentation. With `projectRoot`, a path inside the project is read
+ * relative to it, so a project that itself lives under a folder such as `.claude/worktrees/` is
+ * still checked.
+ */
+export function isPublicDocPath(filePath, roots, projectRoot) {
+  let p = String(filePath ?? '');
+  if (projectRoot && p && isAbsolute(p)) {
+    const rel = relative(projectRoot, p);
+    if (rel && !rel.startsWith('..') && !isAbsolute(rel)) p = rel;
+  }
+  const n = normalizePathForMatch(p);
   if (!n) return false;
   // Anything under an internal root is internal by definition.
   for (const root of roots) {
@@ -50,7 +61,7 @@ export async function run(input) {
   if (config.semantic?.enabled !== true) return;
 
   const lexicon = buildLexicon();
-  if (!isPublicDocPath(filePath, lexicon.roots)) return;
+  if (!isPublicDocPath(filePath, lexicon.roots, hookProjectRoot(input))) return;
 
   const findings = scanText(content, lexicon);
   if (!findings.length) return;

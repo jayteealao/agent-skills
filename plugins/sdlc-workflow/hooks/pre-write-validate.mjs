@@ -7,6 +7,8 @@
  *   beside the records, anywhere in the wf-dir, the records clone included: scripts write the
  *   records from drafts (lib/records.mjs). A file in a subfolder (evidence, notes) goes through.
  * - Refuse a write by a local .ai/workflows/ path in a linked project, and name the wf-dir path.
+ * - Refuse a Write, Edit or MultiEdit of .ai/sdlc-config.json that lowers `checks` or
+ *   `semantic.mode`, in every checks mode: only the person lowers them.
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -25,12 +27,12 @@
 
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { checksModeOf } from '../lib/config.mjs';
+import { checksModeOf, guardLowerings } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
-import { hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
+import { blockToolCall, hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
@@ -83,9 +85,48 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
   return [];
 }
 
+// `.ai/sdlc-config.json` of any project. The person sets its check levels.
+const CONFIG_FILE = /(?:^|\/)\.ai\/sdlc-config\.json$/i;
+
+/** The text a Write, Edit or MultiEdit leaves in a file whose text is `prior` (null: no file); null when it cannot be told. */
+export function textAfterWrite(prior, toolInput) {
+  if (typeof toolInput?.content === 'string') return toolInput.content;
+  const edits = Array.isArray(toolInput?.edits) ? toolInput.edits : typeof toolInput?.old_string === 'string' ? [toolInput] : null;
+  if (!edits) return null;
+  let text = prior ?? '';
+  for (const e of edits) {
+    if (typeof e?.old_string !== 'string' || typeof e?.new_string !== 'string') return null;
+    if (e.old_string === '') { text = e.new_string + text; continue; }
+    const at = text.indexOf(e.old_string);
+    if (at < 0) return null; // the host refuses this edit itself
+    text = e.replace_all ? text.split(e.old_string).join(e.new_string) : text.slice(0, at) + e.new_string + text.slice(at + e.old_string.length);
+  }
+  return text;
+}
+
+// An agent never lowers the check levels that the person set: the refusal holds in every checks
+// mode, `off` and `warn` included, since lowering them is what it guards.
+async function configLoweringRefusal(filePath, toolInput, projectRoot) {
+  const abs = resolveProjectPath(projectRoot, filePath);
+  if (!abs || !CONFIG_FILE.test(String(abs).replace(/\\/g, '/'))) return null;
+  const prior = await readTextIfExists(abs);
+  const next = textAfterWrite(prior, toolInput);
+  if (next === null) return null;
+  const lowered = guardLowerings(prior, next);
+  if (!lowered.length) return null;
+  const what = lowered.map((l) => `${l.key} from ${l.from} to ${l.to}`).join(' and ');
+  return `wf-validate: blocked a write to ${abs}: it lowers ${what}.\n`
+    + 'Only the person may lower these settings. Ask the person: they change the file themselves, or tell you to leave it. A write that keeps or raises each level goes through.\n';
+}
+
 export async function run(input) {
   const projectRoot = hookProjectRoot(input);
   const config = await hookConfig(input);
+  const lowering = input?.tool_input?.file_path ? await configLoweringRefusal(input.tool_input.file_path, input.tool_input, projectRoot) : null;
+  if (lowering) {
+    process.stderr.write(lowering);
+    blockToolCall();
+  }
   if (checksModeOf(config) === 'off') return;
 
   const filePath = input?.tool_input?.file_path;
@@ -348,4 +389,4 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-if (isEntry('pre-write-validate')) runStandalone('pre-write-validate', run);
+if (isEntry('pre-write-validate')) runStandalone('pre-write-validate', run, { failClosed: true, inputFailClosed: true });

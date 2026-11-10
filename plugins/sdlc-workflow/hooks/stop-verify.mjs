@@ -12,7 +12,9 @@
 // Bounded repair (Decision 27 / the recovery spike): a Stop block must not loop
 // forever. After REPAIR_CEILING blocks for the same turn we surface a hard
 // failure (additionalContext) and allow the stop, rather than re-prompting
-// indefinitely. On a clean re-check the ledger is cleared and the turn ends.
+// indefinitely. On a clean re-check the ledger is cleared and the turn ends. A re-check that
+// timed out or crashed proves nothing: the ledger stays, so the next Stop checks those files
+// again, and the turn gets one note that they were not checked.
 
 import {
   REPAIR_CEILING,
@@ -21,6 +23,7 @@ import {
   emitAdditionalContext,
   emitStopBlock,
   findProjectRoot,
+  noteUnverified,
   parseHookArgs,
   readEvent,
   readLedger,
@@ -62,6 +65,18 @@ function main() {
         `${verify.stderr || '(validation failed; re-run verification for detail)'}\n` +
         `Fix the issues above, then end the turn (repair attempt ${attempts}/${REPAIR_CEILING}).`,
     );
+    return;
+  }
+
+  if (verify.status !== 0 || verify.timedOut) {
+    // The check did not finish: keep the ledger so the next Stop checks these files again.
+    if (noteUnverified(layout.pluginData, sessionId)) {
+      emitAdditionalContext(
+        event.hook_event_name || 'Stop',
+        `SDLC managed-artifact check did not finish (${verify.timedOut ? 'timed out' : `exit ${verify.status}`}); ` +
+          `the files written this turn were not checked and are checked again at the next stop:\n${paths.join('\n')}`,
+      );
+    }
     return;
   }
 

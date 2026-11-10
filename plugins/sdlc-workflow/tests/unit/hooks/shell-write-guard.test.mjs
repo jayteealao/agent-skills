@@ -72,6 +72,71 @@ test('the targets of shell writes', () => {
   assert.deepEqual(shellWriteTargets('git status'), []);
 });
 
+const LOG = '.ai/workflows/w1/po-answers.md';
+
+test('every way a shell writes the answer log is refused', () => {
+  const forms = [
+    `Set-Content -Value "x" -Path ${LOG}`,
+    `"x" | Out-File -Encoding utf8 ${LOG}`,
+    `Get-Date | Out-File -Append -FilePath ${LOG}`,
+    `Add-Content -Value x -LiteralPath ${LOG}`,
+    `echo hi &> ${LOG}`,
+    `echo hi &>> ${LOG}`,
+    `echo hi >| ${LOG}`,
+    `cp /tmp/a ${LOG} 2>/dev/null`,
+    'cd .ai/workflows/w1 && echo x >> po-answers.md',
+    'cd .ai/workflows; echo x >> w1/po-answers.md',
+    `sed -i 's/a/b/' ${LOG}`,
+    `dd if=/tmp/a of=${LOG}`,
+    `New-Item -Path ${LOG} -Value x`,
+    `[IO.File]::WriteAllText("${LOG}", "x")`,
+    `echo x >> ${LOG}`,
+    `Set-Content ${LOG} "x"`,
+    `echo x >> "${LOG}"`,
+  ];
+  for (const f of forms) assert.match(shellWriteRefusal(f, '/r', '/r') ?? 'passed', /decide add/, f);
+});
+
+test('a Git Bash drive path is read as a Windows path on Windows', { skip: process.platform !== 'win32' }, () => {
+  const w = linked();
+  try {
+    const bash = w.root.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`);
+    const r = shellWriteRefusal(`echo x > ${bash}/.ai/workflows/w1/notes.md`, w.root, w.root, 'win32');
+    assert.match(r ?? 'passed', /records repo clone/);
+  } finally { w.done(); }
+});
+
+test('a target that holds a variable passes: the guard cannot read it', () => {
+  assert.deepEqual(shellWriteTargets(`f=${LOG}; echo x >> $f`), []);
+  assert.equal(shellWriteRefusal(`f=${LOG}; echo x >> $f`, '/r', '/r'), null);
+  assert.equal(shellWriteRefusal('echo x >> "$dir/po-answers.md"', '/r', '/r'), null);
+});
+
+test('ordinary commands pass, a heredoc or a quoted string that only mentions a guarded path too', () => {
+  const ordinary = [
+    'git status',
+    'git log --oneline -5',
+    `cat ${LOG}`,
+    `grep -n yes ${LOG}`,
+    `ls .ai/workflows/w1 && wc -l ${LOG}`,
+    'npm test 2>&1 | tail -20',
+    'echo done > /tmp/out.txt',
+    'cp a.md b.md',
+    'sed -n 1,5p notes.md',
+    `sed 's/a/b/' ${LOG}`,
+    `Get-Content ${LOG} | Select-Object -First 5`,
+    `cat > notes.txt <<'EOF'\nexample: echo x >> ${LOG}\nEOF`,
+    `cat <<EOF > notes.txt\nSet-Content ${LOG} x\nEOF`,
+    `git commit -m "do not echo x >> ${LOG}"`,
+    `echo 'tee ${LOG}'`,
+    `node wf.mjs decide add . w1 --answer "cp a ${LOG}" --key k`,
+    "$t = @'\nAdd-Content " + LOG + " x\n'@\nWrite-Output $t",
+    'New-Item -ItemType Directory -Path .ai/workflows/w2',
+  ];
+  for (const c of ordinary) assert.equal(shellWriteRefusal(c, '/r', '/r'), null, c);
+  assert.deepEqual(shellWriteTargets(`cat > notes.txt <<'EOF'\nexample: echo x >> ${LOG}\nEOF`), ['notes.txt']);
+});
+
 function linked() {
   const top = mkdtempSync(path.join(tmpdir(), 'shell-guard-'));
   const home = path.join(top, 'home');

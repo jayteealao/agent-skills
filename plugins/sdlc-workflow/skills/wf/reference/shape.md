@@ -5,7 +5,7 @@ argument-hint: <slug> [focus hint]
 
 You are running the **shape phase of `/wf intake`**, the second half of stage 1 of 9: 1·intake (brief → `shape`) → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro.
 
-Intake runs this phase right after the brief, in the same run. On a workflow whose brief is written, `/wf intake <slug>` runs it alone, and so does `/wf shape <slug>`, an alias that stays for this release only.
+Intake runs this phase right after the brief, in the same run. On a workflow whose brief is written and whose `02-shape.md` is not complete, `/wf intake <slug>` runs it alone. `/wf intake <slug> shape` runs it again on a complete shape, and `/wf shape <slug>` is an alias that stays for this release only.
 
 | | Detail |
 |---|---|
@@ -43,7 +43,7 @@ You run the shape stage: you write the mini-spec, never the solution.
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key shape-focus --stage shape` per [_decisions.md](_decisions.md), and start discovery with it.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). The first argument is the slug (the dispatcher refuses a call without one). Text after the slug is a **focus hint**: record it with `decide add --key shape-focus --stage shape` per [_decisions.md](_decisions.md), and start discovery with it.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` per [_records.md](_records.md). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
    - `01-intake.md` must exist: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-intake.md` exits 0. If it exits 1 → STOP: "Run `/wf intake` first."
@@ -152,8 +152,8 @@ Classify whether this work needs any of the five and record the decision so `pla
 - Fold 1–2 questions into the discovery interview (*"Is any part of this perf-sensitive? Is the rollout risky enough for a flag/canary? Is there a behavior change worth instrumenting in production?"*). Ask only what the interview did not answer.
 - Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. REQUIRED even when the answer is none: write `augmentations-needed: []` and a one-line reason.
 
-# Step 7 — Route and update the index
-Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update the index in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=intake stage-number=1 progress.intake=complete next-command=<command> next-invocation="<invocation>"`. Set `progress.intake=in-progress` while `status: awaiting-input`. An older index can still hold a `progress.shape` key: set `progress.shape=complete` in the same call, and add none. Set `workflow-files` to the whole list, with `02-shape.md` appended.
+# Step 7 — Route
+Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter, and choose the `next-command` and `next-invocation`. The index is updated in Step 10, after the Step 9a gate has settled `status`.
 
 # Step 9 — Adversarial pre-mortem (the RIM generator — a BLIND sub-agent, run BEFORE 9a)
 Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + the live entries of the decision store (`decide list`) ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
@@ -176,6 +176,8 @@ One row per intake **Known Constraint / directive** and per numbered item of the
 
 # Step 10 — Write the artifacts
 Write the draft `<wf-dir>/.draft/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write the draft `<wf-dir>/.draft/02b-design.md`; its structure is defined in [design/brief.md](design/brief.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+
+Then update the index in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=intake stage-number=1 progress.intake=complete next-command=<command> next-invocation="<invocation>"`. Set `progress.intake=in-progress` while `02-shape.md` has `status: awaiting-input` (an open RIM after Step 9a included). An older index can still hold a `progress.shape` key: set `progress.shape=complete` in the same call, and add none. Set `workflow-files` to the whole list, with `02-shape.md` appended.
 
 **The ship gaps at the start.** When `branch-strategy` is `dedicated`, run Step R0 of [_ship-plan-readiness.md](_ship-plan-readiness.md) in its listing form: `node "<skill-dir>/scripts/wf.mjs" ship ready "<root>" <slug>`. Name each gap in the chat return as a person task. A gap does not stop intake; ship stops on it.
 

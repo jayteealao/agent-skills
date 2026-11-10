@@ -3,7 +3,7 @@
 // plays the editor: it writes the change into the worktree, then runs `trial`.
 // It walks the opening branch round, a winner, the flushed digests, a plateau
 // that opens an extra round and then stops the loop, the path check, the
-// squash at finish, and the cleanup.
+// commits at finish, and the cleanup.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
@@ -163,8 +163,11 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     const fin = run(root, 'finish');
     assert.equal(fin.ok, true, JSON.stringify(fin));
     assert.equal(fin.kept, 2);
-    assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '80', 'the squash lands on the slug branch');
-    assert.equal(git(root, 'log', '-1', '--format=%s'), 'Cut the value: 100 to 80');
+    assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '80', 'the kept changes land on the slug branch');
+    assert.equal(fin.history, 'per-change', JSON.stringify(fin));
+    assert.deepEqual(git(root, 'log', '--format=%s').split(/\r?\n/), ['set the value to 80', 'set the value to 90', 'base'], 'one commit for each kept trial of the winner, and no reverted trial');
+    assert.deepEqual(fin.commits, git(root, 'rev-list', '--reverse', 'HEAD~2..HEAD').split(/\r?\n/));
+    assert.equal(git(root, 'log', '-1', '--format=%b'), `Measured gain: 10.\nMetric: 90 before, 80 after.\nTrial: 3 (h3).\nKept on optimize/${S}--r1b1 in round 1.`);
     // finish writes the slice records into the record layout; the spec of the old layout stays where it is.
     const dir = path.join(root, '.ai', 'workflows', S);
     for (const f of ['slices.yaml', 'slice-optimize.yaml']) assert.ok(existsSync(path.join(dir, f)), f);
@@ -182,7 +185,7 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
 
     const results = readFileSync(path.join(root, '.ai', 'workflows', S, 'optimize', 'results.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
     assert.equal(results.filter((r) => r.event === 'trial').length, 10);
-    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'ablate', 'finish'], 'finish checks each kept change before the squash');
+    assert.deepEqual(results.filter((r) => r.event !== 'trial').map((r) => r.event), ['baseline', 'round-open', 'round-close', 'merge-close', 'round-open', 'round-close', 'ablate', 'finish'], 'finish checks each kept change before its commits');
     assert.deepEqual(results.find((r) => r.event === 'merge-close').skipped, [{ name: `optimize/${S}--r1b2`, reason: 'conflict' }, { name: 't2', reason: 'conflict' }], 'the merge conflicts, and the port of its kept trial t2 conflicts too');
 
     const cl = run(root, 'cleanup');
@@ -321,9 +324,14 @@ test('the measure lock: a trial while another process measures is busy; a stale 
     assert.equal(run(root, 'trial', 'h1', '--hypothesis', 'set the value to 90').verdict, 'kept', 'the lock of a dead process is stale');
     assert.equal(existsSync(lock), false, 'the lock is released');
 
+    // One trial runs many commands under one lock: a holder that still runs keeps it however old its stamp is.
     writeFileSync(lock, JSON.stringify({ pid: process.pid, at: '2000-01-01T00:00:00Z' }));
     edit(`${wt}--r1b2`, 95);
-    assert.equal(run(root, 'trial', 'h2', '--hypothesis', 'set the value to 95').verdict, 'kept', 'a lock older than three trial timeouts is stale');
+    const live = run(root, 'trial', 'h2', '--hypothesis', 'set the value to 95');
+    assert.deepEqual([live.ok, live.busy], [false, true], JSON.stringify(live));
+    assert.ok(existsSync(lock), 'the lock of a live holder stays');
+    writeFileSync(lock, JSON.stringify({ pid: 999999, at: '2000-01-01T00:00:00Z' }));
+    assert.equal(run(root, 'trial', 'h2', '--hypothesis', 'set the value to 95').verdict, 'kept', 'an old lock of a dead process is stale');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
@@ -616,6 +624,11 @@ test('the merge step: a branch that gained in another file is merged into the tr
     assert.equal(fin.ok, true, JSON.stringify(fin));
     assert.equal(fin.kept, 3, 'the kept trial of each branch and the merge');
     assert.deepEqual([readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), readFileSync(path.join(root, 'src', 'extra.txt'), 'utf8').trim()], ['80', '-10']);
+    // The merge was measured as one change, so it is one commit, named by the kept trial of its branch.
+    assert.equal(fin.commits.length, 2, JSON.stringify(fin));
+    assert.deepEqual(git(root, 'log', '--format=%s', '-2').split(/\r?\n/), ['set the value to 100', 'set the value to 80']);
+    assert.match(git(root, 'log', '-1', '--format=%b'), new RegExp(`^Measured gain: 10\\.\\nMetric: 80 before, 70 after\\.\\nTrial: 5 \\(m5\\)\\.\\nMerges the branch optimize/${S}--r1b2 of round 1: trial 2\\.$`));
+    assert.equal(git(root, 'rev-list', '--merges', '--count', 'HEAD'), '0', 'the slug branch history is linear');
     assert.match(readDoc(path.join(root, '.ai', 'workflows', S), '05-implement-optimize.md').body, /merge of optimize\/speed--r1b2/);
   } finally {
     rmSync(parent, { recursive: true, force: true });
@@ -778,7 +791,7 @@ test('the ablation: each kept change is reverted alone on the final code, a chan
   }
 });
 
-test('ablate: off, or finish --no-ablate, squashes with no ablation', () => {
+test('ablate: off, or finish --no-ablate, commits with no ablation', () => {
   const { parent, root, wt } = makeRepo('ablate: off\n');
   try {
     respec(root, 'at: ["0%"]', 'at: []');
@@ -869,7 +882,7 @@ test('finish runs the holdout when a change was kept after the last checkpoint, 
   }
 });
 
-test('a holdout that regresses stops the finish, and finish --no-holdout squashes anyway', () => {
+test('a holdout that regresses stops the finish, and finish --no-holdout commits anyway', () => {
   const { parent, root, wt } = makeRepo(HOLDOUT);
   try {
     withHoldout(root);
@@ -886,7 +899,7 @@ test('a holdout that regresses stops the finish, and finish --no-holdout squashe
   }
 });
 
-test('finish --stash puts the uncommitted tracked files aside for the squash and restores them; a file in the squash is refused', () => {
+test('finish --stash puts the uncommitted tracked files aside for the commits and restores them; a file in the commits is refused', () => {
   const { parent, root, wt } = makeRepo();
   try {
     respec(root, 'at: ["0%"]', 'at: []');
@@ -897,16 +910,439 @@ test('finish --stash puts the uncommitted tracked files aside for the squash and
     assert.match(run(root, 'finish').error, /run finish --stash/);
 
     writeFileSync(path.join(root, 'src', 'value.txt'), '42\n');
-    assert.match(run(root, 'finish', '--stash').error, /^finish --stash: src\/value\.txt also change in the squash/);
+    assert.match(run(root, 'finish', '--stash').error, /^finish --stash: src\/value\.txt also change in the commits/);
     git(root, 'checkout', '--', 'src/value.txt');
 
     const fin = run(root, 'finish', '--stash');
     assert.equal(fin.ok, true, JSON.stringify(fin));
     assert.deepEqual(fin.stash, { restored: true, files: ['.gitignore'] });
     assert.equal(readFileSync(path.join(root, '.gitignore'), 'utf8'), mine, 'the file comes back byte for byte');
-    assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '90', 'the squash landed');
+    assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '90', 'the commit landed');
     assert.equal(git(root, 'stash', 'list'), '');
-    assert.equal(git(root, 'show', '--name-only', '--format=', 'HEAD').split(/\r?\n/).includes('.gitignore'), false, 'the person\'s file is not in the squash');
+    assert.equal(git(root, 'show', '--name-only', '--format=', 'HEAD').split(/\r?\n/).includes('.gitignore'), false, 'the person\'s file is not in the commits');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('the holder of the measure lock refreshes its stamp before each command of a trial', () => {
+  const { parent, root, wt } = makeRepo();
+  const lock = path.join(root, '.ai', 'workflows', S, 'optimize', '.measure.lock');
+  const seen = path.join(parent, 'seen.txt');
+  // The metric notes the stamp of the lock at each run.
+  commitFile(root, 'metric.js', "const fs = require('fs'); try { fs.appendFileSync(process.env.OPT_SEEN, JSON.parse(fs.readFileSync(process.env.OPT_LOCK, 'utf8')).at + '\\n'); } catch {} const n = (f) => (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8').trim()) : null); console.log((n('src/alt.txt') ?? n('src/value.txt')) + (n('src/extra.txt') ?? 0));\n");
+  const env = { ...process.env, OPT_LOCK: lock, OPT_SEEN: seen };
+  const runEnv = (...args) => JSON.parse(execFileSync(process.execPath, [SCRIPT, args[0], root, S, ...args.slice(1)], { encoding: 'utf8', env }));
+  try {
+    assert.equal(runEnv('baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    rmSync(seen, { force: true });
+    edit(`${wt}--r1b1`, 90);
+    assert.equal(runEnv('trial', 'h1', '--on', B1, '--hypothesis', 'set the value to 90').verdict, 'kept');
+    const stamps = readFileSync(seen, 'utf8').trim().split('\n');
+    assert.ok(stamps.length >= 3, 'the metric ran with the lock held');
+    assert.equal(new Set(stamps).size, stamps.length, `each command has a new stamp: ${stamps.join(', ')}`);
+    assert.equal(existsSync(lock), false, 'the holder releases the lock');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a step that fails after the trial commit puts the lane back and records the trial as crashed', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    // A file where the patches folder goes: the save of the diff of a kept trial fails.
+    const patches = path.join(root, '.ai', 'workflows', S, 'optimize', 'patches');
+    writeFileSync(patches, 'not a folder');
+    const before = git(`${wt}--r1b1`, 'rev-parse', 'HEAD');
+    edit(`${wt}--r1b1`, 90);
+    const t = run(root, 'trial', 'h1', '--on', B1, '--hypothesis', 'set the value to 90');
+    assert.deepEqual([t.ok, t.verdict], [false, 'crashed'], JSON.stringify(t));
+    assert.equal(git(`${wt}--r1b1`, 'rev-parse', 'HEAD'), before, 'the lane is back at its best');
+    const st = run(root, 'status');
+    assert.equal(st.state, 'running', JSON.stringify(st));
+    const line = ledger(root).filter((l) => l.event === 'trial').at(-1);
+    assert.deepEqual([line.trial, line.verdict], [1, 'crashed']);
+    assert.match(line.reason, /failed after its commit/);
+    rmSync(patches, { force: true });
+    assert.equal(step(root, wt, 'h2', 90, undefined, B1).t.verdict, 'kept', 'the loop goes on');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('the saved diff of a trial applies when its hunk ends in a blank line', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    // src/z.txt sorts after src/value.txt, so its hunk is the last one of the patch.
+    commitFile(root, 'src/z.txt', 'x\n\n');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 90, { 'src/z.txt': 'y\n\n' }, B1).t.verdict, 'kept');
+    const patch = path.join(root, '.ai', 'workflows', S, 'optimize', 'patches', '1.patch');
+    assert.ok(readFileSync(patch, 'utf8').endsWith(' \n'), 'the blank context line is in the patch');
+    git(root, 'apply', '--check', patch);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a metric that times out is stopped with the processes that it started', () => {
+  const { parent, root } = makeRepo();
+  const marker = path.join(parent, 'late.txt');
+  try {
+    respec(root, 'trial-timeout: 1m', 'trial-timeout: 2s');
+    // The metric starts a child that writes a file after 4 seconds, then waits.
+    commitFile(root, 'metric.js', `require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(`setTimeout(() => require('fs').writeFileSync(${JSON.stringify(marker)}, 'late'), 4000)`)}], { stdio: 'ignore' }); setTimeout(() => {}, 60000);\n`);
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, false);
+    assert.match(b.error, /timed out/);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000);
+    assert.equal(existsSync(marker), false, 'the child of the metric did not run on');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a prune whose fork fails to set up leaves a state that agrees with the disk', () => {
+  const { parent, root, wt } = makeRepo('setup: "node setup.js"\n');
+  try {
+    // The setup fails in the worktree of a third branch: the fork of the prune.
+    commitFile(root, 'setup.js', 'process.exit(/r1b3$/.test(process.cwd()) ? 1 : 0);\n');
+    respec(root, 'branch-trials: 2', 'branch-trials: 3');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 120).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h3', 70).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h4', 130).t.next.action, 'prune');
+    const p = run(root, 'prune');
+    assert.equal(p.ok, false);
+    assert.match(p.error, /setup command failed/);
+    assert.equal(existsSync(`${wt}--r1b3`), false, 'the failed fork is removed');
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--r1b3`), '');
+    const st = run(root, 'status');
+    assert.equal(st.state, 'running', JSON.stringify(st));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a commit of finish that a hook refuses undoes the finish: the slug branch stays as it was', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 80).t.verdict, 'kept');
+    // The hook refuses the second commit of finish, so the first one is made and must go again.
+    const hooks = path.join(parent, 'hooks');
+    mkdirSync(hooks);
+    writeFileSync(path.join(hooks, 'commit-msg'), '#!/bin/sh\nif [ -n "$REFUSE_TRIAL_2" ] && grep -q "Trial: 2 " "$1"; then echo "refused by the hook"; exit 1; fi\nexit 0\n');
+    chmodSync(path.join(hooks, 'commit-msg'), 0o755);
+    git(root, 'config', 'core.hooksPath', hooks.replace(/\\/g, '/'));
+    const head = git(root, 'rev-parse', 'HEAD');
+    let fin;
+    try {
+      fin = JSON.parse(execFileSync(process.execPath, [SCRIPT, 'finish', root, S, '--no-ablate'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, REFUSE_TRIAL_2: '1' } }));
+    } catch (e) { fin = JSON.parse(e.stdout); }
+    assert.equal(fin.ok, false, JSON.stringify(fin));
+    assert.match(fin.error, /the commit of trial 2 failed, and the finish is undone: [\s\S]*refused by the hook/);
+    assert.equal(git(root, 'rev-parse', 'main'), head, 'the slug branch does not move');
+    assert.equal(git(root, 'status', '--porcelain'), '', 'nothing of finish stays in the main checkout');
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--finish`), '', 'the temporary branch goes');
+    assert.equal(git(wt, 'branch', '--show-current'), `optimize/${S}`, 'the trunk worktree is back on the trunk');
+    assert.equal(git(wt, 'status', '--porcelain'), '');
+    // When the hook lets the commits through, the same finish goes through.
+    const again = run(root, 'finish', '--no-ablate');
+    assert.equal(again.ok, true, JSON.stringify(again));
+    assert.equal(again.commits.length, 2);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('three kept changes with a reverted trial between them give three commits and the tree of the trunk', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 95).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h3', 80, { 'src/extra.txt': '0' }).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h4', 70).t.verdict, 'kept');
+    const trunkTree = git(root, 'rev-parse', `optimize/${S}^{tree}`);
+    const head = git(root, 'rev-parse', 'HEAD');
+    const fin = run(root, 'finish');
+    assert.deepEqual([fin.ok, fin.history, fin.commits?.length, fin.kept], [true, 'per-change', 3, 3], JSON.stringify(fin));
+    assert.equal(git(root, 'rev-parse', 'HEAD^{tree}'), trunkTree, 'the slug branch ends with the tree of the trunk');
+    assert.deepEqual(git(root, 'rev-list', '--reverse', `${head}..HEAD`).split(/\r?\n/), fin.commits);
+    assert.deepEqual(git(root, 'log', '--format=%s', `${head}..HEAD`).split(/\r?\n/), ['set the value to 70', 'set the value to 80', 'set the value to 90'], 'the reverted trial is not in the history');
+    assert.equal(git(root, 'log', '-1', '--skip=1', '--format=%b'), 'Measured gain: 10.\nMetric: 90 before, 80 after.\nTrial: 3 (h3).');
+    const dir = path.join(root, '.ai', 'workflows', S);
+    const fm = frontmatterOfDoc(dir, '05-implement-optimize.md');
+    assert.deepEqual([fm['optimize-history'], fm['optimize-commits'], fm['commit-sha']], ['per-change', fin.commits, fin.commit]);
+    const body = readDoc(dir, '05-implement-optimize.md').body;
+    assert.match(body, /- 3 commits on the slug branch, one for each kept change/);
+    assert.match(body, new RegExp(`## Kept Changes[\\s\\S]*\\| 1 \\| ${fin.commits[0].slice(0, 12)} \\| set the value to 90 \\| 100 \\| 90 \\| 10 \\| [a-z ]+ \\|`));
+    assert.match(body, new RegExp(`\\| 4 \\| ${fin.commits[2].slice(0, 12)} \\| set the value to 70 \\| 80 \\| 70 \\| 10 \\| [a-z ]+ \\|`));
+    // The step ledger records each commit as a done step, and the last one completes the slice.
+    const steps = readFileSync(path.join(dir, 'steps.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
+    assert.deepEqual(steps.map((r) => [r.slice, r.event, r.step ?? null, r.sha]), [
+      ['optimize', 'done', 1, fin.commits[0]], ['optimize', 'done', 2, fin.commits[1]], ['optimize', 'done', 3, fin.commits[2]], ['optimize', 'complete', null, fin.commit],
+    ]);
+    assert.deepEqual(steps.slice(0, 3).map((r) => [r.branch, r.trials]), [['main', [1]], ['main', [3]], ['main', [4]]]);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a lineage that does not replay one change at a time falls back to one commit, and says why', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    // The second keep puts the value back and gains in another file: the trunk changes only src/extra.txt.
+    assert.equal(step(root, wt, 'h2', 100, { 'src/extra.txt': '-20' }).t.verdict, 'kept');
+    // Meanwhile the slug branch changes the line that the first keep changed: that keep does not apply alone.
+    writeFileSync(path.join(root, 'src', 'value.txt'), '101\n');
+    git(root, 'commit', '-q', '-am', 'person');
+    const want = git(root, 'merge-tree', '--write-tree', 'HEAD', `optimize/${S}`).split(/\r?\n/)[0];
+    const fin = run(root, 'finish', '--no-ablate', '--message', 'Cut the value with the extra file');
+    assert.deepEqual([fin.ok, fin.history, fin.commits?.length], [true, 'one-commit', 1], JSON.stringify(fin));
+    assert.match(fin.reason, /^the change of trial 1 does not apply on its own/);
+    assert.equal(git(root, 'rev-parse', 'HEAD^{tree}'), want, 'the one commit has the tree of a merge of the trunk');
+    assert.deepEqual([readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), readFileSync(path.join(root, 'src', 'extra.txt'), 'utf8').trim()], ['101', '-20']);
+    assert.deepEqual(git(root, 'log', '-2', '--format=%s').split(/\r?\n/), ['Cut the value with the extra file', 'person'], '--message is the subject of the one commit');
+    assert.match(git(root, 'log', '-1', '--format=%b'), /^One commit holds every kept change, because the change of trial 1 does not apply on its own[^\n]*\.\nTrials: 1, 2\.$/);
+    const dir = path.join(root, '.ai', 'workflows', S);
+    assert.equal(frontmatterOfDoc(dir, '05-implement-optimize.md')['optimize-history'], 'one-commit');
+    assert.match(readDoc(dir, '05-implement-optimize.md').body, /- One commit with every kept change: [0-9a-f]{40}\. Each change could not get its own commit: the change of trial 1/);
+    assert.equal(git(root, 'branch', '--list', `optimize/${S}--finish`), '');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+/** A loop with two kept changes on the trunk, ready to finish. */
+function twoKeeps() {
+  const repo = makeRepo();
+  respec(repo.root, 'at: ["0%"]', 'at: []');
+  assert.equal(run(repo.root, 'baseline').ok, true);
+  assert.equal(step(repo.root, repo.wt, 'h1', 90).t.verdict, 'kept');
+  assert.equal(step(repo.root, repo.wt, 'h2', 80).t.verdict, 'kept');
+  return repo;
+}
+const TEMP = `optimize/${S}--finish`;
+const statePathOf = (root) => path.join(root, '.ai', 'workflows', S, 'optimize', 'state.json');
+const readStateOf = (root) => JSON.parse(readFileSync(statePathOf(root), 'utf8'));
+const writeStateOf = (root, state) => writeFileSync(statePathOf(root), `${JSON.stringify(state, null, 2)}\n`);
+/** The commits of finish as subject, body and tree: the same finish gives the same list in another repo. */
+const finishLog = (root, base) => git(root, 'log', '--reverse', '--format=%s%n%b%n%T%n--', `${base}..HEAD`);
+const tryGit = (cwd, ...args) => { try { git(cwd, ...args); return true; } catch { return false; } };
+
+test('a finish killed midway is put away by the next finish, which gives the same commits as an undisturbed finish', () => {
+  const clean = twoKeeps();
+  const killed = twoKeeps();
+  const halfPick = twoKeeps();
+  try {
+    const cleanBase = git(clean.root, 'rev-parse', 'HEAD');
+    const fin = run(clean.root, 'finish', '--no-ablate');
+    assert.deepEqual([fin.ok, fin.history, fin.commits?.length, fin.recovered], [true, 'per-change', 2, undefined], JSON.stringify(fin));
+    const want = finishLog(clean.root, cleanBase);
+
+    // Killed after the temporary branch was made in the trunk worktree, with no record of it in state.json.
+    const base = git(killed.root, 'rev-parse', 'HEAD');
+    git(killed.wt, 'checkout', '-q', '-b', TEMP, base);
+    const st = run(killed.root, 'status');
+    assert.equal(st.reason === 'state-error', false, JSON.stringify(st));
+    assert.match(st.recover, /a finish stopped midway/);
+    const again = run(killed.root, 'finish', '--no-ablate');
+    assert.deepEqual([again.ok, again.history, again.commits?.length], [true, 'per-change', 2], JSON.stringify(again));
+    assert.ok(again.recovered.some((r) => r.startsWith(`the trunk worktree was on ${TEMP}: it is back on optimize/${S}`)), JSON.stringify(again.recovered));
+    assert.ok(again.recovered.includes(`the branch ${TEMP} is deleted`));
+    assert.equal(finishLog(killed.root, base), want, 'the same commits as an undisturbed finish');
+    assert.equal(git(killed.root, 'branch', '--list', TEMP), '');
+    assert.equal(readStateOf(killed.root).finishing, undefined);
+
+    // Killed in a cherry-pick that stopped on a conflict, with the record of the start in state.json.
+    const hb = git(halfPick.root, 'rev-parse', 'HEAD');
+    const trunk = git(halfPick.root, 'rev-list', '--reverse', `${hb}..optimize/${S}`).split(/\r?\n/);
+    git(halfPick.wt, 'checkout', '-q', '-b', TEMP, hb);
+    assert.equal(tryGit(halfPick.wt, 'cherry-pick', trunk[1]), false, 'the second change does not apply on the base: the cherry-pick stops');
+    assert.equal(tryGit(halfPick.wt, 'rev-parse', '--verify', '--quiet', 'CHERRY_PICK_HEAD'), true);
+    const state = readStateOf(halfPick.root);
+    writeStateOf(halfPick.root, { ...state, finishing: { branch: 'main', base: hb, at: '2026-01-01T00:00:00Z' } });
+    const third = run(halfPick.root, 'finish', '--no-ablate');
+    assert.deepEqual([third.ok, third.history, third.commits?.length], [true, 'per-change', 2], JSON.stringify(third));
+    assert.ok(third.recovered.some((r) => r.startsWith(`the trunk worktree was on ${TEMP} with a cherry-pick: it is back on optimize/${S}`)), JSON.stringify(third.recovered));
+    assert.equal(finishLog(halfPick.root, hb), want);
+    assert.equal(git(halfPick.root, 'status', '--porcelain', '--untracked-files=no'), '');
+    const steps = readFileSync(path.join(halfPick.root, '.ai', 'workflows', S, 'steps.jsonl'), 'utf8').trim().split(/\r?\n/);
+    assert.equal(steps.length, 3, 'two done steps and the complete row');
+  } finally {
+    for (const r of [clean, killed, halfPick]) rmSync(r.parent, { recursive: true, force: true });
+  }
+});
+
+test('a finish that stopped after the fast-forward writes the records of its commits and builds nothing again', () => {
+  const { parent, root, wt } = twoKeeps();
+  try {
+    const base = git(root, 'rev-parse', 'HEAD');
+    const trunk = git(root, 'rev-list', '--reverse', `${base}..optimize/${S}`).split(/\r?\n/);
+    // The earlier finish made its commits on the temporary branch and moved main, then stopped before the branch went.
+    git(wt, 'checkout', '-q', '-b', TEMP, base);
+    for (const c of trunk) git(wt, 'cherry-pick', '--allow-empty-message', c);
+    const tip = git(wt, 'rev-parse', 'HEAD');
+    const made = git(root, 'rev-list', '--reverse', `${base}..${tip}`).split(/\r?\n/);
+    git(wt, 'checkout', '-q', `optimize/${S}`);
+    git(root, 'merge', '--ff-only', '-q', tip);
+    const changes = [
+      { trial: 1, trunkCommit: trunk[0], before: 100, after: 90, gain: 10, ablation: null, commit: made[0], subject: 'set the value to 90' },
+      { trial: 2, trunkCommit: trunk[1], before: 90, after: 80, gain: 10, ablation: null, commit: made[1], subject: 'set the value to 80' },
+    ];
+    const state = readStateOf(root);
+    writeStateOf(root, { ...state, finishing: { branch: 'main', base, at: '2026-01-01T00:00:00Z', built: { branch: 'main', base, tip, history: 'per-change', changes } } });
+    const fin = run(root, 'finish', '--no-ablate');
+    assert.deepEqual([fin.ok, fin.history, fin.commits, fin.commit], [true, 'per-change', made, tip], JSON.stringify(fin));
+    assert.ok(fin.recovered.some((r) => r.startsWith(`main holds the commits of the finish that stopped, up to ${tip.slice(0, 12)}`)), JSON.stringify(fin.recovered));
+    assert.ok(fin.recovered.includes(`the branch ${TEMP} is deleted`));
+    assert.equal(git(root, 'rev-parse', 'HEAD'), tip, 'no commit is built again');
+    const dir = path.join(root, '.ai', 'workflows', S);
+    const fm = frontmatterOfDoc(dir, '05-implement-optimize.md');
+    assert.deepEqual([fm['commit-sha'], fm['optimize-commits']], [tip, made]);
+    const steps = readFileSync(path.join(dir, 'steps.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l));
+    assert.deepEqual(steps.map((r) => [r.event, r.sha]), [['done', made[0]], ['done', made[1]], ['complete', tip]]);
+    assert.equal(git(root, 'branch', '--list', TEMP), '');
+    const st = readStateOf(root);
+    assert.deepEqual([st.finished?.commit, st.finishing], [tip, undefined]);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a finish that stopped midway, with a trunk branch that moved since, stops with the error and changes nothing', () => {
+  const { parent, root, wt } = twoKeeps();
+  try {
+    const base = git(root, 'rev-parse', 'HEAD');
+    git(wt, 'checkout', '-q', '-b', TEMP, base);
+    git(root, 'update-ref', `refs/heads/optimize/${S}`, `optimize/${S}~1`);
+    const trunkAt = git(root, 'rev-parse', `optimize/${S}`);
+    // Every command counts its time on the clock of the loop; nothing else of the state may change.
+    const noClock = ({ activeMs, clockAt, ...rest }) => rest;
+    const before = noClock(readStateOf(root));
+    const st = run(root, 'status');
+    assert.equal(st.reason, 'state-error', JSON.stringify(st));
+    const fin = run(root, 'finish', '--no-ablate');
+    assert.equal(fin.ok, false, JSON.stringify(fin));
+    assert.match(fin.error, new RegExp(`state-error: a finish stopped midway, and optimize/${S} is at ${trunkAt.slice(0, 12)}`));
+    assert.deepEqual([git(root, 'rev-parse', 'HEAD'), git(root, 'rev-parse', `optimize/${S}`), git(wt, 'branch', '--show-current')], [base, trunkAt, TEMP], 'nothing moves');
+    assert.notEqual(git(root, 'branch', '--list', TEMP), '');
+    assert.deepEqual(noClock(readStateOf(root)), before);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('cleanup removes the leftovers of a finish: its worktree and its branch', () => {
+  const { parent, root, wt } = twoKeeps();
+  try {
+    assert.equal(run(root, 'finish', '--no-ablate').ok, true);
+    assert.equal(existsSync(wt), false);
+    git(root, 'worktree', 'add', '-q', '-b', TEMP, `${wt}--finish`, 'HEAD~1');
+    writeFileSync(path.join(`${wt}--finish`, 'src', 'value.txt'), '7\n');
+    git(`${wt}--finish`, 'add', '-A');
+    const c = run(root, 'cleanup');
+    assert.equal(c.ok, true, JSON.stringify(c));
+    assert.ok(c.removed.includes(TEMP), JSON.stringify(c));
+    assert.equal(existsSync(`${wt}--finish`), false);
+    assert.equal(git(root, 'branch', '--list', TEMP), '');
+    assert.equal(git(root, 'worktree', 'list').split(/\r?\n/).length, 1);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('a commit hook that refuses by branch name judges the commits of finish on the slug branch, and undoes the finish', () => {
+  const { parent, root, wt } = twoKeeps();
+  try {
+    const hooks = path.join(parent, 'hooks');
+    mkdirSync(hooks);
+    // The trials were committed on the trunk branch, which this hook allows; it refuses commits on main.
+    writeFileSync(path.join(hooks, 'pre-commit'), '#!/bin/sh\nif [ "$(git branch --show-current)" = main ]; then echo "no direct commits on main" >&2; exit 1; fi\nexit 0\n');
+    chmodSync(path.join(hooks, 'pre-commit'), 0o755);
+    git(root, 'config', 'core.hooksPath', hooks.replace(/\\/g, '/'));
+    const head = git(root, 'rev-parse', 'HEAD');
+    const fin = run(root, 'finish', '--no-ablate');
+    assert.equal(fin.ok, false, JSON.stringify(fin));
+    assert.match(fin.error, /the commit hooks refuse the commits of finish on main, and the finish is undone: pre-commit: [\s\S]*no direct commits on main/);
+    assert.equal(git(root, 'rev-parse', 'main'), head, 'the slug branch does not move');
+    assert.equal(git(root, 'status', '--porcelain'), '');
+    assert.equal(git(root, 'branch', '--list', TEMP), '');
+    assert.equal(git(wt, 'branch', '--show-current'), `optimize/${S}`);
+    assert.equal(git(wt, 'status', '--porcelain'), '');
+    assert.equal(readStateOf(root).finishing, undefined);
+    // A commit-msg hook sees each message of finish, on main.
+    rmSync(path.join(hooks, 'pre-commit'));
+    writeFileSync(path.join(hooks, 'commit-msg'), '#!/bin/sh\nif [ "$(git branch --show-current)" = main ] && grep -q "Trial: 2 " "$1"; then echo "trial 2 not on main" >&2; exit 1; fi\nexit 0\n');
+    chmodSync(path.join(hooks, 'commit-msg'), 0o755);
+    const msg = run(root, 'finish', '--no-ablate');
+    assert.match(msg.error, /refuse the commits of finish on main[\s\S]*commit-msg: [\s\S]*trial 2 not on main/, JSON.stringify(msg));
+    assert.equal(git(root, 'rev-parse', 'main'), head);
+    // When the hooks allow main, the same finish goes through.
+    rmSync(path.join(hooks, 'commit-msg'));
+    const again = run(root, 'finish', '--no-ablate');
+    assert.deepEqual([again.ok, again.commits?.length], [true, 2], JSON.stringify(again));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('resume clears a stored stop, and resume --revert puts the trunk back at the last good checkpoint', () => {
+  const { parent, root, wt } = makeRepo(HOLDOUT);
+  try {
+    withHoldout(root);
+    assert.equal(run(root, 'baseline').ok, true);
+    const base = git(wt, 'rev-parse', 'HEAD');
+    assert.equal(step(root, wt, 'h1', 90, { 'src/hold.txt': '200' }).t.verdict, 'kept');
+    assert.equal(run(root, 'finish').ok, false);
+    const stopped = run(root, 'status');
+    assert.equal(stopped.reason, 'holdout-regression');
+    assert.match(stopped.next.why, /resume --revert/);
+    const r = run(root, 'resume', '--revert');
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.deepEqual([r.resumed, r.reverted, r.dropped], ['holdout-regression', base, [1]]);
+    assert.equal(git(wt, 'rev-parse', 'HEAD'), base, 'the trunk is back at the baseline');
+    assert.equal(r.state, 'running');
+    assert.equal(run(root, 'resume').resumed, null, 'with no stored stop there is nothing to resume');
+    const fin = run(root, 'finish');
+    assert.deepEqual([fin.ok, fin.kept], [true, 0], JSON.stringify(fin));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('with paired measurement, the merge candidates of a round use the paired noise', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, '  min-gain: 0\n', '  min-gain: 0\n  paired: true\n');
+    assert.equal(run(root, 'baseline').ok, true);
+    // A large unpaired spread: the paired keep rule does not use it, and the merge cut must not either.
+    const file = path.join(root, '.ai', 'workflows', S, 'optimize', 'state.json');
+    const state = JSON.parse(readFileSync(file, 'utf8'));
+    state.baseline.noise = 50;
+    writeFileSync(file, JSON.stringify(state, null, 2));
+    assert.equal(run(root, 'round-open').ok, true);
+    assert.equal(step(root, wt, 'h1', 80).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h2', 100, { 'src/extra.txt': '-10' }).t.verdict, 'kept');
+    assert.equal(step(root, wt, 'h3', 120).t.verdict, 'reverted');
+    assert.equal(step(root, wt, 'h4', 130).t.verdict, 'reverted');
+    const close = run(root, 'round-close');
+    assert.equal(close.ok, true, JSON.stringify(close));
+    assert.deepEqual(close.candidates.map((c) => c.name), [B2]);
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

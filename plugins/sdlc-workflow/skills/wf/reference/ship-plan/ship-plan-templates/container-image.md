@@ -56,6 +56,10 @@ poll-interval-seconds: 20
 rollout-strategy: immediate
 rollback-mechanism: redeploy-prior
 rollback-time-estimate-min: 5
+rollback-cmd: ""
+rollback-verify-cmd: ""
+prior-artifact-retention: ""
+irreversible-steps: []
 db-migrations-reversible: n/a
 
 recovery-playbooks:
@@ -127,7 +131,7 @@ governance:
 ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: [] }, release-concurrency: true, path-filters: false }
 
 # Block J — merge controls (governance.merge)
-merge: { method: squash, auto-merge: false, merge-queue: false }
+merge: { method: merge, auto-merge: false, merge-queue: false }
 
 # Block K — security & supply-chain gates
 security:

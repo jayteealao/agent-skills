@@ -113,6 +113,19 @@ test('the trial bookkeeping writes the hypothesis to the file of its lane and pa
   assert.match(t, /optimize\.mjs" trial "\/repo" s h1 --hypothesis-file/);
 });
 
+test('the expected gain of a proposer goes into the trial command in single quotes, so the shell expands nothing in it', async () => {
+  const { agent: inner, calls } = fakeLoop();
+  const agent = async (prompt, opts) => {
+    const out = await inner(prompt, opts);
+    if (opts.label.startsWith('propose:')) for (const h of out.hypotheses) h.expected = "$(rm -rf ~) `id` it's 2 s";
+    return out;
+  };
+  await run(ARGS, agent);
+  const t = calls.find((c) => c.label === 'trial:1').prompt;
+  assert.ok(t.includes("--expected '$(rm -rf ~) `id` it’s 2 s'"), t);
+  assert.equal(t.includes('--expected "'), false);
+});
+
 test('a stop request read by status ends the loop at the next boundary, with no finish', async () => {
   const { agent, calls } = fakeLoop({ stopAt: 2 });
   const out = await run(ARGS, agent);
@@ -298,6 +311,42 @@ test('a proposer claims each idea in the shared ledger, and the trial passes the
   assert.match(p, /digest\.ideas lists the idea of every trial of every lane/);
   assert.match(p, /An entry with alone: false cannot pass the threshold by itself/);
   assert.match(calls.find((c) => c.label === 'trial:1').prompt, / --idea i\d+/);
+});
+
+test('a lane holds one claim: the proposer claims its first hypothesis, and the loop claims each queued one just before its trial', async () => {
+  for (const refuse of [false, true]) {
+    const { agent: inner, calls } = fakeLoop();
+    const agent = async (prompt, opts) => {
+      const base = opts.label.split(':')[0];
+      if (base === 'propose' && /2 different hypotheses/.test(prompt)) {
+        calls.push({ label: opts.label, prompt, model: opts.model });
+        return { hypotheses: [
+          { text: 'cache the parse', expected: '1 s', plan: 'edit src/a.js', target: 'parse', family: 'memoize', idea: 'i7' },
+          { text: 'skip the render', expected: '1 s', plan: 'edit src/b.js', target: 'render', family: 'lazy' },
+        ], lane: 'x', worktree: '/wt' };
+      }
+      if (base === 'idea-claim' || base === 'claim') {
+        calls.push({ label: opts.label, prompt, model: opts.model });
+        return { ok: true, result: refuse ? { ok: false, refused: true, error: 'this target was tried' } : { ok: true, idea: { id: 'i8' } } };
+      }
+      return inner(prompt, opts);
+    };
+    await run(ARGS, agent);
+    const labels = calls.map((c) => c.label);
+    const trunkProposer = calls.find((c) => /2 different hypotheses/.test(c.prompt));
+    assert.match(trunkProposer.prompt, /CLAIM only your first hypothesis, the one that runs now/);
+    assert.match(trunkProposer.prompt, /the loop claims each one just before its trial/);
+    const claim = calls.find((c) => c.label.startsWith('claim:'));
+    assert.ok(claim, 'the queued hypothesis is claimed');
+    assert.match(claim.prompt, /idea-claim "\/repo" s --on trunk --target 'render' --family 'lazy'/);
+    const n = claim.label.split(':')[1];
+    if (!refuse) {
+      assert.ok(labels.indexOf(claim.label) < labels.indexOf(`edit:${n}`), 'the claim comes just before the edit and the trial');
+      assert.match(calls.find((c) => c.label === `trial:${n}`).prompt, / --idea i8/);
+    } else {
+      assert.ok(labels.includes(`propose:${n}`), 'a refused claim drops the queued hypothesis, and the trial proposes again');
+    }
+  }
 });
 
 test('the profile step: the profiler agent in agent mode, the bookkeeping in command mode, before the first round', async () => {

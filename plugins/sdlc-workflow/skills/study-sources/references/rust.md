@@ -22,6 +22,7 @@ cargo metadata --format-version 1 | ...        # resolve exact versions in this 
 
 ```bash
 # Vendor all of a project's deps into one readable tree (great for offline study)
+mkdir -p .scratch/sources/rust/
 cargo vendor .scratch/sources/rust/vendor/
 
 # Pull a single crate's source without adding it as a dependency

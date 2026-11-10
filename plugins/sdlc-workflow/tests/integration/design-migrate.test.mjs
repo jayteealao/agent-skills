@@ -161,3 +161,21 @@ test('a board that lives only on claude.ai stops the workflow until it is export
     assert.deepEqual(after.screens, ['home', 'cart']);
   } finally { done(); }
 });
+
+test('a screen that the newest revision dropped leaves the surface, in one more commit', () => {
+  const { root, design, done } = project();
+  try {
+    writeFileSync(join(design, 'r1', 'boards', 'cart--default.html'), '<html><head><title>Cart</title></head><body>cart</body></html>');
+    const r1 = JSON.parse(readFileSync(join(design, 'r1', 'boards.json'), 'utf8'));
+    r1.boards.push({ key: 'cart--default', surface: 'cart', state: 'default', html: 'boards/cart--default.html', caption: 'Cart' });
+    writeFileSync(join(design, 'r1', 'boards.json'), JSON.stringify(r1));
+    const r = migrateDesign(root, { now: new Date('2026-10-25T00:00:00Z') }).results[0];
+    assert.equal(r.migrated, true);
+    assert.ok(r.commits.dropped, 'a commit for the dropped screens');
+    assert.equal(readManifest(root).screens.cart, undefined, 'no screen of the dropped board');
+    assert.equal(existsSync(screenFile(root, 'cart')), false);
+    const tracked = execFileSync('git', ['-C', root, 'ls-files', '.ai/design/screens'], { encoding: 'utf8' });
+    assert.doesNotMatch(tracked, /cart\.html/, 'the page is gone from git too');
+    assert.match(tracked, /home\.html/);
+  } finally { done(); }
+});

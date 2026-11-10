@@ -15,8 +15,10 @@ import {
   INDEX_COMMENT_PROSE_MAX_WORDS,
   INDEX_SIZE_WARN_BYTES,
   INDEX_STAGE_HEAD_CHARS,
+  artifactType,
   indexLintWarnings,
 } from '../../../hooks/post-write-verify.mjs';
+import { hasFrontmatterFence } from '../../../lib/hook-utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
@@ -224,4 +226,13 @@ test('post-write-verify is silent for a clean index and under checks: off', () =
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('the type of an artifact: a leading BOM is skipped, and only a top-level key counts', () => {
+  equal(artifactType('\uFEFF---\ntype: verify\nresult: pass\n---\nbody'), 'verify');
+  equal(artifactType('---\nmeta:\n  type: note\ntype: verify\n---\n'), 'verify');
+  equal(artifactType('---\nsteps:\n  - augmentation-type: x\ntype: augmentation\naugmentation-type: rca\n---\n'), 'rca');
+  equal(artifactType('---\nmeta:\n  type: note\n---\n'), null);
+  equal(hasFrontmatterFence('\uFEFF---\ntype: verify\n---\n'), true);
+  equal(hasFrontmatterFence('# no fence'), false);
 });

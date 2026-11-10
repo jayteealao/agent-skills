@@ -71,7 +71,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
 1. Do the next unit of work:
    - `lifecycle`: run the stage that `goal.mjs lifecycle` names in `next`. Run that stage by its own reference file (`/wf <stage> <slug> [<slice>]`).
-   - `optimize`: run one trial, as `optimize.mjs status` names it ([optimize.md](optimize.md), "Without the driver").
+   - `optimize`: run the one action that `optimize.mjs status` names in `next.action` ([optimize.md](optimize.md), "Without the driver"): the baseline first, then a trial or a step of a round, and the finish when the loop is complete.
    - `proofs`: change the code toward the objective. Keep the change inside the scope of the slug.
 2. When a `/wf` gate needs the person, run `park`, per [_autonomy-guards.md](_autonomy-guards.md), "Goal park". Do not answer the gate.
 3. At the end of the turn, run `check`:
@@ -82,7 +82,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
    The output of `check` is the last tool output of the turn, so the judge reads it. Do not shorten or restate the output.
 4. When `check` prints `GOAL: MET` in this turn, complete the host goal where the host has a model-side goal tool. Do not complete it on any other line.
-5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn.
+5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn. For an optimize stop, the person first makes the loop able to go on (a new budget in the spec, or `optimize.mjs resume`); then `/wf loop goal <slug> resume` arms the contract again.
 
 ## Step 3 — Hand back
 
@@ -93,5 +93,5 @@ End with the dispatcher's summary block (SKILL.md Step 2). The narrative says th
 | File | Writer | What |
 |---|---|---|
 | `goal.md` | the goal script | The contract: `objective`, `kind`, `proofs`, `max-checks`, `arming`, `armed-at`, `host`, `state`, `parked` |
-| `goal/checks.jsonl` | the goal script | One line for each `check`: the arming, the verdict, the reason, and the evidence |
-| `goal/arm.json` | the goal script | The arming request that the mod reads at the end of the turn, and its state |
+| `goal/checks.jsonl` | the goal script | One line for each `check`: the time, the arming, the check number, the verdict and the reason |
+| `<root>/.ai/run/<slug>/goal-arm.json` | the goal script | The arming request that the mod reads at the end of the turn, and its state. It is a run file of this machine, in the project also when the records live in a linked records clone |

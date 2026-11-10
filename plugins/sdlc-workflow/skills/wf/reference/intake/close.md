@@ -32,7 +32,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
    The optional first token of the rest is either a **slice-slug** or a **close reason**.
 2. **Validate the slug:** if the index of `<slug>` does not exist (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 1, per [_records.md](../_records.md)) → STOP: "No workflow
    `<slug>` found." A `prototype` row of `INDEX.md` is the exception: its folder is in its POC
-   worktree, which `prototype.mjs status` names. Run `prototype.mjs exit <slug> close` first, then
+   worktree, which `prototype.mjs status` names. Run `node "<skill-dir>/scripts/prototype.mjs" exit "<root>" <slug> close` first, then
    close the workflow in that worktree.
 3. **Resolve that token** (resolution mirrors `/wf status recap`; slice match is checked FIRST so a
    slice literally named like a reason still resolves to the slice):
@@ -109,7 +109,7 @@ Body sections, as fixed `##` headings: `## Work Completed` (one
 bullet per completed/skipped stage), `## Work Not Completed` (last known state of each incomplete
 stage), `## Reason & Context` (expanded; name what superseded/absorbed it; revival triggers if
 deferred), `## Branch & PR Status` (a resource/state/action table), `## Revival Instructions` (only
-if `deferred`/`superseded`: *"To resume, run `wf.mjs record set "<root>" <slug> index status=in-progress` and run
+if `deferred`/`superseded`: *"To resume, run `wf.mjs record set "<root>" <slug> index status=active close-reason=null closed-at=null` and run
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
 are intact at `<wf-dir>/`"*; otherwise "Not applicable — closed permanently").
 

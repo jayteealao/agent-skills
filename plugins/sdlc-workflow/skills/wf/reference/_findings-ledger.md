@@ -27,7 +27,7 @@ edit `findings.yaml` by hand, and never copy its rows into a second ledger.
 packet. `found.json` is `{ "dimensions": [...], "affectedFiles": [...], "findings": [...] }`.
 `affectedFiles` (or `--files`) is the scope of the run: the files of the work packet. The merge
 drops a finding in any other file and counts it as `out-of-scope` in the `runs` entry. Each finding has
-`dimension`, `severity` (BLOCKER, HIGH, MED, LOW or NIT), `file`, `line`, `issue`, and can have
+`dimension` (required: a finding with no dimension is refused), `severity` (BLOCKER, HIGH, MED, LOW or NIT), `file`, `line`, `issue`, and can have
 `confidence`, `evidence`, `fix`, `key`, `preExisting`, `refuted` (the refuter's reason),
 `changesAcceptance` and `needsRuntimeEvidence` (the experiment that settles the finding). Write `found.json` to `<wf-dir>/.draft/found.json`; the next run
 replaces it. `dimensions` names every dimension that the run checked, also the clean ones: a
@@ -41,15 +41,19 @@ dimension that is not named clears nothing.
    It keeps the higher severity and names the other dimension in `also`.
 2. **Re-surfaced finding.** A finding that matches an entry (the same source, scope and key, or
    the same file within 3 lines) keeps the entry's `id` and `surfaced-at`. `last-seen-at`
-   moves. A `resolved` or `refuted` entry opens again and counts `reopened`.
+   moves, and so do `file` and `line`: the next run matches the entry where this run saw it. A
+   `resolved`, `refuted` or `fixed` entry opens again and counts `reopened`. A `fixed` entry
+   that a run finds again means that the fix did not hold: it opens, counts in the verdict
+   again, and keeps the fix in `fixed-before` (`fixed-at`, `commit`, `reopened-at`).
 3. **Net-new finding.** A finding with no match gets the next ID of its dimension prefix (the
    first three letters, upper case). An ID is never used again. The status is `open`, or
    `refuted` when the refuter refuted it.
 4. **Resolve-sweep.** An `open` entry of the same source and scope, in a dimension that the run
    checked, that the run did not find again, becomes `resolved`. An entry of a dimension that
    the run did not check stays as it is.
-5. **Triage decisions persist.** A run never changes `fixed`, `deferred`, `dismissed`,
-   `could-not-fix` or `kept-by-person`. Only `wf.mjs findings set` changes a triage status. A
+5. **Triage decisions persist.** A run never changes `deferred`, `dismissed`, `could-not-fix`
+   or `kept-by-person`. `fixed` is a claim, not a decision: it holds until a run finds the
+   finding again (rule 2). Only `wf.mjs findings set` sets a triage status. A
    `deferred`, `dismissed`, `could-not-fix` or `kept-by-person` status needs a reason.
 6. **One `runs` entry per run**, with the dimensions, the raw count and the verdict.
 7. **No row is deleted.** A refuted finding stays with the refuter's reason.
@@ -61,13 +65,17 @@ change made. A pre-existing finding is debt and is not a verdict input:
 - An open HIGH or MED, and no BLOCKER → `ship-with-caveats`.
 - Otherwise → `ship`.
 
+The severity counts of `findings metrics` (`metric-findings-blocker` to `-nit`) count the
+change's own open findings; `metric-findings-pre-existing` counts the rest, so the six add up
+to `metric-findings-total`.
+
 ## A fix that changes an acceptance check
 
 When the fix of a finding changes an acceptance check of the slice, or a confirmed design board
 or `02c-craft.md` line, set `changesAcceptance: true` on the finding. The review does not ask
 the person. It applies the fix and rewrites the check and the plan step in the same fix step,
 per rule 5 of [_decisions.md](_decisions.md). When the fix goes against a decision of the person,
-the review dismisses the finding with `wf.mjs findings set <id> dismissed --decision <D-id>`.
+the review dismisses the finding with `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`.
 
 ## The review file
 

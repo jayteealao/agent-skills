@@ -263,7 +263,8 @@ export function isInsideWorkflowArtifacts(filePath) {
 }
 
 export function hasFrontmatterFence(content) {
-  return /^---\r?\n/.test(String(content ?? ''));
+  // A leading BOM is skipped, as the frontmatter parser skips it.
+  return /^---\r?\n/.test(String(content ?? '').replace(/^﻿/, ''));
 }
 
 export function formatList(items) {

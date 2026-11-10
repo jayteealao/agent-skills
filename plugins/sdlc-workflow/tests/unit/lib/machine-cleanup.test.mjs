@@ -101,6 +101,26 @@ test('hub-config.json goes with the rest of the old state', () => {
   }
 });
 
+test('the stable wf.mjs entry point in bin/ survives the cleanup; only the old tray helper copies go', () => {
+  const { home, userHome, cleanup } = setup();
+  try {
+    mkdirSync(join(home, 'bin'), { recursive: true });
+    writeFileSync(join(home, 'bin', 'wf.mjs'), '#!/usr/bin/env node\n');
+    writeFileSync(join(home, 'bin', 'wf-current.json'), '{}\n');
+    writeFileSync(join(home, 'bin', 'tray_linux_release'), 'old helper');
+    writeFileSync(join(home, 'bin', 'tray_windows_release.exe'), 'old helper');
+    const { exec } = fakeExec({});
+    const r = runMachineCleanup({ home, platform: 'linux', env: {}, userHome, exec });
+    assert.equal(r.done, true);
+    assert.ok(existsSync(join(home, 'bin', 'wf.mjs')), 'the shim stays');
+    assert.ok(existsSync(join(home, 'bin', 'wf-current.json')), 'the shim pointer stays');
+    assert.ok(!existsSync(join(home, 'bin', 'tray_linux_release')));
+    assert.ok(!existsSync(join(home, 'bin', 'tray_windows_release.exe')));
+  } finally {
+    cleanup();
+  }
+});
+
 test('a stop that fails leaves no marker, so the next session retries', () => {
   const { home, userHome, cleanup } = setup();
   const realKill = process.kill;

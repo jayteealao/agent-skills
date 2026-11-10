@@ -35,7 +35,7 @@ test('kind proofs: arm, check MET, resume with a failing proof, park, the cap, a
     assert.equal(a.ok, true, JSON.stringify(a));
     assert.equal(a.kind, 'proofs');
     assert.match(a.arm.command, /^\/goal The goal is met only when/);
-    const req = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', S, 'goal', 'arm.json'), 'utf8'));
+    const req = JSON.parse(readFileSync(path.join(root, '.ai', 'run', S, 'goal-arm.json'), 'utf8'));
     assert.equal(req.state, 'pending', 'the mod reads the arm request at the end of the turn');
 
     const met = check(root);

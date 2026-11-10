@@ -569,6 +569,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; amend [instructions]</code></td><td>Reopens an approved design. It changes only the screens that the reason names, asks for a new approval, and names each plan that cites a changed screen.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; import &lt;link|path&gt;…</code></td><td>Turns outside design work into screens, then asks for your approval.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design explore [slug] [instructions]</code></td><td>Sketches ideas in <code>.ai/design/explore/</code>. It settles nothing and writes no screen.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; extract [instructions]</code></td><td>Reads the design system in the code into <code>current.md</code>, and writes the report under the <code>design-notes/</code> of the workflow.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design [slug] audit|critique</code></td><td>Runs the design review dimension now. Without a slug, the findings come back in chat.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;move&gt; &lt;instructions&gt;</code></td><td>Starts a new workflow, with the move recorded for its design stage.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design setup|teach|extract|direction|sync</code></td><td>Keeps the design record of the project. See <a href="#ds-record">The design record</a>.</td></tr>
@@ -1147,7 +1148,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td>Use it to</td><td>Keep a workflow moving over many turns</td><td>Move one measured number</td><td>Answer an open question by running code</td></tr>
             <tr data-s><td>One unit is</td><td>A stage, a trial, or work toward named proofs</td><td>A trial: change, measure, keep or revert</td><td>A round that you start with your words</td></tr>
             <tr data-s><td>Done when</td><td>A script prints <code>GOAL: MET</code></td><td>The target is reached, the budget is used, or a plateau round finds no gain</td><td>You exit: park, graduate or close</td></tr>
-            <tr data-s><td>Commits</td><td>Whatever the stages commit</td><td>One squashed commit at the finish</td><td>Only decide rounds, one per accepted component</td></tr>
+            <tr data-s><td>Commits</td><td>Whatever the stages commit</td><td>One commit for each kept change at the finish</td><td>Only decide rounds, one per accepted component</td></tr>
             <tr data-s><td>Human gates</td><td>Park the goal; you answer, then resume</td><td>You confirm the metric spec before the first trial</td><td>Every round is yours</td></tr>
             <tr data-s><td>Hosts</td><td>All; each arms the goal its own way</td><td>Driver on Claude Code; elsewhere loop goal carries it</td><td>All</td></tr>
           </tbody>
@@ -1180,7 +1181,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li data-s><b>Why yolo and campaign do not use it</b><span>Each one owns its own loop. yolo answers gates by written policy, and the campaign asks you at each stop. A goal stops at every human gate.</span></li>
         </ul>
       </div>
-      <p class="aside" data-s>Files in the slug: <code>goal.md</code> (the contract), <code>goal/checks.jsonl</code> (one line per check) and <code>goal/arm.json</code> (the arming request). The contract stays when the host goal is cleared, so <code>resume</code> arms the same goal again.</p>
+      <p class="aside" data-s>Files in the slug: <code>goal.md</code> (the contract), <code>goal/checks.jsonl</code> (one line per check); the arming request is <code>.ai/run/&lt;slug&gt;/goal-arm.json</code> in the project, a file of this machine. The contract stays when the host goal is cleared, so <code>resume</code> arms the same goal again.</p>
 
       <h3 class="group" id="lp-optimize">loop optimize <em>change the code, measure one number, keep or revert</em></h3>
       <div class="flow-wrap static">
@@ -1191,7 +1192,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">4</span><b>Baseline</b><span class="who auto">script</span><p>Runs the metric several times. Half the spread is the noise floor.</p></li>
           <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures one trial at a time and keeps or reverts.</p></li>
           <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches, each in its own worktree, that see only their own history. They propose and edit at the same time. The best branch wins, and the other kept branches are considered for a merge into it.</p></li>
-          <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Kept trials squash into one commit on the slug branch, as one slice.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Each kept change becomes its own commit on the slug branch; together they are one slice.</p></li>
           <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, ship, retro.</p></li>
         </ol>
       </div>
@@ -1215,7 +1216,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
               <tr data-s><td><code>branch-rounds.merge</code></td><td class="num">consider</td><td>Merge the other kept branches after a round, or <code>off</code></td></tr>
               <tr data-s><td><code>branch-rounds.prune</code></td><td class="num">on</td><td>Restart a branch that trails with no keep from the leader, or <code>off</code></td></tr>
               <tr data-s><td><code>checkpoint-every</code></td><td class="num">5</td><td>Trunk trials between holdout checks</td></tr>
-              <tr data-s><td><code>ablate</code></td><td class="num">on</td><td>Check each kept change alone before the squash, or <code>off</code></td></tr>
+              <tr data-s><td><code>ablate</code></td><td class="num">on</td><td>Check each kept change alone before the commits of finish, or <code>off</code></td></tr>
               <tr data-s><td><code>format</code></td><td class="num">none</td><td>Formats each change before its commit</td></tr>
               <tr data-s><td><code>shared-build</code></td><td class="num">none</td><td>The variable of one build folder for every worktree</td></tr>
               <tr data-s><td><code>profile</code></td><td class="num">none</td><td>A profile command, or <code>agent</code>; runs before the first trial and each round</td></tr>
@@ -1382,7 +1383,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       d: "An old name that stays for this release only. On a workflow whose brief is written, it runs the shape phase of intake. Type intake <slug> instead.",
       w: ["intake.yaml#shape", "design.yaml#design"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
     { g: "stage", id: "design", st: "02", name: "design", b: ["gate"],
-      syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
+      syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "design <slug> extract [instructions]", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
       d: "The person approves every changed screen before any driver runs. The screens live on the design surface of the repo, .ai/design/, and the canvas shows them in each viewport and state, from the phone too. The agent asks which form to make, takes the design through rounds of three to five decisions, and runs the checks: contrast, target size, viewport fit, worst-case content, display bugs, overlapping text, script errors and colors that are not tokens. A script records the approval from your answer. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens an approved design; import turns a canvas, a folder, a zip or images into screens; explore sketches ideas and settles nothing. A move without a slug starts a new workflow through intake.",
       more: "design-guide", w: ["design.yaml#craft", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
     { g: "stage", id: "slice", st: "03", name: "slice", syn: ["slice <slug>"],
@@ -1401,7 +1402,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       syn: ["review <slug> [<slice>|triage]   # the workflow stage", "review <rubric> [scope]   # ad-hoc, one rubric", "review sweep <aggregate>   # ad-hoc, in parallel"],
       d: "With a slug, one reviewer runs per selected dimension, the findings merge into an accumulating ledger, and the verdict is ship, ship-with-caveats or dont-ship. triage sorts the open findings again. Without a slug, it is an ad-hoc review and the findings come back in chat. The rubrics are under Review dimensions.",
       w: ["review.yaml", "review-<slice>.yaml", "findings.yaml"], n: "ship <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
-    { g: "stage", id: "handoff", name: "handoff", syn: ["handoff <slug|pr#N|branch> [<slice>]"],
+    { g: "stage", id: "handoff", name: "handoff", syn: ["handoff <slug|pr#N|branch>"],
       d: "An old name that stays for this release only. It runs ship, which opens the pull request first. Type ship <slug> instead.",
       w: ["ship.yaml#handoff"], n: "ship <slug>", t: "pr pull request open package" },
     { g: "stage", id: "ship", st: "08", name: "ship", syn: ["ship <slug|pr#N|branch> [<env>]", "ship <slug> announce", "ship <slug> rollback [<run-id>]"],
@@ -1614,7 +1615,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
   /* Configuration: [key, default, what it does, kind]. kind "block" or "warn" marks a write check. */
   var CONFIG = [
     { id: "cfg-checks", title: "Per repo · write checks", rows: [
-      ["checks", "\"strict\"", "How the write checks act. strict refuses a write that fails a gate. warn lets it stand and shows the same reason. off runs no check. The lints only warn, in strict and warn alike."]
+      ["checks", "\"strict\"", "How the write checks act. strict refuses a write that fails a gate. warn lets it stand and shows the same reason. off runs no check. The lints only warn, in strict and warn alike. Only the person lowers it: the pre-write hook refuses an agent write that lowers checks or semantic.mode."]
     ] },
     { id: "cfg-policy", title: "Per repo · policy", rows: [
       ["artifactTracking", "unset", "\"tracked\": .ai/ is committed. \"ignored\": .ai/ is gitignored except ship-plan.md and sdlc-config.json. ship-plan init records it; while unset, ship asks each run."],
@@ -1631,9 +1632,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["models.update-deps", "\"opus\"", "The model of the update-deps execution agent."]
     ] },
     { id: "cfg-tests", title: "Per repo · test profile and devices", em: "testProfile.<fast|affected|full|heavy>", rows: [
-      ["testProfile.<suite>.command", "unset", "The command that runs the suite. In the affected suite, {files} stands for the changed files. A slice runs fast and affected; full and heavy run once per packet, after the review fixes."],
+      ["testProfile.<suite>.command", "unset", "The command that runs the suite. The affected suite finds the changed files itself, for example from git diff --name-only HEAD. A slice runs fast and affected; full and heavy run once per packet, after the review fixes."],
       ["testProfile.<suite>.estimateSeconds", "unset", "The time that intake estimates without a run."],
       ["testProfile.<suite>.measuredSeconds", "null", "The time of the last real run. It replaces the estimate. wf.mjs profile record writes it. The time box of a stage agent comes from these times."],
+      ["testProfile.<suite>.passedAt", "null", "The commit that the last passing run checked. A later run of the suite is needed only when a file that the suite reads changed after it. wf.mjs profile run writes it."],
       ["testProfile.budget.preset", "unset", "The check budget that you chose once for the repo: fast-loop, balanced or thorough. The first stage that finds no budget asks you. wf.mjs profile budget writes it."],
       ["testProfile.budget.slice", "null", "The longest check that a slice stage may run, in seconds. A longer command is a long run: the agent measures it with a pilot, moves it to the packet end, or makes it faster. Null: the time box of the stage."],
       ["testProfile.budget.long", "null", "The longest single long run, in seconds, before the agent offers you the faster paths: a pilot, a sample, a split across machines, or the packet end. Null: no limit."],

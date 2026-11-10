@@ -9,6 +9,7 @@
 //
 //   node scripts/verify-docs.mjs          exit 1 on a finding
 
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,7 +84,7 @@ export function verifyDocs(root = ROOT) {
   return errors;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const errors = verifyDocs();
   if (errors.length) {

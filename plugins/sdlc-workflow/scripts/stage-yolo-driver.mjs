@@ -36,6 +36,7 @@
  * steer of the workflow takes the recommended option, so the launch passes `delegate: true`.
  *   → {"scriptPath":"…/.scratch/wf/yolo.js","version":"9.154.0","sha256":"…","overwroteHotPatch":false}
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -135,6 +136,6 @@ function main() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main();
 }

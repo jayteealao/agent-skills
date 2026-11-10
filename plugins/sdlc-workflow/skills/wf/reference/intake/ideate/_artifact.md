@@ -1,6 +1,6 @@
 # Ideation lead template (Step 6 of `intake/ideate.md`)
 
-`intake/ideate.md` holds the `00-index.md` template. This file holds `01-ideate.md`.
+`intake/_light-index.md` holds the `00-index.md` template. This file holds `01-ideate.md`.
 
 **`01-ideate.md` — `type: ideation`** (the lead carries a `slug` for the in-slug path; `focus` stays the schema key). The roster keeps the per-idea `file:line` evidence the lenses were required to gather; dropping it strips the successor's seed:
 ```yaml
@@ -129,7 +129,7 @@ Give each idea the highest `confidence` that its evidence allows. Step 4 weighs 
 
 ## How to use these results
 
-Each idea above maps directly to a `/wf intake` invocation. Copy the entry command for any idea you want to pursue. The slug suggestion is a starting point; you can adjust it.
+To pick ideas, run `/wf intake ideate <slug> <idea-id…> [one-line reason]`. The pick writes one work packet per idea and prints `/wf campaign <slug>`. The entry command of each idea names the form of its work packet. The slug suggestion is a starting point; you can adjust it.
 
 To continue this run, run `/wf intake ideate <slug>`: the loop triages, discusses, and steers the ideas. To look further inside this run:
 ```

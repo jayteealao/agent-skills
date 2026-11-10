@@ -5,10 +5,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addDecision } from './decisions.mjs';
+import { addDecision, decisionsOf } from './decisions.mjs';
 import { PATH_FORMS, applySet, enumAt, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
-import { INDEX_NAME, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
+import { INDEX_NAME, assertWritable, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
 
 const SCHEMA_FILE = fileURLToPath(new URL('../schemas/frontmatter.schema.json', import.meta.url));
 
@@ -106,7 +106,19 @@ export function resolveRecord(dir, name, verb = 'record') {
  * Apply the path forms of `record set` to one record (lib/record-path.mjs). A value outside the
  * enum of the schema is refused with the allowed values. Returns `{ frontmatter, keys }`.
  */
+/**
+ * Throw unless `id` names a decision that a finding may be dismissed by: a live answer, steer
+ * or approval of the person. `findings set --decision` and the library's `findings.set` check it.
+ */
+export function checkDismissDecision(dir, id, what = 'findings set') {
+  const d = decisionsOf(dir).find((x) => x.id === id);
+  if (!d) throw new Error(`${what}: no decision ${id}`);
+  if (d['superseded-by']) throw new Error(`${what}: decision ${d.id} is superseded by ${d['superseded-by']}`);
+  if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw new Error(`${what}: decision ${d.id} is not an answer, steer or approval of the person`);
+}
+
 export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
+  assertWritable(dir, name);
   const doc = readDoc(dir, name);
   if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
   const schema = schemaOf();

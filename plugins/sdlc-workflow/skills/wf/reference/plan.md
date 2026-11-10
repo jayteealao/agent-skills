@@ -58,7 +58,7 @@ Before a plan step calls a dependency, framework or SDK, follow [_source-study.m
 You run the plan stage: you write plans from the repo and the records, never product code.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the slice-slug or the keyword `all`. If no slug is given, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the slice-slug or the keyword `all`. The first argument is the slug (the dispatcher refuses a call without one).
    - **Check the slice name.** When `03-slice.md` exists and the second argument is neither `all` nor a slice of its roster, STOP: *"Unknown slice `<name>` in `<slug>`. Did you mean `<best-match>`? Retry: `/wf plan <slug> <best-match> <text>`"*. The best match has a Levenshtein distance of 2 or less, or is a substring. Write no plan file.
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
@@ -85,7 +85,7 @@ You run the plan stage: you write plans from the repo and the records, never pro
    - It shares a file with this slice's `## Likely Files / Areas to Touch` or the draft plan's files.
    - One of its `edges` touches such a file.
    - This slice lists it in `depends-on`.
-   Repeat the check after research, against the draft plan's files.
+   Repeat the check after research, against the draft plan's files. When the plan finds that this slice needs another slice built first, add the order: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <this slice> --after <the other slice> --why "<the reason>"`.
 8. Carry forward `open-questions` from the index.
 
 # Parallel research (use sub-agents for all planning)
@@ -125,6 +125,7 @@ Do not rerun shape's "what driver should we use?" question. If the PO answered i
 Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`.
 
 **Author the augmentations after research.** Read `augmentations-needed` from `02-shape.md` frontmatter (absent or `[]` → skip). Run each type's artifact-authoring mode in this order: `instrument` → `experiment` → `benchmark` → `profile` → `tune`.
+Author each augmentation once per slug: its record is one file for the whole workflow. When its record already exists (`record get` exits 0), do not author it again: read it and fold its content into this slice's steps. `benchmark`: a second slice adds its targets to the existing baseline; it never re-runs a baseline that has a comparison.
 - `instrument`: author `04b-instrument.md` per `augment/instrument.md`. Fold the signals into the plan steps.
 - `experiment`: author `04c-experiment.md` per `augment/experiment.md`. Fold the flag and cohort wiring into the plan steps.
 - `benchmark`: capture the baseline into `05c-benchmark.md` per `augment/benchmark.md` in baseline mode. Add a "compare after implement" step for `verify`.
@@ -132,7 +133,7 @@ Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, 
 - `tune`: run the feasibility spike of `augment/tune.md`: write `05d-tune.md` with its baseline, and plan the rounds as steps.
 Each augmentation reference registers its entry in `00-index.md` `augmentations:` with `status: ready`.
 
-**Parallel plan mode (`all`).** Launch one sub-agent PER SLICE. Each receives the slug, its slice-slug, the `03-slice-<slice-slug>.md` and `02-shape.md` content, the draft path `<wf-dir>/.draft/04-plan-<slice-slug>.md`, and the list of other slice-slugs. Each prompt carries the line `Prompt-fed inputs: 02-shape.md, 03-slice-<slice-slug>.md`. Each runs all four playbooks for its slice, writes its plan to that draft path with the `files:` and `edges:` of Step F, and runs `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug> 04-plan-<slice-slug>.md` per [_records.md](_records.md). The sub-agents never write `04-plan.md`. Each sub-agent prompt includes Step F unchanged with every reference path resolved to an absolute path per [_host-invocation.md](_host-invocation.md). After all sub-agents complete: read every plan with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 04-plan-<slice-slug>.md`; run the cohesion check (shared files, ordered migrations, shared fixtures, breaking API changes, interacting config); write the draft of the master `04-plan.md` and put it; on severe cohesion issues, recommend `/wf slice`. Only the orchestrator writes `04-plan.md`. Under `/wf yolo`, the driver's bookkeeping agent writes it.
+**Parallel plan mode (`all`).** Author the augmentations first, in this session, before you launch the per-slice agents; each agent folds them into its steps and authors none. Launch one sub-agent PER SLICE. Each receives the slug, its slice-slug, the `03-slice-<slice-slug>.md` and `02-shape.md` content, the draft path `<wf-dir>/.draft/04-plan-<slice-slug>.md`, and the list of other slice-slugs. Each prompt carries the line `Prompt-fed inputs: 02-shape.md, 03-slice-<slice-slug>.md`. Each runs all four playbooks for its slice, writes its plan to that draft path with the `files:` and `edges:` of Step F, and runs `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug> 04-plan-<slice-slug>.md` per [_records.md](_records.md). The sub-agents never write `04-plan.md`. Each sub-agent prompt includes Step F unchanged with every reference path resolved to an absolute path per [_host-invocation.md](_host-invocation.md). After all sub-agents complete: read every plan with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 04-plan-<slice-slug>.md`; run the cohesion check (shared files, ordered migrations, shared fixtures, breaking API changes, interacting config); write the draft of the master `04-plan.md` and put it; on severe cohesion issues, recommend `/wf slice`. Only the orchestrator writes `04-plan.md`. Under `/wf yolo`, the driver's bookkeeping agent writes it.
 
 # Workflow rules
 Apply [_workflow-rules.md](_workflow-rules.md).
@@ -162,7 +163,7 @@ After completing this stage, write every viable option as one `recommended-route
 - **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`. Recommend compacting first.
 - **Option B: Implement all (sequential)** → `/wf implement <slug> <first-slice-slug>` when every slice is planned.
 - **Option C: Revisit slice** → `/wf slice <slug>` for wrong slice boundaries.
-- **Option D: Revisit shape** → `/wf intake <slug>` for an incomplete or contradictory spec.
+- **Option D: Revisit shape** → `/wf intake <slug> shape` for an incomplete or contradictory spec.
 
 # Artifacts
 
@@ -232,7 +233,7 @@ Each line carries `wall-ownership: code-owned | environment-negotiable | externa
 
 "Known limitation — document at handoff" is illegal wording when an AC depends on the limitation. **Hard gate:** if any user-observable AC's named dependency has none of the three, the plan is not complete; raise it as a gate question per [_gate-question.md](_gate-question.md) (scope the harness / author the proxy+deferral / PO-accept the risk) before writing the artifact. Verify's Step 0 refuses an unresolved wall (`blocked-runtime-evidence-missing`, deferral hatch unavailable).
 
-**Outcome-metric ACs need a pre-deploy proxy** — a fixture-corpus assertion verify can hold now, with the live metric as the deferral's clearing event. **Mandated-mitigation ACs are code-only-forbidden** — a fallback, escape hatch, or kill switch a shape mandates traces to an AC that exercises the wired path (fault injection, a forced fallback, a flag flip); add the seam (injection hook, forced-error fixture, flag toggle) as a plan task. **Tooling resolution** — when a slice `verify:` stub names a tool not in `stack:`, the PO decides here: add it to the stack (`/wf intake <slug>`), or authorize a verify-time bootstrap recorded as a PO-approved install and a verification-seam task. If the PO declines both, re-scope the AC or pre-register a deferral, never a static-reasoning `pass`. If no verification path exists for a user-observable AC, route back to slice/shape before any code is written.
+**Outcome-metric ACs need a pre-deploy proxy** — a fixture-corpus assertion verify can hold now, with the live metric as the deferral's clearing event. **Mandated-mitigation ACs are code-only-forbidden** — a fallback, escape hatch, or kill switch a shape mandates traces to an AC that exercises the wired path (fault injection, a forced fallback, a flag flip); add the seam (injection hook, forced-error fixture, flag toggle) as a plan task. **Tooling resolution** — when a slice `verify:` stub names a tool not in `stack:`, the PO decides here: add it to the stack (`/wf intake <slug> shape`, which records it in `stack:`), or authorize a verify-time bootstrap recorded as a PO-approved install and a verification-seam task. If the PO declines both, re-scope the AC or pre-register a deferral, never a static-reasoning `pass`. If no verification path exists for a user-observable AC, route back to slice/shape before any code is written.
 
 ## Step F — The files and edges of the plan
 Each per-slice `04-plan-<slice-slug>.md` carries `files:` and `edges:` in its frontmatter. Agents read them: the master `## Sibling Plans` table and the yolo bookkeeping agent read its `files:` and `edges:`. A plan with no file changes sets `files: []` and `edges: []`.

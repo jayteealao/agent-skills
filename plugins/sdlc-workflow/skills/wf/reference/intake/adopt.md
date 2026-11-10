@@ -95,7 +95,7 @@ Prompt with:
 - **Goal** — what the change accomplishes, in one sentence, phrased as intent.
 - **Scope-in** — exactly the changed surface. **Scope-out** — explicitly everything else ("no changes to X, Y").
 - **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply the force-scope rule of the plan stage (its `## Verification Strategy`) to each AC with an environment dependency.
-- **Slice split** — a **single slice by default** (the workflow slug doubles as the one slice's `slice-slug`). Split into >1 slice **only** when sub-agent 1 reported clearly-separable concerns (disjoint file sets AND independently revertable); when in doubt, one slice.
+- **One slice, always.** The workflow slug doubles as the one slice's `slice-slug`, and the `04-plan.md` and `05-implement.md` templates are single un-suffixed files. Separable concerns (disjoint file sets that revert on their own) are two adopt runs.
 
 # Step 2 — Confirmation gate (before any artifact is written)
 
@@ -165,7 +165,7 @@ Lead with a short **narrative** paragraph (prose, no bullets) — what change wa
 wf intake adopt complete: <slug>
 Branch: <branch> (recorded, not created)
 Adopted: <N> files (+<adds>/-<dels>) · <C> commits ahead of <base> · <U> uncommitted
-Slices: <M> (status: implemented) · ACs: <K> (<D> with deferred/constraint-resolved evidence)
+Slices: <M> (status: complete, adopted) · ACs: <K> (<D> with deferred/constraint-resolved evidence)
 Provenance: adopted — every artifact stamped
 Next: /wf verify <slug>
 ```

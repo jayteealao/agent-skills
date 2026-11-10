@@ -3,6 +3,10 @@
 // The design server serves this page at /r/<repo>/ with the data at ./state.json and the screen
 // pages at ./s/screens/<key>.html, a saved version at ./versions/<workflow>/<id>/. A published snapshot sets window.WF_STATE and
 // window.WF_SNAPSHOT (the page text of each screen), and has no write route.
+//
+// Messages between frames: a `message` listener acts only when `event.origin === location.origin`,
+// and every `postMessage` names `location.origin` as its target, never `*`
+// (tests/unit/lib/design-messages.test.mjs scans the canvas and the page templates for it).
 (() => {
   'use strict';
   const SNAP = window.WF_SNAPSHOT || null;
@@ -139,6 +143,8 @@
     return null;
   }
 
+  // The places of cards that were dragged and are not saved yet, by screen key.
+  const moved = new Map();
   async function load() {
     failCache.clear();
     // The state and the audit load at the same time; the board draws once, when both are here.
@@ -147,6 +153,7 @@
       SNAP ? null : fetchAudit(),
     ]);
     data = state;
+    for (const sc of data.screens || []) if (moved.has(sc.key)) sc.position = moved.get(sc.key);
     seenInit();
     if (!SNAP) pollAudit();
     $('#repo').textContent = data.repo || 'Design canvas';
@@ -691,15 +698,18 @@
         card.style.left = `${ox + (ev.clientX - sx) / ui.zoom}px`;
         card.style.top = `${oy + (ev.clientY - sy) / ui.zoom}px`;
       };
-      const up = () => {
-        ui.dragging = false;
-        if (pending) applyChange(pending);
+      const up = async () => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
+        // The place is stored and saved before a change that waited loads a new state: the new
+        // state would otherwise carry the old place, and the card would jump back.
         s.position = { x: Math.round(parseFloat(card.style.left)), y: Math.round(parseFloat(card.style.top)) };
+        moved.set(s.key, s.position);
         clearTimeout(saveTimer);
-        saveTimer = setTimeout(saveLayout, 600);
+        await saveLayout();
+        ui.dragging = false;
+        if (pending) applyChange(pending);
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', up);
@@ -715,9 +725,13 @@
     saveLayout();
   }
   async function saveLayout() {
-    const positions = Object.fromEntries(data.screens.filter((s) => s.position).map((s) => [s.key, s.position]));
-    const r = await fetch(`${BASE}layout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ positions }) });
-    say(r.ok ? 'Layout saved' : 'The layout was not saved');
+    const positions = { ...Object.fromEntries(data.screens.filter((s) => s.position).map((s) => [s.key, s.position])), ...Object.fromEntries(moved) };
+    let ok = false;
+    try { ok = (await fetch(`${BASE}layout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ positions }) })).ok; } catch { ok = false; }
+    // A saved place is in the next state; until then, each new state takes the place that was moved.
+    if (ok) for (const [key, p] of Object.entries(positions)) if (moved.get(key) === p) moved.delete(key);
+    say(ok ? 'Layout saved' : 'The layout was not saved');
+    return ok;
   }
 
   // ------------------------------------------------------------ one screen
@@ -1344,7 +1358,7 @@
         !SNAP && r.readable && r.kind === 'image' ? h('img', { class: 'part', src, alt: r.note || r.key }) : null,
         !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind) ? h('iframe', { class: 'part tall', title: r.key, src }) : null,
         !SNAP && r.readable ? newTab(src, 'Open the file in a new tab') : null,
-        r.link ? newTab(r.link, 'Open the source') : null,
+        r.link && /^https?:/i.test(r.link) ? newTab(r.link, 'Open the source') : null,
         r.file ? h('p', { class: 'sub' }, h('code', {}, r.file)) : null];
     }
     if (kind === 'component') {
@@ -1429,6 +1443,16 @@
   function listen() {
     if (SNAP || !window.EventSource) return;
     const es = new EventSource(`${BASE}events`);
+    // Each stream starts with the boot of the server. A stream that opens again missed the changes
+    // made while it was down: load everything. A new server runs new code: reload the canvas.
+    let boot = null;
+    es.addEventListener('hello', (e) => {
+      let hello = null;
+      try { hello = JSON.parse(e.data); } catch { return; }
+      if (boot === null) { boot = hello.boot; return; }
+      if (hello.boot !== boot) { location.reload(); return; }
+      applyChange(merge(pending, { etag: null, all: true, pages: [], parts: [] }));
+    });
     es.addEventListener('change', (e) => {
       let change = null;
       try { change = JSON.parse(e.data); } catch { return; }

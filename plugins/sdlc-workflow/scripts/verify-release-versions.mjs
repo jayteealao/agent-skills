@@ -23,6 +23,7 @@
  *   node scripts/verify-release-versions.mjs          # exit 1 on drift
  *   node scripts/verify-release-versions.mjs --json
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +104,6 @@ function main() {
   process.exit(result.problems.length ? 1 : 0);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main();
 }

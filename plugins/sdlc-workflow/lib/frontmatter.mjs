@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from './yaml.mjs';
 
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+// The closing fence is a line of exactly `---` (trailing spaces allowed): a `----` line or a
+// line that starts with `---` inside the frontmatter does not end it.
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)([\s\S]*)$/;
 
 export function parseFrontmatter(text, { filePath = '<memory>' } = {}) {
   // Strip a leading UTF-8 BOM (common from Windows editors) so the `^---`

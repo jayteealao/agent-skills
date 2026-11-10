@@ -28,7 +28,7 @@ Each design fact lives in one place, and every other record cites it by key: the
 
 - A **screen key** is kebab-case and names the screen, for example `basket` or `order-detail`. It is unique in the repo. Records cite screen keys.
 - A screen page has the five states: `default`, `empty`, `loading`, `error` and `worst`. Each state is an element with `data-state="<name>"`. The page shows the state that `?state=<name>` names. The `worst` state holds the worst-case content of [harden.md](harden.md).
-- A screen uses the tokens of `tokens.css` (`var(--<role>)`) and the components of `components.css`. It holds its own layout and its own scripts in the page. It loads nothing from the network. It uses real copy and realistic mock data.
+- A screen uses the tokens of `tokens.css` (`var(--<role>)`) and the components of `components.css`. It holds its own layout and its own scripts in the page. It loads nothing from the network. It uses real copy and realistic mock data. A script that sends a message to another frame sends it to `location.origin`, never to `*`, and a `message` listener acts only when `event.origin === location.origin`.
 - A style that two or more screens share goes in `components.css` as a component, for example the app frame or the navigation. Do not copy it into each page: each copy loads again in every page of the canvas, and the copies drift apart.
 - A link to `<key>.html` in a screen is an edge of a flow. Make every step of a flow a link, so the person can click through it.
 - A screen is a design, not product code. Do not import product code into it, and do not build a working feature in it.
@@ -106,7 +106,7 @@ The design server serves the canvas of every repo on the list `~/.sdlc/design-re
 
 An open canvas updates live. The server watches the files of the repo and tells each open canvas which pages changed. The canvas reloads only those pages, and a change of `tokens.css`, `components.css` or `source/` reloads every page. A comment from the phone shows on the computer at once. A change waits while the person drags a card or writes a comment. Do not tell the person to reload the canvas after a change. A screen whose page changed since the person last opened it carries the mark Changed, and a screen that the person never opened carries New. The Review control counts these screens. Each device keeps its own marks, and the mark clears when the person opens the screen.
 
-- `<wf> design server start` starts the server in the background. `<wf> design server url` prints its addresses. Give the person the tailnet address for a review from the phone.
+- `<wf> design server start` starts the server in the background, and `<wf> design server stop` stops it. `<wf> design server url <root>` prints the canvas URL of the repo on each address. Give the person the tailnet address for a review from the phone. The server listens on the addresses that `tailscale ip -4` names; machine config `design.hosts` names them when that binary is missing (on macOS, Tailscale's interface has no name of its own).
 - `<wf> design server status` tells whether the server runs and whether the scheduled task is installed.
 - `<wf> design server install` makes one Windows scheduled task that starts the server at logon. `<wf> design server uninstall` removes the task. After a plugin update, run `install` again, because the task does not change itself. Ask the person before you run either command.
 - `<wf> design state <root>` prints the data of the canvas as JSON.

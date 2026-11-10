@@ -63,6 +63,42 @@ export function checksModeOf(config) {
   return CHECKS_MODES.includes(config?.checks) ? config.checks : 'strict';
 }
 
+// The person sets how strict the checks are. An agent may keep or raise a level, never lower it.
+const CHECKS_RANK = Object.freeze({ off: 0, warn: 1, strict: 2 });
+
+function parsedConfigText(text) {
+  if (text === null || text === undefined) return {};
+  try {
+    const value = JSON.parse(String(text).replace(/^﻿/, ''));
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {}; // the loader reads a config it cannot parse as the defaults
+  }
+}
+
+/** The levels of a config text as the loader reads them; null text is a file that does not exist. */
+export function guardLevelsOf(text) {
+  const raw = parsedConfigText(text);
+  return {
+    checks: checksModeOf(raw),
+    semanticMode: raw.semantic?.mode === 'enforce' ? 'enforce' : 'advisory',
+  };
+}
+
+/**
+ * The settings that a change of `.ai/sdlc-config.json` from `priorText` to `nextText` lowers:
+ * `checks` (strict > warn > off) and `semantic.mode` (enforce > advisory). Each entry is
+ * `{ key, from, to }`; an empty list means the change keeps or raises every level.
+ */
+export function guardLowerings(priorText, nextText) {
+  const before = guardLevelsOf(priorText);
+  const after = guardLevelsOf(nextText);
+  const lowered = [];
+  if (CHECKS_RANK[after.checks] < CHECKS_RANK[before.checks]) lowered.push({ key: 'checks', from: before.checks, to: after.checks });
+  if (before.semanticMode === 'enforce' && after.semanticMode !== 'enforce') lowered.push({ key: 'semantic.mode', from: before.semanticMode, to: after.semanticMode });
+  return lowered;
+}
+
 /** The user config without the retired settings, and the paths it dropped. */
 export function withoutRetiredKeys(userConfig, retired = RETIRED_CONFIG_KEYS) {
   if (!userConfig || typeof userConfig !== 'object' || Array.isArray(userConfig)) return { config: userConfig, dropped: [] };
@@ -173,6 +209,7 @@ export async function loadConfig(projectRoot = process.cwd(), opts = {}) {
   return (await loadConfigWithMeta(projectRoot, opts)).config;
 }
 
+/** A stable hash of a config: the same keys in any order give the same hash. No module calls it today; it is kept for a cache keyed on the config. */
 export function configHash(config) {
   return createHash('sha256')
     .update(stableStringify(config))

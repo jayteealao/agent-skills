@@ -4,8 +4,10 @@
 // of the last real run. The measured time replaces the estimate. A slice runs the fast and
 // affected suites; the full and heavy suites run once per packet, after the review fixes. The
 // time box of a stage agent is computed from these times.
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { writeFileAtomic } from './atomic-write.mjs';
+import { withFileLock } from './file-lock.mjs';
 
 export const SUITES = ['fast', 'affected', 'full', 'heavy'];
 export const SLICE_SUITES = ['fast', 'affected'];
@@ -20,7 +22,8 @@ const configFile = (root) => join(root, '.ai', 'sdlc-config.json');
 function readConfig(root) {
   const file = configFile(root);
   if (!existsSync(file)) return {};
-  return JSON.parse(readFileSync(file, 'utf8'));
+  // A config saved with a byte order mark reads as one without it, as loadConfig reads it.
+  return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 }
 
 /** The testProfile setting of a project, or {}. */
@@ -51,18 +54,20 @@ export function timeBox(profile, suites, { workSeconds = 0, factor = TIME_BOX_FA
 
 // Read the config, let `mutate` change the test profile in place, and write the config back.
 // It keeps the other settings, the two-space indent and the line endings. Returns what
-// `mutate` returns.
+// `mutate` returns. The read and the write hold the lock of the config, and the write goes
+// through a temp file of its own, so two sessions that finish a suite together both land.
 function writeProfile(root, mutate) {
   const file = configFile(root);
-  const cfg = readConfig(root);
-  const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
-  const result = mutate(profile);
-  cfg.testProfile = profile;
-  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
-  const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  writeFileSync(`${file}.tmp`, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
-  renameSync(`${file}.tmp`, file);
-  return result;
+  return withFileLock(file, () => {
+    const cfg = readConfig(root);
+    const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
+    const result = mutate(profile);
+    cfg.testProfile = profile;
+    const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
+    writeFileAtomic(file, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
+    return result;
+  });
 }
 
 /** The command that sets a suite, with `<root>` for the project root. */

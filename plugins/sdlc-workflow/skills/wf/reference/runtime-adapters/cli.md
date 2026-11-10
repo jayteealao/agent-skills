@@ -15,11 +15,11 @@ Enumerate **flags per command** as well as commands — `dead-affordance` on a C
 
 ## Drive
 - Run the binary with the inputs implied by the criterion or probe target.
-- For interactive CLIs, use `expect` or pipe stdin: `echo "<input>" | <binary> <args>`.
+- For interactive CLIs, pipe stdin: `echo "<input>" | <binary> <args>`. Use `expect` only where it is installed.
 - For commands that take files, stage minimal fixtures under `<evidence-dir>/inputs/` and pass them in.
 
 ## Observe
-- **Stdout + stderr** — capture both separately: `<binary> <args> >stdout.txt 2>stderr.txt`. Record exit code (`echo $?`).
+- **Stdout + stderr** — capture both separately: `<binary> <args> >stdout.txt 2>stderr.txt`. Record the exit code (`$?` in a POSIX shell, `$LASTEXITCODE` in PowerShell).
 - **Exit code** — non-zero is a strong signal but not the only signal; some CLIs return zero and emit errors on stderr.
 - **Output format** — for criteria that declare output structure (e.g., JSON, table format), parse and validate the structure, not just substring presence.
 - **Error cases (when probe target asks)** — test wrong arguments, missing files, permission errors. Capture each.
@@ -46,4 +46,4 @@ Enumerate **flags per command** as well as commands — `dead-affordance` on a C
 ## Remediation hints
 - Build fails → "Run the project's build command manually to surface the underlying compiler/linker error."
 - Binary not found after build → "Check the build target's output path; some projects place binaries under non-default locations."
-- Permission denied on execution → "Run `chmod +x <binary>` if the build did not mark it executable."
+- Permission denied on execution (POSIX) → "Run `chmod +x <binary>` if the build did not mark it executable."

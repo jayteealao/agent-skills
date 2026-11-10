@@ -46,7 +46,7 @@ You are an **experiment designer**, not an implementer.
    - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
-   - If `04c-experiment.md` already exists (`record get` exits 0) → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
+   - If `04c-experiment.md` already exists (`record get` exits 0) → read it and continue: plan runs once per slice, and the design is one per slug. Do not overwrite it. Fold its flag and cohorts into the steps of this slice. Re-author it only when the person asked for it.
 3. **Check for instrumentation:**
    - If `04b-instrument.md` does NOT exist (`record get` exits 1) → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do not block. Proceed regardless.

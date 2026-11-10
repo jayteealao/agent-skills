@@ -35,7 +35,7 @@ No skill file names a plugin-root variable. Those live only in the hook wiring: 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Claude Code | Codex | pi |
 |---|---|---|---|
-| `loop goal` | differs: the mod puts the /goal line into the prompt box | differs: the agent calls create_goal | differs: the person pastes the line that goal.mjs arm prints |
+| `loop goal` | differs: the mod puts the /goal line into the prompt box | differs: the agent calls create_goal | differs: the agent runs the loop in this session; pi has no host goal |
 | `loop optimize` | full | gap: not available; the optimize driver runs only on Claude Code | gap: not available; the optimize driver runs only on Claude Code |
 <!-- end generated -->
 

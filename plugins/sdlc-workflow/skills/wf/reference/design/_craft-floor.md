@@ -10,7 +10,7 @@ Do not load this file during a brainstorm, design stage Steps 1–3b, `shape`, `
 
 | Where | When | How |
 |---|---|---|
-| Design stage Step 4, and amend | Before the first board | Draw every board against it. |
+| Design stage Step 4, and amend | Before the first screen | Draw every screen against it. |
 | Design stage Move pass, and import | Step 1 of the pass; with the import | A checklist. |
 | `implement` | Before the first UI file edit of the slice | Build against it. |
 | `verify`, `review`, `/wf design audit` and `critique` | At the design checks | A checklist: Verify and the Refuse lists. |

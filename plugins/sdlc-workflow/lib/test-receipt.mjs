@@ -11,7 +11,7 @@
 // receipt and `record stage-done` write it and go on, and verify runs its own checks. The setup
 // asks for the suites once for the project.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { STAGE_SUITES, readProfile } from './test-profile.mjs';
 
@@ -48,14 +48,21 @@ export function noSuiteReceipt(root, dir, slice, { now = new Date().toISOString(
 /**
  * The tracked files outside .ai whose work-tree content differs from a commit (HEAD by default),
  * staged or not: [{ path, hash }], sorted by path, where `hash` is the blob hash of the file in
- * the work tree (git hash-object), or null when the file is deleted. Paths are relative to root.
+ * the work tree (git hash-object), or null when the file is deleted. A changed submodule is a
+ * folder, not a file: its hash is the commit that its checkout is at. Paths are relative to root.
  */
 export function treeChanges(root, base = 'HEAD') {
   const diff = git(root, ['diff', '--name-only', '--relative', '-z', base, '--', '.', ':!.ai']);
   if (diff.status !== 0) throw new Error(`git diff ${base} failed in ${root}: ${diff.stderr.trim()}`);
   const paths = diff.stdout.split('\0').filter(Boolean).sort();
-  const present = paths.filter((p) => existsSync(join(root, p)));
+  const isFile = (p) => { try { return statSync(join(root, p)).isFile(); } catch { return false; } };
+  const present = paths.filter((p) => existsSync(join(root, p)) && isFile(p));
   const hashes = new Map();
+  for (const p of paths) {
+    if (!existsSync(join(root, p)) || isFile(p)) continue;
+    const head = git(join(root, p), ['rev-parse', 'HEAD']);
+    hashes.set(p, head.status === 0 ? `commit:${head.stdout.trim()}` : null);
+  }
   if (present.length) {
     const r = git(root, ['hash-object', '--', ...present]);
     if (r.status !== 0) throw new Error(`git hash-object failed in ${root}: ${r.stderr.trim()}`);

@@ -93,6 +93,7 @@ function renderSnippet(body, data) {
   // loops bind to the correct opener. Walks the string once.
   let out = '';
   let i = 0;
+  const fill = fillWith(data);
   const eachOpenRe = /\{\{#each\s+([a-z0-9_.-]+)\s*\}\}/g;
   const blockRe    = /\{\{(#each\s+[a-z0-9_.-]+\s*|\/each)\}\}/g;
 
@@ -100,10 +101,10 @@ function renderSnippet(body, data) {
     eachOpenRe.lastIndex = i;
     const open = eachOpenRe.exec(body);
     if (!open) {
-      out += body.slice(i);
+      out += fill(body.slice(i));
       break;
     }
-    out += body.slice(i, open.index);
+    out += fill(body.slice(i, open.index));
 
     const innerStart = open.index + open[0].length;
     blockRe.lastIndex = innerStart;
@@ -125,19 +126,16 @@ function renderSnippet(body, data) {
     i = blockEnd;
   }
 
-  // Raw placeholders first (so HTML-escape pass doesn't double-escape them).
-  out = out.replace(/\{\{\{([a-z0-9_.-]+)\}\}\}/g, (_, key) => {
-    const v = resolvePath(data, key);
-    return v == null ? '' : String(v);
-  });
-
-  // HTML-escaped placeholders.
-  out = out.replace(/\{\{([a-z0-9_.-]+)\}\}/g, (_, key) => {
-    const v = resolvePath(data, key);
-    return v == null ? '' : escapeHtml(v);
-  });
-
   return out;
+}
+
+// One pass over a literal part of the template: the raw `{{{key}}}` and the escaped `{{key}}`
+// placeholders. The text of a value is never read again, so a value that holds a placeholder stays text.
+function fillWith(data) {
+  return (text) => text.replace(/\{\{\{([a-z0-9_.-]+)\}\}\}|\{\{([a-z0-9_.-]+)\}\}/g, (_, raw, escaped) => {
+    const v = resolvePath(data, raw ?? escaped);
+    return v == null ? '' : raw ? String(v) : escapeHtml(v);
+  });
 }
 
 function resolvePath(obj, dotted) {

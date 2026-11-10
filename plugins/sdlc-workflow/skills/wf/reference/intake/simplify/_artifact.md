@@ -56,7 +56,7 @@ slug: <slug>
 run-id: "<YYYYMMDDTHHMMZ>"
 scope: branch | commit | plan | codebase
 target: "<resolved target>"
-status: complete | awaiting-input
+status: complete
 created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 

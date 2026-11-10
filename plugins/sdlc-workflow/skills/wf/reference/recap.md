@@ -73,7 +73,7 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
 Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
-1. The index — read it with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` and parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
+1. The index — read it with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` and parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-invocation` (or, when it is absent, `recommended-next-invocation`), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 2. For every stage record in `workflow-files`, read it with `record get` and use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (the ledger `findings.yaml`), what shipped (handoff/ship), and lessons (retro).
 3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
 3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
@@ -130,7 +130,7 @@ loose end the reader should know about.
 
 ## What's left
 The remaining work in plain terms, then the concrete next command.
-`<recommended-next-invocation>` — one-line reason.
+`<next-invocation>` (or `recommended-next-invocation` when the index has no `next-invocation`) — one-line reason.
 If on the wrong branch: ⚠ You are on `<current>` — switch to `<branch>` first.
 ```
 

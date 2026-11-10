@@ -4,7 +4,8 @@
 // into the ledger by the merge law:
 //   1. a finding of the run that matches a ledger entry (the same source, dimension and key,
 //      or the same file and line) keeps that entry's id, surfaced-at and triage status;
-//      last-seen-at moves, and a `resolved` entry opens again
+//      last-seen-at moves, and a `resolved`, `refuted` or `fixed` entry opens again (a `fixed`
+//      one keeps the fix that did not hold in `fixed-before`)
 //   2. a new finding gets the next id of its dimension prefix (never a reused id), status open
 //   3. an open entry of a dimension that the run checked and did not find again is resolved
 //   4. an entry of a dimension that the run did not check stays as it is
@@ -14,16 +15,19 @@
 // finding in any other file: the review looks only at the packet. Rows are never deleted. Each
 // merge appends one `runs` entry. The review file of a run is written whole from the ledger,
 // so the ledger, not the file, keeps the history.
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { writeFileAtomic } from './atomic-write.mjs';
+import { withFileLock } from './file-lock.mjs';
 import { parse, stringify } from './yaml.mjs';
 
 export const FINDINGS_FILE = 'findings.yaml';
 export const SOURCES = ['review', 'audit', 'pr-bot'];
 export const SEVERITIES = ['BLOCKER', 'HIGH', 'MED', 'LOW', 'NIT'];
 export const STATUSES = ['open', 'resolved', 'refuted', 'fixed', 'deferred', 'dismissed', 'could-not-fix', 'kept-by-person'];
-// The statuses that a re-run keeps: a triage decision is changed only by `set`.
+// The triage statuses, which `set` writes. A re-run keeps each one but `fixed`: a run that finds
+// a fixed finding again opens it (rule 1 above), since the fix did not hold.
 const TRIAGED = new Set(['fixed', 'deferred', 'dismissed', 'could-not-fix', 'kept-by-person']);
 export const OPEN_STATUSES = new Set(['open', 'deferred', 'could-not-fix']);
 
@@ -45,12 +49,20 @@ export function readLedger(slugDir) {
   return { findings: Array.isArray(doc.findings) ? doc.findings : [], runs: Array.isArray(doc.runs) ? doc.runs : [] };
 }
 
-/** Write the ledger whole, through a temporary file. */
+/** Write the ledger whole, through a temp file of this write. */
 export function writeLedger(slugDir, ledger) {
   const file = join(slugDir, FINDINGS_FILE);
   const text = `${stringify({ schema: 'sdlc/v1', type: 'findings', findings: ledger.findings, runs: ledger.runs })}\n`;
-  writeFileSync(`${file}.tmp`, text);
-  renameSync(`${file}.tmp`, file);
+  writeFileAtomic(file, text);
+}
+
+/**
+ * One read-modify-write of the ledger: `fn` gets the ledger as it is now and writes it, under the
+ * lock of the ledger file, so two writers lose no entry and never mint one id twice.
+ * Returns what `fn` returns.
+ */
+export function updateLedger(slugDir, fn) {
+  return withFileLock(join(slugDir, FINDINGS_FILE), () => fn(readLedger(slugDir)));
 }
 
 // Two findings are the same when they share a source, a slice, a dimension and a key, or a
@@ -80,7 +92,8 @@ const rank = (s) => SEVERITIES.indexOf(s);
  * and a run of the whole packet (slice null) only the entries with no slice.
  * `files`, when it is not empty, is the scope of the run: a finding with a file outside it is
  * dropped and listed in `outOfScope`. A finding with no file stays.
- * Returns { ledger, added, resurfaced, resolved, outOfScope, verdict } and writes nothing.
+ * Returns { ledger, added, resurfaced, resolved, outOfScope, verdict, reopenedFixed } and writes
+ * nothing; `reopenedFixed` lists the `fixed` entries that the run found again and opened.
  */
 export function mergeRun(ledger, found, { source = 'review', dimensions = [], slice = null, run = null, files = null, now = nowIso() } = {}) {
   if (!SOURCES.includes(source)) throw new Error(`source must be one of ${SOURCES.join(', ')}`);
@@ -98,10 +111,13 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
   const seen = new Set();
   const added = [];
   const resurfaced = [];
+  const reopenedFixed = [];
   // Within-run dedupe: the same file and line in one run is one finding, at the higher severity.
   const merged = [];
   for (const f of found) {
     if (!SEVERITIES.includes(f.severity)) throw new Error(`severity must be one of ${SEVERITIES.join(', ')}`);
+    // A finding with no dimension could never be resolved: no run checks the dimension null.
+    if (!f.dimension || !String(f.dimension).trim()) throw new Error(`a finding needs its dimension: ${String(f.issue ?? '').slice(0, 80) || JSON.stringify(f).slice(0, 80)}`);
     const g = { ...f, source, slice };
     const twin = merged.find((m) => sameFinding(m, g) || (m.file && g.file && norm(m.file) === norm(g.file) && lineNo(m.line) != null && lineNo(m.line) === lineNo(g.line)));
     if (twin) {
@@ -119,6 +135,8 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
     if (old) {
       seen.add(old.id);
       old['last-seen-at'] = now;
+      // The entry follows its finding: the next run matches it at the place where this run saw it.
+      if (f.file && f.line != null) { old.file = norm(f.file); old.line = String(f.line); }
       if (rank(f.severity) < rank(old.severity)) old.severity = f.severity;
       if (f.issue) old.issue = f.issue;
       if (f.evidence) old.evidence = f.evidence;
@@ -127,6 +145,13 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
       if (f.refuted && old.status === 'open') { old.status = 'refuted'; old.reason = f.refuted; old['resolved-at'] = now; }
       else if (!f.refuted && (old.status === 'resolved' || old.status === 'refuted')) {
         old.status = 'open'; old.reason = null; old['resolved-at'] = null; old.reopened = (old.reopened ?? 0) + 1;
+      } else if (!f.refuted && old.status === 'fixed') {
+        // `fixed` is a claim, and a run that finds the finding again disproves it: the entry opens
+        // again and counts in the verdict. `fixed-before` keeps the fix that did not hold.
+        old['fixed-before'] = [...(old['fixed-before'] ?? []), { 'fixed-at': old['resolved-at'] ?? null, commit: old.commit ?? null, 'reopened-at': now }];
+        delete old.commit;
+        old.status = 'open'; old.reason = null; old['resolved-at'] = null; old.reopened = (old.reopened ?? 0) + 1;
+        reopenedFixed.push(old.id);
       }
       resurfaced.push(old.id);
       continue;
@@ -170,7 +195,7 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
   }
   const verdict = verdictOf({ findings }, { source, slice });
   const runs = [...ledger.runs, { at: now, source, slice, run, dimensions: [...checked].sort(), raw: found.length + outOfScope.length, added: added.length, resurfaced: resurfaced.length, resolved: resolved.length, ...(outOfScope.length ? { 'out-of-scope': outOfScope.length } : {}), verdict }];
-  return { ledger: { findings, runs }, added, resurfaced, resolved, outOfScope, verdict };
+  return { ledger: { findings, runs }, added, resurfaced, resolved, outOfScope, verdict, reopenedFixed };
 }
 
 /**
@@ -226,9 +251,10 @@ export function metricsOf(ledger, scope = {}) {
     'metric-findings-raw': last?.raw ?? 0,
     'metric-findings-blocker': n(mine, 'BLOCKER'),
     'metric-findings-high': n(mine, 'HIGH'),
-    'metric-findings-med': n(open, 'MED'),
-    'metric-findings-low': n(open, 'LOW'),
-    'metric-findings-nit': n(open, 'NIT'),
+    // The severity counts are the change's own findings: with -pre-existing they add up to -total.
+    'metric-findings-med': n(mine, 'MED'),
+    'metric-findings-low': n(mine, 'LOW'),
+    'metric-findings-nit': n(mine, 'NIT'),
     'metric-findings-pre-existing': open.length - mine.length,
     'metric-findings-resolved': rows.filter((f) => f.status === 'resolved').length,
     'metric-findings-fixed': rows.filter((f) => f.status === 'fixed').length,

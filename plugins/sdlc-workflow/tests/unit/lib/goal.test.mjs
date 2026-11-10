@@ -51,3 +51,8 @@ test('each kind maps to a goal verdict', () => {
   assert.equal(fromProofs([{ command: 'a', code: 0 }]).verdict, 'MET');
   assert.equal(fromProofs([{ command: 'a', code: 0 }, { command: 'b', code: 1 }]).reason, '1 of 2 proof(s) fail: b');
 });
+
+test('an optimize loop with no baseline has not started, and a stop names resume as the way on', () => {
+  assert.deepEqual(fromOptimize({ ok: true, state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } }), { verdict: 'NOT-MET', reason: 'optimize: next baseline' });
+  assert.match(fromOptimize({ ok: true, state: 'stopped', reason: 'plateau' }).reason, /^optimize stopped: plateau; after the loop can go on, run \/wf loop goal <slug> resume$/);
+});

@@ -189,3 +189,38 @@ test('codex Stop via the adapter: --plugin-data hosts the cursor, the rollout is
     assert.equal(rows[1].key, 'implement', 'no write this turn → inherits');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('claude Stop of a resumed session books only its own responses, not the repeated ones of the session it resumed', () => {
+  const { dir, repo, home } = setup();
+  try {
+    const transcript = join(dir, 'sess-new.jsonl');
+    const write = [{ type: 'tool_use', name: 'Write', input: { file_path: join(repo, '.ai', 'workflows', 'demo', '04-plan-cli.md'), content: '' } }];
+    const old = J({ type: 'assistant', requestId: 'r-old', timestamp: '2026-09-07T09:00:00Z', sessionId: 'sess-old', message: { model: 'claude-fable-5-1', usage: { input_tokens: 1000, output_tokens: 1000 }, content: write } });
+    const mine = J({ type: 'assistant', requestId: 'r-new', timestamp: '2026-09-07T10:00:00Z', sessionId: 'sess-new', message: { model: 'claude-fable-5-1', usage: { input_tokens: 3, output_tokens: 4 }, content: [] } });
+    writeFileSync(transcript, old + mine);
+    runHook({ session_id: 'sess-new', transcript_path: transcript, cwd: repo, hook_event_name: 'Stop' }, { env: { SDLC_HOME: home } });
+    const rows = readCostRows(join(repo, '.ai', 'workflows', 'demo'));
+    assert.equal(rows.length, 1, 'the earlier write still names the slug');
+    assert.deepEqual([rows[0].main.input_tokens, rows[0].main.output_tokens], [3, 4]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('claude Stop: a write into a fixture folder or a path with .. books no row there and keeps the slug before it', () => {
+  const { dir, repo, home } = setup();
+  try {
+    const transcript = join(dir, 'sess-claude.jsonl');
+    const input = { session_id: 'sess-claude', transcript_path: transcript, cwd: repo, hook_event_name: 'Stop' };
+    const usage = { input_tokens: 1, output_tokens: 1 };
+    writeFileSync(transcript, claudeAssistant('r1', usage, [{ type: 'tool_use', name: 'Write', input: { file_path: join(repo, '.ai', 'workflows', 'demo', '04-plan-cli.md'), content: '' } }]));
+    runHook(input, { env: { SDLC_HOME: home } });
+    const fixture = join(repo, 'tests', 'fixtures', 'proj', '.ai', 'workflows', 'fake');
+    appendFileSync(transcript, claudeAssistant('r2', usage, [
+      { type: 'tool_use', name: 'Write', input: { file_path: join(fixture, '05-implement-x.md'), content: '' } },
+    ]));
+    runHook(input, { env: { SDLC_HOME: home } });
+    appendFileSync(transcript, claudeAssistant('r3', usage, [{ type: 'tool_use', name: 'Write', input: { file_path: `${repo}/.ai/workflows/../x/05-implement-x.md`, content: '' } }]));
+    runHook(input, { env: { SDLC_HOME: home } });
+    assert.equal(existsSync(fixture), false, 'no fixture folder is made');
+    assert.equal(readCostRows(join(repo, '.ai', 'workflows', 'demo')).length, 3, 'each turn stays on the slug before it');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

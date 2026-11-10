@@ -6,7 +6,7 @@ Reads the open review findings from the ledger `findings.yaml` ([../_findings-le
 
 Do this in order for reviews mode:
 1. **Resolve the scope.** When `review-scope` in `00-index.md` is `per-slice`, resolve the slice-slug: a slice-slug passed as a third argument (for example `/wf implement my-slug auth-flow reviews`), else `selected-slice` from `00-index.md`, else ask the user. Otherwise the scope is the whole work packet.
-2. **Read the open findings** with `node "<skill-dir>/scripts/wf.mjs" findings list "<root>" <slug> --source review --open --json`, with `--slice <slice-slug>` in per-slice mode. Skip a finding with `changes-acceptance: true` that has no live answer (`wf.mjs decide answered --key finding:<id>`): it is a question for the person.
+2. **Read the open findings** with `node "<skill-dir>/scripts/wf.mjs" findings list "<root>" <slug> --source review --open --json`, with `--slice <slice-slug>` in per-slice mode. Take the findings whose `status` is `could-not-fix` or `open`. Skip `deferred`: it waits for evidence, not for code. Skip a finding with `changes-acceptance: true` that has no live answer (`wf.mjs decide answered --key finding:<id>`): it is a question for the person.
 3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, source review command, severity, file:line, issue description, suggested fix.
 4. **Track the findings in a work-tracking checklist**: one item per finding plus the ledger update and the atomic commit; keep statuses truthful as fixes land.
 5. **Present the findings list** to the user before starting:
@@ -24,7 +24,7 @@ Do this in order for reviews mode:
 7. **After all findings are processed:**
    a. Write the draft of `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status. To update an existing record, get it with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice-slug>.md` and change it. Write the draft to `<wf-dir>/.draft/05-implement-<slice-slug>.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
    b. Update the `05-implement.md` master index: get it, change it, write the draft and put it.
-   c. **Record each outcome in the ledger** with `wf.mjs findings set <id> fixed` or `wf.mjs findings set <id> could-not-fix --reason "<reason>"`. Then write the draft of the review record (`07-review.md`, or `07-review-<slice-slug>.md` in per-slice mode) whole from the ledger and put it, per `review/_stage.md` Step 5.
+   c. **Record each outcome in the ledger** with `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>` or `wf.mjs findings set "<root>" <slug> <id> could-not-fix --reason "<reason>"`. Then write the draft of the review record (`07-review.md`, or `07-review-<slice-slug>.md` in per-slice mode) whole from the ledger and put it, per `review/_stage.md` Step 5.
    d. Update the index fields with one `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...` call.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by path and fail closed on any other dirty path, per the commit rule of [../_workflow-rules.md](../_workflow-rules.md). Commit as `<type>: <what the fix does>` ([_steps.md](_steps.md)). Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
 8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:

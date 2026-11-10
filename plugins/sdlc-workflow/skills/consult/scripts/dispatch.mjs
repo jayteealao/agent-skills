@@ -49,7 +49,7 @@ import {
   userCodexHome,
 } from './isolate.mjs';
 import { appendCostRow, CLAUDE_USAGE_FIELDS, CODEX_USAGE_FIELDS } from '../../../lib/cost-ledger.mjs';
-import { killTree } from '../../../lib/proc.mjs';
+import { killTree, isMainModule } from '../../../lib/proc.mjs';
 import { workflowDir } from '../../../lib/records-root.mjs';
 
 // ── configuration (NOT user-facing flags, D15) ──────────────────────────────
@@ -60,6 +60,8 @@ const GEMINI_MODEL = process.env.SDLC_CONSULT_GEMINI_MODEL || 'gemini-3-pro';
 const CLI_MAX_TURNS = 16;          // headless oracle: read + reason, then answer
 const FANOUT_CONCURRENCY = 4;      // cap parallel sub-agents (§8 watch item)
 const STDIN_SOFT_LIMIT = 9_000_000; // ~9 MB; claude stdin hard-caps at 10 MB
+// The time box of one CLI oracle; SDLC_CONSULT_TIMEOUT_MS overrides it.
+export const CLI_TIMEOUT_MS = Number(process.env.SDLC_CONSULT_TIMEOUT_MS) > 0 ? Number(process.env.SDLC_CONSULT_TIMEOUT_MS) : 15 * 60_000;
 
 export const CLI_PROVIDERS = ['codex', 'claude'];
 export const REST_PROVIDERS = ['gemini', 'openai'];
@@ -92,12 +94,13 @@ export function defaultProviders(opts = {}) {
 
 /**
  * Resolve a requested provider list into { toRun, skipped, bare }. An empty
- * request fans out to defaultProviders; a non-empty request keeps only the
+ * request fans out to every available known provider, and names each known
+ * provider it left out in skipped; a non-empty request keeps only the
  * available ones and records the rest as skipped (with a reason).
  */
 export function resolveProviders(requested, opts = {}) {
   const bare = !(requested && requested.length);
-  const list = bare ? defaultProviders(opts) : requested;
+  const list = bare ? [...CLI_PROVIDERS, ...REST_PROVIDERS] : requested;
   const toRun = [];
   const skipped = [];
   for (const p of list) {
@@ -358,10 +361,11 @@ export function buildRestRequest(provider, prompt, { env = process.env } = {}) {
   if (provider === 'gemini') {
     const key = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
     return {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
+      // The key rides in a header, not in the URL, where proxies and access logs can record it.
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       init: {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       },
       parse: parseGemini,
@@ -420,6 +424,28 @@ export function buildCliSpawn(provider, repoRoot, { env = process.env, prepareHo
   return { cmd, cmdArgs, options, tempHome };
 }
 
+// The CLI children that run now, each with its isolated home. When the dispatcher ends, by an
+// exit or a stop signal, each child is ended and its home (a copy of auth.json) is removed.
+const LIVE = new Set();
+let handlersOn = false;
+/** End every live CLI child and remove its isolated home. */
+export function endLiveChildren() {
+  for (const l of [...LIVE]) {
+    if (l.pid) killTree(l.pid);
+    if (l.tempHome) { try { rmSync(l.tempHome, { recursive: true, force: true }); } catch { /* best-effort */ } }
+    LIVE.delete(l);
+  }
+}
+function trackLive(entry) {
+  LIVE.add(entry);
+  if (handlersOn) return;
+  handlersOn = true;
+  process.on('exit', endLiveChildren);
+  for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { endLiveChildren(); process.exit(130); });
+}
+/** The number of CLI children that run now (a test seam). */
+export const liveChildren = () => LIVE.size;
+
 /**
  * Run one CLI oracle (`claude` or `codex`) headless and read-only, with the prompt on stdin.
  * Resolves `{ provider, model, ok, text, costUsd, usage, evidenceScope, error, errorKind, remedy }`;
@@ -432,9 +458,13 @@ export function runCli(provider, prompt, repoRoot, { model = null, timeoutMs = n
     const { cmd, cmdArgs, options, tempHome } = build(provider, repoRoot, { env, model, maxTurns });
     const parse = provider === 'claude' ? parseClaudeOutput : parseCodexOutput;
     const evScope = evidenceScope(provider);
+    const live = { pid: null, tempHome };
     // The isolated CODEX_HOME holds a COPY of auth.json — remove it once the
     // child is done (idempotent: 'error' then 'close' may both fire).
-    const cleanup = () => { if (tempHome) { try { rmSync(tempHome, { recursive: true, force: true }); } catch { /* best-effort */ } } };
+    const cleanup = () => {
+      LIVE.delete(live);
+      if (tempHome) { try { rmSync(tempHome, { recursive: true, force: true }); } catch { /* best-effort */ } }
+    };
     const base = { provider, model: model ?? null, evidenceScope: evScope };
 
     let child;
@@ -445,6 +475,8 @@ export function runCli(provider, prompt, repoRoot, { model = null, timeoutMs = n
       resolve({ ...base, ok: false, text: '', costUsd: null, error: String(err?.message || err) });
       return;
     }
+    live.pid = child.pid;
+    trackLive(live);
 
     let stdout = '';
     let stderr = '';
@@ -514,7 +546,7 @@ async function runRest(provider, prompt) {
 }
 
 function runOne(provider, prompt, repoRoot) {
-  if (provider === 'codex' || provider === 'claude') return runCli(provider, prompt, repoRoot);
+  if (provider === 'codex' || provider === 'claude') return runCli(provider, prompt, repoRoot, { timeoutMs: CLI_TIMEOUT_MS });
   return runRest(provider, prompt);
 }
 
@@ -566,12 +598,17 @@ async function main() {
     try { appendCostRow(workflowDir(repoRoot, row.slug), row); } catch (err) { process.stderr.write(`cost ledger skipped: ${String(err?.message || err)}\n`); }
   }
   process.stdout.write(`${JSON.stringify({ results, skipped, bare }, null, 2)}\n`);
+  // No provider could run: the panel is empty, which is a failure with its reasons, not a pass.
+  if (!toRun.length) {
+    process.stderr.write(`no provider is available: ${skipped.map((x) => `${x.provider} (${x.reason})`).join('; ') || 'none requested'}\n`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 
 // Only a run of this file starts the fan-out: `lib/dispatch.mjs` has the same base name, and the
 // design audit imports this file into the design server.
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain = isMainModule(import.meta.url);
 if (isMain || /consult[\\/]scripts[\\/]dispatch\.mjs$/i.test(process.argv[1] || '')) {
   main().catch((err) => {
     process.stderr.write(`${String(err?.stack || err)}\n`);

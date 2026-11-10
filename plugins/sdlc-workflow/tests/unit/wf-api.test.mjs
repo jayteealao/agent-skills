@@ -186,3 +186,21 @@ test('describe names every form of the header and every function of the library'
   assert.equal(text.status, 0);
   assert.match(text.stdout, /^API: wf\.mjs run/m);
 });
+
+test('findings.add takes the work packet and returns what it dropped; findings.set takes a commit and a decision of the person', () => {
+  const f = fixture();
+  try {
+    const wf = openWorkflow(f.root, 'demo');
+    const add = wf.findings.add([
+      { dimension: 'correctness', severity: 'HIGH', issue: 'in the packet', file: 'a.js', line: 3 },
+      { dimension: 'correctness', severity: 'LOW', issue: 'outside', file: 'z.js', line: 9 },
+    ], { source: 'review', dimensions: ['correctness'], files: ['a.js'] });
+    assert.deepEqual([add.added.length, add.outOfScope], [1, ['z.js:9']]);
+    const [one] = wf.findings.list({ open: true });
+    assert.equal(wf.findings.set(one.id, { status: 'fixed', commit: 'abc1234' }).commit, 'abc1234');
+    const d = wf.decisions.add({ kind: 'answer', key: 'keep-the-bug', answer: 'Keep it: the caller relies on it.', by: 'person' }).entry;
+    const e = wf.findings.set(one.id, { status: 'dismissed', decision: d.id });
+    assert.deepEqual([e.status, e.decision], ['dismissed', d.id]);
+    assert.throws(() => wf.findings.set(one.id, { status: 'dismissed', decision: 'D-999' }), /no decision D-999/);
+  } finally { f.done(); }
+});

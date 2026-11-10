@@ -66,7 +66,10 @@ const rosterEntry = (d) => ({
 });
 const isEntry = (d) => d && typeof d === 'object' && (d.slug || d.slice);
 
-/** The roster of a 03-slice.md text: [{ slug, status, dependsOn, unit, source, extensionRound }]. */
+/**
+ * The roster of a 03-slice.md text: [{ slug, status, dependsOn, unit, source, extensionRound }].
+ * Kept for the old layout, where the roster is text in 03-slice.md; rosterOf reads both layouts.
+ */
 export function rosterEntries(text) {
   const s = split(String(text ?? ''));
   if (!s) return [];
@@ -96,7 +99,7 @@ export function setRosterEntry(dir, slug, fields) {
 
 /**
  * Set `fields` on the roster entry `slug` of a 03-slice.md text. Returns the new text,
- * or null when the text has no such entry.
+ * or null when the text has no such entry. Kept for the old layout, where the roster is text.
  */
 export function editRosterEntry(text, slug, fields) {
   const s = split(String(text ?? ''));
@@ -146,7 +149,7 @@ export function setFrontmatterValue(text, key, value) {
   return join(text, s, lines);
 }
 
-/** The value of one top-level frontmatter key, or undefined. */
+/** The value of one top-level frontmatter key, or undefined. Kept for the old text layout. */
 export function frontmatterValue(text, key) {
   const m = FM.exec(String(text ?? ''));
   if (!m) return undefined;

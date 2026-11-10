@@ -58,6 +58,21 @@ test('pre-tool-use-all: a Write of an invalid artifact blocks with the validator
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('pre-tool-use-all: the write check fails closed; a payload it cannot read is refused', () => {
+  const src = readFileSync(PRE, 'utf-8');
+  match(src, /\['pre-write-validate', lazy\('\.\/pre-write-validate\.mjs'\), \{ failClosed: true \}\]/);
+  const tmp = tempDir();
+  try {
+    const r = spawnSync(process.execPath, [PRE], {
+      cwd: tmp, input: '{"tool_name": "Write", "tool_input": {', encoding: 'utf-8',
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT, ...quietEnv(tmp) },
+    });
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /pre-tool-use-all: the hook could not read the tool call/);
+    match(r.stderr, /To see why: the error and its stack are in /);
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('pre-tool-use-all: a shell payload reaches leak-guard-bash; the dispatch sentinel silences the process', () => {
   const tmp = tempDir();
   try {

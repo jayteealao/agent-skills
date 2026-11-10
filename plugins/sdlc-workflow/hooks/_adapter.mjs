@@ -20,7 +20,7 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ── stdin / argv ──────────────────────────────────────────────────────────────
@@ -140,14 +140,16 @@ export function runPolicy(runtimeRoot, name, stdin, { cwd, timeoutMs = 12000 } =
  *   - Write / Edit / MultiEdit-shaped tool_input (file_path / edits[].file_path)
  *   - apply_patch (parse the patch envelope for Add/Update/Delete/Move paths)
  * Returns `[{ path, content }]` (content present only for full-file Add writes,
- * used by best-effort pre-tool validation). Paths are repo-relative or absolute
- * exactly as the event carried them — the shared policy resolves them vs cwd.
+ * used by best-effort pre-tool validation). A relative path is resolved against the cwd of the
+ * event, the folder the tool ran in, so a patch made from a sub-folder of the project names the
+ * right file; an event with no cwd keeps its paths as carried.
  */
 export function touchedFromEvent(event) {
   const ti = event?.tool_input ?? {};
   const out = [];
+  const base = typeof event?.cwd === 'string' && event.cwd ? event.cwd : null;
   const push = (path, content) => {
-    if (typeof path === 'string' && path) out.push({ path, content });
+    if (typeof path === 'string' && path) out.push({ path: base && !isAbsolute(path) ? resolve(base, path) : path, content });
   };
 
   if (typeof ti.file_path === 'string') push(ti.file_path, typeof ti.content === 'string' ? ti.content : undefined);
@@ -262,6 +264,15 @@ export function bumpRepairAttempt(pluginData, sessionId) {
   return ledger.repairAttempts;
 }
 
+/** Mark the ledger: the note that the Stop re-check did not finish was given this turn. */
+export function noteUnverified(pluginData, sessionId) {
+  const ledger = readLedger(pluginData, sessionId);
+  if (ledger.unverifiedNoted) return false;
+  ledger.unverifiedNoted = true;
+  writeLedger(pluginData, sessionId, ledger);
+  return true;
+}
+
 export function clearLedger(pluginData, sessionId) {
   try { renameSync(ledgerPath(pluginData, sessionId), `${ledgerPath(pluginData, sessionId)}.done`); }
   catch { /* nothing to clear */ }
@@ -363,7 +374,7 @@ export function workflowsRootOf(projectRoot) {
 // The machine-local entries of a workflow folder, as LOCAL_ONLY_ENTRIES of lib/records-root.mjs
 // lists them; a test keeps the two lists equal. The run files now live in <root>/.ai/run/<slug>/,
 // so this list is a guard for old files, and it can go with LOCAL_ONLY_ENTRIES.
-export const LOCAL_ONLY_NAMES = ['.draft', 'answers.jsonl', '.control.json', '.watch-state.json', '.driver-outcome.json', '.api-log.jsonl', '.ai'];
+export const LOCAL_ONLY_NAMES = ['.draft', 'answers.jsonl', '.control.json', '.watch-state.json', '.driver-outcome.json', '.api-log.jsonl', '.design-approval.json', '.ai'];
 
 /**
  * True for a path in the local workflows folder of a linked project. Each workflow of a linked
@@ -377,6 +388,20 @@ export function isLinkedLocalPath(projectRoot, path) {
   const base = local.replace(/\\/g, '/');
   const n = resolve(projectRoot, String(path ?? '')).replace(/\\/g, '/');
   return fold(n).startsWith(`${fold(base)}/`) && n.length > base.length + 1;
+}
+
+/**
+ * True for a public doc of the project: README*, CHANGELOG*, CONTRIBUTING* or a file under a
+ * docs/ folder, read relative to the project root, outside .ai/, .claude/ and .codex/. The leak
+ * guard of public docs makes the final test; this one only picks what goes to it.
+ */
+export function isPublicDocCandidate(projectRoot, path) {
+  const fold = (s) => (process.platform === 'win32' ? s.toLowerCase() : s);
+  const root = String(projectRoot ?? '').replace(/\\/g, '/').replace(/\/+$/, '');
+  let n = resolve(projectRoot || '.', String(path ?? '')).replace(/\\/g, '/');
+  if (root && fold(n).startsWith(`${fold(root)}/`)) n = n.slice(root.length + 1);
+  if (/(?:^|\/)\.(?:ai|claude|codex)\//.test(n)) return false;
+  return /^(?:README|CHANGELOG|CONTRIBUTING)[^/]*$/i.test(n.split('/').at(-1)) || /(?:^|\/)docs\//.test(n);
 }
 
 /** True for a record, draft or message file inside the records clone: the pre-write check sees it. */

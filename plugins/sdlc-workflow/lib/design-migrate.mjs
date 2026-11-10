@@ -16,7 +16,8 @@
 // `.ai/design/migrated.json` maps each old board key to its screen key. The old files stay where
 // they are, so the old paths keep working. A board that has no file but a claude.ai link must be
 // exported first: the migration lists it and does not migrate that workflow.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { commitSurface } from './design-approve.mjs';
 import { boardsRef, isInsidePath, parseBoardKey, readManifest as readBoards } from './design-boards.mjs';
@@ -271,6 +272,50 @@ function writeRevision(root, slug, rev, map, now) {
   return { paths: [...paths, `${SURFACE_REL}/${MANIFEST_FILE}`], warnings };
 }
 
+/**
+ * After the revisions: a screen that an older revision wrote and the newest one dropped is no
+ * screen of the workflow any more, and its files go when no other workflow holds it. A screen that
+ * the newest revision writes as one page loses the viewport pages of an older one. Returns the
+ * commit, or null when nothing changed.
+ */
+function dropStale(root, slug, revisions, map) {
+  const newest = revisions.at(-1);
+  if (!newest) return null;
+  const count = new Map();
+  for (const b of newest.manifest.boards) count.set(map[b.key], (count.get(map[b.key]) ?? 0) + 1);
+  const written = new Set(revisions.flatMap((r) => r.manifest.boards.map((b) => map[b.key])));
+  const m = readManifest(root);
+  const gone = [];
+  let changed = false;
+  const drop = (rel) => {
+    if (!existsSync(join(root, rel))) return;
+    rmSync(join(root, rel), { recursive: true, force: true });
+    gone.push(rel);
+  };
+  for (const key of written) {
+    const dir = `${SURFACE_REL}/${SCREENS_DIR}/${key}`;
+    if (count.has(key)) {
+      if (count.get(key) === 1) { drop(dir); drop(`${SURFACE_REL}/${LEGACY_DIR}/${key}`); }
+      continue;
+    }
+    const entry = m.screens[key];
+    if (!entry) continue;
+    entry.workflows = (entry.workflows ?? []).filter((w) => w !== slug);
+    changed = true;
+    if (entry.workflows.length) continue;
+    delete m.screens[key];
+    for (const rel of [screenRel(key), dir, legacyRel(key), `${SURFACE_REL}/${LEGACY_DIR}/${key}`]) drop(rel);
+  }
+  if (!changed && !gone.length) return null;
+  if (changed) writeManifest(root, m);
+  const git = (args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
+  if (gone.length) git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', ...gone]);
+  git(['add', '--', `${SURFACE_REL}/${MANIFEST_FILE}`]);
+  const c = git(['commit', '-q', '-m', `design: the screens that the newest revision of ${slug} dropped`, '--', `${SURFACE_REL}/${MANIFEST_FILE}`, ...gone]);
+  if (c.status !== 0 && !/nothing to commit|no changes added/.test(`${c.stdout}${c.stderr}`)) throw new Error(`git commit failed: ${c.stderr}`);
+  return git(['rev-parse', 'HEAD']).stdout.trim();
+}
+
 /** Copy the verify captures `design/captures/<slice>/<board>.png` to the records, under the screen keys. */
 function copyCaptures(root, slug, map) {
   const dir = join(workflowDir(root, slug), 'design', 'captures');
@@ -331,6 +376,8 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
       const c = commitSurface(root, w.paths, `design: ${label} of ${slug}, from its boards`);
       commits[rev.n === null ? 'working' : `r${rev.n}`] = c.commit;
     }
+    const dropped = dropStale(root, slug, plan.revisions, plan.map);
+    if (dropped) commits.dropped = dropped;
     const approved = plan.confirmed ? commits[`r${plan.confirmed.n}`] : null;
     const screens = plan.confirmed ? [...new Set(plan.confirmed.manifest.boards.map((b) => plan.map[b.key]))] : [];
     const m = readManifest(root);

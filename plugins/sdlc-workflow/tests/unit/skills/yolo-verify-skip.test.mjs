@@ -99,10 +99,10 @@ test('an implement that returns no HEAD ids runs verify after a route back', asy
 });
 
 test('the implement prompt asks for HEAD before and after the work, and the step commands of the slice', () => {
-  const clause = new Function(`const WF_CMD = 'node "/p/wf.mjs"', projectRoot = '/r', slug = 'demo'
+  const clause = new Function(`const WF_CMD = 'node "/p/wf.mjs"', projectRoot = '/r', slug = 'demo', GIT = 'git -C "/r"'
     ${extractFn('implementStepsClause')}; return implementStepsClause`)();
   const plain = clause('auth', false);
-  assert.match(plain, /run `git -C \/r rev-parse HEAD` and return the commit id that it prints as headStart/);
+  assert.match(plain, /run `git -C "\/r" rev-parse HEAD` and return the commit id that it prints as headStart/);
   assert.match(plain, /Immediately before you return, run it again and return that commit id as headEnd/);
   assert.match(plain, /`node "\/p\/wf\.mjs" step where "\/r" demo auth`/);
   assert.match(plain, /`node "\/p\/wf\.mjs" step complete "\/r" demo auth --sha HEAD`/);
@@ -126,6 +126,7 @@ function verifyHarness(rounds, wall) {
     ${extractFn('verifyClean')}
     ${extractFn('personAccepted')}
     ${extractFn('probeGaps')}
+    ${extractFn('fixRoundLeft')}
     ${extractFn('driveVerify')}
     return driveVerify
   `);
@@ -198,6 +199,7 @@ test('driveVerify: a self-verify that did not converge stops without a verify ag
   const build = new Function('stubs', `
     const { runStage, log, probeGaps, driveWallProbe, acKey } = stubs
     ${extractFn('verifyClean')}
+    ${extractFn('fixRoundLeft')}
     ${extractFn('driveVerify')}
     return driveVerify
   `);

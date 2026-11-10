@@ -27,16 +27,14 @@ Ask a gate question per [_gate-question.md](../_gate-question.md):
 question: "Which block of the ship plan needs editing?"
 header: "Plan block"
 options:
-  - { label: "A — Ship meaning + environments + cadence",  description: "What does ship mean, which envs, how often." }
-  - { label: "B — Versioning contract",                    description: "Scheme, source-of-truth files, bump rule, prerelease/postrelease." }
-  - { label: "C — CI/CD contract",                         description: "Release trigger, workflow file, required secrets, dry-run + publish commands." }
-  - { label: "D — Post-publish verification",              description: "Checks run after publish, propagation window, poll interval." }
+  - { label: "Outbound core (A–D)",                        description: "A ship meaning + environments + cadence, B versioning contract, C CI/CD contract, D post-publish verification." }
+  - { label: "Rollout, recovery, announce (E–G)",          description: "E rollout/rollback, F recovery playbooks, G announcements." }
   - { label: "Inbound (H–K)",                              description: "Code-quality gates (commit/PR-title convention, format/lint/type-check/coverage), local developer experience (git hooks, editorconfig, task runner), repo governance (branch protection, CODEOWNERS, templates, dependency automation, merge controls), or security & supply-chain gates (SAST, dependency-audit, secret-scanning, SBOM, license)." }
-  - { label: "Other (E, F, G, or additional-contract)",    description: "Rollout/rollback, recovery playbooks, announcements, or an additional-contract by id." }
+  - { label: "Additional contract",                        description: "An entry of additional-contracts[], by id." }
 multiSelect: false
 ```
 
-If the user picks "Inbound (H–K)", run a follow-up freeform prompt: *"Which block? `H` (code-quality gates), `I` (local developer experience), `J` (repo governance + merge), or `K` (security & supply-chain gates)."* — and route accordingly. Note that GitHub Environment protection lives in Block A and CI-ergonomics in Block C — pick those blocks to edit them. If the user picks "Other", run a follow-up freeform prompt: *"Which block? `E` (rollout/rollback), `F` (recovery playbooks), `G` (announcements), or the `id` of an additional-contract."* — and route accordingly. Additional-contract amendments edit only the matching entry in `additional-contracts[]`; they do not bump `plan-version` differently from block amendments.
+The question tool takes at most four options, so each option names a group. If the user picks "Outbound core (A–D)", run a follow-up freeform prompt: *"Which block? `A` (ship meaning, environments, cadence), `B` (versioning), `C` (CI/CD) or `D` (post-publish verification)."* If the user picks "Inbound (H–K)", run a follow-up freeform prompt: *"Which block? `H` (code-quality gates), `I` (local developer experience), `J` (repo governance + merge), or `K` (security & supply-chain gates)."* — and route accordingly. Note that GitHub Environment protection lives in Block A and CI-ergonomics in Block C — pick those blocks to edit them. If the user picks "Rollout, recovery, announce (E–G)", run a follow-up freeform prompt: *"Which block? `E` (rollout/rollback), `F` (recovery playbooks) or `G` (announcements)."* If the user picks "Additional contract", ask for the `id` of the entry. Route accordingly. Additional-contract amendments edit only the matching entry in `additional-contracts[]`; they do not bump `plan-version` differently from block amendments.
 
 ## Step S2 — Re-run the relevant block's questions
 

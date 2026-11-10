@@ -14,7 +14,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `03-slice.md` | artifact | if-present | |
 | `01-<mode>.md` | artifact | if-present | |
-| `03-slice-*.md` | artifact | mode:slug-wide | |
+| `03-slice-*.md` | artifact | mode:no-target | |
 | `probe/_artifact.md` | procedure | always | |
 | `probe/_target-resolution.md` | procedure | mode:target | |
 | `_compressed-slice.md` | procedure | always | |
@@ -24,6 +24,8 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `runtime-adapters/_ladder.md` | procedure | always | |
 | `runtime-adapters/_protocols.md` | procedure | always | |
 | `03-slice-probe-*.md` | writes | | |
+
+`no-target` applies when the call has no target string (the slug-wide probe); `target` applies when it has one.
 
 # Slug-mode contract (read before proceeding)
 
@@ -41,7 +43,7 @@ You are a **runtime observer**, not a fixer.
 
 # Argument grammar
 
-The dispatcher has consumed the first positional argument (the slug). What remains:
+The first positional is the slug, or the word `sweep`. What follows the slug:
 
 | Form | Meaning |
 |---|---|
@@ -54,6 +56,8 @@ Probe owns its own **first-token resolution**: if the first token is the reserve
 No flags — probe takes a slug and an optional target string. It always surfaces incidental defects observed during navigation and drives every adapter the repo matches (intersected with the confirmed stack).
 
 # Step 0 — Orient
+
+In a slug-less sweep (`/wf probe sweep [path]`), skip items 1–3 and Step 1; go to item 4.
 
 1. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, and parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **From `03-slice.md`** (or the lead `01-<mode>.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`), note every slice slug and the source mode of `workflow-type`, per [_source-modes.md](_source-modes.md).
@@ -144,7 +148,7 @@ A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep templa
 
 # Step 7 — Clear deferrals (when applicable)
 
-If `runtime-evidence-deferrals` in the index contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
+If `runtime-evidence-deferrals` in the index contains entries whose `cleared-by: null` and whose `slice` is in `target-resolution.matched-slices`, or is the `slice` of an entry of `matched-ac`, or is any slice when the run is slug-wide or a slug sweep:
 
 - For each matched deferral, check whether the probe produced evidence that satisfies the deferred user-observable AC.
 - **Direction check first:** if the deferred AC is a prove-fail-closed criterion (a gate/guard/health-check catching a failure — shape.md's direction rule), the probe evidence must show the *failure branch firing* (induced fault caught, bad input rejected). A green happy-path observation does NOT clear it. On a direction mismatch, leave `cleared-by: null` and record in `## Tripwires` what evidence would qualify (the fault to inject).

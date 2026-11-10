@@ -14,6 +14,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { killTree } from './proc.mjs';
 
 /**
  * The strict form of a JSON schema that Codex accepts: every property is required, an
@@ -25,6 +26,8 @@ export function strictSchema(s) {
   if (Array.isArray(s)) return s.map(strictSchema);
   const out = { ...s };
   if (out.items) out.items = strictSchema(out.items);
+  // An array with no item schema: each item goes as a JSON string, and fromStrict parses it back.
+  else if ([].concat(out.type).includes('array')) out.items = { type: 'string', description: 'A JSON-encoded item.' };
   for (const k of ['anyOf', 'oneOf', 'allOf']) if (out[k]) out[k] = out[k].map(strictSchema);
   if (out.type === 'object' && !out.properties) return { type: 'string', description: 'A JSON-encoded object.' };
   if (out.type === 'object' || out.properties) {
@@ -40,10 +43,24 @@ export function strictSchema(s) {
 }
 
 function nullable(v) {
-  if (v.enum) return { ...v, enum: [...v.enum, null], ...(v.type ? { type: [].concat(v.type, 'null') } : {}) };
-  if (typeof v.type === 'string') return { ...v, type: [v.type, 'null'] };
-  if (Array.isArray(v.type)) return { ...v, type: [...v.type, 'null'] };
+  // 'null' goes into a type list and null into an enum once.
+  if (v.enum) return { ...v, enum: v.enum.includes(null) ? v.enum : [...v.enum, null], ...(v.type ? { type: [...new Set([].concat(v.type, 'null'))] } : {}) };
+  if (typeof v.type === 'string') return v.type === 'null' ? v : { ...v, type: [v.type, 'null'] };
+  if (Array.isArray(v.type)) return v.type.includes('null') ? v : { ...v, type: [...v.type, 'null'] };
   return { anyOf: [v, { type: 'null' }] };
+}
+
+/**
+ * The args of the yolo driver that `wf.mjs drive` runs. `reviewFindings`: the walk put the
+ * defects of a fidelity row or a try-out in the findings ledger, so the slug-wide review fixes
+ * only those (the workflow script reads `args.reviewFindings`).
+ */
+export function driveArgs({ projectRoot, referenceRoot, slug, run, staged, slice = null, answered = null, delegate = false, reviewFindings = false }) {
+  return {
+    projectRoot, referenceRoot, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
+    ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(delegate || staged.delegate ? { delegate: true } : {}),
+    ...(reviewFindings ? { reviewFindings: true } : {}),
+  };
 }
 
 /** Undo strictSchema on a value: drop a null that the original schema did not require, and parse a JSON-string object. */
@@ -52,6 +69,9 @@ export function fromStrict(v, s) {
     try { return JSON.parse(v); } catch { return { raw: v }; }
   }
   if (!s || v === null || typeof v !== 'object') return v;
+  if (Array.isArray(v) && !s.items && [].concat(s.type).includes('array')) {
+    return v.map((x) => { if (typeof x !== 'string') return x; try { return JSON.parse(x); } catch { return x; } });
+  }
   if (Array.isArray(v)) return v.map((x) => fromStrict(x, s.items));
   const props = s.properties || {};
   const required = new Set(s.required || []);

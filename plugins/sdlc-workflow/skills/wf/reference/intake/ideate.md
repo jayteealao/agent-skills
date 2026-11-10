@@ -18,7 +18,7 @@ This command does NOT start or advance any workflow. It discovers improvement op
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces | A `type: workflow-index` slug workflow: `<wf-dir>/01-ideate.md` (`type: ideation` — the `ideas:` and `culled:` rosters + the ranked list) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
-| Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
+| Next | `/wf intake ideate <slug> <idea-id…>` to pick; the pick prints `/wf campaign <slug>` |
 
 ## Requires
 
@@ -182,7 +182,7 @@ Then write the records (Step 6), and go to Step 7. The first question of the loo
 
 The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** records as drafts under `<wf-dir>/.draft/` (the slug derived in Step 0 sub-step 2b), run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
 
-Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
+Generate the `created-at` timestamp per [_timestamp.md](../_timestamp.md).
 
 **`00-index.md`**: write its draft from [_light-index.md](_light-index.md), the `ideate` row. The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, `next-invocation: /wf intake ideate <slug>`, never `complete`-and-parked.
 
@@ -201,20 +201,36 @@ Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line rea
 3. **Agree the order.** With two ideas or more, propose an order from the rank, and ask the person to confirm it. For each idea after the first, ask why it comes after the ideas before it, and record the answer in the person's words.
 4. **Write up each build work packet.** A build work packet has the form `intake`, `extension`, `fix` or `hotfix`. From the idea's card, write its goal, its in-scope and out-of-scope lines, its checkable acceptance criteria, its constraints and its risks, per "The write-up of a build work packet" in [brainstorm/_work.md](brainstorm/_work.md). Propose its `ux-impact`, its `try-out` and its `estimated-slices`. Detect the stack once: run the probes in `intake/default/_stack-fingerprint.md`.
 5. **Confirm the list.** Ask one question per [_gate-question.md](../_gate-question.md) with the work packets in order, each with its form, its write-up, its `ux-impact` and its `try-out`, and the stack. The person confirms the grouping into work packets, `ux-impact`, `try-out` and the stack. Do not ask about the pick reason again. Two ideas of one family can become one work packet when the person says so (the Size rules of [brainstorm/_work.md](brainstorm/_work.md)).
-6. **Write `ideate-work.json`** in the board shape of a brainstorm (`$defs.brainstormBoard`), so `campaign.mjs` reads it. The write hook validates it. Keys are lower-case words joined by dashes:
-   - `schema: sdlc/v1`, `artifact: brainstorm-board`, `slug`, `topic` (the focus), `areas: []`, and `stack` (the confirmed stack, with `user-confirmed: true`).
-   - `threads`: one per selected idea, `key: idea-<NNN>`, `name` (the title), `state: live`; and one `key: pick` thread for the pick.
-   - `items`: each idea's evidence as `kind: finding` items on its thread (`evidence:` the `file:line` or the reference path `references/<kind>/<file>`, never a `.ai/…` path). The person's pick reason is ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread, with `session: 1` and `decided-at:` the `chosen-at` time. It is carried once, by the order-1 work packet, which carries it word for word. Do not copy it into every thread.
-   - `work`: one work packet per idea: `key` and `slug` (the idea's slug suggestion), `title`, `shape` (the form of the idea's `entry:`: `intake`, `extension`, `fix`, `hotfix`, `rca`, `investigate`, `discover`, or `task`), `target-slug` for `extension`, `fix` and `hotfix`, `order` (1 to n, from step 3), `why-here` (after order 1; it names the pick), `design-form: none`, `items` (the order-1 work packet also lists the pick decision), and `state: proposed`. A build work packet also carries its write-up of step 4, with `ux-impact-confirmed: true`. `entry` is `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet. Do not copy the idea's `depends-on:` into the work packet: the walk builds the work packets in list order.
-7. **Write the list.** Run `node "<skill-dir>/scripts/campaign.mjs" write "<wf-dir>/ideate-work.json"`. It checks the board, then writes one work packet file per work packet in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
+6. **Write the input file.** Write `<wf-dir>/.draft/pick.json`. It holds only what the person agreed in steps 3 to 5:
+
+   ```json
+   {
+     "stack": { "platforms": ["<platform>"], "languages": ["<language>"], "user-confirmed": true },
+     "pick": { "reason": "<the person's pick reason, word for word>", "at": "<the chosen-at time>" },
+     "packets": [
+       { "ideas": ["IDEA-003"], "goal": "<goal>", "in-scope": [], "out-of-scope": [], "acceptance-criteria": ["<criterion>"],
+         "constraints": [], "risks": [], "measures": [], "ux-impact": "none", "try-out": "no", "estimated-slices": 8 },
+       { "ideas": ["IDEA-001", "IDEA-004"], "why-here": "<the person's words>", "goal": "<goal>", "acceptance-criteria": ["<criterion>"],
+         "ux-impact": "visual", "try-out": "yes", "estimated-slices": 10 }
+     ]
+   }
+   ```
+
+   - List the work packets in the order of step 3.
+   - Give `why-here` on each work packet after order 1 of the list. On a later pick, every new work packet needs it.
+   - Give the write-up of step 4 on each build work packet.
+   - Put two ideas in one entry only when the person grouped them in step 5.
+   - Give `title`, `slug`, `form` or `target-slug` only when the person changed it, or when the command asks for it.
+   - The command takes everything else from the `ideas:` roster: the title, the evidence, the form of the entry, the slug suggestion and the target slug.
+7. **Build the board and write the list.** Run `node "<skill-dir>/scripts/ideate-sources.mjs" pick "<projectRoot>" <slug> "<wf-dir>/.draft/pick.json"`. It builds `ideate-work.json` in the board shape of a brainstorm, and writes the list with `campaign.mjs write`. When `ok` is `false`, the command wrote nothing. Show each entry of `errors` to the person in plain words, correct the input with the person, and run the command again.
 8. **Close the workflow** (Closure step 3).
-9. **Print the invocations.** Print `/wf campaign <slug>` when the list has a build work packet. Print the command of each work packet of another form. When an idea's `depends-on:` names `/wf intake update-deps`, print that command first. Do not run them.
+9. **Print the invocations.** Print each entry of `invocations` of step 7, in order. Do not run them.
 
 A later pick on a run that already has a list appends its work packets after the last work packet of the list, and runs steps 1 to 9 for them. A work packet that the walk started keeps its text ([brainstorm/_work.md](brainstorm/_work.md), "Reopening a list").
 
 ## Regroup (the migration of an old campaign)
 
-The first `/wf campaign <slug>` on an ideate run with an old campaign ledger migrates it (`campaign/_migrate.md`), and the walk then runs the section "Regroup" of [brainstorm/_work.md](brainstorm/_work.md) on `ideate-work.json`, in its own session, with the person. Skip step 1 of that section: it is for a brainstorm board only. In its step 2, put every carried item into exactly one work packet. Write up each new build work packet and confirm the stack as in steps 4 and 5 above, and write the list as in step 7 above.
+The first `/wf campaign <slug>` on an ideate run with an old campaign ledger migrates it (`campaign/_migrate.md`), and the walk then runs the section "Regroup" of [brainstorm/_work.md](brainstorm/_work.md) on `ideate-work.json`, in its own session, with the person. Skip step 1 of that section: it is for a brainstorm board only. In its step 2, put every carried item into exactly one work packet. Write up each new build work packet and confirm the stack as in steps 4 and 5 above. Then write the list with `node "<skill-dir>/scripts/campaign.mjs" write "<wf-dir>/ideate-work.json"`. On an error, repair the board and run it again.
 
 # Refresh
 

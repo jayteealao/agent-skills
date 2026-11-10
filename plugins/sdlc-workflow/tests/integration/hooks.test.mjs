@@ -845,7 +845,8 @@ test('checks: strict blocks a false pass and names the warn mode; warn lets it s
 
     let result = hook();
     equal(result.status, 2);
-    match(result.stderr, /Set checks: warn in \.ai\/sdlc-config\.json/);
+    match(result.stderr, /Only the person decides to set checks: warn in \.ai\/sdlc-config\.json/);
+    match(result.stderr, /an agent does not change that setting itself/);
 
     writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ checks: 'warn' }));
     result = hook();
@@ -937,8 +938,18 @@ test('post-write-auto-stage stages code files during active implement workflows'
   const tmp = tempDir();
   try {
     spawnSync('git', ['init'], { cwd: tmp, encoding: 'utf-8' });
+    // The workflow at implement owns feature/demo: on another branch nothing is staged.
+    spawnSync('git', ['checkout', '-q', '-b', 'other'], { cwd: tmp, encoding: 'utf-8' });
     writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
     writeFile(join(tmp, 'src', 'app.js'), 'console.log("demo");\n');
+    equal(runHook(HOOKS.postWriteAutoStage, { cwd: tmp, tool_input: { file_path: 'src/app.js' } }, tmp).status, 0);
+    equal(spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: tmp, encoding: 'utf-8' }).stdout.trim(), '', 'another branch: nothing staged');
+    spawnSync('git', ['checkout', '-q', '-b', 'feature/demo'], { cwd: tmp, encoding: 'utf-8' });
+
+    // The prompt file of a consult is never staged.
+    writeFile(join(tmp, '.ai', 'consult', '1.prompt.md'), 'inlined code\n');
+    equal(runHook(HOOKS.postWriteAutoStage, { cwd: tmp, tool_input: { file_path: '.ai/consult/1.prompt.md' } }, tmp).status, 0);
+    equal(spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: tmp, encoding: 'utf-8' }).stdout.trim(), '', 'a consult prompt is not staged');
 
     const result = runHook(HOOKS.postWriteAutoStage, {
       cwd: tmp,

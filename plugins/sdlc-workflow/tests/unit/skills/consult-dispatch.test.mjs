@@ -4,7 +4,7 @@
 // hook early-exit is checked by spawning the SOURCE hook with the sentinel set.
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,9 @@ import {
   buildCliSpawn,
   externalCostRow,
   runCli,
+  CLI_TIMEOUT_MS,
+  endLiveChildren,
+  liveChildren,
 } from '../../../skills/consult/scripts/dispatch.mjs';
 import {
   buildClaudeEnv,
@@ -79,6 +82,12 @@ test('resolveProviders: bare fans out; a keyword narrows; unavailable → skippe
   deepEqual(bare.toRun, ['codex', 'claude', 'gemini', 'openai']);
   equal(bare.bare, true);
   deepEqual(bare.skipped, []);
+
+  // A bare panel names each known provider it left out, and why.
+  const partial = resolveProviders([], { env: { OPENAI_API_KEY: 'o' }, hasBin: (b) => b === 'claude' });
+  deepEqual(partial.toRun, ['claude', 'openai']);
+  deepEqual(partial.skipped.map((s) => s.provider), ['codex', 'gemini']);
+  match(partial.skipped[1].reason, /GEMINI_API_KEY/);
 
   const narrowed = resolveProviders(['gemini'], { env: ALL_KEYS_ENV, hasBin: yesBin });
   deepEqual(narrowed.toRun, ['gemini']);
@@ -203,10 +212,11 @@ test('buildRestRequest: openai native shape', () => {
   ok(body.model, 'carries a model id');
 });
 
-test('buildRestRequest: gemini native shape carries the key in the query', () => {
+test('buildRestRequest: gemini native shape carries the key in a header, never in the URL', () => {
   const { url, init } = buildRestRequest('gemini', 'hi', { env: { GEMINI_API_KEY: 'k-y' } });
   match(url, /generativelanguage\.googleapis\.com/);
-  match(url, /key=k-y/);
+  ok(!url.includes('k-y'), 'the key is not in the URL');
+  equal(init.headers['x-goog-api-key'], 'k-y');
   const body = JSON.parse(init.body);
   equal(body.contents[0].parts[0].text, 'hi');
 });
@@ -304,6 +314,31 @@ test('prepareCodexHome: copies auth.json when present, returns null otherwise', 
   ok(existsSync(join(isoDir, 'config.toml')), 'config.toml copied');
 });
 
+test('prepareCodexHome: the isolated config keeps the model and starts none of the MCP servers', () => {
+  const src = tempDir('sdlc-codex-src-');
+  writeFileSync(join(src, 'auth.json'), '{"token":"x"}', 'utf-8');
+  writeFileSync(join(src, 'config.toml'), [
+    'model = "gpt-5"',
+    '',
+    '[mcp_servers.docs]',
+    'command = "npx"',
+    'args = ["-y", "docs-server"]',
+    '',
+    '[mcp_servers.docs.env]',
+    'TOKEN = "t"',
+    '',
+    '[profiles.fast]',
+    'model = "gpt-5-mini"',
+    '',
+  ].join('\n'), 'utf-8');
+  const isoDir = tempDir('sdlc-codex-iso-');
+  prepareCodexHome(src, { mkHome: () => isoDir });
+  const cfg = readFileSync(join(isoDir, 'config.toml'), 'utf-8');
+  match(cfg, /^model = "gpt-5"$/m);
+  match(cfg, /\[profiles\.fast\]\nmodel = "gpt-5-mini"/);
+  ok(!/mcp_servers|docs-server|TOKEN/.test(cfg), cfg);
+});
+
 test('userCodexHome: honors CODEX_HOME, else ~/.codex', () => {
   equal(userCodexHome({ CODEX_HOME: '/x' }), '/x');
   equal(userCodexHome({}), join(homedir(), '.codex'));
@@ -358,4 +393,31 @@ test('runCli: an in-band failure keeps its class and remedy; a run past the time
   const slow = await runCli('claude', 'x', tempDir(), { timeoutMs: 300, build: fakeCli('setTimeout(()=>{}, 60000)') });
   deepEqual([slow.ok, slow.errorKind], [false, 'timeout']);
   match(slow.error, /timed out after 300 ms/);
+});
+
+test('runCli: a CLI oracle has a time box by default, and ending the dispatcher ends its children and removes their homes', async () => {
+  equal(CLI_TIMEOUT_MS, 15 * 60_000);
+  const home = tempDir('sdlc-consult-home-');
+  writeFileSync(join(home, 'auth.json'), '{}');
+  const build = (provider, repoRoot, opts) => ({ ...fakeCli('setTimeout(()=>{}, 60000)')(provider, repoRoot, opts), tempHome: home });
+  const running = runCli('codex', 'x', tempDir(), { build });
+  equal(liveChildren(), 1);
+  endLiveChildren();
+  equal(liveChildren(), 0);
+  ok(!existsSync(home), 'the isolated home is removed');
+  const r = await running;
+  equal(r.ok, false);
+});
+
+test('dispatch: a panel with no available provider fails and names each one it left out', () => {
+  const dir = tempDir();
+  const promptFile = join(dir, 'prompt.md');
+  writeFileSync(promptFile, 'hi');
+  const env = { SYSTEMROOT: process.env.SYSTEMROOT, PATH: dir };
+  const r = spawnSync(process.execPath, [join(PLUGIN_ROOT, 'skills/consult/scripts/dispatch.mjs'), 'read-only', dir, promptFile], { env, encoding: 'utf8' });
+  equal(r.status, 1);
+  const out = JSON.parse(r.stdout);
+  deepEqual(out.results, []);
+  deepEqual(out.skipped.map((s) => s.provider), ['codex', 'claude', 'gemini', 'openai']);
+  match(r.stderr, /no provider is available: codex/);
 });

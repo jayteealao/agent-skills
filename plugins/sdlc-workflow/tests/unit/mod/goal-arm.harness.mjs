@@ -9,8 +9,8 @@ import { GOAL_CONDITION_LIMIT, armHowOf, armRequestPathOf, armToastOf, armedRequ
 
 const request = (over = {}) => JSON.stringify({ slug: 's', host: 'claude-code', arming: 1, condition: 'The goal is met only when …', command: '/goal The goal is met only when …', requestedAt: '2026-10-17T20:00:00Z', state: 'pending', ...over });
 
-test('the arm request lives in the slug folder', () => {
-  assert.equal(armRequestPathOf('C:/repo', 's'), 'C:/repo/.ai/workflows/s/goal/arm.json');
+test('the arm request is a run file of the project, also for a linked project', () => {
+  assert.equal(armRequestPathOf('C:/repo', 's'), 'C:/repo/.ai/run/s/goal-arm.json');
 });
 
 test('only a pending Claude Code request of this slug with a /goal line is acted on', () => {
@@ -47,10 +47,12 @@ test('the goal slug of a command, and only of a loop goal command', () => {
   assert.equal(goalSlugOf('/wf loop goal'), null);
 });
 
-test('the project root is the nearest directory with .ai/workflows', async () => {
-  const has = new Set(['C:/repo/.ai/workflows']);
+test('the project root is the nearest directory with .ai/workflows, .ai/run or .ai/sdlc-config.json', async () => {
+  const has = new Set(['C:/repo/.ai/workflows', 'C:/linked/.ai/sdlc-config.json', 'C:/ran/.ai/run']);
   const reader = { read: async () => '', exists: async (p) => has.has(p) };
   assert.equal(await findProjectRoot('C:/repo/src/deep', reader), 'C:/repo');
+  assert.equal(await findProjectRoot('C:/linked/src', reader), 'C:/linked', 'a linked project has no local .ai/workflows');
+  assert.equal(await findProjectRoot('C:/ran', reader), 'C:/ran');
   assert.equal(await findProjectRoot('D:/other', reader), null);
 });
 

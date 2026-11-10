@@ -29,6 +29,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
+import { writeFileAtomic } from './atomic-write.mjs';
+import { withFileLock } from './file-lock.mjs';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { validateFrontmatter, formatValidationErrors } from './schema-validator.mjs';
 import { parse, stringify } from './yaml.mjs';
@@ -110,11 +112,27 @@ function readYaml(file) {
   try { return parse(readFileSync(file, 'utf8')) ?? null; } catch { return null; }
 }
 
-function writeYaml(file, value) {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(`${file}.tmp`, `${stringify(value)}\n`);
-  renameSync(`${file}.tmp`, file);
+/**
+ * A record file that a write changes: null when it does not exist. A file that exists and does
+ * not parse is refused, so a write never rebuilds it from nothing and drops what it held.
+ */
+function readYamlForWrite(file) {
+  if (!existsSync(file)) return null;
+  let value;
+  try { value = parse(readFileSync(file, 'utf8')); } catch (e) {
+    throw new Error(`${file} does not parse (${String(e?.message ?? e).split('\n')[0]}): repair it first`);
+  }
+  if (value != null && (typeof value !== 'object' || Array.isArray(value))) throw new Error(`${file} does not parse as a map: repair it first`);
+  return value ?? null;
 }
+
+function writeYaml(file, value) {
+  writeFileAtomic(file, `${stringify(value)}\n`);
+}
+
+// One write of the records of a workflow at a time: a read-modify-write of `record set` or
+// `record put` holds the lock of the folder (`records.lock` in it), so two writers lose no field.
+const withRecordLock = (dir, fn) => withFileLock(join(dir, 'records'), fn);
 
 const slicesOfDir = (dir) => {
   const roster = readDoc(dir, '03-slice.md')?.frontmatter?.slices;
@@ -228,7 +246,11 @@ export function repairCommands(frontmatter) {
 }
 
 /** Write one record into the new layout, by its file name of the old layout. Returns its place. */
-export function writeDoc(dir, name, { frontmatter: rawFrontmatter, body = '' }, opts = {}) {
+export function writeDoc(dir, name, doc, opts = {}) {
+  return withRecordLock(dir, () => writeDocLocked(dir, name, doc, opts));
+}
+
+function writeDocLocked(dir, name, { frontmatter: rawFrontmatter, body = '' }, opts = {}) {
   const frontmatter = repairCommands(rawFrontmatter);
   const n = basename(name);
   // A body ends with one newline: trailing blank lines carry nothing, and the YAML of the
@@ -242,7 +264,7 @@ export function writeDoc(dir, name, { frontmatter: rawFrontmatter, body = '' }, 
   const loc = locate(n, { slices: opts.slices ?? (/^07-review-/.test(n) ? slicesOfDir(dir) : []) });
   if (!loc) throw new Error(`${n} has no place in the record layout`);
   const file = join(dir, loc.file);
-  const doc = readYaml(file) ?? {};
+  const doc = readYamlForWrite(file) ?? {};
   const sections = { ...(doc.sections ?? {}), [loc.section]: { name: n, frontmatter: frontmatter ?? {}, body: text } };
   writeYaml(file, {
     schema: RECORD_SCHEMA,
@@ -289,14 +311,28 @@ function setPath(obj, key, value) {
  * Merge field changes into one record, in the new layout. A key with dots names a field in
  * a map (`progress.plan`). A null value deletes the field.
  */
+/**
+ * Throw when a file that a change of the record `name` would rewrite exists and does not parse:
+ * the write would drop what the file held. `record set` checks it before it reads the record.
+ */
+export function assertWritable(dir, name, opts = {}) {
+  const n = basename(name);
+  if (n === INDEX_NAME) { for (const f of [STATE_FILE, META_FILE]) readYamlForWrite(join(dir, f)); return; }
+  const loc = locate(n, { slices: opts?.slices ?? (/^07-review-/.test(n) ? slicesOfDir(dir) : []) });
+  if (loc) readYamlForWrite(join(dir, loc.file));
+}
+
 export function setFields(dir, name, changes, { now = nowIso(), opts } = {}) {
-  const doc = readDoc(dir, name, opts);
-  if (!doc || !doc.frontmatter) throw new Error(`no record ${name} in ${dir}`);
-  const fm = { ...doc.frontmatter };
-  for (const [k, v] of Object.entries(changes)) setPath(fm, k, v);
-  if (!Object.hasOwn(changes, 'updated-at') && Object.hasOwn(fm, 'updated-at')) fm['updated-at'] = now;
-  writeDoc(dir, name, { frontmatter: fm, body: doc.body }, opts);
-  return fm;
+  return withRecordLock(dir, () => {
+    assertWritable(dir, name, opts);
+    const doc = readDoc(dir, name, opts);
+    if (!doc || !doc.frontmatter) throw new Error(`no record ${name} in ${dir}`);
+    const fm = { ...doc.frontmatter };
+    for (const [k, v] of Object.entries(changes)) setPath(fm, k, v);
+    if (!Object.hasOwn(changes, 'updated-at') && Object.hasOwn(fm, 'updated-at')) fm['updated-at'] = now;
+    writeDocLocked(dir, name, { frontmatter: fm, body: doc.body }, opts);
+    return fm;
+  });
 }
 
 // ---------------------------------------------------------------- decisions
@@ -341,7 +377,9 @@ export const keptPath = (dir, name) => join(dir, DRAFT_DIR, KEPT_DIR, basename(n
 export function clearKept(dir, { slice = null } = {}) {
   const d = join(dir, DRAFT_DIR, KEPT_DIR);
   if (!existsSync(d)) return 0;
-  const names = readdirSync(d).filter((n) => !slice || n.replace(/\.[^.]+$/, '').endsWith(`-${slice}`));
+  // The slice of a draft is the slice of its record, from the roster: `-api` is not `-public-api`.
+  const slices = slice ? slicesOfDir(dir) : [];
+  const names = readdirSync(d).filter((n) => !slice || locate(n, { slices })?.slice === slice);
   for (const n of names) rmSync(join(d, n), { recursive: true, force: true });
   if (!readdirSync(d).length) rmSync(d, { recursive: true, force: true });
   return names.length;
@@ -378,7 +416,11 @@ export function putDraft(dir, path) {
     if (!v.valid) errors.push(formatValidationErrors(v.errors));
   }
   if (errors.length) return { name, file: null, section: null, errors };
-  const loc = writeDoc(dir, name, { frontmatter: fm, body: parsed.content });
+  let loc;
+  // A record file that does not parse refuses the put; the draft stays for the next try.
+  try { loc = writeDoc(dir, name, { frontmatter: fm, body: parsed.content }); } catch (e) {
+    return { name, file: null, section: null, errors: [e.message] };
+  }
   keepDraft(path);
   return { name, file: loc.file, section: loc.section, errors: [] };
 }

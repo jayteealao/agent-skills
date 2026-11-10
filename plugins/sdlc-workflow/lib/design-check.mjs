@@ -229,8 +229,17 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
   // Tokens: a color written in the page, not taken from the token sheet.
   const swatches = tokens.filter((t) => !/^var\(/.test(t.value) && CSS.supports('color', t.value)).map((t) => ({ ...t, c: rgba(t.value) }));
   if (swatches.length) {
-    const COLOR = /^(color|background-color|border-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)-color|outline-color|fill|stroke|box-shadow|text-shadow|text-decoration-color|caret-color|accent-color|column-rule-color)$/;
-    const RAW = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)/i;
+    const COLOR = /^(color|background-color|background-image|border-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)-color|outline-color|fill|stroke|box-shadow|text-shadow|text-decoration-color|caret-color|accent-color|column-rule-color)$/;
+    const FUNC = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)/i;
+    // A named color (red, rebeccapurple) is a raw color too; transparent, currentcolor and the
+    // global keywords are not.
+    const NOT_RAW = /^(?:transparent|currentcolor|inherit|initial|unset|revert|revert-layer|none)$/i;
+    const namedIn = (value) => String(value).split(/[\s,()/]+/).find((w) => /^[a-z]+$/i.test(w) && !NOT_RAW.test(w) && CSS.supports('color', w)) ?? null;
+    const RAW = { exec: (value) => { const m = FUNC.exec(value); if (m) return m; const w = namedIn(value); return w ? [w] : null; }, test: (value) => FUNC.test(value) || Boolean(namedIn(value)) };
+    // The custom properties of the token sheet; a var() of any other one is a color the page made.
+    // The component sheet may name its own properties: those are the library's, not the page's.
+    const tokenNames = new Set([...tokens.map((t) => t.name), ...[...String(componentsCss).matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1])]);
+    const foreignVar = (value) => [...String(value).matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1]).find((n) => !tokenNames.has(n)) ?? null;
     const nearest = (c) => swatches.reduce((best, t) => {
       const d = Math.hypot(c[0] - t.c[0], c[1] - t.c[1], c[2] - t.c[2], (c[3] - t.c[3]) * 255);
       return !best || d < best.d ? { t, d } : best;
@@ -240,7 +249,7 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
     const hasRaw = (style) => {
       for (let i = 0; i < style.length; i += 1) {
         const value = style.getPropertyValue(style[i]);
-        if (COLOR.test(style[i]) && value && !value.includes('var(') && RAW.test(value)) return true;
+        if (COLOR.test(style[i]) && value && (value.includes('var(') ? foreignVar(value) : RAW.test(value))) return true;
       }
       return false;
     };
@@ -248,7 +257,15 @@ function pageChecks(minTarget, { worst = false, tokens = [], componentsCss = '',
       for (let i = 0; i < style.length; i += 1) {
         const prop = style[i];
         const value = style.getPropertyValue(prop);
-        if (!COLOR.test(prop) || !value || value.includes('var(')) continue;
+        if (!COLOR.test(prop) || !value) continue;
+        if (value.includes('var(')) {
+          const own = foreignVar(value);
+          if (own && !told.has(`${where}|${own}`)) {
+            told.add(`${where}|${own}`);
+            add('token', el, `The ${prop} of ${where} uses the custom property ${own}, which is not a token`, own);
+          }
+          continue;
+        }
         const raw = RAW.exec(value)?.[0];
         if (!raw || told.has(`${where}|${raw}`)) continue;
         told.add(`${where}|${raw}`);
@@ -445,7 +462,8 @@ async function startBrowser(browser, { noSandbox }) {
   return null;
 }
 
-class Cdp {
+/** The DevTools connection to one browser. Exported for the tests. */
+export class Cdp {
   constructor(ws) {
     this.ws = ws;
     this.id = 0;
@@ -463,12 +481,20 @@ class Cdp {
       for (const l of this.listeners) l(m);
       this.waits = this.waits.filter((w) => !(w.method === m.method && w.session === m.sessionId && (w.ok(m.params), true)));
     });
+    // A browser that dies ends every call that waits on it: the checks and the audit never hang.
+    const fail = () => {
+      for (const { no } of this.calls.values()) no(new Error('the browser closed'));
+      this.calls.clear();
+    };
+    ws.addEventListener('close', fail);
+    ws.addEventListener('error', fail);
   }
-  send(method, params = {}, sessionId = undefined) {
+  send(method, params = {}, sessionId = undefined, ms = STEP_MS * 2) {
     const id = ++this.id;
     return new Promise((ok, no) => {
-      this.calls.set(id, { ok, no });
-      this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+      const t = setTimeout(() => { this.calls.delete(id); no(new Error(`no answer to ${method} in ${ms} ms`)); }, ms);
+      this.calls.set(id, { ok: (v) => { clearTimeout(t); ok(v); }, no: (e) => { clearTimeout(t); no(e); } });
+      try { this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); } catch (e) { clearTimeout(t); this.calls.delete(id); no(e); }
     });
   }
   once(method, session, ms = STEP_MS) {
@@ -507,7 +533,8 @@ export async function openBrowser(root, { browser = checkBrowser(root), pages = 
     await cdp.send('Page.enable', {}, sessionId);
     await cdp.send('Runtime.enable', {}, sessionId);
     const evaluate = async (expression) => {
-      const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+      // The checks of a page run in one evaluate: it gets more time than one step.
+      const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId, STEP_MS * 4);
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
       return r.result.value;
     };
@@ -578,7 +605,12 @@ export async function overPool(pages, items, job) {
  * The result keeps the failures of the screens that this run did not check.
  */
 export async function runChecks(root, { keys = null, workflow = null, now = new Date(), browser = undefined } = {}) {
-  let screens = listScreens(root, { workflow });
+  // A page that the migration made from an old board has no states: it is checked as it is, in one
+  // state, and the missing states are no failure of it.
+  let screens = listScreens(root, { workflow, withHtml: true }).map(({ html, ...x }) => {
+    const legacy = x.legacy === true || /<meta\s+name=["']wf:(?:legacy|migrated-from)["']/i.test(html ?? '');
+    return legacy ? { ...x, legacy: true, states: x.states.length ? x.states : ['default'] } : x;
+  });
   if (keys?.length) {
     const unknown = keys.filter((k) => !screens.some((s) => s.key === k));
     if (unknown.length) throw new Error(`no screen ${unknown.join(', ')}`);
@@ -589,7 +621,7 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
   for (const s of screens) {
     const missing = STATES.filter((st) => !s.states.includes(st));
     if (!s.exists) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: 'The screen page is missing', rect: null, move: CHECK_MOVES.states });
-    else if (missing.length) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: `The page has no ${missing.join(', ')} state`, rect: null, move: CHECK_MOVES.states });
+    else if (missing.length && !s.legacy) failures.push({ screen: s.key, check: 'states', viewport: null, state: null, message: `The page has no ${missing.join(', ')} state`, rect: null, move: CHECK_MOVES.states });
   }
   for (const d of versionDrift(root, screens.map((s) => s.key))) {
     failures.push({ screen: d.screen, check: 'version', viewport: null, state: null, message: `The page differs from ${d.version} of ${d.workflow}, and no round holds the change`, rect: null, move: null });

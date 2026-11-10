@@ -13,14 +13,13 @@ You are running `/wf verify`, **stage 6 of 9**: 1·intake → 2·design → 3·s
 | Deferrals | [verify/_deferrals.md](verify/_deferrals.md): the `interactive-verification: deferred` escape hatch and the index ledger |
 | Schemas | [verify/_artifact.md](verify/_artifact.md): frontmatter and body sections of both verify files |
 | Next | `/wf review <slug> <selected-slice>` when `result: pass` and `convergence:` is `not-needed` or `converged`. When `convergence: escalated`, re-invoke `/wf verify <slug> <selected-slice>` for a second round or escalate to `/wf implement <slug> <selected-slice>`. |
-| Skip-to | `/wf ship <slug>` when review is unnecessary (solo project, trivial change, external peer review); valid only when `result: pass`. |
 
 ## Card
 
 - Check every acceptance criterion and every check of the plan. Do not fix code while the checks run.
 - Fix only in the fix round of Step 7.6, after the checks and the AC gate of Step 7.5. Fix a `lint`, `format` or `marker-syntax` issue without a question. Ask a gate question for each other failure, per [_gate-question.md](_gate-question.md): `Fix`, `Skip` or `Escalate`. Send each `Fix` to a write-isolated fix sub-agent, and record each fix in `## Verify-Owned Fixes`. When you have no tool that starts a sub-agent (for example, you are a stage agent of a driver), make each `Fix` yourself, one after another, per "No sub-agent tool" in Step 7.6. A missing sub-agent tool is never a reason to stop or to escalate.
 - Run one fix round only. When an issue still fails after it, write `convergence: escalated` and route to `/wf verify` again or to `/wf implement`.
-- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again.
+- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again. One that it reports `probe-error` has a probe that could not run on this machine: write a probe that runs in any shell ([verify/_deferrals.md](verify/_deferrals.md)), then check again.
 - A behavior that you drove and saw wrong is `result: fail`. It is never a deferral.
 - Before you fix or report a failing item, run `wf.mjs decide list` for the slice. When a live decision of the person, a standing answer or a delegate decision already settles the item (for example "record the miss, the speed work moves to a later packet"), accept the item. Write `accepted-by: <that decision's id>`, `accepted-at` and `accepted-items` in the frontmatter. Do not fix it, do not stop on it, and do not ask about it.
 - When no code changed after the commit of the implement test receipt, reuse its results. Otherwise run only the fast and affected suites.
@@ -79,11 +78,11 @@ You run the verify stage of one slice: check it, then fix it in one round. Do no
 # Workflow rules
 
 Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
-- **Evidence versioning across re-invocations.** On a re-run, move the previous evidence directory to `<wf-dir>/verify-evidence/<slice-slug>-run-<N>/` where `N` = `fix-rounds-run` + 1; never overwrite it.
+- **Evidence versioning across re-invocations.** On a re-run, move the previous evidence directory to `<wf-dir>/verify-evidence/<slice-slug>-run-<N>/` where `N` = the previous `evidence-run-count`; write `evidence-run-count: N + 1`. Never overwrite it.
 - **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 06-verify-<slice-slug>.md result=<result>`, then re-derive the master `06-verify.md` rollup. Change the slice record first, then the index; never the index alone.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument); the second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument); the second argument, if present, is the **slice selector**. The first argument is the slug (the dispatcher refuses a call without one).
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`: `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: the passed selector, else `selected-slice` from the index, else ask the user.
 4. **Find the source mode.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md): the lead record, the acceptance source, the record names and the verify action. When the action is STOP, give its route and stop.
@@ -123,11 +122,11 @@ Do this in order:
 4. **Run checks** (parallel sub-agents when multi-concern): lint, typecheck, tests, build, smoke tests, manual checks. Record a failed check as `FAILED: <output summary>` on its item. Do not fix yet; the user-gated fix loop runs once in Step 7.6.
 5. **Verify acceptance criteria** against each criterion from `03-slice-<slice-slug>.md` and `02-shape.md` (other modes: the Step 0.4 source). Record an unmet criterion as `NOT MET: <reason>` on its item.
 6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
-7. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
+7. **Evaluate adaptive routing.** Do this after 7.5 and 7.6: routing reads their `result` and `convergence`. Write ALL viable options into frontmatter `recommended-routes`.
 7.5. **Apply the user-observable AC gate** (below). Partition AC into `code-only` and `user-observable`. Every `user-observable` AC needs a matching `interactive-verification-results` entry. If any has none and no `interactive-verification: deferred` annotation, write `result: blocked-runtime-evidence-missing` and list the AC in `## Issues Found`.
 7.6. **Single-round verify-owned fix loop** (below). Snapshot `metric-issues-found-initial`; auto-fix mechanical classes; triage each remaining failure as a gate question per [_gate-question.md](_gate-question.md); `Fix` choices spawn parallel write-isolated sub-agents (with no sub-agent tool, you fix them yourself, one after another); re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only; if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
 8. **Write the draft of `06-verify-<slice-slug>.md`** per [verify/_artifact.md](verify/_artifact.md), and run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
-9. **Write the draft of `06-verify.md`** (the master index linking every per-slice verify record) and put it. To change one row or field of it, use `record edit` or `record set`.
+9. Skip this step when the workflow uses the un-suffixed names: its one record is the stage record. **Write the draft of `06-verify.md`** (the master index linking every per-slice verify record) and put it. To change one row or field of it, use `record edit` or `record set`.
 10. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> verify <selected-slice>`. It writes `current-stage`, `progress.verify`, `next-command`, `next-invocation` (the default route, `/wf review <slug> <selected-slice>`) and adds the new records to `workflow-files`. When the Next row of this stage names another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`. `record stage-done` sets the roster status.
 
 # Adaptive routing
@@ -136,7 +135,6 @@ Routing is driven by `convergence:` plus the post-fix-loop `result:`. Present AL
 - **Option A: Review** → `/wf review <slug> <selected-slice>` when `convergence:` is `not-needed` or `converged` and `result: pass`. **Compact recommended if verify was lengthy**; its output is noise for review.
 - **Option B: Second verify round** → `/wf verify <slug> <selected-slice>` when `convergence: escalated` and the user wants another fix round. State the unresolved issues first.
 - **Option C: Manual implement (escape hatch)** → `/wf implement <slug> <selected-slice>` when the remaining issues need a design rethink or input verify cannot supply.
-- **Option D: Skip review** → `/wf ship <slug>` for a solo project, an external review, or a trivial fix; only with `result: pass`.
 - **Option E: Revisit plan** → `/wf plan <slug> <selected-slice>` when verification revealed a wrong approach, not a wrong line of code. Dominates Option C.
 - **Option F: Re-verify in a capable environment, or defer** → re-run `/wf verify <slug> <selected-slice>`, or amend with `interactive-verification: deferred` per [verify/_deferrals.md](verify/_deferrals.md), when `result: blocked-runtime-evidence-missing` and the fix loop could not produce the evidence. Deferrals block the release of ship, but not review or the PR phase of ship. A deferral is lawful only over a probed incapability and is unavailable for criteria in `constraint-resolution-missing:` (those route to Option E).
 - **Option G: Slug-wide runtime probe** → `/wf probe <slug>` when per-slice verify passed and a slug-wide runtime sweep is wanted (cross-slice integration breakage).

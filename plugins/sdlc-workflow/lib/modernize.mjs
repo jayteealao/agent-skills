@@ -23,6 +23,8 @@ export function mergedProgress(keep, old, { newStage }) {
 
 const renameCommand = (v) => (typeof v === 'string'
   ? v.replace(/(^|\s)\/wf shape(?=\s|$)/g, '$1/wf intake').replace(/(^|\s)\/wf handoff(?=\s|$)/g, '$1/wf ship')
+    // next-command holds the stage in the wf-<stage> form.
+    .replace(/^wf-shape$/, 'wf-intake').replace(/^wf-handoff$/, 'wf-ship')
   : v);
 
 /** The index changes that rename the old stages, as dotted fields for setFields. */

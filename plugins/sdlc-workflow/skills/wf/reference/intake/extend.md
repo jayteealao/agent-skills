@@ -8,7 +8,7 @@ Extension is a **scope-expansion** flow: it adds net-new slices to an existing w
 # Pipeline
 1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
-Extension is a **utility flow**, not a pipeline stage. It adds net-new slices; it does **not** correct existing slices (corrections are a *new* slice or `/wf intake <slug> fix`, never an in-place amend of built work) and does **not** fix implementation bugs (use `/wf implement`).
+Extension is a **utility flow**, not a pipeline stage. It adds net-new slices; it does **not** correct existing slices or fix bugs. A defect of built work is fixed by a review run (`/wf review <slug>`), or by `/wf intake <slug> fix` for a change after ship. It is never a new slice.
 
 | | Detail |
 |---|---|
@@ -52,9 +52,9 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 
 # Step 0 — Orient
 
-1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `<wf-dir>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
+1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `<wf-dir>/00-index.md` match) before routing here — use it. (If you arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)); if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
-   - `from-review` — extract new scope that the person names from the review records. Only the person starts this seed: a review never routes a finding here, and a defect of built work is fixed by a review run, never by a new slice.
+   - `from-review` — extract new scope that the person names from the review records. Only the person starts this seed: a review never routes a finding here. A defect of built work is fixed by a review run (`/wf review <slug>`), or by `/wf intake <slug> fix` for a change after ship. It is never a new slice.
    - `from-retro` — extract new scope from `10-retro.md` findings.
    - `from-probe` — extract new scope from the workflow's probe slices (`03-slice-probe-*.md`): findings whose remediation is net-new capability rather than a fix of built work.
    - `from-simplify` — extract new scope from `/wf intake simplify` findings routed here (the finding entry — id, files, rationale, severity — travels in the invocation text).
@@ -62,7 +62,14 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
 3. **Parse the index** (`record get "<root>" <slug> index`) — `title`, `slug`, `current-stage`, `status`, `selected-slice`, `workflow-files`, `workflow-type`.
 3b. **Shape pre-flight (entry guard).** Extension requires a slice roster, and the dispatcher's branch 2 routes ANY on-disk slug here — including workflows that cannot have one. Check before reading further:
    - **Terminal analysis parent** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) — there is no roster and never will be. STOP: *"`<slug>` is a `<type>` analysis workflow — it has no slice roster to extend. Route its decision instead: record the pick/route (`/wf intake <type> <slug> …`) or start the follow-on work with `/wf intake "<scope>" from <slug>`."*
-   - **Pre-slice standard parent** (no `03-slice.md` record yet: `record get "<root>" <slug> 03-slice.md` exits 1) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf intake <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
+   - **Other workflow with no roster** — STOP and name the command of its type: *"`<slug>` is a `<type>` workflow — it has no slice roster to extend. Run `<command>`."*, where `<command>` is:
+     - `brainstorm` → `/wf intake brainstorm <slug>`
+     - `audit` → `/wf intake audit <slug>`, or `/wf intake <slug> close` when its routes are done
+     - `task` → `/wf intake task <slug>`
+     - `optimize` → `/wf loop optimize <slug>`
+     - `prototype` → `/wf loop prototype <slug>`
+     - `simplify` → one of its `recommended-routes` (the index lists them), or `/wf intake "<scope>" from <slug>`
+   - **Pre-slice standard parent** (`workflow-type: feature` or unset, and no `03-slice.md` record yet: `record get "<root>" <slug> 03-slice.md` exits 1) — the workflow has not reached slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new scope into the normal path instead: run `/wf intake <slug>` / `/wf slice <slug>` (its `next-invocation`), which absorbs the scope without an extension round."*
 4. **Parse the `03-slice.md`** `slices:` array (`record get "<root>" <slug> 03-slice.md`). For each entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
 5. **Check every `03-slice-<slug>.md` record** that `workflow-files` lists (`record get` each). Note which are `status: complete`, `status: in-progress`, `status: defined`.
 6. **Use the seed source** that the Requires table names for the seed (`record list "<root>" <slug>` gives the names, `record get` reads each): every `07-review-*.md` for `from-review` (extension candidates often emerge from sibling reviews), `10-retro.md` for `from-retro`, and `02-shape.md` with the live entries of the decision store (`decide list`, per [_decisions.md](../_decisions.md)) for the general seed.
@@ -99,7 +106,7 @@ Extract qualifying extension candidates. Group related findings into candidate s
 - Why it can't be addressed in an existing slice fix
 - Rough complexity estimate (xs/s/m/l/xl)
 
-If no qualifying findings exist, do not STOP — say so and fall back to the general interview: "Review findings are all implementation bugs — no new scope emerged from them (fix those via `/wf implement <slug> <slice-slug>`). Describe the new scope you want to add, or reply `cancel`." On `cancel`, stop; otherwise proceed with the general seed.
+If no qualifying findings exist, do not STOP — say so and fall back to the general interview: "Review findings are all implementation bugs — no new scope emerged from them (a review run fixes those: `/wf review <slug>`). Describe the new scope you want to add, or reply `cancel`." On `cancel`, stop; otherwise proceed with the general seed.
 
 ## `from-retro` seed
 
@@ -107,7 +114,7 @@ From `10-retro.md`, extract the items that imply new development work: `## Recom
 
 ## General seed
 
-The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. A fix in the campaign walk is a general seed (`campaign.md`, step 13): the problem text of a fidelity row or of a try-out is the starting description, the slug is a work packet (`origin-packet` set), and the new slice corrects that problem. The interview does not ask about the confirmed scope of the work packet or a carried decision again. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
+The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. When the slug is a work packet (`origin-packet` set), the interview does not ask about the confirmed scope of the work packet or a carried decision again. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
 
 ---
 

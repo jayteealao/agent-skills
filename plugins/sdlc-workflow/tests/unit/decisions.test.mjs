@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import {
-  DECISIONS_FILE, addDecision, answeredBy, dropAnswered, importLegacy, inScope, liveDecisions,
+  DECISIONS_FILE, RUN_DECISIONS_OPTIONS, addDecision, answeredBy, delegatesDecisions, dropAnswered, importLegacy, inScope, liveDecisions,
   parseLegacyAnswers, parseLegacySteer, readDecisions,
 } from '../../lib/decisions.mjs';
 import { parse } from '../../lib/yaml.mjs';
@@ -229,4 +229,59 @@ test('the by row of _decisions.md names each by value that the store accepts', a
   const row = card.split(/\r?\n/).find((l) => l.startsWith('| `by` |'));
   assert.ok(row, 'the card has a by row');
   for (const value of [...BY, `${STANDING_PREFIX}<id>`]) assert.ok(row.includes(`\`${value}\``), `the by row names ${value}`);
+});
+
+test('the run-decisions answer delegates only for the recommended option or a plain yes to it', () => {
+  assert.equal(delegatesDecisions(RUN_DECISIONS_OPTIONS[1]), true);
+  assert.equal(delegatesDecisions(RUN_DECISIONS_OPTIONS[0]), false);
+  for (const yes of ['take the recommended option', 'Take the recommended option.', 'recommended', 'delegate', 'Use the recommended one and show me later', 'decide for me']) {
+    assert.equal(delegatesDecisions(yes), true, yes);
+  }
+  for (const no of [
+    'Ask me every time, no delegation', 'Do not take the recommended option', "Don't take the recommended option",
+    'Never delegate', 'stop and wait', 'wait for me, I will review the recommended option', 'without the recommended option',
+    'I recommend you stop', '', null, undefined, 'not sure',
+  ]) {
+    assert.equal(delegatesDecisions(no), false, String(no));
+  }
+});
+
+test('an import keeps a verdict that flips back: fails, works, fails stays fails', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.dir, 'po-answers.md'), '- try-out: fails\n- try-out: works\n- try-out: fails\n');
+    const r = importLegacy(f.dir);
+    assert.deepEqual(r, { added: 3, skipped: 0 });
+    assert.equal(answeredBy(readDecisions(f.dir), 'try-out').answer, 'fails');
+    assert.deepEqual(importLegacy(f.dir), { added: 0, skipped: 3 }, 'a second import adds nothing');
+  } finally { f.done(); }
+});
+
+test('the answer that fits the scope best wins: a slice query takes its slice, a plain query takes the plain answer', () => {
+  const list = [];
+  const add = (answer, scope) => list.push({ id: `D-00${list.length + 1}`, kind: 'answer', key: 'db', answer, by: 'person', scope, 'superseded-by': null });
+  add('postgres', {});
+  add('sqlite', { slice: 'ui' });
+  assert.equal(answeredBy(list, 'db', {}).answer, 'postgres', 'a later slice answer does not answer the whole workflow');
+  assert.equal(answeredBy(list, 'db', { slice: 'ui' }).answer, 'sqlite');
+  list.length = 0;
+  add('sqlite', { slice: 'ui' });
+  add('postgres', {});
+  assert.equal(answeredBy(list, 'db', { slice: 'ui' }).answer, 'sqlite', 'a later plain answer does not override the slice answer');
+  assert.equal(answeredBy(list, 'db', { slice: 'api' }).answer, 'postgres');
+});
+
+test('four processes that add decisions at once lose none and mint no id twice', async () => {
+  const { spawn } = await import('node:child_process');
+  const { pathToFileURL } = await import('node:url');
+  const f = fixture();
+  try {
+    const lib = pathToFileURL(path.join(pluginRoot, 'lib', 'decisions.mjs')).href;
+    const code = (n) => `const D = await import(${JSON.stringify(lib)}); for (let i = 0; i < 10; i++) D.addDecision(${JSON.stringify(f.dir)}, { key: 'k${n}-' + i, answer: 'a' });`;
+    const codes = await Promise.all([0, 1, 2, 3].map((n) => new Promise((res) => spawn(process.execPath, ['--input-type=module', '-e', code(n)], { stdio: ['ignore', 'ignore', 'inherit'] }).on('exit', res))));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    const ids = readDecisions(f.dir).map((d) => d.id);
+    assert.equal(ids.length, 40);
+    assert.equal(new Set(ids).size, 40);
+  } finally { f.done(); }
 });

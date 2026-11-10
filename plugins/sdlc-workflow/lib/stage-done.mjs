@@ -5,6 +5,7 @@
 // the default route of the stage (below); `next` replaces it when the stage chose another one.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { CHANGE_MODES } from './lifecycle-done.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 
 // The nine stages and the files each one writes, in order. Intake writes the brief and the
@@ -36,6 +37,29 @@ const SLICE_DONE = new Set(['complete', 'deferred', 'skipped', 'dropped']);
 const ROSTER_FIXED = new Set(['complete', 'skipped', 'dropped']);
 
 /**
+ * Whether a workflow keeps un-suffixed per-slice stage files (`04-plan.md`, `05-implement.md`,
+ * `06-verify.md`, `07-review.md`). A change mode (fix, hotfix, refactor) and single-scope work
+ * do; multi-slice work, where a roster slice has its own slice or plan file, does not.
+ */
+export function unsuffixedLayout(dir, index = frontmatterOfDoc(dir, INDEX_NAME)) {
+  if (CHANGE_MODES.includes(String(index?.['workflow-type'] ?? ''))) return true;
+  return !sliceSlugs(dir).some((s) => frontmatterOfDoc(dir, `03-slice-${s.slug}.md`) || frontmatterOfDoc(dir, `04-plan-${s.slug}.md`));
+}
+
+/**
+ * The file name of the record of a per-slice stage for a slice, in either layout: `<prefix>-<slice>.md`
+ * when that record exists or the workflow is multi-slice, else the un-suffixed `<prefix>.md`.
+ * `prefix` is the stage stem: `04-plan`, `05-implement`, `06-verify` or `07-review`.
+ */
+export function stageFileOf(dir, prefix, slice, index) {
+  const own = `${prefix}-${slice}.md`;
+  if (!slice || frontmatterOfDoc(dir, own)) return own;
+  return unsuffixedLayout(dir, index) ? `${prefix}.md` : own;
+}
+
+const PREFIX_OF = Object.fromEntries([['plan', '04-plan'], ['implement', '05-implement'], ['verify', '06-verify'], ['review', '07-review']]);
+
+/**
  * The roster status of a slice after implement or verify, or null for no change. Implement
  * gives `in-progress`. Verify reads `result` and `convergence` of its record and the open
  * runtime-evidence deferrals of the index: a pass gives `complete`; a partial whose only
@@ -44,7 +68,7 @@ const ROSTER_FIXED = new Set(['complete', 'skipped', 'dropped']);
 function rosterStatusAfter(dir, stage, slice, index) {
   if (stage === 'implement') return 'in-progress';
   if (stage !== 'verify') return null;
-  const verify = frontmatterOfDoc(dir, `06-verify-${slice}.md`) ?? {};
+  const verify = frontmatterOfDoc(dir, stageFileOf(dir, '06-verify', slice, index)) ?? {};
   const result = String(verify.result ?? '');
   if (result === 'pass') return 'complete';
   const deferrals = Array.isArray(index['runtime-evidence-deferrals']) ? index['runtime-evidence-deferrals'] : [];
@@ -127,8 +151,9 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
   // A slug-wide review writes one review record for the whole packet; a plan of every slice
   // writes one plan record per slice; slice writes one record per slice besides the roster.
   const names = stage === 'review' && !slice ? ['07-review.md']
-    : stage === 'plan' && !slice ? roster.map((x) => `04-plan-${x}.md`)
-      : ((small ? SMALL_STAGE_FILES[stage] : null) ?? STAGE_FILES[stage])(slice);
+    : stage === 'plan' && !slice ? roster.map((x) => stageFileOf(dir, '04-plan', x, index))
+      : !small && PREFIX_OF[stage] && slice ? [stageFileOf(dir, PREFIX_OF[stage], slice, index)]
+        : ((small ? SMALL_STAGE_FILES[stage] : null) ?? STAGE_FILES[stage])(slice);
   if (stage === 'slice') names.push(...roster.map((x) => `03-slice-${x}.md`));
   const rosterStatus = slice ? writeRosterStatus(dir, slice, rosterStatusAfter(dir, stage, slice, index)) : null;
   const files = names.filter((f) => frontmatterOfDoc(dir, f));
@@ -137,7 +162,7 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
   if (!status && PER_SLICE.has(stage) && slice) {
     const prefix = SLICE_STAGES.find(([s]) => s === stage)[1];
     const open = sliceSlugs(dir).filter((s) => !SLICE_DONE.has(String(s.status)) && s.slug !== slice);
-    if (open.some((s) => !frontmatterOfDoc(dir, `${prefix}-${s.slug}.md`))) progress = 'in-progress';
+    if (open.some((s) => !frontmatterOfDoc(dir, stageFileOf(dir, prefix, s.slug, index)))) progress = 'in-progress';
   }
   const route = next ? null : defaultRoute(dir, stage, slice);
   const invocation = next ?? invocationOf(slug, route);
@@ -150,6 +175,9 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
     'next-invocation': invocation,
     'workflow-files': [...listed, ...files.filter((f) => !listed.includes(f))],
     ...(slice ? { 'selected-slice': slice } : {}),
+    // The next step of the stages replaces a readiness route that an earlier stage left.
+    ...(Object.hasOwn(index, 'recommended-next-invocation') ? { 'recommended-next-invocation': null } : {}),
+    ...(Object.hasOwn(index, 'recommended-next-command') ? { 'recommended-next-command': null } : {}),
   };
   setFields(dir, INDEX_NAME, changes);
   return rosterStatus ? { ...changes, 'roster-status': rosterStatus } : changes;

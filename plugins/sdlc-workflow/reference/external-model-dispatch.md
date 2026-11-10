@@ -28,7 +28,12 @@ The CLI oracles run strictly read-only and isolated:
   Subscription is forced by SCRUBBING `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`
   (+ the cloud-provider vars) so OAuth wins; `CLAUDE_CONFIG_DIR` is kept.
 - **Codex**: `--sandbox read-only` (a real OS sandbox) + an isolated `CODEX_HOME`
-  (auth.json copied) + `CODEX_API_KEY` scrubbed for the subscription path.
+  (auth.json copied; config.toml copied without its `[mcp_servers.*]` tables, so no
+  MCP server starts) + `CODEX_API_KEY` scrubbed for the subscription path.
+- **Time box and cleanup**: a CLI oracle that runs past 15 minutes
+  (`SDLC_CONSULT_TIMEOUT_MS`) is ended as a `timeout` failure; a dispatcher that exits
+  or is stopped ends its children and removes the isolated homes.
+- **Keys**: the Gemini key travels in the `x-goog-api-key` header, never in the URL.
 - **Hook isolation**: `SDLC_DISPATCH_ACTIVE=1` is set on the child, and every SDLC
   hook early-exits on it. This sentinel is the **primary** hook suppression —
   verification (2026-06) could not confirm the plan's `--settings {disableAllHooks}`

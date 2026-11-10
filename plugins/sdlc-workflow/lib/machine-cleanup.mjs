@@ -28,7 +28,9 @@ export const STATE_ENTRIES = Object.freeze([
   'hub.pid', 'hub-config.json', 'hub-history.jsonl', 'hub.log', 'hub.log.1', 'hub.log.2',
   'active-runtime.json', 'runtime', 'registry.json', 'registry.d', 'registry.prune.log',
   'registry.prune.log.1', 'registry.prune.log.2', 'hub.lock', 'hub-upgrade.lock', 'hub-upgrade.previous.json',
-  'tray.heartbeat.json', '.tray-heal', 'bin', 'doctor.txt', 'mod-probe.jsonl',
+  'tray.heartbeat.json', '.tray-heal', 'doctor.txt', 'mod-probe.jsonl',
+  // The copies of the tray helper. bin/ itself stays: it holds the stable wf.mjs entry point.
+  'bin/tray_windows_release.exe', 'bin/tray_darwin_release', 'bin/tray_linux_release',
 ]);
 
 /** The settings of the mod before it was cut down to the goal arming. A value set for one is ignored. */

@@ -17,6 +17,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative } from 'node:path';
+import { withLock } from './file-lock.mjs';
 import { pidAlive } from './proc.mjs';
 import { recordPathOf, recordsHome } from './records-root.mjs';
 
@@ -304,29 +305,17 @@ export function recordsPending({ main, worktree, manifest, exclude = () => false
  * the main checkout never interleave. The lock names its process. When that process
  * is gone, the lock is taken over at once. While it runs, the lock is taken over only
  * after `liveStaleMs`, because a large copy can run long and a pid can be reused.
- * A lock without a pid is taken over after `staleMs`.
+ * A lock without a pid is taken over after `staleMs`. The takeover of a stale lock is the one of
+ * lib/file-lock.mjs, so two waiters never both take it.
  */
 export function withRecordsLock(file, holder, fn, { waitMs = 60_000, staleMs = 15 * 60_000, liveStaleMs = 6 * 60 * 60_000, alive = pidAlive, now = () => new Date().toISOString() } = {}) {
-  mkdirSync(dirname(file), { recursive: true });
-  const until = Date.now() + waitMs;
-  for (;;) {
-    try {
-      writeFileSync(file, JSON.stringify({ holder, pid: process.pid, at: now() }), { flag: 'wx' });
-      break;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-      let cur = null;
-      try { cur = JSON.parse(readFileSync(file, 'utf8')); } catch { /* torn: judge it by its age below */ }
-      const at = cur?.at ? Date.parse(cur.at) : statSync(file).mtimeMs;
-      const hasPid = Number.isInteger(cur?.pid);
-      const running = hasPid && alive(cur.pid);
-      const stale = hasPid ? !running || Date.now() - at > liveStaleMs : Date.now() - at > staleMs;
-      if (stale) { rmSync(file, { force: true }); continue; }
-      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? 'another sync'} since ${cur?.at ?? '?'}${running ? ` (process ${cur.pid} still runs)` : ''}; try again`);
-      pause(250);
-    }
-  }
-  try { return fn(); } finally { rmSync(file, { force: true }); }
+  return withLock(file, fn, {
+    waitMs, staleMs, liveStaleMs, alive, now, info: { holder }, pollMs: 250,
+    busy: (cur) => {
+      const running = Number.isInteger(cur?.pid) && alive(cur.pid);
+      return new Error(`records: the records lock is held by ${cur?.holder ?? 'another sync'} since ${cur?.at ?? '?'}${running ? ` (process ${cur.pid} still runs)` : ''}; try again`);
+    },
+  });
 }
 
 /**

@@ -118,7 +118,7 @@ test('the stop check runs the stop-check command, which finds the request wherev
 });
 
 test('the driver journals by root and slug, keeps found.json in the drafts, and takes the records folder from args', () => {
-  assert.match(src, /const lineCmd = \(o\) => `node "\$\{WATCH\}" line "\$\{projectRoot\}" \$\{slug\} \$\{jsonArg\(o\)\}`/);
+  assert.match(src, /const lineCmd = \(o\) => `node "\$\{WATCH\}" line "\$\{projectRoot\}" \$\{slug\} \$\{lineFlags\(o\)\}`/);
   assert.doesNotMatch(src, /lineCmd\(JOURNAL_PATH/);
   assert.match(src, /`\$\{DRAFT_DIR\}\/found\.json --source review/);
   assert.doesNotMatch(src, /\.found\.json/);
@@ -331,6 +331,7 @@ function reviewHarness(selection, found = [], opt = {}) {
     const { agent, parallel, runStage, classifyDecisions, log, OPT } = stubs
     const slug = 'demo'
     const projectRoot = '/repo'
+    const GIT = 'git -C "/repo"'
     const referenceRoot = '/plugin/skills/wf/reference'
     const EOB = 'EOB'
     const SONNET = {}
@@ -417,7 +418,7 @@ test('every review path gives the decisions of the writer their classes', async 
 test('the slug-wide scan reads the whole packet diff, and an answered review runs no scan', async () => {
   const h = reviewHarness({ rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }], stopped: false });
   await h.driveReview(null, REVIEW_IDX, {});
-  assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /git -C \/repo diff main\.\.\.HEAD/);
+  assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /git -C "\/repo" diff main\.\.\.HEAD/);
   assert.equal(h.calls.stages.length, 1);
   assert.deepEqual(Object.keys(h.calls.stages[0].scan).sort(), ['affectedFiles', 'dimensions', 'files', 'findings']);
   const plain = reviewHarness({ rubrics: [], stopped: false });
@@ -434,7 +435,7 @@ test('the scouts look only in the work packet, and a finding outside it gets no 
   const h = reviewHarness(selection, found);
   await h.driveReview(null, REVIEW_IDX, {});
   const select = h.calls.agents.find((a) => a.label === 'select-rubrics');
-  assert.match(select.prompt, /Return affectedFiles: every file that `git -C \/repo diff --name-only main\.\.\.HEAD` prints, and each file that calls, imports or tests code that the diff changes/);
+  assert.match(select.prompt, /Return affectedFiles: every file that `git -C "\/repo" diff --name-only main\.\.\.HEAD` prints, and each file that calls, imports or tests code that the diff changes/);
   assert.match(h.calls.agents.find((a) => a.label === 'scout:correctness').prompt, /Look for issues ONLY in the files of the work packet: \["src\/a\.js","src\/b\.js"\]/);
   const refuters = h.calls.agents.filter((a) => a.label.startsWith('refute:'));
   assert.equal(refuters.length, 1);

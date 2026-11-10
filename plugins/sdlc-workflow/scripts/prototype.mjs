@@ -8,7 +8,7 @@
  *   status  <root> <slug>            the accepted pipeline, the open proofs, the report link, the problems
  *   check   <root> <slug>            the ledger against $defs.prototypeLedger and the ledger rules
  *   report  <root> <slug>            build report.html from the ledger and the proof media
- *   decide  <root> <slug> <D-NN>     commit one decision: explicit paths only, message poc(<slug>): accept <component>
+ *   decide  <root> <slug> <D-NN>     commit one decision: explicit paths only, message poc: accept <component>
  *   exit    <root> <slug> park|graduate|close
  *                                    record the person's exit; graduate prints the intake line
  *   cleanup <root> <slug>            remove the worktree after close; refuses while it holds a link
@@ -20,6 +20,7 @@
  * CAUTION: this script never runs `git add -A`. A proof writes model weights,
  * downloads and virtual environments into the worktree, and `-A` commits them.
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
@@ -360,6 +361,8 @@ function decide(root, slug, decisionId, f) {
   for (const p of plan.paths) {
     const abs = join(wt, p);
     if (!existsSync(abs)) { refused.push(`${p}: does not exist`); continue; }
+    // `git add -- <folder>` stages every file in it, unchecked: a proof names its files.
+    if (statSync(abs).isDirectory()) { refused.push(`${p}: is a folder; name its files`); continue; }
     if (git(wt, ['check-ignore', '-q', '--', p]).ok) refused.push(`${p}: git ignores it`);
     else if (statSync(abs).isFile() && statSync(abs).size > MAX_COMMIT_FILE_BYTES) refused.push(`${p}: ${statSync(abs).size} bytes, over ${MAX_COMMIT_FILE_BYTES}; a large file stays out of the commit`);
   }
@@ -396,12 +399,20 @@ function exitPrototype(root, slug, how) {
   upsertIndexRow(mainCheckout(wt), { slug, status: statusOf, branch: ledger.branch, at: ledger['updated-at'] });
   const out = { ok: true, slug, status: statusOf, worktree: wt, branch: ledger.branch, next };
   if (how === 'graduate') out.brief = readDoc(join(wt, wfRel(slug)), DOC_FILE)?.path ?? join(wt, wfRel(slug), DOC_FILE);
-  if (how === 'close') out.links = linksUnder(wt);
+  if (how === 'close') {
+    const scan = linksUnder(wt);
+    out.links = scan.links;
+    if (!scan.complete) out.scan = 'incomplete';
+  }
   return out;
 }
 
-/** A junction or a symbolic link under the worktree: a recursive delete can follow one into the main checkout. */
-function linksUnder(dir, limit = 20, maxDirs = 20000) {
+/**
+ * The junctions and symbolic links under the worktree: a recursive delete can follow one into the
+ * main checkout. `complete` is false when the scan stopped at `maxDirs` folders: then a link can
+ * still be there. Exported for the tests.
+ */
+export function linksUnder(dir, limit = 20, maxDirs = 20000) {
   const found = [];
   const stack = [dir];
   let seen = 0;
@@ -419,7 +430,7 @@ function linksUnder(dir, limit = 20, maxDirs = 20000) {
       else if (st.isDirectory()) stack.push(p);
     }
   }
-  return found;
+  return { links: found, complete: found.length >= limit || stack.length === 0 };
 }
 
 function cleanup(root, slug) {
@@ -429,7 +440,8 @@ function cleanup(root, slug) {
   const ledger = readLedger(wt, slug);
   if (ledger.status !== 'closed') return { ok: false, slug, error: `the prototype is ${ledger.status}: the person closes it first (exit close)` };
   // CAUTION: `git worktree remove --force` deletes through a node_modules junction into the main checkout.
-  const links = linksUnder(wt);
+  const { links, complete } = linksUnder(wt);
+  if (!complete) return { ok: false, slug, links, error: 'the scan for links did not finish: the worktree is too large to check. Remove the worktree yourself, after you remove any link in it.' };
   if (links.length) return { ok: false, slug, links, error: `the worktree holds links (${links.slice(0, 3).join(', ')}). A recursive delete can follow a link. Remove the links, then run cleanup again.` };
   const r = git(main, ['worktree', 'remove', wt]);
   if (!r.ok) return { ok: false, slug, error: `git worktree remove failed: ${r.err}. The worktree may hold files that git does not track; look at them, then remove the folder yourself.` };
@@ -478,6 +490,6 @@ export function main(argv = process.argv.slice(2)) {
 
 export { PLUGIN_ROOT };
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   process.exitCode = main();
 }

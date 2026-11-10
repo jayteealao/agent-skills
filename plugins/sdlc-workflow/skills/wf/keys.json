@@ -55,7 +55,7 @@
       "name": "design",
       "group": "stages",
       "stage": true,
-      "args": ["[<slug>] [move|amend|import|audit|critique|explore] [text]", "explore [<slug>] [text]", "setup|teach|extract|direction|sync [text]"],
+      "args": ["[<slug>] [move|amend|import|audit|critique|extract|explore] [text]", "explore [<slug>] [text]", "setup|teach|extract|direction|sync [text]"],
       "needs": "slug",
       "does": "Human-only: the person approves the screens before drivers run.",
       "summary": "Human-only design stage between intake and slice: the person approves the screens on the design surface before any driver runs. `explore` sketches ideas and settles nothing. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`).",
@@ -133,7 +133,7 @@
       "name": "handoff",
       "group": "stages",
       "alias": "ship",
-      "args": ["<slug> [<slice>]", "pr#N", "<branch>"],
+      "args": ["<slug>", "pr#N", "<branch>"],
       "needs": "slug",
       "does": "Alias of `ship` for this release: ship opens the PR first, then stops at the go/no-go gate. Use `/wf ship`.",
       "summary": "Alias of `ship` for this release: ship opens the PR first.",
@@ -176,7 +176,7 @@
       "does": "Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code.",
       "summary": "Runtime-truth verification of built work; `sweep` enumerates the user surface.",
       "writes": "a compressed slice, or `.ai/surface-sweep-<date>.md`",
-      "artifacts": ["01-probe.md", "surface-sweep-<date>.md"],
+      "artifacts": ["03-slice-probe-<descriptor>.md", "surface-sweep-<date>.md"],
       "reference": "reference/probe.md",
       "hosts": { "claude": "full", "codex": "full", "pi": "full" }
     },
@@ -230,7 +230,7 @@
           "hosts": {
             "claude": "differs: the mod puts the /goal line into the prompt box",
             "codex": "differs: the agent calls create_goal",
-            "pi": "differs: the person pastes the line that goal.mjs arm prints"
+            "pi": "differs: the agent runs the loop in this session; pi has no host goal"
           }
         },
         {

@@ -21,7 +21,7 @@ Give each source an id: `S01`, `S02`, and so on, in argument order. For each sou
    - **Issues:** run `issues <slug> <S-id> <origin>` (section "GitHub issues").
 2. For a web, document, or dependency copy, run `reference <slug> <S-id> <path of the copy> --origin "<origin>"`. The script adds the row to `references/index.md`, with the hash and the size.
 3. List every announced item of the source: each feature, fix, deprecation, and behaviour change. Give each item an id `<S-id>-I<NN>`. An issue item uses the issue number: `<S-id>-#<number>`.
-4. Write the source to the `sources:` roster and each item to the `source-items:` roster of `01-ideate.md` ([_artifact.md](_artifact.md)).
+4. Hold the source and its items for the `sources:` and `source-items:` rosters that Step 6 writes into `01-ideate.md` ([_artifact.md](_artifact.md)).
 
 When a source cannot be read, set its `state: unavailable` with the `reason`. Continue with the other sources, and say so in chat.
 
@@ -40,7 +40,7 @@ Lens 7 ([_lenses.md](_lenses.md)) proposes a result for each item. Step 3 confir
 | `duplicate-of` | Issue items only: another item reports it | `duplicate-of` |
 | `withdrawn` | `refresh` only: the source no longer lists the item | |
 
-The write hook refuses a `01-ideate.md` with an item that has no result, and it names the items. Before Step 6, run `check <slug>`. It must return `ok: true`.
+The write hook refuses a `01-ideate.md` with an item that has no result, and it names the items. After the Step 6 put, run `check <slug>`. It must return `ok: true`.
 
 ## Challenge 6 — Is the item stable and available?
 

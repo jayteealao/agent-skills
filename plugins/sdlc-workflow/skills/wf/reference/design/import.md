@@ -20,14 +20,15 @@ From then on, every stage reads the file.
 When the session's account can read only a summary of a link (the account can view it but cannot edit it), the full page cannot be saved. Ask the person for one of:
 - edit access to the link for this account;
 - the downloaded file, and its path;
-- the link as a reference only: `state: reference`, no file, never a screen.
+- the link as a note only: name it in `SOURCE.md` of the import folder. Add no reference, and make no screen from it.
 
 ## Step 0 — Orient
 
-1. Run [stage.md](stage.md) Step 0. The same stop rules apply: closed workflow, driver, missing shape.
+1. Run [stage.md](stage.md) Step 0, items 1–4. The same stop rules apply: closed workflow, driver, missing shape.
 2. Read `02c-craft.md` with `wf.mjs record get` when it exists. An import into an approved design is an amend: the screens change in place, the approval runs again, and Amend steps 3 and 4 of [stage.md](stage.md) apply.
 3. Load [_surface.md](_surface.md) in full. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`.
 4. Load [_craft-floor.md](_craft-floor.md) now, because import skips stage Step 4. Its load table says how import uses it.
+5. Run [stage.md](stage.md) Step 1 items 2–4, then Step 3c (the foundation). `<wf> design foundation <root>` must exit 0 before Step 3: `design screen add` refuses a new screen until then.
 
 ## Step 1 — Copy the source
 

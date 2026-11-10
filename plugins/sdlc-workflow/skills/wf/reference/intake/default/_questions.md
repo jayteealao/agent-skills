@@ -24,7 +24,7 @@ Question 0:
       description: "Implement and verify now, one commit on <checked-out branch>, one note. Review and ship only if you want a PR."
   multiSelect: false
 ```
-Put "(Recommended)" on the small path only when the Batch B answers name one outcome, at most three files and no open question. Record the answer with `decide add --stage intake --key path`. When the person chose the small path, ask no other Batch A question: load [intake/small.md](../small.md) and run it now. It replaces Steps 6 to 10 of `intake/default.md` and the shape phase.
+Put "(Recommended)" on the small path only when the Batch B answers name one outcome, at most three files and no open question. Record the answer with `decide add --stage intake --key path`. When the person chose the small path, ask no other Batch A question: load [intake/small.md](../small.md) and run it now. It replaces items 4 to 9 of `intake/default.md` and the shape phase.
 ```
 Question 1:
   question: "What branch strategy should this workflow use?"

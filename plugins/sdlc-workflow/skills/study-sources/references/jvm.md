@@ -36,6 +36,7 @@ mvn dependency:sources        # all deps of the current project
 #   (IntelliJ/Eclipse fetch -sources.jar into the caches above)
 
 # Direct from Maven Central
+mkdir -p .scratch/sources/jvm/
 curl -sL "https://repo1.maven.org/maven2/<group/path>/<artifact>/<version>/<artifact>-<version>-sources.jar" \
   -o .scratch/sources/jvm/<artifact>-<version>-sources.jar
 ```
@@ -44,6 +45,7 @@ curl -sL "https://repo1.maven.org/maven2/<group/path>/<artifact>/<version>/<arti
 
 ```bash
 # CFR (single self-contained jar) — good default
+mkdir -p .scratch/sources/jvm/
 java -jar cfr.jar <artifact>-<version>.jar --outputdir .scratch/sources/jvm/<artifact>-decompiled/
 # Alternatives: Fernflower (bundled in IntelliJ), Procyon
 ```

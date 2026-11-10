@@ -226,7 +226,7 @@
         "command": {
           "type": "string",
           "minLength": 1,
-          "description": "The command that runs the suite. For the affected suite, `{files}` stands for the changed files."
+          "description": "The command that runs the suite. The affected suite command finds the changed files itself (for example from git diff --name-only HEAD); no placeholder is filled in."
         },
         "estimateSeconds": {
           "type": "integer",
@@ -247,6 +247,13 @@
             "null"
           ],
           "description": "When the last real run ended."
+        },
+        "passedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The commit that the last passing run checked."
         }
       }
     }

@@ -53,7 +53,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
    - If the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**.
 2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `hotfix-<short-description>`.
-3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `02-shape.md` `## Root Cause`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
+3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `02-shape.md` `## Root Cause`, `## Verification` seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it). Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
    - Check current branch: `git branch --show-current`.
@@ -62,6 +62,8 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
 6. **Single slice.** The whole hotfix is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-hotfix.md` (`type: intake`)
+**First, write the index.** Before the first question or research of this step, write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values, `progress.intake: in-progress` and `next-invocation: /wf intake hotfix <slug>`, and put it. A run that stops before the gate then resumes (the resume test of Step 0 reads this index), and a close or a probe route of a later step has an index to act on.
+
 Ask at most **3 questions** — stop as soon as you have enough:
 1. **What is broken?** — symptom: what is failing, where (URL/endpoint/page/component/service), and for whom (all users / cohort / environment / account).
 2. **What is the impact?** — outage / degraded / data issue? how many users? data at risk?
@@ -95,14 +97,14 @@ A **minimal execution-ready plan**: aim for ≤5 steps and ≤3 files; every ste
 Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
 
-# Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Put it.
+# Step 5 — Finish `00-index.md` (conformant `type: index`)
+Get the index that Step 1 wrote (`record get "<root>" <slug> index`) and finish it: write its draft from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (the final `workflow-files`, `progress` and terminus route) (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Put it.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
 
 # Step 7 — Hand off to the standard chain
-On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf ship <slug>` (its PR phase runs first, and ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
+On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf ship <slug>` (its PR phase runs first, and ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf retro <slug>`.
 
 Lead with a short **narrative** paragraph (the symptom, root cause, the minimal fix, the gate decision), then:
 ```

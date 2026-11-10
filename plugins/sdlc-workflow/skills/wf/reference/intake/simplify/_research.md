@@ -12,7 +12,7 @@ Each agent returns a structured findings list:
 
 ```yaml
 findings:
-  - id: <agent>-<n>          # e.g., reuse-1, quality-3; the .md body and the sibling .yaml use this id
+  - id: <agent>-<n>          # e.g., reuse-1, quality-3; the run body uses this id
     severity: high | med | low | nit
     location: <file:line | plan-section | path>
     issue: <one-sentence problem statement>

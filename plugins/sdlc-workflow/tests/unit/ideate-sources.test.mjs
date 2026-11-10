@@ -13,6 +13,7 @@ import { classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems, s
 import { checkList, renderPacket, IDEATE_FILES } from '../../lib/packets.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from '../../lib/schema-validator.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
+import { shownIssues } from '../../scripts/ideate-sources.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SOURCES = path.join(pluginRoot, 'scripts', 'ideate-sources.mjs');
@@ -100,6 +101,32 @@ test('section 4.2: every item has exactly one result, and the schema asks for th
   assert.match(sourceItemProblems(dangling).join(), /names idea IDEA-009/);
   const count = fm({ sources: [{ ...fm().sources[0], items: 4 }] });
   assert.match(sourceItemProblems(count).join(), /items is 4, but the roster holds 3/);
+});
+
+test('the check refuses an item whose result lacks the key that the result needs', () => {
+  const noIdea = fm();
+  delete noIdea['source-items'][0].idea;
+  assert.match(sourceItemProblems(noIdea).join(), /source item S01-I01: applies needs idea/);
+  const noEvidence = fm();
+  noEvidence['source-items'][2].evidence = [];
+  assert.match(sourceItemProblems(noEvidence).join(), /source item S01-I03: already-used needs evidence/);
+  const issues = fm({ sources: [{ id: 'S01', kind: 'issues', origin: 'issues', state: 'read', items: 3 }] });
+  issues['source-items'][1] = { id: 'S01-I02', title: 'x', result: 'duplicate-of' };
+  assert.match(sourceItemProblems(issues).join(), /source item S01-I02: duplicate-of needs duplicate-of/);
+  const withdrawn = fm();
+  withdrawn['source-items'][1] = { id: 'S01-I02', title: 'x', result: 'withdrawn' };
+  assert.deepEqual(sourceItemProblems(withdrawn), [], 'withdrawn needs no key');
+});
+
+test('the issues that the agent reads are cut to a fixed length, and each cut issue says so', () => {
+  const long = { number: 1, title: 'long', body: 'b'.repeat(5000), comments: [{ body: 'c'.repeat(1500) }] };
+  const many = { number: 2, title: 'many', body: 'short', comments: Array.from({ length: 25 }, () => ({ body: 'x' })) };
+  const short = { number: 3, title: 'short', body: 'fine', comments: [{ body: 'ok' }] };
+  const out = shownIssues([long, many, short]);
+  assert.equal(out.truncated, 2);
+  assert.deepEqual([out.issues[0].body.length, out.issues[0].comments[0].length, out.issues[0].truncated], [4000, 1000, true]);
+  assert.deepEqual([out.issues[1].comments.length, out.issues[1].truncated], [20, true]);
+  assert.deepEqual([out.issues[2].body, out.issues[2].truncated], ['fine', undefined]);
 });
 
 test('section 5.3: an issue copy holds none of author, body, or comments', () => {
@@ -224,5 +251,124 @@ test('section 8.1: campaign.mjs write reads a board by path, and a campaign on t
     assert.equal(st.branch, `packets/${SLUG}`);
     assert.equal(st.current?.key, 'use-cache-api', JSON.stringify(st));
     assert.equal(st.current?.step, 'open', JSON.stringify(st));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// ---------------------------------------------------------------- the pick command
+
+const PICK_LEAD = {
+  schema: 'sdlc/v1', type: 'ideation', slug: SLUG, focus: 'sources',
+  ideas: [
+    { id: 'IDEA-001', title: 'Use the new cache API', evidence: ['src/fetch.ts:12'], entry: '/wf intake use-cache-api', triage: 'take' },
+    { id: 'IDEA-002', title: 'Find why save crashes', evidence: ['references/issues/S02-issues.json'], entry: '/wf intake rca crash on save', triage: 'take' },
+    { id: 'IDEA-003', title: 'Retry the payment client', evidence: ['src/client.ts:40', 'src/client.ts:88'], entry: '/wf intake retry-client', triage: 'take', 'depends-on': ['/wf intake update-deps'] },
+    { id: 'IDEA-004', title: 'Send cache headers', evidence: ['src/server.ts:5'], entry: '/wf intake cache-headers', triage: 'take' },
+  ],
+};
+const STACK = { platforms: ['web'], languages: ['ts'], 'user-confirmed': true };
+const PICK = { reason: 'The cache removes the most load.', at: '2026-11-10T09:00:00Z' };
+const writeUp = (over = {}) => ({ goal: 'Do it.', 'acceptance-criteria': ['It works.'], 'ux-impact': 'none', 'try-out': 'no', 'estimated-slices': 8, ...over });
+
+test('the pick builds the board of one idea, and the board passes the schema and the list check', async () => {
+  const { buildPickBoard } = await import('../../lib/ideate.mjs');
+  const r = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { stack: STACK, pick: PICK, packets: [{ ideas: ['IDEA-001'], ...writeUp({ 'in-scope': ['The fetch layer.'] }) }] } });
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  const v = validateBrainstormBoard(r.board);
+  assert.equal(v.valid, true, JSON.stringify(v.errors));
+  assert.deepEqual(checkList(r.board).errors, []);
+  assert.deepEqual(r.board.threads.map((t) => t.key), ['idea-001', 'pick']);
+  const [w] = r.board.work;
+  assert.deepEqual([w.key, w.slug, w.shape, w.order, w.entry, w['design-form'], w.state, w['ux-impact-confirmed']], ['use-cache-api', 'use-cache-api', 'intake', 1, `/wf campaign ${SLUG}`, 'none', 'proposed', true]);
+  assert.deepEqual(w.items, ['idea-001-evidence-1', 'pick-1'], 'the first packet carries the pick decision');
+  const pick = r.board.items.find((i) => i.key === 'pick-1');
+  assert.deepEqual([pick.kind, pick.thread, pick.text, pick.scope, pick.source, pick.session, pick['decided-at']], ['decision', 'pick', PICK.reason, 'keep', 'person', 1, PICK.at]);
+  assert.deepEqual(r.board.items.find((i) => i.key === 'idea-001-evidence-1').evidence, 'src/fetch.ts:12');
+  assert.deepEqual(r.invocations, [`/wf campaign ${SLUG}`]);
+});
+
+test('the pick keeps the order of three ideas, routes a packet of another form, and prints update-deps first', async () => {
+  const { buildPickBoard } = await import('../../lib/ideate.mjs');
+  const r = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { stack: STACK, pick: PICK, packets: [
+    { ideas: ['IDEA-003'], ...writeUp() },
+    { ideas: ['IDEA-002'], 'why-here': 'the retry touches the save path first' },
+    { ideas: ['IDEA-001'], 'why-here': 'less urgent than the packets before it', ...writeUp() },
+  ] } });
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  assert.deepEqual(checkList(r.board).errors, []);
+  assert.deepEqual(r.packets.map((p) => [p.slug, p.form, p.order]), [['retry-client', 'intake', 1], ['find-why-save-crashes', 'rca', 2], ['use-cache-api', 'intake', 3]]);
+  const rca = r.board.work[1];
+  assert.equal(rca.entry, '/wf intake rca find-why-save-crashes');
+  assert.equal(rca.goal, undefined, 'a packet of another form carries no write-up');
+  assert.equal(r.board.items.find((i) => i.key === 'idea-002-evidence-1').source, 'research');
+  assert.deepEqual(r.board.work[0].items, ['idea-003-evidence-1', 'idea-003-evidence-2', 'pick-1']);
+  assert.ok(!r.board.work.slice(1).some((w) => w.items.includes('pick-1')), 'the pick decision is carried once');
+  assert.deepEqual(r.invocations, ['/wf intake update-deps', `/wf campaign ${SLUG}`, '/wf intake rca find-why-save-crashes']);
+});
+
+test('the pick puts two grouped ideas into one packet', async () => {
+  const { buildPickBoard } = await import('../../lib/ideate.mjs');
+  const r = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { stack: STACK, pick: PICK, packets: [{ ideas: ['IDEA-001', 'IDEA-004'], title: 'Cache the reads', slug: 'cache-reads', ...writeUp() }] } });
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  assert.deepEqual(checkList(r.board).errors, []);
+  assert.equal(r.board.work.length, 1);
+  const [w] = r.board.work;
+  assert.deepEqual([w.slug, w.title, w.threads], ['cache-reads', 'Cache the reads', ['idea-001', 'idea-004']]);
+  assert.deepEqual(w.items, ['idea-001-evidence-1', 'idea-004-evidence-1', 'pick-1']);
+});
+
+test('a later pick appends after the last packet, with its own pick decision', async () => {
+  const { buildPickBoard } = await import('../../lib/ideate.mjs');
+  const first = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { stack: STACK, pick: PICK, packets: [{ ideas: ['IDEA-001'], ...writeUp() }] } });
+  const later = { pick: { reason: 'Now the headers.', at: '2026-11-11T09:00:00Z' }, packets: [{ ideas: ['IDEA-004'], 'why-here': 'the cache came first', ...writeUp() }] };
+  const r = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: later, existing: first.board });
+  assert.equal(r.ok, true, JSON.stringify(r.errors));
+  assert.equal(r.appended, true);
+  assert.deepEqual(checkList(r.board).errors, [], 'the stack of the first pick stays');
+  assert.deepEqual(r.board.work.map((w) => [w.key, w.order]), [['use-cache-api', 1], ['cache-headers', 2]]);
+  assert.deepEqual(r.board.work[1].items, ['idea-004-evidence-1', 'pick-2']);
+  assert.equal(r.board.items.find((i) => i.key === 'pick-2').session, 2);
+  assert.equal(r.board.threads.filter((t) => t.key === 'pick').length, 1);
+  const noWhy = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { ...later, packets: [{ ideas: ['IDEA-004'], ...writeUp() }] }, existing: first.board });
+  assert.match(noWhy.errors.join(), /order 2\): no why-here/, 'an appended packet comes after order 1');
+  const again = buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { ...later, packets: [{ ideas: ['IDEA-001'], 'why-here': 'x', ...writeUp() }] }, existing: first.board });
+  assert.match(again.errors.join(), /IDEA-001 is already in the list/);
+});
+
+test('the pick refuses bad input: an unknown idea, no why-here, no acceptance criteria, an unconfirmed stack', async () => {
+  const { buildPickBoard } = await import('../../lib/ideate.mjs');
+  const build = (input) => buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { stack: STACK, pick: PICK, ...input } });
+  assert.match(build({ packets: [{ ideas: ['IDEA-009'], ...writeUp() }] }).errors.join(), /unknown idea id IDEA-009/);
+  assert.match(build({ packets: [{ ideas: ['IDEA-001'], ...writeUp() }, { ideas: ['IDEA-004'], ...writeUp() }] }).errors.join(), /packet 2 \(order 2\): no why-here/);
+  assert.match(build({ packets: [{ ideas: ['IDEA-001'], ...writeUp({ 'acceptance-criteria': [] }) }] }).errors.join(), /no acceptance criteria/);
+  assert.match(build({ stack: { platforms: ['web'] }, packets: [{ ideas: ['IDEA-001'], ...writeUp() }] }).errors.join(), /the stack is not confirmed/);
+  assert.match(buildPickBoard({ slug: SLUG, lead: PICK_LEAD, input: { pick: PICK, packets: [{ ideas: ['IDEA-001'], ...writeUp() }] } }).errors.join(), /no confirmed stack/);
+  assert.match(build({ pick: {}, packets: [{ ideas: ['IDEA-001'], ...writeUp() }] }).errors.join(), /pick\.reason is missing/);
+  assert.match(build({ packets: [{ ideas: ['IDEA-001'], ...writeUp() }, { ideas: ['IDEA-001'], 'why-here': 'x', ...writeUp() }] }).errors.join(), /IDEA-001 is in two packets/);
+  const ok = build({ packets: [{ ideas: ['IDEA-002'] }] });
+  assert.equal(ok.ok, true, 'a routed packet needs no write-up and no stack');
+});
+
+test('the pick command writes ideate-work.json and the list, and writes nothing on a refusal', async () => {
+  const { writeDoc } = await import('../../lib/records.mjs');
+  const { root, dir } = workflow();
+  try {
+    execFileSync('git', ['-C', root, 'init', '-q', '-b', 'main']);
+    writeDoc(dir, '01-ideate.md', { frontmatter: PICK_LEAD, body: '# Ideation\n' });
+    const input = path.join(root, 'pick.json');
+    writeFileSync(input, JSON.stringify({ stack: STACK, pick: PICK, packets: [{ ideas: ['IDEA-009'], ...writeUp() }] }));
+    const bad = cli(SOURCES, ['pick', root, SLUG, input]);
+    assert.equal(bad.ok, false);
+    assert.match(bad.error, /unknown idea id IDEA-009/);
+    assert.ok(!readdirSync(dir).includes('ideate-work.json'), 'a refusal writes no board');
+    writeFileSync(input, JSON.stringify({ stack: STACK, pick: PICK, packets: [{ ideas: ['IDEA-001'], ...writeUp() }, { ideas: ['IDEA-002'], 'why-here': 'the cache touches save' }] }));
+    const out = cli(SOURCES, ['pick', root, SLUG, input]);
+    assert.equal(out.ok, true, JSON.stringify(out));
+    assert.deepEqual(out.packets.map((p) => [p.key, p.form, p.order]), [['use-cache-api', 'intake', 1], ['find-why-save-crashes', 'rca', 2]]);
+    assert.deepEqual(out.invocations, [`/wf campaign ${SLUG}`, '/wf intake rca find-why-save-crashes']);
+    assert.equal(out.list.revision, 1);
+    const board = JSON.parse(readFileSync(path.join(dir, 'ideate-work.json'), 'utf8'));
+    assert.equal(validateBrainstormBoard(board).valid, true);
+    assert.deepEqual(readdirSync(path.join(dir, 'work')).filter((f) => f.endsWith('.md')).sort(), ['changes.md', 'find-why-save-crashes.md', 'index.md', 'use-cache-api.md']);
+    assert.match(readFileSync(path.join(dir, 'work', 'use-cache-api.md'), 'utf8'), /The cache removes the most load\./, 'the pick reason reaches the first packet word for word');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

@@ -130,7 +130,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    ```
    The command writes each work packet file to `work/<packet-slug>.md`, then `research/index.md`, then `work/index.md` last, and appends one entry to `work/changes.md`. A reader that sees the new `list-revision` in `work/index.md` finds every work packet file already written. The command moves the files of the old work packets to `work/archive/packets/`.
 4. Set each work packet's `entry` on the board: `/wf campaign <slug>` for a build work packet, and the command of its form for any other work packet, for example `/wf intake investigate <packet-slug>`.
-5. Run the archive command ([_artifact.md](_artifact.md), Archive).
+5. Run the archive command, then `board render` ([_artifact.md](_artifact.md), Archive). The render brings `## Scope` and `## Work` of the document up to date.
 
 A work packet file says at its top that the board wins on a difference.
 
@@ -165,7 +165,7 @@ A person can resume a brainstorm at any time, also while the walk runs.
    - Any other work packet goes last.
 
    Give it its `order`, add 1 to the order of each work packet after it, and write a `why-here` note that the person confirms.
-4. Run the check, then run the `write` command.
+4. Run the check, then run the `write` command, then `node "<skill-dir>/scripts/wf.mjs" board render "<root>" <brainstorm-slug>`.
 5. Return `/wf campaign <brainstorm-slug>` as `Next`.
 
 A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the work packet files. No other session writes them, except the regroup of a migration (below) and the `state` field. The walk sets `state` through `campaign.mjs`. The mode of a routed work packet sets `state: open` ([../_intake-provenance-consume.md](../_intake-provenance-consume.md), Link back).
@@ -179,7 +179,7 @@ The first `/wf campaign <slug>` on a board with an old campaign ledger migrates 
 4. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `<wf-dir>/../<packet-slug>/` before the walk opens the work packet: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <unit-slug> 02c-craft.md` to the draft `<wf-dir>/../<packet-slug>/.draft/02c-craft.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <packet-slug>` (per [_records.md](../../_records.md)), and move the `design/` folder. The design stage of the work packet then starts from them.
 5. Write the write-up of each new build work packet, and confirm the stack, as at `done`. Settle with the person each open item that touches a new build work packet ([../brainstorm.md](../brainstorm.md) 3.2 step 6).
 6. Confirm the whole list with the person as in 3.4: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
-7. Run the check and the `write` command.
+7. Run the check and the `write` command, then `board render` to bring the document up to date.
 
 ## An older board
 

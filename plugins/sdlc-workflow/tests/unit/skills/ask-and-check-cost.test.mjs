@@ -39,8 +39,8 @@ test('a delegate run accepts a verify item that still fails, and stops only wher
   assert.match(slugWide, /\/r\/\.draft\/residual-demo\.json --source review --dimensions residual/);
   assert.doesNotMatch(slugWide, /--slice/);
   // The verify agent gets the clause from its second round; the self verify of an implement names its round.
-  assert.match(yolo, /stage === 'verify' && DELEGATE && \(extra\.round \|\| 1\) >= 2 \? delegateAcceptClause\(sliceArg\)/);
-  assert.match(yolo, /delegateAcceptClause\(sliceArg, 'on your second verify round, in a delegate run'\)/);
+  assert.match(yolo, /stage === 'verify' && DELEGATE && \(extra\.round \|\| 1\) >= 2 \? delegateAcceptClause\(sliceArg, undefined, idx\.reviewScope\)/);
+  assert.match(yolo, /delegateAcceptClause\(sliceArg, 'on your second verify round, in a delegate run', idx\.reviewScope\)/);
   const y = ref('yolo.md');
   assert.match(y, /\| Gate \| Auto-resolve \| HARD-STOP \| In delegate mode \|/);
   // The table owns the delegate stops: the card keeps no separate list of causes.

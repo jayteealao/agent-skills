@@ -101,7 +101,7 @@ If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or 
 
 Write `plan.md` with the `docs-plan` frontmatter (per-tier counts, `total-actions`, `audit-only`) from [docs/_artifacts.md](docs/_artifacts.md).
 
-If `audit-only: true` → **STOP HERE**. Present the plan in chat. Do not proceed to Step 4.
+If `audit-only: true` → present the plan, then go to Step 7 (the final summary). Do not run Steps 4–6.
 
 **After writing:** Present a summary and confirm with the user through ONE gate question per [_gate-question.md](_gate-question.md):
 ```yaml

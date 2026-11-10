@@ -42,11 +42,6 @@ function gitToplevel(dir) {
   }
 }
 
-/** True when `dir` sits inside any git checkout (the SessionStart gate). */
-export function isInsideGitCheckout(dir) {
-  return gitToplevel(dir) !== null;
-}
-
 function canon(p) {
   try { return realpathSync.native(p); } catch { return resolve(p); }
 }

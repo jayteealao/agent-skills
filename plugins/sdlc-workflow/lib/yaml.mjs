@@ -172,6 +172,7 @@ function flowParser(text, line) {
       let v = null;
       if (text[i] === ':') { i += 1; v = node(true); ws(); }
       const key = String(k);
+      if (key === '__proto__') throw new YamlError('the mapping key __proto__ is not allowed', line);
       if (Object.hasOwn(out, key)) throw new YamlError(`duplicated mapping key ${key}`, line);
       out[key] = v;
       if (text[i] === ',') { i += 1; continue; }
@@ -359,6 +360,7 @@ class BlockParser {
       const c = keyColon(line);
       if (c < 0) throw new YamlError(`expected a mapping key: ${line.slice(0, 40)}`, n + 1);
       const key = parseKey(line.slice(0, c), n + 1);
+      if (key === '__proto__') throw new YamlError('the mapping key __proto__ is not allowed', n + 1);
       if (Object.hasOwn(out, key)) throw new YamlError(`duplicated mapping key ${key}`, n + 1);
       const rest = this.lines[n].slice(indent + c + 1).trimStart();
       out[key] = this.valueAfterKey(rest, indent, n);
@@ -538,6 +540,17 @@ function flowOf(v) {
 
 const isMap = (v) => v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date);
 
+/**
+ * Whether a multi-line string reads back the same from a literal block. A string that starts
+ * with a newline, whose first line with text starts with white space, that holds a carriage
+ * return, or that is only newlines is written double-quoted instead.
+ */
+function literalSafe(s) {
+  if (s.startsWith('\n') || /^\n*$/.test(s) || s.includes('\r')) return false;
+  const first = s.split('\n').find((l) => l.trim() !== '');
+  return first !== undefined && !/^\s/.test(first);
+}
+
 function literalBlock(s, pad) {
   const chomp = s.endsWith('\n') ? (s.endsWith('\n\n') ? '+' : '') : '-';
   const body = (chomp === '' ? s.slice(0, -1) : chomp === '+' ? s.replace(/\n+$/, (m) => m.slice(1)) : s).split('\n');
@@ -574,7 +587,7 @@ function block(v, depth) {
 function valueText(v, depth) {
   if (Array.isArray(v)) return v.length ? flowOf(v) : '[]';
   if (isMap(v)) return Object.keys(v).length ? flowOf(v) : '{}';
-  if (typeof v === 'string' && v.includes('\n')) return literalBlock(v, '  '.repeat(depth));
+  if (typeof v === 'string' && v.includes('\n')) return literalSafe(v) ? literalBlock(v, '  '.repeat(depth)) : quote(v);
   return scalar(v);
 }
 

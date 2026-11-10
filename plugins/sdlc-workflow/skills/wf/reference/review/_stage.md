@@ -65,7 +65,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 | `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
 | `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
 
-Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). When the build goes against a confirmed board, fix the build to match the board at Step 4c; do not redraw the board and do not ask.
+Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `screens:`, compare each approved screen with its capture in the verify `## Design Comparison` (`design/_surface.md`). When the build goes against an approved screen, fix the build to match the screen at Step 4c; do not redraw the screen and do not ask.
 
 **Verify inputs.** Use these values from each `06-verify-*.md` record in scope (`record list` names them):
 - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
@@ -100,7 +100,7 @@ Mark each item done as its outcome is recorded. A `could-not-fix` item carries `
 
 # Step 1: Gather Change Statistics
 
-From the relevant implement record(s), extract files changed and nature of changes. **Diff scope depends on `review-scope`:** per-slice mode diffs the working tree (`git diff --name-only HEAD`, `git diff --stat HEAD`, `git diff HEAD`); slug-wide mode diffs the entire branch since divergence (`git diff --name-only <base-branch>...HEAD`, `git diff --stat <base-branch>...HEAD`, `git diff <base-branch>...HEAD`). Substitute `<base-branch>` from `00-index.md` frontmatter (typically `main` or `master`).
+From the relevant implement record(s), extract files changed and nature of changes. **Diff scope depends on `review-scope`:** per-slice mode diffs the commits of the slice. Run `node "<skill-dir>/scripts/wf.mjs" step where "<root>" <slug> <slice-slug> --json`: the step commits are the `sha` of each entry of `done` (of `lastRun.done` when `complete` is true), in step order, leaving out an entry with `noChange`. Diff from the parent of the first step commit to the last (`git diff --name-only <first-sha>^ <last-sha>`, `git diff --stat <first-sha>^ <last-sha>`, `git diff <first-sha>^ <last-sha>`). When the step record has no commit for the slice, take the `commit-sha` of `05-implement-<slice-slug>.md` (`git diff <commit-sha>^ <commit-sha>`); when that is empty too, diff the working tree (`git diff HEAD`) and say in the review file that the scope is the uncommitted change; slug-wide mode diffs the entire branch since divergence (`git diff --name-only <base-branch>...HEAD`, `git diff --stat <base-branch>...HEAD`, `git diff <base-branch>...HEAD`). Substitute `<base-branch>` from `00-index.md` frontmatter (typically `main` or `master`).
 
 **The work packet files.** List every changed file, and each file that calls, imports or tests code that the diff changes (find them with `git grep` on the changed exports and names). Give each path relative to the project root. The scouts look for issues only in these files, and Step 4 drops a finding in any other file. So the review makes no finding about debt that the change did not cause.
 
@@ -139,7 +139,7 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 For EACH selected command, dispatch ONE sub-agent at **low** effort per [_subagents.md](../_subagents.md). The `architecture` and `security` rubrics use **medium** effort. Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_subagents.md](../_subagents.md), "Effort tiering"). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
-**Each scout receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its Step 3 prompt unchanged. The prompt carries the pre-existing determination, the acceptance-check rule and the JSON reply. A scout writes no file.
+**Each scout receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its Step 3 prompt, with its `{…}` fields filled in and nothing else changed. `{rubric-path}` is the absolute path of the rubric file that [_select.md](_select.md) maps the command to: `<skill-dir>/reference/review/<name>.md`, or `<skill-dir>/reference/design/audit.md` and `<skill-dir>/reference/design/critique.md` for `design-audit` and `design-critique`. The intent-fidelity scout returns its verdict per carried key in `decisionFidelity`; Step 5 writes `## Decision Fidelity` from it. The prompt carries the pre-existing determination, the acceptance-check rule and the JSON reply. A scout writes no file.
 
 Wait for ALL scouts to complete before proceeding.
 
@@ -164,7 +164,7 @@ The review asks the person nothing. Every open finding gets one of two outcomes,
 3. Triage each open finding by the first rule that applies:
    - **The fix goes against a decision of the person.** Dismiss the finding with `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`. The command refuses an entry that is not a live answer, steer or approval of the person.
    - **The build goes against a decision of the person or a confirmed board.** Fix the build to match the decision or the board.
-   - **A reading cannot settle the finding, and it needs runtime evidence that this run cannot get** (`needs-runtime-evidence`, a recorded wall). Keep it as a deferral with `wf.mjs findings set <id> deferred --reason "<the wall>"`. Code cannot fix it.
+   - **A reading cannot settle the finding, and it needs runtime evidence that this run cannot get** (`needs-runtime-evidence`, a recorded wall). Keep it as a deferral with `wf.mjs findings set "<root>" <slug> <id> deferred --reason "<the wall>"`. Code cannot fix it.
    - **In all other cases, fix the finding.**
 4. A deferral keeps its reason only when you check the reason in the code at HEAD. A reason that names a later fix is not a reason: fix the finding now.
 
@@ -176,13 +176,13 @@ If all commands returned clean, skip Steps 4b and 4c.
 
 Runs only if Step 4b gave at least one finding to fix. YOU fix the findings, one after another, in your own session. Dispatch no fix sub-agent. There is no size gate and no route back to plan or implement: a large fix is several steps of this review.
 
-1. **Write the fix steps.** Take the findings in severity order, BLOCKER first. Write one step for each finding into the step ledger with `wf.mjs step` ([implement/_steps.md](../implement/_steps.md)). Split a large fix into several steps.
-2. **Confirm the failure.** For each step, first confirm the failure in the code at HEAD. When you cannot confirm it, run `wf.mjs findings set <id> dismissed --reason "<why, with file:line>"`, make no change, and go to the next step.
+1. **List the fix steps.** Take the findings in severity order, BLOCKER first: one step for each finding, as an item of the work-tracking checklist. Split a large fix into several steps. The findings ledger records each fix, not the step record: `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>`, and `dismissed` or `could-not-fix` with `--reason`. Do not run `wf.mjs step` for a review fix; the step record holds the plan steps of implement.
+2. **Confirm the failure.** For each step, first confirm the failure in the code at HEAD. When you cannot confirm it, run `wf.mjs findings set "<root>" <slug> <id> dismissed --reason "<why, with file:line>"`, make no change, and go to the next step.
 3. **Apply the patch.** When the fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step, per rule 5 of [_decisions.md](../_decisions.md). Record an `implementation-detail` decision with `--rewrote` for the rewritten records.
 4. **Run the tests of the step.** Run the tests that cover the files of the step, and the `affected` suite of the test profile for the slices that the step touches.
 5. **Commit the step.** Use a conventional commit about the product, per [implement/_steps.md](../implement/_steps.md): `<type>: <what the fix does>`. Name no slug and no finding id ([_output-boundary.md](../_output-boundary.md)).
-6. **Record the outcome.** Run `wf.mjs findings set <id> fixed --commit <sha>`.
-7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf.mjs findings set <id> could-not-fix --reason "<the failure>"`, and continue with the next step.
+6. **Record the outcome.** Run `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>` (the last commit, for a fix of several steps).
+7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf.mjs findings set "<root>" <slug> <id> could-not-fix --reason "<the failure>"`, and continue with the next step.
 
 ## One review round
 

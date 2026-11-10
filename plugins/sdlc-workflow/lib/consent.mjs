@@ -54,13 +54,18 @@ export function checkConsent(projectRoot, slug) {
 
 /**
  * Record the consent of the person for `slug`, from the newest answer event to the consent
- * question. Without that event, or with an answer that is not a yes, nothing is written.
+ * question. Without that event, or with an answer that is not a yes, nothing is written. After a
+ * revoke, only an answer given after the revoke counts: an older yes does not grant it again.
  */
 export function grantConsent(projectRoot, slug, { since = null, now = new Date() } = {}) {
   const dir = workflowDir(projectRoot, slug);
-  if (!frontmatterOfDoc(dir, INDEX_NAME)) return { ok: false, reason: `no workflow ${slug}` };
+  const index = frontmatterOfDoc(dir, INDEX_NAME);
+  if (!index) return { ok: false, reason: `no workflow ${slug}` };
   const question = consentQuestion(slug);
-  const answer = findAnswer(projectRoot, (text) => isConsentQuestion(text, slug), { since });
+  const revokedAt = Date.parse(index[CONSENT_FIELD]?.['revoked-at'] ?? '');
+  const after = Number.isFinite(revokedAt) ? new Date(revokedAt + 1).toISOString() : null;
+  const from = since && after ? (Date.parse(since) > Date.parse(after) ? since : after) : (since ?? after);
+  const answer = findAnswer(projectRoot, (text) => isConsentQuestion(text, slug), { since: from });
   if (!answer) return { ok: false, reason: 'no answer event for the consent question', question };
   if (!/^\s*yes\b/i.test(answer.answer)) return { ok: false, reason: `the person answered: ${answer.answer}`, question };
   const consent = { granted: true, by: 'person', at: now.toISOString().replace(/\.\d{3}Z$/, 'Z'), answer: answer.answer, 'answered-at': answer.at, host: answer.host };
@@ -68,10 +73,13 @@ export function grantConsent(projectRoot, slug, { since = null, now = new Date()
   return { ok: true, consent };
 }
 
-/** Withdraw the consent of `slug`. */
-export function revokeConsent(projectRoot, slug) {
+/**
+ * Withdraw the consent of `slug`. The index keeps when, so that the yes answer that granted it
+ * cannot grant it again: a new grant needs an answer given after this time.
+ */
+export function revokeConsent(projectRoot, slug, { now = new Date() } = {}) {
   const dir = workflowDir(projectRoot, slug);
   if (!frontmatterOfDoc(dir, INDEX_NAME)) return { ok: false, reason: `no workflow ${slug}` };
-  setFields(dir, INDEX_NAME, { [CONSENT_FIELD]: null });
+  setFields(dir, INDEX_NAME, { [CONSENT_FIELD]: { granted: false, 'revoked-at': now.toISOString() } });
   return { ok: true };
 }

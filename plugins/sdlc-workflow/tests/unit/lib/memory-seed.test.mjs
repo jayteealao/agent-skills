@@ -222,3 +222,22 @@ test('renderAgentsBlock / renderImportBlock are stable strings', () => {
   match(renderAgentsBlock(), new RegExp(`sdlc:wf-rules v${KERNEL_VERSION} END -->$`));
   equal(renderImportBlock().includes('@AGENTS.md'), true);
 });
+
+test('an AGENTS.md that exists but cannot be read is left as it is, never replaced by the fence', () => {
+  const dir = tempDir();
+  try {
+    engage(dir);
+    writeFileSync(join(dir, 'AGENTS.md'), '# The rules of this repo\n');
+    const writes = [];
+    const flaky = {
+      existsSync,
+      mkdirSync,
+      readFileSync(p, enc) { if (String(p).endsWith('AGENTS.md')) throw Object.assign(new Error('busy'), { code: 'EBUSY' }); return readFileSync(p, enc); },
+      writeFileSync(p, text, enc) { writes.push(String(p)); return writeFileSync(p, text, enc); },
+    };
+    const r = seedMemoryKernel(dir, {}, { fs: flaky });
+    equal(r.changed, false);
+    ok(!writes.some((p) => p.endsWith('AGENTS.md')), 'AGENTS.md is not written');
+    equal(readFileSync(join(dir, 'AGENTS.md'), 'utf-8'), '# The rules of this repo\n');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

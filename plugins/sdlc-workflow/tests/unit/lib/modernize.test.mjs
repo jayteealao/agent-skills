@@ -24,7 +24,7 @@ test('a merged progress value is the state of the two old stages together', () =
 
 test('the renames touch the stage, the progress and the next commands only', () => {
   const index = { 'current-stage': 'shape', 'next-invocation': '/wf shape a', 'next-command': 'wf-shape', progress: { intake: 'complete', shape: 'in-progress', review: 'complete' } };
-  assert.deepEqual(stageRenames(index), { 'current-stage': 'intake', 'progress.intake': 'in-progress', 'progress.shape': null, 'next-invocation': '/wf intake a' });
+  assert.deepEqual(stageRenames(index), { 'current-stage': 'intake', 'progress.intake': 'in-progress', 'progress.shape': null, 'next-invocation': '/wf intake a', 'next-command': 'wf-intake' });
   assert.deepEqual(stageRenames({ 'current-stage': 'plan', progress: { intake: 'complete' } }), {});
 });
 

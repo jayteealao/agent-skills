@@ -68,6 +68,16 @@ Write the record as the draft `<wf-dir>/.draft/05d-tune.md`, then run `node "<sk
 
 Before the slice is planned in full, run the harness once on the current code and write `## Baseline`. Then try the most promising lever once, without a commit, and record whether the number moved. Set `mode: spike`. When no lever moves the number, say so in the plan `## Risks / Watchouts`: the target may need a change of approach, and that is a question for the person.
 
+Then add the entry to the index. Get the list with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, and set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus this one.
+```yaml
+augmentations:
+  - type: tune
+    artifact: 05d-tune.md
+    status: ready
+    created-at: <timestamp>
+```
+When a `tune` entry exists, leave it. Verify finds the harness to run again through this entry.
+
 # Implement: the rounds
 
 Set `mode: rounds`. Run the rounds by the rules above, inside the implement time box. Each round commit is a plan step for `wf.mjs step`. When the loop stops, write `## Result`, set `result:`, and set `mode: complete`.

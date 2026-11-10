@@ -15,6 +15,7 @@ full SDLC stage sequence — **no stage is skipped**, every stage is single-pass
 per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
 
 **The model:**
+- **The index comes first.** Each change mode writes `00-index.md` at the start of its Step 1, with `progress.intake: in-progress` and `next-invocation: /wf intake <mode> <slug>`, and finishes it at its index step (the final `workflow-files`, `progress` and terminus route). The resume test of Step 0 reads the index, so a run that stops mid-planning resumes instead of starting again.
 - **Lead = `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`,
   `01-update-deps.md`). The filename carries the mode; the schema checks it as `type: intake`. The lead
   must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
@@ -72,12 +73,12 @@ decision (proceeded / adjusted / escalated / auto-proceeded-low-risk) in the `01
 | `<tags>` | `[]` | `[incident]` | `[refactor]` | `[deps]` |
 | `<shape-tags>` | `[]` | `[incident]` | `[refactor, baseline]` | `[deps]` |
 | `<complexity>` | `xs\|s\|m` | `xs\|s` | `s\|m\|l` | `s\|m\|l` |
-| `<next-command>` | `wf-implement` | `wf-implement` | `wf-implement` | `wf-review` |
-| `<next-invocation>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf review <slug>` |
+| `<next-command>` | `wf-implement` | `wf-implement` | `wf-implement` | `wf-intake` |
+| `<next-invocation>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf intake update-deps <slug>` |
 | `<routes>` | see below | see below | see below | see below |
 | stack confirm | one-question confirm | unconfirmed (caveat path) | one-question confirm | unconfirmed (caveat path) |
 
-Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-command` and `next-invocation`: the run's terminus, not the next file. `<routes>` is `[{invocation: "<next-invocation>", reason: "<one phrase>", default: true}, {invocation: "/wf intake \"<description>\" from <slug>", reason: "escalate"}]`.
+Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-command` and `next-invocation`: the run's terminus, not the next file. update-deps implements and verifies in its own Steps 7–8, so its planning artifacts route back to `/wf intake update-deps <slug>`; its Step 8 writes `/wf review <slug>`. `<routes>` is `[{invocation: "<next-invocation>", reason: "<one phrase>", default: true}, {invocation: "/wf intake \"<description>\" from <slug>", reason: "escalate"}]`.
 
 ## Planning templates (`01-<mode>` to `04-plan`)
 
@@ -268,8 +269,8 @@ Escalate). Family rules, all branches:
 - **Escalate** → the change outgrew the mode. Close this slug so it never parks in
   `/wf status` Active pointing at abandoned work: run `record set "<root>" <slug> index status=closed
   close-reason=superseded superseded-by=pending closed-at=<iso-8601> next-command=none
-  "next-invocation=none — escalated"`; write the draft of a brief `99-close.md` per `close.md` and put it; update
-  the registry row. Then print the successor invocation —
+  "next-invocation=none — escalated"`; write the draft of a brief `99-close.md` per `close.md` and put it (the put refreshes the
+  registry row). Then print the successor invocation —
   `/wf intake "<description>" from <slug>` — and stop. The successor consumes the planning
   evidence per `_intake-provenance-consume.md` (escalated change-mode row) and its link-back
   replaces `superseded-by: pending` with the real slug.

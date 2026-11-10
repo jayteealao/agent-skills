@@ -38,7 +38,7 @@ You are a **dashboard + router + registry keeper**, not a problem solver.
 
 This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. The repair is idempotent: running it twice produces an identical file.
 
-**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf project ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
+**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; set `artifactTracking` in `.ai/sdlc-config.json` (`/wf project ship-plan init` Step 3.5 asks it) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
 
 **One-time advisory — design surface ignored.** While reconciling, when `.ai/design/` exists, run `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>" --check`. When it exits 1, append one advisory line (never a gate, never a prompt): "git ignores the design surface — `wf.mjs design track` keeps `.ai/design/` tracked; run it after the person approves." Print it at most once per invocation.
 
@@ -91,7 +91,7 @@ This is the read-only counterpart to batch `/wf ship`: it answers "which slugs o
 Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow in it carries its `group` (`active`, `blocked`, `completed`, or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`. Use them as they are. A workflow with a run also carries `progress`: its `state` (`running`, `waiting`, `stopped` or `done`; a dead driver shows as `stopped`), the stage, slice and step, `etaSeconds`, and `resume`. For each run that is not `done`, add one line under the table: `<slug>: <state> at <stage> <slice> step <n> of <m>`, the ETA when it has one, and the `resume` command when it stopped. For the other columns, read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index`. Parse frontmatter for:
 - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
 - `selected-slice`, `open-questions`
-- `recommended-next-command`, `recommended-next-invocation` (fall back to `next-command`, `next-invocation`)
+- `next-command`, `next-invocation` (fall back to `recommended-next-command`, `recommended-next-invocation`, the route of a readiness gate). This is the order of `wf.mjs status` and of the dispatcher; `record stage-done` clears the `recommended-` pair when it writes the next step.
 - `branch-strategy`, `branch`, `pr-url`, `pr-number`
 - `progress` (e.g., `slices-implemented: 2, slices-total: 5`)
 - `runtime-evidence-deferrals` (list of `{slice, reason, deferred-at, cleared-by}`; may be absent)

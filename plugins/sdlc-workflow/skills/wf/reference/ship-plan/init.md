@@ -95,7 +95,7 @@ Blocks A–K, each with its hypothesis source and its gate question, are in [ini
 
 # Step 3 — Additional contracts (open extensions)
 
-Ask the user (as a gate question per [_gate-question.md](../_gate-question.md); multi-select), seeded by `inferred.additional-contracts-suggested`:
+Ask the user, seeded by `inferred.additional-contracts-suggested`. Eight multi-select options do not fit the question tool, which takes at most four: ask it as a chat question (rung 2 of [_gate-question.md](../_gate-question.md)), a numbered list where the person picks by numbers, any number of them or none:
 
 ```yaml
 question: "Does this project have any of these contracts that the standard plan doesn't cover?"
@@ -125,11 +125,11 @@ question: "Should the .ai/ workflow artifacts (intake/shape/plan/verify bookkeep
 header: "Artifact tracking"
 options:
   - { label: "Tracked (Recommended)", description: "Artifacts ride the branch — reviewable, shared across machines. Ship's clean-tree gate offers a one-keystroke 'commit bookkeeping' for them." }
-  - { label: "Ignored",               description: "Artifacts stay local. Writes a .gitignore block: .ai/ except ship-plan.md + sdlc-config.json (the project-level contracts stay tracked), the design record .ai/design/, and the confirmed design boards .ai/workflows/*/design/r*/." }
+  - { label: "Ignored",               description: "Artifacts stay local. Writes a .gitignore block: .ai/ except ship-plan.md + sdlc-config.json (the project-level contracts stay tracked), and the design record .ai/design/." }
 multiSelect: false
 ```
 
-Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>" --write` to add the design exceptions (`design/_boards.md`); the "Ignored" answer is the approval, because the option names them. `/wf ship` reads this policy in its PR phase and its pre-flight (Step 1.1) instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
+Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>"` to add the design exception `!.ai/design/` ([design/_surface.md](../design/_surface.md)); the "Ignored" answer is the approval, because the option names them. `/wf ship` reads this policy in its PR phase and its pre-flight (Step 1.1) instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
 
 ---
 
@@ -177,7 +177,7 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
 - `plan-version: 1`
 - `additional-contracts: [<id>, ...]` (or `[]`)
 - `announcement-template-created: <true | false | skipped>` (from Block G follow-up)
-- `inbound-coverage:` one line summarizing Blocks H–K — e.g. `gates: lint+type-check+coverage(80%); commit-convention: conventional (local+ci); hooks: husky; branch-protection: gh-api (1 approval, code-owner req); merge: squash+auto; security: codeql+npm-audit(high)+gitleaks; deps: renovate; topology: monorepo(pnpm,4)`
+- `inbound-coverage:` one line summarizing Blocks H–K — e.g. `gates: lint+type-check+coverage(80%); commit-convention: conventional (local+ci); hooks: husky; branch-protection: gh-api (1 approval, code-owner req); merge: merge+auto; security: codeql+npm-audit(high)+gitleaks; deps: renovate; topology: monorepo(pnpm,4)`
 - `next-steps:`
   - `/wf project ship-plan build` — audit and implement the **entire** pipeline from this plan: release + pre-merge workflows, code-quality + commit/PR-title CI, local git hooks, dev-experience files, and repo governance (CODEOWNERS, templates, dependency automation, and branch protection via `gh api` when `apply-via: gh-api`). Creates missing files, patches non-compliant ones.
   - `/wf ship <slug>` — run a release using this plan (requires the pipeline to be in place)

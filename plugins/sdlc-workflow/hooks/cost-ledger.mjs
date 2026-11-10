@@ -29,9 +29,10 @@
  *   session file; the parser is chosen from the file's first line.
  */
 
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadConfig } from '../lib/config.mjs';
@@ -40,7 +41,7 @@ import { readStdinJson } from '../lib/stdin.mjs';
 import { projectRootFromInput } from '../lib/hook-utils.mjs';
 import { sdlcHomeDir } from '../lib/home.mjs';
 import { appendCostRow, collectTurn, readCursor, writeCursor } from '../lib/cost-ledger.mjs';
-import { WORKFLOWS_REL, workflowsRoot } from '../lib/records-root.mjs';
+import { WORKFLOWS_REL, recordsHome, workflowsRoot } from '../lib/records-root.mjs';
 
 /** `--plugin-root X --plugin-data Y` (the Codex wiring); absent under Claude Code. */
 export function parseHookArgs(argv = process.argv.slice(2)) {
@@ -92,7 +93,8 @@ export async function runCostLedger({ input, cursorDir, env = process.env, now =
   if (!transcript || !existsSync(transcript)) return { wrote: false, reason: 'no transcript' };
 
   const cursor = readCursor(cursorDir, sessionId);
-  const turn = collectTurn({ transcriptPath: transcript, subagentsDir: join(dirname(transcript), sessionId, 'subagents'), cursor });
+  const prev = cursor.last ?? null;
+  const turn = collectTurn({ transcriptPath: transcript, subagentsDir: join(dirname(transcript), sessionId, 'subagents'), cursor, sessionId });
   cursor.turn = (cursor.turn ?? 0) + 1;
 
   // One row per slug: the turn's own slug, plus each slug that a sub-agent
@@ -107,9 +109,21 @@ export async function runCostLedger({ input, cursorDir, env = process.env, now =
     const root = a.root && isAbsolute(a.root) ? a.root : resolve(projectRoot, a.root ?? WORKFLOWS_REL);
     return join(root, a.slug);
   };
+  // The turn's own slug counts only when its folder is a workflow folder of this project (or of
+  // the records home) that exists: a write into a test fixture or a path with `..` names no
+  // workflow. Such a turn keeps the slug of the turn before it.
+  const homes = [mainRoot, recordsHome()].map((p) => resolve(p));
+  const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  const inside = (dir) => homes.some((h) => { const r = relative(fold(h), fold(resolve(dir))); return r && !r.startsWith('..') && !isAbsolute(r); });
+  const realDir = (a) => { const d = ownDir(a); return d && a.slug !== '.' && a.slug !== '..' && inside(d) && existsSync(d) ? d : null; };
+  let ownAttr = own.attributed;
+  if (ownAttr && !realDir(ownAttr)) {
+    ownAttr = prev && realDir(prev) ? prev : null;
+    cursor.last = ownAttr;
+  }
   const byDir = new Map();
-  const turnRow = { attributed: own.attributed, main: own.main, subagents: [...own.subagents] };
-  if (ownDir(own.attributed)) byDir.set(ownDir(own.attributed), turnRow);
+  const turnRow = { attributed: ownAttr, main: own.main, subagents: [...own.subagents] };
+  if (realDir(ownAttr)) byDir.set(realDir(ownAttr), turnRow);
   for (const g of others) {
     const dir = join(mainRoot, g.attributed.slug);
     if (!existsSync(dir)) { turnRow.subagents.push(...g.subagents); continue; }
@@ -159,8 +173,7 @@ async function main() {
   }
 }
 
-const isMain = process.argv[1] && (import.meta.url === pathToFileURL(resolve(process.argv[1])).href
-  || fileURLToPath(import.meta.url) === resolve(process.argv[1]));
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   main().finally(() => process.exit(0));
 }

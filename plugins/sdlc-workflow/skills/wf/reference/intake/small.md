@@ -34,7 +34,7 @@ Do this step once, right after the path question. On a resume, start at the firs
    - `progress`: `intake: complete`, `design: skipped`, `slice: skipped`, `plan: skipped`, `implement: in-progress`, `verify: not-started`, `review: skipped`, `ship: skipped`, `retro: skipped`;
    - `design-skip-reason: "small path"`;
    - `next-invocation: "/wf intake <slug>"`.
-3. Write the draft `<wf-dir>/.draft/01-small.md` (`type: intake`, `small-path: true`, `stage-number: 1`, `status: in-progress`, `commit-sha: []`, `pr-wanted: null`), with these sections:
+3. Write the draft `<wf-dir>/.draft/01-small.md`. Take the frontmatter of the intake template of [intake/default/_artifact.md](default/_artifact.md), with these values: `small-path: true`, `status: awaiting-input`, `refs: { index: 00-index.md }`, `commit-sha: []`, `pr-wanted: null`. The intake record takes only `complete` or `awaiting-input` as its status. The note stays `awaiting-input` until Step 4 sets `complete`. It has these sections:
    - `## Request`: the restated request, in one paragraph.
    - `## Acceptance Checks`: one line per check. Each line names how the result is observed.
    - `## Change`, `## Checks Run`, `## Result`: empty for now.
@@ -50,7 +50,7 @@ Do this step once, right after the path question. On a resume, start at the firs
 
 When a suite fails and the cause is not in the change, STOP. Record the failure in `## Checks Run`, and set `status: awaiting-input` on the note. Do not commit a change that fails its own checks.
 
-When the change turns out to need more than one commit, a design, or a plan, STOP and tell the person in one line: *"This is larger than the small path. Run `/wf intake <slug>` again and take the full path, or say how to cut it down."* The full path keeps the note and adds the brief.
+When the change turns out to need more than one commit, a design, or a plan, STOP and tell the person in one line: *"This is larger than the small path. Close this workflow with `/wf intake <slug> close superseded`, then run `/wf intake "<description>" from <slug>` and take the full path; or say how to cut it down."*
 
 # Step 3 — Verify
 

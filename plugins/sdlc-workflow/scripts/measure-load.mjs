@@ -25,6 +25,7 @@
 //   node scripts/measure-load.mjs            # table to stdout
 //   node scripts/measure-load.mjs --json
 
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -212,7 +213,7 @@ export function renderTable(result) {
   return lines.join('\n');
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const argv = process.argv.slice(2);
   // --root <dir>: measure another checkout (a `git archive HEAD` export).

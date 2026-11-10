@@ -55,7 +55,7 @@ test('one progress edit per change; the issue number is kept; the board gets the
     assert.deepEqual(noteChange(t.root, 'add-tags'), { queued: true });
     assert.deepEqual(noteChange(t.root, 'add-tags'), { queued: false }, 'no change, no edit');
     const gh = fakeGh();
-    assert.deepEqual(flushOutbox({ run: gh.run }), { sent: 1, left: 0, error: null, parked: 0 });
+    assert.deepEqual(flushOutbox({ run: gh.run }), { sent: 1, left: 0, error: null, parked: 0, requeued: 0 });
     assert.deepEqual(gh.verbs(), ['label create', 'label create', 'label create', 'issue list', 'issue create', 'project item-add']);
     assert.match(gh.calls[4].input, /```json\n\{\n {2}"schema": "wf-status\/1"/);
 
@@ -88,7 +88,7 @@ test('a failed entry stops the flush and stays at the head, in order', () => {
     assert.deepEqual([r.sent, r.left], [0, 2]);
     assert.match(layerStatus(t.root).error.message, /offline/);
     const on = fakeGh();
-    assert.deepEqual(flushOutbox({ run: on.run }), { sent: 2, left: 0, error: null, parked: 0 });
+    assert.deepEqual(flushOutbox({ run: on.run }), { sent: 2, left: 0, error: null, parked: 0, requeued: 0 });
     assert.deepEqual(on.verbs().slice(-2), ['project item-add', 'issue comment']);
     assert.match(on.calls.at(-1).input, /Which tag store\?\n\n> SQLite/);
     assert.equal(layerStatus(t.root).error, null);
@@ -143,7 +143,7 @@ test('a network error is tried once more after the delay; another error is not',
       }
       return { status: 0, stdout: '', stderr: '' };
     };
-    assert.deepEqual(flushOutbox({ run, wait: (ms) => waits.push(ms) }), { sent: 1, left: 0, error: null, parked: 0 });
+    assert.deepEqual(flushOutbox({ run, wait: (ms) => waits.push(ms) }), { sent: 1, left: 0, error: null, parked: 0, requeued: 0 });
     assert.deepEqual(waits, [5000]);
 
     setFields(t.dir, '00-index.md', { 'current-stage': 'shape' });

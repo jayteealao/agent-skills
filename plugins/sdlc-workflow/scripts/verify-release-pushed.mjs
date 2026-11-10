@@ -42,6 +42,7 @@
  * advisory under CI, where no plugin is installed.
  *   node scripts/verify-release-pushed.mjs --branch=main --remote=upstream
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -174,6 +175,6 @@ function main() {
 }
 
 // Only run when invoked directly, so the pure functions above stay importable by tests.
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main();
 }

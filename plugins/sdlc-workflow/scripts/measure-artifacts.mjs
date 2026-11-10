@@ -23,6 +23,7 @@
 //
 // Token counts are characters divided by 4. Node builtins only.
 
+import { isMainModule } from '../lib/proc.mjs';
 import { createReadStream, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -749,7 +750,7 @@ export async function main(argv = process.argv.slice(2)) {
   return 0;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   main().then(
     (code) => process.exit(code),

@@ -15,6 +15,7 @@
  * the host judge reads the transcript, and its last line is the `GOAL:` line.
  * `check` exits 0 for every verdict: a failing proof is evidence, not an error.
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -27,7 +28,8 @@ import {
 } from '../lib/goal.mjs';
 import { lifecycleDone } from '../lib/lifecycle-done.mjs';
 import { optimizeStatus } from './optimize.mjs';
-import { workflowDir } from '../lib/records-root.mjs';
+import { runDir, workflowDir } from '../lib/records-root.mjs';
+import { runFileFor } from '../lib/run-files.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from '../lib/records.mjs';
 
 const USAGE = 'Usage: goal.mjs <arm|check|park|status|clear|lifecycle> <projectRoot> <slug> ...';
@@ -40,7 +42,9 @@ const wfDir = workflowDir;
 const goalPath = (root, slug) => join(wfDir(root, slug), 'goal.md');
 const goalDir = (root, slug) => join(wfDir(root, slug), 'goal');
 const checksPath = (root, slug) => join(goalDir(root, slug), 'checks.jsonl');
-const armPath = (root, slug) => join(goalDir(root, slug), 'arm.json');
+// The arm request is a run file of this machine, in the project also when the records live in a
+// linked records clone: the mod of the host reads it from <root>/.ai/run/<slug>/goal-arm.json.
+const armPath = (root, slug) => join(runDir(root, slug), 'goal-arm.json');
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 function writeAtomic(file, text) {
@@ -103,7 +107,7 @@ function arm(root, slug, f) {
   saveContract(root, slug, c);
   const plan = armPlan(host, condition);
   // The mod reads this request at the end of the turn and submits /goal on Desktop.
-  writeAtomic(armPath(root, slug), `${JSON.stringify({ slug, host, arming: c.arming, condition, command: plan.command ?? null, requestedAt: c['armed-at'], state: 'pending' }, null, 2)}\n`);
+  writeAtomic(runFileFor(root, slug, 'goal-arm.json'), `${JSON.stringify({ slug, host, arming: c.arming, condition, command: plan.command ?? null, requestedAt: c['armed-at'], state: 'pending' }, null, 2)}\n`);
   return { ok: true, resumed: !!prior, kind, host, arming: c.arming, maxChecks: c['max-checks'], condition, arm: plan, contract: 'goal.md' };
 }
 
@@ -230,6 +234,6 @@ export function main(argv = process.argv.slice(2)) {
   return out.ok ? 0 : 1;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   process.exitCode = main();
 }

@@ -48,7 +48,9 @@ export function mergedReason(root, fm, { run = defaultRun, cache = {}, key = nul
     const r = run('gh', ['pr', 'view', String(pr), '--json', 'state'], { cwd: root });
     let state = null;
     try { state = r.status === 0 ? JSON.parse(r.stdout).state : null; } catch { state = null; }
-    if (key && state) cache[key] = { pr, state, at: new Date(now).toISOString() };
+    // A failed check (gh missing, logged out, offline) is cached too, so the next calls in the
+    // time to live start no new check.
+    if (key) cache[key] = { pr, state, at: new Date(now).toISOString() };
     return state === 'MERGED' ? `PR ${pr} is merged` : null;
   }
   if (fm.progress?.implement !== 'complete') return null;

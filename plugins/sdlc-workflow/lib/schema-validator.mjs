@@ -75,7 +75,14 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatte
   let schema;
   if (kind === 'frontmatter' && name) {
     const branch = findFrontmatterBranch(rootSchema, name);
-    schema = branch ? schemaWithDefs(rootSchema, branch) : rootSchema;
+    // The type's branch stands in for the oneOf over all branches; every other part
+    // of the root (the base fields shared by every artifact) still applies.
+    schema = branch
+      ? schemaWithDefs(rootSchema, {
+          type: rootSchema.type,
+          allOf: (rootSchema.allOf ?? []).map((chunk) => (chunk.oneOf ? branch : chunk)),
+        })
+      : rootSchema;
   } else if (kind === 'def') {
     const branch = rootSchema.$defs?.[name];
     schema = branch ? schemaWithDefs(rootSchema, branch) : null;

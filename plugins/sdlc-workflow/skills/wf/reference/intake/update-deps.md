@@ -71,6 +71,8 @@ You run the dependency update: scan, prioritize, plan, then apply each update th
 7. **Single slice.** The whole update is one slice (`slice-slug` = `<slug>`); the P0/P1/P2 tiers are organized *within* the slice/plan/implement bodies (so the un-suffixed single `05-implement.md`/`06-verify.md` capture the tiered execution).
 
 # Step 1 — Scan → `01-update-deps.md` (`type: intake`)
+**First, write the index.** Before the first question or research of this step, write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values, `progress.intake: in-progress` and `next-invocation: /wf intake update-deps <slug>`, and put it. A run that stops before the gate then resumes (the resume test of Step 0 reads this index), and a close or a probe route of a later step has an index to act on.
+
 Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages. Write the draft `<wf-dir>/.draft/01-update-deps.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later record of this run and put it the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Add `run-id: deps-<YYYYMMDD-HHMM>` (continuity with legacy `.ai/dep-updates/` runs) and `mode: <all|single|security-only|audit-only>` after `workflow-type`.
@@ -101,8 +103,8 @@ Body: "Single-slice dependency update — executed in P0 → P1 → P2 tier orde
 Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition). Then `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`; the update-deps tripwires are: a P1 migration without a cited changelog · a Hold entry without a revisit condition · mixed tiers forced into one commit by tooling).
 
-# Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Put it.
+# Step 5 — Finish `00-index.md` (conformant `type: index`)
+Get the index that Step 1 wrote (`record get "<root>" <slug> index`) and finish it: write its draft from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (the final `workflow-files`, `progress` and terminus route) (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Put it.
 
 # Step 6 — Gate before implement
 Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — for update-deps ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
@@ -116,7 +118,7 @@ options:
 ```
 **Record the gate decision in `01-update-deps.md` on every branch** (full plan / P0-only / audit-only / adjusted), per the tail. **If `mode: audit-only`** (or the user picks Audit-only) → the run ends lawfully, not in a deadlock:
 1. Push every Hold-tier entry onto the index's `open-questions` as `"revisit <package>: <condition>"` — the research survives as machine-readable revisit triggers.
-2. Self-report to the index in one call, with the `open-questions` list of item 1: `record set "<root>" <slug> index mode=audit-only next-command=wf-close "next-invocation=/wf intake <slug> close deferred" "open-questions=[<current entries>, <revisit entries>]"`. Touch the registry row's `updated-at`.
+2. Self-report to the index in one call, with the `open-questions` list of item 1: `record set "<root>" <slug> index mode=audit-only next-command=wf-close "next-invocation=/wf intake <slug> close deferred" "open-questions=[<current entries>, <revisit entries>]"`. The `record set` refreshes the registry row.
 3. STOP, printing: *"Audit saved. Close the run with `/wf intake <slug> close deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do not point at `/wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
 
 # Step 7 — Self-author `05-implement.md` (tier-ordered execution)
@@ -128,13 +130,13 @@ Execute the plan in tier order. **Never mix tiers in a single commit.**
 Write the draft of `05-implement.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md); it satisfies the **implement** required set (`next: 06-verify.md`, `next-command: wf-review`). Put it.
 Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (package — reason **+ revisit condition**), `## Held`.
 
-**Then self-report to `00-index.md`** — the stage completed, so the index must say so: run `record set "<root>" <slug> index current-stage=implement stage-number=5 progress.implement=complete "workflow-files=[<current entries>, 05-implement.md]"`, and touch the registry row's `updated-at`. A self-authored stage that skips this leaves the dashboard reading "unimplemented" forever.
+**Then self-report to `00-index.md`** — the stage completed, so the index must say so: run `record set "<root>" <slug> index current-stage=implement stage-number=5 progress.implement=complete "workflow-files=[<current entries>, 05-implement.md]"` (it refreshes the registry row). A self-authored stage that skips this leaves the dashboard reading "unimplemented" forever.
 
 # Step 8 — Self-author `06-verify.md`
 Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write the draft of `06-verify.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md) and put it; it satisfies the **verify** required set (`next: 07-review.md`).
 Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**), `## Caveats` (the unconfirmed stack). Write the raw test and build output to `verify-evidence/<slug>/checks.md`. `result: partial` is valid when some packages updated and some are blocked.
 
-**Then self-report to the index** again in one call: `record set "<root>" <slug> index current-stage=verify stage-number=6 progress.verify=complete "workflow-files=[<current entries>, 06-verify.md]" next-command=wf-review "next-invocation=/wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` (in the same call) so the next run's provenance seed finds them without re-reading stage bodies.
+**Then self-report to the index** again in one call: `record set "<root>" <slug> index current-stage=verify stage-number=6 progress.verify=complete "workflow-files=[<current entries>, 06-verify.md]" next-command=wf-review "next-invocation=/wf review <slug>"` (it refreshes the registry row). Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` (in the same call) so the next run's provenance seed finds them without re-reading stage bodies.
 
 # Step 9 — Route to review
 On a `pass`/`partial` verify, route to **`/wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `/wf ship` → `/wf retro`.

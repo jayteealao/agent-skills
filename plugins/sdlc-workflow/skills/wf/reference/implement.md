@@ -70,7 +70,7 @@ You run the implement stage of one slice.
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the **slice-slug**. If no slug, infer the most recent active workflow from `node "<skill-dir>/scripts/wf.mjs" status "<root>" --json`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the **slice-slug**. The first argument is the slug (the dispatcher refuses a call without one).
 2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`workflow-type`**.
 3. **Check for reviews mode.** If the last argument is literally `reviews`, this is a **review-fix** invocation: load [implement/_reviews-mode.md](implement/_reviews-mode.md), skip the rest of Step 0, and follow that file.
 4. **Find the source mode.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md): the lead record, the acceptance source, the record names and the implement action. When the action is STOP, give its route and stop. Wherever a step below names a suffixed file and the row names records without a suffix, use the name without the suffix.
@@ -148,7 +148,7 @@ Do this in order:
 6. Update tests, docs, types, configs, or migrations only where this slice requires it.
 7. Summarize the exact change set.
 8. **Write the draft of `05-implement-<slice-slug>.md`** per [implement/_artifact.md](implement/_artifact.md), and put it. Ground the record per [_grounded-progress.md](_grounded-progress.md): every `## Verification Seams Built` and `## Visual Contract Honored` entry cites a file:line you **re-opened after editing**, not memory of your own edits.
-9. **Write the draft of `05-implement.md`** (master index, same file) and put it. To change one row or field of it, use `record edit` or `record set`.
+9. Skip this step when the workflow uses the un-suffixed names: its one record is the stage record. **Write the draft of `05-implement.md`** (master index, same file) and put it. To change one row or field of it, use `record edit` or `record set`.
 10. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
 11. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> implement <slice-slug>`. It writes `current-stage`, `progress.implement`, `next-command`, `next-invocation` (the default route, `/wf verify <slug> <slice-slug>`) and adds the new records to `workflow-files`. When you chose another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`. Do not change the plan records. `record stage-done` sets the roster status.
 12. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`).** Stage by path and fail closed on any other dirty path, per the commit rule of [_workflow-rules.md](_workflow-rules.md). Commit what the step commits did not take, as `<type>: <what the change does>` ([implement/_steps.md](implement/_steps.md)). No push; pushing happens in the PR phase of ship. Record the commit SHA in the per-slice frontmatter: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 05-implement-<slice-slug>.md commit-sha=<sha>`. If `branch-strategy` is `none`, skip the commit. Then write the test receipt ([implement/_steps.md](implement/_steps.md)).

@@ -16,6 +16,9 @@
  *
  * Every command prints one JSON object on stdout. No new dependency: a board renders
  * with the headless mode of an installed Chromium browser (`--screenshot`).
+ *
+ * Legacy: init, render, sheet, freeze, capture-name, import and canvas-stale are for workflows
+ * with the old `boards:` contract. The design stage now draws screens (`wf.mjs design`).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -31,7 +34,7 @@ import {
   parseBoardKey, parseViewport, readManifest, renderAnsi, renderSheet, revisionDir, sketchAdvice, splitAnchor,
 } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { killTree } from '../lib/proc.mjs';
+import { killTree, isMainModule } from '../lib/proc.mjs';
 import { workflowDir, workflowRel } from '../lib/records-root.mjs';
 import { INDEX_NAME, readDoc } from '../lib/records.mjs';
 
@@ -298,6 +301,14 @@ async function render(root, slug, keys) {
   const dir = designDir(root, slug);
   const candidates = browserCandidates(root);
   const failed = [];
+  // One failed file says little about a browser (a page can time out). A browser is left out of
+  // the run only after it failed on two different files; for one file, each browser is tried once.
+  const failedOn = new Map();
+  const dead = (c) => (failedOn.get(c.path)?.size ?? 0) >= 2;
+  const noteFail = (b, file, error) => {
+    failed.push({ path: b.path, from: b.from, error });
+    failedOn.set(b.path, new Set([...(failedOn.get(b.path) ?? []), file]));
+  };
   let browser = null;
   const rendered = [];
   const htmlOnly = [];
@@ -309,11 +320,13 @@ async function render(root, slug, keys) {
     const vp = viewportOf(m, b);
     const pngRel = b.png ?? `boards/${b.key}.png`;
     let res = null;
+    const tried = new Set();
     while (!res?.ok) {
-      browser ??= candidates.find((c) => !failed.some((f) => f.path === c.path)) ?? null;
+      if (browser && (tried.has(browser.path) || dead(browser))) browser = null;
+      browser ??= candidates.find((c) => !dead(c) && !tried.has(c.path)) ?? null;
       if (!browser) break;
       res = await renderOne(browser, htmlFile, join(dir, ...pngRel.split('/')), vp);
-      if (!res.ok) { failed.push({ path: browser.path, from: browser.from, error: res.error }); browser = null; }
+      if (!res.ok) { tried.add(browser.path); noteFail(browser, htmlFile, res.error); browser = null; }
     }
     if (res?.ok) {
       b.png = pngRel;
@@ -338,11 +351,13 @@ async function render(root, slug, keys) {
     const vp = parseViewport(m.viewports?.[names[0]] ?? '1280x800') ?? { width: 1280, height: 800 };
     for (const name of readdirSync(sketchDir).filter((n) => n.toLowerCase().endsWith('.html')).sort()) {
       let res = null;
+      const tried = new Set();
       while (!res?.ok) {
-        browser ??= candidates.find((c) => !failed.some((x) => x.path === c.path)) ?? null;
+        if (browser && (tried.has(browser.path) || dead(browser))) browser = null;
+        browser ??= candidates.find((c) => !dead(c) && !tried.has(c.path)) ?? null;
         if (!browser) break;
         res = await renderOne(browser, join(sketchDir, name), join(sketchDir, `${basename(name, extname(name))}.png`), vp);
-        if (!res.ok) { failed.push({ path: browser.path, from: browser.from, error: res.error }); browser = null; }
+        if (!res.ok) { tried.add(browser.path); noteFail(browser, join(sketchDir, name), res.error); browser = null; }
       }
       sketches.push({ sketch: `sketches/${name}`, png: res?.ok ? `sketches/${basename(name, extname(name))}.png` : null });
     }
@@ -665,6 +680,6 @@ export async function main(argv = process.argv.slice(2)) {
   return out.ok ? 0 : 1;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   process.exitCode = await main();
 }

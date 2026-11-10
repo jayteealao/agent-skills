@@ -74,6 +74,39 @@ test('remove: the copies of one workflow go with their untracked files; another 
   } finally { r.done(); }
 });
 
+test('remove: a link right inside a build cache folder still keeps the copy', () => {
+  const r = repo();
+  const outside = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'swt-out-')));
+  try {
+    writeFileSync(path.join(outside, 'keep.txt'), 'keep');
+    const a = addScratchWorktree(r.root, 'wf1', 'base', r.first);
+    mkdirSync(path.join(a.path, 'target'));
+    writeFileSync(path.join(a.path, 'target', 'CACHEDIR.TAG'), 'Signature: 8a477f597d28d172789f06886806bc55\n');
+    symlinkSync(outside, path.join(a.path, 'target', 'deps'), process.platform === 'win32' ? 'junction' : 'dir');
+    const out = removeScratchWorktrees(r.root, 'wf1', 'base');
+    assert.deepEqual([out.removed.length, out.refused.length], [0, 1], JSON.stringify(out));
+    assert.match(out.refused[0].reason, /target\/deps/);
+    assert.equal(readFileSync(path.join(outside, 'keep.txt'), 'utf8'), 'keep');
+  } finally { r.done(); rmSync(outside, { recursive: true, force: true }); }
+});
+
+test('a root reached through a link finds its copies: add keeps one, and remove removes it', () => {
+  const r = repo();
+  const hold = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'swt-link-')));
+  const linked = path.join(hold, 'repo');
+  try {
+    symlinkSync(r.root, linked, process.platform === 'win32' ? 'junction' : 'dir');
+    const a = addScratchWorktree(linked, 'wf1', 'base', r.first);
+    assert.equal(a.ok, true, a.error);
+    const again = addScratchWorktree(linked, 'wf1', 'base', r.first);
+    assert.equal(again.reused, true, JSON.stringify(again));
+    const out = removeScratchWorktrees(linked, 'wf1');
+    assert.deepEqual([out.removed.length, out.refused.length, out.failed.length], [1, 0, 0], JSON.stringify(out));
+    assert.equal(worktrees(r.root).length, 1);
+    // The repo goes first, so the remove of the link folder cannot reach it through the link.
+  } finally { r.done(); rmSync(hold, { recursive: true, force: true }); }
+});
+
 test('remove: a copy that holds a link is kept, and the files that the link names survive', () => {
   const r = repo();
   const outside = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'swt-out-')));

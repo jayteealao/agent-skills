@@ -31,6 +31,7 @@ Google's Maven repo.
 
 ```bash
 # Locate a cached AAR and peek inside
+mkdir -p .scratch/sources/android/
 find ~/.gradle/caches -name '<artifact>-<version>.aar' 2>/dev/null
 unzip -o <path>.aar -d .scratch/sources/android/<artifact>-<version>-aar/   # classes.jar, res/, AndroidManifest.xml
 unzip -o .scratch/sources/android/<artifact>-<version>-aar/classes.jar \

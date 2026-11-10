@@ -209,8 +209,10 @@ export function seedMemoryKernel(projectRoot, config = {}, deps = {}) {
   }
 }
 
+// null means "no file, make it". A file that exists and cannot be read throws, so the seed is
+// skipped for this session and the file is never replaced by the fence alone.
 function readIf(fs, p) {
-  try { return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : null; } catch { return null; }
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : null;
 }
 
 function nowIso() {

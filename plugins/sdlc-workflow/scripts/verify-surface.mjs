@@ -21,6 +21,7 @@
 //   node scripts/verify-surface.mjs --json     # { counts, policy, failures, slack }
 //   node scripts/verify-surface.mjs --root <dir>
 
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -157,5 +158,5 @@ function main() {
   console.log(`[surface] OK — ${DIMENSIONS.map((d) => `${d} ${counts[d]}/${policy[d]}`).join(', ')}`);
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) main();

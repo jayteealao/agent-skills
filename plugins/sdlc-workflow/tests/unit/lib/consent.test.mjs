@@ -144,3 +144,41 @@ test('/wf <slug> dispatches the recorded next step; a closed workflow or no step
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('consent: after a revoke, the old yes does not grant it again; a new yes does', () => {
+  const root = project({ list: 'status: active' });
+  try {
+    const t = (iso) => ({ now: new Date(iso) });
+    appendAnswerEvent(root, answerEventOf(claudeAnswer(consentQuestion('list'), 'Yes')), t('2026-10-25T10:00:00.400Z'));
+    assert.equal(grantConsent(root, 'list').ok, true);
+    revokeConsent(root, 'list', t('2026-10-25T10:00:00.800Z'));
+    assert.equal(checkConsent(root, 'list').ok, false);
+    assert.equal(grantConsent(root, 'list').ok, false, 'the yes before the revoke does not count');
+    assert.equal(checkConsent(root, 'list').ok, false);
+    appendAnswerEvent(root, answerEventOf(claudeAnswer(consentQuestion('list'), 'Yes, again')), t('2026-10-25T10:05:00Z'));
+    assert.equal(grantConsent(root, 'list').ok, true);
+    assert.equal(checkConsent(root, 'list').ok, true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the answer log is written in a linked project too, which has no local records folder', () => {
+  const top = mkdtempSync(join(tmpdir(), 'consent-linked-'));
+  const saved = process.env.SDLC_HOME;
+  try {
+    const home = join(top, 'home');
+    const clone = join(home, 'records');
+    mkdirSync(join(clone, 'notes'), { recursive: true });
+    spawnSync('git', ['init', '-q', clone]);
+    const root = join(top, 'project');
+    mkdirSync(join(root, '.ai'), { recursive: true });
+    writeFileSync(join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ records: { project: 'notes' } }));
+    process.env.SDLC_HOME = home;
+    assert.equal(appendAnswerEvent(root, answerEventOf(claudeAnswer('Go?', 'Yes'))), true);
+    assert.equal(findAnswer(root, 'Go?').answer, 'Yes');
+  } finally {
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});

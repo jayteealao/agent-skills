@@ -51,17 +51,18 @@ import {
  * Cheap frontmatter type read (avoids a full YAML parse for the lints).
  * Returns the effective type: the literal `type:`, except for
  * `type: augmentation` artifacts, which the `augmentation-type:`
- * discriminator names (benchmark / experiment / instrument / rca).
+ * discriminator names (benchmark / experiment / instrument / rca). A leading BOM is skipped, and
+ * only a top-level key (at column 0) counts, not a nested `type:`.
  */
-function artifactType(text) {
+export function artifactType(text) {
   if (!text) return null;
-  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(String(text).replace(/^﻿/, ''));
   if (!fence) return null;
   const block = fence[1];
-  const typeMatch = /(?:^|\n)\s*type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
+  const typeMatch = /(?:^|\n)type:[ \t]*["']?([A-Za-z0-9-]+)/.exec(block);
   const type = typeMatch ? typeMatch[1] : null;
   if (type !== 'augmentation') return type;
-  const augMatch = /(?:^|\n)\s*augmentation-type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
+  const augMatch = /(?:^|\n)augmentation-type:[ \t]*["']?([A-Za-z0-9-]+)/.exec(block);
   return augMatch ? augMatch[1] : type;
 }
 

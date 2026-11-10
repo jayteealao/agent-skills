@@ -272,7 +272,8 @@ test('an offline commit stays local, and the next push carries it', () => {
   try {
     const { a } = twoMachines(w);
     w.as(a);
-    git(a.clone, 'remote', 'set-url', 'origin', join(w.top, 'missing.git'));
+    // No network: nothing answers on the port. (A remote that is gone is a failure, not offline.)
+    git(a.clone, 'remote', 'set-url', 'origin', 'http://127.0.0.1:9/records.git');
     writeFileSync(join(workflowDir(a.root, 'w1'), 'offline.md'), 'x\n');
     commitWorkflow(a.root, 'w1', 'w1: offline');
     const p = pushRecords();
@@ -383,5 +384,152 @@ test('a pull that brings a workflow rebuilds INDEX.md in the clone, and INDEX.md
     assert.match(read(join(b.clone, 'notes', 'INDEX.md')), /^w2\t/m);
     assert.doesNotMatch(git(w.bare, 'ls-tree', '-r', '--name-only', 'main'), /INDEX\.md/);
     assert.match(git(w.bare, 'show', 'main:.gitignore'), /\*\/INDEX\.md/);
+  } finally { w.done(); }
+});
+
+test('an uncommitted edit that the pulled commits conflict with stays in the stash, and no conflict marker is left for the next commit', () => {
+  const w = world();
+  try {
+    const { a, b } = twoMachines(w);
+    w.as(a);
+    writeFileSync(join(workflowDir(a.root, 'w1'), 'notes.md'), 'stage: plan\n');
+    commitWorkflow(a.root, 'w1', 'w1: notes');
+    assert.equal(pushRecords().pushed, true);
+    w.as(b);
+    assert.equal(pullRecords().ok, true);
+    w.as(a);
+    writeFileSync(join(workflowDir(a.root, 'w1'), 'notes.md'), 'stage: verify\n');
+    commitWorkflow(a.root, 'w1', 'w1: verify');
+    assert.equal(pushRecords().pushed, true);
+    w.as(b);
+    // Beta has a commit of its own ahead, and an uncommitted edit of the same line.
+    writeFileSync(join(workflowDir(b.root, 'w1'), 'beta.md'), 'beta\n');
+    commitWorkflow(b.root, 'w1', 'w1: beta');
+    writeFileSync(join(workflowDir(b.root, 'w1'), 'notes.md'), 'stage: review\n');
+    const r = pullRecords();
+    assert.equal(r.conflict, true, JSON.stringify(r));
+    assert.deepEqual(r.files, ['notes/w1/notes.md']);
+    assert.match(r.reason, /stash@\{0\}/);
+    const notes = read(join(workflowDir(b.root, 'w1'), 'notes.md'));
+    assert.doesNotMatch(notes, /<<<<<<<|>>>>>>>/, 'no conflict marker is left in the record');
+    assert.equal(notes, 'stage: verify\n', 'the tree is the rebased commit');
+    assert.match(git(b.clone, 'stash', 'show', '-p', 'stash@{0}'), /\+stage: review/, 'the edit is kept in the stash');
+    assert.equal(git(b.clone, 'status', '--porcelain'), '', 'the next commit finds nothing to stage');
+    // The next sync is not wedged.
+    assert.equal(pushRecords().pushed, true);
+  } finally { w.done(); }
+});
+
+test('two machines that append cost rows to one ledger both keep their rows: the clone merges ledgers by union', () => {
+  const w = world();
+  try {
+    const { a, b } = twoMachines(w);
+    const ledger = 'cost-2026-11.jsonl';
+    w.as(a);
+    writeFileSync(join(workflowDir(a.root, 'w1'), ledger), '{"row":"first"}\n');
+    commitWorkflow(a.root, 'w1', 'w1: cost');
+    assert.equal(pushRecords().pushed, true);
+    w.as(b);
+    assert.equal(pullRecords().ok, true);
+    // Alpha appends a row and pushes it with a commit of the workflow.
+    w.as(a);
+    writeFileSync(join(workflowDir(a.root, 'w1'), ledger), '{"row":"first"}\n{"row":"alpha"}\n');
+    commitWorkflow(a.root, 'w1', 'w1: alpha');
+    assert.equal(pushRecords().pushed, true);
+    // Beta appended a row that no commit holds, and has a commit of its own to push.
+    w.as(b);
+    writeFileSync(join(workflowDir(b.root, 'w1'), ledger), '{"row":"first"}\n{"row":"beta"}\n');
+    writeFileSync(join(b.clone, 'notes', 'other.md'), 'beta\n');
+    commitPaths(b.clone, { paths: ['notes/other.md'], message: 'other', push: false });
+    const p = pushRecords();
+    assert.equal(p.pushed, true, p.reason);
+    const rows = git(w.bare, 'show', `main:notes/w1/${ledger}`).split('\n');
+    assert.deepEqual(rows.sort(), ['{"row":"alpha"}', '{"row":"beta"}', '{"row":"first"}']);
+    assert.match(git(w.bare, 'show', 'main:.gitattributes'), /^\*\.jsonl merge=union$/m);
+  } finally { w.done(); }
+});
+
+test('a clone made before the attributes gets them at its next sync', () => {
+  const w = world();
+  try {
+    const { b } = twoMachines(w);
+    w.as(b);
+    git(b.clone, 'rm', '-q', '.gitattributes');
+    git(b.clone, 'commit', '-q', '-m', 'an older clone');
+    syncRecords(b.root);
+    assert.match(read(join(b.clone, '.gitattributes')), /\*\.jsonl merge=union/);
+    assert.equal(git(b.clone, 'status', '--porcelain', '--', '.gitattributes'), '', 'it is committed');
+  } finally { w.done(); }
+});
+
+test('a clone on a detached HEAD takes no commit, pull or push, and says why', () => {
+  const w = world();
+  try {
+    const { b } = twoMachines(w);
+    w.as(b);
+    git(b.clone, 'checkout', '-q', '--detach');
+    writeFileSync(join(workflowDir(b.root, 'w1'), 'more.md'), 'more\n');
+    assert.equal(commitWorkflow(b.root, 'w1', 'w1: more').commit, null);
+    assert.match(readState().failures['notes/w1'].error, /detached HEAD/);
+    assert.match(pullRecords().reason, /detached HEAD/);
+    const p = pushRecords();
+    assert.deepEqual([p.pushed, p.failed], [false, true]);
+  } finally { w.done(); }
+});
+
+test('a fetch that the remote refuses is a failure with its reason, not an offline machine', () => {
+  const w = world();
+  try {
+    const { b } = twoMachines(w);
+    w.as(b);
+    git(b.clone, 'remote', 'set-url', 'origin', join(w.top, 'gone.git'));
+    const r = pullRecords();
+    assert.equal(r.offline, undefined);
+    assert.equal(r.failed, true);
+    assert.match(r.reason, /refused/);
+  } finally { w.done(); }
+});
+
+test('four processes that each note the leases they hold lose no note of another', async () => {
+  const w = world();
+  try {
+    const a = w.as(w.machine('alpha'));
+    const env = { ...process.env, SDLC_HOME: a.home };
+    await Promise.all([0, 1, 2, 3].map((n) => child(`for (let i = 0; i < 15; i++) m.markHeld('p/w${n}-' + i, true);`, env)));
+    const held = Object.keys(readState().held ?? {});
+    assert.equal(held.length, 60, `${held.length} notes`);
+  } finally { w.done(); }
+});
+
+test('findings add and findings set are changes: each one commits the ledger to the records clone', () => {
+  const w = world();
+  try {
+    const { a } = twoMachines(w);
+    w.as(a);
+    const found = join(w.top, 'found.json');
+    writeFileSync(found, JSON.stringify({ dimensions: ['security'], findings: [{ dimension: 'security', severity: 'LOW', file: 'a.js', line: 1, issue: 'x' }] }));
+    const run = (...args) => spawnSync(process.execPath, [WF, ...args], { encoding: 'utf8', env: process.env });
+    assert.equal(run('findings', 'add', a.root, 'w1', found).status, 0);
+    assert.ok(filesOf(a.clone, 'HEAD').includes('notes/w1/findings.yaml'), 'the add made a records commit');
+    const before = git(a.clone, 'rev-parse', 'HEAD');
+    assert.equal(run('findings', 'set', a.root, 'w1', 'SEC-1', 'fixed').status, 0);
+    assert.notEqual(git(a.clone, 'rev-parse', 'HEAD'), before, 'the set made a records commit');
+    assert.match(git(a.clone, 'show', 'HEAD:notes/w1/findings.yaml'), /status: fixed/);
+  } finally { w.done(); }
+});
+
+test('a put that refuses one draft still commits the drafts that it put', () => {
+  const w = world();
+  try {
+    const { a } = twoMachines(w);
+    w.as(a);
+    const draft = join(workflowDir(a.root, 'w1'), '.draft');
+    mkdirSync(draft, { recursive: true });
+    writeFileSync(join(draft, '01-brainstorm.md'), '---\nschema: sdlc/v1\ntype: brainstorm\nslug: w1\ntopic: t\nstatus: open\ncreated-at: 2026-11-10T00:00:00Z\n---\nthe ideas\n');
+    writeFileSync(join(draft, '02-shape.md'), '---\nschema: sdlc/v1\ntype: shape\nslug: w1\n---\nno required fields\n');
+    const r = spawnSync(process.execPath, [WF, 'record', 'put', a.root, 'w1'], { encoding: 'utf8', env: process.env });
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stdout, /refused 02-shape\.md/);
+    assert.match(git(a.clone, 'show', 'HEAD:notes/w1/intake.yaml'), /the ideas/, 'the put draft is in a records commit');
   } finally { w.done(); }
 });

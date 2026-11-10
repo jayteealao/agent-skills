@@ -33,7 +33,7 @@ Skip if `publish-dry-run-cmd` is empty.
 - **Missing:** command does not appear in any PR workflow.
 
 ## Audit E — Publish command (`plan.ci-pipeline.publish-cmd`)
-- Does `plan.ci-pipeline.release-workflow-file` contain a step running `publish-cmd`?
+- Does `plan.ci-pipeline.release-workflow-file` contain a step running `publish-cmd`? For a PyPI plan, a `pypa/gh-action-pypi-publish` step counts as running `publish-cmd`.
 - **Missing:** command does not appear in the release workflow.
 
 ## Audit F — Required secrets (`plan.ci-pipeline.required-secrets[]`)
@@ -43,8 +43,9 @@ Skip if `publish-dry-run-cmd` is empty.
 ## Audit G — Version bump (`plan.version-bump-rule`, `plan.version-bump-cmd`)
 - `release-please` → does a `release-please.yml` workflow exist?
 - `changesets` → does a `changesets.yml` or equivalent exist?
-- `git-cliff` / `manual` / `conventional-commits` → does the release workflow contain a step running `version-bump-cmd`?
-- **Missing:** no version bump step or workflow found.
+- `git-cliff` / `manual` / `conventional-commits` / `fixed` → `/wf ship` owns the bump (Steps 1.2 and 1.3). Compliant when no workflow step commits a version bump. A release-workflow step that runs `version-bump-cmd` and commits or pushes is **Non-compliant**: it bumps a second time, and on a tag-triggered run it commits on a detached checkout. Its planned action is to remove the step.
+- Another rule → does the release workflow contain a bump step that stages by path (no `git add -A` or `git add .`)? A `tag-on-main` release gets no bump step.
+- **Missing:** no version bump step or workflow found, for a rule that needs one.
 
 ## Audit H — Post-publish checks (`plan.post-publish-checks[]`)
 Skip if `post-publish-checks` is empty.

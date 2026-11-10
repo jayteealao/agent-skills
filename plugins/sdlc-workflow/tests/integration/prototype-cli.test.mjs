@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { frontmatterOfDoc, readDoc } from '../../lib/records.mjs';
 import { validateFrontmatter } from '../../lib/schema-validator.mjs';
 import { lifecycleDone } from '../../lib/lifecycle-done.mjs';
+import { linksUnder } from '../../scripts/prototype.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = path.join(pluginRoot, 'scripts', 'prototype.mjs');
@@ -206,6 +207,30 @@ test('exit records the person\'s choice; cleanup refuses until close, and while 
     assert.equal(existsSync(wt), false);
     assert.equal(existsSync(target), true, 'the link target survives');
     assert.match(git(root, 'branch', '--list', 'poc/faces'), /poc\/faces/, 'the branch stays as the reference');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('decide refuses a folder in the files of a proof: a proof names its files', () => {
+  const { base, root } = makeRepo();
+  try {
+    const { worktree: wt } = run(root, 'start', '--idea', 'faces');
+    runRounds(wt);
+    const l = readLedger(wt);
+    l.proofs[0].files.push('weights');
+    writeLedger(wt, l);
+    const d = run(root, 'decide', 'D-01');
+    assert.equal(d.ok, false, JSON.stringify(d));
+    assert.ok(d.refused.includes('weights: is a folder; name its files'), JSON.stringify(d.refused));
+    assert.equal(git(wt, 'diff', '--cached', '--name-only'), '', 'nothing is staged');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('the link scan says when it stopped before the end of the worktree', () => {
+  const base = mkdtempSync(path.join(os.tmpdir(), 'proto links '));
+  try {
+    for (const d of ['a/b', 'c/d', 'e']) mkdirSync(path.join(base, d), { recursive: true });
+    assert.deepEqual(linksUnder(base), { links: [], complete: true });
+    assert.deepEqual(linksUnder(base, 20, 2), { links: [], complete: false }, 'a scan that stopped at its folder cap is not complete');
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 

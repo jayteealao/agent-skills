@@ -52,6 +52,7 @@ metric-deviations-from-plan: <N>
 metric-review-fixes-applied: 0
 commit-sha: "<sha or empty if branch-strategy is none>"
 files-modified: [<path>, ...]   # every code path this slice changed; verify's cross-slice regression check reads it
+modes: []                       # `ui` when the slice builds UI (implement.md)
 tags: []
 refs:
   index: 00-index.md
@@ -81,3 +82,5 @@ Body, as `# Implement: <slice-name>`, in order:
 - `## Known Risks / Caveats` — any `sdlc-debt:` shortcut whose ceiling is live in shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value).
 - `## Freshness Research` — source, relevance, takeaway.
 - `## Review Fixes Applied` — reviews mode only: `<finding ID> — fixed | could-not-fix: <reason>`, one line per finding.
+- `## Packet Checks` — the long runs that are not slice steps (implement.md, `_long-runs.md` L5): the command and its result, one line each.
+- `## Steps` (last) — the steps table of [_steps.md](_steps.md).

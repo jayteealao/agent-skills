@@ -65,6 +65,10 @@ rollout-strategy: <immediate | staged | canary | feature-flag | blue-green | <fr
 rollout-stages: ["10%", "50%", "100%"]   # only when staged/canary
 rollback-mechanism: <git-revert | gh-release-yank | feature-flag-off | blue-green-switch | redeploy-prior | <freeform>>
 rollback-time-estimate-min: 5
+rollback-cmd: "<command or empty>"
+rollback-verify-cmd: "<command or empty>"
+prior-artifact-retention: "<count or policy>"
+irreversible-steps: ["<step>", ...]
 db-migrations-reversible: <true | false | n/a>
 
 # Block F — recovery playbooks
@@ -125,7 +129,7 @@ governance:
   pr-template: <true | false>
   issue-templates: <true | false>
   dependency-automation: { tool: <dependabot | renovate | none>, ecosystems: ["<ecosystem>", ...], schedule: "<cadence>" }
-  merge: { method: <squash | merge | rebase | any>, auto-merge: <true | false>, merge-queue: <true | false> }
+  merge: { method: <merge | rebase | squash | any>, auto-merge: <true | false>, merge-queue: <true | false> }   # merge keeps the commit of each step; rebase when the history must be linear
 pr-shape: <single | stacked>   # a list of work packets ships as one PR, or as a gh-stack stack with one PR per work packet
 
 # Block K — security & supply-chain gates

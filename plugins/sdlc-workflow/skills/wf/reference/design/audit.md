@@ -78,8 +78,8 @@ Judge drift from the design record:
 ## Verdict and severity
 
 Map the scores to the `verdict` field:
-- `pass` — the total is 16/20 or more, and no dimension scores below 2.
-- `fail` — any dimension scores 0, or any `blocker` finding exists.
+- `fail` — any dimension scores 0, or any `blocker` finding exists. Test this first.
+- `pass` — no `fail` condition holds, the total is 16/20 or more, and no dimension scores below 2.
 - `conditional` — all other cases.
 
 Match severity to the scores:
@@ -112,10 +112,7 @@ Format as a structured report:
 | A1 | blocker/high/medium/low | token name or audit rule | file, component, or screen key | specific problem | specific fix | open/in-progress/fixed/deferred |
 
 ## Recommended fixes
-[Ordered by impact. Name the move for each fix:
- - `/wf design <slug> harden` for accessibility issues
- - `/wf design <slug> optimize` for performance issues
- - `/wf design <slug> colorize` for theming issues]
+[Ordered by impact. For each fix, name the move whose file holds it: `harden` for accessibility, `optimize` for performance, `colorize` for theming. The fix is made by the review fix loop, or by `/wf implement <slug> <slice> reviews`, which follows that file. `/wf design <slug> <move>` only checks; it changes no code.]
 ```
 
 ## Output in SDLC context

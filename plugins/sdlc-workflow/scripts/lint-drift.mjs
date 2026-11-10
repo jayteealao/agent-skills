@@ -19,6 +19,7 @@
 //             `.ai/workflows/<slug>/` (only _records.md defines the local folder)
 //
 //   node scripts/lint-drift.mjs [--json]     exit 1 when it finds any drift
+import { isMainModule } from '../lib/proc.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -432,7 +433,7 @@ export function lintDrift(root = PLUGIN_ROOT) {
   return findings;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const root = process.argv.includes('--root') ? resolve(process.argv[process.argv.indexOf('--root') + 1]) : PLUGIN_ROOT;
   const findings = lintDrift(root);

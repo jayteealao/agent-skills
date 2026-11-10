@@ -9,7 +9,7 @@ import {
   parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
-  proposeOvertime, overtimeRefusal,
+  proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
 } from '../../../lib/optimize.mjs';
 
 const fm = (over = {}) => ({
@@ -42,6 +42,15 @@ test('the metric line is the last stdout line: one number, or JSON with the key'
   assert.equal(noiseOf([10, 12, 11]), 1);
 });
 
+test('a JSON metric key with no number in it gives no value, and a numeric string still counts', () => {
+  for (const v of ['null', '""', '"  "', 'false', 'true', '[]', '[5]', '{}', '"abc"']) {
+    assert.equal(parseMetricLine(`{"ms":${v}}`, 'ms'), null, v);
+  }
+  assert.equal(parseMetricLine('{"a":{}}', 'a.b'), null);
+  assert.equal(parseMetricLine('{"ms":"12.5"}', 'ms'), 12.5);
+  assert.equal(parseMetricLine('{"ms":0}', 'ms'), 0);
+});
+
 test('a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {
   const spec = specOf();
   assert.equal(keepDecision({ spec, best: 100, noise: 0, first: 99 }).wins, false, '1% is under the 2% min-gain');
@@ -59,6 +68,28 @@ test('the path check rejects off-limits paths and paths outside allowed-paths', 
   assert.deepEqual(pathViolations(['src/a.js'], spec), []);
   assert.deepEqual(pathViolations(['lib/a.js', 'src/bench/x.js', '.ai/workflows/s/x.md'], spec, []).map((v) => v.reason), ['outside allowed-paths', 'off-limits', 'off-limits']);
   assert.deepEqual(pathViolations(['src/m.js'], spec, ['src/m.js']).map((v) => v.reason), ['off-limits']);
+});
+
+test('the tests folder of the guard is off-limits however the command names it, and a folder with a dot covers its files', () => {
+  const exists = (p) => ['tests', 'metric.js'].includes(p);
+  for (const cmd of ['pytest tests/', 'pytest ./tests', 'pytest tests', 'pytest "./tests/"']) {
+    assert.deepEqual(commandFiles([cmd], exists), ['tests'], cmd);
+  }
+  assert.deepEqual(commandFiles(['node metric.js', 'pytest -q .'], exists), ['metric.js'], 'a flag and the current folder name no file');
+  assert.ok(globToRegExp('tests/').test('tests/test_a.py'), 'a glob with a trailing slash covers the folder');
+  assert.ok(globToRegExp('.github').test('.github/workflows/ci.yml'));
+  assert.ok(globToRegExp('src/vendor.v2').test('src/vendor.v2/x.js'));
+  assert.ok(globToRegExp('src/m.js').test('src/m.js'), 'a file path still matches itself');
+  assert.equal(globToRegExp('src/m.js').test('src/m.jsx'), false);
+  const spec = specOf({ 'allowed-paths': ['**'], 'off-limits': ['.github', 'src/vendor.v2'] });
+  const bad = pathViolations(['tests/test_a.py', '.github/workflows/ci.yml', 'src/vendor.v2/x.js', 'src/a.js'], spec, commandFiles(['pytest tests/'], exists));
+  assert.deepEqual(bad.map((v) => v.path), ['tests/test_a.py', '.github/workflows/ci.yml', 'src/vendor.v2/x.js']);
+});
+
+test('a folder that a command checks stays open when allowed-paths names it', () => {
+  const exists = (p) => p === 'src';
+  const spec = specOf({ 'allowed-paths': ['src/**'] });
+  assert.deepEqual(pathViolations(['src/a.js'], spec, commandFiles(['eslint src'], exists)), [], 'a guard of `eslint src` checks the code that the loop changes');
 });
 
 test('the 0% round opens from the baseline, then the branches take trials in turn', () => {
@@ -102,6 +133,28 @@ test('the budget, the target and the control file stop the loop', () => {
   assert.equal(nextAction({ state: s, spec, control: { action: 'pause', until: '2999-01-01T00:00:00Z' } }).state, 'running', 'there is no pause');
   const old = stateOf({ schedule: { used: [0, 1, 2] }, startedAt: '2000-01-01T00:00:00Z' });
   assert.equal(nextAction({ state: old, spec }).reason, 'budget');
+});
+
+test('the wall clock counts the time that the loop ran, not a pause while it was stopped', () => {
+  const spec = specOf({ budget: { 'wall-clock': '1h', 'trial-timeout': '5m', 'propose-time': '5m' } });
+  const now = Date.parse('2026-01-01T12:00:00Z');
+  const at = (min) => new Date(now - min * 60_000).toISOString();
+  assert.equal(pauseGapMs(spec), 20 * 60_000, 'twice a proposer and a trial');
+  // The baseline was 3 hours ago; the loop ran 10 minutes, then stopped for 2 hours.
+  const s = stateOf({ schedule: { used: [0, 1, 2] }, startedAt: at(180), activeMs: 10 * 60_000, clockAt: at(120) });
+  assert.equal(activeMsOf(s, now, pauseGapMs(spec)), 30 * 60_000, 'a gap counts up to the pause gap');
+  assert.equal(nextAction({ state: s, spec, now }).state, 'running', '30 of 60 minutes are used');
+  tickClock(s, now, pauseGapMs(spec));
+  assert.deepEqual([s.activeMs, s.clockAt], [30 * 60_000, new Date(now).toISOString()]);
+  tickClock(s, now + 31 * 60_000, Infinity);
+  assert.equal(nextAction({ state: s, spec, now: now + 31 * 60_000 }).reason, 'budget', 'the time of a command counts whole');
+  const old = stateOf({ schedule: { used: [0, 1, 2] }, startedAt: at(61) });
+  assert.equal(nextAction({ state: old, spec, now }).reason, 'budget', 'a state with no tick counts from the baseline');
+});
+
+test('a stored stop names resume, the command that clears it', () => {
+  assert.match(personNext('plateau'), /run resume/);
+  assert.match(personNext('holdout-regression'), /resume --revert/);
 });
 
 test('the winner is the best kept branch; a branch with no keep cannot win; the earlier one wins a tie', () => {
@@ -226,6 +279,25 @@ test('a claim of an idea refuses a target that another lane claims, and a tried 
   assert.equal(ideaStatusOf('reverted', -0.02), 'failed');
   assert.equal(ideaStatusOf('rejected', null), 'failed');
   assert.equal(claimIdea(book, { lane: 'b1', target: '' }).ok, false, 'a claim needs a target');
+});
+
+test('a lane holds one claim: the claim just before each queued trial keeps the settled idea, and a refused claim keeps the one in flight', () => {
+  const book = emptyIdeas();
+  // The proposer claims the hypothesis that runs now; trial 1 settles it.
+  assert.equal(claimIdea(book, { lane: 'trunk', target: 'parse' }).idea.id, 'i1');
+  settleIdea(book, 'i1', { trial: 1, verdict: 'reverted', gain: -0.01 });
+  // The loop claims the queued hypothesis just before trial 2: the settled idea stays, with its verdict.
+  const second = claimIdea(book, { lane: 'trunk', target: 'render' });
+  assert.deepEqual([second.idea.id, second.released], ['i2', []]);
+  assert.deepEqual(book.ideas.map((i) => [i.id, i.status, i.claim]), [['i1', 'failed', null], ['i2', 'open', 'trunk']]);
+  assert.equal(settleIdea(book, 'i2', { trial: 2, verdict: 'kept', gain: 0.2 }).status, 'kept');
+  // A claim of a tried target is refused, and the claim in flight of the lane is not touched.
+  assert.equal(claimIdea(book, { lane: 'trunk', target: 'layout' }).idea.id, 'i3');
+  assert.equal(claimIdea(book, { lane: 'trunk', target: 'parse' }).ok, false);
+  assert.deepEqual(book.ideas.map((i) => [i.id, i.claim]), [['i1', null], ['i2', null], ['i3', 'trunk']]);
+  // A second claim with no trial between replaces the first, and says so.
+  const swap = claimIdea(book, { lane: 'trunk', target: 'cache' });
+  assert.deepEqual(swap.released, ['i3']);
 });
 
 test('the profile comes before the first trial and before each round, and the digest marks an entry that cannot pass alone', () => {

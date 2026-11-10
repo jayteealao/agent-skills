@@ -26,7 +26,9 @@ function problemOf(root, r) {
   if (!r.file) return r.link ? 'a link alone cannot be read by a sub-agent: export it to a file and name the file' : 'the entry names no file';
   const abs = isAbsolute(r.file) ? r.file : resolve(root, r.file);
   const rel = relative(resolve(root), abs);
-  if (!isAbsolute(r.file) && (rel.startsWith('..') || isAbsolute(rel))) return `the file ${r.file} is outside the repo`;
+  // An absolute path is checked too: only one inside the repo passes.
+  if (rel.startsWith('..') || isAbsolute(rel)) return `the file ${r.file} is outside the repo`;
+  if (r.link && !/^https?:\/\//i.test(String(r.link))) return `the link ${r.link} is not an http or https address`;
   if (!existsSync(abs)) return `the file ${r.file} does not exist`;
   try {
     const st = statSync(abs);

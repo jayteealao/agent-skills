@@ -26,6 +26,8 @@ Each entry has these fields:
 
 An entry is live until a later entry supersedes it. A new entry with the same key and the same scope supersedes the old one. An `approval` or a `try-out` supersedes only an entry of its own kind, so an approval of a decision does not replace the decision.
 
+When several live entries of one key apply to a question, the one that fits its scope best answers it: an entry of exactly that scope; else, for a question of a slice, the entry of that slice over an entry with no slice; for a question with no slice, the entry with no slice over an entry of a slice. Among equals, the entry written last answers.
+
 The kind of a common word:
 
 | The word | The kind |

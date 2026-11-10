@@ -92,7 +92,7 @@ While a delegate run is live (yolo.md, "Delegate mode"), the person gets notes, 
 
 1. Do not ask the person about a delegate decision. Do not use the question tool for it, and do not ask "confirm D-<n>?".
 2. When a look-in, a commit or a `decision` event shows a delegate decision that changes product behaviour, defers a failing check, accepts a verify item or starts a long run, write one chat line: what the run chose, the measured effect (for example "generated leagues: 4.9 shots a team, 27 before"), and the words that reverse it (for example "Say 'reverse D-080: find the cause now'"). Append the line with `--event decision`.
-3. When the person reverses a decision in chat, record `decide add --kind answer --by person` with the same key and the person's words. Do not stop the driver: the next stage reads the answer at its start.
+3. When the person reverses a decision in chat, record `decide add --kind answer --by person` with the same key and the same `--slice` as the entry it reverses (`decide list` shows both), and the person's words. Do not stop the driver: the next stage reads the answer at its start.
 4. Delegate mode ends only when the person asks the run to stop deciding for them, or gives a new `run-decisions` answer. Then record the new `run-decisions` steer. "I'm back", or any other sign that the person is present, does not end it. Do not keep a note of an away mode: the `run-decisions` steer is the only state.
 
 ## Quiet
@@ -126,6 +126,8 @@ The person can stop the run at a stage boundary, for example "stop after the cur
    ```
 
    The clear keeps a request that the person made after the run ended: that request is for the next run. When the person withdraws a request, add `force`.
+
+   When the run ends another way first (questions, a hard stop, the endpoint), the request file stays, but the request is dropped: a request made before that run end stops no later run, whether it names `current` or a stage (`plan`, `implement`, `verify`, `review`). The stop check reports it `stale`. A request that the person makes after that run end holds for the next run.
 
    Then report where the run stopped and the resume command, `outcome.route`.
 

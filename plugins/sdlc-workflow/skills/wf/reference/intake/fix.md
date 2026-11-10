@@ -62,6 +62,8 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 
 # Step 1 — Author the planning artifacts (single pass, parallel research)
 
+**First, write the index.** Before the first question or research of this step, write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, `progress.intake: in-progress` and `next-invocation: /wf intake fix <slug>`, and put it. A run that stops before the gate then resumes (the resume test of Step 0 reads this index), and a close or a probe route of a later step has an index to act on.
+
 Use parallel research sub-agents to gather what is needed before writing — do not write from memory.
 
 ### Parallel research (use sub-agents)
@@ -98,9 +100,9 @@ Body: `## Steps` — a numbered list of **at most 5** implementation steps; each
 ### Tripwires (warn-and-continue — never refuse)
 The fix tripwires are: >3 files touched · >5 implementation steps · new external dependency · architectural change (new module, schema migration, public API surface, cross-cutting behavior change) · >2 unanswerable questions. Record every breach per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md) (the `## Tripwire breaches` section in `04-plan.md` plus the mirrored `intent-risks` entry) — and still write a valid plan.
 
-# Step 2 — Write `00-index.md` (conformant `type: index`)
+# Step 2 — Finish `00-index.md` (conformant `type: index`)
 
-Write the draft of `00-index.md` from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values, including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Put it.
+Get the index that Step 1 wrote (`record get "<root>" <slug> index`) and finish it: write its draft from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md) with the `fix` column values (the final `workflow-files`, `progress` and terminus route), including the Step 0 `stack:` block (`user-confirmed: true` after the confirm) and, when provenance attached, the `origin-<type>` key. Put it.
 
 # Step 3 — Gate before implement (mandatory unless auto-proceeding)
 

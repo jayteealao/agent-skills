@@ -6,9 +6,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // pi-code runs the plugin's hooks/hooks.json, but it maps AskUserQuestion to its excluded
-// question tool, and it has no runner for SubagentStart or SubagentStop. These bridges run
-// the hooks.json entries of those three events for the bundled tools: rpiv's
-// ask_user_question and pi-subagents' Agent.
+// question tool, and it has no runner for SubagentStart. These bridges serve the bundled tools:
+// rpiv's ask_user_question gets the PostToolUse entries of hooks.json for AskUserQuestion, and
+// pi-subagents' Agent gets the context of hooks/subagent-start.mjs, the SubagentStart hook of
+// the plugin (hooks.json has no SubagentStart entry). There is no SubagentStop bridge: the
+// plugin's Stop re-check reads a ledger that only its Codex PostToolUse hook writes, and pi runs
+// the PostToolUse checks of hooks.json, which verify each write as it lands.
 
 /** The plugin root: this package sits at <plugin root>/pi/. */
 export const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -128,16 +131,20 @@ export default function bridges(pi: ExtensionAPI) {
   installBridges(pi, PLUGIN_ROOT);
 }
 
-/** The three bridges, over the hooks.json of `pluginRoot`. */
+/** The SubagentStart hook of the plugin, as a command. */
+export function subagentStartCommand(pluginRoot: string): string {
+  return `node "${join(pluginRoot, "hooks", "subagent-start.mjs")}"`;
+}
+
+/** The bridges, over the hooks of `pluginRoot`. */
 export function installBridges(pi: ExtensionAPI, pluginRoot: string) {
-  // SubagentStart: the hooks' additionalContext goes in front of the child's prompt.
+  // SubagentStart: the hook's additionalContext goes in front of the child's prompt.
   pi.on("tool_call", (event, ctx) => {
     if (event.toolName !== "Agent") return;
     const input = event.input as Record<string, unknown>;
     if (typeof input.prompt !== "string") return;
     const payload = { hook_event_name: "SubagentStart", agent_type: input.subagent_type ?? "general-purpose", cwd: ctx.cwd };
-    const context = hookCommands(pluginRoot, "SubagentStart")
-      .flatMap((h) => additionalContextOf(runHook(pluginRoot, h.command, payload, ctx.cwd, h.timeoutMs).stdout));
+    const context = additionalContextOf(runHook(pluginRoot, subagentStartCommand(pluginRoot), payload, ctx.cwd, 10_000).stdout);
     if (context.length) input.prompt = `${context.join("\n\n")}\n\n${input.prompt}`;
   });
 
@@ -160,18 +167,7 @@ export function installBridges(pi: ExtensionAPI, pluginRoot: string) {
     return { systemPrompt: `${event.systemPrompt}\n\n${NO_REPLY_NOTE}` };
   });
 
-  // SubagentStop: pi-subagents reports a top-level child's end on its event bus.
-  let unsubscribe: Array<() => void> = [];
-  const stop = (raw: unknown) => {
-    const e = (raw ?? {}) as { id?: string; type?: string; status?: string };
-    const cwd = process.cwd();
-    const payload = { hook_event_name: "SubagentStop", agent_id: e.id, agent_type: e.type, status: e.status, cwd };
-    for (const h of hookCommands(pluginRoot, "SubagentStop")) runHook(pluginRoot, h.command, payload, cwd, h.timeoutMs);
-  };
-
   pi.on("session_start", async (_event, ctx) => {
-    for (const u of unsubscribe) u();
-    unsubscribe = [pi.events.on("subagents:completed", stop), pi.events.on("subagents:failed", stop)];
     // The stable entry point ~/.sdlc/bin/wf.mjs follows the plugin of this session. The seed-memory
     // hook writes it; the memory seed itself is off on pi.
     spawnSync("node", [join(pluginRoot, "hooks", "seed-memory.mjs")], {
@@ -192,8 +188,4 @@ export function installBridges(pi: ExtensionAPI, pluginRoot: string) {
     }
   });
 
-  pi.on("session_shutdown", () => {
-    for (const u of unsubscribe) u();
-    unsubscribe = [];
-  });
 }

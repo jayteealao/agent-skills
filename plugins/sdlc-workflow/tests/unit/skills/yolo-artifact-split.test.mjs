@@ -213,7 +213,7 @@ test('the review fan-out agents write journal lines', async () => {
   for (const label of ['select-rubrics', 'scout:correctness', 'refute:correctness:C-1']) {
     const prompt = calls.find((c) => c.label === label).prompt;
     assert.match(prompt, /DRIVER HEARTBEAT/, `${label} journals`);
-    assert.ok(prompt.includes(`"agent":"${label}","phase":"Review","stage":"review"`), `${label} names itself in its journal line`);
+    assert.ok(prompt.includes(`--agent "${label}" --phase "Review" --stage "review"`), `${label} names itself in its journal line`);
   }
 });
 

@@ -488,3 +488,19 @@ test('Release E: designModesOf reads surface-modes, then design-mode, then the d
   deepEqual(designModesOf({ register: 'product' }), { modes: [{ surface: null, mode: 'operate' }], from: 'register', register: 'product' });
   deepEqual(designModesOf({}).modes, []);
 });
+
+test('tool: render keeps a browser after one board that fails, and renders the next board with it', () => {
+  const root = project();
+  try {
+    // This browser hangs on the board cart--empty only.
+    writeFileSync(join(root, 'fake-browser.mjs'), FAKE_BROWSER.replace('if (process.env.FAKE_BROWSER_HANG)', "if (process.argv.some((a) => a.includes('cart--empty')))"));
+    board(root, 'cart--empty');
+    board(root, 'cart--full');
+    const r = run(root, ['render', 'demo'], { SDLC_BROWSER_TIMEOUT_MS: '700' });
+    equal(r.status, 0, r.stdout);
+    deepEqual(r.json.htmlOnly.map((h) => h.key), ['cart--empty']);
+    deepEqual(r.json.rendered.map((x) => x.key), ['cart--full']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -274,12 +274,20 @@ export function parsePiEntries(entries) {
 export const workflowPathParts = parseWorkflowPath;
 
 /** `04-plan-cli-json.md` → { key: 'plan', slice: 'cli-json' }; `01-rca.md` → { key: 'intake', slice: null }; other names → null. */
-export function keyFromArtifactName(filename) {
+export function keyFromArtifactName(filename, { slices = null } = {}) {
   const m = /^(\d{2})([a-z]?)-([a-z][a-z0-9]*)(?:-(.+))?\.md$/i.exec(filename ?? '');
   if (!m) return null;
   const key = m[1] === '02' && DESIGN_LETTERS.has(m[2].toLowerCase()) ? 'design' : KEY_BY_NUMBER[m[1]];
   if (!key) return null;
-  return { key, slice: SLICED_KEYS.has(key) && m[4] ? m[4] : null };
+  // A design review (`07-design-critique.md`, `07-design-audit.md`) belongs to no slice.
+  if (m[1] === '07' && m[3].toLowerCase() === 'design') return { key, slice: null };
+  let slice = SLICED_KEYS.has(key) && m[4] ? m[4] : null;
+  // `07-review-<slice>-<dimension>`: with the roster, the slice is the longest slug that starts the tail.
+  if (slice && m[1] === '07' && Array.isArray(slices) && slices.length) {
+    const hit = slices.filter((s) => slice === s || slice.startsWith(`${s}-`)).sort((a, b) => b.length - a.length)[0];
+    if (hit) slice = hit;
+  }
+  return { key, slice };
 }
 
 /**
@@ -373,10 +381,18 @@ export function stageOfLabel(label) {
  * @param {object} o.cursor           mutable cursor (see newCursor)
  * @returns {{ host:string, main:(object|null), subagents:object[], attributed:(object|null), hadUsage:boolean, fields:string[], groups:object[] }}
  */
-export function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
+export function collectTurn({ transcriptPath, subagentsDir = null, cursor, sessionId = null }) {
   const host = detectTranscriptHost(transcriptPath);
+  // A new cursor reads the session file from its start. A resumed session's file repeats the
+  // responses of the session that it resumed, which that session booked already: the first read
+  // books only the responses of this session. Their writes still count for the attribution.
+  const fresh = !(cursor.mainOffset > 0) && !cursor.last && !(cursor.turn > 0);
   const read = readNewLines(transcriptPath, cursor.mainOffset ?? 0);
   const entries = parseJsonLines(read.lines);
+  // The filter applies only when the file names this session at all: a file whose responses all
+  // carry another id is not a resumed one.
+  const named = fresh && sessionId && entries.some((e) => e?.type === 'assistant' && e.sessionId === sessionId);
+  const ownResponse = (e) => !named || !e?.sessionId || e.sessionId === sessionId;
   let main = null;
   let subagents = [];
   let writes = [];
@@ -401,7 +417,7 @@ export function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
   } else {
     const r = parseClaudeEntries(entries);
     writes = r.writes;
-    main = sumMain(r.usages);
+    main = sumMain(named ? parseClaudeEntries(entries.filter(ownResponse)).usages : r.usages);
     agents = subagentsDir ? readClaudeAgents(subagentsDir, cursor) : [];
     subagents = sumSubagents(agents.flatMap((a) => a.usages));
   }
@@ -774,7 +790,9 @@ export function splitCostLedger(slugDir) {
 export function usageColumns(u) {
   if (!u || typeof u !== 'object') return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   if (u.fields === 'codex' || 'cached_input_tokens' in u) {
-    return { input: int(u.input_tokens), output: int(u.output_tokens), cacheRead: int(u.cached_input_tokens), cacheWrite: int(u.cache_write_input_tokens) };
+    // Codex counts the cached tokens inside input_tokens (total = input + output): the input
+    // column takes them out, so it means what it means for a Claude row.
+    return { input: Math.max(0, int(u.input_tokens) - int(u.cached_input_tokens)), output: int(u.output_tokens), cacheRead: int(u.cached_input_tokens), cacheWrite: int(u.cache_write_input_tokens) };
   }
   return { input: int(u.input_tokens), output: int(u.output_tokens), cacheRead: int(u.cache_read_input_tokens), cacheWrite: int(u.cache_creation_input_tokens) };
 }

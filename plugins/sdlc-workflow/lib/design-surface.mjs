@@ -97,9 +97,15 @@ export function tokensOf(css) {
  */
 export function tokensFromDesign(text) {
   const out = [];
+  // The Role cells of the rows that hold a value but no single role name, for the tokens command.
+  const skipped = [];
   let section = null;
   let table = false;
+  // What the line before made: a row of the header is the row right above the |---| line.
+  let last = null;
   for (const l of String(text ?? '').split(/\r?\n/)) {
+    const made = last;
+    last = null;
     if (/^##\s/.test(l)) {
       section = /^##\s+Colou?rs\b/i.test(l) ? 'colors' : /^##\s+(Typography|Layout|Elevation|Shapes|Motion)\b/i.test(l) ? 'other' : null;
       table = false;
@@ -109,18 +115,40 @@ export function tokensFromDesign(text) {
     const cells = l.split('|').map((c) => c.trim());
     if (cells.length < 4) { table = false; continue; }
     if (/^role$/i.test(cells[1])) { table = /^token$/i.test(cells[2]) && /^value$/i.test(cells[3]); continue; }
-    if (/^-+$/.test(cells[1]) || (section === 'other' && !table)) continue;
+    if (/^:?-+:?$/.test(cells[1])) {
+      // The row above was the header of the table, not a token.
+      if (made === 'token') out.pop();
+      if (made === 'skipped') skipped.pop();
+      continue;
+    }
+    if (section === 'other' && !table) continue;
     const [, role, token, value] = cells;
-    if (!role || !value || !/^[a-z][a-z0-9-]*$/i.test(role)) continue;
+    if (!role || !value) continue;
+    if (!/^[a-z][a-z0-9-]*$/i.test(role)) { skipped.push(role); last = 'skipped'; continue; }
     out.push({ role: role.toLowerCase(), token: /^--[a-z0-9-]+$/i.test(token) ? token : null, value });
+    last = 'token';
   }
-  return out;
+  // Not a row: the list stays a plain list of rows for its readers.
+  return Object.defineProperty(out, 'skipped', { value: skipped });
 }
 
-/** Write tokens.css from DESIGN.md. Returns the token rows. */
+/** The places of DESIGN.md, in the order they are read: the root, `.agents/context/`, `docs/`. */
+export const DESIGN_MD_PLACES = ['DESIGN.md', '.agents/context/DESIGN.md', 'docs/DESIGN.md'];
+
+/** The DESIGN.md of a repo: the first place that holds one, or null. */
+export function designMdOf(root) {
+  for (const p of DESIGN_MD_PLACES) if (existsSync(join(root, p))) return join(root, p);
+  return null;
+}
+
+/**
+ * Write tokens.css from DESIGN.md (see designMdOf). Returns the token rows, with `file` (the
+ * DESIGN.md read, or null) and `skipped` (the Role cells that name no single role).
+ */
 export function writeTokens(root) {
-  const design = join(root, 'DESIGN.md');
-  const rows = existsSync(design) ? tokensFromDesign(readFileSync(design, 'utf8')) : [];
+  const design = designMdOf(root);
+  const rows = design ? tokensFromDesign(readFileSync(design, 'utf8')) : Object.defineProperty([], 'skipped', { value: [] });
+  Object.defineProperty(rows, 'file', { value: design });
   const body = rows.flatMap((r) => [`  --${r.role}: ${r.value};`, ...(r.token && r.token !== `--${r.role}` ? [`  ${r.token}: var(--${r.role});`] : [])]);
   mkdirSync(surfaceDir(root), { recursive: true });
   writeFileSync(join(surfaceDir(root), TOKENS_FILE), `/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);

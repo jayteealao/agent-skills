@@ -14,7 +14,8 @@ a monorepo subdirectory, or upstream `HEAD`.
 `.scratch/` is gitignored repo-wide. Confirm before your first fetch:
 
 ```bash
-git check-ignore -v .scratch    # expect a match; if none, add ".scratch/" to .gitignore first
+git check-ignore -v .scratch/   # expect a match; if none, add ".scratch/" to .gitignore first
+mkdir -p .scratch/sources/git/
 ```
 
 ## Resolve the ref first
@@ -56,6 +57,7 @@ git -C "$DEST" sparse-checkout set packages/react packages/react-dom
 
 ```bash
 # GitHub tarball of a tag — no .git, no history
+mkdir -p .scratch/sources/git/
 curl -sL https://github.com/acme/widgets/archive/refs/tags/v3.2.1.tar.gz \
   | tar -xz -C .scratch/sources/git/
 

@@ -111,17 +111,24 @@ export function precheck(contract, count) {
 
 /** Map the lifecycle verdict (lib/lifecycle-done.mjs) to a goal verdict. */
 export function fromLifecycle(l) {
+  // A slice that waits on a runtime-evidence deferral is done for the walk, but the event that
+  // clears it is outside the loop: the goal waits on it.
+  if (l.verdict === 'met' && l.deferred?.length) return { verdict: 'BLOCKED', reason: l.reason };
   if (l.verdict === 'met') return { verdict: 'MET', reason: '' };
   if (l.verdict === 'blocked') return { verdict: 'BLOCKED', reason: l.reason };
   const next = l.next ? `next: ${l.next.stage}${l.next.slice ? ` ${l.next.slice}` : ''}. ` : '';
   return { verdict: 'NOT-MET', reason: `${next}${l.reason}` };
 }
 
-/** Map `optimize.mjs status` to a goal verdict: complete is MET, stopped is BLOCKED (section 4.1). */
+/**
+ * Map `optimize.mjs status` to a goal verdict: complete is MET, stopped is BLOCKED (section 4.1).
+ * A loop with no baseline has not started: the next worker turn runs the baseline, so it is NOT-MET.
+ */
 export function fromOptimize(s) {
   if (!s || s.ok === false) return { verdict: 'BLOCKED', reason: s?.error ? `optimize: ${s.error}` : 'optimize: no state' };
   if (s.state === 'complete' || s.state === 'finished') return { verdict: 'MET', reason: '' };
-  if (s.state === 'stopped') return { verdict: 'BLOCKED', reason: `optimize stopped: ${s.reason}` };
+  if (s.state === 'stopped' && s.reason === 'no-baseline') return { verdict: 'NOT-MET', reason: 'optimize: next baseline' };
+  if (s.state === 'stopped') return { verdict: 'BLOCKED', reason: `optimize stopped: ${s.reason}; after the loop can go on, run /wf loop goal <slug> resume` };
   return { verdict: 'NOT-MET', reason: `optimize: next ${s.next?.action ?? 'trial'}${s.next?.on ? ` on ${s.next.on}` : ''}` };
 }
 

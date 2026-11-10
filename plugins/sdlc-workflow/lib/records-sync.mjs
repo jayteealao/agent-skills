@@ -20,10 +20,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, cpSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
-import { pidAlive } from './proc.mjs';
+import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { maxFileBytes, sweepRunFiles } from './run-files.mjs';
 
@@ -77,6 +77,19 @@ export function mainBranch(home) {
   return r.status === 0 && r.stdout ? r.stdout : 'main';
 }
 const hasRemote = (home) => gitIn(home, ['remote', 'get-url', 'origin']).status === 0;
+
+/**
+ * Why the clone cannot take a commit, a pull or a push now: it is in a rebase (a process was
+ * killed during a pull), or HEAD names no branch. Null when it can.
+ */
+export function cloneBlocked(home) {
+  for (const dir of ['rebase-merge', 'rebase-apply']) {
+    const p = gitIn(home, ['rev-parse', '--git-path', dir]).stdout;
+    if (p && existsSync(isAbsolute(p) ? p : join(home, p))) return `the records clone at ${home} is in a rebase: finish it or run git -C "${home}" rebase --abort`;
+  }
+  if (gitIn(home, ['symbolic-ref', '-q', 'HEAD']).status !== 0) return `the records clone at ${home} is on a detached HEAD: check out its main branch`;
+  return null;
+}
 const trackingRef = (home) => `refs/remotes/origin/${mainBranch(home)}`;
 
 // ---------------------------------------------------------------- local state
@@ -92,12 +105,14 @@ function writeState(s) {
   writeFileSync(tmp, `${JSON.stringify(s, null, 2)}\n`);
   renameSync(tmp, statePath());
 }
-/** Change the state file: read it, apply `fn`, write it. */
+/** Change the state file: read it, apply `fn`, write it, under the lock of the state file, so a background push and a session lose no update. */
 function updateState(fn) {
-  const s = readState();
-  fn(s);
-  writeState(s);
-  return s;
+  return withFileLock(statePath(), () => {
+    const s = readState();
+    fn(s);
+    writeState(s);
+    return s;
+  });
 }
 
 /** Note that this machine holds (or no longer holds) the lease of a workflow, so a lost lease can be told apart. */
@@ -237,44 +252,21 @@ const LOCK_WAIT_MS = 30_000;
 const LOCK_STALE_MS = 10 * 60_000;
 const PUSH_WAIT_MS = 15 * 60_000;
 const PUSH_STALE_MS = 2 * 60 * 60_000;
-const BUSY_CODES = new Set(['EEXIST', 'EPERM', 'EBUSY']);
-const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** The machine-wide lock of the records commits: the sessions of several projects commit to one clone. */
 export const recordsLockPath = () => join(sdlcHomeDir(), 'records.lock');
 /** One push of the records runs at a time on this machine. */
 const pushLockPath = () => join(sdlcHomeDir(), 'records-push.lock');
 
-/** True when the lock file names a process of this machine that has ended, or is older than `staleMs`. */
-function staleLock(path, staleMs) {
-  let text;
-  let age;
-  try { text = readFileSync(path, 'utf8'); age = Date.now() - statSync(path).mtimeMs; } catch { return false; }
-  let holder;
-  try { holder = JSON.parse(text); } catch { return age > 5_000; }
-  if (holder?.host === hostname() && !pidAlive(Number(holder.pid))) return true;
-  return age > staleMs;
-}
-
-/** Take the lock file `path`: wait up to `waitMs`, and remove a stale lock. Returns true when this process holds it. */
+/**
+ * Take the lock file `path`: wait up to `waitMs`, and take over a stale lock (lib/file-lock.mjs:
+ * a process of this machine that has ended, or a lock of another machine older than `staleMs`;
+ * a live holder of this machine keeps its lock). Returns true when this process holds it.
+ */
 export function takeLock(path, { waitMs = LOCK_WAIT_MS, staleMs = LOCK_STALE_MS } = {}) {
-  mkdirSync(dirname(path), { recursive: true });
-  const until = Date.now() + waitMs;
-  for (;;) {
-    try {
-      writeFileSync(path, JSON.stringify({ pid: process.pid, host: hostname(), at: nowIso() }), { flag: 'wx' });
-      return true;
-    } catch (e) { if (!BUSY_CODES.has(e.code)) return false; }
-    if (staleLock(path, staleMs)) { rmSync(path, { force: true }); continue; }
-    if (Date.now() >= until) return false;
-    sleep(25);
-  }
+  return takeFileLock(path, { waitMs, staleMs });
 }
-
-/** Give up the lock file `path` when this process holds it. */
-export function dropLock(path) {
-  try { if (JSON.parse(readFileSync(path, 'utf8')).pid === process.pid) rmSync(path, { force: true }); } catch { /* gone */ }
-}
+export { dropLock };
 
 /** Run `fn` while this process holds the records lock. Throws when the lock stays busy. */
 export function withRecordsLock(fn, opts = {}) {
@@ -331,6 +323,8 @@ export function commitPaths(home, { paths, message, push = true, pushArgs = null
 }
 
 function commitLocked(home, paths, message) {
+  const blocked = cloneBlocked(home);
+  if (blocked) throw new Error(blocked);
   const head = sha(home, 'HEAD');
   const specs = [];
   const roots = [];
@@ -364,28 +358,68 @@ function filesOfFailure(home, stderr) {
   return conflicts.length ? conflicts : String(stderr).split('\n').filter((l) => /^\s+\S/.test(l)).map((l) => l.trim());
 }
 
+// A fetch that fails for these reasons will not work later by itself: the credential, the
+// access or the remote is wrong. Any other failure counts as no network.
+const FETCH_REFUSED = /authentication|could not read username|permission denied|\b40[13]\b|forbidden|not found|does not appear to be a git repository|repository .* not found|access denied|invalid username or password/i;
+
+/** The modified tracked append-only files of the clone (`*.jsonl`, the cost ledgers). */
+const modifiedLedgers = (home) => gitIn(home, ['ls-files', '-m', '--', '*.jsonl']).stdout.split('\n').filter(Boolean);
+const stashTip = (home) => sha(home, 'refs/stash');
+
 /**
  * Bring the commits of other machines onto the main branch of the clone: fetch the remote tip,
  * then, under the records lock, fast-forward to it, or rebase the local commits on it
- * (`git pull --rebase` in two steps, so the lock is not held over the network). The uncommitted
- * files stay (`--autostash`). A conflict aborts the rebase and returns its files.
- * Returns `{ ok, from, to }`, `{ offline, reason }` or `{ conflict, files, reason }`.
+ * (`git pull --rebase` in two steps, so the lock is not held over the network).
+ *
+ * - The rows that the cost hook appended to a ledger (`*.jsonl`) and did not commit go into a
+ *   commit first, and the `merge=union` attribute of the clone (`.gitattributes`) keeps the rows
+ *   of both machines when two of them appended to one ledger.
+ * - The other uncommitted files stay (`--autostash`). When the autostash does not apply again
+ *   after the rebase, git keeps the edit in the stash and leaves conflict markers in the tree.
+ *   The pull then puts the tree back to the rebased commit, so no marker can go into a later
+ *   commit, and returns the conflict: the edit is safe in `stash@{0}`.
+ * - A conflict of the rebase aborts it and returns its files.
+ *
+ * Returns `{ ok, from, to }`, `{ offline, reason }`, `{ failed, reason }` (a fetch that the remote
+ * refused: a credential, the access or the remote is wrong) or `{ conflict, files, reason }`.
  */
 export function pullRecords(home = recordsHome(), { fetched = false } = {}) {
   if (!hasRemote(home)) return { offline: true, reason: 'the records clone has no remote' };
+  const blocked = cloneBlocked(home);
+  if (blocked) return { failed: true, reason: blocked };
   const main = mainBranch(home);
   if (!fetched) {
     const f = gitIn(home, ['fetch', '-q', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`], { net: true });
-    if (f.status !== 0) return { offline: true, reason: f.stderr.split('\n')[0] || 'the fetch failed' };
+    if (f.status !== 0) {
+      const reason = f.stderr.split('\n').find(Boolean) || 'the fetch failed';
+      return FETCH_REFUSED.test(f.stderr) ? { failed: true, reason: `the fetch of the records was refused: ${reason}` } : { offline: true, reason };
+    }
   }
   try {
     return withRecordsLock(() => {
+      const ledgers = modifiedLedgers(home);
+      if (ledgers.length) commitLocked(home, ledgers, 'records: the cost rows of this machine');
       const from = sha(home, 'HEAD');
       const theirs = sha(home, `refs/remotes/origin/${main}`);
       if (!theirs || theirs === from || (from && isAncestor(home, theirs, from))) return { ok: true, from, to: from };
       const forward = !from || isAncestor(home, from, theirs);
+      const stashBefore = stashTip(home);
       const r = forward ? gitIn(home, ['merge', '-q', '--ff-only', theirs]) : gitIn(home, ['rebase', '-q', '--autostash', theirs]);
-      if (r.status === 0) return { ok: true, from, to: sha(home, 'HEAD') };
+      if (r.status === 0) {
+        const unmerged = gitIn(home, ['diff', '--name-only', '--diff-filter=U']).stdout.split('\n').filter(Boolean);
+        const stashAfter = stashTip(home);
+        const kept = !forward && stashAfter && stashAfter !== stashBefore;
+        if (!unmerged.length && !kept) return { ok: true, from, to: sha(home, 'HEAD') };
+        const files = unmerged.length ? unmerged : gitIn(home, ['stash', 'show', '--name-only', stashAfter]).stdout.split('\n').filter(Boolean);
+        // The stash holds the whole edit, so the tree goes back to the rebased commit: no marker stays.
+        if (kept) gitIn(home, ['reset', '-q', '--hard', 'HEAD']);
+        return {
+          conflict: true,
+          files,
+          to: sha(home, 'HEAD'),
+          reason: `the uncommitted edit of ${files.join(', ')} conflicts with the pulled commits${kept ? `; it is kept in stash@{0}: apply it with git -C "${home}" stash pop and resolve the conflict` : ''}`,
+        };
+      }
       const files = filesOfFailure(home, r.stderr);
       if (!forward) gitIn(home, ['rebase', '--abort']);
       return { conflict: true, files, reason: files.length ? `a conflict in ${files.join(', ')}` : (r.stderr.split('\n').find(Boolean) ?? 'the pull failed') };
@@ -403,6 +437,8 @@ export function pullRecords(home = recordsHome(), { fetched = false } = {}) {
 export function pushRecords(home = recordsHome()) {
   if (!existsSync(join(home, '.git'))) return { pushed: false, reason: `no records clone at ${home}` };
   if (!hasRemote(home)) return { pushed: false, offline: true, reason: 'the records clone has no remote' };
+  const blocked = cloneBlocked(home);
+  if (blocked) { logRecordsFailure({ step: 'push', error: blocked }); return { pushed: false, failed: true, reason: blocked }; }
   if (!takeLock(pushLockPath(), { waitMs: PUSH_WAIT_MS, staleMs: PUSH_STALE_MS })) return { pushed: false, busy: true, reason: 'another push of the records stayed busy' };
   let r;
   try { r = pushLoop(home); } finally { dropLock(pushLockPath()); }
@@ -554,15 +590,33 @@ export function migrateLive(home = recordsHome(), { dryRun = false } = {}) {
  */
 export const CLONE_IGNORE = ['*/INDEX.md', '.draft/'];
 
-/** Write the .gitignore of the records repo on its main branch when a line is missing. */
-export function ensureCloneIgnore(home) {
-  const file = join(home, '.gitignore');
+/**
+ * The lines of the .gitattributes of the records repo: a cost ledger only grows, so when two
+ * machines append rows to one ledger, a merge keeps the rows of both (`merge=union`).
+ */
+export const CLONE_ATTRIBUTES = ['*.jsonl merge=union'];
+
+/** Add the lines that `file` lacks. Returns true when it wrote the file. */
+function addLines(file, want) {
   const have = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const lines = have.split(/\r?\n/);
-  const missing = CLONE_IGNORE.filter((l) => !lines.includes(l));
+  const missing = want.filter((l) => !lines.includes(l));
   if (!missing.length) return false;
   writeFileSync(file, `${have}${have && !have.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
-  commitPaths(home, { paths: ['.gitignore'], message: 'records: the generated INDEX.md files and the drafts stay out of git', push: false });
+  return true;
+}
+
+/**
+ * Write the .gitignore and the .gitattributes of the records repo on its main branch when a line
+ * is missing. The link and each sync run it, so a clone made by an older version gets them at its
+ * next sync.
+ */
+export function ensureCloneIgnore(home) {
+  const ignore = addLines(join(home, '.gitignore'), CLONE_IGNORE);
+  const attributes = addLines(join(home, '.gitattributes'), CLONE_ATTRIBUTES);
+  if (!ignore && !attributes) return false;
+  if (ignore) commitPaths(home, { paths: ['.gitignore'], message: 'records: the generated INDEX.md files and the drafts stay out of git', push: false });
+  if (attributes) commitPaths(home, { paths: ['.gitattributes'], message: 'records: a merge keeps the cost rows of both machines', push: false });
   return true;
 }
 

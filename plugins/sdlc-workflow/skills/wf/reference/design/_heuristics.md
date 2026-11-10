@@ -165,7 +165,7 @@ Uses a screen reader and the keyboard only. May have low vision, a motor impairm
 ### Riley, the stress tester
 
 Pushes the interface past the happy path on purpose. Riley's inputs are the worst-case content of [harden.md](harden.md) → Worst-case content. Do not invent a new list.
-- Ask: does each `<surface>--worst` board hold in the build? What happens on reload in the middle of a flow, or in two tabs? Does an error leave the view usable?
+- Ask: does the `worst` state of each screen hold in the build? What happens on reload in the middle of a flow, or in two tabs? Does an error leave the view usable?
 - Red flags: a feature that seems to work but gives a wrong result; an error that shows internal details or breaks the view; an empty state with no guidance; data lost on reload or navigation.
 
 ### Casey, the distracted phone user

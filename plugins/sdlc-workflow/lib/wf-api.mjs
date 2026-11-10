@@ -57,10 +57,11 @@
  *   wf.findings.list({ source, slice, open })
  *             the findings of the ledger; `open` keeps the findings that are not closed
  *             Example: wf.findings.list({ open: true })
- *   wf.findings.add(found, { source, slice, dimensions, run })
- *             merge one run of findings into the ledger
+ *   wf.findings.add(found, { source, slice, dimensions, run, files })
+ *             merge one run of findings into the ledger; `files` is the work packet, and a
+ *             finding in another file is dropped and listed in `outOfScope`
  *             Example: wf.findings.add([{ dimension: 'correctness', severity: 'HIGH', issue: 'x' }], { source: 'review' })
- *   wf.findings.set(id, { status, reason })
+ *   wf.findings.set(id, { status, reason, commit, decision })
  *             change the status of one finding
  *             Example: wf.findings.set('COR-1', { status: 'fixed' })
  *   wf.status.summary()
@@ -94,7 +95,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { afterChange } from './after-change.mjs';
 import { boardAdd, boardItems, boardMove, boardRegroup, boardRemove } from './board-ops.mjs';
 import { answeredBy, decisionsOf, liveDecisions } from './decisions.mjs';
-import { OPEN_STATUSES, mergeRun, readLedger, setStatus, writeLedger } from './findings.mjs';
+import { OPEN_STATUSES, mergeRun, readLedger, setStatus, updateLedger, writeLedger } from './findings.mjs';
 import { noteAnswer } from './github-layer.mjs';
 import { getPath, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
@@ -102,7 +103,7 @@ import { DRAFT_DIR, draftPath, listDocs, outlineOf, readDoc, sectionText } from 
 import { runDir, workflowDir } from './records-root.mjs';
 import { ensureRunFolder } from './run-files.mjs';
 import { lastSlice, whereOf } from './steps.mjs';
-import { decideAdd, editRecord, noRecord, pick, recordName as plainName, resolveRecord, setRecordPaths } from './wf-ops.mjs';
+import { checkDismissDecision, decideAdd, editRecord, noRecord, pick, recordName as plainName, resolveRecord, setRecordPaths } from './wf-ops.mjs';
 import { statusBrief, stepGit } from './wf-status.mjs';
 import { stringify as stringifyYaml } from './yaml.mjs';
 
@@ -127,11 +128,24 @@ function filesOf(dir, rel = '', into = new Map()) {
   return into;
 }
 
-/** Put the files of a workflow folder back as the snapshot has them. Returns true when a file changed. */
-function restore(dir, snap) {
+/** The paths whose bytes differ between two listings of a folder: changed, new or gone. */
+function changedPaths(before, after) {
+  const out = new Set();
+  for (const [r, bytes] of after) if (!before.get(r)?.equals(bytes)) out.add(r);
+  for (const r of before.keys()) if (!after.has(r)) out.add(r);
+  return out;
+}
+
+/**
+ * Put the files that the run wrote back as the snapshot has them; a file that another session
+ * wrote meanwhile stays. `touched` lists the paths of the run's own writes; without it, every
+ * file goes back. Returns true when a file changed.
+ */
+function restore(dir, snap, touched = null) {
   let changed = false;
-  for (const r of filesOf(dir).keys()) if (!snap.has(r)) { rmSync(join(dir, r), { force: true }); changed = true; }
+  for (const r of filesOf(dir).keys()) if (!snap.has(r) && (!touched || touched.has(r))) { rmSync(join(dir, r), { force: true }); changed = true; }
   for (const [r, bytes] of snap) {
+    if (touched && !touched.has(r)) continue;
     const file = join(dir, r);
     if (existsSync(file) && statSync(file).isFile() && readFileSync(file).equals(bytes)) continue;
     mkdirSync(dirname(file), { recursive: true });
@@ -170,6 +184,8 @@ export function openWorkflow(root, slug, hooks = {}) {
     } catch (e) {
       e.wfOp = `${op}${record ? ` ${record}` : ''}`;
       throw e;
+    } finally {
+      hooks.after?.(slug, dir);
     }
   };
   const recordName = (name) => resolveRecord(dir, name);
@@ -247,16 +263,18 @@ export function openWorkflow(root, slug, hooks = {}) {
   const findings = {
     list: ({ source = null, slice = null, open = false } = {}) => read('findings.list', 'findings.yaml', [], () => readLedger(dir).findings
       .filter((f) => (!source || f.source === source) && (slice == null || f.slice === slice) && (!open || OPEN_STATUSES.has(f.status)))),
-    add: (found, { source = 'review', slice = null, dimensions = [], run = null } = {}) => write('findings.add', 'findings.yaml', [], () => {
-      const r = mergeRun(readLedger(dir), found, { source, slice, dimensions, run });
+    add: (found, { source = 'review', slice = null, dimensions = [], run = null, files = null } = {}) => write('findings.add', 'findings.yaml', [], () => updateLedger(dir, (ledger) => {
+      const r = mergeRun(ledger, found, { source, slice, dimensions, run, files });
       writeLedger(dir, r.ledger);
-      return { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, verdict: r.verdict };
-    }),
-    set: (id, { status, reason = null } = {}) => write('findings.set', 'findings.yaml', [id], () => {
-      const ledger = readLedger(dir);
-      const e = setStatus(ledger, id, status, reason);
-      writeLedger(dir, ledger);
-      return e;
+      return { added: r.added, resurfaced: r.resurfaced, resolved: r.resolved, outOfScope: r.outOfScope, verdict: r.verdict };
+    })),
+    set: (id, { status, reason = null, commit = null, decision = null } = {}) => write('findings.set', 'findings.yaml', [id], () => {
+      if (decision) checkDismissDecision(dir, decision, 'findings.set');
+      return updateLedger(dir, (ledger) => {
+        const e = setStatus(ledger, id, status, reason, { commit, decision });
+        writeLedger(dir, ledger);
+        return e;
+      });
     }),
   };
 
@@ -294,8 +312,21 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
   const snaps = new Map();
   const ops = [];
   const opened = new Map();
+  // The paths that the operations of this run wrote, by workflow: a restore puts back only these.
+  const touched = new Map();
+  const beforeOp = [];
   const hooks = {
-    before: (s, dir) => { if (!snaps.has(s)) snaps.set(s, { dir, files: filesOf(dir) }); },
+    before: (s, dir) => {
+      if (!snaps.has(s)) snaps.set(s, { dir, files: filesOf(dir) });
+      beforeOp.push(filesOf(dir));
+    },
+    after: (s, dir) => {
+      const pre = beforeOp.pop();
+      if (!pre) return;
+      const set = touched.get(s) ?? new Set();
+      for (const r of changedPaths(pre, filesOf(dir))) set.add(r);
+      touched.set(s, set);
+    },
     log: (e) => ops.push({ at: nowIso(), script: script ? basename(script) : null, ...e }),
   };
   const open = (s) => {
@@ -314,7 +345,7 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
   const apply = !error && !dryRun;
   const changed = [];
   for (const [s, { dir, files }] of snaps) {
-    if (!apply) { restore(dir, files); continue; }
+    if (!apply) { restore(dir, files, touched.get(s) ?? new Set()); continue; }
     if (differs(dir, files)) changed.push(s);
   }
   for (const s of changed) {

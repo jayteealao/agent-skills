@@ -1,6 +1,6 @@
 # Brainstorm board templates (Step 1 of `intake/brainstorm.md`)
 
-`intake/brainstorm.md` holds the `00-index.md` template. This file holds the two board files and the conversion of a legacy board. The two files hold one truth: `brainstorm-board.json` is the agent's working board, and `01-brainstorm.md` is the same content written for the person, in plain words and with no keys.
+`intake/_light-index.md` holds the `00-index.md` template. This file holds the board, the sections of the person's document, and the conversion of a legacy board. `brainstorm-board.json` is the one source. `01-brainstorm.md` is the same content written for the person, in plain words and with no keys. A script renders the document from the board: every board command that writes the board renders it in the same call. Never edit the document's body, and never put a draft of it.
 
 ## `brainstorm-board.json` — the agent's board
 
@@ -15,8 +15,10 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
   "updated-at": "<ISO 8601>",
   "sessions": 1,
   "batches": 0,
+  "status": "open",
+  "summary": "We started from bills that arrive with no warning. We now believe a limit per project that warns and never blocks is enough, because a blocked run loses work already paid for. The ledger format is still open, and one number per project may not fit every kind of run.",
   "stories": [
-    { "session": 1, "text": "We set out to see what a project costs. We learned that the ledger already records every run, so the gap is showing the cost, not measuring it. You chose a limit that warns and never blocks, because a blocked run loses work already paid for. The ledger format is still open. Next time we start with research runs." }
+    { "session": 1, "date": "2026-10-03", "text": "We set out to see what a project costs. We learned that the ledger already records every run, so the gap is showing the cost, not measuring it. You chose a limit that warns and never blocks, because a blocked run loses work already paid for. The ledger format is still open. Next time we start with research runs." }
   ],
   "budgets": [
     { "key": "monthly-spend-cap", "name": "Spending stays under the monthly cap", "decision": "limit-warns-only" }
@@ -53,8 +55,11 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
 
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
-- **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number and its plain `text`.
-- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `<wf-dir>/design/sketches/<key>.<ext>`, `<file>#<artboard>` when one file holds several sketches, or `null`), a plain `caption`, `state` (`idea`, `carried`, `dropped`, or `reference` for an outside link with no file), and for a published sketch `canvas` (`link`, `account`, `published-at`, `sha256` of the published file, and `previous[]` links).
+- **`summary`** is what we believe now, in 150 words or fewer: the thought we started from, what we now believe and why, and what is still open. The document shows it as `## The Brainstorm`.
+- **`status`** is `open` or `distilled` (after `done`). The board owns it, and the document's frontmatter copies it.
+- **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number, its `date` (`YYYY-MM-DD`), and its plain `text`.
+- **`carried[]`** holds text of a document written by hand that maps to no other field: its `heading`, its `text` word for word, and `place` (`document`, the default, or `archive`). `board adopt` writes it. The document prints each entry as its own section. Remove an entry with `board prose "<root>" <slug> carried --heading "<heading>" --text ""` once its content is on the board.
+- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `.ai/design/explore/<key>.html`, `<file>#<artboard>` when one file holds several sketches, or `null`), a plain `caption`, `state` (`idea`, `carried`, `dropped`, or `reference` for an outside link with no file), and for a published sketch `canvas` (`link`, `account`, `published-at`, `sha256` of the published file, and `previous[]` links).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
 - **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
 - **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
@@ -139,6 +144,10 @@ A brief the person brings is copied to `references/briefs/`, and `briefs[].sourc
 
 ## `01-brainstorm.md` — the person's document
 
+`node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>` writes the document from the board. Every board command that writes the board runs the same render. The document names everything in words. It carries no key, no internal number, and no mode mechanics. Never edit its body, and never put a draft of it: change the board, and the document follows.
+
+### Its frontmatter, and the owner of each field
+
 ```yaml
 ---
 schema: sdlc/v1
@@ -147,6 +156,7 @@ slug: <slug>
 topic: "<topic as given>"
 status: open                 # open | distilled
 board: brainstorm-board.json
+focus: general               # general | design
 created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 sessions: 1
@@ -158,75 +168,65 @@ recommended-routes: [{invocation: "/wf intake brainstorm <slug>", reason: "resum
 ---
 ```
 
-The body names everything in words. It carries no key, no internal number, and no mode mechanics. It opens with a short front — the summary, the map with the area briefs, and what is open now — then the story of each session, newest first, and the full record follows. A replaced decision appears only under the decision that replaced it. `## Sketches` is the one section that names keys, because a sketch key is also its file name.
+| Field | Owner | How it changes |
+|---|---|---|
+| `slug`, `topic`, `board`, `focus`, `page` | the board | The render copies them from the board. |
+| `status` | the board | `board set "<root>" <slug> status=distilled`, or `status=open`. On an older board with no `status`, the document keeps its own value until `board adopt` copies it to the board. |
+| `sessions`, `batches` | the board | `board set "<root>" <slug> sessions=<n>`. A log entry moves `batches`. |
+| `updated-at` | the board | Each board write moves it. |
+| `created-at` | the document | The first render sets it. |
+| `revisions` | the document | `record set "<root>" <slug> 01-brainstorm.md "revisions+={...}"`, per [_additive-write.md](../../_additive-write.md). |
+| `next-command`, `next-invocation`, `recommended-routes`, `modes` | the document | The first render writes the defaults. Change them with `record set` on `01-brainstorm.md`. |
 
-```markdown
-# Brainstorm: <topic>
+The render keeps every other field of the frontmatter. It removes the fields of a legacy board: `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected`.
 
-## The Brainstorm
-<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Use plain words. 150 words or fewer. -->
+### Its sections
 
-## Map
-### <area in words> — <problem side or solution side> — <open, touched, or explored>
-<The brief: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.>
+The front comes first, then the story of each session, then the full record:
+- `## The Brainstorm` — the board's `summary`.
+- `## Map` — each area with its side, its state, its `brief`, its threads with their states, and its scope. A closed area with an archived record links `archive/record.md`.
+- `## Open now` — each open tension, each top risk with its decision, and each open question.
+- `## Briefs` — each brief with its counts of covered, partial, open, and out-of-scope criteria, and the open gaps.
+- `## Sessions` — the newest three stories, newest first. The older stories are in `archive/record.md`.
+- `## Decisions` — the decisions by area, with the reason, the core mark, the scope, and the accepted risk. A replaced decision appears only under the decision that replaced it: "This replaced: …".
+- `## Ideas still open`, `## What we found`, `## What we are assuming`, `## Tensions` — one plain line per item.
+- `## Sketches` — with a design focus: each sketch with its caption, its file, its link, and its state.
+- `## Questions for the plan` — each commitment this brainstorm does not make. `## Questions we answered` follows when a question was answered, and `## Ideas and questions you cut` when one was cut.
+- `## Scope` and `## Work` — after `done` (a `work` list, or `status: distilled`). Each item of the record says its scope once: "In work packet <n>", "Left for later", or "Cut" with the person's reason. `## Scope` says how to read that and repeats no item. `## Work` gives each work packet in order with its form, its sources, and a link to its file. No second copy of the packet content.
+- No key appears in the text. A key of three words or more that a text names, for example an evidence that lists other items, is printed as words: the name of its area or thread, else its words without hyphens.
+- One section per entry of `carried[]`, word for word.
+- `## How to continue` — the resume command, the control words, and the close command.
 
-## Open now
-- <Each open tension, each top risk with the decision it belongs to, and each open question, one plain line each.>
+### Other board files
 
-## Briefs
-- <One line per brief: its name, how many criteria are covered, partial, open, and out of scope, and the open gaps in words. "None." when no brief was brought.>
+- **A design board of a feature** (`brainstorm-board-design.json`): the render writes `design-notes/brainstorm-design.md`, with the same frontmatter and `board: brainstorm-board-design.json`.
+- **A slug-mode board** (`brainstorm-board-<descriptor>.json`): the document is the compressed slice `03-slice-brainstorm-<descriptor>.md`. Write the slice record first, with its frontmatter, its heading, and its provenance line ([../../_compressed-slice.md](../../_compressed-slice.md)). The render then writes the sections above into its body under that heading, and keeps its frontmatter. Before the slice record exists, a board command writes the board and warns that no document is written.
 
-<!-- The front ends here. The record follows. -->
+Add `--board <file name>` to each board command for these boards.
 
-## Sessions
-### Session <N> — <YYYY-MM-DD>
-<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
+### A document written by hand
 
-## Decisions
-### <area in words>
-- <The decision, one sentence.> Why: <the reason given.> <"Core." when the person named it core.> <"Accepted risk: …" when it has one.> <"This replaced: …" when it replaced an older decision.>
+A document from an older session holds prose that the board may lack. `node "<skill-dir>/scripts/wf.mjs" board adopt "<root>" <slug>` reads it into the board:
+1. It copies the document and the board to `history/` (`01-brainstorm-adopt-<time>.md` and `brainstorm-board-adopt-<time>.json`).
+2. It takes `## The Brainstorm` as the `summary`, each map brief as the `brief` of the area of that name, and each `### Session <N> — <date>` as a story, when the board lacks them. It takes `status`, and the higher `sessions` and `batches`.
+3. It renders the board, and checks each sentence of the old document against the render. A sentence counts as shown when one line of the render holds most of its words; markdown, punctuation, and labels such as "Why:" do not count, and a link counts by its address.
+4. It keeps each sentence that the render does not show word for word in `carried[]`, under the heading of its section: `Earlier notes: <section>`, `Earlier map notes`, `Earlier sessions`, `Earlier summary`, or the section's own heading. A summary longer than 150 words is taken whole; the render only warns.
+5. It renders the document.
 
-## Ideas still open
-- <The idea, one sentence, and who raised it: you or the agent.>
-
-## What we found
-- <The finding, one sentence.> Source: <file:line, dataset, or link>.
-
-## What we are assuming
-- <The assumption, and whether it is still open, confirmed, or rejected.>
-
-## Tensions
-- <What pulls against what, and whether it is still open.>
-
-## Sketches
-- <The caption.> Key: `<key>`. File: `<local path>`. Link: <the canvas link, or "none">. State: <idea, carried, dropped, or reference>. <"None." when the board has no sketch.>
-
-## Questions for the plan
-- <A commitment this brainstorm does not make, one sentence.>
-
-## Scope
-<Empty until `done`. Then the agreed scope: the kept items by work packet, the items left for later, and the cut items with the person's reasons.>
-
-## Work
-<Empty until `done`. Then each work packet in order, one line each: its title, its form, and a link to its packet file (`work/<slug>.md`), or the documents a write-now packet changed. No second copy of the packet content.>
-
-## How to continue
-- Resume: `/wf intake brainstorm <slug>`
-- Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `cohere` · `pause` · `done`
-- Retire when no thread is live: `/wf intake <slug> close`
-```
+The first board write on such a document runs the same adopt by itself. A document that the render wrote is never adopted again. A hand-written `archive/record.md` is kept the same way, in a `carried[]` entry with `place: archive`.
 
 ## Archive
 
-A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`:
+A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`, then render the document:
 ```
 node "<skill-dir>/scripts/campaign.mjs" archive <wf-dir>
+node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>
 ```
-1. The command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open work packet, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
-2. The command also warns when `## The Brainstorm` is over 150 words, or when `## Sessions` tells more than three sessions. On a warning, rewrite the summary shorter, and move the older stories to `archive/record.md`.
-3. In the document, move the record of a closed area (every thread routed or dropped) to `archive/record.md`. The map keeps the area's brief, with a link to the record.
+1. The archive command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open work packet, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
+2. The render writes `archive/record.md` from `archive/board.json` and the board: the older session stories, and the archived items by area. The map keeps the brief of each closed area, with a link to the record.
+3. The archive command warns when `## The Brainstorm` is over 150 words. On a warning, write the summary shorter with `board prose`.
 
-Read `archive/` only when the person asks about an archived item or area, or when a reopening changes one. To reopen an archived item, copy it back to `items` and remove it from `archive/board.json`.
+Read `archive/` only when the person asks about an archived item or area, or when a reopening changes one. To reopen an archived item, add it back with `board add item`, and remove it from `archive/board.json`.
 
 ## Converting a legacy board
 
@@ -239,6 +239,6 @@ A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and 
    - An assumption stays an assumption, and a contradiction becomes a tension.
    - A candidate becomes a work packet, with its `state` and `routed-to` kept.
 4. Make each thread an area unless the board has a `## Map`.
-5. Write `brainstorm-board.json`. Rewrite the body of `01-brainstorm.md` per the template above: the summary first, then every section in plain words. Keep the legacy turn log in the JSON `log`.
-6. Remove `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected` from the frontmatter, and add `board: brainstorm-board.json`. Write the draft of `01-brainstorm.md` with the changes of steps 5 and 6, and put it.
+5. Write `brainstorm-board.json` with the file-write tool. Keep the legacy turn log in the JSON `log`.
+6. Run `board adopt`. It takes the summary and the session stories into the board, keeps every other section word for word, removes the legacy fields from the frontmatter, adds `board: brainstorm-board.json`, and renders the document.
 7. Show the new summary to the person at the first check-in, and ask whether it is right.

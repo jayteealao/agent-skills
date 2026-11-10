@@ -60,6 +60,31 @@ function versionLt(a, b) {
   return false;
 }
 
+// A snapshot folder is named by its full version, a prerelease included (`10.0.0-next.19`).
+const SNAPSHOT = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
+
+/** Semver order of two snapshot folder names: a release is above its prereleases, and `next.10` is above `next.9`. */
+function compareSnapshots(a, b) {
+  const [ma, mb] = [SNAPSHOT.exec(a), SNAPSHOT.exec(b)];
+  for (let i = 1; i <= 3; i++) if (Number(ma[i]) !== Number(mb[i])) return Number(ma[i]) - Number(mb[i]);
+  if (!ma[4] || !mb[4]) return (ma[4] ? -1 : 0) - (mb[4] ? -1 : 0);
+  const [pa, pb] = [ma[4].split('.'), mb[4].split('.')];
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if (pa[i] === undefined) return -1;
+    if (pb[i] === undefined) return 1;
+    const [na, nb] = [/^\d+$/.test(pa[i]), /^\d+$/.test(pb[i])];
+    if (na && nb && Number(pa[i]) !== Number(pb[i])) return Number(pa[i]) - Number(pb[i]);
+    if (na !== nb) return na ? -1 : 1;
+    if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
+  }
+  return 0;
+}
+
+/** The name of the newest snapshot folder, or null when none is named by a version. */
+function newestSnapshot(names) {
+  return names.filter((n) => SNAPSHOT.test(n)).sort(compareSnapshots).pop() ?? null;
+}
+
 // 1. CLI present + version
 const versionOut = codex(['--version']);
 if (!versionOut) {
@@ -160,8 +185,8 @@ const cacheRoot = join(CODEX_HOME, 'plugins', 'cache');
 let installed = null;
 try {
   const pluginDir = join(cacheRoot, MARKETPLACE, PLUGIN_NAME);
-  const versions = readdirSync(pluginDir).map(parseVersion).filter(Boolean).sort((a, b) => (versionLt(a, b) ? 1 : versionLt(b, a) ? -1 : 0));
-  if (versions.length) installed = { marketplace: MARKETPLACE, version: versions[0].join('.') };
+  const newest = newestSnapshot(readdirSync(pluginDir));
+  if (newest) installed = { marketplace: MARKETPLACE, version: newest };
 } catch { /* no cache at all */ }
 if (!installed) {
   fail(`no installed snapshot of ${PLUGIN_NAME} under ${cacheRoot}`);

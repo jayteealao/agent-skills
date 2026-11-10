@@ -9,7 +9,7 @@
 // .ai/workflows/, so the reader reads that file too.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { localWorkflowsRoot, runRoot } from './records-root.mjs';
+import { linkedProject, localWorkflowsRoot, runRoot, workflowsRoot } from './records-root.mjs';
 
 export const ANSWERS_FILE = 'answers.jsonl';
 
@@ -50,9 +50,12 @@ export function answerEventOf(payload) {
   return questions.length ? { tool, questions } : null;
 }
 
-/** Append one answer event. The log is written only in a project that has a records folder. */
+/**
+ * Append one answer event. The log is written only in a project that has a records folder: a
+ * local one, or the records clone of a linked project. The log itself stays in <root>/.ai/run/.
+ */
 export function appendAnswerEvent(projectRoot, event, { host = null, session = null, now = new Date() } = {}) {
-  if (!existsSync(localWorkflowsRoot(projectRoot))) return false;
+  if (!existsSync(workflowsRoot(projectRoot)) && !linkedProject(projectRoot)) return false;
   const dir = runRoot(projectRoot);
   mkdirSync(dir, { recursive: true });
   const ignore = join(dir, '.gitignore');

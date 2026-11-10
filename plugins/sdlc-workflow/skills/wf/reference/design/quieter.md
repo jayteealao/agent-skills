@@ -86,7 +86,7 @@ Reduce the motion. Do not remove all of it.
 - Functional data (a chart, a table, a number): delete, unless the motion shows a real change of value on the person's action.
 - No named purpose: delete, except for a rare first-time moment (onboarding, an empty state, a success).
 - Tens of uses a day (hover, a frequent toggle): reduce.
-- Over budget (over 300 ms, or a slide where a fade says the same): reduce.
+- Over budget (over 300 ms outside the drawer and toast recipes, or a slide where a fade says the same): reduce.
 
 **Reduce** means a smaller version of the same motion, never a new one: hover → a color or opacity change, 150 ms or less; a frequent entrance → opacity only, 150 ms; a stagger over 80 ms an item or 300 ms in total → 30 ms an item, or one fade of the group; an infinite loop → run it once, or keep its end state. When the reduced motion no longer carries its purpose, delete it.
 

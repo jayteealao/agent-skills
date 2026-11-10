@@ -5,12 +5,14 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
-  DRAFT_DIR, draftPath, listDocs, locate, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields, writeDoc,
+  DRAFT_DIR, clearKept, draftPath, listDocs, locate, markSuperseded, migrateWorkflow, putDraft, readDoc, redirectOf, setFields, writeDoc,
 } from '../../../lib/records.mjs';
 import { parse } from '../../../lib/yaml.mjs';
 import { fieldOf, stampOf } from '../../../scripts/wf.mjs';
@@ -156,5 +158,83 @@ test('migration moves the old files to .old/, writes the redirect map, and keeps
     const map = parse(readFileSync(join(dir, 'redirects.yaml'), 'utf8')).redirects;
     assert.deepEqual(map.find((m) => m.from === '07-review-a-security.md'), { from: '07-review-a-security.md', to: 'review-a.yaml#security' });
     assert.equal(readDoc(dir, '00-index.md').frontmatter.title, 'T');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a record file that does not parse refuses a write and names the file; put and set exit non-zero', () => {
+  const { root, dir } = folder();
+  try {
+    writeDoc(dir, '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: 'demo', status: 'active', 'current-stage': 'intake' } });
+    writeDoc(dir, '01-intake.md', { frontmatter: { schema: 'sdlc/v1', type: 'intake', slug: 'demo' }, body: 'the intake\n' });
+    const broken = 'schema: sdlc/record/v1\nsections:\n  intake: [unclosed\n';
+    writeFileSync(join(dir, 'intake.yaml'), broken);
+    assert.throws(() => writeDoc(dir, '01-rca.md', { frontmatter: { slug: 'demo' }, body: 'x\n' }), /intake\.yaml does not parse.*repair it first/);
+    assert.throws(() => setFields(dir, '01-intake.md', { title: 'x' }), /intake\.yaml does not parse/);
+    assert.equal(readFileSync(join(dir, 'intake.yaml'), 'utf8'), broken, 'the file is left as it was');
+
+    const wf = join(import.meta.dirname, '..', '..', '..', 'scripts', 'wf.mjs');
+    mkdirSync(join(dir, DRAFT_DIR), { recursive: true });
+    writeFileSync(draftPath(dir, '01-brainstorm.md'), md({ schema: 'sdlc/v1', type: 'brainstorm', slug: 'demo', topic: 't', status: 'open', 'created-at': '2026-11-10T00:00:00Z' }, 'the ideas\n'));
+    const put = spawnSync(process.execPath, [wf, 'record', 'put', root, 'demo', '01-brainstorm.md'], { encoding: 'utf8' });
+    assert.equal(put.status, 1);
+    assert.match(put.stdout, /refused 01-brainstorm\.md: .*intake\.yaml does not parse/);
+    assert.ok(existsSync(draftPath(dir, '01-brainstorm.md')), 'the draft stays for the next try');
+    const set = spawnSync(process.execPath, [wf, 'record', 'set', root, 'demo', '01-intake.md', 'title=x'], { encoding: 'utf8' });
+    assert.notEqual(set.status, 0);
+    assert.match(set.stderr + set.stdout, /intake\.yaml does not parse/);
+    assert.equal(readFileSync(join(dir, 'intake.yaml'), 'utf8'), broken);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('four processes that set other fields of one record at once lose no field', async () => {
+  const { root, dir } = folder();
+  try {
+    writeDoc(dir, '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: 'demo', status: 'active', 'current-stage': 'intake' } });
+    const lib = pathToFileURL(join(import.meta.dirname, '..', '..', '..', 'lib', 'records.mjs')).href;
+    const code = (n) => `const { setFields } = await import(${JSON.stringify(lib)}); for (let i = 0; i < 10; i++) setFields(${JSON.stringify(dir)}, '00-index.md', { ['note-${n}-' + i]: 'v' });`;
+    const codes = await Promise.all([0, 1, 2, 3].map((n) => new Promise((res) => {
+      spawn(process.execPath, ['--input-type=module', '-e', code(n)], { stdio: ['ignore', 'ignore', 'inherit'] }).on('exit', res);
+    })));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    const fm = readDoc(dir, '00-index.md').frontmatter;
+    assert.equal(Object.keys(fm).filter((k) => k.startsWith('note-')).length, 40);
+    assert.deepEqual(readdirSync(dir).filter((f) => /\.tmp$|\.lock$/.test(f)), [], 'no temp file or lock is left');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the kept drafts of slice api go at its stage-done; those of slice public-api stay', () => {
+  const { root, dir } = folder();
+  try {
+    writeDoc(dir, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: 'demo', slices: ['api', 'public-api'] } });
+    const kept = join(dir, DRAFT_DIR, '.put');
+    mkdirSync(kept, { recursive: true });
+    for (const n of ['05-implement-api.md', '05-implement-public-api.md', '06-verify-public-api.md']) writeFileSync(join(kept, n), 'x');
+    assert.equal(clearKept(dir, { slice: 'api' }), 1);
+    assert.deepEqual(readdirSync(kept).sort(), ['05-implement-public-api.md', '06-verify-public-api.md']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('four sessions that refresh other rows of INDEX.md at once keep every row', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'index-race-'));
+  try {
+    const wfRoot = join(root, '.ai', 'workflows');
+    const slugs = ['a', 'b', 'c', 'd'];
+    for (const s of slugs) writeDoc(join(wfRoot, s), '00-index.md', { frontmatter: { schema: 'sdlc/v1', type: 'index', slug: s, status: 'active', 'current-stage': 'intake' } });
+    const { reconcileIndex } = await import('../../../scripts/wf.mjs');
+    await reconcileIndex(root);
+    for (const s of slugs) setFields(join(wfRoot, s), '00-index.md', { branch: `feat/${s}` });
+    const wf = pathToFileURL(join(import.meta.dirname, '..', '..', '..', 'scripts', 'wf.mjs')).href;
+    // The four start together, after their imports, and each refreshes its row many times.
+    const at = Date.now() + 3000;
+    const lib = pathToFileURL(join(import.meta.dirname, '..', '..', '..', 'lib', 'records.mjs')).href;
+    const dirOf = (s) => JSON.stringify(join(wfRoot, s));
+    const code = (s) => `const { refreshIndexRow } = await import(${JSON.stringify(wf)}); const { setFields } = await import(${JSON.stringify(lib)}); while (Date.now() < ${at}); for (let i = 0; i < 40; i++) { setFields(${dirOf(s)}, '00-index.md', { branch: 'feat/${s}-' + i }); await refreshIndexRow(${JSON.stringify(root)}, '${s}'); }`;
+    const codes = await Promise.all(slugs.map((s) => new Promise((res) => {
+      spawn(process.execPath, ['--input-type=module', '-e', code(s)], { stdio: ['ignore', 'ignore', 'inherit'] }).on('exit', res);
+    })));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    const rows = readFileSync(join(wfRoot, 'INDEX.md'), 'utf8').split('\n').filter((l) => /^[a-d]\t/.test(l));
+    assert.equal(rows.length, 4);
+    for (const r of rows) assert.match(r, /\tfeat\/[a-d]-39\t/, `every row has its last refresh: ${r}`);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

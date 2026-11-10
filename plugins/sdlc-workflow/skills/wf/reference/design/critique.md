@@ -25,7 +25,7 @@ Be direct. Don't soften findings. The goal is to surface the real problems, not 
 Judge the design before you read the evidence, so that the evidence does not anchor the judgment.
 
 1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
-2. In a freestanding `/wf design critique`, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
+2. In any `/wf design … critique` run, with or without a slug, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
 3. Read the `06-verify-*.md` evidence (`wf.mjs record get`) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
 4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
 

@@ -130,3 +130,36 @@ test('wf.mjs step: start, done with HEAD, and where on a real git history', () =
     assert.match(cli('start', f.root, 'demo').stderr, /<slice> is required/);
   } finally { f.done(); }
 });
+
+test('a change-mode or single-scope workflow reads its steps from the un-suffixed 04-plan.md', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'sdlc-steps-fix-'));
+  const dir = path.join(root, '.ai', 'workflows', 'bug');
+  mkdirSync(dir, { recursive: true });
+  const cli = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'step', ...a], { encoding: 'utf8' });
+  try {
+    writeFileSync(path.join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: bug\nworkflow-type: fix\n---\n');
+    writeFileSync(path.join(dir, '04-plan.md'), PLAN);
+    assert.deepEqual(planSteps(dir, 'bug').map((s) => s.n), [1, 2, 3]);
+    assert.equal(whereOf(dir, 'bug').total, 3);
+    appendStep(dir, { slice: 'bug', event: 'done', step: 1, noChange: true });
+    assert.equal(whereLine(whereOf(dir, 'bug')), 'bug: 1 of 3 steps done; next: step 2 (Store)');
+    const refused = cli('complete', root, 'bug', 'bug');
+    assert.notEqual(refused.status, 0, 'complete refuses while plan steps are open');
+    assert.match(refused.stderr, /steps 2, 3 of the plan are open/);
+    const ok = cli('complete', root, 'bug', 'bug', '--skip', '2,3', '--reason', 'covered');
+    assert.equal(ok.status, 0, ok.stderr);
+    const row = readSteps(dir).at(-1);
+    assert.equal(row.event, 'complete');
+    assert.ok(row.planHash, 'the complete row holds the hash of 04-plan.md');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a multi-slice workflow does not read the plan index as the plan of a slice with no plan yet', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.dir, '03-slice.md'), '---\ntype: slice-index\nslices:\n  - api\n  - store\n---\n');
+    writeFileSync(path.join(f.dir, '04-plan.md'), PLAN.replace('type: plan', 'type: plan-index'));
+    assert.deepEqual(planSteps(f.dir, 'store'), []);
+    assert.equal(planSteps(f.dir, 'api').length, 3);
+  } finally { f.done(); }
+});

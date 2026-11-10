@@ -125,7 +125,7 @@ A control word that names no known idea gets the titles back and changes nothing
 `done` ends the loop.
 
 - **One idea or more is `take`.** Set `selected:` to the taken ideas, in rank order. Run `# Pick — decision closure` of `intake/ideate.md` with them. The proposed order of its step 3 is the rank order. `decision-note:` holds the reasons that the person gave during triage, in the person's words. Do not ask for the pick reason again.
-- **No idea is `take`.** Ask one question: keep the run open and decide later, or close it with no list. A close runs `record set "<root>" <slug> index status=closed close-reason=no-pick closed-at=<timestamp> next-command=none`.
+- **No idea is `take`.** Ask one question: keep the run open and decide later, or close it with no list. A close runs `record set "<root>" <slug> index status=closed close-reason=no-pick closed-at=<timestamp> next-command=none "next-invocation=none — closed with no pick"`.
 
 The `later` ideas stay in `ideas:` after the close.
 

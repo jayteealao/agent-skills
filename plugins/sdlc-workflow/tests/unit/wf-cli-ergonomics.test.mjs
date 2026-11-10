@@ -55,12 +55,10 @@ test('a bare form prints its forms; a usage error prints the forms of the verb; 
   } finally { f.done(); }
 });
 
-test('path prints the records folder, a workflow folder and a file of an unlinked project in place', () => {
+test('the one-release alias path is gone: the dispatch prints the wf-dir', () => {
   const f = fixture();
   try {
-    assert.equal(run(['path', f.root]).stdout.trim(), path.join(f.root, '.ai', 'workflows'));
-    assert.equal(run(['path', f.root, 'demo']).stdout.trim(), f.dir);
-    assert.equal(run(['path', f.root, 'demo', 'verify-evidence/a/checks.md']).stdout.trim(), path.join(f.dir, 'verify-evidence', 'a', 'checks.md'));
+    assert.notEqual(run(['path', f.root]).status, 0);
   } finally { f.done(); }
 });
 

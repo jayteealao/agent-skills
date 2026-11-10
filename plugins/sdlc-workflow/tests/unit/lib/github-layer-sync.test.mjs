@@ -3,12 +3,12 @@
 // stays open through ship. A fake runner stands in for gh; nothing is written to GitHub.
 
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { LAYER_MARK, backfill, flushOutbox, issueComments, layerStatus, noteAnswer, noteChange, outboxPath } from '../../../lib/github-layer.mjs';
+import { LAYER_MARK, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteAnswer, noteChange, outboxPath, parkedPath, readOutbox } from '../../../lib/github-layer.mjs';
 import { importComments } from '../../../lib/messages.mjs';
 import { setFields } from '../../../lib/records.mjs';
 
@@ -83,6 +83,61 @@ test('a second machine uses the issue of the first: from layer.json, else by the
   } finally { t.done(); }
 });
 
+test('a machine that knows the issue from layer.json reads its label and state, so it removes a needs-me and reopens what another machine set', () => {
+  const t = setup();
+  try {
+    t.as(machine(t.top, 'a'));
+    noteChange(t.root, 'add-tags');
+    flushOutbox({ run: fakeGh().run });
+    t.as(machine(t.top, 'b'));
+    noteChange(t.root, 'add-tags');
+    const calls = [];
+    const run = (cmd, args) => {
+      calls.push(args);
+      if (args[0] === 'issue' && args[1] === 'view') return { status: 0, stdout: JSON.stringify({ labels: [{ name: 'needs-me' }, { name: 'wf' }], state: 'CLOSED' }), stderr: '' };
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    assert.equal(flushOutbox({ run }).error, null);
+    assert.deepEqual(calls.find((a) => a[1] === 'view').slice(-2), ['--json', 'labels,state']);
+    assert.ok(calls.some((a) => a[1] === 'edit' && a.includes('--remove-label') && a.includes('needs-me')), 'the needs-me label goes');
+    assert.ok(calls.some((a) => a[0] === 'issue' && a[1] === 'reopen'), 'the issue opens again');
+  } finally { t.done(); }
+});
+
+test('a worktree with no config of its own queues the GitHub edits of the main worktree', () => {
+  const t = setup();
+  try {
+    t.as(machine(t.top, 'a'));
+    // The main checkout holds .git and the config; the worktree has only a .git file.
+    mkdirSync(join(t.root, '.git', 'worktrees', 'wt'), { recursive: true });
+    writeFileSync(join(t.root, '.git', 'worktrees', 'wt', 'commondir'), '../..\n');
+    const wt = join(t.top, 'wt');
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(join(wt, '.git'), `gitdir: ${join(t.root, '.git', 'worktrees', 'wt')}\n`);
+    assert.deepEqual(layerOf(wt), { repo: 'me/wf-records', owner: 'me', project: 'notes', board: null });
+  } finally { t.done(); }
+});
+
+test('the flush lock names its process; a lock of an ended process is taken over at once', () => {
+  const t = setup();
+  try {
+    const home = machine(t.top, 'a');
+    t.as(home);
+    noteChange(t.root, 'add-tags');
+    mkdirSync(join(home, 'outbox'), { recursive: true });
+    const lock = join(home, 'outbox', 'flush.lock');
+    writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 + 7, host: hostname(), at: new Date().toISOString() }));
+    let held = null;
+    const gh = fakeGh();
+    const run = (cmd, args, o) => { held ??= JSON.parse(readFileSync(lock, 'utf8')); return gh.run(cmd, args, o); };
+    const r = flushOutbox({ run });
+    assert.equal(r.busy, undefined);
+    assert.equal(r.sent, 1);
+    assert.deepEqual([held.pid, held.host], [process.pid, hostname()]);
+    assert.equal(existsSync(lock), false, 'the flush gives the lock up');
+  } finally { t.done(); }
+});
+
 test('an entry that fails three flushes is parked, and the entries after it go out', () => {
   const t = setup();
   try {
@@ -98,6 +153,50 @@ test('an entry that fails three flushes is parked, and the entries after it go o
     const s = layerStatus(t.root);
     assert.deepEqual(s.parked.map((p) => [p.workflow, p.op]), [['notes/ghost', 'comment']]);
     assert.match(s.parked[0].error, /no issue yet/);
+  } finally { t.done(); }
+});
+
+test('a sign-in failure or a rate limit parks nothing, stops the flush and puts the parked entries back', async () => {
+  const { readParked, AUTH_ERROR } = await import('../../../lib/github-layer.mjs');
+  assert.ok(AUTH_ERROR.test('gh issue edit 12: HTTP 401: Bad credentials'));
+  assert.ok(AUTH_ERROR.test('To get started with GitHub CLI, please run:  gh auth login'));
+  assert.ok(AUTH_ERROR.test('gh issue create: HTTP 403: API rate limit exceeded for user'));
+  assert.ok(!AUTH_ERROR.test('gh issue edit 403: HTTP 422: Validation Failed'), 'an issue number is not a status');
+  const t = setup();
+  try {
+    const home = machine(t.top, 'a');
+    t.as(home);
+    noteChange(t.root, 'add-tags');
+    assert.equal(flushOutbox({ run: fakeGh().run }).sent, 1, 'the issue exists');
+    appendFileSync(parkedPath(), `${JSON.stringify({ id: 'old-1', op: 'comment', repo: 'me/wf-records', project: 'notes', slug: 'add-tags', body: 'parked once', parkedAt: '2026-11-01T00:00:00Z', error: 'HTTP 422' })}\n`);
+    noteAnswer(t.root, 'add-tags', { question: 'Which store?', answer: 'SQLite', by: 'person' });
+    const signedOut = () => ({ status: 1, stdout: '', stderr: 'HTTP 401: Bad credentials (https://api.github.com/graphql)' });
+    const waits = [];
+    for (let i = 0; i < 4; i += 1) {
+      const r = flushOutbox({ run: signedOut, wait: (ms) => waits.push(ms) });
+      assert.deepEqual([r.sent, r.parked], [0, 0], `flush ${i + 1} parks nothing`);
+      assert.match(r.error, /HTTP 401/);
+    }
+    assert.deepEqual(waits, [], 'a sign-in failure gets no network retry');
+    assert.equal(readParked().length, 0, 'the parked entry is back in the queue');
+    assert.deepEqual(readOutbox().map((e) => [e.op, e.body ?? null]), [['comment', 'parked once'], ['comment', readOutbox()[1].body]], 'the parked entry goes first');
+    assert.equal(readOutbox()[0].parkedAt, undefined);
+    const gh = fakeGh();
+    const r = flushOutbox({ run: gh.run });
+    assert.deepEqual([r.sent, r.left, r.error], [2, 0, null], 'the next pass sends them');
+    assert.deepEqual(gh.verbs(), ['issue comment', 'issue comment']);
+  } finally { t.done(); }
+});
+
+test('another failure parks the entry after three flushes, as before', () => {
+  const t = setup();
+  try {
+    const home = machine(t.top, 'a');
+    t.as(home);
+    noteChange(t.root, 'add-tags');
+    const bad = (cmd, args) => (args[0] === 'label' ? { status: 1, stdout: '', stderr: 'HTTP 422: Validation Failed' } : { status: 0, stdout: '', stderr: '' });
+    const r = [1, 2, 3].map(() => flushOutbox({ run: bad, wait: () => {} }));
+    assert.deepEqual(r.map((x) => [x.parked, x.requeued]), [[0, 0], [0, 0], [1, 0]]);
   } finally { t.done(); }
 });
 

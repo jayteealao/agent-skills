@@ -9,7 +9,8 @@ Load this file from `SKILL.md` Step 3 after the runner returns.
 
 1a. **A degraded panel must announce itself.** When fewer providers returned than
    were requested, **lead the panel with the degradation**, do not bury it in a
-   trailing note:
+   trailing note. A bare fan-out requests the four known providers, so a bare
+   panel that returned fewer than four is degraded too:
 
    > **Panel of 1** — `<provider>` unavailable (auth): not logged in. Treat this as one
    > opinion, not a consensus.

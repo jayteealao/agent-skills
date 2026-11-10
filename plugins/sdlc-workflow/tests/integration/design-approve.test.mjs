@@ -11,11 +11,13 @@ import assert from 'node:assert/strict';
 
 import { appendAnswerEvent } from '../../lib/answers.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
+import { runDesign } from '../../lib/design-cli.mjs';
 import { CHECK_MOVES, checkBrowser, failureLines, runChecks } from '../../lib/design-check.mjs';
 import { approvalPicture, readChecks } from '../../lib/design-records.mjs';
 import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile, writeTokens } from '../../lib/design-surface.mjs';
 import { designGateRefusal, designSettled } from '../../lib/design-lane.mjs';
-import { frontmatterOfDoc } from '../../lib/records.mjs';
+import { listVersions } from '../../lib/design-versions.mjs';
+import { frontmatterOfDoc, writeDoc } from '../../lib/records.mjs';
 
 function project() {
   const top = mkdtempSync(join(tmpdir(), 'design-approve-'));
@@ -145,5 +147,98 @@ test('in a browser: missing values, a broken image, overlapping text, a script e
     const lines = failureLines(of('pay', 'token').filter((f) => /\.price/.test(f.message)));
     assert.equal(lines.length, 1);
     assert.match(lines[0], /^pay \(phone; default\): token: .* — move: colorize$/);
+  } finally { done(); }
+});
+
+const CONTRACT = '---\nschema: sdlc/v1\ntype: design-contract\nslug: w1\n---\n# Contract\n';
+const writeContract = (root) => writeFileSync(join(root, '.ai', 'workflows', 'w1', '02c-craft.md'), CONTRACT);
+
+test('a rewrite of the contract does not bring back an approve that was used', async () => {
+  const { root, done } = project();
+  try {
+    writeContract(root);
+    answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    assert.equal((await approveDesign(root, 'w1', { browser: null, now: new Date('2026-10-25T10:06:00Z') })).ok, true);
+    // The amend puts a new contract (record put replaces the whole frontmatter): it has no answered-at.
+    writeDoc(join(root, '.ai', 'workflows', 'w1'), '02c-craft.md', { frontmatter: { schema: 'sdlc/v1', type: 'design-contract', slug: 'w1' }, body: '# Contract\n' });
+    assert.equal(contractOf(root)['answered-at'], undefined);
+    const again = await approveDesign(root, 'w1', { browser: null, now: new Date('2026-10-26T09:00:00Z') });
+    assert.equal(again.ok, false);
+    assert.match(again.reason, /no new answer event/);
+    assert.equal(listVersions(root, 'w1').approved.length, 1);
+    answer(root, 'w1', 'Approve', '2026-10-26T10:00:00Z');
+    assert.equal((await approveDesign(root, 'w1', { browser: null, now: new Date('2026-10-26T10:01:00Z') })).ok, true, 'a new approve records the next approval');
+  } finally { done(); }
+});
+
+test('a capture that fails keeps the approval in the contract, and a rerun makes no second version', async () => {
+  const { root, done } = project();
+  try {
+    writeContract(root);
+    answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    // A browser whose start throws.
+    const r = await approveDesign(root, 'w1', { browser: { path: 42, kind: 'chromium' }, now: new Date('2026-10-25T10:06:00Z') });
+    assert.equal(r.ok, true, r.reason);
+    const c = contractOf(root);
+    assert.deepEqual([c['approval-commit'], c['answered-at']], [r.commit, '2026-10-25T10:05:00.000Z']);
+    assert.match(c['image-gate'], /^skipped:the approval pictures failed/);
+    assert.match((await approveDesign(root, 'w1', { browser: null })).reason, /no new answer event/);
+    assert.equal(listVersions(root, 'w1').approved.length, 1);
+    assert.equal(readManifest(root).screens.basket.approvals.length, 1);
+  } finally { done(); }
+});
+
+test('an approval that stopped part way is ended by the next run, with one commit and one version', async () => {
+  const { root, done } = project();
+  try {
+    writeContract(root);
+    answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    // The state of a run that stopped after it took the answer and before its commit.
+    writeFileSync(join(root, '.ai', 'workflows', 'w1', '.design-approval.json'), JSON.stringify({ answeredAt: '2026-10-25T10:05:00.000Z', answer: 'Approve', screens: ['basket'], at: '2026-10-25T10:06:00Z', slice: null, reason: null }));
+    const r = await approveDesign(root, 'w1', { browser: null });
+    assert.deepEqual([r.ok, r.resumed], [true, true], r.reason);
+    assert.equal(contractOf(root)['answered-at'], '2026-10-25T10:05:00.000Z');
+    assert.ok(!existsSync(join(root, '.ai', 'workflows', 'w1', '.design-approval.json')), 'the record of the steps goes when the approval ends');
+    assert.match((await approveDesign(root, 'w1', { browser: null })).reason, /no new answer event/);
+    assert.equal(listVersions(root, 'w1').approved.length, 1);
+    assert.equal(readManifest(root).screens.basket.approvals.length, 1);
+  } finally { done(); }
+});
+
+test('a page that the migration made from an old board is checked in one state, and no state is missing', async () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(screenFile(root, 'basket'), '<html><head><meta name="wf:screen" content="basket"><meta name="wf:migrated-from" content="w1/r2/boards/basket.html"></head><body>old board</body></html>');
+    const r = await runChecks(root, { browser: null });
+    assert.deepEqual(r.failures.filter((f) => f.check === 'states'), [], 'a migrated page needs no five states');
+    writeFileSync(screenFile(root, 'basket'), '<html><body><section data-state="default">x</section></body></html>');
+    assert.equal((await runChecks(root, { browser: null })).failures.filter((f) => f.check === 'states').length, 1, 'a page of the stage still needs them');
+  } finally { done(); }
+});
+
+test('design server url with a root prints the canvas URL of that repo', async () => {
+  const { root, done } = project();
+  try {
+    const lines = [];
+    assert.equal(await runDesign(['server', 'url', root], {}, (t) => lines.push(t)), 0);
+    assert.match(lines.join('\n'), /^http:\/\/127\.0\.0\.1:\d+\/r\/shop\/$/m);
+  } finally { done(); }
+});
+
+test('in a browser: a named color, a gradient and a custom property of the page are not tokens', { skip: browser ? false : 'no Chromium on this machine' }, async () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), '# Design\n\n## Colors\n\n| Role | Token | Value |\n|---|---|---|\n| accent | --accent | #1a73e8 |\n| text | --text | #111111 |\n');
+    writeTokens(root);
+    const page = readFileSync(screenFile(root, 'basket'), 'utf8')
+      .replace('</style>', '  .named { color: red; }\n  .fade { background-image: linear-gradient(#ff0000, #00ff00); }\n  .own { --mine: #f00; color: var(--mine); }\n  .fine { color: var(--accent); }\n</style>')
+      .replace('<h1>Basket</h1><p', '<h1>Basket</h1><p class="named">Named</p><p class="fade">Fade</p><p class="own">Own</p><p class="fine">Fine</p><p');
+    writeFileSync(screenFile(root, 'basket'), page);
+    const r = await runChecks(root, { keys: ['basket'] });
+    const token = r.failures.filter((f) => f.check === 'token').map((f) => f.message);
+    assert.ok(token.some((m) => /\.named/.test(m)), token.join('\n'));
+    assert.ok(token.some((m) => /\.fade/.test(m) && /background-image/.test(m)), token.join('\n'));
+    assert.ok(token.some((m) => /custom property --mine, which is not a token/.test(m)), token.join('\n'));
+    assert.ok(!token.some((m) => /\.fine/.test(m)), 'a token is fine');
   } finally { done(); }
 });

@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { migrateApply, migrationReport, removeWorktree, run } from '../../scripts/campaign.mjs';
+import { migrateApply, migrationReport, removeWorktree, run, untrackedLinks } from '../../scripts/campaign.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
 import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
@@ -204,6 +204,91 @@ test('delegate mode: the next packet starts while a built packet waits on its fi
     const done = run(['done', root, SRC, 'engine']);
     assert.equal(done.ok, true, JSON.stringify(done));
     assert.equal(git(root, 'rev-parse', `packets/${SRC}--engine`), engineEnd);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('status says what to ask now and what waits: no driver, a running driver, --end, a digest, an answered digest', () => {
+  const root = makeRepo();
+  const kinds = (list) => list.map((e) => [e.key, e.kind]);
+  const live = (slug) => writeFileSync(path.join(wf(root, slug), '.driver-journal.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), run: 'r1', seq: 1, event: 'agent-start', agent: 'plan:a' })}\n`);
+  const ended = (slug) => appendFileSync(path.join(wf(root, slug), '.driver-journal.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), run: 'r1', event: 'run-end', agent: 'main-session' })}\n`);
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP, 'try-out': 'yes' },
+      { key: 'api', title: 'Api', shape: 'intake', slug: 'demo-api', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it serves the engine', items: ['d-two'], goal: 'Serve it.', 'acceptance-criteria': ['It serves.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(run(['write', dir]).ok, true);
+
+    // Nothing waits.
+    let st = run(['status', root, SRC]);
+    assert.deepEqual([st.ask, st.askLater, st.then], [[], [], { fix: 'now', clear: 'now', running: null }]);
+
+    assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+    run(['land', root, SRC]);
+    assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+    addDecision(wf(root, 'demo-engine'), { kind: 'steer', key: 'run-decisions', question: 'q', answer: 'Take the recommended option and show me each one at the end' });
+    assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+    review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
+
+    // A built packet waits, and no driver runs: the questions wait for the next driver.
+    st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current.step], ['api', 'open']);
+    assert.deepEqual(st.ask, []);
+    assert.deepEqual(st.askLater.map((e) => [e.key, e.kind, e.why]), [['engine', 'fidelity', 'the driver of demo-api has not started']]);
+    assert.deepEqual(st.askLater[0].rows, [{ key: 'd-one', decision: 'Decision d-one.', verdict: 'narrowed', evidence: 'app.txt:1' }], 'a row carries the decision word for word');
+
+    // The driver of the next packet runs: ask now, and a fix waits for the run.
+    assert.equal(run(['open', root, SRC, 'api']).ok, true);
+    live('demo-api');
+    st = run(['status', root, SRC]);
+    assert.deepEqual(kinds(st.ask), [['engine', 'fidelity']]);
+    assert.deepEqual(st.askLater, []);
+    assert.deepEqual(st.then, { fix: 'after-run', clear: 'after-run', running: 'demo-api' });
+    ended('demo-api');
+
+    // The end of the call: everything open is asked.
+    st = run(['status', root, SRC, '--end']);
+    assert.deepEqual(kinds(st.ask), [['engine', 'fidelity']]);
+    assert.deepEqual(st.then, { fix: 'now', clear: 'now', running: null });
+
+    // A digest waits beside the try-out of the same packet.
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-one', answer: 'approved', question: 'fine' });
+    addDecision(wf(root, 'demo-engine'), { kind: 'answer', by: 'delegate', key: 'cache', question: 'Cache the result?', answer: 'yes, in memory', scope: { slice: 'core' }, stage: 'plan' });
+    st = run(['status', root, SRC]);
+    assert.deepEqual(st.askLater.map((e) => [e.key, e.kind]), [['engine', 'try-out'], ['engine', 'digest']]);
+    const tryOut = st.askLater[0];
+    assert.deepEqual([tryOut.title, tryOut.acceptance, tryOut.file], ['Engine', ['**AC-1** — It runs.'], `.ai/workflows/${SRC}/work/demo-engine.md`]);
+    const digest = st.askLater[1];
+    assert.deepEqual(digest.entries.map((e) => [e.key, e.answer, e.slice, e.stage]), [['cache', 'yes, in memory', 'core', 'plan']]);
+    st = run(['status', root, SRC, '--end']);
+    assert.deepEqual(kinds(st.ask), [['engine', 'try-out'], ['engine', 'digest']]);
+
+    // The fix run of the waiting packet: its own questions wait for its run, even at the end.
+    live('demo-engine');
+    st = run(['status', root, SRC, '--end']);
+    assert.deepEqual(st.ask, []);
+    assert.deepEqual(st.askLater.map((e) => [e.kind, e.why]), [['try-out', 'the run of demo-engine has not ended'], ['digest', 'the run of demo-engine has not ended']]);
+    ended('demo-engine');
+
+    // The answered digest leaves the list; a later delegate decision opens a new one.
+    const marked = run(['digest', root, SRC, 'engine', '--answer', 'keep them all']);
+    assert.deepEqual([marked.ok, marked.changed, marked.covered.length], [true, true, 1], JSON.stringify(marked));
+    assert.deepEqual(run(['digest', root, SRC, 'engine']).changed, false, 'a second mark changes nothing');
+    st = run(['status', root, SRC, '--end']);
+    assert.deepEqual(kinds(st.ask), [['engine', 'try-out']]);
+    addDecision(wf(root, 'demo-engine'), { kind: 'answer', by: 'delegate', key: 'retry', question: 'Retry?', answer: 'twice' });
+    st = run(['status', root, SRC, '--end']);
+    assert.deepEqual(st.ask.find((e) => e.kind === 'digest').entries.map((e) => e.key), ['retry']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('status asks the questions of the current packet now, with the waiting ones', () => {
+  const root = builtPacket(['d-one']);
+  try {
+    review(root, 'demo-engine', [['d-one', 'dropped', 'app.txt:1', '—']]);
+    const st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.step, st.ask.map((e) => [e.key, e.kind])], ['fidelity', [['engine', 'fidelity']]]);
+    assert.deepEqual(st.askLater, []);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -969,4 +1054,81 @@ test('a question left to the build waits in open-questions; status shows it, and
     assert.deepEqual(rec(root, 'demo-engine', '00-index.md')['open-questions'], []);
     assert.equal(run(['status', root, SRC]).current.questions, undefined);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// A built packet whose fidelity rows are honored: done is the next step.
+function readyPacket(extra = []) {
+  const root = makeRepo();
+  const dir = writeBoard(root, [
+    { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+    ...extra,
+  ], ['d-one', ...extra.flatMap((w) => w.items)]);
+  assert.equal(run(['write', dir]).ok, true);
+  assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+  run(['land', root, SRC]);
+  assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+  writeFileSync(path.join(root, 'app.txt'), 'v1 engine\n');
+  git(root, 'commit', '-qam', 'engine');
+  assert.equal(run(['built', root, SRC, 'engine']).ok, true);
+  review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
+  return root;
+}
+
+test('done waits while the checkout has changes outside .ai/, and a tracked .ai/ change is not one', () => {
+  const root = readyPacket();
+  try {
+    writeFileSync(path.join(root, 'scratch.txt'), 'work in progress\n');
+    const busy = run(['done', root, SRC, 'engine']);
+    assert.deepEqual([busy.ok, busy.busy, busy.dirty], [false, true, ['scratch.txt']], JSON.stringify(busy));
+    rmSync(path.join(root, 'scratch.txt'));
+    // A tracked file under .ai/ with a change: the first status line starts with a space.
+    mkdirSync(path.join(root, '.ai'), { recursive: true });
+    writeFileSync(path.join(root, '.ai', 'aaa-note.txt'), 'one\n');
+    git(root, 'add', '-f', '.ai/aaa-note.txt');
+    git(root, 'commit', '-qm', 'a tracked note');
+    writeFileSync(path.join(root, '.ai', 'aaa-note.txt'), 'two\n');
+    const done = run(['done', root, SRC, 'engine']);
+    assert.equal(done.ok, true, JSON.stringify(done));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('done waits while the driver of a later packet runs in the checkout', () => {
+  const root = readyPacket([{ key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP }]);
+  try {
+    assert.equal(run(['open', root, SRC, 'screen']).ok, true);
+    const journal = path.join(wf(root, 'demo-screen'), '.driver-journal.jsonl');
+    writeFileSync(journal, `${JSON.stringify({ at: new Date().toISOString(), run: 'r1', seq: 1, event: 'agent-start', agent: 'plan:a' })}\n`);
+    const busy = run(['done', root, SRC, 'engine']);
+    assert.deepEqual([busy.ok, busy.busy, busy.running], [false, true, 'demo-screen'], JSON.stringify(busy));
+    appendFileSync(journal, `${JSON.stringify({ at: new Date().toISOString(), run: 'r1', event: 'run-end', agent: 'main-session' })}\n`);
+    assert.equal(run(['done', root, SRC, 'engine']).ok, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the guarded remove takes away only the links that git does not track', () => {
+  const root = makeRepo('links ');
+  try {
+    const blob = execFileSync('git', ['-C', root, 'hash-object', '-w', '--stdin'], { input: 'target', encoding: 'utf8' }).trim();
+    git(root, 'update-index', '--add', '--cacheinfo', `120000,${blob},tracked-link`);
+    const links = [path.join(root, 'tracked-link'), path.join(root, 'node_modules')];
+    assert.deepEqual(untrackedLinks(root, links), [path.join(root, 'node_modules')]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('12.3: start stops before the one-commit step when a tracked .ai/ file has a change', () => {
+  const m = makeOldCampaign();
+  try {
+    writeFileSync(path.join(m.wtEng, '.ai', 'workflows', 'eng', 'tracked.md'), 'one\n');
+    git(m.wtEng, 'add', '-f', '.ai/workflows/eng/tracked.md');
+    git(m.wtEng, 'commit', '-qm', 'eng: a tracked record');
+    writeFileSync(path.join(m.wtEng, '.ai', 'workflows', 'eng', 'tracked.md'), 'two\n');
+    migratedList(m);
+    const before = git(m.wtEng, 'rev-list', '--count', 'HEAD');
+    const start = run(['start', m.root, SRC, 'eng']);
+    assert.equal(start.ok, false, JSON.stringify(start));
+    assert.deepEqual(start.unstaged, ['.ai/workflows/eng/tracked.md']);
+    assert.match(start.error, /git does not rebase a tree with changes/);
+    assert.equal(git(m.root, 'branch', '--list', `campaign/${SRC}/backup--eng`), '', 'no one-commit step ran');
+    assert.ok(Number(git(m.wtEng, 'rev-list', '--count', 'HEAD')) <= Number(before) + 1, 'at most the snapshot commit');
+  } finally { dropOldCampaign(m); }
 });

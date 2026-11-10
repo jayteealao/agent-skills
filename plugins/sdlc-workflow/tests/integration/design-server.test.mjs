@@ -62,7 +62,7 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
     assert.match((await raw(port, `/r/shop/at/${sha}/screens/basket.html`)).text, /wf:screen/);
     const page = await raw(port, '/b/shop/idea/');
     assert.equal(page.text, '<h1>Idea</h1>');
-    assert.equal(page.headers['content-security-policy'], 'sandbox allow-scripts', 'a brainstorm page runs with no origin');
+    assert.match(page.headers['content-security-policy'], /^sandbox allow-scripts; default-src 'none'/, 'a brainstorm page runs with no origin and fetches nothing');
 
     for (const path of ['/r/shop/s/..%2f..%2fsecret.txt', '/r/shop/s/%2e%2e/%2e%2e/secret.txt', '/r/nope/', '/r/shop/at/zzz/screens/basket.html', '/r/shop/at/abcdef1/..%2f..%2fsecret.txt']) {
       const r = await raw(port, path);
@@ -173,7 +173,13 @@ test('the audit routes start one run per repo and serve its report', async () =>
 });
 
 test('the tailnet addresses, the scheduled task and its doctor row', () => {
-  assert.deepEqual(tailnetAddresses({ eth: [{ family: 'IPv4', address: '192.168.1.4' }], ts: [{ family: 'IPv4', address: '100.101.7.9' }, { family: 'IPv6', address: 'fd7a::1' }], x: [{ family: 'IPv4', address: '100.200.1.1' }] }), ['100.101.7.9']);
+  // A carrier-grade NAT address of a modem is in the tailnet range: only Tailscale's own count.
+  const ifaces = { eth: [{ family: 'IPv4', address: '192.168.1.4' }], Tailscale: [{ family: 'IPv4', address: '100.101.7.9' }, { family: 'IPv6', address: 'fd7a::1' }], wwan0: [{ family: 'IPv4', address: '100.72.1.1' }], x: [{ family: 'IPv4', address: '100.200.1.1' }] };
+  const noBinary = () => ({ status: null, error: new Error('ENOENT') });
+  assert.deepEqual(tailnetAddresses(ifaces, { run: noBinary, config: {} }), ['100.101.7.9'], 'no binary: the interface named Tailscale');
+  assert.deepEqual(tailnetAddresses({ ...ifaces, utun3: [{ family: 'IPv4', address: '100.88.0.2' }] }, { run: () => ({ status: 0, stdout: '100.88.0.2\n' }), config: {} }), ['100.88.0.2'], 'the binary names the address');
+  assert.deepEqual(tailnetAddresses(ifaces, { run: () => ({ status: 0, stdout: '100.99.9.9\n' }), config: {} }), [], 'an address of the binary that no interface holds is not bound');
+  assert.deepEqual(tailnetAddresses(ifaces, { run: noBinary, config: { design: { hosts: ['100.72.1.1', '10.0.0.9'] } } }), ['100.72.1.1'], 'design.hosts names them, on this computer only');
   const args = taskCreateArgs({ node: 'C:\\node.exe', script: 'C:\\p\\design-server.mjs' });
   assert.deepEqual(args.slice(0, 6), ['/Create', '/F', '/TN', 'sdlc-design-server', '/SC', 'ONLOGON']);
   assert.equal(args.at(-1), '"C:\\node.exe" "C:\\p\\design-server.mjs"');

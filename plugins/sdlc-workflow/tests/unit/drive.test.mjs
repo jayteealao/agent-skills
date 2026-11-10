@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { boundedParallel, codexArgs, driveScript, fromStrict, readRun, strictSchema, usageOf } from '../../lib/drive.mjs';
+import { boundedParallel, codexArgs, driveArgs, driveScript, fromStrict, readRun, runCodex, strictSchema, usageOf } from '../../lib/drive.mjs';
+import { pidAlive } from '../../lib/proc.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -35,6 +36,26 @@ test('strictSchema closes every object, makes optional keys nullable, and fromSt
   assert.deepEqual(strict.properties.d.type, ['array', 'null']);
   assert.deepEqual(strict.properties.d.items.required, ['e']);
   assert.deepEqual(fromStrict({ a: 'v', b: null, c: '{"k":1}', d: [{ e: null }] }, s), { a: 'v', c: { k: 1 }, d: [{}] });
+});
+
+test('strictSchema gives an array with no item schema JSON-string items, and adds null once', () => {
+  const s = { type: 'object', required: ['r'], properties: { r: { type: 'array' }, o: { type: 'array' }, t: { type: ['string', 'null'] }, e: { enum: ['a', null] } } };
+  const strict = strictSchema(s);
+  assert.deepEqual(strict.properties.r, { type: 'array', items: { type: 'string', description: 'A JSON-encoded item.' } });
+  assert.deepEqual(strict.properties.o.type, ['array', 'null']);
+  assert.ok(strict.properties.o.items, 'an optional array has an item schema too');
+  assert.deepEqual(strict.properties.t.type, ['string', 'null']);
+  assert.deepEqual(strict.properties.e.enum, ['a', null]);
+  assert.deepEqual(fromStrict({ r: ['{"ac":"AC2"}', 'plain'], o: null, t: null, e: 'a' }, s), { r: [{ ac: 'AC2' }, 'plain'], e: 'a' });
+});
+
+test('driveArgs carries the review-findings mode only when it is set', () => {
+  const base = { projectRoot: '/r', referenceRoot: '/p', slug: 'demo', run: 'r1', staged: { models: {}, recordsRoot: '/r/.ai' } };
+  assert.equal(driveArgs(base).reviewFindings, undefined);
+  assert.equal(driveArgs({ ...base, reviewFindings: true }).reviewFindings, true);
+  const wf = readFileSync(path.join(pluginRoot, 'scripts', 'wf.mjs'), 'utf8');
+  assert.match(wf, /reviewFindings: Boolean\(opt\['review-findings'\]\)/);
+  assert.match(wf, /'review-findings'/);
 });
 
 test('codexArgs sends the prompt on stdin, the schema and the last message by file, and the sandbox', () => {
@@ -110,4 +131,17 @@ test('the yolo driver runs under driveScript on Codex and passes no Claude model
   assert.deepEqual(calls.map((c) => c.label), ['orient', 'run-end']);
   for (const c of calls) assert.ok(!c.args.includes('-m'), `${c.label} names no model on Codex`);
   assert.ok(calls[0].args.includes('model_reasoning_effort=medium'));
+});
+
+test('runCodex kills a call that outlives its time box and resolves with timedOut', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'drive-timeout-'));
+  const entry = { cmd: process.execPath, pre: ['-e', 'process.stdout.write(String(process.pid)); setTimeout(() => {}, 60000)'] };
+  const r = await runCodex({
+    entry, args: [], prompt: '', env: process.env, timeoutMs: 1500,
+    eventsFile: path.join(dir, 'events.jsonl'), errFile: path.join(dir, 'err.txt'),
+  });
+  assert.equal(r.timedOut, true);
+  const pid = Number(r.events);
+  assert.ok(pid > 0, 'the child printed its pid');
+  assert.equal(pidAlive(pid), false, 'the child is gone');
 });

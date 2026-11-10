@@ -4,7 +4,7 @@ export const meta = {
   phases: [
     { title: 'Orient', detail: 'the status of the loop and the agent ceiling' },
     { title: 'Loop', detail: 'trials on the trunk and on the branches of each round; round-open, round-close, the merge step and checkpoints when optimize.mjs names them' },
-    { title: 'Finish', detail: 'the squash, when the kept value reached the target' },
+    { title: 'Finish', detail: 'one commit for each kept change on the slug branch, when the kept value reached the target' },
   ],
 }
 
@@ -77,7 +77,7 @@ const PROPOSE_SCHEMA = {
   properties: {
     hypotheses: {
       type: 'array',
-      items: { type: 'object', required: ['text', 'expected', 'plan'], properties: { text: { type: 'string' }, expected: { type: 'string' }, plan: { type: 'string' }, idea: { type: 'string' } } },
+      items: { type: 'object', required: ['text', 'expected', 'plan'], properties: { text: { type: 'string' }, expected: { type: 'string' }, plan: { type: 'string' }, idea: { type: 'string' }, target: { type: 'string' }, family: { type: 'string' }, again: { type: 'string' } } },
     },
     prepared: { type: 'boolean' },
     lane: { type: 'string' },
@@ -157,9 +157,11 @@ function proposePrompt(n, width, on = null) {
     `allowed-paths and outside off-limits. Never propose a change to the metric command, the guard, the holdout, ` +
     `or their fixtures, and never special-case the inputs that the metric measures: a gain that only the metric ` +
     `sees is worthless. Prefer a simpler change at equal gain.\n` +
-    `5. CLAIM each hypothesis before you return it: run \`${cmd('idea-claim', `--on ${on || 'trunk'} --target "<the function or profile entry that the change targets>" --family "<a few words, for example memoize>"`)}\`. ` +
-    `When it refuses, choose another target; or, when you have a new reason to try that target again, add ` +
-    `--again "<the reason>". Put the id that it prints (idea.id) in the hypothesis as idea.\n` +
+    `5. Give each hypothesis its target (the function or profile entry that the change targets) and its family (a few ` +
+    `words, for example memoize); when the target was tried and you have a new reason to try it again, give the reason as again. ` +
+    `A lane holds one claim, so CLAIM only your first hypothesis, the one that runs now: run \`${cmd('idea-claim', `--on ${on || 'trunk'} --target "<target>" --family "<family>"`)}\`, ` +
+    `with --again "<the reason>" when you have one. When it refuses, choose another target. Put the id that it prints ` +
+    `(idea.id) in that hypothesis as idea. Do not claim the others: the loop claims each one just before its trial.\n` +
     `Return { hypotheses, lane, worktree } with lane and worktree copied from the digest.` + steering + heartbeat(`propose:${n}`, 'Loop')
 }
 
@@ -179,9 +181,30 @@ function editPrompt(n, h, lane) {
 
 const trialPre = (lane, h) => `First write the text ${JSON.stringify(h.text)} to the file ${laneFile(lane)} with the file-write tool (create the folder when absent). Then `
 
+// The proposer's text goes into a shell command in single quotes, where `$` and backticks do not
+// expand in bash or PowerShell. A `'` in the text becomes a typographic apostrophe.
+const shellText = (s) => `'${String(s).replace(/'/g, '’')}'`
+
+/**
+ * The next queued trunk hypothesis, with its claim taken now. A lane holds one claim, and it takes
+ * the claim just before each queued trial, after the trial before it settled its own idea. A refused
+ * claim drops that hypothesis, and the next one is tried; a hypothesis with no target runs with no idea.
+ */
+async function claimQueued(n, lane, queue) {
+  while (queue.length) {
+    const q = queue.shift()
+    if (!q.target) return q
+    const rest = `--on ${lane} --target ${shellText(q.target)}${q.family ? ` --family ${shellText(q.family)}` : ''}${q.again ? ` --again ${shellText(q.again)}` : ''}`
+    const c = await book('idea-claim', rest, `claim:${n}`, 'Loop')
+    if (c && c.ok !== false && c.idea && c.idea.id) return { ...q, idea: c.idea.id }
+    log(`trial ${n}: the claim of the queued hypothesis on ${q.target} was refused (${(c && c.error) || 'no answer'}); the next one is tried`)
+  }
+  return null
+}
+
 /** One trial: the bookkeeping agent writes the hypothesis file and runs `trial`. `on` names the lane in a round with branch worktrees. */
 async function runTrial(n, h, lane, on) {
-  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${JSON.stringify(h.expected)}` : ''}${h.idea ? ` --idea ${h.idea}` : ''}${h.apply ? ' --apply' : ''}`
+  const rest = `h${n}${on ? ` --on ${on}` : ''} --hypothesis-file "${laneFile(lane)}"${h.expected ? ` --expected ${shellText(h.expected)}` : ''}${h.idea ? ` --idea ${h.idea}` : ''}${h.apply ? ' --apply' : ''}`
   return await book('trial', rest, `trial:${n}`, 'Loop', h.prepared ? '' : trialPre(lane, h))
 }
 
@@ -392,8 +415,9 @@ while (st && st.state === 'running') {
     n = ++SEQ_T
     lane = next.on
     const onTrunk = !isBranchLane(lane)
-    // A queued trunk hypothesis is used only while the next trial stays on the trunk.
-    h = onTrunk && queue.length ? queue.shift() : null
+    // A queued trunk hypothesis is used only while the next trial stays on the trunk, and it is
+    // claimed just before its trial.
+    h = onTrunk && queue.length ? await claimQueued(n, 'trunk', queue) : null
     if (!h) {
       queue.length = 0
       const p = await propose(n, onTrunk ? width : 1, onTrunk ? null : lane)
@@ -429,14 +453,17 @@ let finish = null
 if (st && st.state === 'complete') {
   phase('Finish')
   if (st.next && st.next.action === 'ablate') {
-    // Each kept change is reverted alone and measured against the final code, before the squash.
+    // Each kept change is reverted alone and measured against the final code, before the commits of finish.
     const a = await book('ablate', '', 'ablate', 'Finish')
     const weak = ((a && a.ablation && a.ablation.changes) || []).filter(c => c.verdict === 'weak').length
     log(a.ok === false ? `ablate failed: ${a.error}; finish runs it again` : `ablation: ${weak} weak change(s) of ${((a.ablation && a.ablation.changes) || []).length}`)
   }
-  // --stash puts the person's uncommitted files aside for the squash and restores them byte for byte.
+  // --stash puts the person's uncommitted files aside for the commits of finish and restores them byte for byte.
   finish = await book('finish', '--stash', 'finish', 'Finish')
-  log(finish.ok === false ? `finish failed: ${finish.error}` : `finished: ${finish.commit || 'no commit'}; next /wf verify ${slug} optimize`)
+  const made = !finish.commit ? 'no commit'
+    : finish.history === 'one-commit' ? `one commit ${finish.commit} (${finish.reason})`
+      : `${(finish.commits || []).length} commit(s), one for each kept change, ending at ${finish.commit}`
+  log(finish.ok === false ? `finish failed: ${finish.error}` : `finished: ${made}; next /wf verify ${slug} optimize`)
 }
 const last = finish && finish.ok !== false ? null : await book('status', '', 'status', 'Finish')
 return {

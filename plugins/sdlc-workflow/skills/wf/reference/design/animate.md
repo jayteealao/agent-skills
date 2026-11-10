@@ -131,7 +131,7 @@ Need another curve? Take it from [easing.dev](https://easing.dev/) or [easings.c
 | Focal entrance on a Persuade or Experience surface (hero, scroll reveal) | 400–800 ms |
 | Marketing / explanatory | Can be longer |
 
-**Motion on an Operate or Read surface stays under 300 ms.** A 180 ms dropdown feels more responsive than a 400 ms one. A faster spinner makes a load feel faster at the same real time.
+**Motion on an Operate or Read surface stays under 300 ms**, except a drawer or a sheet (its travel is the whole height: up to 500 ms on `ease-drawer`) and a toast (see the note of its recipe). A 180 ms dropdown feels more responsive than a 400 ms one. A faster spinner makes a load feel faster at the same real time.
 
 **Asymmetric timing.** Slow the phase where the person decides; snap the phase where the system responds. A hold-to-delete fills over 2 s linear; its release returns in 200 ms ease-out. Symmetric timing on a press-and-release or a hold feels wrong.
 
@@ -224,7 +224,7 @@ Swap down a tier: a size change becomes scale; a position change becomes an offs
 
 **One inherited value must not drive one child's motion.** When a parent value that every child inherits drives the moving child, every child recalculates each frame, and the drag slows as content grows. Set the moving element's property directly.
 
-**Animated blur stays under 20 px**; 2–5 px is enough to soften a crossfade.
+**Animated blur stays under 20 px** on an Operate or Read surface; 2–5 px is enough to soften a crossfade. A Persuade or Experience focal moment may go above 20 px inside the frame budget (see Performance above).
 
 **A layer hint comes last.** Add it only after you see a one-pixel shift or measured dropped frames, only on the element that animates, never on a large container. Each layer costs GPU memory.
 

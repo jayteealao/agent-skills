@@ -100,7 +100,10 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 | accent | | | primary action, current selection |
 | border | | | dividers and control outlines |
 | focus | | | focus ring |
-| error, warning, success, info | | | state colors |
+| error | | | state color: error |
+| warning | | | state color: warning |
+| success | | | state color: success |
+| info | | | state color: info |
 
 ## Typography
 [Families with fallbacks. The hierarchy roles (display, headline, title, body, label) with weight, size and line height. The body measure.]
@@ -143,7 +146,7 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 [Concrete guardrails from the existing system or the person's choices. Start each with "Do" or "Don't".]
 ```
 
-Give each role of a scale its own row. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
+Give each role its own row: one name in the Role cell. `wf.mjs design tokens` skips a row with several names, and says so. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
 
 ## Step 3b: Write the `.ai/design/` record
 

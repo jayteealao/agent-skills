@@ -40,7 +40,32 @@ test('a HookBlock blocks', () => {
 test('a fail-closed stage blocks on an error and says why', () => {
   const res = runPlan(`[['gate', boom, { failClosed: true }], ['b', ok]]`);
   assert.equal(res.status, 2);
-  assert.match(res.stderr, /gate: the schema gate could not run \(schema file missing\)/);
+  assert.match(res.stderr, /gate: the hook failed \(schema file missing\), so it blocks this tool call/);
+  assert.match(res.stderr, /To see why: the error and its stack are in .*errors\.log/);
+  assert.match(res.stderr, /an agent does not change that setting itself/);
+});
+
+function runRaw(stdin, opts) {
+  const cwd = mkdtempSync(join(tmpdir(), 'hook-runner-'));
+  try {
+    const script = `import { runFolded } from ${JSON.stringify(RUNNER)};
+runFolded('t', () => [['a', () => {}]], ${opts});`;
+    return spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd, input: stdin, encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PLUGIN_INSTALL: '', SDLC_DISPATCH_ACTIVE: '', SDLC_HOME: join(cwd, '.sdlc-home') },
+    });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+test('a payload that cannot be read passes, unless the process fails closed on its input', () => {
+  assert.equal(runRaw('{not json', '{}').status, 0);
+  const res = runRaw('{not json', '{ inputFailClosed: true }');
+  assert.equal(res.status, 2);
+  assert.match(res.stderr, /t: the hook could not read the tool call \(invalid hook JSON on stdin/);
+  assert.match(res.stderr, /To see why/);
+  assert.equal(runRaw('', '{ inputFailClosed: true }').status, 0, 'an empty payload is not an error');
 });
 
 test('a fail-closed stage that passes does not block', () => {

@@ -20,6 +20,7 @@
  * Prints one JSON object.
  */
 
+import { isMainModule } from '../lib/proc.mjs';
 import { copyFileSync, existsSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -92,7 +93,7 @@ export function costRebuild({ root, apply = false, force = false, projectsDir })
   return { ...out, written: res.files.filter((x) => x.changed).length };
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const a = argsOf(process.argv.slice(2));
   if (!a.root) {

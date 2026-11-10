@@ -21,6 +21,7 @@
  * `major` ships 10.0.0 from the last next. A file another session changed is never staged.
  * The target version is kept in .release.json between runs; the last step deletes it.
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
@@ -228,12 +229,21 @@ function runGates(ctx, when = '') {
   }
 }
 
-function preflight(ctx, state) {
+/**
+ * HEAD is on the release branch and not behind its upstream. Every step that writes checks it,
+ * also on a resumed run: a resume while another branch is checked out must not commit, tag or
+ * push from there.
+ */
+function onReleaseBranch(ctx) {
   const head = ctx.mustGit('rev-parse', '--abbrev-ref', 'HEAD');
   if (head !== ctx.branch) stop(`HEAD is on ${head}: release only from ${ctx.branch}`);
   ctx.mustGit('fetch', '--quiet', ctx.remote, ctx.branch);
   const upstream = `${ctx.remote}/${ctx.branch}`;
   if (!ctx.git('merge-base', '--is-ancestor', upstream, 'HEAD').ok) stop(`HEAD is behind ${upstream}: merge it first`);
+}
+
+function preflight(ctx, state) {
+  onReleaseBranch(ctx);
   const dirty = OWNED.filter((rel) => existsSync(join(ctx.root, rel)) && !cleanPath(ctx, rel));
   if (dirty.length) stop(`the release writes these paths, and they have uncommitted changes: ${dirty.join(', ')}`);
   runGates(ctx);
@@ -267,9 +277,15 @@ function commitSubjects(ctx) {
 }
 
 function prepare(ctx, state) {
+  onReleaseBranch(ctx);
   const { root } = ctx;
-  const written = new Set();
-  const touch = (rel) => written.add(rel);
+  // Each path goes into the state as soon as it is written, so a prepare that stops halfway
+  // (a locked index, a generate error) and runs again still commits every path it wrote.
+  const touch = (rel) => {
+    if (state.paths?.includes(rel)) return;
+    state.paths = [...(state.paths ?? []), rel].sort();
+    ctx.save?.();
+  };
 
   // The CHANGELOG section.
   const changelog = join(root, 'CHANGELOG.md');
@@ -300,7 +316,8 @@ function prepare(ctx, state) {
   }
 
   // The shipped plans move to archived/, with their links.
-  const plans = shippedPlans(root, state.version, (rel) => cleanPath(ctx, rel) && ctx.git('ls-files', '--error-unmatch', '--', rel).ok);
+  // A plan that an earlier run of this release began to move counts as clean.
+  const plans = shippedPlans(root, state.version, (rel) => (state.paths?.includes(rel) || cleanPath(ctx, rel)) && ctx.git('ls-files', '--error-unmatch', '--', rel).ok);
   if (plans.length) {
     const moved = new Map(plans.map((rel) => [rel, `${PLANS_DIR}/archived/${posix.basename(rel)}`]));
     mkdirSync(join(root, PLANS_DIR, 'archived'), { recursive: true });
@@ -314,7 +331,7 @@ function prepare(ctx, state) {
       if (next === text) continue;
       if (!moved.has(rel) && !cleanPath(ctx, rel) && rel !== 'CHANGELOG.md') { ctx.log(`[release]   note: ${rel} links to an archived plan and has changes of its own; its links are not rewritten`); continue; }
       writeFileSync(join(root, rel), next);
-      if (!moved.has(rel)) touch(rel);
+      touch(rel);
     }
     for (const [from, to] of moved) {
       ctx.mustGit('mv', '--', from, to);
@@ -323,26 +340,52 @@ function prepare(ctx, state) {
       ctx.log(`[release]   archived ${from}`);
     }
   }
-  state.paths = [...new Set([...(state.paths ?? []), ...written])].sort();
+}
+
+/** The release commit between the upstream and HEAD, found by its exact subject, or null. */
+function releaseCommit(ctx, subject) {
+  const log = ctx.git('log', '--format=%H%x09%s', `${ctx.remote}/${ctx.branch}..HEAD`).out;
+  for (const line of log.split('\n')) {
+    const [sha, ...rest] = line.split('\t');
+    if (sha && rest.join('\t') === subject) return sha;
+  }
+  return null;
 }
 
 function publish(ctx, state) {
+  onReleaseBranch(ctx);
   const tag = `v${state.version}`;
   const subject = SUBJECT(state.version);
-  let commit = null;
-  if (ctx.git('log', '-1', '--format=%s').out === subject) commit = ctx.mustGit('rev-parse', 'HEAD');
-  else {
-    const paths = state.paths ?? [];
+  // After a push that failed, the release commit can sit under a merge of the upstream, or be rebased onto it.
+  let commit = releaseCommit(ctx, subject);
+  if (!commit) {
+    const paths = [...(state.paths ?? [])];
     if (!paths.length) stop('the release changed no path: nothing to commit');
     // A test can depend on the version, so the gates run again on the prepared tree before anything is committed or pushed.
     runGates(ctx, ` at v${state.version}`);
+    // BUILD_SHA names the parent of the release commit, also when a fix was committed after prepare.
+    state.sourceSha = ctx.mustGit('rev-parse', 'HEAD');
+    const buildSha = join(ctx.root, BUILD_SHA_FILE);
+    if (!existsSync(buildSha) || readFileSync(buildSha, 'utf8').trim() !== state.sourceSha) writeFileSync(buildSha, `${state.sourceSha}\n`);
+    if (!paths.includes(BUILD_SHA_FILE)) paths.push(BUILD_SHA_FILE);
+    state.paths = paths.sort();
     ctx.mustGit('add', '--', ...paths.filter((rel) => existsSync(join(ctx.root, rel))));
     ctx.mustGit('commit', '--quiet', '-m', subject, '--only', '--', ...paths);
     commit = ctx.mustGit('rev-parse', 'HEAD');
   }
+  // The tag is annotated and names the release commit. A local tag that the remote does not
+  // have yet is made again when it is lightweight or names another commit.
   const tagged = ctx.git('rev-parse', '--quiet', '--verify', `refs/tags/${tag}^{commit}`);
-  if (!tagged.ok) ctx.mustGit('tag', '-a', tag, '-m', subject, commit);
-  else if (tagged.out !== commit) stop(`the tag ${tag} names ${tagged.out.slice(0, 8)}, not the release commit ${commit.slice(0, 8)}`);
+  if (tagged.ok) {
+    const annotated = ctx.git('cat-file', '-t', `refs/tags/${tag}`).out === 'tag';
+    if (!annotated || tagged.out !== commit) {
+      const why = annotated ? `names ${tagged.out.slice(0, 8)}, not the release commit ${commit.slice(0, 8)}` : 'is a lightweight tag';
+      if (ctx.git('ls-remote', '--tags', ctx.remote, `refs/tags/${tag}`).out) stop(`the tag ${tag} ${why}, and ${ctx.remote} has it already`);
+      ctx.log(`[release]   the local tag ${tag} ${why}: it is made again`);
+      ctx.mustGit('tag', '-d', tag);
+    }
+  }
+  if (!ctx.git('rev-parse', '--quiet', '--verify', `refs/tags/${tag}`).ok) ctx.mustGit('tag', '-a', tag, '-m', subject, commit);
   ctx.mustGit('push', '--quiet', ctx.remote, `HEAD:refs/heads/${ctx.branch}`);
   ctx.mustGit('push', '--quiet', ctx.remote, `refs/tags/${tag}`);
   state.commit = commit;
@@ -447,6 +490,7 @@ export async function release(level, opts = {}) {
     };
   }
   const save = () => writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
+  ctx.save = save;
   ctx.log(`[release] ${state.from} → ${state.version} (${level})${state.done.length ? `, resuming after ${state.done.at(-1)}` : ''}`);
   for (const step of STEPS) {
     if (state.done.includes(step)) continue;
@@ -464,7 +508,7 @@ export async function release(level, opts = {}) {
   return state;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = isMainModule(import.meta.url);
 if (isMain) {
   const level = process.argv[2];
   release(level).catch((err) => {

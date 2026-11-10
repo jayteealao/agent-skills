@@ -8,7 +8,7 @@ In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>
 
 A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. Each workflow has one folder there, its wf-dir, which the dispatch and the brief print as `wf-dir:`. Every file of the workflow (records, evidence, notes, drafts) is in the wf-dir, so the steps of [_records.md](_records.md) do not change. Git ignores `.draft/`. The pre-write check refuses a write by a path in `.ai/workflows/` and names the wf-dir path. Give a test runner or a shell redirect the wf-dir path too. `wf.mjs` commits the records at each step and stage boundary, and pushes them in the background. The dispatch commits nothing and fetches nothing. A pull runs only when this computer claims the lease of a workflow, at `<wf> records sync <root>`, and at `<wf> msg list`.
 
-- When two or more computers use the records repo, one computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first. With one computer, there is no lease.
+- When two or more computers use the records repo, one computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first. With one computer, there is no lease. `<wf> records close <root> <slug>` does the same at the end of a session: it commits the workflow, pushes it and releases its lease.
 - Read the records of another project, but do not change them. To ask that project for something, post a message to it.
 
 ## Records lines
@@ -46,3 +46,4 @@ When the records repo is set up, each workflow has one issue in it, with a statu
 - Do not read the issues or the board for the state of a workflow. The records are the truth.
 - Do not write to the issues with `gh`. `wf.mjs` is the only writer. A message goes to the issue as a comment, and a comment of the person comes back as a message.
 - To see what is queued, what is parked and which issue belongs to each workflow, run `<wf> gh status <root>`. `<wf> records status <root>` gives the parked count.
+- An entry that fails three sends is parked, so the entries after it go out. A failure of the `gh` sign-in or a rate limit parks nothing: it stops the send and puts the parked entries back in the queue, and the next send after the person signs in, or after the limit resets, sends them.

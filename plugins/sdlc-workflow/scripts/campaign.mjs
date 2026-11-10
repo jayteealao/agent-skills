@@ -7,7 +7,9 @@
  *   check   <source-dir|board-file>                 the list check of section 4.2 (exit 1 on an error)
  *   write   <source-dir|board-file> [--dry-run]     write the packet files, then work/index.md last
  *   archive <source-dir|board-file> [--dry-run]     move the closed part of the board to archive/board.json
- *   status  <root> <source>                         the list, the current packet and its next step, the packets that need design
+ *   status  <root> <source> [--end]                 the list, the current packet and its next step, the packets that need design,
+ *                                                   the questions to ask now (ask), the ones that wait (askLater), and then
+ *   digest  <root> <source> <packet-key> [--answer a]  mark the delegate digest of a packet as answered
  *   open    <root> <source> <packet-key>             write the workflow folder of a build packet (section 5)
  *   land    <root> <source> [<packet-key>] [--trunk t]  put the walk's checkout on the list branch packets/<source>
  *                                                   (stacked PRs: on the layer of the packet, a gh-stack branch)
@@ -25,12 +27,13 @@
  * Every command prints one JSON object on stdout. The list has no ledger: its state is
  * the `state` field of each packet file (work/<packet-slug>.md).
  */
+import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
-import { DECISIONS_FILE, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
+import { DECISIONS_FILE, addDecision, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
@@ -46,8 +49,9 @@ import { linkedProject, realPathOf, recordsRel, workflowDir, workflowRel, workfl
 import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
+import { STALE_FLOOR_MS, parseJsonLines } from '../lib/live-events.mjs';
 
-const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
+const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|digest|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const sourceDir = workflowDir;
@@ -76,9 +80,14 @@ function dump(data) {
   return stringify(data);
 }
 
-function git(cwd, args) {
+/**
+ * One git command. `raw` keeps the leading spaces of stdout, which carry meaning in
+ * `git status --porcelain` (` M path`); only the trailing newlines go.
+ */
+function git(cwd, args, { raw = false } = {}) {
   const r = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-  return { status: r.status, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? '').trim() };
+  const out = r.stdout ?? '';
+  return { status: r.status, stdout: raw ? out.replace(/[\r\n]+$/, '') : out.trim(), stderr: (r.stderr ?? '').trim() };
 }
 
 const commitOf = (cwd, ref) => {
@@ -127,7 +136,7 @@ function trunkRef(root, trunk) {
 
 /** Files that git sees as changed in a checkout, outside `.ai/`. */
 function dirtyOutsideAi(cwd) {
-  const r = git(cwd, ['status', '--porcelain']);
+  const r = git(cwd, ['status', '--porcelain'], { raw: true });
   if (r.status !== 0) return null;
   return r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '')).filter((p) => !posix(p).startsWith('.ai/'));
 }
@@ -135,10 +144,6 @@ function dirtyOutsideAi(cwd) {
 const gh = (root, args) => defaultRun('gh', args, { cwd: root });
 /** The PR shape of the walk, from the ship plan: `single` (one PR for the list) or `stacked`. */
 const shapeOf = (root) => prShapeOf(readShipPlan(root));
-
-function configOf(root) {
-  return readJson(join(root, '.ai', 'sdlc-config.json')) ?? {};
-}
 
 function appendHistory(dir, text, stage = 'campaign') {
   mkdirSync(dir, { recursive: true });
@@ -332,7 +337,7 @@ function nextStep(root, src, packet) {
   }
   // built. A fix slice that is not built yet sends the packet back to the driver (6.1 step 13).
   const unbuilt = openSlices(root, slug);
-  if (unbuilt.length) return { step: 'yolo', reason: `the slice(s) ${unbuilt.join(', ')} are not complete: run campaign.mjs reopen, then the driver` };
+  if (unbuilt.length) return { step: 'yolo', reason: `the slice(s) ${unbuilt.join(', ')} are not complete: run the driver again` };
   const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
   if (!fid.table) return { step: 'fidelity', reason: '07-review.md has no ## Decision Fidelity table: run the review again' };
   if (fid.missing.length) return { step: 'fidelity', reason: `the ## Decision Fidelity table has no row for ${fid.missing.join(', ')}: run the review again`, missing: fid.missing };
@@ -351,6 +356,88 @@ function canWait(root, packet, step) {
   return runDelegatedIn(wfDir(root, packet['packet-slug']));
 }
 
+// ---------------------------------------------------------------- the questions of the walk, and when to ask them
+
+/** The key of the approval entry that marks the delegate digest of a packet as answered, up to its own id. */
+export const DIGEST_KEY = 'delegate-digest';
+const idNum = (id) => Number(String(id ?? '').replace(/^D-/, '')) || 0;
+
+/**
+ * The delegate decisions of a workflow that the person has not seen in a digest: each live entry
+ * `by: delegate` written after the newest live `delegate-digest` approval. A reversal supersedes
+ * its delegate entry, so it leaves the digest.
+ */
+export function openDigest(dir) {
+  const list = decisionsOf(dir);
+  const live = (e) => !e['superseded-by'];
+  const seen = list.filter((e) => live(e) && e.kind === 'approval' && e.key === DIGEST_KEY).reduce((m, e) => Math.max(m, idNum(e.id)), 0);
+  return list.filter((e) => live(e) && e.by === 'delegate' && idNum(e.id) > seen).map((e) => ({
+    id: e.id, key: e.key ?? null, question: e.question ?? null, answer: e.answer, slice: e.scope?.slice ?? null, stage: e.stage ?? null,
+  }));
+}
+
+/** True when the workflow of a packet is shipped or closed: its digest is no longer a question of the walk. */
+function shippedOrClosed(root, slug) {
+  const index = recordFm(wfDir(root, slug), INDEX_NAME);
+  if (!index) return false;
+  return ['complete', 'closed'].includes(String(index.status ?? '')) || (index.progress && typeof index.progress === 'object' && index.progress.ship === 'complete');
+}
+
+const KIND_ORDER = ['fidelity', 'try-out', 'digest'];
+
+/**
+ * The questions of the person, split into `ask` (ask them now, in one call of the question tool)
+ * and `askLater` (each with its `why`), and `then`: when a fix or a clear of an answer runs.
+ * Now is: a driver runs in this checkout, the walk itself stops on a question of the current
+ * packet, or the call ends (`--end`). The questions of a packet whose own run has not ended wait.
+ */
+export function walkQuestions(root, packets, current, waiting, { end = false } = {}) {
+  const running = runningDriver(root, packets);
+  const byKey = new Map(packets.map((p) => [p.key, p]));
+  const entries = [];
+  const personEntry = (p, step) => {
+    const base = { key: p.key, slug: p['packet-slug'] };
+    if (step.step === 'fidelity' && Array.isArray(step.rows) && step.rows.length && !step.reason) {
+      const carried = new Map((p['carried-decisions'] ?? []).map((d) => [String(d.key), d.text ?? null]));
+      return { ...base, kind: 'fidelity', rows: step.rows.map((r) => ({ key: r.key, decision: carried.get(String(r.key)) ?? null, verdict: r.verdict, evidence: r.evidence })) };
+    }
+    if (step.step === 'try-out') {
+      let text = '';
+      try { text = readFileSync(p.path, 'utf8'); } catch { text = ''; }
+      return { ...base, kind: 'try-out', title: p.title ?? null, 'ux-impact': p['ux-impact'] ?? null, acceptance: sectionList(text, 'Acceptance criteria'), file: posix(relative(root, p.path)) };
+    }
+    return null;
+  };
+  const own = current ? personEntry(current.packet, current.step) : null;
+  if (own) entries.push(own);
+  for (const w of waiting) {
+    const e = byKey.get(w.key) && personEntry(byKey.get(w.key), w);
+    if (e) entries.push(e);
+  }
+  for (const p of packets) {
+    if (!BUILD_FORMS.includes(p.form) || !['built', 'done'].includes(p.state)) continue;
+    if (shippedOrClosed(root, p['packet-slug'])) continue;
+    const open = openDigest(wfDir(root, p['packet-slug']));
+    if (open.length) entries.push({ key: p.key, slug: p['packet-slug'], kind: 'digest', entries: open });
+  }
+  const orderOf = (key) => byKey.get(key)?.order ?? 1e9;
+  entries.sort((a, b) => (orderOf(a.key) - orderOf(b.key)) || (KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)));
+  const now = end || Boolean(running) || Boolean(own);
+  const notStarted = current && ['open', 'slice', 'yolo'].includes(current.step.step);
+  const later = notStarted
+    ? `the driver of ${current.packet['packet-slug']} has not started`
+    : 'no driver runs: ask when the next driver runs, or at the end of the call';
+  const ask = [];
+  const askLater = [];
+  for (const e of entries) {
+    if (running && e.slug === running) askLater.push({ ...e, why: `the run of ${running} has not ended` });
+    else if (now) ask.push(e);
+    else askLater.push({ ...e, why: later });
+  }
+  const when = running ? 'after-run' : 'now';
+  return { ask, askLater, then: { fix: when, clear: when, running } };
+}
+
 function routeOf(src, packet) {
   const slug = packet['packet-slug'];
   switch (packet.form) {
@@ -362,7 +449,7 @@ function routeOf(src, packet) {
   }
 }
 
-function statusCmd(root, src) {
+function statusCmd(root, src, f = {}) {
   const dir = sourceDir(root, src);
   if (!existsSync(dir)) return { ok: false, error: `no source folder ${workflowRel(src)}` };
   const { index, packets } = readList(root, src);
@@ -403,6 +490,7 @@ function statusCmd(root, src) {
       return why ? { key: p.key, slug: p['packet-slug'], reason: why } : null;
     })
     .filter(Boolean);
+  const { ask, askLater, then } = walkQuestions(root, packets, current, waiting, { end: Boolean(f.end) });
   return {
     ok: true,
     source: src,
@@ -411,9 +499,30 @@ function statusCmd(root, src) {
     packets: rows,
     current: current ? { key: current.packet.key, slug: current.packet['packet-slug'], state: current.packet.state, ...current.step } : null,
     ...(waiting.length ? { waiting } : {}),
+    ask,
+    askLater,
+    then,
     needDesign,
     finished: !current,
   };
+}
+
+/**
+ * Mark the delegate digest of a packet as answered (step 10): one `delegate-digest` approval in
+ * the store of the packet. Record each reversal with `decide add --by person` first. A later
+ * delegate entry, of a fix run, opens a new digest.
+ */
+function digestCmd(root, src, [key], f) {
+  const { packet } = packetOf(root, src, key);
+  const dir = wfDir(root, packet['packet-slug']);
+  const open = openDigest(dir);
+  if (!open.length) return { ok: true, key: packet.key, slug: packet['packet-slug'], changed: false, reason: 'no delegate decision waits for the person' };
+  const answer = String(f.answer ?? '').trim() || 'None, keep them all';
+  const { entry } = addDecision(dir, {
+    kind: 'approval', key: DIGEST_KEY, answer, by: 'person', stage: 'campaign',
+    question: String(f.question ?? '').trim() || 'Reverse any of these?',
+  });
+  return { ok: true, key: packet.key, slug: packet['packet-slug'], changed: true, decision: entry.id, covered: open.map((e) => e.id) };
 }
 
 // ---------------------------------------------------------------- open (section 5)
@@ -821,6 +930,10 @@ function landMigrated(root, src, packet) {
     }
   }
   if (needsRebase) {
+    // The snapshot leaves tracked .ai/ changes in the tree, and git refuses to rebase a dirty tree:
+    // stop before the one-commit step, so nothing changes.
+    const unstaged = git(wt, ['diff', '--name-only']).stdout.split(/\r?\n/).filter(Boolean);
+    if (unstaged.length) return { ok: false, unstaged: unstaged.slice(0, 20), error: `${unstaged.length} tracked file(s) in ${wt} have uncommitted changes (${unstaged.slice(0, 3).join(', ')}), and git does not rebase a tree with changes. Ask the person to commit or stash them in ${wt}, then start again.` };
     const ahead = Number(git(wt, ['rev-list', '--count', `${waveBase}..HEAD`]).stdout || 0);
     if (ahead > 1) {
       // One commit, so the rebase can stop on a conflict once, not once per commit. The old commits stay on a backup branch.
@@ -839,7 +952,10 @@ function landMigrated(root, src, packet) {
     }
     const r = git(wt, ['rebase', '--onto', list, waveBase]);
     if (r.status !== 0) {
+      // A conflict leaves unmerged files; any other stop is a refusal.
+      const unmerged = git(wt, ['diff', '--name-only', '--diff-filter=U']).stdout.split(/\r?\n/).filter(Boolean);
       git(wt, ['rebase', '--abort']);
+      if (!unmerged.length) return { ok: false, refused: 'rebase', error: `git refused the rebase of ${branch} onto ${list}, with no conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
       return { ok: false, conflict: 'rebase', error: `the rebase of ${branch} onto ${list} stopped on a conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
     }
     steps.push({ rebased: true });
@@ -893,13 +1009,46 @@ function builtCmd(root, src, [key], f = {}) {
   return { ok: true, key: packet.key, state: 'built', ...(endAt ? { endBranch: endAt } : {}), publish: publish(root, src, trunkOf(root, f), f) };
 }
 
-/** 6.1 step 13: a fix slice was added to a built packet, so the packet is open again until the driver builds it. */
+/**
+ * Open a built packet again, until the driver builds it once more. The walk does not use it: a
+ * repair form, for a built packet that gets new work by hand.
+ */
 function reopenCmd(root, src, [key]) {
   const { packet } = packetOf(root, src, key);
   if (packet.state === 'open') return { ok: true, key: packet.key, state: 'open', changed: false };
   if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; only a built packet opens again` };
   setPacketState(packet, 'open');
   return { ok: true, key: packet.key, state: 'open', changed: true };
+}
+
+/**
+ * The packet slug of a later open build packet whose driver journal shows a run that has not
+ * ended and wrote within the liveness floor, or null.
+ */
+function liveLaterDriver(root, packets, packet) {
+  for (const p of packets) {
+    if ((p.order ?? 0) <= (packet.order ?? 0) || !BUILD_FORMS.includes(p.form) || p.state !== 'open') continue;
+    if (driverLive(root, p['packet-slug'])) return p['packet-slug'];
+  }
+  return null;
+}
+
+/** True when the driver journal of a workflow shows a run that has not ended and wrote within the liveness floor. */
+function driverLive(root, slug) {
+  const file = join(wfDir(root, slug), '.driver-journal.jsonl');
+  let text;
+  let mtimeMs;
+  try { text = readFileSync(file, 'utf8'); mtimeMs = statSync(file).mtimeMs; } catch { return false; }
+  const last = parseJsonLines(text).lines.at(-1);
+  return Boolean(last) && last.event !== 'run-end' && Date.now() - mtimeMs < STALE_FLOOR_MS;
+}
+
+/** The slug of the build packet whose driver runs in this checkout now, or null: the next run of the walk, or a fix run. */
+function runningDriver(root, packets) {
+  for (const p of packets) {
+    if (BUILD_FORMS.includes(p.form) && ['open', 'built'].includes(p.state) && driverLive(root, p['packet-slug'])) return p['packet-slug'];
+  }
+  return null;
 }
 
 function doneCmd(root, src, [key], f) {
@@ -914,6 +1063,12 @@ function doneCmd(root, src, [key], f) {
   if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
   if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: run wf.mjs decide add ${root} ${slug} --kind try-out --key try-out --answer works` };
   requireWalkBranch(root, src, packet);
+  // The merge and the branch moves of done need a still checkout: a later packet's driver that
+  // still runs edits and commits in it.
+  const live = liveLaterDriver(root, packets, packet);
+  if (live) return { ok: false, busy: true, running: live, error: `the driver of ${live} still runs in this checkout: run done after its run ends` };
+  const dirty = dirtyOutsideAi(root);
+  if (dirty?.length) return { ok: false, busy: true, dirty: dirty.slice(0, 20), error: `${dirty.length} uncommitted change(s) outside .ai/ in the checkout: run done after the running driver ends, or commit them` };
   const trunk = trunkOf(root, f);
   if (shapeOf(root) === 'stacked') {
     // The layer is the end branch. gh stack sync rebases the stack onto the trunk and pushes it
@@ -1106,8 +1261,8 @@ export function removeWorktree(root, src, path, { unitKey = null, allowIgnored =
     if (pending.length) return { ok: false, path, error: `${pending.length} record file(s) in the worktree exist nowhere else; the records sync did not bring them home. Ask the person.`, pending: pending.slice(0, 20) };
   }
   if (!allowIgnored) {
-    const st = git(path, ['status', '--porcelain', '--ignored=matching']);
-    const risk = ignoredAtRisk(st.stdout, configOf(root)?.campaign?.isolation?.['build-dirs'] ?? REMOVABLE_IGNORED);
+    const st = git(path, ['status', '--porcelain', '--ignored=matching'], { raw: true });
+    const risk = ignoredAtRisk(st.stdout, REMOVABLE_IGNORED);
     if (risk.length) {
       return {
         ok: false, path, ignoredAtRisk: true, ignored: risk.slice(0, 20),
@@ -1118,10 +1273,19 @@ export function removeWorktree(root, src, path, { unitKey = null, allowIgnored =
   // CAUTION (12.7): remove each link as a link first, so no delete follows it into its target.
   const { links, complete } = linksIn(path, linkLimit);
   if (!complete) return { ok: false, path, error: `the worktree has more than ${linkLimit} links; a link after the limit could take the remove into its target. Ask the person.` };
-  for (const l of links) removeLink(l);
+  // A tracked link stays: deleting it makes the worktree dirty, and git then refuses the remove.
+  // git removes a tracked link as a link.
+  const own = untrackedLinks(path, links);
+  for (const l of own) removeLink(l);
   const r = git(root, ['worktree', 'remove', path]);
-  if (r.status !== 0) return { ok: false, path, linksRemoved: links.length, error: `git refused to remove ${path}: ${r.stderr}. Ask the person; do not force.` };
-  return { ok: true, path, removed: true, linksRemoved: links.length };
+  if (r.status !== 0) return { ok: false, path, linksRemoved: own.length, removedLinks: own.map((l) => posix(relative(path, l))), error: `git refused to remove ${path}: ${r.stderr}. These links were removed first: ${own.map((l) => posix(relative(path, l))).join(', ') || 'none'}. Ask the person; do not force.` };
+  return { ok: true, path, removed: true, linksRemoved: own.length };
+}
+
+/** The links (absolute paths) that git does not track in the worktree `wt`. Exported for the tests. */
+export function untrackedLinks(wt, links) {
+  const tracked = new Set(git(wt, ['ls-files', '-s', '-z']).stdout.split('\0').filter((l) => l.startsWith('120000 ')).map((l) => posix(l.slice(l.indexOf('\t') + 1))));
+  return links.filter((l) => !tracked.has(posix(relative(wt, l))));
 }
 
 function removeWorktreeCmd(root, src, [path], f) {
@@ -1490,7 +1654,7 @@ function migrateCmd(root, src, [phase], f) {
 // ---------------------------------------------------------------- main
 
 function flags(args) {
-  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored', 'no-push']);
+  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored', 'no-push', 'end']);
   const pos = [];
   const f = {};
   for (let i = 0; i < args.length; i++) {
@@ -1544,7 +1708,8 @@ function dispatchCmd(cmd, pos, f) {
   if (!rootArg || !second) return null;
   const root = resolve(rootArg);
   switch (cmd) {
-    case 'status': return statusCmd(root, second);
+    case 'status': return statusCmd(root, second, f);
+    case 'digest': return digestCmd(root, second, rest, f);
     case 'open': return openCmd(root, second, rest, f);
     case 'land': return landCmd(root, second, rest, f);
     case 'start': return startCmd(root, second, rest, f);
@@ -1577,6 +1742,6 @@ export function main(argv = process.argv.slice(2)) {
   return out.ok ? 0 : 1;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   process.exitCode = main();
 }

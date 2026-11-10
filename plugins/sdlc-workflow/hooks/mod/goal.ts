@@ -3,7 +3,8 @@
  * `turn.complete` hook.
  *
  * On Claude Code the model cannot type the built-in `/goal`. `goal.mjs arm` writes
- * `.ai/workflows/<slug>/goal/arm.json` with the command and `state: pending`. When
+ * `.ai/run/<slug>/goal-arm.json` with the command and `state: pending`: a run file of this
+ * machine, in the project also when its records live in a linked records clone. When
  * the turn of `/wf loop goal <slug>` ends, the mod reads that request and puts the
  * command into the prompt box. Where the surface draws its own prompt box (the
  * Desktop app), the fill is refused and the mod submits the command as the
@@ -53,13 +54,16 @@ function parentOf(path: string): string | null {
 }
 
 /**
- * The nearest directory at or above `cwd` that holds `.ai/workflows`, or
- * null when none does within 12 levels.
+ * The nearest directory at or above `cwd` that holds `.ai/sdlc-config.json`, `.ai/run` or
+ * `.ai/workflows` (a linked project has no local `.ai/workflows`), or null when none does
+ * within 12 levels.
  */
 export async function findProjectRoot(cwd: string, reader: Reader): Promise<string | null> {
   let dir: string | null = cwd
   for (let depth = 0; dir !== null && depth < 12; depth += 1) {
-    if (await reader.exists(joinPath(dir, '.ai', 'workflows'))) return dir
+    for (const mark of ['sdlc-config.json', 'run', 'workflows']) {
+      if (await reader.exists(joinPath(dir, '.ai', mark))) return dir
+    }
     const parent = parentOf(dir)
     if (parent === null || parent === dir) return null
     dir = parent
@@ -80,7 +84,7 @@ export function goalSlugOf(text: string): string | null {
 }
 
 export function armRequestPathOf(root: string, slug: string): string {
-  return joinPath(root, '.ai', 'workflows', slug, 'goal', 'arm.json')
+  return joinPath(root, '.ai', 'run', slug, 'goal-arm.json')
 }
 
 /**

@@ -6,7 +6,8 @@
 // seed-memory, pre-write-validate, post-write-verify, campaign …) — to cut
 // approval-prompt fatigue. A script is the plugin's when it is a direct child
 // of <plugin root>/hooks/, <plugin root>/scripts/ or
-// <plugin root>/skills/<skill>/scripts/. Everything else gets NO OPINION (silent
+// <plugin root>/skills/<skill>/scripts/; the release and version-stamp scripts are
+// left out. Everything else gets NO OPINION (silent
 // exit 0), which leaves the normal approval flow untouched; this hook never
 // denies. Every auto-allow is logged to ${PLUGIN_DATA}/permission-auto-allow.log,
 // so each one can be audited.
@@ -21,12 +22,33 @@ import { emitPermissionRequestDecision, parseHookArgs, readEvent, resolveLayout 
  * (`;` `&` `|`), a redirection, a substitution, a second line, or a bare `(`, which
  * PowerShell evaluates as a subexpression (`(…)`, `@(…)`). Single quotes stop all
  * expansion; inside double quotes `$` and a backtick still expand, so they count.
+ *
+ * One scan from left to right keeps the quote state, so an apostrophe inside double
+ * quotes is text and never pairs with a later single quote. A quote that does not
+ * close counts, and so does anything whose quoting differs between bash and
+ * PowerShell: a backslash before a quote, bash's `$'…'`, and the typographic quotes
+ * that PowerShell reads as quotes.
  */
 export function hasShellOperator(command) {
   const s = String(command);
-  for (const m of s.matchAll(/"([^"]*)"/g)) if (/[$`]/.test(m[1])) return true;
-  const bare = s.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
-  return /[;&|<>`\n\r(]/.test(bare);
+  if (/[\u2018\u2019\u201A\u201B\u201C\u201D\u201E]/.test(s)) return true;
+  let quote = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote === "'") {
+      if (c === "'") quote = null;
+    } else if (quote === '"') {
+      if (c === '"') quote = null;
+      else if (c === '$' || c === '`' || (c === '\\' && s[i + 1] === '"')) return true;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+    } else if (/[;&|<>`\n\r(]/.test(c)) {
+      return true;
+    } else if ((c === '\\' && /['"]/.test(s[i + 1] ?? '')) || (c === '$' && s[i + 1] === "'")) {
+      return true;
+    }
+  }
+  return quote !== null;
 }
 
 /**
@@ -53,9 +75,14 @@ function splitCommand(s) {
 
 const PLUGIN_SCRIPT = /^(hooks\/[^/]+|scripts\/[^/]+|skills\/[^/]+\/scripts\/[^/]+)\.mjs$/;
 
+// Scripts that publish a release or rewrite the version carriers. They always go
+// through the normal approval prompt.
+const NEVER_AUTO_ALLOWED = new Set(['scripts/release.mjs', 'scripts/stamp-version.mjs']);
+
 /**
  * True only for `node <script>.mjs [...]` where the script resolves to a direct
- * child of hooks/, scripts/ or skills/<skill>/scripts/ under the plugin root.
+ * child of hooks/, scripts/ or skills/<skill>/scripts/ under the plugin root, and
+ * is not one of the scripts that publish or rewrite versions.
  * Deliberately narrow: no shell operators in the node token, no deeper path.
  */
 export function isAllowedRuntimeInvocation(argv, pluginRoot) {
@@ -67,7 +94,9 @@ export function isAllowedRuntimeInvocation(argv, pluginRoot) {
   const norm = normalize(script);
   if (!isAbsolute(script) && !norm.includes('/')) return false;
   const root = normalize(pluginRoot) + '/';
-  return norm.startsWith(root) && PLUGIN_SCRIPT.test(norm.slice(root.length));
+  if (!norm.startsWith(root)) return false;
+  const rel = norm.slice(root.length);
+  return PLUGIN_SCRIPT.test(rel) && !NEVER_AUTO_ALLOWED.has(rel);
 }
 
 function normalize(p) {

@@ -26,7 +26,9 @@ commit, tag or push.
 1. **preflight.** HEAD is on `master` and is not behind `origin/master`. The
    paths that the release writes have no uncommitted change. Every gate
    passes: the core tests (`test:core`), the generated files, `lint:drift`, `verify:versions`,
-   `verify:neutrality`, `verify:surface` and `verify:docs`. The last run of
+   `verify:neutrality`, `verify:surface`, `verify:docs` and the pi package
+   check (`node pi/scripts/check.mjs`: the manifest, the pins and the version,
+   and the upstream tool contracts when `npm install` ran in `pi/`). The last run of
    `.github/workflows/sdlc-gates.yml` on `master` is green (`gh run list`).
 2. **prepare.** The `## [Unreleased]` CHANGELOG section becomes
    `## [X.Y.Z] - <date>`. With no Unreleased text, the commit subjects since
@@ -47,7 +49,11 @@ commit, tag or push.
 5. **install.** The command updates the plugin on each host of this machine
    that has it: `claude plugin marketplace update`, `claude plugin update` for
    each scope (a local scope runs from its project folder), and
-   `codex plugin marketplace upgrade`. Then doctor must report OK. When a
+   `codex plugin marketplace upgrade`. For pi, which loads the package in
+   place, it runs `npm install` in each folder that holds the pi package, so
+   the pinned packages match. Then doctor must report OK, and the smoke flow
+   (`scripts/smoke-hosts.mjs`: a `status` and an intake in a fixture repo) must
+   pass on each host whose CLI is on the PATH. When a
    design server runs, the command stops it and starts it on the same port
    from the installed copy, so each canvas gets the released code. A failed
    restart is logged and does not stop the release.
@@ -82,6 +88,13 @@ prerelease of the coming major, on `master`, pinned by its SHA. One
 - Tags are annotated. `git push --follow-tags` does not push a lightweight tag.
 - The hooks and scripts run from the source. There is no build output to
   commit and no dependency to install.
+- Two mod checks are manual, outside the release and CI. `npm run test:mod`
+  runs the mod tests through the `claude` CLI (`claude plugin test .`), which
+  the CI runner does not have. `npm run typecheck:mod` needs `tsc`, which the
+  plugin does not install (`npx --yes -p typescript@5.8.3 tsc -p hooks/mod/tsconfig.json`
+  runs it), and the declarations in `.claude/types/claude-code.d.ts`, which
+  Claude Code writes (`/plugin-types`) and git ignores, so a CI checkout cannot
+  typecheck the mod. Run both before a release that changes `hooks/mod/`.
 
 ## The check
 

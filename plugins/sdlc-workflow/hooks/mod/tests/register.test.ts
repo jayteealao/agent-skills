@@ -5,7 +5,7 @@ import type { Engine, MockClock } from 'claude-code/testing'
 tier('user')
 
 const SESSION = { surface: 'terminal', isInteractive: true, cwd: '/work' } as const
-const ARM = '/work/.ai/workflows/alpha/goal/arm.json'
+const ARM = '/work/.ai/run/alpha/goal-arm.json'
 const REQUEST = JSON.stringify({ slug: 'alpha', host: 'claude-code', arming: 1, condition: 'The goal is met only when the check passes.', command: '/goal The goal is met only when the check passes.', requestedAt: '2026-10-24T10:00:00Z', state: 'pending' })
 
 type World = {
@@ -21,12 +21,12 @@ type World = {
 // The Desktop hand-over (`no_composer`, then a submit) is an engine answer no hook can give;
 // tests/unit/mod/goal-arm.harness.mjs covers `armHowOf` for it.
 function seat(on: On, fill: { isFilled: boolean } = { isFilled: true }): World {
-  const tree: Record<string, string> = { '/work/.ai/workflows/alpha/00-index.md': '---\nslug: alpha\n---\n', [ARM]: REQUEST }
+  const tree: Record<string, string> = { '/work/.ai/sdlc-config.json': '{}', [ARM]: REQUEST }
   const world: World = { filled: [], submitted: [], toasts: [], logged: [], written: new Map(), clock: null as unknown as MockClock }
   // The engine resolves a path against the process's working directory before
   // a hook sees it: on Windows "/work" arrives as "C:\work". Strip the drive.
   const normal = (path: string) => path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/+$/, '')
-  const dirs = new Set(['/work', '/work/.ai', '/work/.ai/workflows', '/work/.ai/workflows/alpha', '/work/.ai/workflows/alpha/goal'])
+  const dirs = new Set(['/work', '/work/.ai', '/work/.ai/run', '/work/.ai/run/alpha'])
   world.clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('fs.exists', ($, e) => ({ value: dirs.has(normal(e.path)) || normal(e.path) in tree || world.written.has(normal(e.path)) }))

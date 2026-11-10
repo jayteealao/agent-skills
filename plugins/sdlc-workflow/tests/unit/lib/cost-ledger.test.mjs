@@ -282,7 +282,8 @@ test('collectTurn (codex): the turn is the delta of cumulative totals; fields st
     assert.deepEqual(t1.main, { model: 'gpt-5.6', fields: 'codex', input_tokens: 100, cached_input_tokens: 10, cache_write_input_tokens: 0, output_tokens: 5, reasoning_output_tokens: 0 });
     appendFileSync(f, tc(3));
     const t2 = collectTurn({ transcriptPath: f, cursor });
-    assert.deepEqual(usageColumns(t2.main), { input: 200, output: 10, cacheRead: 20, cacheWrite: 0 }, 'exact delta between the two Stops');
+    // Codex counts the cached tokens inside input_tokens: the input column is the uncached part.
+    assert.deepEqual(usageColumns(t2.main), { input: 180, output: 10, cacheRead: 20, cacheWrite: 0 }, 'exact delta between the two Stops');
     assert.equal(t2.attributed, null, 'no artifact write → no slug');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -454,4 +455,22 @@ test('a month ledger over the part size goes on in parts, and the readers read e
   assert.deepEqual(costFiles(dir).map((f) => basename(f)), ['cost-2026-10.jsonl', 'cost-2026-10.2.jsonl', 'cost-2026-10.3.jsonl']);
   assert.equal(readCostRows(dir).length, n);
   assert.match(appendCostRow(dir, { slug: 's', ts: '2026-10-06T00:00:00Z' }), /cost-2026-10\.3\.jsonl$/);
+});
+
+test('keyFromArtifactName: a design review has no slice; with the roster a review dimension is not part of the slice', () => {
+  assert.deepEqual(keyFromArtifactName('07-design-critique.md'), { key: 'review', slice: null });
+  assert.deepEqual(keyFromArtifactName('07-design-audit.md'), { key: 'review', slice: null });
+  assert.deepEqual(keyFromArtifactName('07-review-api-security.md', { slices: ['api', 'public-api'] }), { key: 'review', slice: 'api' });
+  assert.deepEqual(keyFromArtifactName('07-review-public-api-security.md', { slices: ['api', 'public-api'] }), { key: 'review', slice: 'public-api' });
+  assert.deepEqual(keyFromArtifactName('04-plan-cli-json.md'), { key: 'plan', slice: 'cli-json' });
+});
+
+test('workflowPathParts: . and .. name no workflow folder', () => {
+  assert.equal(workflowPathParts('/r/.ai/workflows/../04-plan-x.md'), null);
+  assert.equal(workflowPathParts('/r/.ai/workflows/./04-plan-x.md'), null);
+});
+
+test('usageColumns: a codex row shows its uncached input; a claude row is as it is', () => {
+  assert.deepEqual(usageColumns({ input_tokens: 1000, cached_input_tokens: 900, output_tokens: 5 }), { input: 100, output: 5, cacheRead: 900, cacheWrite: 0 });
+  assert.deepEqual(usageColumns({ input_tokens: 10, cache_read_input_tokens: 900, output_tokens: 5 }), { input: 10, output: 5, cacheRead: 900, cacheWrite: 0 });
 });

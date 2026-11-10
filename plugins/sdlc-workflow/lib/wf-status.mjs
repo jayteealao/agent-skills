@@ -1,15 +1,13 @@
 // Where a workflow stands, as data: the list of workflows, the status of one workflow, and the
 // brief block of `status --brief`. The CLI (scripts/wf.mjs) prints these; the library
 // (lib/wf-api.mjs) returns them from `wf.status.summary()`.
-import { join } from 'node:path';
 import { aggregateCost, readCostRows } from './cost-ledger.mjs';
 import { openDeferrals } from './deferrals.mjs';
 import { driveClass } from './drive-class.mjs';
 import { progressOf, readDriverOutcome } from './progress.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
-import { workflowsRoot as wfRoot } from './records-root.mjs';
-import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES } from './stage-done.mjs';
-import { gitSteps, lastSlice, whereLine, whereOf } from './steps.mjs';
+import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageFileOf } from './stage-done.mjs';
+import { gitSteps, lastSlice, planDocOf, whereLine, whereOf } from './steps.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from './workflow-index.mjs';
 
 // A record by its old file name, in either layout.
@@ -49,7 +47,8 @@ function summaryOf(w, now) {
     updatedAt: fm['updated-at'] ?? null,
     stale: Number.isFinite(updated) && now - updated > STALE_DAYS * 86_400_000,
     openQuestions: count(fm['open-questions']),
-    next: fm['recommended-next-invocation'] ?? fm['next-invocation'] ?? null,
+    // One precedence everywhere: the next step of the stages first, then the readiness route.
+    next: fm['next-invocation'] ?? fm['recommended-next-invocation'] ?? null,
     progress: w.workflowDir ? progressOf(w.workflowDir, w.directorySlug ?? w.slug, { now }) : null,
   };
 }
@@ -67,8 +66,9 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   const dir = w.workflowDir;
   const summary = summaryOf(w, now);
   const small = summary.workflowType === 'small';
+  const perSlice = Object.fromEntries(SLICE_STAGES);
   const stages = Object.entries(small ? SMALL_STAGE_FILES : STAGE_FILES).map(([stage, names]) => {
-    const files = names(summary.selectedSlice);
+    const files = !small && perSlice[stage] && summary.selectedSlice ? [stageFileOf(dir, perSlice[stage], summary.selectedSlice)] : names(summary.selectedSlice);
     const fms = files.map((f) => frontmatterOf(dir, f));
     const at = fms.findLastIndex(Boolean);
     const fm = at < 0 ? null : fms[at];
@@ -80,16 +80,16 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
     const name = typeof s === 'string' ? s : s?.slug;
     const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
-    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, `${prefix}-${name}.md`)?.status ?? null;
+    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, stageFileOf(dir, prefix, name))?.status ?? null;
     // The verify result and its convergence, so a reader needs no loop over the verify records.
-    const v = frontmatterOf(dir, `06-verify-${name}.md`);
+    const v = frontmatterOf(dir, stageFileOf(dir, '06-verify', name));
     row.result = v?.result ?? null;
     row.convergence = v?.convergence ?? null;
     return row;
   });
   const current = small ? '01-small.md' : OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
   const currentFm = current ? frontmatterOf(dir, current) : null;
-  return {
+  const out = {
     workflow: summary,
     stages,
     slices,
@@ -102,6 +102,10 @@ export async function statusOf(root, slug = null, now = Date.now()) {
       routes: currentFm?.['recommended-routes'] ?? [],
     },
   };
+  // The folder of the workflow, for the brief: the index slug can differ from the folder name.
+  // It is not part of the printed status.
+  Object.defineProperty(out, 'dir', { value: dir, enumerable: false });
+  return out;
 }
 
 const BRIEF_MAX = 2000;
@@ -116,11 +120,11 @@ export const few = (list, n = 5) => `${list.slice(0, n).join(', ')}${list.length
 export async function statusBrief(root, slug) {
   const s = await statusOf(root, slug);
   if (s.error) return { error: s.error };
-  const dir = join(wfRoot(root), s.workflow.slug);
+  const dir = s.dir;
   const index = frontmatterOf(dir, INDEX_NAME) ?? {};
   const slice = s.workflow.selectedSlice ?? lastSlice(dir);
   let step = null;
-  if (slice && frontmatterOf(dir, `04-plan-${slice}.md`)) {
+  if (slice && planDocOf(dir, slice)) {
     const w = whereOf(dir, slice, stepGit(root, dir));
     step = { slice, done: w.done.length, total: w.total, next: w.next?.n ?? null, current: w.current?.n ?? null, complete: w.complete, line: whereLine(w) };
   }

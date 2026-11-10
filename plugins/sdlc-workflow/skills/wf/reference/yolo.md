@@ -37,7 +37,7 @@ It is diagnostic, never a gate: a failed append never changes what a stage does.
 
 **Intake modes — what `yolo` drives.** Orientation classifies the slug by `00-index.md`'s `workflow-type`. The lead record, the acceptance source and the record names of each `workflow-type` are in [_source-modes.md](_source-modes.md). Six classes:
 
-- **Build lifecycles** — standard/feature and the compressed change-modes `fix` / `hotfix` / `refactor`. Their planning half (`01-<mode>` → `02-shape` → `03-slice` → `04-plan`) is written; `yolo` drives from `implement` onward. Orientation resolves the mode-named intake lead (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`, all `type: intake`) from `workflow-type`, not the literal `01-intake.md`. Readiness requires the intake lead + `02-shape.md` + `03-slice.md`; a single-scope workflow with no `03-slice.md` is driven as a synthesized roster of one.
+- **Build lifecycles** — standard/feature and the compressed change-modes `fix` / `hotfix` / `refactor`. A standard workflow is driven from `plan` onward. A change mode has written its `04-plan.md` (`01-<mode>` → `02-shape` → `03-slice` → `04-plan`), so the driver starts at `implement`. Orientation resolves the mode-named intake lead (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`, all `type: intake`) from `workflow-type`, not the literal `01-intake.md`. Readiness requires the intake lead + `02-shape.md` + `03-slice.md`; a single-scope workflow with no `03-slice.md` is driven as a synthesized roster of one.
 - **RCA (forwarded, single-scope)** — `workflow-type: rca`. `01-rca.md` (`type: rca`) is its intake and synthesizes `02-shape.md`; `yolo` drives from `plan` onward over a one-entry roster synthesized from `selected-slice` (each stage reference has a "forwarded mode" path). `recommended-next` sets the build flavor: `hotfix` → review defaults to the `security` rubric; `plan`/`fix` → standard review. **`recommended-next: human-triage`** is a genuine product stop: orientation blocks and routes you to read `01-rca.md` and choose the route by hand. `yolo` never mints a branch or changes the base for an RCA.
 - **Self-managed build** — `update-deps`. `yolo` wraps `intake/update-deps.md` Steps 6–9 in one subagent, with the Step 6 scope gate resolved by the policy table; the subagent self-authors `05-implement.md` + `06-verify.md` in tier order (P0 security → P1 major+migration → P2 safe batch); then `yolo` runs the slug-wide review. Readiness requires `01-update-deps.md` (`type: intake`), `02-shape.md`, `03-slice.md`, and `04-plan.md`, all `status: complete`; else orientation blocks with `route='/wf intake update-deps <slug>'` (or `/wf plan <slug>` when `04-plan` is the only gap).
 - **Optimize loop** — `workflow-type: optimize`. `yolo` runs no trial. Until the loop's finish writes `05-implement-optimize.md`, orientation blocks with `route='/wf loop optimize <slug>'`. Then `yolo` drives verify and review of the slice `optimize`.
@@ -111,11 +111,11 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 
 # Step 0 — Resolve arguments
 
-1. **Slug + mode.** First positional after `yolo` = slug. Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. `yolo` owns its own slug resolution (the dispatcher excludes it from fuzzy-suggest). If the slug is empty, infer it from `.ai/workflows/INDEX.md`: exactly one `status: active` workflow → use it (slug mode); otherwise STOP with: *"`/wf yolo` needs a slug. Active workflows: `<list>`. Run `/wf yolo <slug>`."*
+1. **Slug + mode.** First positional after `yolo` = slug. Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. The first argument is the slug (the dispatcher refuses a call without one).
 2. **Existence check.** Confirm that `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
 3. **Resolve the absolute paths the Workflow script needs.** The script and its stage subagents inherit no working directory:
    - `projectRoot` = the absolute root of the repo of the workflow: the `"<projectRoot>"` of the dispatch call (the nearest ancestor that holds `.ai/`, capped at the git toplevel).
-   - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
+   - `pluginRoot` = `$CLAUDE_PLUGIN_ROOT` when set; else the folder three levels above this reference file (`…/skills/wf/reference` → the plugin root). Check that `<pluginRoot>/scripts/wf.mjs` exists before you use it.
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
 4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run it at every launch and resume (on Codex, `wf.mjs drive` runs it):
 
@@ -124,7 +124,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    ```
 
    The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`, `models`, `recordsRoot` and `delegate`. Pass `models` and `recordsRoot` on in the args of Step 1, and `delegate: true` when `delegate` is true. A `CAUTION` on stderr means a hot-patched copy was overwritten.
-5. **Ask how the run settles your decisions.** Ask only when the store of the workflow holds no `run-decisions` steer. When a later launch of `/wf yolo` asks, put the answer of the last launch first. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
+5. **Ask how the run settles your decisions.** Ask only when the store of the workflow holds no `run-decisions` steer. When another workflow of this project holds a `run-decisions` steer, put that answer first. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
 
    ```
    node "<pluginRoot>/scripts/wf.mjs" decide add "<projectRoot>" <slug> --kind steer --key run-decisions --question "<the question>" --answer "<the answer>"
@@ -147,7 +147,8 @@ Workflow({
     models:        { … },           // the `models` block of .ai/sdlc-config.json
     recordsRoot:   "<recordsRoot>",  // from Step 0.4: the folder of the records
     answered:      [ … ],           // a relaunch after questions only — see Questions
-    delegate:      true             // delegate mode only — omit otherwise
+    delegate:      true,            // delegate mode only — omit otherwise
+    reviewFindings: true            // the review-findings mode of the campaign walk only (campaign.md step 13) — omit otherwise
     // reviewFanout (on): omit unless the person asks
   }
 })
@@ -160,14 +161,16 @@ The workflow runs in the background. Right after this call, start the watch and 
 **Codex.** Run one shell command, with a timeout that covers the run (several hours for a slug):
 
 ```
-node "<pluginRoot>/scripts/wf.mjs" drive "<projectRoot>" <slug> [<slice>] [--answered <answers.json>] [--delegate]
+node "<pluginRoot>/scripts/wf.mjs" drive "<projectRoot>" <slug> [<slice>] [--answered <answers.json>] [--delegate] [--review-findings]
 ```
+
+`--review-findings` is the `reviewFindings: true` of the other hosts: the campaign walk passes it when the slug-wide review fixes only the findings that the walk put in the ledger (campaign.md step 13).
 
 The command stages the driver itself (Step 0.4), runs each agent as one `codex exec` call in the workspace-write sandbox, and prints the `outcome` as JSON. `--answered` names a JSON file with the `answered` array. While it runs, `wf.mjs progress show "<projectRoot>" <slug>` says where the run stands. When the command stops before its end, run it again with `--resume <run>`: the agents whose prompts did not change return their recorded results.
 
 # Resuming — one sanctioned path
 
-- **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
+- **The opt-in.** A human typing `/wf yolo <slug>`, or a granted consent per SKILL.md Step 0 item 4, is the opt-in that authorizes an unattended run.
 - **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 call of your host with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
 
@@ -208,7 +211,7 @@ A stage that reaches an intent-bearing decision can hold it and continue with wo
 
 1. Write the delegate decisions in chat as a numbered list, one line each: the key, what the run chose, and its effect.
 2. Ask one question with the host question tool: "Reverse any of these?". The options are "None, keep them all (Recommended)" and, for up to 3 of the decisions with the largest effect, "Reverse <n>". The free-text answer can name other numbers.
-3. For each reversal, run `decide add --by person` with the same key: it supersedes the delegate entry. Then relaunch with the reversals in `answered`.
+3. For each reversal, run `decide add --by person` with the same key and the same `--slice` as the entry it reverses (`decide list` shows both): it supersedes the delegate entry. Then relaunch with the reversals in `answered`.
 
 # Hot-patching the driver mid-run
 

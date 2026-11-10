@@ -133,6 +133,9 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
   const scope = reviewScope ?? scopeRule(index['review-scope'], slices.some((s) => artifact(`07-review-${s}.md`) !== null), artifact('07-review.md') !== null);
   const file = (num, stage, s) => (suffixed ? `${num}-${stage}-${s}.md` : `${num}-${stage}.md`);
   const rows = [];
+  // A `deferred` slice is built and verified except for the runtime evidence of an open deferral
+  // (lib/stage-done.mjs): the walk goes past its verify, and ship blocks on the deferral.
+  const deferredSlices = new Set((roster ?? []).filter((x) => str(x?.status) === 'deferred').map((x) => str(x.slug)));
   for (const s of slices) {
     const row = { slice: s, verify: null, review: null };
     rows.push(row);
@@ -144,7 +147,7 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
     }
     if (!impl) return out('not-met', `slice ${s} is not implemented`, { stage: optimize ? 'optimize' : 'implement', slice: s }, { suffixed, slices: rows });
     if (awaiting(impl)) return out('blocked', `the implement of slice ${s} is awaiting input`, null, { suffixed, slices: rows });
-    const v = verifyGate(artifact(file('06', 'verify', s)));
+    const v = deferredSlices.has(s) ? { state: 'deferred' } : verifyGate(artifact(file('06', 'verify', s)));
     row.verify = v.state;
     if (v.state === 'paused') return out('blocked', `slice ${s}: ${v.reason}`, null, { suffixed, slices: rows });
     if (v.state === 'open') return out('not-met', `slice ${s}: ${v.reason}`, { stage: 'verify', slice: s }, { suffixed, slices: rows });
@@ -160,7 +163,11 @@ export function judgeLifecycle({ index, roster, artifact, design = { needed: fal
     if (r.state === 'paused') return out('blocked', `slug-wide ${r.reason}`, null, { suffixed, slices: rows });
     if (r.state === 'open') return out('not-met', `slug-wide ${r.reason}`, { stage: 'review', slice: null }, { suffixed, slices: rows });
   }
-  return out('met', `every slice is clean (${slices.length}); the next step is /wf ship <slug>`, null, { suffixed, slices: rows });
+  const deferred = slices.filter((x) => deferredSlices.has(x));
+  if (deferred.length) {
+    return out('met', `every slice is clean (${slices.length}) but ${deferred.join(', ')} waits on a runtime-evidence deferral; ship blocks on it until it clears`, null, { suffixed, slices: rows, deferred });
+  }
+  return out('met', `every slice is clean (${slices.length}); the next step is /wf ship <slug>`, null, { suffixed, slices: rows, deferred });
 }
 
 /** The `slices:` roster of 03-slice.md, or null when the file is absent. */

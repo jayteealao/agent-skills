@@ -28,6 +28,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-discover.md` | artifact | on-resume | |
 | `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/discover/_research.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -47,6 +49,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
    - If the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discover**.
 2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `discover-<short-hypothesis>`.
+2b. **Provenance check:** apply `intake/_intake-provenance.md`: detect an inherited analysis decision (a trailing `from <source-slug>` token, implied when this discovery runs from a work packet; see [../intake.md](../intake.md), "List work packet"), consume the matching Consume-table row, and link back (record `origin-<type>` here, and `origin-packet` when the source is a work packet). No match → continue; that is the common case.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.

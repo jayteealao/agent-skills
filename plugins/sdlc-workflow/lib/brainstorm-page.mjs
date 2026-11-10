@@ -75,7 +75,8 @@ export function pageProblems(html, dir) {
   if (!/<title>[^<]+<\/title>/i.test(html)) problems.push('the page has no <title>');
   if (!/<meta\s+name=["']viewport["']/i.test(html)) problems.push('the page has no viewport meta, so a phone shows it at desktop width');
   if (!/prefers-color-scheme\s*:\s*dark/i.test(html)) problems.push('the page has no dark scheme (prefers-color-scheme: dark)');
-  if (/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)\s*=\s*["']?(https?:)?\/\//i.test(html) || /@import\s+url\(\s*["']?(https?:)?\/\//i.test(html)) {
+  if (/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)\s*=\s*["']?(https?:)?\/\//i.test(html) || /@import\s+url\(\s*["']?(https?:)?\/\//i.test(html)
+    || /@import\s+["']/i.test(html) || /url\(\s*["']?(https?:)?\/\//i.test(html) || /\bsrcset\s*=/i.test(html) || /\bfetch\s*\(/.test(html)) {
     problems.push('the page loads a file from the network; it must hold everything inline');
   }
   const v = VERSION_RE.exec(html)?.[1];

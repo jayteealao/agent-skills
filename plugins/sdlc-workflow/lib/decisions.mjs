@@ -17,9 +17,11 @@
 //   source         where the entry came from (a stage, or the file an import read)
 //   rewrote        the records that the answer changed, for an answer that changes the build
 //   superseded-by  the id of the entry that replaced this one, or null
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { writeFileAtomic } from './atomic-write.mjs';
+import { withFileLock } from './file-lock.mjs';
 import { parse, stringify } from './yaml.mjs';
 
 export const DECISIONS_FILE = 'decisions.yaml';
@@ -43,12 +45,14 @@ export function readDecisions(slugDir) {
 /** The text of a store that holds a list. */
 export const storeText = (list) => `${stringify({ schema: 'sdlc/v1', type: 'decisions', decisions: list })}\n`;
 
-/** Write the store whole, through a temporary file. */
+/** Write the store whole, through a temp file of this write. */
 export function writeDecisions(slugDir, list) {
-  const file = join(slugDir, DECISIONS_FILE);
-  writeFileSync(`${file}.tmp`, storeText(list));
-  renameSync(`${file}.tmp`, file);
+  writeFileAtomic(join(slugDir, DECISIONS_FILE), storeText(list));
 }
+
+// A read-modify-write of the store holds the lock of the store file, so two writers lose no
+// entry and never mint one id twice.
+const withStoreLock = (slugDir, fn) => withFileLock(join(slugDir, DECISIONS_FILE), fn);
 
 function cleanScope(scope = {}) {
   const s = {};
@@ -111,12 +115,27 @@ export function kindOfKey(key) {
 export function answeredBy(list, key, query = {}) {
   if (!key) return null;
   const live = liveDecisions(list, query);
-  const hits = live.filter((e) => e.key === key);
-  if (hits.length) return hits[hits.length - 1];
+  const hit = mostSpecific(live.filter((e) => e.key === key), query);
+  if (hit) return hit;
   const kind = kindOfKey(key);
   if (!kind) return null;
-  const standing = live.filter((e) => e.kind === 'steer' && e.key === `${STANDING_PREFIX}${kind}`);
-  return standing.length ? standing[standing.length - 1] : null;
+  return mostSpecific(live.filter((e) => e.kind === 'steer' && e.key === `${STANDING_PREFIX}${kind}`), query);
+}
+
+/**
+ * The entry of `hits` (all live, all in the scope of `query`) that fits the query best: one of
+ * exactly the query scope; else, for a query that names a slice, one of that slice over one with
+ * no slice; for a query with no slice, one with no slice over one of a slice. A tie goes to the
+ * entry written last.
+ */
+function mostSpecific(hits, query) {
+  if (!hits.length) return null;
+  const q = cleanScope(query);
+  const exact = hits.filter((e) => sameScope(e.scope, q));
+  if (exact.length) return exact.at(-1);
+  const sliceOfEntry = (e) => cleanScope(e.scope).slice ?? null;
+  const better = hits.filter((e) => sliceOfEntry(e) === (q.slice ?? null));
+  return (better.length ? better : hits).at(-1);
 }
 
 /** Drop the questions that a live entry already answers. Returns { ask, answered }. */
@@ -177,11 +196,13 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
  * po-answers.md or steer.md imports them first, so the store holds every earlier answer.
  */
 export function addDecision(slugDir, input, { now = nowIso() } = {}) {
-  if (!existsSync(join(slugDir, DECISIONS_FILE)) && hasLegacy(slugDir)) importLegacy(slugDir, { now });
-  const list = readDecisions(slugDir);
-  const r = appendEntry(list, input, { now });
-  writeDecisions(slugDir, list);
-  return r;
+  return withStoreLock(slugDir, () => {
+    if (!existsSync(join(slugDir, DECISIONS_FILE)) && hasLegacy(slugDir)) importLegacyLocked(slugDir, { now });
+    const list = readDecisions(slugDir);
+    const r = appendEntry(list, input, { now });
+    writeDecisions(slugDir, list);
+    return r;
+  });
 }
 
 // ---------------------------------------------------------------- import
@@ -269,16 +290,21 @@ export const hasLegacy = (slugDir) => existsSync(join(slugDir, LEGACY_ANSWERS)) 
  * (the same source, key and answer) is not added again, so an import can run twice.
  * The old files stay. Returns { added, skipped }.
  */
-export function importLegacy(slugDir, { now = nowIso() } = {}) {
+export function importLegacy(slugDir, opts = {}) {
+  return withStoreLock(slugDir, () => importLegacyLocked(slugDir, opts));
+}
+
+function importLegacyLocked(slugDir, { now = nowIso() } = {}) {
   const list = readDecisions(slugDir);
   const sig = (e) => `${e.source}\u0000${e.key}\u0000${e.answer}`;
+  // Only the entries that the store held before this import count as known: a line that repeats
+  // an earlier line of the same file (a verdict that flips back) is kept, in its order.
   const have = new Set(list.map(sig));
   let added = 0;
   let skipped = 0;
   for (const input of legacyInputs(slugDir)) {
     if (have.has(sig({ key: null, ...input }))) { skipped += 1; continue; }
-    const { entry } = appendEntry(list, input, { now });
-    have.add(sig(entry));
+    appendEntry(list, input, { now });
     added += 1;
   }
   if (added) writeDecisions(slugDir, list);
@@ -307,10 +333,21 @@ export const RUN_DECISIONS_QUESTION = 'When the run reaches a decision of yours,
 /** The 2 answers of the run-decisions question. */
 export const RUN_DECISIONS_OPTIONS = ['Stop and wait for me', 'Take the recommended option and show me each one at the end'];
 
-/** True when a run-decisions answer says: take the recommended option, do not stop and wait. */
+/**
+ * True when a run-decisions answer says: take the recommended option, do not stop and wait.
+ * That is the second option, or a plain yes to it ("take the recommended option",
+ * "delegate"). An answer with a negation, a stop, a wait or an ask in it is false: when the
+ * answer is unclear, the run asks.
+ */
 export function delegatesDecisions(answer) {
-  const a = String(answer ?? '').trim().toLowerCase();
-  return /recommend|delegat/.test(a) && !/^(stop|wait)/.test(a);
+  const a = String(answer ?? '').trim().toLowerCase().replace(/[\s.!]+$/, '').replace(/\s+/g, ' ');
+  if (!a) return false;
+  if (a === RUN_DECISIONS_OPTIONS[1].toLowerCase()) return true;
+  if (/\b(no|not|never|none|nor|neither|without|stop|wait|ask|don'?t|doesn'?t|won'?t)\b|n't\b/.test(a)) return false;
+  return /\b(take|use|pick|choose|go with|accept|follow)\b.*\brecommend/.test(a)
+    || /^(the )?recommended( option| one)?$/.test(a)
+    || /^(yes,? )?delegate\b/.test(a)
+    || /\bdecide for me\b/.test(a);
 }
 
 /** True when the live run-decisions steer of a workflow folder takes the recommended option. */

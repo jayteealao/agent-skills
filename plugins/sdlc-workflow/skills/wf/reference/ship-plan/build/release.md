@@ -88,7 +88,12 @@ Generate one job per entry in `plan.ci-pipeline.release-jobs[]`, in order, with 
         run: <ecosystem test command>
 ```
 
-**`version-bump` job** (when `plan.version-bump-rule` requires an explicit bump step in the release workflow — i.e., not `release-please` or `changesets`, which have their own workflow):
+**`version-bump` job.** Generate no bump job in these cases:
+- `plan.ci-pipeline.release-trigger` is `tag-on-main`. A tag-triggered run checks out a detached tag, and the tag already names the version.
+- `plan.version-bump-rule` is `release-please` or `changesets`. Their own workflow bumps.
+- `plan.version-bump-rule` is `git-cliff`, `conventional-commits`, `manual` or `fixed`. `/wf ship` owns the bump: Steps 1.2 and 1.3 bump and commit it on the branch before the merge, so a bump in CI would bump a second time.
+
+Only another rule on a release that a branch push or a manual dispatch starts gets the job. It stages each file of `plan.version-source-of-truth[]` by its path, never `git add -A`, which would commit build output:
 ```yaml
   version-bump:
     needs: test
@@ -105,7 +110,7 @@ Generate one job per entry in `plan.ci-pipeline.release-jobs[]`, in order, with 
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add -- <each path of plan.version-source-of-truth[]>
           git diff --staged --quiet || git commit -m "chore: bump version"
           git push
 ```
@@ -129,7 +134,7 @@ For `publish` (Node.js / npm):
         run: <plan.ci-pipeline.publish-cmd>
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-<for each additional secret in plan.required-secrets[] not already in env:>
+<for each additional secret in plan.ci-pipeline.required-secrets[] not already in env:>
           <NAME>: ${{ secrets.<NAME> }}
 ```
 
@@ -139,6 +144,9 @@ For `publish` (Python / PyPI — OIDC preferred):
     needs: [build, test]
     runs-on: ubuntu-latest
     environment: pypi
+<if plan.ci-pipeline.required-secrets[] holds no PyPI token (Trusted Publishing):>
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -148,9 +156,9 @@ For `publish` (Python / PyPI — OIDC preferred):
         run: python -m build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-<if secrets.PYPI_TOKEN in required-secrets:>
+<if plan.ci-pipeline.required-secrets[] holds a PyPI token, under any name (for example PYPI_API_TOKEN), use that name:>
         with:
-          password: ${{ secrets.PYPI_TOKEN }}
+          password: ${{ secrets.<NAME> }}
 ```
 
 For `publish` (JVM / Maven Central):
@@ -169,7 +177,7 @@ For `publish` (JVM / Maven Central):
       - name: Publish
         run: <plan.ci-pipeline.publish-cmd>
         env:
-<for each secret in plan.required-secrets[]:>
+<for each secret in plan.ci-pipeline.required-secrets[]:>
           <NAME>: ${{ secrets.<NAME> }}
 ```
 
@@ -213,7 +221,7 @@ For `deploy-rolling` (Kubernetes / Helm) — generate one deploy job per environ
       - name: Deploy to <env-name>
         run: <plan.ci-pipeline.publish-cmd>
         env:
-<for each secret in plan.required-secrets[]:>
+<for each secret in plan.ci-pipeline.required-secrets[]:>
           <NAME>: ${{ secrets.<NAME> }}
 ```
 
@@ -228,7 +236,7 @@ For `deploy-immutable` (blue-green, Lambda, Fly, etc.):
       - name: Deploy immutable artifact
         run: <plan.ci-pipeline.publish-cmd>
         env:
-<for each secret in plan.required-secrets[]:>
+<for each secret in plan.ci-pipeline.required-secrets[]:>
           <NAME>: ${{ secrets.<NAME> }}
 ```
 
@@ -286,6 +294,6 @@ jobs:
           publish: <plan.ci-pipeline.publish-cmd>
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-<for each additional secret in plan.required-secrets[]:>
+<for each additional secret in plan.ci-pipeline.required-secrets[]:>
           <NAME>: ${{ secrets.<NAME> }}
 ```

@@ -68,3 +68,20 @@ test('wf.mjs defer check runs the real probe and exits 1 for a person task', () 
     assert.match(r.stdout, /the clearing event happened/);
   } finally { f.done(); }
 });
+
+test('a probe past its time is ended with the processes that it started, and its check returns soon', async () => {
+  const { runProbe } = await import('../../lib/deferrals.mjs');
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'probe-'));
+  try {
+    // The probe starts a child that holds its output open for a minute.
+    writeFileSync(join(dir, 'p.js'), "require('child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'inherit' }); setTimeout(() => {}, 60000);");
+    const t0 = Date.now();
+    const r = runProbe('node p.js', dir, { timeoutMs: 1000 });
+    assert.equal(r.ok, false);
+    assert.ok(Date.now() - t0 < 20_000, `the check took ${Date.now() - t0} ms`);
+    assert.equal(runProbe('node -e "process.exit(0)"', dir).ok, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

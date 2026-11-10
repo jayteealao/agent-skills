@@ -7,12 +7,12 @@ Load this file from `_stage.md` Step 3, in mode `select` only. It holds the prom
 Substitute the per-slice or slug-wide variant based on the current `review-scope`. Resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against.
 
 ```
-Execute the review rubric at `<skill-dir>/reference/review/{command-name}.md`.
+Execute the review rubric at {rubric-path}.
 Focus: {the triggered `###` sections, or "all sections" for a core rubric}
 
 Scope:
   - Slug-wide mode: `git diff <base-branch>...HEAD` (the whole branch of the work packet)
-  - Per-slice mode: `git diff HEAD` (working-tree diff for the current slice)
+  - Per-slice mode: {the slice diff of Step 1, for example `git diff <first-sha>^ <last-sha>`}
 Workflow slug: {slug}
 Review scope: {review-scope}
 Selected slice: {slice or "(none — slug-wide)"}
@@ -40,8 +40,11 @@ Write no file. Return only this JSON object:
                   "confidence": "High|Med|Low", "file": "<path>", "line": "<n or n-m>",
                   "issue": "<one sentence>", "evidence": "<a short snippet>",
                   "fix": "<the minimal fix, for HIGH and above>",
-                  "preExisting": false, "changesAcceptance": false } ] }
-A clean dimension returns "findings": [].
+                  "preExisting": false, "changesAcceptance": false } ],
+  "decisionFidelity": [ { "key": "<carried key>", "verdict": "honored|narrowed|dropped",
+                         "evidence": "<file:line or —>" } ] }
+A clean dimension returns "findings": []. Only the intent-fidelity rubric fills "decisionFidelity",
+one entry per carried key of its Decision Fidelity table; every other dimension leaves it out.
 ```
 
 ## Step 3b — the refuter prompt

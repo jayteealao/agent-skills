@@ -82,7 +82,7 @@ next-invocation: "/wf verify <slug>"
 recommended-routes: <routes>
 ---
 ```
-Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Or, if separable concerns were confirmed at the gate: one `slices[]` entry per concern, each mapped to its file group, and `total-slices` / `best-first-slice` set accordingly. Slice status is `complete`, not `defined` — the code already exists; the schema enum has no `implemented` value, and the adoption fact is carried by `provenance: adopted` plus the index's `progress` map, never by inventing an enum value the write-hook rejects.)
+Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Slice status is `complete`, not `defined` — the code already exists; the schema enum has no `implemented` value, and the adoption fact is carried by `provenance: adopted` plus the index's `progress` map, never by inventing an enum value the write-hook rejects.)
 
 **`04-plan.md` — `type: plan` (retrospective observation + FORWARD verification):**
 ```yaml

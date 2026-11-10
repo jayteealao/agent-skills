@@ -97,6 +97,25 @@ test('setStatus: a fix keeps its commit, and a dismissal by a decision names the
   assert.throws(() => setStatus(one, 'PER-1', 'fixed', null, { decision: 'D-012' }), /only a dismissed finding/);
 });
 
+test('a fixed finding that a later run finds again opens, counts in the verdict, and keeps the fix it had', () => {
+  const T3 = '2026-10-24T12:00:00Z';
+  const one = mergeRun(EMPTY, [sqlInjection], { now: T1 }).ledger;
+  setStatus(one, 'SEC-1', 'fixed', null, { commit: '1a2b3c', now: T2 });
+  assert.equal(verdictOf(one), 'ship');
+  const again = mergeRun(one, [{ ...sqlInjection, line: '41' }], { now: T3 });
+  const sec = again.ledger.findings[0];
+  assert.deepEqual([sec.id, sec.status, sec.reopened, sec['resolved-at'], sec.commit], ['SEC-1', 'open', 1, null, undefined]);
+  assert.deepEqual(sec['fixed-before'], [{ 'fixed-at': T2, commit: '1a2b3c', 'reopened-at': T3 }]);
+  assert.deepEqual(again.reopenedFixed, ['SEC-1']);
+  assert.equal(again.verdict, 'ship-with-caveats', 'the reopened HIGH counts again');
+  // A refuted repeat leaves the fix standing; a decision of the person is never reopened.
+  const refuted = mergeRun(one, [{ ...sqlInjection, refuted: 'the input is escaped now' }], { now: T3 });
+  assert.equal(refuted.ledger.findings[0].status, 'fixed');
+  const deferred = mergeRun(EMPTY, [sqlInjection], { now: T1 }).ledger;
+  setStatus(deferred, 'SEC-1', 'dismissed', 'out of scope', { now: T2 });
+  assert.equal(mergeRun(deferred, [sqlInjection], { now: T3 }).ledger.findings[0].status, 'dismissed');
+});
+
 test('findingsTable: open rows first, and verdictOf filters by source', () => {
   const one = mergeRun(EMPTY, [sqlInjection, slowLoop], { now: T1 }).ledger;
   setStatus(one, 'PER-1', 'fixed', null, { now: T1 });
@@ -115,6 +134,15 @@ test('a per-slice run matches and resolves only the entries of its slice', () =>
   assert.deepEqual(three.resolved, [], 'a run of slice ui resolves nothing of slice api or of the packet');
   assert.equal(verdictOf(three.ledger, { slice: 'api' }), 'ship-with-caveats');
   assert.equal(verdictOf(three.ledger, { slice: 'ui' }), 'ship');
+});
+
+test('a slug-wide verdict reads only the packet entries: a residual for it is written with no slice', () => {
+  const residual = { dimension: 'residual', severity: 'HIGH', file: 'src/api.js', line: null, key: 'AC-3', issue: 'AC-3 loads in 3 s, not 2 s.' };
+  const sliced = mergeRun(EMPTY, [residual], { slice: 'api', dimensions: ['residual'], now: T1 });
+  setStatus(sliced.ledger, sliced.added[0], 'could-not-fix', 'the budget needs a cache', { now: T2 });
+  assert.equal(verdictOf(sliced.ledger, { slice: null }), 'ship', 'a slice entry is not in the slug-wide verdict');
+  const packet = mergeRun(EMPTY, [residual], { dimensions: ['residual'], now: T1 });
+  assert.equal(verdictOf(packet.ledger, { slice: null }), 'ship-with-caveats');
 });
 
 test('a pre-existing finding is debt: no verdict input, its own metric', () => {
@@ -176,5 +204,38 @@ test('wf.mjs findings set --decision dismisses only by a live decision of the pe
     assert.match(cli('findings', 'set', root, 'demo', 'SEC-1', 'dismissed', '--decision', 'D-009').stderr, /no decision D-009/);
     assert.equal(cli('findings', 'set', root, 'demo', 'SEC-1', 'dismissed', '--decision', 'D-001').stdout.trim(), 'SEC-1 dismissed');
     assert.match(readFileSync(path.join(dir, 'findings.yaml'), 'utf8'), /reason: decision D-001/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the severity counts are the change\'s own findings: with -pre-existing they add up to -total', () => {
+  const r = mergeRun(EMPTY, [{ ...slowLoop, preExisting: true }, { dimension: 'style', severity: 'NIT', file: 'a.js', line: '1', issue: 'n', preExisting: true }, { dimension: 'style', severity: 'LOW', file: 'b.js', line: '1', issue: 'l' }], { dimensions: ['performance', 'style'], now: T1 });
+  const m = metricsOf(r.ledger, { source: 'review', slice: null });
+  assert.deepEqual([m['metric-findings-med'], m['metric-findings-nit'], m['metric-findings-low'], m['metric-findings-pre-existing'], m['metric-findings-total']], [0, 0, 1, 2, 3]);
+  const sum = ['blocker', 'high', 'med', 'low', 'nit', 'pre-existing'].reduce((n, k) => n + m[`metric-findings-${k}`], 0);
+  assert.equal(sum, m['metric-findings-total']);
+});
+
+test('a re-found entry moves to the line where the run found it, so a finding that drifts keeps its id', () => {
+  let ledger = mergeRun(EMPTY, [{ ...sqlInjection, line: '10' }], { dimensions: ['security'], now: T1 }).ledger;
+  for (const line of ['13', '16', '19']) ledger = mergeRun(ledger, [{ ...sqlInjection, line }], { dimensions: ['security'], now: T2 }).ledger;
+  assert.deepEqual(ledger.findings.map((f) => [f.id, f.line, f.status]), [['SEC-1', '19', 'open']]);
+});
+
+test('a finding with no dimension is refused: no run could resolve it', () => {
+  assert.throws(() => mergeRun(EMPTY, [{ severity: 'HIGH', file: 'a.js', line: '1', issue: 'no dimension' }], { now: T1 }), /needs its dimension: no dimension/);
+});
+
+test('four processes that add findings to one ledger at once lose no entry and mint no id twice', async () => {
+  const { spawn } = await import('node:child_process');
+  const { pathToFileURL } = await import('node:url');
+  const root = mkdtempSync(path.join(tmpdir(), 'findings-race-'));
+  try {
+    const lib = pathToFileURL(path.join(pluginRoot, 'lib', 'findings.mjs')).href;
+    const code = (n) => `const F = await import(${JSON.stringify(lib)}); for (let i = 0; i < 10; i++) F.updateLedger(${JSON.stringify(root)}, (l) => { const r = F.mergeRun(l, [{ dimension: 'security', severity: 'LOW', file: 'f${n}-' + i + '.js', line: '1', issue: 'x' }], {}); F.writeLedger(${JSON.stringify(root)}, r.ledger); });`;
+    const codes = await Promise.all([0, 1, 2, 3].map((n) => new Promise((res) => spawn(process.execPath, ['--input-type=module', '-e', code(n)], { stdio: ['ignore', 'ignore', 'inherit'] }).on('exit', res))));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    const ids = readLedger(root).findings.map((f) => f.id);
+    assert.equal(ids.length, 40);
+    assert.equal(new Set(ids).size, 40, 'no id is minted twice');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
