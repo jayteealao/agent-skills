@@ -1,11 +1,11 @@
 ---
-description: The single review surface — workflow stage and ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 9) — reads workflow artifacts + diff, dispatches one scout per selected dimension and one refuter for every finding, merges the findings into the ledger `findings.yaml` (re-runs keep IDs, mark cleared findings resolved, never delete a row), and writes one review file whole. `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
+description: The one review surface, for a workflow and without one; the first token decides which. `/wf review <slug>` runs the review stage, stage 7 of 9. It reads the workflow records and the diff, dispatches one scout for each selected dimension and one refuter for every finding, merges the findings into the ledger `findings.yaml` (a re-run keeps the IDs, marks a cleared finding resolved, and deletes no row), and writes the review file whole. `/wf review <dimension>` runs one rubric inline, and `/wf review sweep <aggregate>` dispatches one reviewer for each dimension; these ad-hoc runs need no slug. `/wf review <slug> triage` revisits the deferred findings.
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
-Before you assert that code misuses a dependency, read its source per [_source-study.md](_source-study.md), in the stage and in an ad-hoc review.
+You are running `/wf review`. With a slug it is the review stage, stage 7 of 9: it finds the defects in the work packet, fixes each one itself, and writes `07-review.md` (or `07-review-<slice>.md`) from the findings ledger. With a dimension or `sweep` it is an ad-hoc review that returns its findings in chat and writes no stage artifact. Step 00 decides which.
 
-You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
+Before you assert that code misuses a dependency, read its source per [_source-study.md](_source-study.md), in the stage and in an ad-hoc review.
 
 ## Card
 
@@ -14,7 +14,7 @@ You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 - Fix the findings yourself, one after another, in your own session: one step and one commit for each finding. Dispatch no fix sub-agent. A finding never becomes a new slice or a route back.
 - When a fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step.
 - When the tests of a fix step fail twice, revert the step, set the finding `could-not-fix`, and continue.
-- Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`; never edit `findings.yaml` by hand.
+- Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`. Do not edit `findings.yaml` by hand.
 - After the fix steps, run the full and heavy suites of the test profile once for the packet, and each check that a plan, implement or verify record names under `## Packet Checks`. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time and the HEAD that it passed at. When you fix code after a packet suite passed, run again only the suites that read the files of the fix.
 - A command longer than the longest check of your brief is a long run. Follow [_long-runs.md](_long-runs.md): measure it first with a pilot, check that a later change does not make its result stale, take the fastest path that gives a valid answer, and run it in the background.
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
@@ -24,9 +24,7 @@ You are running `/wf review`, **stage 7 of 9** in the SDLC lifecycle.
 
 ## Requires
 
-Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
-
-Mode `triage`: the second argument is `triage`. Mode `select`: you select the rubrics and dispatch the reviewers yourself (`review/_stage.md` Steps 2 and 3). A driver run that passes findings from its own scan does not apply `select`. Declare each mode that applies in `modes:` of the stage artifact, for example `modes: [select]`. Mode `ad-hoc`: the first token is a dimension or `sweep`.
+Read every row that applies before you write the stage artifact. [_requires.md](_requires.md) defines the check. The check runs in stage mode only: an ad-hoc review writes no stage artifact.
 
 | Input | Kind | When | Sections |
 |---|---|---|---|
@@ -66,24 +64,27 @@ Mode `triage`: the second argument is `triage`. Mode `select`: you select the ru
 | `07-review-<slice>.md` | writes | | |
 | `07-review.md` | writes | | |
 
-Stage mode only: ad-hoc review writes no stage artifact, so no check runs for it. Slug-wide is the default scope. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and the ledger `findings.yaml`.
+The modes of this table:
 
-# Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
+| Mode | Applies when |
+|---|---|
+| `triage` | The second argument is `triage`. |
+| `select` | You select the rubrics and dispatch the reviewers yourself (`review/_stage.md` Steps 2 and 3). A driver run that passes the findings of its own scan does not apply `select`. |
+| `ad-hoc` | The first token is a dimension or `sweep`. |
+| `slug-wide`, `change` | Its disk fact in [_requires.md](_requires.md) is true, or `modes:` lists it. |
 
-`/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
-review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies its scopes. Resolve the first token before any stage logic:
+Declare each mode that applies in `modes:` of the stage artifact, for example `modes: [select]`. Slug-wide is the default scope. In slug-wide mode the rows with `<slice>` do not apply, and a re-run reads `07-review.md` and the ledger `findings.yaml`.
 
-1. **Exact slug match** — `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 → **stage mode**. Read
-   `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>`, `triage`, or a
-   rubric or alias key from [review/_ad-hoc.md](review/_ad-hoc.md). When a slice has the same name as a key, the slice wins.
-2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Read
-   [review/_ad-hoc.md](review/_ad-hoc.md) in full and follow it. It lists the rubric, alias, and aggregate keys.
-   Ad-hoc never loads the stage body.
-3. **A dimension name that also happens to be a real slug** → the slug wins (stage mode); reach the
-   aggregate/dimension explicitly with `/wf review sweep <name>` or by running ad-hoc in a repo with no
-   such slug. (This is the documented first-token ambiguity resolution.)
-4. **Neither a slug nor a known dimension/sweep** → load [route.md](route.md) with every token of `/wf review`,
-   reason `<token> does not fit <dimension>`. The router offers the near-match slug or dimension first.
+# Step 00 — Resolve the first token: stage or ad-hoc
 
-`SKILL.md` Step 0 checks the slug on the disk. This step checks the dimension, because the dimension list
-lives in `review/_ad-hoc.md`.
+Resolve the first token before any stage logic. Check in this order, and take the first case that matches:
+
+| First token | Mode | Do |
+|---|---|---|
+| A slug: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0 | stage | Read `review/_stage.md` in full and follow it. The optional second token is a `<slice>`, `triage`, or a rubric or alias key of [review/_ad-hoc.md](review/_ad-hoc.md). When a slice has the same name as a key, the slice wins. |
+| `sweep`, or a rubric, alias or aggregate key that [review/_ad-hoc.md](review/_ad-hoc.md) lists | ad-hoc | Read [review/_ad-hoc.md](review/_ad-hoc.md) in full and follow it. An ad-hoc run does not load the stage body. |
+| Anything else | none | Load [route.md](route.md) with every token of `/wf review`, and the reason `<token> does not fit <dimension>`. The router offers the nearest slug or dimension first. |
+
+A dimension name that is also a slug resolves to the slug, because the slug check comes first. To reach the dimension, type `/wf review sweep <name>`, or run the ad-hoc review in a repo with no such slug.
+
+`SKILL.md` Step 0 checks the slug on the disk. This step checks the dimension, because the list of dimensions lives in `review/_ad-hoc.md`.

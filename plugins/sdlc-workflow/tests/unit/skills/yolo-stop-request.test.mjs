@@ -272,7 +272,9 @@ test('a slug-wide review runs one round: it fixes its findings, returns no stop 
   assert.doesNotMatch(src, /REVIEW_CHECK_PASSES|check pass|diffRange: `|fixCommits/);
   assert.doesNotMatch(ref('review', '_stage.md'), /fixCommits|check the fix commits once more/);
   assert.doesNotMatch(ref('yolo.md'), /keep a recorded defer/);
-  assert.match(ref('yolo.md'), /^Fix posture: the `review` row above\.$/m);
+  // The `review` row of the policy table is the one statement of the fix posture.
+  assert.match(ref('yolo.md'), /^\| `review` triage \| Fix every finding, BLOCKER to NIT, one step and one commit at a time/m);
+  assert.equal(ref('yolo.md').split('Fix every finding').length, 2, 'yolo.md states the fix posture once');
 });
 
 test('the review stops only on a BLOCKER that it could not fix', async () => {

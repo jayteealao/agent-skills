@@ -172,3 +172,20 @@ test('a project file and the registry of the workflows resolve under the project
     assert.ok(s.artifacts.some((a) => a.input === '/.ai/ship-plan.md'));
   } finally { f.done(); }
 });
+
+test('the slug-wide rows of review apply by the review scope rule, not only by the key', () => {
+  const names = (r) => r.artifacts.map((a) => a.name);
+  const wide = (r) => r.modes.some((m) => m.name === 'slug-wide');
+  const f = fixture({ 'selected-slice': 'api' });
+  try {
+    f.put('04-plan-api.md', { type: 'plan', status: 'complete' });
+    assert.ok(wide(run(f, 'review')) && names(run(f, 'review')).includes('04-plan-api.md'), 'no review-scope key: the scope is slug-wide');
+    f.put('07-review-api.md', { type: 'review', status: 'complete' });
+    assert.equal(wide(run(f, 'review')), false, 'per-slice review records and no slug-wide record: per-slice');
+  } finally { f.done(); }
+  const g = fixture({ 'selected-slice': 'api', 'review-scope': 'per-slice' });
+  try {
+    g.put('04-plan-api.md', { type: 'plan', status: 'complete' });
+    assert.equal(wide(run(g, 'review')), false, 'the key wins');
+  } finally { g.done(); }
+});

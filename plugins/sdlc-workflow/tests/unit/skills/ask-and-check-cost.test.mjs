@@ -42,7 +42,7 @@ test('a delegate run accepts a verify item that still fails, and stops only wher
   assert.match(yolo, /stage === 'verify' && DELEGATE && \(extra\.round \|\| 1\) >= 2 \? delegateAcceptClause\(sliceArg, undefined, idx\.reviewScope\)/);
   assert.match(yolo, /delegateAcceptClause\(sliceArg, 'on your second verify round, in a delegate run', idx\.reviewScope\)/);
   const y = ref('yolo.md');
-  assert.match(y, /\| Gate \| Auto-resolve \| HARD-STOP \| In delegate mode \|/);
+  assert.match(y, /\| Gate \| Auto-resolve \| Hard stop \| In delegate mode \|/);
   // The table owns the delegate stops: the card keeps no separate list of causes.
   assert.match(y, /a delegate run stops only where that column names a stop/);
   assert.doesNotMatch(y, /A delegate run stops only for these four causes/);
@@ -112,7 +112,7 @@ test('a risk stops only a decision that goes against it; a doubtful decision tha
   assert.doesNotMatch(ref('_decision-classes.md'), /resolves, narrows, or depends on/);
   // _decision-classes.md owns the risk rule and the reservation rule; plan and implement cite them.
   assert.equal(ref('_decision-classes.md').split('that is still `open` or `carried`').length, 2, 'the owner states the risk rule once');
-  assert.match(ref('plan.md'), /\*\*A planning decision that goes against an intent-risk is intent-bearing\*\*, per rule 1 of \[_decision-classes\.md\]/);
+  assert.match(ref('plan.md'), /A planning decision that goes against an intent-risk is intent-bearing, per rule 1 of \[_decision-classes\.md\]/);
   assert.match(ref('implement.md'), /\*\*A build decision that goes against an intent-risk is intent-bearing\*\*, per rule 1 of \[_decision-classes\.md\]/);
   for (const name of ['plan.md', 'implement.md']) {
     assert.match(ref(name), /reserves a decision for the person only as \[_decision-classes\.md\]\(_decision-classes\.md\) "A reservation needs the person's words" says/, name);

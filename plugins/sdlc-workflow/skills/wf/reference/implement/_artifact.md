@@ -51,7 +51,7 @@ metric-lines-removed: <N>
 metric-deviations-from-plan: <N>
 metric-review-fixes-applied: 0
 commit-sha: "<sha or empty if branch-strategy is none>"
-files-modified: [<path>, ...]   # every code path this slice changed; verify's cross-slice regression check reads it
+files-modified: [<path>, ...]   # every code path this slice changed; the sibling check of a later implement and the verify augmentations read it
 modes: []                       # `ui` when the slice builds UI (implement.md)
 tags: []
 refs:

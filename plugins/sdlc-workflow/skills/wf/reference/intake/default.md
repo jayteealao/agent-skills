@@ -125,7 +125,7 @@ Apply [_workflow-rules.md](../_workflow-rules.md) in full. The rules of intake:
 After you write the files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
-- `options:` (every viable next option; see Adaptive Routing below)
+- `options:` (the one route of Step 7, when the run stops before the shape phase; when the shape phase runs, its chat return gives the options, per "Adaptive routing" of [shape.md](../shape.md))
 - at most 3 short blocker bullets, when needed
 
 This stage has required questions. Do not finish it until you asked them.

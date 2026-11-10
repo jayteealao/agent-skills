@@ -24,7 +24,7 @@ test('ship Step 0.4 runs the scripted gaps with the allowNoPlan path, and no pla
 test('ship uses the readiness stamp of this run, and stops after the PR on not-applicable', () => {
   const ship = ref('ship.md');
   assert.match(ship, /readiness stamp of this run: use it, and do not run the plan gates a second time/);
-  assert.match(ship, /\*\*`not-applicable`: STOP after the PR is ready\.\*\*/);
+  assert.match(ship, /\*\*`not-applicable`: stop after the PR is ready\.\*\*/);
   assert.match(ship, /a stamp `not-applicable` stands while `\.ai\/ship-plan\.md` is still missing/);
 });
 

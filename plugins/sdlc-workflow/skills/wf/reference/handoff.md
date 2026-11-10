@@ -3,9 +3,9 @@ description: The PR phase of ship. Turn the completed and reviewed work into a P
 argument-hint: <slug|pr#N|branch>
 ---
 
-You are running the **PR phase of `/wf ship`**, the first part of stage 8 of 9: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship (`PR` → gate → release) → 9·retro.
+You are running the PR phase of `/wf ship`, the first part of stage 8 of 9: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship (`PR` → gate → release) → 9·retro.
 
-Ship runs this phase first ([ship.md](ship.md) Step 0). When this phase ends with `pr-readiness-verdict: ready`, ship continues to its go/no-go gate in the same run. `/wf handoff <slug>` is an alias of `/wf ship <slug>` that stays for this release only.
+This phase packages the work, opens the PR, watches CI and decides readiness; it writes `08-handoff.md` for each slug. Ship runs it first ([ship.md](ship.md) Step 0), and on `pr-readiness-verdict: ready` goes on to its go/no-go gate in the same run. `/wf handoff <slug>` is an alias of `/wf ship <slug>` that stays for this release only. Apply [_workflow-rules.md](_workflow-rules.md). `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
 
 | | Detail |
 |---|---|
@@ -15,9 +15,9 @@ Ship runs this phase first ([ship.md](ship.md) Step 0). When this phase ends wit
 
 ## Card
 
-- Write the handoff package for a reviewer, push the branch and open the pull request. This phase does not merge or deploy: ship does that after its go/no-go gate.
-- Wait until CI reaches a terminal state and the bot reviews get their settle window. Then decide readiness. Do not stop on a `pending` snapshot. Do not give CI to Auto-fix.
-- Do not change code. When CI fails or a review thread needs a code change, send it to a diagnosis or fix sub-agent, per the fix sub-agent contract of [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md). A fix for red CI needs the approval of the person. Only the compact result of the sub-agent comes back to you.
+- Write the handoff package for a reviewer, push the branch and open the PR. Do not merge or deploy: ship does that after its go/no-go gate.
+- Decide readiness only after CI reaches a terminal state and the bot reviews get their settle window. A `pending` snapshot is not a result. Do not hand CI to the host's PR monitor.
+- Do not change code. Send a red CI check or a review thread that needs a code change to a diagnosis or fix sub-agent, per the fix-subagent contract of [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md). A fix for red CI needs the person's approval. Only the compact result of the sub-agent comes back to you.
 - Write every external text in product language, per [_output-boundary.md](_output-boundary.md).
 
 ## Requires
@@ -52,119 +52,182 @@ Change-mode and single-scope workflows use the un-suffixed names (`05-implement.
 
 The modes of this table: `batch` when Step 0 resolves `scope: branch`; `small` when the index has `workflow-type: small`; `repo-hooks` when the repo root has a commitlint config (`.commitlintrc*`, `commitlint.config.{js,cjs}`), or the index has `public-surface:` or `docs-mirror:`.
 
-# Role
-You run the PR phase of ship: package, push, open the PR. Apply [_workflow-rules.md](_workflow-rules.md).
+# Step 0 — Orient
 
-# Step 0 — Orient (do this before all other steps)
-1. **Resolve the first argument** (a slug, `pr#N`, a branch name, or absent) with `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`. A slug wins over a branch:
-   - **`scope: slug`** → **single-slug handoff**, `handoff-scope: slug`.
-   - **`scope: branch`** → **batch handoff**, `handoff-scope: branch`.
-   - **`ambiguous: true`** → ask the user which of its `slugs`. **An `error`** → Stop and show it.
-   **Footgun guard.** If the output of a single slug lists `siblings` (other slugs on its branch), WARN that a single-slug verdict on a shared branch goes stale when a sibling moves the branch. Recommend `/wf ship pr#N` (or the branch name). Proceed only if the user confirms.
-2. **Build the roster.** The roster is the `slugs` of the `target` output: `[<slug>]` for a single slug; for a batch, every slug whose `branch` equals the resolved branch. Record the roster as `branch-slugs:`.
-3. **Read the index of each roster slug** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`: `current-stage`, `status`, `selected-slice`, `open-questions`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, and any existing `handoff-lead:`. The review scope follows `reviewScopeOf` in `lib/lifecycle-done.mjs`: the key wins; with no key, the scope is `per-slice` only when `07-review-<slice>.md` records exist and `07-review.md` does not, else `slug-wide`.
+Do these before every other step.
 
-   **Re-validate `branch-strategy: none` against what is actually being packaged.** `none` means the handoff document is the deliverable — no push, no PR — and holds only while the packaged range touches nothing but docs and `.ai/` bookkeeping. If the implemented slices touched repo code, ask one gate question per [_gate-question.md](_gate-question.md): "the index says `branch-strategy: none`, but this handoff packages repo code (<n> non-doc files) — deliver doc-only as recorded, or switch to `dedicated` (push + PR)?" Record the answer in the index with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index branch-strategy=<value>` per [_records.md](_records.md), so the same range never re-asks.
+1. **Resolve the first argument** (a slug, `pr#N`, a branch name, or none) with `<wf> target "<root>" <arg> --json`. A slug wins over a branch.
+   - `scope: slug`: a single-slug handoff, `handoff-scope: slug`.
+   - `scope: branch`: a batch handoff, `handoff-scope: branch`.
+   - `ambiguous: true`: ask the person which of its `slugs`.
+   - `error`: stop and show it.
+
+   When the output for a single slug lists `siblings` (other slugs on its branch), warn the person: a single-slug verdict on a shared branch goes stale when a sibling moves the branch. Recommend `/wf ship pr#N` or the branch name. Go on only when the person confirms.
+2. **Build the roster.** The roster is the `slugs` of the `target` output: `[<slug>]` for a single slug, and for a batch every slug whose `branch` is the resolved branch. Record it as `branch-slugs:`.
+3. **Read the index of each roster slug** with `<wf> record get "<root>" <slug> index`: `current-stage`, `status`, `selected-slice`, `open-questions`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, and any `handoff-lead:`. The review scope follows `reviewScopeOf` in `lib/lifecycle-done.mjs`: the `review-scope` key wins; with no key, the scope is `per-slice` only when `07-review-<slice>.md` records exist and `07-review.md` does not, else `slug-wide`.
+
+   Check `branch-strategy: none` against what this run packages. `none` (the handoff document is the deliverable: no push, no PR) holds only while the range touches nothing but docs and `.ai/` bookkeeping. When the slices touched repo code, ask one gate question per [_gate-question.md](_gate-question.md): "the index says `branch-strategy: none`, but this handoff packages repo code (<n> non-doc files) — deliver doc-only as recorded, or switch to `dedicated` (push + PR)?" Record the answer with `<wf> record set "<root>" <slug> index branch-strategy=<value>` per [_records.md](_records.md), so the same range does not ask again.
 3a. **Batch only: elect the lead slug** per [handoff/_batch.md](handoff/_batch.md). A single slug is its own lead.
-3b. **A small-path slug** (`workflow-type: small`): run the steps of [handoff/_small.md](handoff/_small.md) before the scope.
-4. **Resolve per-slug handoff scope.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md) for the record names. With no `03-slice.md`, the roster is one entry: `selected-slice` (else the slug), and the records are un-suffixed (`05-implement.md`, `06-verify.md`, `07-review.md`). Otherwise read the slug's `03-slice.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice.md` and collect every slice with `status: complete` or `status: in-progress`.
-   **Reconcile a stale roster before concluding "none" (do not blame the operator).** A roster entry still at `status: defined` is not proof the slice was never built. Before reporting a slug as having no implemented slices, check each `defined` entry with `record get`: if `05-implement-<slice>.md` exists **and** `06-verify-<slice>.md` exists with `result: pass`, **reconcile the roster** (set `complete`, or `in-progress` when implement exists but verify does not yet pass: get `03-slice.md`, change the entry, write the draft of `03-slice.md` and put it), include the slice in scope, and **emit a warning naming the stage that should have written it** ("slice `<x>`'s roster status was `defined` despite a passing verify — reconciled here; `/wf verify` should have promoted it"). Never silently skip the slug, and never silently fix it.
-   If a slug genuinely has none after reconciliation → it is **not handoff-ready**; record it in the roster report as "no implemented slices" and skip packaging it (do not stop the whole batch).
-5. **Check prerequisites for each roster slug.** A slug that fails any check is **not-ready** with the reason and excluded from packaging. In single-slug mode a not-ready result stops with the reason. In batch mode not-ready slugs are reported in the roster and skipped while ready siblings proceed. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` to see which records exist, and read the frontmatter of a record with `record get`.
-   - **Implement gate (all modes)**: the implement record of every slice in scope exists: `05-implement-<slice-slug>.md`, or `05-implement.md` in an un-suffixed mode. Missing → not-ready: "Run `/wf implement <slug> <slice>` for missing slices."
-   - **Intent-risk gate (all modes)**: parse `intent-risks` (the RIM ledger) from the index (absent → empty). Any entry with `status: open` → not-ready: "An unadjudicated intent-risk means shape never resolved a load-bearing ambiguity — run `/wf intake <slug> shape` to adjudicate it (shape Step 9a: `adjudicated` or `carried`)." Handoff never adjudicates. `carried` RIMs are legal and are surfaced in the PR body and in `## Reviewer Focus Areas`.
-   - **Per-slice review mode** (the review scope of step 3 is `per-slice`): `07-review-<slice-slug>.md` exists for every slice in scope (missing → not-ready: "Run `/wf review <slug> <slice>` for each slice."). Parse `verdict:` and `metric-findings-blocker:` (OPEN blockers only) from its frontmatter; `verdict: dont-ship` or `metric-findings-blocker > 0` → not-ready, naming the slice(s); fix via `/wf implement <slug> <slice> reviews`.
-   - **Slug-wide review mode** (the review scope of step 3 is `slug-wide`): a single `07-review.md` exists (missing → not-ready: "Run `/wf review <slug>` first."). Parse `verdict:` and `metric-findings-blocker:`; `dont-ship` or `> 0` → not-ready.
-   - In all modes: if a slug already has a ship run (`09-ship-run-*.md`) → WARN before overwriting that slug's package.
-6. **Fingerprint no-op guard + roster report.** For each ready slug, compute `handoff-fingerprint`: a stable digest of the commit range packaged (`git merge-base HEAD origin/<base-branch>`..`HEAD` restricted to the slug's slices where determinable), the in-scope slice slugs and their statuses, and each in-scope review's `verdict`. Compare to the value in the slug's existing `08-handoff.md` (`record get "<root>" <slug> 08-handoff.md`). The guard skips the packaging only:
-   - Match, and the stored `readiness-verdict` is `ready` or `not-applicable` → skip the slug entirely (no snapshot, no ledger entry, no rewrite, per [_additive-write.md](_additive-write.md)) and mark it "unchanged".
-   - Match, and another stored verdict (a run that stopped on a CI timeout, red CI or a pending review) → mark it `re-check`. Skip the packaging (T1–T5: no new summary, docs, push or PR body), but run T5.0–T5.3 (steps 7a–7d) again and rewrite the readiness keys (step 10).
-   - Differ or absent → (re)package this run.
+3b. **A small-path slug** (`workflow-type: small`): run the steps of [handoff/_small.md](handoff/_small.md) before item 4.
+4. **Resolve the scope of each slug.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md) for the record names. With no `03-slice.md`, the roster is one entry, `selected-slice` (else the slug), and the records are un-suffixed (`05-implement.md`, `06-verify.md`, `07-review.md`). Otherwise read `03-slice.md` with `<wf> record get "<root>" <slug> 03-slice.md`, and collect every slice with `status: complete` or `status: in-progress`.
 
-   Then print the roster report before any packaging:
+   Reconcile a stale roster before you conclude that a slug has no implemented slice: a `defined` slice may have been built, and the fault is then a stage's bookkeeping, not the person's. Check each `defined` entry with `record get`:
+   - `05-implement-<slice>.md` exists and `06-verify-<slice>.md` has `result: pass`: set the entry to `complete`.
+   - `05-implement-<slice>.md` exists and verify does not pass yet: set the entry to `in-progress`.
+
+   To change an entry, get `03-slice.md`, change it, write the draft and put it. Include the slice in scope, and warn, naming the stage that should have set the status: "slice `<x>`'s roster status was `defined` despite a passing verify — reconciled here; `/wf verify` should have promoted it". Do not skip the slug silently, and do not fix it silently.
+
+   A slug with no implemented slice after this is not handoff-ready: record "no implemented slices" in the roster report and do not package it. The batch goes on.
+5. **Check the prerequisites of each roster slug.** `<wf> record list "<root>" <slug>` shows which records exist; `record get` reads one. A slug that fails a check is `not-ready`, with the reason, and is not packaged. In single-slug mode that stops the run; in batch mode, report the slug in the roster and go on with the ready slugs.
+
+   | Check | Runs when | The slug is not-ready when | Tell the person |
+   |---|---|---|---|
+   | Implement | always | the implement record of a slice in scope is missing: `05-implement-<slice-slug>.md`, or `05-implement.md` in an un-suffixed mode | "Run `/wf implement <slug> <slice>` for missing slices." |
+   | Intent risk | always | `intent-risks` of the index (absent is empty) has an entry with `status: open` | "An unadjudicated intent-risk means shape never resolved a load-bearing ambiguity — run `/wf intake <slug> shape` to adjudicate it (shape Step 9a: `adjudicated` or `carried`)." |
+   | Per-slice review | the review scope is `per-slice` | `07-review-<slice-slug>.md` is missing for a slice in scope, or it has `verdict: dont-ship` or `metric-findings-blocker` (open blockers only) above 0 | Missing: "Run `/wf review <slug> <slice>` for each slice." Failing: name the slices; the fix is `/wf implement <slug> <slice> reviews`. |
+   | Slug-wide review | the review scope is `slug-wide` | `07-review.md` is missing, or it has `verdict: dont-ship` or `metric-findings-blocker` above 0 | Missing: "Run `/wf review <slug>` first." |
+
+   This phase never adjudicates an intent risk. A `carried` risk is legal: show it in the PR body and in `## Reviewer Focus Areas`. When a slug already has a ship run (`09-ship-run-*.md`), warn before you overwrite its package.
+6. **Fingerprint guard and roster report.** For each ready slug, compute `handoff-fingerprint`: a stable digest of the packaged commit range (`git merge-base HEAD origin/<base-branch>`..`HEAD`, limited to the slug's slices where you can tell), the slices in scope with their statuses, and the `verdict` of each review in scope. Compare it with the value in the slug's `08-handoff.md` (`<wf> record get "<root>" <slug> 08-handoff.md`). The guard skips only the packaging:
+
+   | Fingerprint | Stored `readiness-verdict` | Action |
+   |---|---|---|
+   | matches | `ready` or `not-applicable` | `skip-unchanged`: no snapshot, no ledger entry, no rewrite, per [_additive-write.md](_additive-write.md). |
+   | matches | any other (the run stopped on a CI timeout, red CI or a pending review) | `re-check`: skip the packaging (T1–T5: no new summary, docs, push or PR body). Run T5.0–T5.3 (steps 7a–7d) again, and rewrite the readiness keys (step 10). |
+   | differs, or none is stored | | `package`: package this slug in this run. |
+
+   Then print the roster report, before any packaging:
 
    | Slug | Stage | Review verdict | Open blockers | Fingerprint | Action |
    |---|---|---|---|---|---|
-   | `<slug>` | implement/review/handoff | ship / dont-ship | N | fresh / changed / new | package / re-check / skip-unchanged / **not-ready: <reason>** |
+   | `<slug>` | implement/review/handoff | ship / dont-ship | N | fresh / changed / new | package / re-check / skip-unchanged / not-ready: <reason> |
 
-   Packaging proceeds only for rows whose action is `package`. A `re-check` row runs only steps 7a–7d and 8–10.
-6.7. **Ship-plan readiness pre-check (gate).** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it in full (caller = `handoff`, commit range = `git merge-base HEAD origin/<base-branch>`..`HEAD`). This is the one plan gate of a ship run: ship Step 0.4 runs only Step R0, with no no-plan gap, so a repo with no plan reaches the missing-plan gate here and can answer *Shipping is external*. Run Step R0 with `--allow-no-plan`; skip it when ship Step 0.4 ran it in this run. A missing plan or unacknowledged drift stops the run before packaging and routes to `/wf project ship-plan init` / `/wf project ship-plan edit` via the slug's `00-index.md` `recommended-next-*`; no partial `08-handoff.md` is written, but `resume-orientation` is (the pre-check's Step R3.5). `ok`, `acknowledged`, `amended-inline`, and `not-applicable` proceed to packaging and the PR; with `not-applicable`, ship stops after the PR is ready (ship Step 0.6). The amend options appear only for findings an amendment can clear (`clears-on: amend`). Stamp the returned `ship-plan-readiness` into `08-handoff.md` frontmatter (in batch mode the lead owns the single check). Skip only when a prior run this session resolved it to `ok`/`not-applicable` and nothing in Group 2's change surface moved since.
-7. **Use the verify inputs** for each slug being packaged. From each `06-verify-<slice-slug>.md`, surface in `## Reviewer Focus Areas`: `stability-check-flaky-count > 0` ("N criteria showed intermittent behaviour during verification — may indicate race conditions"); `adversarial-tests-failed > 0` (list the failures from `## Adversarial Tests`); `cross-browser-delta: findings` (list from `## Cross-Browser Delta`); `web-vitals-inp-ms > 200` ("interaction responsiveness measured above threshold"); non-empty `## Friction Notes` / `## Free Exploration Notes` under a "Soft Observations" subsection.
-8. **Use the augmentation inputs.** Use `02b-design.md` and `02c-craft.md` for design modes, anti-goals and visual contract; `02c-craft.md`'s mock fidelity inventory items are user-visible changes the PR description shows. Read the `augmentations:` list in the index; every entry appears in `## Augmentations Applied` and/or `## Reviewer Focus Areas`, translated per type: `design-harden` → "Accessibility improvements applied — N components updated, axe-core scan clean"; `design-optimize` → "Performance improvements — measured Xms reduction in [metric]"; `design-adapt` → "Improved mobile/tablet/dark-mode behavior"; other `design-*` → "Visual refresh of [surface area]" or "Design quality review pass — N findings addressed"; `instrument` → "Added observability — N signals for previously unobserved code paths"; `experiment` → "Wrapped behind feature flag with cohort split for measured rollout"; `benchmark` → "Performance baseline taken; verify-stage comparison: <within tripwires / regression>". Do not cite workflow artifact paths or sub-command names in external-facing fields. Exception: when git tracks `.ai/design/`, the PR body may show each board and capture pair as images ([design/_surface.md](design/_surface.md)).
-9. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
+   Only a `package` row is packaged. A `re-check` row runs only steps 7a–7d and 8–10.
+6.7. **Ship-plan readiness (gate).** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it in full, with caller `handoff` and the commit range `git merge-base HEAD origin/<base-branch>`..`HEAD`. This is the one plan gate of a ship run: ship Step 0.4 runs only Step R0, with no no-plan gap, so a repo with no plan reaches the missing-plan gate here, where the person can answer *Shipping is external*. Run Step R0 with `--allow-no-plan`, and skip R0 when ship Step 0.4 ran it in this run.
+   - A missing plan, or drift that the person did not acknowledge, stops the run before packaging and routes to `/wf project ship-plan init` or `/wf project ship-plan edit` through `recommended-next-*` of the index. Write no partial `08-handoff.md`, but do write `resume-orientation` (Step R3.5 of the pre-check).
+   - `ok`, `acknowledged`, `amended-inline` and `not-applicable` go on to packaging and the PR. With `not-applicable`, ship stops after the PR is ready (ship Step 0.6).
+   - Stamp the returned `ship-plan-readiness` into the frontmatter of `08-handoff.md`. In batch mode the lead owns the one check.
+   - Skip this item only when an earlier run in this session resolved it to `ok` or `not-applicable` and nothing in the change surface of Group 2 moved since.
+7. **Use the verify inputs** of each packaged slug. From each `06-verify-<slice-slug>.md`, put these in `## Reviewer Focus Areas`:
+
+   | Field | Write |
+   |---|---|
+   | `stability-check-flaky-count` above 0 | "N criteria showed intermittent behaviour during verification — may indicate race conditions" |
+   | `adversarial-tests-failed` above 0 | the failures listed in `## Adversarial Tests` |
+   | `cross-browser-delta: findings` | the list in `## Cross-Browser Delta` |
+   | `web-vitals-inp-ms` above 200 | "interaction responsiveness measured above threshold" |
+   | a non-empty `## Friction Notes` or `## Free Exploration Notes` | the notes, under a "Soft Observations" subsection |
+8. **Use the augmentation inputs.** Use `02b-design.md` and `02c-craft.md` for the design modes, the anti-goals and the visual contract; each item of the mock fidelity inventory of `02c-craft.md` is a user-visible change that the PR description shows. Each entry of `augmentations:` in the index appears in `## Augmentations Applied`, `## Reviewer Focus Areas`, or both, in these words:
+
+   | Type | Words |
+   |---|---|
+   | `design-harden` | "Accessibility improvements applied — N components updated, axe-core scan clean" |
+   | `design-optimize` | "Performance improvements — measured Xms reduction in [metric]" |
+   | `design-adapt` | "Improved mobile/tablet/dark-mode behavior" |
+   | another `design-*` | "Visual refresh of [surface area]" or "Design quality review pass — N findings addressed" |
+   | `instrument` | "Added observability — N signals for previously unobserved code paths" |
+   | `experiment` | "Wrapped behind feature flag with cohort split for measured rollout" |
+   | `benchmark` | "Performance baseline taken; verify-stage comparison: <within tripwires / regression>" |
+
+   Do not cite workflow artifact paths or sub-command names in an external field. One exception: when git tracks `.ai/design/`, the PR body may show each board and capture pair as images ([design/_surface.md](design/_surface.md)).
+9. **Carry forward** `open-questions` from the index (in batch mode, the union across the roster).
 
 # Chat return contract
-When ship continues past this phase, this receipt opens ship's chat return: do not end the turn here. Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
+
+When ship continues past this phase, this receipt opens ship's chat return: do not end the turn here. Apply the early-stop guard of [_autonomy-guards.md](_autonomy-guards.md) before you end the turn. After you write the files, return per [_chat-return.md](_chat-return.md): lead with the narrative (section *The narrative* of that file), then give this receipt:
 - `scope: <slug|branch>`, `slug: <slug>` (the lead in batch mode) and, in batch mode, the roster report (one row per slug: package / skip-unchanged / not-ready)
-- `wrote: <path>` (one line per slug packaged)
+- `wrote: <path>` (one line per packaged slug)
 - `pr: <url>` and `pr-readiness-verdict: <ready|awaiting-input|blocked>`
-- `options:` (all viable next options, per Adaptive routing)
-- ≤3 short blocker bullets if needed
+- `options:` (every viable next option, per Adaptive routing)
+- up to 3 short blocker bullets, when there are blockers
 
 # Procedure
-Single-slug scope runs the numbered procedure as written. Branch scope splits it into two layers per [handoff/_batch.md](handoff/_batch.md).
 
-Do this in order:
-1. **Read branch strategy** from the index: `branch-strategy`, `branch`, `base-branch`, and the optional config keys in [_handoff-config.md](handoff/_handoff-config.md) (silent skip if absent).
-2. **Track the handoff sequence.** One progress step per numbered step, with the labels used throughout this reference (T1 read artifacts · T2 summary · T3 Diátaxis docs · T3.5 commitlint · T3.6 public-surface drift · T3.7 doc-mirror regen · T3.8 local pre-push gate · T4 push · T5 PR · T5.0 CI watch · T5.1 comment triage · T5.2 rebase · T5.3 final re-watch · T6 write 08-handoff.md). A step that resolves to nothing to run is recorded as skipped with its reason, never marked done. T4 (push) never runs before T3.8 (the local pre-push gate) passes, and T5.1 (triage) waits on T5.0 (CI watch). The progress surface is a host concern ([_host-invocation.md](_host-invocation.md)).
-3. Read the Requires inputs (T1).
-4. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language (T2).
-5. **Documentation generation (Diátaxis) (T3).** Read `02-shape.md`'s `## Documentation Plan` and `docs-needed` / `docs-types`. If `docs-needed: true`, for each doc type load the matching primitive of the diataxis skill (`reference` → [reference.md](../../diataxis/references/reference.md), `how-to` → [how-to.md](../../diataxis/references/how-to.md), `tutorial` → [tutorial.md](../../diataxis/references/tutorial.md), `explanation` → [explanation.md](../../diataxis/references/explanation.md), `readme` or `readme-update` → [readme.md](../../diataxis/references/readme.md)) and follow it in full; the handoff summary, shape, and verification artifacts are its writing target. Do not mix types. Write docs to the location the shape's docs plan names, else `docs/` or the existing file. List the paths in `## Documentation Changes`. If `docs-needed: false`, drop T3 and note "No documentation changes".
-5b. **T3.5–T3.7 — Repo hooks.** In the mode `repo-hooks`, run the steps of [handoff/_repo-hooks.md](handoff/_repo-hooks.md): commitlint, public-surface drift and doc-mirror regen. Otherwise record `commitlint-status: skipped`, `public-surface-drift: skipped` and `docs-mirror-status: skipped`.
-5e. **T3.8 — Local pre-push gate.** Skip entirely (`pre-push-checks-status: skipped`) when `branch-strategy` is `none`.
+A single-slug scope runs these steps as written. A branch scope splits them into two layers, per [handoff/_batch.md](handoff/_batch.md). Run the steps in order.
+
+1. **Read the branch strategy** from the index: `branch-strategy`, `branch`, `base-branch`, and the optional keys of [_handoff-config.md](handoff/_handoff-config.md). An absent key skips its step silently.
+2. **Track the handoff sequence**, one progress step per label. Record a step with nothing to run as skipped, with its reason, not as done. The progress surface is a host concern ([_host-invocation.md](_host-invocation.md)).
+
+   | Label | T1 | T2 | T3 | T3.5–T3.7 | T3.8 | T4, T5 | T5.0 | T5.1 | T5.2 | T5.3 | T6 |
+   |---|---|---|---|---|---|---|---|---|---|---|---|
+   | Step | 3 | 4 | 5 | 5b | 5e | 7 | 7a | 7b | 7c | 7d | 10 |
+
+   T4 (the push) runs only after T3.8 (the local pre-push gate) passes. T5.1 (the triage) waits for T5.0 (the CI watch).
+3. **Read the Requires inputs** (T1).
+4. **Summarize** the problem, solution, affected areas, verification evidence, risks and follow-ups for a reviewer (T2).
+5. **Write the Diátaxis docs (T3).** Read `## Documentation Plan` of `02-shape.md`, and its `docs-needed` and `docs-types`.
+   - `docs-needed: true`: for each doc type, load the diataxis primitive and follow it in full: `reference` → [reference.md](../../diataxis/references/reference.md), `how-to` → [how-to.md](../../diataxis/references/how-to.md), `tutorial` → [tutorial.md](../../diataxis/references/tutorial.md), `explanation` → [explanation.md](../../diataxis/references/explanation.md), `readme` or `readme-update` → [readme.md](../../diataxis/references/readme.md). Write from the handoff summary, the shape and the verification artifacts. Do not mix types. Write each doc where the docs plan says, else under `docs/` or into the existing file. List the paths in `## Documentation Changes`.
+   - `docs-needed: false`: skip T3, and write "No documentation changes".
+5b. **T3.5–T3.7: the repo hooks.** In the mode `repo-hooks`, run the steps of [handoff/_repo-hooks.md](handoff/_repo-hooks.md): commitlint, public-surface drift and doc-mirror regen. Otherwise record `commitlint-status: skipped`, `public-surface-drift: skipped` and `docs-mirror-status: skipped`.
+5e. **T3.8: the local pre-push gate.** When `branch-strategy` is `none`, skip this step and record `pre-push-checks-status: skipped`.
 
    a. **Resolve the check list.**
-      - `pre-push-checks:` **present** → use its `checks:` unchanged. An empty `checks: []` (the recorded decline) → `pre-push-checks-status: not-configured`, continue.
-      - `pre-push-checks:` **absent** → auto-detect, then propose once. Read the PR-gate workflow(s) under `.github/workflows/` and extract `run:` steps from jobs that are a required check per the ship plan's Block J or are named `format` / `lint` / `test` / `build`. Detection is conservative: skip any step that references `secrets.`, a service container, an emulator or device, or a matrix `runs-on` this host is not. Then ask one gate question per [_gate-question.md](_gate-question.md) presenting the derived list and the skipped steps with their reasons ("Run these <N> checks locally before pushing? They are this repo's own PR gates"), with the options *Run them and remember (Recommended)* (persist the list to `00-index.md` `pre-push-checks`), *Run once, don't persist*, and *Skip the gate* (records `pre-push-checks: { checks: [], declined-reason }` so this never re-asks). To persist or decline, get the index, change `pre-push-checks`, write the draft of `00-index.md` and put it. **Record what detection skipped and why**, in the question and in `pre-push-checks-skipped`. Detecting nothing runnable is legitimate: set `not-configured` and continue; do not invent commands.
-   b. **Run each check** in list order, bounded by `timeout-minutes` (default 15) per command. Capture the exit status and the failing output tail. A check that exceeds its bound is `timed-out` and non-blocking.
-   c. **On a blocking failure**, route into the existing diagnose→ask→fix path (`## Fix-subagent contract` in [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md)). Honor `on-fail`: `diagnose` (default) enters that path; `stop` records the failure, sets `readiness-verdict: awaiting-input`, and stops before the push. **Local fix rounds do not consume `ci-watch.max-fix-rounds`**; count them in `pre-push-fix-rounds`.
-   d. **Do not push on an unresolved blocking failure.** Non-blocking (`blocking: false`) failures are recorded in `## Reviewer Focus Areas`, and the push proceeds.
-   e. **Workflow-file static validation**, whenever the packaged diff touches `.github/workflows/**`: parse each changed file as YAML (a syntax error is a blocking failure) and check that every `actions/setup-*` version string resolves against its manifest (`setup-java` → the Adoptium manifest; `setup-node` / `setup-python` → theirs). Record `workflow-validation: <ok | findings | skipped>`.
+      - `pre-push-checks:` is present: use its `checks:` unchanged. An empty `checks: []` is a recorded decline: record `pre-push-checks-status: not-configured` and go on.
+      - `pre-push-checks:` is absent: detect the checks, then propose them once. From the PR-gate workflows under `.github/workflows/`, take the `run:` steps of the jobs that are a required check per Block J of the ship plan, or are named `format`, `lint`, `test` or `build`. Leave out a step that references `secrets.`, a service container, an emulator or a device, or a matrix `runs-on` that this host is not. Ask one gate question per [_gate-question.md](_gate-question.md) that shows the derived list and each step left out with its reason ("Run these <N> checks locally before pushing? They are this repo's own PR gates"). The options: *Run them and remember (Recommended)*, which saves the list to `pre-push-checks` of `00-index.md`; *Run once, don't persist*; and *Skip the gate*, which records `pre-push-checks: { checks: [], declined-reason }` so the question is not asked again. To save the list or the decline, get the index, change `pre-push-checks`, write the draft and put it. Record each step left out, with the reason, in the question and in `pre-push-checks-skipped`. Detecting nothing runnable is valid: record `not-configured` and go on. Do not invent commands.
+   b. **Run each check** in list order, each bounded by `timeout-minutes` (default 15). Capture the exit status and the tail of a failing output. A check past its bound is `timed-out` and does not block.
+   c. **On a blocking failure**, take the diagnose, ask and fix path of `## Fix-subagent contract` in [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md). Follow `on-fail`: `diagnose` (the default) takes that path; `stop` records the failure, sets `readiness-verdict: awaiting-input`, and stops before the push. A local fix round does not use up `ci-watch.max-fix-rounds`; count it in `pre-push-fix-rounds`.
+   d. **Do not push while a blocking failure is unresolved.** Record a failure of a check with `blocking: false` in `## Reviewer Focus Areas`, and push.
+   e. **Validate the workflow files** when the packaged diff touches `.github/workflows/**`. Parse each changed file as YAML; a syntax error is a blocking failure. Check that each `actions/setup-*` version resolves against its manifest (`setup-java`: the Adoptium manifest; `setup-node`, `setup-python`: theirs). Record `workflow-validation: <ok | findings | skipped>`.
    f. Record `pre-push-checks-status: <pass | fixed | fail | timed-out | skipped | not-configured>` and `pre-push-fix-rounds: <N>`.
-6. If release behavior depends on current external platform guidance or vendor changes, run a targeted freshness pass.
-7. **Push and create-or-update PR (if `branch-strategy` is `dedicated`):**
-   a. Confirm you are on the workflow branch (`branch`); if not, `git checkout <branch>`. Push: `git push -u origin <branch>`.
-   b. **PR existence check (idempotent):** `gh pr list --head <branch> --json number,url,state --limit 1`.
-      - **No PR exists** → `gh pr create` with the best title from the summary, the summary as body, base `<base-branch>`. The body has the sections Summary, Problem, Solution, Affected Areas, Verification Evidence, Risks, Follow-Up Work and Reviewer Focus Areas. A batch body is made per [handoff/_batch.md](handoff/_batch.md). Do not merge.
-      - **PR exists, state=OPEN** → `gh pr edit <pr-number> --body-file <tmp-file>` to refresh the body. Leave the title unless it materially mismatches.
-      - **The open PR is a draft** → read `gh pr view <pr-number> --json isDraft`. A campaign opens the PR of its list as a draft, with a placeholder title and body. When `isDraft` is `true`, write the real title and body (`gh pr edit <pr-number> --title "<the best title from the summary>" --body-file <tmp-file>`), then run `gh pr ready <pr-number>`, before the CI watch of 7a. A draft PR cannot merge.
-      - **PR exists, state=CLOSED|MERGED** → Stop. Ask the user whether to reopen it (`gh pr reopen <pr-number>`), open a new one (run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index pr-number=null`, then re-run), or treat the workflow as shipped (route to `/wf retro <slug>`).
-   c. **PR template checkbox sweep.** If `.github/PULL_REQUEST_TEMPLATE.md` exists, tick the checkboxes the artifacts justify ("Tests pass" when `06-verify-*.md` is green; "Docs updated" when `docs-generated:` is non-empty) and no others. Record `pr-url` and `pr-number` with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index pr-url=<url> pr-number=<N>`.
-   - If `branch-strategy` is `shared`: in single-slug scope, push but do not create a PR; drop T5, T5.1, and T5.2 (no force-push on shared branches); T5.0/T5.3 still run if a `pr-number` is recorded. Batch scope on a shared branch follows [handoff/_batch.md](handoff/_batch.md).
-   - If `branch-strategy` is `none`: drop T4 through T5.3. The handoff document is the deliverable.
-7a. **T5.0 — Watch CI to green + settle reviews.** Skip when `branch-strategy` is not `dedicated`/`shared` or no `pr-number` is recorded. Otherwise read [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md) in full now; it carries the `## CI watch procedure` and the `## Fix-subagent contract` that steps 7a–7d execute. Read the wait config (`ci-watch:`, `review-settle:`; defaults per [_handoff-config.md](handoff/_handoff-config.md)). Then run the CI watch procedure against `pr-number`:
-   - **green** (all checks `SUCCESS`/`NEUTRAL`/`SKIPPED`) → record `ci-watch-conclusion: green`; settle reviews per `## Settle reviews` in [_ci-red-routing.md](handoff/_ci-red-routing.md) (bots only, bounded; record `bot-reviews-landed`, `bot-review-status`, `review-settle-elapsed-seconds`).
-   - **bound-exceeded** (checks still `pending` when the wait bound elapsed) → record `ci-watch-conclusion: timed-out`, set `readiness-verdict: awaiting-input`, list the still-pending checks in `live-checks-pending`, and stop (write the artifact via steps 8–10). Re-run `/wf ship <slug>` to resume: with the range unchanged, the fingerprint guard marks the slug `re-check` and the watch runs again.
-   - **red** (one or more checks terminal-failed) → apply [_ci-red-routing.md](handoff/_ci-red-routing.md): a diagnose-only sub-agent, routing by class and `converges`, one gate question, then fix / structural fix / re-run / stop. It records `ci-watch-fix-rounds` and `ci-fix-rounds-by-class:`; `ci-watch.max-fix-rounds` bounds product-bug rounds only.
-7b. **T5.1 — PR comment triage loop.** Run the loop in [handoff/_pr-triage.md](handoff/_pr-triage.md). Record `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`. Skip when step 7 drops T5.1 or no `pr-number` was recorded.
-7c. **T5.2 — Rebase onto base** (only when `branch-strategy: dedicated`). `git fetch origin <base-branch>`. If `git merge-base --is-ancestor origin/<base-branch> HEAD` exits 0 → `rebase-status: fast-forward`, record `rebase-onto-sha: <git rev-parse origin/<base-branch>>`, skip to 7d. Otherwise `git rebase origin/<base-branch>`:
-   - **Conflicts** → `rebase-status: conflicts`. Run `git rebase --abort`. Stop. Print the conflicting files, recommend `/wf implement <slug> <slice>`, set `readiness-verdict: blocked`, and proceed to step 9. T5.3 stays pending.
-   - **Clean** → `git push --force-with-lease origin <branch>`. If the lease fails (moved during T5.1 triage), re-fetch and retry once. If the second attempt also fails, set `rebase-status: lease-failure` and stop; recommend re-running handoff. Otherwise `rebase-status: rebased-clean`; record `rebase-onto-sha`.
-7d. **T5.3 — Final readiness re-watch** (only when `pr-number` is recorded). Triage fixes (7b) and the rebase force-push (7c) retrigger CI; do not reuse the T5.0 result.
-   a. **Re-watch CI** with the shared `## CI watch procedure`.
-      - **timed-out** → set `readiness-verdict: awaiting-input`, record the still-pending checks in `live-checks-pending`, stop (write the artifact via steps 8–10; re-running handoff resumes the watch).
-      - **red** → run [_ci-red-routing.md](handoff/_ci-red-routing.md) once; if unresolved (user declines or the bound is hit), set `readiness-verdict: blocked` and write the artifact.
-      - **green** → continue.
-   b. **Capture the review snapshot**: `gh pr view <pr-number> --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus`. Record `live-review-decision` (`APPROVED` | `CHANGES_REQUESTED` | `REVIEW_REQUIRED` | null), `live-checks-failing` and `live-checks-pending` (terminal-failed / still-pending `name`s from `.statusCheckRollup[]`), `live-merge-state` (`CLEAN` | `UNSTABLE` | `BLOCKED` | `DIRTY` | `BEHIND` | …) and `live-mergeable` (`MERGEABLE` | `CONFLICTING` | `UNKNOWN`). These are GitHub's own merge gate; the verdict consumes them. Then re-run the T5.1 unresolved-threads query once, and reply to and resolve each still-open thread of `triage-fixed-threads` (step 7 of [handoff/_pr-triage.md](handoff/_pr-triage.md)); genuinely open threads keep the verdict out of `ready`. Never resolve a thread to launder the merge state.
-   c. **Compute the per-slug `readiness-verdict`** (a property of the PR; it lives on the lead's artifact and is copied to followers):
-      - `ready` — `live-review-decision` ∈ {`APPROVED`, `null` if no reviewers required}, `live-checks-failing` empty, `live-merge-state` ∈ {`CLEAN`, `UNSTABLE`}, `live-mergeable` ≠ `CONFLICTING`, `commitlint-status` ≠ `fail`, `pre-push-checks-status` ≠ `fail`, `public-surface-drift` ≠ `drift-without-regen`, `rebase-status` ∈ {`fast-forward`, `rebased-clean`, `skipped`}, `has-deferred-comments` false. (`UNSTABLE` = only non-required checks failing; record their names in `live-checks-failing-nonrequired` so ship sees them.)
-      - `awaiting-input` — pending checks remain, deferred comments exist, a required human reviewer has not responded (`REVIEW_REQUIRED`), or `live-merge-state` is `BLOCKED` after the thread re-check (record the cause in `readiness-reason`). Handoff records the missing approval and returns control.
-      - `blocked` — anything that hard-fails the criteria above (failing checks after re-watch, `CHANGES_REQUESTED`, `live-mergeable: CONFLICTING`, drift without regen, rebase conflicts, deferred 🔴 blockers).
-   c2. **Compute `pr-readiness-verdict`** (the branch/PR-level verdict ship gates on): the logical AND over the roster. It is `ready` only if the PR-level `readiness-verdict` is `ready` and every slug on the branch is `package`-ready. If any roster slug is `not-ready`, it is `awaiting-input` (or `blocked` if that slug's review is `dont-ship`). In single-slug scope on an unshared branch, `pr-readiness-verdict` == `readiness-verdict`. Write `pr-readiness-verdict` and `handoff-lead` onto the lead's `08-handoff.md`; each follower sets `readiness-via: <lead>/08-handoff.md` and copies `pr-readiness-verdict`.
+6. **Freshness pass.** When the release depends on current external platform guidance or vendor changes, run a targeted freshness pass.
+7. **Push, and create or update the PR.** Run this step when `branch-strategy` is `dedicated`.
+   - **T4, push.** Check that you are on the workflow branch (`branch`); if not, run `git checkout <branch>`. Push with `git push -u origin <branch>`.
+   - **T5, the PR.** Check whether a PR exists, so the step is safe to run again: `gh pr list --head <branch> --json number,url,state --limit 1`.
+
+     | Found | Do |
+     |---|---|
+     | No PR | `gh pr create`, with the best title from the summary, the summary as the body, and the base `<base-branch>`. The body has the sections Summary, Problem, Solution, Affected Areas, Verification Evidence, Risks, Follow-Up Work and Reviewer Focus Areas. A batch makes the body per [handoff/_batch.md](handoff/_batch.md). Do not merge. |
+     | An open PR | Refresh the body with `gh pr edit <pr-number> --body-file <tmp-file>`, and keep the title unless it no longer fits the work. Then read `gh pr view <pr-number> --json isDraft`: a campaign opens the PR of its list as a draft with a placeholder title and body, and a draft cannot merge. When `isDraft` is `true`, write the real title too (`gh pr edit <pr-number> --title "<the best title from the summary>" --body-file <tmp-file>`), then run `gh pr ready <pr-number>`, before the CI watch of step 7a. |
+     | A closed or merged PR (`state` is `CLOSED` or `MERGED`) | Stop. Ask the person whether to reopen it (`gh pr reopen <pr-number>`), to open a new one (run `<wf> record set "<root>" <slug> index pr-number=null`, then run this phase again), or to treat the workflow as shipped (route to `/wf retro <slug>`). |
+
+   - **The PR template.** When `.github/PULL_REQUEST_TEMPLATE.md` exists, tick only the checkboxes that the artifacts justify: "Tests pass" when `06-verify-*.md` is green, "Docs updated" when `docs-generated:` is not empty. Record the PR with `<wf> record set "<root>" <slug> index pr-url=<url> pr-number=<N>`.
+
+   The other branch strategies:
+
+   | `branch-strategy` | Do |
+   |---|---|
+   | `shared` | In single-slug scope, push but do not create a PR. Skip T5, T5.1 and T5.2, because a shared branch takes no force-push. T5.0 and T5.3 still run when a `pr-number` is recorded. A batch scope on a shared branch follows [handoff/_batch.md](handoff/_batch.md). |
+   | `none` | Skip T4 through T5.3. The handoff document is the deliverable. |
+7a. **T5.0: watch CI to green, then settle the reviews.** Skip this step when `branch-strategy` is neither `dedicated` nor `shared`, or no `pr-number` is recorded. Otherwise read [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md) in full now: it holds the `## CI watch procedure` and the `## Fix-subagent contract` that steps 7a–7d run. Read the wait settings (`ci-watch:`, `review-settle:`; the defaults are in [_handoff-config.md](handoff/_handoff-config.md)). Then run the CI watch procedure on `pr-number`:
+
+   | Outcome | Do |
+   |---|---|
+   | green (every check `SUCCESS`, `NEUTRAL` or `SKIPPED`) | Record `ci-watch-conclusion: green`. Settle the reviews per `## Settle reviews` in [_ci-red-routing.md](handoff/_ci-red-routing.md): bots only, bounded. Record `bot-reviews-landed`, `bot-review-status` and `review-settle-elapsed-seconds`. |
+   | timed-out (checks still pending when the wait bound ran out) | Record `ci-watch-conclusion: timed-out`, set `readiness-verdict: awaiting-input`, list the pending checks in `live-checks-pending`, and stop: write the artifact through steps 8–10. `/wf ship <slug>` resumes: with the range unchanged, the fingerprint guard marks the slug `re-check`, and the watch runs again. |
+   | red (one or more checks failed for good) | Apply [_ci-red-routing.md](handoff/_ci-red-routing.md): a diagnose-only sub-agent, routing by class and `converges`, one gate question, then a fix, a structural fix, a re-run or a stop. It records `ci-watch-fix-rounds` and `ci-fix-rounds-by-class:`. `ci-watch.max-fix-rounds` bounds the product-bug rounds only. |
+7b. **T5.1: the PR comment triage loop.** Run the loop of [handoff/_pr-triage.md](handoff/_pr-triage.md). Record `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids` and `has-deferred-comments`. Skip this step when step 7 skips T5.1, or no `pr-number` is recorded.
+7c. **T5.2: rebase onto the base.** Run this step only when `branch-strategy` is `dedicated`. Run `git fetch origin <base-branch>`. When `git merge-base --is-ancestor origin/<base-branch> HEAD` exits 0, record `rebase-status: fast-forward` and `rebase-onto-sha: <git rev-parse origin/<base-branch>>`, and go to step 7d. Otherwise run `git rebase origin/<base-branch>`:
+   - **Conflicts:** record `rebase-status: conflicts` and run `git rebase --abort`. Stop: print the conflicting files, recommend `/wf implement <slug> <slice>`, set `readiness-verdict: blocked`, and go to step 9. T5.3 stays pending.
+   - **Clean:** run `git push --force-with-lease origin <branch>`. When the lease fails (the branch moved during the T5.1 triage), fetch again and retry once. When the second push also fails, record `rebase-status: lease-failure`, stop, and recommend running this phase again. Otherwise record `rebase-status: rebased-clean` and `rebase-onto-sha`.
+7d. **T5.3: the final readiness re-watch.** Run this step only when a `pr-number` is recorded. The triage fixes (step 7b) and the force-push of the rebase (step 7c) start CI again, so do not reuse the T5.0 result.
+   a. **Watch CI again** with the `## CI watch procedure`.
+      - timed-out: set `readiness-verdict: awaiting-input`, record the pending checks in `live-checks-pending`, and stop: write the artifact through steps 8–10. Running this phase again resumes the watch.
+      - red: run [_ci-red-routing.md](handoff/_ci-red-routing.md) once. When the failure stays (the person declines, or the bound is reached), set `readiness-verdict: blocked` and write the artifact.
+      - green: go on.
+   b. **Capture the review snapshot** with `gh pr view <pr-number> --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus`: GitHub's own merge gate, which the verdict reads. Record `live-review-decision`, `live-checks-failing` and `live-checks-pending` (the `name` of each failed and each pending check of `.statusCheckRollup[]`), `live-merge-state` and `live-mergeable`; the template under Artifacts lists their values. Then run the unresolved-threads query of T5.1 once more. Reply to and resolve each thread of `triage-fixed-threads` that is still open (step 7 of [handoff/_pr-triage.md](handoff/_pr-triage.md)). A thread that is still open in fact keeps the verdict out of `ready`. Do not resolve a thread only to clear the merge state.
+   c. **Compute the `readiness-verdict` of each slug.** It is a property of the PR: it lives on the lead's artifact, and each follower copies it.
+
+      | Verdict | When |
+      |---|---|
+      | `ready` | `live-review-decision` is `APPROVED`, or null when no reviewer is required; `live-checks-failing` is empty; `live-merge-state` is `CLEAN` or `UNSTABLE`; `live-mergeable` is not `CONFLICTING`; `commitlint-status` is not `fail`; `pre-push-checks-status` is not `fail`; `public-surface-drift` is not `drift-without-regen`; `rebase-status` is `fast-forward`, `rebased-clean` or `skipped`; `has-deferred-comments` is false. `UNSTABLE` means that only checks that are not required fail: record their names in `live-checks-failing-nonrequired`, so ship sees them. |
+      | `awaiting-input` | Checks are still pending, deferred comments exist, a required human reviewer has not answered (`REVIEW_REQUIRED`), or `live-merge-state` is `BLOCKED` after the thread re-check. Record the cause in `readiness-reason`. This phase records the missing approval and returns control. |
+      | `blocked` | A hard failure of the `ready` criteria: checks still fail after the re-watch, `CHANGES_REQUESTED`, `live-mergeable: CONFLICTING`, drift without regen, rebase conflicts, or deferred 🔴 blockers. |
+   c2. **Compute `pr-readiness-verdict`**, the verdict of the branch that ship gates on: the logical AND over the roster, `ready` only when the PR's `readiness-verdict` is `ready` and every slug on the branch is ready to package. When a roster slug is `not-ready`, it is `awaiting-input`, or `blocked` when that slug's review is `dont-ship`. In single-slug scope on a branch that no other slug shares, `pr-readiness-verdict` equals `readiness-verdict`. Write `pr-readiness-verdict` and `handoff-lead` onto the lead's `08-handoff.md`. Each follower sets `readiness-via: <lead>/08-handoff.md` and copies `pr-readiness-verdict`.
 7e. **No PR.** With no `pr-number` (`branch-strategy: none`, or `shared` with no PR), steps 7a–7d do not run. Write `readiness-verdict: not-applicable`, `pr-readiness-verdict: not-applicable` and `readiness-reason: "no PR; the handoff document is the deliverable"`.
+8. **Evaluate the adaptive routing** (below), and write every viable option into the `recommended-routes` frontmatter.
+9. **Update the index of each roster slug** in one call: `<wf> record set "<root>" <slug> index current-stage=ship progress.ship=in-progress next-command=<command> next-invocation=<invocation>`, plus `handoff-lead=<lead>` in batch mode. A follower also sets `readiness-via=<lead>/08-handoff.md`. An older index can still hold a `progress.handoff` key: set `progress.handoff=complete` when the verdict is `ready`. Do not add the key to an index that has none.
+10. **Write `08-handoff.md` (T6)** for each packaged slug: write the draft `<wf-dir>/.draft/08-handoff.md` (additive write, ledger entry and `handoff-fingerprint`), then run `<wf> record put "<root>" <slug>`. The lead's artifact carries the readiness keys and `pr-readiness-verdict`; a follower's carries `readiness-via` and the copied `pr-readiness-verdict`. Do not write a `skip-unchanged` or a `not-ready` slug. A `re-check` slug rewrites only its readiness keys and the T5.0–T5.3 keys, with `<wf> record set "<root>" <slug> 08-handoff.md <key>=<value> ...`: no snapshot and no ledger entry.
 
-8. **Evaluate adaptive routing** (below) and write all viable options into the `recommended-routes` frontmatter.
-9. Update the index of each roster slug in one call: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index current-stage=ship progress.ship=in-progress next-command=<command> next-invocation=<invocation>`, and (batch) `handoff-lead=<lead>`. An older index can still hold a `progress.handoff` key: set `progress.handoff=complete` when the verdict is `ready`, and add none. Followers also set `readiness-via=<lead>/08-handoff.md`.
-10. Write the draft `<wf-dir>/.draft/08-handoff.md` for each packaged slug (additive-write + ledger + `handoff-fingerprint`), then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The lead's artifact carries the readiness keys and `pr-readiness-verdict`; followers carry `readiness-via` and the copied `pr-readiness-verdict`. Skip-unchanged and not-ready slugs are not written. A `re-check` slug rewrites only its readiness keys (and the T5.0–T5.3 keys), with `record set "<root>" <slug> 08-handoff.md <key>=<value> ...`: no snapshot and no ledger entry.
+# Adaptive routing
 
-# Adaptive routing — evaluate what is actually next
-Present all viable options:
-- **Option A (default): Continue to the gate, in this run.** When `pr-readiness-verdict: ready` and the PR is open, return to [ship.md](ship.md) Step 0 and continue to the go/no-go gate. A later `/wf ship <slug>` (or `/wf ship pr#N` for a batch) resumes at that gate.
-- **Option B: Skip to Retro** → `/wf retro <slug>`. Shipping is handled entirely outside this workflow; the handoff document IS the final deliverable.
-- **Option C: Package remaining slugs/slices first** → re-run `/wf ship pr#N`, or `/wf plan|implement <slug> <next-slice>`. Use when the roster shows `not-ready` slugs, or `03-slice.md` shows slices still `status: defined` **that have no implement/verify artifacts on disk** (a `defined` entry with a passing verify is a bookkeeping fault step 4 already reconciled). Do not ship until `pr-readiness-verdict: ready`.
-- **Option D: Fix** → `/wf implement <slug> <selected-slice>`. While writing the handoff, you realised something is wrong or missing in a specific slice.
+Offer every option that applies:
+- **Option A (default): continue to the gate in this run.** When `pr-readiness-verdict` is `ready` and the PR is open, return to [ship.md](ship.md) Step 0 and go on to the go/no-go gate. A later `/wf ship <slug>` (or `/wf ship pr#N` for a batch) resumes at that gate.
+- **Option B: skip to retro**, `/wf retro <slug>`, when the work ships entirely outside this workflow and the handoff document is the final deliverable.
+- **Option C: package the remaining slugs or slices first.** Run `/wf ship pr#N` again, or `/wf plan|implement <slug> <next-slice>`. Use it when the roster shows `not-ready` slugs, or when `03-slice.md` shows slices still at `status: defined` that have no implement or verify record on disk. A `defined` entry with a passing verify is a bookkeeping fault that Step 0 item 4 already reconciled. Do not ship until `pr-readiness-verdict` is `ready`.
+- **Option D: fix**, `/wf implement <slug> <selected-slice>`. Use it when writing the handoff showed that a slice is wrong or incomplete.
 
 # Artifacts
+
 Write the draft of `08-handoff.md` with this frontmatter, and put it. `node "<skill-dir>/scripts/wf.mjs" stamp handoff --slug <slug>` prints its required fields, each with its allowed values; the template adds the optional fields.
 
 ```yaml
@@ -241,15 +304,18 @@ recommended-routes:
 ---
 ```
 
-The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in order:
+The outcomes of T3.5–T5.3 live only in the frontmatter keys. The body sections, in order:
 - `## PR Title Options` (numbered), `## Summary`, `## Problem`, `## Solution`.
-- `## Augmentations Applied` (only if `augmentations:` is non-empty): every augmentation in user-facing language, grouped as **Design improvements**, **Observability**, **Experimentation**, **Performance**, each with the user-visible effect and the verification evidence path. Do not cite workflow artifact paths or sub-command names.
-- `## Affected Areas`, `## Verification Evidence`, `## Manual Test Notes`, `## Migration / Config / Rollout Notes`, `## Risks / Caveats`, `## Documentation Changes` (per doc: **Type** reference / how-to / tutorial / explanation / readme, **Path**, **What it covers**; or "None — [reason from shape docs plan]"), `## Follow-Up Work`, `## Reviewer Focus Areas` (name any unresolvable `actions/setup-*` pin here).
-- `## Reviewer Comments Triaged` (populated by T5.1; empty when `branch-strategy: none` or no PR exists): a table `| Source | File:Line | Severity | Summary | Action |` where `Action` is `fixed (sha=<short-sha>)`, `applied (sha=<short-sha>)`, `deferred`, `declined`, or `noted`. Cite commit SHAs only.
-- `## Freshness Research` (Source / Why it matters / Takeaway per entry).
+- `## Augmentations Applied`, only when `augmentations:` is not empty: every augmentation in the user's words, grouped as Design improvements, Observability, Experimentation and Performance, each with the effect that a user sees and the path of its verification evidence. Do not cite workflow artifact paths or sub-command names.
+- `## Affected Areas`, `## Verification Evidence`, `## Manual Test Notes`, `## Migration / Config / Rollout Notes`, `## Risks / Caveats`, `## Documentation Changes` (for each doc: its Type, one of reference, how-to, tutorial, explanation or readme; its Path; and What it covers; or "None — [reason from shape docs plan]"), `## Follow-Up Work`, `## Reviewer Focus Areas` (name here any `actions/setup-*` pin that does not resolve).
+- `## Reviewer Comments Triaged`, which T5.1 fills; it is empty when `branch-strategy` is `none` or no PR exists. A table `| Source | File:Line | Severity | Summary | Action |`, where `Action` is `fixed (sha=<short-sha>)`, `applied (sha=<short-sha>)`, `deferred`, `declined` or `noted`. Cite commit SHAs only.
+- `## Freshness Research`: Source, Why it matters and Takeaway for each entry.
 
 # Additive-write contract
-`08-handoff.md` is revisable. On re-invocation, follow [_additive-write.md](_additive-write.md):
-- **No-op guard (fingerprint).** Recompute `handoff-fingerprint` (step 6). If it matches the stored value and the stored `readiness-verdict` is `ready` or `not-applicable`, skip the slug entirely: no snapshot, no ledger entry, no rewrite. If it matches with another verdict, skip the packaging, run T5.0–T5.3 again and overwrite the readiness keys (Step 0, item 6).
-- **Snapshot** the `record get` output of the pre-run `08-handoff.md` to `<wf-dir>/history/08-handoff-<rev>.md`, then **rewrite the body to current truth**.
-- **Ledger entry** (`revisions:`): `trigger` is `review-feedback`, `ci-fix`, `new-slug-joined`, `scope-change`, or `resume`; `because:` and `changed:` name the prompt and the effect. Update `handoff-fingerprint`. The body is the current document, so re-posting the PR description via `gh pr edit` is a straight copy; in batch mode the PR body is the union across packaged slugs, regenerated whole each run. The readiness keys are overwritten on every re-run, never revisioned, and in batch mode present only on the lead.
+
+`08-handoff.md` can be revised. When this phase runs again, follow [_additive-write.md](_additive-write.md):
+- **The fingerprint guard.** Recompute `handoff-fingerprint`, and apply the guard of Step 0 item 6.
+- **Snapshot** the `record get` output of the `08-handoff.md` from before this run to `<wf-dir>/history/08-handoff-<rev>.md`, then rewrite the body to the current truth.
+- **Ledger entry** (`revisions:`): `trigger` is `review-feedback`, `ci-fix`, `new-slug-joined`, `scope-change` or `resume`; `because:` and `changed:` name the prompt and the effect. Update `handoff-fingerprint`.
+- The body is the current document, so posting the PR description again with `gh pr edit` is a straight copy.
+- The readiness keys are overwritten on every run and never revised in the ledger.

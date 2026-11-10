@@ -1,18 +1,15 @@
 ---
-description: Dashboard across all workflows, plus single-workflow detail and routing. Reads the index of every workflow and renders a grouped status table; with a slug, shows the detail view and the exact next command to run; with a `pr#N`/branch, shows a read-only roster of every slug on that branch and which are handoff-ready / ship-ready. Reconciles the global registry .ai/workflows/INDEX.md when it drifts from disk (idempotent, reported). An optional `deep` mode runs a reality-drift check against code/git/deps and writes a sync report. An `advise` mode reasons ACROSS all open workflows — builds the dependency/collision graph (seeking code truth when the artifacts don't settle an edge), then renders a ranked "do this next, in this order, stop doing that" plan; read-only, writes nothing.
+description: The dashboard, the detail view and the router of every workflow. With no argument it shows what waits on the person and a grouped table of every workflow. With a slug it shows the detail view and the exact next command. With `pr#N` or a branch it shows a read-only roster of the slugs on that branch, and which are handoff-ready and ship-ready. Every run brings the registry `.ai/workflows/INDEX.md` in line with the disk and reports what it changed. `deep` checks one workflow against the code, git and the dependencies, and writes a sync report. `advise` reads every open workflow, builds the graph of dependencies and collisions (it reads the code when the artifacts do not settle an edge), and ranks what to do next, in what order, and what to stop; it writes nothing.
 argument-hint: "[slug|pr#N|branch] [deep] | advise [branch|pr#N|fast]"
 ---
 
-You are running `/wf status`, the **dashboard, detail view, and router** for all SDLC workflows.
+You are running `/wf status`, the dashboard, detail view and router of every workflow. It reads the state of the workflows, renders it, and names the exact next command. It runs no stage, fixes nothing, and advances no workflow.
 
-# Pipeline
-1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
-
-`status` does not advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest (its writes are listed under Role).
+Pipeline: 1·intake → 2·design → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·ship → 9·retro
 
 ## Requires
 
-Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check. Dashboard, detail and roster modes read frontmatter only. Status writes no stage artifact.
+Status writes no stage artifact, so it runs no Requires check before a write. Read the rows of the mode that Step 0 resolves. [_requires.md](_requires.md) defines the table. The dashboard, detail and roster modes read frontmatter only.
 
 | Input | Kind | When | Sections |
 |---|---|---|---|
@@ -28,48 +25,93 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `status/_advise.md` | procedure | mode:advise | |
 | `_liveness.md` | procedure | mode:detail | The staleness rule |
 
-# Role
-You are a **dashboard + router + registry keeper**, not a problem solver.
-- Do not run stages, fix issues, or advance workflows.
-- The **only** files you may write are `.ai/workflows/INDEX.md` (Step -1 reconcile) and, in `deep` mode, the `00-sync.md` record + the `workflow-files` bookkeeping set of the index. Nothing else.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
+## What status writes
 
-# Step -1 — Reconcile the global registry (`.ai/workflows/INDEX.md`) — always, first
+- `.ai/workflows/INDEX.md`, in Step -1.
+- In deep mode only: the `00-sync.md` record, and its entry in `workflow-files` of the index.
 
-This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. The repair is idempotent: running it twice produces an identical file.
+Write nothing else. Keep the order of the steps where a step uses the output of an earlier step. Reads can run in any order.
 
-**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key and at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; set `artifactTracking` in `.ai/sdlc-config.json` (`/wf project ship-plan init` Step 3.5 asks it) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
+# Step -1 — Reconcile the registry
 
-**One-time advisory — design surface ignored.** While reconciling, when `.ai/design/` exists, run `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>" --check`. When it exits 1, append one advisory line (never a gate, never a prompt): "git ignores the design surface — `wf.mjs design track` keeps `.ai/design/` tracked; run it after the person approves." Print it at most once per invocation.
+Run this step on every call, first, also when the call names a slug. Running it twice gives the same file.
 
-**File: `.ai/workflows/INDEX.md`**: one `#` header line, then one row per workflow, `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, from each `00-index.md`, sorted by slug. Closed workflows keep their rows.
+1. Run `node "<skill-dir>/scripts/wf.mjs" index "<projectRoot>"`. It rebuilds `.ai/workflows/INDEX.md`: one `#` header line, then one row for each workflow, `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, from each `00-index.md`, sorted by slug. A closed workflow keeps its row. The script drops the row of a missing folder, keeps the row of a folder whose `00-index.md` does not parse, keeps a `prototype` row whose branch has a worktree that holds the workflow, and names each slug that is a `/wf` command word. Print its lines in the chat return, except `INDEX.md is in sync.`. Rename nothing.
+2. When `.ai/sdlc-config.json` has no `artifactTracking` key and at least one workflow exists, add this line to the report: "artifact-tracking policy unset — ship decides at ship time whether `.ai/` is tracked or ignored; set `artifactTracking` in `.ai/sdlc-config.json` (`/wf project ship-plan init` Step 3.5 asks it) to give the clean-tree gate of ship a policy to read." A repo that has the key does not see the line.
+3. When `.ai/design/` exists, run `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>" --check`. When it exits 1, add this line to the report: "git ignores the design surface — `wf.mjs design track` keeps `.ai/design/` tracked; run it after the person approves."
 
-Run `node "<skill-dir>/scripts/wf.mjs" index "<projectRoot>"`. It rebuilds the file. It drops the row of a missing folder, keeps the row of a folder whose `00-index.md` does not parse, keeps a `prototype` row whose branch has a worktree that holds the workflow, and names each slug that is a `/wf` command word. Print its lines in the chat return, except `INDEX.md is in sync.`. Rename nothing.
-
-The render below runs after this step, against the reconciled set.
+Each line of items 2 and 3 is a note, not a gate and not a question. Print each one at most once per call. Every mode below renders the reconciled set.
 
 # Lists first
 
-For each list with an unfinished work packet, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its work packets, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
+A list is the `work/index.md` (`type: list`) of a brainstorm or ideate workflow. For each list with an unfinished work packet, lead with the output of `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its work packets, the next step, and the design needs. Then write: "Type `/wf campaign <source-slug>`."
 
-# Step 0 — Resolve mode
-1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
-1b. If the **first** token is `advise`, set **advise-mode** and strip it. The remaining first token (optional) is the advise **scope**: a branch name or `pr#N`/`#N`/bare integer narrows advice to the slugs on that branch; the literal `fast` drops to Tier-0 (frontmatter only — no artifact or code reads). Advise-mode skips the polymorphic resolution in step 2 and, after the always-on Step -1 reconcile, runs the **Advise Mode** section below. Advise does its own bounded code-truth seeking, so it ignores a trailing `deep`.
-2. Resolve the remaining first token with `node "<skill-dir>/scripts/wf.mjs" target "<projectRoot>" <token> --json` (a slug wins over a branch):
-   - **`scope: slug`** → **detail mode** (single workflow). Read its index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index`.
-   - **`scope: branch`** (a `pr#N` or a branch name) → **roster mode** below.
-   - **An `error`** → show it and stop.
-   - **No token** → **dashboard mode** across all workflows. Do not run `target`.
-3. If enumeration found **no** workflows (registry empty and disk listing empty) → tell the user: "No workflows found. Start one with `/wf intake <description>`." Stop.
+# Step 0 — Resolve the mode
 
-# Roster Mode (`pr#N` / branch) — read-only branch view
+1. When the last token is `deep`, set deep mode and remove the token.
+2. When the first token is `advise`, remove it and run advise mode (below). The next token, when there is one, is the scope of the advice: a branch name, `pr#N`, `#N` or a bare integer limits the advice to the slugs on that branch, and `fast` reads frontmatter only, with no artifact or code reads. Advise ignores a trailing `deep`, because it does its own bounded code reads. Skip item 3.
+3. Otherwise resolve the first token with `node "<skill-dir>/scripts/wf.mjs" target "<projectRoot>" <token> --json`. A slug wins over a branch.
 
-This is the read-only counterpart to batch `/wf ship`: it answers "which slugs on this branch are handoff-ready or ship-ready" **without triggering anything**. It writes nothing beyond the Step -1 registry reconcile.
+   | Result | Mode |
+   |---|---|
+   | no token (do not run `target`) | dashboard mode, across every workflow |
+   | `scope: slug` | detail mode; read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index` |
+   | `scope: branch` (`pr#N` or a branch name) | roster mode |
+   | `error` | show it, and stop |
 
-1. The roster is the `slugs` of the `target` output: every slug whose `branch` column in `.ai/workflows/INDEX.md` (just reconciled) equals the resolved branch.
-2. For each roster slug, use the frontmatter of the index and (if present) `08-handoff.md`; read each with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <roster-slug> <name>`. Derive, per slug: `current-stage`, per-slug review verdict / open blockers, `readiness-verdict` (from its handoff, if any), `runtime-evidence-status` (same computation as dashboard mode), and `handoff-lead:`.
-3. Read the lead slug's `08-handoff.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <lead> 08-handoff.md` for the branch-level `pr-readiness-verdict` (absent → not yet handed off as a batch).
-4. **Render the roster** and stop:
+4. When no workflow exists, in the registry or on the disk, say: "No workflows found. Start one with `/wf intake <description>`." Then stop.
+
+# Dashboard mode (no token)
+
+1. Run `node "<skill-dir>/scripts/wf.mjs" inbox "<projectRoot>" --json`. It lists everything that waits on the person, across every workflow, oldest first. Each entry gives the `slug`, the `kind`, the question in `ask`, `since`, and in `answer` the exact command that the person types. An entry with `later: true` waits for a stage or a run, and its `why` says which. `laterGroups` gives one `line` for each workflow of those entries. Render the inbox from [status/_dashboard.md](status/_dashboard.md), before the tables. When `count` is 0, render the one line "Nothing waits on you." Give each `notes` line as it is.
+2. Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Use its fields for each workflow as they are: `group` (`active`, `blocked`, `completed` or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`.
+3. A workflow with a run also carries `progress`: its `state` (`running`, `waiting`, `stopped` or `done`; a dead driver shows as `stopped`), the stage, slice and step, `etaSeconds`, and `resume`. For each run that is not `done`, add one line under the table: `<slug>: <state> at <stage> <slice> step <n> of <m>`, with the ETA when it has one, and the `resume` command when it stopped.
+4. For the other columns, read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index`, and take these frontmatter fields:
+   - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
+   - `selected-slice`, `open-questions`
+   - `next-command` and `next-invocation`. When they are absent, take `recommended-next-command` and `recommended-next-invocation`, the route of a readiness gate. This is the order that `wf.mjs status` and the dispatcher use; `record stage-done` clears the `recommended-` pair when it writes the next step.
+   - `branch-strategy`, `branch`, `pr-url`, `pr-number`
+   - `progress`, for example `slices-implemented: 2, slices-total: 5`
+   - `runtime-evidence-deferrals`: a list of `{slice, reason, deferred-at, cleared-by}`, which may be absent
+   - `compressed-slices`: a list of `{slug, slice-type, created-at}`. The entries with `slice-type: probe` are the probe findings.
+5. Compute `runtime-evidence-status` for each workflow:
+
+   | Condition | Value |
+   |---|---|
+   | `runtime-evidence-deferrals` is absent, or every entry has a `cleared-by`, and no probe slice has `findings-count > 0` | `clean` |
+   | An entry of `runtime-evidence-deferrals` has `cleared-by: null` | `deferrals-open`, with the count of those entries |
+   | A probe slice has `findings-count > 0`, and its findings did not go through plan or a fix | `probe-findings-open` |
+
+   The runtime status is separate from the group: an Active or Blocked workflow can carry one too.
+6. Classify each workflow by its `group`: `active` is Active, `blocked` is Blocked (`status: awaiting-input`, or open questions), and `completed` is Completed. An `active` workflow is Blocked too when a prerequisite stage awaits input, or when its design is not settled per `design/_lane.md`; its next step is then `/wf design <slug>`. List an `invalid` workflow under Blocked, with its reason. When `stale` is true, append `(stale)` to the status.
+7. Render from [status/_dashboard.md](status/_dashboard.md): the Active, Blocked and Completed tables, the `## Quick Actions` section, a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, and the `## Cost` table.
+8. For the cost table, run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>` for each slug. Its `total` row holds the input, output, cache read and cache write of the slug, with the external in / out pair apart. Copy every integer as it is written. Do not estimate or price. Leave out a slug whose result is `No cost ledger.`, and leave out the table when no slug has a ledger.
+
+# Detail mode (a slug)
+
+The detail view of one workflow, with the exact next command. It does not advance the workflow.
+
+1. Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`. It gives the summary of the workflow, each stage file with its `status` and `updatedAt`, each slice with the status of its plan, implement, verify and review files, the cost sums, and `next` (the current stage file, its `next-invocation` and its `recommended-routes`). Use these as they are. When the result has `error`, say: "Workflow `<slug>` not found. Run `/wf status` to list all workflows." Then stop.
+2. Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index` for the fields that the result does not carry. Take the `workflow-files` list, and check which records exist with `node "<skill-dir>/scripts/wf.mjs" record list "<projectRoot>" <slug>`.
+3. Read the frontmatter of each stage record that exists with `record get`: `status`, `created-at`, `updated-at` and the key metrics. Do not read the stage bodies, except for the fallback of item 4. When `02c-craft.md` names `screens:`, show the screen count and the `approval-commit` in `## Key Metrics`.
+4. The frontmatter of the current stage file drives `## Next`: its `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Do not take `recommended-next-*` from a stage file. An artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section; read that section instead.
+5. For the slice matrix, take these records from `record list`: `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` record of each slice; leave out the sub-reviews `07-review-<slice>-<command>.md`), and `08-handoff.md`. Mark each cell `✓` complete, `→` in progress or awaiting input, `✗` failed, or `·` pending.
+6. Show the steps of a slice in progress, as the detail render says.
+7. For the branch info, compare `git branch --show-current` with the `branch` field of the workflow. Warn when they differ.
+8. Driver liveness: when `<wf-dir>/.driver-journal.jsonl` exists, read its tail and apply the staleness rule of [_liveness.md](_liveness.md). Render the `## Driver` row from its three states. Do not report a driver as running because the journal exists: the journal outlives the driver. With no journal, leave the section out; a missing journal does not prove that no driver ran.
+9. The clearing-event tripwire: for each open entry of `runtime-evidence-deferrals` (`cleared-by: null`) that carries a `clearing-probe`, run that one command with a short timeout. Render each hit as the ⚠ line of the detail render, which routes to `/wf probe <slug>`. Run only the recorded command, never one you make up. Do not clear the deferral and do not edit `00-index.md`: this is a tripwire, not a gate, and the probe stage owns the evidence. Skip an entry that the person authorized, and an entry with no recorded probe.
+10. Cost: run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its rows are the sums for each `key`: turns, sub-agents, input, output, cache read, cache write, external in / out. Copy every integer as it is written. Do not estimate or price. When the result is `No cost ledger.`, leave the section out.
+11. Goal and loop: add one `## Driver` line from `goal.mjs status` when `goal.md` exists, one from `optimize.mjs status` for an optimize slug, and one from `prototype.mjs status` for a prototype slug.
+12. Render the view from [status/_detail.md](status/_detail.md): the title line, `## Stage Progress` (one row for each stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next`. `## Next` gives the default invocation and every option of `recommended-routes` of the current stage file. Present all of them, and do not pick one silently. It also covers the awaiting-input, complete or closed, and wrong-branch cases.
+
+# Roster mode (`pr#N` or a branch)
+
+The read-only view of a branch: which slugs on it are handoff-ready or ship-ready. It is the counterpart of batch `/wf ship`, and it starts nothing. It writes nothing beyond Step -1.
+
+1. The roster is the `slugs` of the `target` output: every slug whose `branch` column in the reconciled `.ai/workflows/INDEX.md` is the resolved branch.
+2. For each slug of the roster, read the index and, when it exists, `08-handoff.md`, each with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <roster-slug> <name>`. Take from them: `current-stage`, the review verdict and the open blockers of the slug, `readiness-verdict` (from its handoff, when there is one), `runtime-evidence-status` (computed as in dashboard mode), and `handoff-lead:`.
+3. Read `08-handoff.md` of the lead slug with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <lead> 08-handoff.md` for the `pr-readiness-verdict` of the branch. When it is absent, the branch is not yet handed off as a batch.
+4. Render the roster, and stop:
 
    ```
    ## Branch <branch> — PR #<N> (<pr-url>)
@@ -84,71 +126,24 @@ This is the read-only counterpart to batch `/wf ship`: it answers "which slugs o
    Ship-ready = pr-readiness-verdict is `ready` AND the slug's runtime-evidence is clean.
    ```
 
-   The bottom line names the single batch action available now: `/wf ship pr#N` if any slug is packageable-but-not-packaged or the whole branch is ship-ready, or the specific per-slug command blocking progress.
+   The bottom line names the one batch action that is open now: `/wf ship pr#N` when a slug can be packaged but is not, or the whole branch is ship-ready; otherwise the command of the slug that blocks progress.
 
-# Dashboard Mode (no slug)
+# Deep mode (`/wf status <slug> deep`)
 
-**The inbox comes first.** Run `node "<skill-dir>/scripts/wf.mjs" inbox "<projectRoot>" --json`. It lists everything that waits on the person, across every workflow, oldest first. Each entry gives the `slug`, the `kind`, the question in `ask`, `since`, and in `answer` the exact command the person types. An entry with `later: true` waits for a stage or a run, and its `why` says which. `laterGroups` gives one `line` per workflow for those entries. Render the inbox from [status/_dashboard.md](status/_dashboard.md) before the tables. When `count` is 0, render the one line "Nothing waits on you." Give each `notes` line as it is.
+Deep mode checks whether the code, tests, PRs, branches and dependencies that the records name still exist or have drifted, and writes the `00-sync.md` record. Plain `/wf status <slug>` does not run it. Load [status/_deep.md](status/_deep.md) and follow its steps.
 
-Then run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow in it carries its `group` (`active`, `blocked`, `completed`, or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`. Use them as they are. A workflow with a run also carries `progress`: its `state` (`running`, `waiting`, `stopped` or `done`; a dead driver shows as `stopped`), the stage, slice and step, `etaSeconds`, and `resume`. For each run that is not `done`, add one line under the table: `<slug>: <state> at <stage> <slice> step <n> of <m>`, the ETA when it has one, and the `resume` command when it stopped. For the other columns, read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index`. Parse frontmatter for:
-- `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
-- `selected-slice`, `open-questions`
-- `next-command`, `next-invocation` (fall back to `recommended-next-command`, `recommended-next-invocation`, the route of a readiness gate). This is the order of `wf.mjs status` and of the dispatcher; `record stage-done` clears the `recommended-` pair when it writes the next step.
-- `branch-strategy`, `branch`, `pr-url`, `pr-number`
-- `progress` (e.g., `slices-implemented: 2, slices-total: 5`)
-- `runtime-evidence-deferrals` (list of `{slice, reason, deferred-at, cleared-by}`; may be absent)
-- `compressed-slices` (list of `{slug, slice-type, created-at}`; filter `slice-type: probe` to count outstanding probe findings)
+# Advise mode (`/wf status advise [branch|pr#N|fast]`)
 
-**Compute `runtime-evidence-status` per workflow:**
+Advise answers what the dashboard cannot: across every open workflow, what to do next, in what order, and what to stop. It recommends commands, `/wf intake <slug> close` among them. It runs none of them, and it advances no workflow. It writes no artifact of its own, because advice is about now and a re-run is cheap. Its only write is the Step -1 reconcile.
 
-| Condition | Value |
+Load [status/_advise.md](status/_advise.md), run its steps A1–A5 in order, and render its Portfolio Advice block. Every row has a one-line reason and a concrete next command.
+
+# Chat return
+
+| Mode | Return |
 |---|---|
-| `runtime-evidence-deferrals` absent or every entry has `cleared-by` non-null and no probe slice with `findings-count > 0` | `clean` |
-| Any `runtime-evidence-deferrals` entry has `cleared-by: null` | `deferrals-open` (count = null entries) |
-| Any probe compressed-slice with `findings-count > 0` and findings not yet routed through plan/fix | `probe-findings-open` |
-
-A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the two are orthogonal.
-
-**Classify each workflow** by its `group`: `active` is Active, `blocked` is Blocked (`status: awaiting-input` or open questions), and `completed` is Completed. An `active` workflow is Blocked too when a prerequisite stage is awaiting input, or when design is unsettled per `design/_lane.md` (next: `/wf design <slug>`). List an `invalid` workflow under Blocked, with its reason.
-
-**Staleness:** when `stale` is true, append `(stale)` to the status.
-
-**Render the dashboard** from [status/_dashboard.md](status/_dashboard.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf yolo <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
-
-**Cost (exact tokens).** For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its `total` row is the slug's input / output / cache read / cache write, with the external in / out pair apart. Copy every integer as written; never estimate or price. Omit a slug whose result is `No cost ledger.`. Omit the table when no slug has one.
-
-# Detail Mode (slug provided) — dashboard + routing in one
-
-`/wf status <slug>` renders the single-workflow detail **and** tells the user the exact next command. It never advances the workflow.
-
-1. **Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`.** It gives the workflow summary, each stage file with its `status` and `updatedAt`, each slice with the status of its plan, implement, verify and review files, the cost sums, and `next` (the current stage file, its `next-invocation` and its `recommended-routes`). Use these as they are. If the result has `error` → "Workflow `<slug>` not found. Run `/wf status`
-   to list all workflows." Stop. Then read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<projectRoot>" <slug> index` for the fields the result does not carry.
-2. Read the `workflow-files` list and check which records exist with `node "<skill-dir>/scripts/wf.mjs" record list "<projectRoot>" <slug>`.
-3. Read each existing stage record's frontmatter with `record get` (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below. When `02c-craft.md` names `screens:`, show the screen count and the `approval-commit` in `## Key Metrics`.
-4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
-5. **Render the detail view** from [status/_detail.md](status/_detail.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present all, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
-6. For the **slice progress matrix**, take from `record list` the records `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.
-6b. Show the steps of a slice in progress (detail render).
-7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
-8. **Driver liveness** — read the tail of `<wf-dir>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_liveness.md](_liveness.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
-9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries and entries with no recorded probe.
-10. **Cost** — run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its rows are the sums per `key`: turns, sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. `No cost ledger.` → omit the section.
-11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, one from `optimize.mjs status` for an optimize slug, and one from `prototype.mjs status` for a prototype slug.
-
-# Deep Mode (`/wf status <slug> deep`) — reality-drift check
-
-`deep` checks whether referenced code, tests, PRs, branches, and dependencies still exist or have drifted, and writes `00-sync.md`. Plain `/wf status <slug>` does **not** run it.
-
-Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory references, check code reality, check git reality, check dependency reality, check steering reality (a contradiction between a stage artifact and a steering entry is a `⚠ steering-violation`; the file's presence is never a finding), check intent-risk reality (an `intent-risks` entry still `status: open` after shape is complete is a `⚠ intent-risk-open`), assess health (`in-sync` / `minor-drift` / `significant-drift` / `stale`), write the draft of `00-sync.md` and put it with `node "<skill-dir>/scripts/wf.mjs" record put "<projectRoot>" <slug>` per [_records.md](_records.md) (overwrite freely), then the bookkeeping `record set` of the index (`workflow-files`; `updated-at` moves by itself; never `status`/`current-stage`).
-
-# Advise Mode (`/wf status advise [branch|pr#N | fast]`) — cross-slug sequencing
-
-Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is **read-only and route-don't-act**: it recommends commands (including `/wf intake <slug> close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
-
-Load [status/_advise.md](status/_advise.md), run its steps A1–A5 in order, and render its Portfolio Advice block. Every row has a one-line rationale and a concrete next command.
-
-# Chat return contract
-- **Dashboard mode:** return the inbox, then the rendered tables + quick-actions. Prepend the one-line registry reconcile note from Step -1 only if it changed something. No other preamble — the dashboard IS the output.
-- **Detail mode:** return the detail view. The `## Next` section carries the routing; do not add a separate options footer.
-- **Deep mode:** lead with a short **narrative** paragraph (the drift story — what moved and what it means), then Health (✓/⚠/✗), the compact category table, the top drift findings, and `options:` (`/wf plan <slug>`, `/wf intake <slug> <scope>`, `/wf status <slug> deep`).
-- **Advise mode:** return the Portfolio Advice render — lead with the "if you do one thing" line, then the ranked plan, blocked set, decisions, carried risk, and sequencing notes. `Artifacts: none` (advise writes nothing beyond the Step -1 reconcile). No preamble — the render IS the output.
+| dashboard | The inbox, then the tables and the quick actions. Put the one-line note of Step -1 first only when it changed something. Add nothing before it: the dashboard is the output. |
+| detail | The detail view. `## Next` carries the routing; add no separate options footer. |
+| roster | The roster render of roster mode. |
+| deep | A short narrative paragraph first (what moved, and what it means), then the health (✓/⚠/✗), the compact category table, the top drift findings, and `options:` (`/wf plan <slug>`, `/wf intake <slug> <scope>`, `/wf status <slug> deep`). |
+| advise | The Portfolio Advice render: the "if you do one thing" line first, then the ranked plan, the blocked set, the decisions, the carried risk and the sequencing notes. `Artifacts: none`. Add nothing before it. |

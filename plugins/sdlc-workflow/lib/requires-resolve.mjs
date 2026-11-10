@@ -13,6 +13,7 @@
 // reads each part, so the agent reads only what it needs.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
+import { reviewScopeOf } from './lifecycle-done.mjs';
 
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { INDEX_NAME, docText, listDocs, outlineOf, readDoc, sectionText, sectionsOf } from './records.mjs';
@@ -60,7 +61,7 @@ export function diskModes(dir, { index = {}, slice = null, writes = [] } = {}) {
   const augments = index.augmentations;
   if (craft || (Array.isArray(augments) ? augments.length : augments && typeof augments === 'object' ? Object.keys(augments).length : 0)) modes.add('augment');
   if (index['origin-packet']) modes.add('packet');
-  if (index['review-scope'] === 'slug-wide') modes.add('slug-wide');
+  if (reviewScopeOf(index, dir) === 'slug-wide') modes.add('slug-wide');
   if (CHANGE_TYPES.has(String(index['workflow-type'] ?? ''))) modes.add('change');
   return modes;
 }

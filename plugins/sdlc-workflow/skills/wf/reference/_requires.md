@@ -29,7 +29,7 @@ A `mode:<name>` row applies when its mode applies to this run. A mode applies wh
 | `design` | `02b-design.md` or `02c-craft.md` exists. |
 | `augment` | `00-index.md` has an `augmentations` entry, or `02c-craft.md` exists. |
 | `packet` | `00-index.md` has an `origin-packet` value. |
-| `slug-wide` | `00-index.md` has `review-scope: slug-wide`. |
+| `slug-wide` | The review scope of the workflow is slug-wide: `00-index.md` has `review-scope: slug-wide`, or it has no `review-scope` and the workflow is not reviewed per slice. |
 | `change` | `00-index.md` has `workflow-type` `fix`, `hotfix`, or `refactor`. |
 
 Any other mode, for example `triage` or a command argument such as `audit`, applies only when `modes:` lists it. A `procedure` mode row that applies is mandatory. An `artifact` mode row that applies is mandatory to read when the file exists.
