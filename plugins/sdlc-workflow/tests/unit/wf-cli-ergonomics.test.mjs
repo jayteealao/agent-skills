@@ -132,7 +132,7 @@ test('profile run runs the suite command, records its time, and fails with the s
     assert.equal(typeof cfg.testProfile.fast.measuredSeconds, 'number');
     const none = run(['profile', 'run', f.root, 'heavy']);
     assert.equal(none.status, 1);
-    assert.match(none.stderr, /has no command for the heavy suite\nfix: wf\.mjs profile set .+ heavy --command "<command>" --estimate <seconds>/);
+    assert.match(none.stderr, /has no command for the heavy suite\n(?:fix\.\w+: .*\n)*fix: wf\.mjs profile set .+ heavy --command "<command>" --estimate <seconds>/);
   } finally { f.done(); }
 });
 

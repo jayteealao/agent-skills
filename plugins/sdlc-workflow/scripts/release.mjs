@@ -33,6 +33,7 @@ import { stampVersion } from './stamp-version.mjs';
 import { generate } from './generate.mjs';
 import { COMMAND_PAGE } from './verify-docs.mjs';
 import { HOSTS, smokeHost, smokeLine } from './smoke-hosts.mjs';
+import { fixLines, personFix } from '../lib/fix.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -62,8 +63,15 @@ export const GATES = [
   ['pi-package', ['pi/scripts/check.mjs']],
 ];
 
-export class ReleaseStop extends Error {}
-const stop = (message) => { throw new ReleaseStop(message); };
+// Every stop names its fix. The release pushes to a public remote, so each fix is the person's:
+// the agent asks the person before it runs the release again.
+export class ReleaseStop extends Error {
+  constructor(message, fix) {
+    super(message);
+    this.fix = fix ?? personFix('Read the stop above, settle what it names, then the person runs the release again; it resumes at this step.');
+  }
+}
+const stop = (message, fix) => { throw new ReleaseStop(message, fix); };
 
 // ---------------------------------------------------------------- versions
 
@@ -72,24 +80,24 @@ const VERSION = /^(\d+)\.(\d+)\.(\d+)(?:-next\.(\d+))?$/;
 /** The version a release of `level` makes from `current`. */
 export function nextVersion(current, level) {
   const m = VERSION.exec(current);
-  if (!m) stop(`package.json version ${current} is not X.Y.Z or X.Y.Z-next.N`);
+  if (!m) stop(`package.json version ${current} is not X.Y.Z or X.Y.Z-next.N`, personFix(`The person sets the version in package.json to X.Y.Z or X.Y.Z-next.N (git log shows the last release), then runs the release again.`));
   const [major, minor, patch] = m.slice(1, 4).map(Number);
   const pre = m[4] === undefined ? null : Number(m[4]);
   if (level === 'next') return pre === null ? `${major + 1}.0.0-next.0` : `${major}.${minor}.${patch}-next.${pre + 1}`;
   if (pre !== null) {
-    if (level !== 'major') stop(`${current} is on the next channel: run release next, or release major to ship ${major}.${minor}.${patch}`);
+    if (level !== 'major') stop(`${current} is on the next channel: run release next, or release major to ship ${major}.${minor}.${patch}`, personFix(`${current} is a prerelease: the person picks release next (one more prerelease) or release major (ships ${major}.${minor}.${patch}).`));
     return `${major}.${minor}.${patch}`;
   }
   if (level === 'major') return `${major + 1}.0.0`;
   if (level === 'minor') return `${major}.${minor + 1}.0`;
   if (level === 'patch') return `${major}.${minor}.${patch + 1}`;
-  return stop(`unknown level ${level}: use one of ${LEVELS.join(', ')}`);
+  return stop(`unknown level ${level}: use one of ${LEVELS.join(', ')}`, personFix(`The person picks the level of the release: one of ${LEVELS.join(', ')}.`));
 }
 
 /** The catalog release line moves with the plugin: a minor for a minor or a major, a patch otherwise. */
 export function nextCatalogVersion(current, level) {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(current);
-  if (!m) stop(`the catalog version ${current} is not X.Y.Z`);
+  if (!m) stop(`the catalog version ${current} is not X.Y.Z`, personFix(`The person sets the version of .claude-plugin/marketplace.json to X.Y.Z, then runs the release again.`));
   const [a, b, c] = m.slice(1, 4).map(Number);
   return level === 'minor' || level === 'major' ? `${a}.${b + 1}.0` : `${a}.${b}.${c + 1}`;
 }
@@ -123,7 +131,7 @@ export function changelogFor(text, version, date, lines = []) {
 }
 
 function sectionOf(heading, lines) {
-  if (!lines.length) stop('the CHANGELOG has no Unreleased text and no commit names a change');
+  if (!lines.length) stop('the CHANGELOG has no Unreleased text and no commit names a change', personFix(`There is nothing to release: the person writes an ## [Unreleased] section in the CHANGELOG, or commits the change first, then runs the release again.`));
   return `${heading}\n\n${lines.map((l) => `- ${l}`).join('\n')}\n\n`;
 }
 
@@ -202,7 +210,7 @@ function context(opts = {}) {
   };
   ctx.mustGit = (...args) => {
     const r = ctx.git(...args);
-    if (!r.ok) stop(`git ${args.join(' ')} failed: ${r.err || r.out}`);
+    if (!r.ok) stop(`git ${args.join(' ')} failed: ${r.err || r.out}`, personFix(`git ${args[0]} failed: the person reads what git says and settles it (a sign-in, the network, a lock), then runs the release again; it resumes at this step.`));
     return r.out;
   };
   return ctx;
@@ -224,7 +232,7 @@ function replaceFirstVersion(text, version) {
 function runGates(ctx, when = '') {
   for (const [name, args] of ctx.gates) {
     const r = ctx.run(process.execPath, args, { cwd: ctx.root });
-    if (r.status !== 0) stop(`the ${name} gate failed${when}:\n${(r.stderr || r.stdout).trim().split('\n').slice(-15).join('\n')}`);
+    if (r.status !== 0) stop(`the ${name} gate failed${when}:\n${(r.stderr || r.stdout).trim().split('\n').slice(-15).join('\n')}`, personFix(`The ${name} gate fails: its failure is fixed and committed first (node ${args.join(' ')} shows it), then the person runs the release again; it resumes at this step.`));
     ctx.log(`[release]   gate ${name}${when}: OK`);
   }
 }
@@ -236,19 +244,19 @@ function runGates(ctx, when = '') {
  */
 function onReleaseBranch(ctx) {
   const head = ctx.mustGit('rev-parse', '--abbrev-ref', 'HEAD');
-  if (head !== ctx.branch) stop(`HEAD is on ${head}: release only from ${ctx.branch}`);
+  if (head !== ctx.branch) stop(`HEAD is on ${head}: release only from ${ctx.branch}`, personFix(`The release runs only from ${ctx.branch}: the person moves the checkout to ${ctx.branch} with the work merged into it, then runs the release again.`));
   ctx.mustGit('fetch', '--quiet', ctx.remote, ctx.branch);
   const upstream = `${ctx.remote}/${ctx.branch}`;
-  if (!ctx.git('merge-base', '--is-ancestor', upstream, 'HEAD').ok) stop(`HEAD is behind ${upstream}: merge it first`);
+  if (!ctx.git('merge-base', '--is-ancestor', upstream, 'HEAD').ok) stop(`HEAD is behind ${upstream}: merge it first`, personFix(`${ctx.branch} is behind ${upstream}: the person merges ${upstream} into it (look at the incoming commits first), then runs the release again.`));
 }
 
 function preflight(ctx, state) {
   onReleaseBranch(ctx);
   const dirty = OWNED.filter((rel) => existsSync(join(ctx.root, rel)) && !cleanPath(ctx, rel));
-  if (dirty.length) stop(`the release writes these paths, and they have uncommitted changes: ${dirty.join(', ')}`);
+  if (dirty.length) stop(`the release writes these paths, and they have uncommitted changes: ${dirty.join(', ')}`, personFix(`The person commits or sets aside the changes to ${dirty.join(', ')} (check which session made them first), then runs the release again.`));
   runGates(ctx);
   const ci = ctx.checkCi(ctx);
-  if (!ci.ok) stop(ci.reason);
+  if (!ci.ok) stop(ci.reason, ci.fix);
   ctx.log(`[release]   CI: ${ci.reason}`);
   state.sourceSha = ctx.mustGit('rev-parse', 'HEAD');
 }
@@ -259,13 +267,13 @@ export function checkCi(ctx) {
   const said = (r.stderr || r.stdout || '').trim();
   // A workflow that is not on the remote yet (a new or renamed file in this release) has no run to be red.
   if (r.status !== 0 && /HTTP 404: workflow .* not found/.test(said)) return { ok: true, reason: `${CI_WORKFLOW} is not on the remote yet` };
-  if (r.status !== 0) return { ok: false, reason: `gh cannot read CI: ${said || 'gh is not installed'}` };
+  if (r.status !== 0) return { ok: false, reason: `gh cannot read CI: ${said || 'gh is not installed'}`, fix: personFix(`gh cannot read the CI runs: the person installs gh or signs in (gh auth login), then runs the release again.`) };
   let runs;
-  try { runs = JSON.parse(r.stdout || '[]'); } catch { return { ok: false, reason: 'gh returned no JSON for the CI runs' }; }
+  try { runs = JSON.parse(r.stdout || '[]'); } catch { return { ok: false, reason: 'gh returned no JSON for the CI runs', fix: personFix(`gh gave no list of CI runs: the person checks gh run list for the gates workflow, then runs the release again.`) }; }
   if (!runs.length) return { ok: true, reason: `no run of ${CI_WORKFLOW} on ${ctx.branch} yet` };
   const [last] = runs;
-  if (last.status !== 'completed') return { ok: false, reason: `CI is still running on ${last.headSha.slice(0, 8)} (${last.url}); run the release again when it ends` };
-  if (last.conclusion !== 'success') return { ok: false, reason: `CI is ${last.conclusion} on ${last.headSha.slice(0, 8)} (${last.url})` };
+  if (last.status !== 'completed') return { ok: false, reason: `CI is still running on ${last.headSha.slice(0, 8)} (${last.url}); run the release again when it ends`, fix: personFix(`CI still runs on ${last.headSha.slice(0, 8)}: when it ends green, the person runs the release again.`) };
+  if (last.conclusion !== 'success') return { ok: false, reason: `CI is ${last.conclusion} on ${last.headSha.slice(0, 8)} (${last.url})`, fix: personFix(`CI is ${last.conclusion} on ${last.headSha.slice(0, 8)}: its failure (${last.url}) is fixed and pushed first, then the person runs the release again when CI is green.`) };
   return { ok: true, reason: `green on ${last.headSha.slice(0, 8)}` };
 }
 
@@ -360,7 +368,7 @@ function publish(ctx, state) {
   let commit = releaseCommit(ctx, subject);
   if (!commit) {
     const paths = [...(state.paths ?? [])];
-    if (!paths.length) stop('the release changed no path: nothing to commit');
+    if (!paths.length) stop('the release changed no path: nothing to commit', personFix(`The release wrote no file: the person checks .release-state.json and the version in package.json before running the release again.`));
     // A test can depend on the version, so the gates run again on the prepared tree before anything is committed or pushed.
     runGates(ctx, ` at v${state.version}`);
     // BUILD_SHA names the parent of the release commit, also when a fix was committed after prepare.
@@ -380,7 +388,7 @@ function publish(ctx, state) {
     const annotated = ctx.git('cat-file', '-t', `refs/tags/${tag}`).out === 'tag';
     if (!annotated || tagged.out !== commit) {
       const why = annotated ? `names ${tagged.out.slice(0, 8)}, not the release commit ${commit.slice(0, 8)}` : 'is a lightweight tag';
-      if (ctx.git('ls-remote', '--tags', ctx.remote, `refs/tags/${tag}`).out) stop(`the tag ${tag} ${why}, and ${ctx.remote} has it already`);
+      if (ctx.git('ls-remote', '--tags', ctx.remote, `refs/tags/${tag}`).out) stop(`the tag ${tag} ${why}, and ${ctx.remote} has it already`, personFix(`The remote has the tag ${tag} already, and a pushed tag is not taken back: the person checks which commit it names on ${ctx.remote} before anything else.`));
       ctx.log(`[release]   the local tag ${tag} ${why}: it is made again`);
       ctx.mustGit('tag', '-d', tag);
     }
@@ -393,8 +401,8 @@ function publish(ctx, state) {
 
 function delivered(ctx, state) {
   ctx.mustGit('fetch', '--quiet', ctx.remote, ctx.branch);
-  if (!ctx.git('merge-base', '--is-ancestor', state.commit, `${ctx.remote}/${ctx.branch}`).ok) stop(`${ctx.remote}/${ctx.branch} does not have the release commit ${state.commit.slice(0, 8)}`);
-  if (!ctx.git('ls-remote', '--exit-code', '--tags', ctx.remote, `refs/tags/v${state.version}`).ok) stop(`${ctx.remote} does not have the tag v${state.version}`);
+  if (!ctx.git('merge-base', '--is-ancestor', state.commit, `${ctx.remote}/${ctx.branch}`).ok) stop(`${ctx.remote}/${ctx.branch} does not have the release commit ${state.commit.slice(0, 8)}`, personFix(`The push did not reach ${ctx.remote}/${ctx.branch}: the person checks the remote (git log ${ctx.remote}/${ctx.branch}), then runs the release again; it resumes at this step.`));
+  if (!ctx.git('ls-remote', '--exit-code', '--tags', ctx.remote, `refs/tags/v${state.version}`).ok) stop(`${ctx.remote} does not have the tag v${state.version}`, personFix(`The tag v${state.version} did not reach ${ctx.remote}: the person checks the remote tags, then runs the release again; it resumes at this step.`));
 }
 
 /** The reinstall of each host that has the plugin, through the host CLIs. */
@@ -416,7 +424,7 @@ export function installHosts(ctx) {
   for (const [cmd, args, cwd] of steps) {
     if (!existsSync(cwd)) { ctx.log(`[release]   skip ${cmd} ${args.join(' ')}: ${cwd} is gone`); continue; }
     const r = ctx.run(cmd, args, { cwd, shell });
-    if (r.status !== 0) stop(`${cmd} ${args.join(' ')} (in ${cwd}) failed: ${(r.stderr || r.stdout).trim()}`);
+    if (r.status !== 0) stop(`${cmd} ${args.join(' ')} (in ${cwd}) failed: ${(r.stderr || r.stdout).trim()}`, personFix(`The reinstall with ${cmd} failed: the release is pushed already. The person reads the error, repairs the install of that host, then runs the release again; it resumes at the install.`));
     ctx.log(`[release]   ${cmd} ${args.join(' ')}: OK`);
   }
 }
@@ -425,10 +433,10 @@ async function install(ctx, state) {
   ctx.install(ctx, state);
   const report = await ctx.doctor(ctx);
   ctx.log(formatDoctorTable(report).split('\n').map((l) => `[release]   ${l}`).join('\n'));
-  if (!report.ok) stop('doctor: a host does not run the released version');
+  if (!report.ok) stop('doctor: a host does not run the released version', personFix(`The release is pushed, and a host still runs an older copy: the person reads the doctor table above, repairs that install, then runs the release again; it resumes at the install.`));
   const smoke = ctx.smoke(ctx);
   for (const r of smoke) ctx.log(`[release]   smoke ${smokeLine(r)}`);
-  if (smoke.some((r) => !r.skipped && !r.ok)) stop('smoke: a host fails the smoke flow');
+  if (smoke.some((r) => !r.skipped && !r.ok)) stop('smoke: a host fails the smoke flow', personFix(`The release is pushed, and a host fails the smoke flow: the person reads the smoke lines above and fixes the host or the plugin, then runs the release again; it resumes at the install.`));
   const design = await ctx.restartDesign(ctx);
   ctx.log(`[release]   design server: ${design.restarted ? `restarted from ${design.from}` : design.reason}`);
 }
@@ -473,11 +481,11 @@ const STEP_FN = { preflight, prepare, publish, delivered, install, report };
 
 /** Run (or resume) a release of `level`. Returns the final state; throws ReleaseStop on a failure. */
 export async function release(level, opts = {}) {
-  if (!LEVELS.includes(level)) stop(`usage: npm run release <${LEVELS.join('|')}>`);
+  if (!LEVELS.includes(level)) stop(`usage: npm run release <${LEVELS.join('|')}>`, personFix(`The person picks the level of the release: npm run release <${LEVELS.join('|')}>.`));
   const ctx = context(opts);
   const statePath = join(ctx.root, STATE_FILE);
   let state = existsSync(statePath) ? readJson(statePath) : null;
-  if (state && state.level !== level) stop(`a ${state.level} release of v${state.version} is in progress: run npm run release ${state.level} to resume it, or delete ${STATE_FILE}`);
+  if (state && state.level !== level) stop(`a ${state.level} release of v${state.version} is in progress: run npm run release ${state.level} to resume it, or delete ${STATE_FILE}`, personFix(`A ${state.level} release of v${state.version} stopped midway: the person resumes it with npm run release ${state.level}, or checks what it pushed before deleting ${STATE_FILE}.`));
   if (!state) {
     const current = readJson(join(ctx.root, 'package.json')).version;
     const catalog = join(ctx.repoRoot, '.claude-plugin', 'marketplace.json');
@@ -515,6 +523,7 @@ if (isMain) {
     if (!(err instanceof ReleaseStop)) throw err;
     console.error(`[release] stopped: ${err.message}`);
     console.error(`[release] fix it, then run npm run release ${level} again; it resumes at this step.`);
+    for (const l of fixLines(err.fix)) console.error(`[release] ${l}`);
     process.exitCode = 1;
   });
 }

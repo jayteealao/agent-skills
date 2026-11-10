@@ -1,5 +1,5 @@
 ---
-description: Recap or explain a workflow in plain understandable language. Give it a slug to recap the whole workflow, a slug and a slice to recap one slice, or a slug and a focus (plan, shape, review, findings) to explain that artifact. A `pr#N` or branch-name first argument recaps EVERY slug on that branch (batch mode) and tells the combined story. Reads the trail and tells the story — what was decided, built, checked, and where it stands. Does not advance the workflow.
+description: Recap or explain a workflow in plain understandable language. Give it a slug to recap the whole workflow, a slug and a slice to recap one slice, or a slug and a focus (plan, shape, review, findings) to explain that artifact. A `pr#N` or branch-name first argument recaps every slug on that branch (batch mode) and tells the combined story. Reads the trail and tells the story — what was decided, built, checked, and where it stands. Does not advance the workflow.
 argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review | findings]"
 ---
 
@@ -12,7 +12,7 @@ Recap tells you **what has been done so far** on a workflow, in language a human
 
 - **nothing** → recap the whole workflow.
 - **a slice-slug** → recap just that slice's journey.
-- **a focus keyword** (`plan` · `shape` · `slice` · `review` · `findings`) → **explain that artifact** in plain language — what it says, what it commits to, and what it implies. This is the "help me understand my own plan / review findings" mode. *General code questions, codebase architecture, and web research are NOT recap's job — those are a plain research conversation outside `/wf`.*
+- **a focus keyword** (`plan` · `shape` · `slice` · `review` · `findings`) → **explain that artifact** in plain language — what it says, what it commits to, and what it implies. This is the "help me understand my own plan / review findings" mode. *General code questions, codebase architecture, and web research are not recap's job — those are a plain research conversation outside `/wf`.*
 
 ## Requires
 
@@ -41,17 +41,17 @@ You are a **storyteller of the work done**, not a problem solver.
    - **`scope: slug`** → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). When the output has `inferred: true`, note the inference in the recap header. A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`.
    - **`scope: branch`** (a `pr#N` or a branch name) → **batch recap** (`recap-scope: branch`) — see **Step B** below.
    - **`ambiguous: true`** (no token, several open workflows) → ask which of its `slugs` as a gate question per [_gate-question.md](_gate-question.md) (or in chat).
-   - **An `error`** → STOP and show it.
+   - **An `error`** → Stop and show it.
 
-2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
+2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → Stop: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
    - **Exact slice-slug match** — `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice-<token>.md` exits 0 → **slice recap**
-     (Steps 1–3, slice-scoped). Slice match is checked FIRST so a slice literally named `plan`/`review`
+     (Steps 1–3, slice-scoped). Slice match is checked first so a slice literally named `plan`/`review`
      still recaps.
    - **Focus keyword** — `token` ∈ `{plan, shape, slice, review, findings}` and no slice matched →
      **explain mode** (Step E). This explains the named artifact rather than recapping the whole
      journey.
-   - **Neither** → STOP: *"`<token>` is not a slice of `<slug>` or a focus keyword (plan/shape/slice/
+   - **Neither** → Stop: *"`<token>` is not a slice of `<slug>` or a focus keyword (plan/shape/slice/
      review/findings). Run `/wf status recap <slug>` for the whole-workflow recap, or `/wf status <slug>` to
      see its slices."*
 

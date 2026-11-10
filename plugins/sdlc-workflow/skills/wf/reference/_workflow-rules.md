@@ -13,7 +13,7 @@
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - Use sub-agents for multi-domain research per [_subagents.md](_subagents.md).
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
-- Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: STOP, and ask the person to reconcile it. Do not cut the branch from it.
+- Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: Stop, and ask the person to reconcile it. Do not cut the branch from it.
 - **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.
   1. Stage the code files that this step changed, each by its path: `git add -- <path> <path>`.
   2. Stage the workflow records under `<wf-dir>/` by path.

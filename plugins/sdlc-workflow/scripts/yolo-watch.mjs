@@ -79,6 +79,15 @@ import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
 import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
+import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
+
+/** The sub-commands of this script (the watch itself takes <projectRoot> <slug>): a fix names only these. */
+export const COMMANDS = Object.freeze(['note', 'control', 'end', 'line', 'stop-check', 'help']);
+const SELF = fileURLToPath(import.meta.url);
+const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
+/** The fix lines after a refusal of this script, on stderr. */
+const fixText = (fix) => fixLines(fix).map((l) => `${l}\n`).join('');
+const usageFix = () => agentFix('Run the command again with the arguments of its form: yolo-watch.mjs help prints the forms.', `node "${SELF}" help`);
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod.
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
@@ -730,8 +739,8 @@ export function createWatcher({
 // ---------------------------------------------------------------------------
 export function appendNote(root, slug, text, kind = null, nowMs = Date.now()) {
   const body = String(text || '').trim();
-  if (!body) throw new Error('note: empty text on stdin');
-  if (!slug) throw new Error('note: name a slug');
+  if (!body) throw refuse('note: empty text on stdin', agentFix('Pipe the text of the note on stdin, and run note again.'));
+  if (!slug) throw refuse('note: name a slug', agentFix('Run note again with the project root and the slug of the workflow.', `node "${SELF}" note ${q(root ?? '<projectRoot>')} <slug>`));
   return writeNote(commentaryPath(root, slug), slug, body, kind, nowMs);
 }
 
@@ -766,10 +775,10 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
   let value;
   if (action === 'stop') {
     const after = rest[0] || 'current';
-    if (!STOP_AFTER.includes(after)) throw new Error(`control stop: "after" must be one of ${STOP_AFTER.join(', ')}`);
+    if (!STOP_AFTER.includes(after)) throw refuse(`control stop: "after" must be one of ${STOP_AFTER.join(', ')}`, agentFix(`Run control stop again with one of ${STOP_AFTER.join(', ')} as the place to stop.`, `node "${SELF}" control ${q(root)} ${slug} stop current`));
     value = { action: 'stop', after, requestedAt: iso(nowMs) };
   } else {
-    throw new Error('control: the action is stop, clear, or show');
+    throw refuse('control: the action is stop, clear, or show', agentFix('Run control again with the action stop, clear, or show.', `node "${SELF}" control ${q(root)} ${slug} show`));
   }
   ensureRunDir(root, slug);
   writeJsonAtomic(file, value);
@@ -997,7 +1006,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (first === 'stop-check') {
     const [, root, slug] = pos;
-    if (!root || !slug) { process.stderr.write('usage: yolo-watch.mjs stop-check <projectRoot> <slug>\n'); return 2; }
+    if (!root || !slug) { process.stderr.write(`usage: yolo-watch.mjs stop-check <projectRoot> <slug>\n${fixText(usageFix())}`); return 2; }
     process.stdout.write(`${JSON.stringify(stopCheck(path.resolve(root), slug))}\n`);
     return 0;
   }
@@ -1011,7 +1020,7 @@ export async function main(argv = process.argv.slice(2)) {
     const file = project ? journalPath(path.resolve(a), b) : a ? realPathOf(path.resolve(a)) : null;
     const json = fieldForm ? null : project ? c : b;
     if (!file || json === undefined) {
-      process.stderr.write("usage: yolo-watch.mjs line <projectRoot> <slug> ('<json>' | --event e --agent a [--phase p] [--stage s] [--slice x] [--seq n] [--run id]) [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
+      process.stderr.write("usage: yolo-watch.mjs line <projectRoot> <slug> ('<json>' | --event e --agent a [--phase p] [--stage s] [--slice x] [--seq n] [--run id]) [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n" + fixText(usageFix()));
       return 2;
     }
     try {
@@ -1024,12 +1033,12 @@ export async function main(argv = process.argv.slice(2)) {
   }
   const [root, ...slugs] = pos;
   if (!root || !slugs.length) {
-    process.stderr.write('usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]\n');
+    process.stderr.write(`usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]\n${fixText(usageFix())}`);
     return 2;
   }
   for (const slug of slugs) {
     if (!existsSync(workflowDir(path.resolve(root), slug))) {
-      process.stderr.write(`yolo-watch: no workflow folder for ${slug}\n`);
+      process.stderr.write(`yolo-watch: no workflow folder for ${slug}\n${fixText(agentFix('Name the slug of a workflow folder of this project: wf.mjs status lists them.', `node "${path.join(path.dirname(SELF), '..', 'skills', 'wf', 'scripts', 'wf.mjs')}" status ${q(path.resolve(root))}`))}`);
       return 2;
     }
   }
@@ -1038,5 +1047,5 @@ export async function main(argv = process.argv.slice(2)) {
 }
 
 if (isMainModule(import.meta.url)) {
-  main().then((code) => { process.exitCode = code; }, (e) => { process.stderr.write(`yolo-watch: ${e.message}\n`); process.exitCode = 1; });
+  main().then((code) => { process.exitCode = code; }, (e) => { process.stderr.write(`yolo-watch: ${e.message}\n${fixText(e.fix ?? defectFix('yolo-watch.mjs', e))}`); process.exitCode = 1; });
 }

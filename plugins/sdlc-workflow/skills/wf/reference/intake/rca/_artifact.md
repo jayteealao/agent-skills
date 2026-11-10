@@ -58,10 +58,10 @@ Pick **one** primary recommendation based on the diagnosis. The printed invocati
 
 | Conditions | Route | Invocation printed |
 |---|---|---|
-| `impact: critical` AND production-affecting AND root-cause-confidence ≥ medium AND blast-radius ≤ medium AND suggested-fix-shape is small | `hotfix` | record — `/wf intake rca <slug> hotfix` — then `/wf intake hotfix "<symptom, one line>" from <slug>` |
+| `impact: critical` and production-affecting and root-cause-confidence ≥ medium and blast-radius ≤ medium and suggested-fix-shape is small | `hotfix` | record — `/wf intake rca <slug> hotfix` — then `/wf intake hotfix "<symptom, one line>" from <slug>` |
 | Suggested fix shape touches ≤3 files, ≤5 steps, no new dependency, no architecture change | `fix` | record — `/wf intake rca <slug> fix` — then `/wf intake fix "<suggested fix, one line>" from <slug>` |
 | Anything else — including any architectural change, new dependency, cross-cutting work, or blast radius is `high` | `plan` | `/wf intake rca <slug> plan`, then `/wf plan <slug>` (same slug continues — the synthesized `02-shape.md` is its input) |
-| `root-cause-confidence: low` AND `blast-radius: high` | `human-triage` | climb the escalation ladder first (see `## Confidence`); when low confidence survives it, record `/wf intake rca <slug> human-triage` and hand to the human |
+| `root-cause-confidence: low` and `blast-radius: high` | `human-triage` | climb the escalation ladder first (see `## Confidence`); when low confidence survives it, record `/wf intake rca <slug> human-triage` and hand to the human |
 
 State the recommendation clearly with one sentence of justification. Then list the alternatives in priority order. The user makes the final call. Routing directly (`… from <slug>`) without recording works too; the downstream mode records the route implicitly per `_intake-provenance-consume.md`.
 
@@ -76,7 +76,7 @@ Tripwires are **warn-and-continue**: record them, and still write the RCA. Tripw
 
 For each fired tripwire, write one line: `[tripwire-name]: <what specifically tripped it>`. Then add a single closing line:
 
-> One or more wf-rca tripwires fired. The RCA is still valid, but the downstream fix workflow should account for the recorded warnings before proceeding.
+> One or more rca tripwires fired. The RCA is still valid, but the downstream fix workflow should account for the recorded warnings before proceeding.
 
 ## `02-shape.md` body
 

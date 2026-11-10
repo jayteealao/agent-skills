@@ -49,14 +49,14 @@ Parse `$ARGUMENTS`. The first token names the scope; default `branch`.
 | Token | Mode | Trailing args |
 |---|---|---|
 | (none) or `branch` | branch | optional `<base-branch>` (defaults to the workflow's base-branch or `git symbolic-ref refs/remotes/origin/HEAD`) |
-| `commit` | commit | required `<sha>` OR `<sha-range>` (e.g., `HEAD~3..HEAD`) |
+| `commit` | commit | required `<sha>` or `<sha-range>` (e.g., `HEAD~3..HEAD`) |
 | `plan` | plan | required `<slug>` then required `<slice>` (or omit slice for compressed-flow plans at `04-plan.md`) |
 | `codebase` | codebase | optional `<path>` (defaults to repo root) |
 
 Validation:
 - `branch` — confirm on a branch (`git symbolic-ref --short HEAD`), not detached HEAD.
 - `commit` — confirm sha resolves (`git rev-parse --verify <sha>`).
-- `plan` — confirm the plan record exists (`record get "<root>" <slug> 04-plan-<slice>.md` exits 0; a single-slice workflow uses `04-plan.md`). If missing, STOP: *"No plan found at `<path>`. Run `/wf plan <slug> <slice>` first or check the slug/slice arguments."*
+- `plan` — confirm the plan record exists (`record get "<root>" <slug> 04-plan-<slice>.md` exits 0; a single-slice workflow uses `04-plan.md`). When it is missing, stop: *"No plan found at `<path>`. Run `/wf plan <slug> <slice>` first or check the slug/slice arguments."*
 - `codebase` — confirm path exists.
 
 Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](../_timestamp.md)), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
@@ -96,9 +96,9 @@ Debt findings join the aggregate in **Step 3** and route through the **Step 4** 
 
 # Step 2 — Dispatch three sub-agents in parallel
 
-dispatch all three sub-agents in ONE parallel wave per [_subagents.md](../_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
+dispatch all three sub-agents in one parallel wave per [_subagents.md](../_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
 
-Load [simplify/_research.md](simplify/_research.md). It holds the effort tier (**low**, REQUIRED on every dispatch), the inputs each agent receives, the `findings:` output contract, and the three charters: Agent 1 Code Reuse Review, Agent 2 Code Quality Review, Agent 3 Efficiency Review, each with its plan-scope adaptation. Give each agent exactly one charter.
+Load [simplify/_research.md](simplify/_research.md). It holds the effort tier (**low**, stated on every dispatch), the inputs each agent receives, the `findings:` output contract, and the three charters: Agent 1 Code Reuse Review, Agent 2 Code Quality Review, Agent 3 Efficiency Review, each with its plan-scope adaptation. Give each agent exactly one charter.
 
 ---
 
@@ -146,15 +146,15 @@ For each `accept` finding, assign a `route` based on what shape of follow-up wor
 Pick the **smallest scope that fully addresses** each accepted finding. Bias toward `route-fix` over `route-refactor` over `route-intake` — never escalate beyond what the finding deserves.
 
 Tie-breakers:
-- Mechanical AND ≤1 file → `route-fix`.
-- Spans multiple files AND behaviour-preserving → `route-refactor`.
+- Mechanical, and ≤1 file → `route-fix`.
+- Spans several files, and keeps the behaviour → `route-refactor`.
 - Could break behaviour or change a public API → `route-intake` (full shape + plan + review).
 - Plan-scope → `route-amend-plan` only: a directed plan fix (`/wf plan <slug> <slice> <correction>`), never a direct edit.
 - "This code needs a test" → `route-add-test` (straightforward) or `route-verify` (deeper gap).
 
 ## What to record per accepted finding
 
-Record one `routing-assignments` entry per accepted finding: `finding-id`, `route`, `suggested-invocation`, `rationale`. For `plan` scope, every accepted finding gets `route: route-amend-plan` AND a `proposed-delta` block (plan-section, current, proposed, rationale) that the user applies as a directed plan fix. Both block shapes are in [simplify/_artifact.md](simplify/_artifact.md).
+Record one `routing-assignments` entry per accepted finding: `finding-id`, `route`, `suggested-invocation`, `rationale`. For `plan` scope, every accepted finding gets `route: route-amend-plan` and a `proposed-delta` block (plan-section, current, proposed, rationale) that the user applies as a directed plan fix. Both block shapes are in [simplify/_artifact.md](simplify/_artifact.md).
 
 ## What you do NOT do
 

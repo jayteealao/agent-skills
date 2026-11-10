@@ -30,13 +30,22 @@ A prose reference (`reference/<file>.md`, `../../reference/<file>.md`) is relati
 
 No skill file names a plugin-root variable. Those live only in the hook wiring: `hooks/hooks.json` (Claude Code, and pi through pi-code) and `hooks/codex.hooks.json` (Codex).
 
+## Script failures
+
+A script command prints one JSON object. The failure rule: when `ok` is `false`, read `fix`. A script that prints text, such as `wf.mjs`, gives the same fix on stderr, in its `fix.who:`, `fix.do:`, `fix:` (the command) and `fix.then:` lines.
+
+- When `fix.who` is `agent`, do what `fix.do` says: run `fix.command` once when it is given, then `fix.then` when it is given, else the original command again. When the same error comes back, stop and show the person the `error` and `fix.do`.
+- When `fix.who` is `person`, tell the person the `error` and `fix.do` in plain words, and stop. Do not run the repair yourself.
+
+Then do what the citing page says next, for example ask before you go on, or end the run.
+
 ## Key availability
 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Claude Code | Codex | pi |
 |---|---|---|---|
 | `loop goal` | differs: the mod puts the /goal line into the prompt box | differs: the agent calls create_goal | differs: the agent runs the loop in this session; pi has no host goal |
-| `loop optimize` | full | gap: not available; the optimize driver runs only on Claude Code | gap: not available; the optimize driver runs only on Claude Code |
+| `loop optimize` | full | differs: no driver; the goal contract carries the loop, one action for each turn | differs: no driver; the goal contract carries the loop, one action for each turn |
 <!-- end generated -->
 
 A `gap` is a part that does not run on that host; `differs` is a part that runs in another form. Every other key runs under every host in the same form.

@@ -94,10 +94,10 @@ If no PII concerns: write "No PII concerns identified in the planned signals."
 
 ## 5. Implementation notes
 
-Specific guidance for `wf-implement`:
+Specific guidance for `/wf implement`:
 - Which files to touch and in what order (to avoid re-touching a file multiple times)
 - Whether any new imports are needed (and whether they're already in `package.json` / `go.mod`)
 - Whether any new environment variables are needed (e.g., `LOG_LEVEL`, `METRICS_ENDPOINT`)
 - Any conflicts with the existing plan steps in `04-plan-*.md` that might affect ordering
 
-This section is **direction, not a plan** — do not enumerate full implementation steps. `wf-implement` owns the implementation.
+This section is **direction, not a plan** — do not enumerate full implementation steps. `/wf implement` owns the implementation.

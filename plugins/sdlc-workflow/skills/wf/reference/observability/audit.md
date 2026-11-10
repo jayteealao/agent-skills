@@ -39,7 +39,7 @@ code, present in the repo, and useless when you page someone at 2am. `audit` is 
 
 1. **Parse `$ARGUMENTS`.** The first token, if present, is either a **lens key** (run that one lens inline) or
    `triage` (re-surface `acknowledged` findings — see Step 5). No token → full fan-out across all seven lenses.
-2. **Read `.ai/observability.md`.** STOP if missing: *"No observability contract at `.ai/observability.md`. There
+2. **Read `.ai/observability.md`.** Stop if missing: *"No observability contract at `.ai/observability.md`. There
    is nothing to audit yet — run `/wf project observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`).
    Note `plan-version` and `updated-at`.
 3. **Read the existing ledger** `.ai/observability-audit.md` if it exists. Parse `runs[]` and `findings[]` — this
@@ -72,7 +72,7 @@ failure-scenario, route }`.
 
 # Step 2 — Dispatch the fan-out (default) or one lens
 
-**Default (no lens token) — full parallel fan-out.** Prepare ONE read-only dispatch per lens (all seven), per
+**Default (no lens token) — full parallel fan-out.** Prepare one read-only dispatch per lens (all seven), per
 [_subagents.md](../_subagents.md):
 - Effort tier (set explicitly — reviewers must not inherit the parent configuration): **medium** for
   `dark-path-coverage`, `schema-consistency`, `pii-and-redaction`, and `sampling-soundness` (the reasoning-heavy
@@ -92,7 +92,7 @@ merging its findings into the ledger exactly as the fan-out does.
 
 Instruct each lens: for every candidate finding, **first try to refute it** — read the real emit code / config /
 dashboard text, and (where behavior is claimed) the real dependency source via `study-sources`. Report a finding
-ONLY if it survives, with a concrete **failure-scenario** (the inputs/state → the wrong debugging outcome).
+Only if it survives, with a concrete **failure-scenario** (the inputs/state → the wrong debugging outcome).
 Default to dropping anything you cannot ground. A short list of real findings beats a long list of plausible ones.
 
 # Steps 3 to 5 — Synthesize, merge into the ledger, triage

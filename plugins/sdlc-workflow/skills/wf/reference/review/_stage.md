@@ -31,14 +31,14 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect the code of the work packet on the branch; the verdict is "ship this branch", not "ship this slice".
    - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
 4. **Resolve the slice-slug** (per-slice mode only; skip if `review-scope: slug-wide`): Use the passed slug; else `selected-slice` from the index; else ask.
-5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
-   Read `workflow-type` from `00-index.md`, and apply its row of [_source-modes.md](../_source-modes.md): the lead record, the acceptance source, the record names and the review action. When the action is STOP, give its message and stop.
+5. **Check prerequisites (workflow-type-aware and review-scope-aware):**
+   Read `workflow-type` from `00-index.md`, and apply its row of [_source-modes.md](../_source-modes.md): the lead record, the acceptance source, the record names and the review action. When the action is stop, give its message and stop.
 
-   In all modes, an implement record (slice or master) must exist. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the names of the records. If missing → STOP: "Run `/wf implement <slug>` first."
+   In all modes, an implement record (slice or master) must exist. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the names of the records. If missing → Stop: "Run `/wf implement <slug>` first."
 
    **Per-slice mode** (`review-scope: per-slice`):
    - `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not required.
-   - If verify shows `Status: Awaiting input` → STOP.
+   - If verify shows `Status: Awaiting input` → Stop.
 
    **Slug-wide mode** (`review-scope: slug-wide`):
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
@@ -119,14 +119,14 @@ Extract:
 - `security` — vulnerabilities, insecure defaults; its sections also cover infrastructure security, supply chain, and privacy
 - `architecture` — boundaries, maintainability, overengineering, missed reuse, style consistency, refactor safety
 - `performance` — queries, loops over variable-size data, caches, render cost; its sections also cover scalability and cost
-- `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: feature`, or unset), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
+- `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: feature`, or unset), at both per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
 - `correctness` (focus metric-gaming) — **always-on for optimize slugs** (`workflow-type: optimize`): does the kept diff improve the code, or only the number? It is never suppressed by the user-focus override.
 
 ### Signal-driven rubrics
 Load [_select.md](_select.md) and apply its rules: the backend and frontend always-include sets, the design-work rule (`design-audit` / `design-critique` map to `design/audit.md` / `design/critique.md`), and the signal → rubric table for motion, concurrency, refactors, architecture, data, migrations, privacy, API surface, scale, dependencies, infra, CI, release, logging, observability, cost, docs, style, and developer tooling. Dispatch one reviewer per rubric: a core rubric reads every section; a rubric that only a trigger selected receives `focus:` naming the triggered sections.
 
 ### Selection Constraints
-- **Minimum**: 4 (`correctness` + `security` + `performance` + `architecture`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 5. Add every other rubric whose signal the change shows.
+- **Minimum**: 4 (`correctness` + `security` + `performance` + `architecture`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice and slug-wide), so the floor is 5. Add every other rubric whose signal the change shows.
 - **Maximum**: 11 — one reviewer per rubric; a rubric never dispatches twice in one run
 - **User focus override**: include the named rubrics (an alias becomes its rubric with `focus: <alias>`) + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated rubrics
 - **Config/docs-only**: drop `correctness`/`architecture`/`performance`; keep `security`, `docs`, and `infra` (focus ci, release) where relevant
@@ -137,11 +137,11 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 # Step 3: Dispatch Parallel Sub-Agents
 
-For EACH selected command, dispatch ONE sub-agent at **low** effort per [_subagents.md](../_subagents.md). The `architecture` and `security` rubrics use **medium** effort. Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_subagents.md](../_subagents.md), "Effort tiering"). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
+For each selected command, dispatch one sub-agent at **low** effort per [_subagents.md](../_subagents.md). The `architecture` and `security` rubrics use **medium** effort. Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_subagents.md](../_subagents.md), "Effort tiering"). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
 **Each scout receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its Step 3 prompt, with its `{…}` fields filled in and nothing else changed. `{rubric-path}` is the absolute path of the rubric file that [_select.md](_select.md) maps the command to: `<skill-dir>/reference/review/<name>.md`, or `<skill-dir>/reference/design/audit.md` and `<skill-dir>/reference/design/critique.md` for `design-audit` and `design-critique`. The intent-fidelity scout returns its verdict per carried key in `decisionFidelity`; Step 5 writes `## Decision Fidelity` from it. The prompt carries the pre-existing determination, the acceptance-check rule and the JSON reply. A scout writes no file.
 
-Wait for ALL scouts to complete before proceeding.
+Wait for all scouts to complete before proceeding.
 
 # Step 3b: Refute every finding
 
@@ -207,11 +207,11 @@ Write the whole draft on every run, also when the record exists. Keep only `crea
 
 # Adaptive routing — evaluate what's actually next
 
-Routing is **driven by the `could-not-fix` findings**. The review fixes or dismisses every finding itself; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After the fix steps, present the user with ALL viable options; write ALL viable options into the `recommended-routes` frontmatter.
+Routing is **driven by the `could-not-fix` findings**. The review fixes or dismisses every finding itself; `/wf implement <slug> [<slice>] reviews` survives only as a manual escape. After the fix steps, present the user with all viable options; write all viable options into the `recommended-routes` frontmatter.
 
-- **Option A: Ship** → `/wf ship <slug>`. Use when no BLOCKER finding is `could-not-fix` AND all intended slices are complete. Its PR phase aggregates all complete slices automatically. If more slices remain, use Option D first, then run `/wf ship <slug>` once for the full PR.
+- **Option A: Ship** → `/wf ship <slug>`. Use when no BLOCKER finding is `could-not-fix` and all intended slices are complete. Its PR phase aggregates all complete slices automatically. If more slices remain, use Option D first, then run `/wf ship <slug>` once for the full PR.
 - **Option B: Re-invoke review (accumulating re-run)** → `/wf review <slug> [<slice>]`. Use when a BLOCKER is `could-not-fix` and the person removes its cause. Re-invocation re-checks the fixed code, merges fresh findings, and resolve-sweeps what the fixes cleared (no round counter, no `convergence` state). State the `could-not-fix` findings and their failures before recommending.
 - **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`. Use when a `could-not-fix` finding needs a design rethink that the person must make. Also when the user prefers stage 5's per-finding fix UI.
-- **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`. Use when this slice is approved AND more slices remain. Check `03-slice.md`.
+- **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`. Use when this slice is approved and more slices remain. Check `03-slice.md`.
 
 A finding never becomes a new slice, and the review never routes a finding to `/wf intake <slug> from-review`. New scope that the person names is a new work packet or an extension that the person asks for.

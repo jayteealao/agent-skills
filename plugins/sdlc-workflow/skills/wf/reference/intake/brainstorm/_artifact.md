@@ -54,7 +54,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
 ```
 
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
-- **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
+- **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`. The `close` part of a change file sets it from the scopes of the area's decisions and ideas, when the area closes or at `done`.
 - **`summary`** is what we believe now, in 150 words or fewer: the thought we started from, what we now believe and why, and what is still open. The document shows it as `## The Brainstorm`.
 - **`status`** is `open` or `distilled` (after `done`). The board owns it, and the document's frontmatter copies it.
 - **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number, its `date` (`YYYY-MM-DD`), and its plain `text`.
@@ -67,13 +67,13 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
   - `source` is `person`, `agent`, `code`, `data`, `research`, `consult`, or `history`.
   - A finding carries `evidence` (a `file:line`, a dataset, or a link) and `check` (`verified`, `contradicted`, or `unverified`).
   - `state` is `named`, `confirmed`, or `rejected` for an assumption; `open` or `resolved` for a tension; `open`, `answered`, or `for-plan` for a question. A commitment is a question with `state: for-plan`.
-  - `scope` is `keep`, `cut`, `later`, `pending-cut`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one. `pending-cut` marks a cut of a decision whose work packet is already started ([_work.md](_work.md), Reopening).
+  - `scope` is `keep`, `cut`, `later`, `pending-cut`, or `null`. A new decision gets `keep` when the person makes it, unless its entry gives another scope. An idea gets its scope when its area closes, or at `done`. A cut carries the person's `reason` when the person gives one. `pending-cut` marks a cut of a decision whose work packet is already started ([_work.md](_work.md), Reopening).
   - `session` and `decided-at` record when the person made a decision. Write both on each new decision. A work packet file carries them with the decision, word for word.
   - A finding from research sets `evidence: research/R<NN>-<label>.md#<anchor>`. A finding from a reference cites the reference id, for example `F03`.
   - `core: true` marks a decision the person named as core when the area closed; `first-version: true` marks a decision in the area's first version.
   - `top-risk: true` marks the accepted risk that worries the person most in its area.
   - `accepted-risk` is the consequence the person accepted with a decision, in one plain sentence.
-  - `left-to-build` is set on an open question, an open tension or a named assumption that the person left to the build at `done`: `ask` (the campaign walk asks the person before it slices the work packet) or `decide` (the build chooses, and records the choice as an assumption). The item is in the `items` of exactly one build work packet.
+  - `left-to-build` is set on an open question, an open tension or a named assumption that the person left to the build when its area closed, or at `done`: `ask` (the campaign walk asks the person before it slices the work packet) or `decide` (the build chooses, and records the choice as an assumption). The item is in the `items` of exactly one build work packet.
   - `replaced-by` is the key of the newer decision that replaced this one.
   - `design: true` marks an item about how the idea looks or behaves. These items travel to the design stage.
   - `was` holds a legacy id after a conversion.
@@ -86,7 +86,7 @@ A **work packet** (one per agreed work packet at `done`, in sequence order):
 ```
 The board also holds the stack of the list, once, at the top level: `"stack": { "platforms": [], "languages": [], "user-confirmed": true }`, with the fields of the `stack` block in `intake/default/_artifact.md`.
 - `shape` is the form: `intake`, `investigate`, `discover`, `rca`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` work packets; a new board records those as `design-form` on the work packet they serve.
-- `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every work packet. `why-here` is required on each work packet after order 1.
+- `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in the split of `done` ([_done.md](_done.md), step 4; [_work.md](_work.md)). `order` is the strict sequence 1 to n over every work packet. `why-here` is required on each work packet after order 1.
 - A build work packet (`intake`, `fix`, `hotfix`, `extension`) carries its write-up: `goal`, `in-scope`, `out-of-scope`, `acceptance-criteria`, `constraints`, `risks`, `ux-impact` with `ux-impact-confirmed: true`, `try-out` (`yes` or `no`), and `estimated-slices` ([_work.md](_work.md), "The write-up of a build work packet").
 - An older board also holds `depends-on`, `needs`, `provides`, `expects`, `size`, `shared` and `routed-to` on a work packet. The brainstorm does not agree these fields, and the `write` command does not put them into a work packet file.
 - A work packet that carries design items also records `sketches` (the keys of its carried sketches). Its work packet file `work/<slug>.md` carries `sketches:`: each key with its `path`, `link`, `caption`, and `canvas` from `sketches[]`.

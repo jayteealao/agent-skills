@@ -14,6 +14,8 @@
 // Source of the branch rounds: Cai, Ziakas et al., "Fork-and-Flush: Escaping Idea
 // Basins in Autoresearch Agents", arXiv 2610.07447.
 
+import { agentFix } from './fix.mjs';
+
 export const SPEC_FILE = '02-optimize-spec.md';
 /**
  * 2: each branch of a round has its own worktree (`round.branches[k].worktree`).
@@ -557,18 +559,18 @@ export function pooledOf(gains) {
  * lane's older one: an older claim with no trial is dropped and listed in `released`, and an older
  * claim with trials is only let go. A claim of another lane on the same target is refused. A target
  * that a record holds already is refused unless `again` gives a reason, which goes into the record.
- *   → { ok: true, idea, released } | { ok: false, reason, idea }
+ *   → { ok: true, idea, released } | { ok: false, reason, idea, fix }
  */
 export function claimIdea(book, { lane, target, family, again = null }) {
   const t = normTarget(target);
-  if (!t) return { ok: false, reason: 'idea-claim needs --target: the function or the profile entry that the change targets' };
+  if (!t) return { ok: false, reason: 'idea-claim needs --target: the function or the profile entry that the change targets', fix: agentFix('Run idea-claim again with --target: the function or the profile entry that the change targets.') };
   const same = book.ideas.filter((i) => normTarget(i.target) === t);
   const busy = same.find((i) => i.claim && i.claim !== lane);
-  if (busy) return { ok: false, reason: `${busy.claim} has a claim on this target in flight (${busy.id}): choose another target`, idea: brief(busy) };
+  if (busy) return { ok: false, reason: `${busy.claim} has a claim on this target in flight (${busy.id}): choose another target`, idea: brief(busy), fix: agentFix('Choose another target, and run idea-claim again with it.') };
   const mine = same.find((i) => i.claim === lane);
   const tried = same.find((i) => i.status !== 'open' || i.trials.length);
   const why = str(again);
-  if (!mine && tried && !why) return { ok: false, reason: `this target was tried (${tried.id}: ${tried.status}, pooled gain ${tried.pooled.mean ?? 'none'} over ${tried.pooled.n}): choose another target, or give a new reason with --again`, idea: brief(tried) };
+  if (!mine && tried && !why) return { ok: false, reason: `this target was tried (${tried.id}: ${tried.status}, pooled gain ${tried.pooled.mean ?? 'none'} over ${tried.pooled.n}): choose another target, or give a new reason with --again`, idea: brief(tried), fix: agentFix('Choose another target, or run idea-claim again with --again and a new reason to try this one.') };
   // The claim holds: only now does it replace the older claim of the lane, so a refused claim keeps it.
   const released = book.ideas.filter((i) => i.claim === lane && i.status === 'open' && !i.trials.length && normTarget(i.target) !== t).map((i) => i.id);
   book.ideas = book.ideas.filter((i) => !released.includes(i.id));
@@ -816,6 +818,341 @@ export function keptTable(results, spec) {
   const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
   const rows = kept.map((r) => `| ${r.trial} | ${r.merge ? `merge of ${r.merge.branch}` : r.branch ?? 'trunk'} | ${String(r.hypothesis?.text ?? '').replace(/\|/g, '\\|')} | ${r.median}${unit} | ${r.delta}${unit} |`);
   return ['| Trial | Lane | Hypothesis | Median | Gain |', '|---|---|---|---|---|', ...rows].join('\n');
+}
+
+/**
+ * The hypothesis text of a trial that reuses kept diffs: a port of one kept trial, the near misses
+ * of a winner together, or a bundle of marginal ideas. `port` is the merge candidate; `bundleOf`
+ * lists each idea of a bundle with the hypotheses of its trials.
+ */
+export function reuseText({ port = null, bundle = null, bundleOf = [] } = {}) {
+  if (port?.kind === 'bundle') return `Near misses ${port.trials.map((t) => `t${t}`).join(', ')} of ${port.branch}, together: ${(port.hypotheses ?? []).join(' | ')}`;
+  if (port) return `Port of trial ${port.trial} of ${port.branch}: ${port.hypothesis ?? ''}`.trim();
+  if (bundle) return `Bundle of ${bundle.join(', ')}: ${bundleOf.map((b) => (b.hypotheses ?? []).filter(Boolean).at(-1) || `${b.target}: ${b.family}`).join(' | ')}`;
+  return '';
+}
+
+/**
+ * The exact command of the next action, what the agent supplies for it, and what it does after.
+ * `st` is the status that the script prints. `run(sub, rest)` writes one command line of the
+ * optimize script. `goal` is the check command of a goal that carries the loop, or null. `dirty`
+ * says that the main checkout has uncommitted changes to tracked files (finish needs --stash).
+ *   → { command, then?, needs, after, fallback? }
+ * `command` is null when the next step is the person's. `then` lists the commands that follow
+ * `command` in the same step. A `<…>` in a command is a value that `needs.fill` describes.
+ */
+export function nextSteps(st, { run, goal = null, slug = '', dirty = false }) {
+  const next = st?.next ?? {};
+  const after = goal ? `run \`${goal}\` as the last command, and end the turn` : 'run status for the next action';
+  const plain = (rest = '') => ({ command: run(next.action, rest), needs: null, after });
+  const n = Number(st?.counters?.trials ?? 0) + 1;
+  // A complete loop whose finish needs the person: the ablation and the finish wait for the person, as the goal does.
+  if (st?.finishBlocked) return { command: null, needs: { what: `the person acts first: ${st.finishBlocked}` }, after: goal ? `run \`${goal}\`, say what blocks the finish, and end the turn` : 'end the run' };
+  switch (next.action) {
+    case 'baseline': case 'round-open': case 'round-close': case 'checkpoint': case 'merge-close': case 'prune': case 'ablate':
+      return plain();
+    case 'merge-trial':
+      return plain(`--branch ${next.branch}`);
+    case 'profile': {
+      if (st?.profile?.mode !== 'agent') return plain();
+      return {
+        command: run('profile-record', '--file "<profile.json>"'),
+        needs: {
+          what: 'a measured profile of the trunk best, made with probes only',
+          steps: [
+            run('probe-open', '--on trunk'),
+            ...(st.profile.patch ? [`git -C "<the probe worktree>" apply "${st.profile.patch}"`] : []),
+            'add timer counters around the main parts of the code that the metric runs; each part prints one JSON line: name, share (0 to 1), and optionally calls and where',
+            run('probe', '--on trunk --label "profile" --cmd "<command>"'),
+            'write the entries, at least the 10 largest, as one JSON array to <profile.json>',
+          ],
+          fill: { '<profile.json>': 'the file of the entries', '<command>': 'the build or the run of the instrumented code' },
+          instead: run('profile-record', '--skip "<reason>"'),
+        },
+        after,
+      };
+    }
+    case 'merge-consider': {
+      const mg = st?.merge ?? { candidates: [] };
+      const open = (mg.candidates ?? []).filter((c) => !c.conflict);
+      return {
+        command: run('merge-consider', '--try <names> --skip "<name>:<reason>"'),
+        needs: {
+          what: 'try or skip for each candidate, and the tries in order',
+          candidates: open.map((c) => ({
+            name: c.name, kind: c.kind ?? 'branch', gain: c.gain, paths: c.paths ?? [],
+            hypotheses: c.kind === 'port' ? [c.hypothesis ?? ''] : c.hypotheses ?? [],
+            read: c.kind === 'port' ? [c.patchFile] : c.kind === 'bundle' ? c.patchFiles ?? [] : [`git -C "${mg.worktree}" diff ${mg.from} ${c.commit}`],
+            ...(c.kind ? { targets: c.targets ?? [], repeats: c.repeats ?? [] } : { sharedWithWinner: c.shared ?? [] }),
+          })),
+          fill: {
+            '<names>': 'the candidates to try, comma-separated, in the order to try them; leave out --try when every candidate is skipped',
+            '"<name>:<reason>"': 'one --skip for each skipped candidate, with a one-line reason',
+          },
+        },
+        after,
+      };
+    }
+    case 'trial': {
+      if (next.port || next.bundle) {
+        const patches = next.portOf?.patches ?? (next.bundleOf ?? []).flatMap((b) => (b.patches ?? []).slice(-1));
+        return {
+          command: run('trial', `h${n} --apply`),
+          needs: null,
+          fallback: {
+            when: 'the result says apply: failed',
+            needs: { what: 'make the change of each saved diff by hand in the trunk worktree, inside allowed-paths', read: patches, worktree: st?.worktree ?? null },
+            command: run('trial', `h${n}`),
+          },
+          after,
+        };
+      }
+      const lane = next.on;
+      return {
+        command: run('propose-context', `--on ${lane}`),
+        then: [
+          run('idea-claim', `--on ${lane} --target "<target>" --family "<family>"`),
+          run('trial', `h${n} --on ${lane} --idea <idea> --hypothesis "<hypothesis>" --expected "<expected>"`),
+        ],
+        needs: {
+          what: 'one hypothesis, its claim, and the edit',
+          read: 'the digest that propose-context prints, and the code in digest.worktree',
+          edit: 'after the claim, make the change in digest.worktree, on digest.branch, inside allowed-paths',
+          fill: {
+            '<target>': 'the function or the profile entry that the change targets',
+            '<family>': 'a few words for the kind of change, for example memoize',
+            '<idea>': 'the idea.id that idea-claim prints',
+            '<hypothesis>': 'what to change and why, in one or two sentences',
+            '<expected>': "the expected gain, in the metric's unit",
+          },
+          refused: 'when idea-claim refuses, choose another target and claim again; add --again "<reason>" only for a new reason to try a tried target',
+          prepared: 'when propose-context prints prepared, the worktree holds an edit already: run only the trial command, with no claim',
+        },
+        after,
+      };
+    }
+    case 'finish':
+      return {
+        command: run('finish', `--message "<message>"${dirty ? ' --stash' : ''}`),
+        needs: {
+          what: 'the main checkout is on the slug branch',
+          fill: { '<message>': 'a one-line commit message in product language; finish uses it only when every change goes in one commit' },
+        },
+        after: goal ? after : 'hand back: name the weak changes and the mechanisms that produced nothing',
+      };
+    case 'person':
+      return { command: null, needs: { what: 'the person chooses: show reason, detail and next.why' }, after: goal ? `run \`${goal}\`, say what blocks the loop, and end the turn` : 'end the run' };
+    case 'verify':
+      return { command: null, needs: null, after: `the loop is done: the next step is /wf verify ${slug} optimize` };
+    default:
+      return { command: null, needs: null, after };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The mechanism report: which search mechanisms of the loop produced kept gain.
+// ---------------------------------------------------------------------------
+/** The search mechanisms that a kept change can come from. */
+export const MECHANISMS = Object.freeze(['trunk', 'round', 'seed', 'prune', 'merge', 'port', 'near-misses', 'marginal-bundle']);
+
+const num = (x) => (Number.isFinite(x) ? Number(x.toPrecision(6)) : x);
+
+/**
+ * The mechanism of one trial line. A merge trial is `merge`, a port of the near misses of a winner
+ * is `near-misses`, a port of one kept trial is `port`, a bundle of marginal ideas is
+ * `marginal-bundle`, and any other trunk trial is `trunk`. A trial on a branch is `prune` when a
+ * prune forked its branch, `seed` when the round gave its branch a seed, and `round` otherwise.
+ */
+export function mechanismOf(line, { forks = new Map(), seeded = new Set() } = {}) {
+  if (line.merge) return 'merge';
+  if (line.port?.kind === 'bundle') return 'near-misses';
+  if (line.port) return 'port';
+  if (line.bundle) return 'marginal-bundle';
+  if (!line.branch) return 'trunk';
+  if (forks.has(line.branch)) return 'prune';
+  if (seeded.has(line.branch)) return 'seed';
+  return 'round';
+}
+
+/** The forks that prune made, by `<round>:<branch>`: the leader they came from and the ledger position of the prune. */
+function forksOf(lines) {
+  const forks = new Map();
+  lines.forEach((l, i) => { if (l.event === 'prune' && l.into) forks.set(`${l.round}:${l.into}`, { ...l, at: i }); });
+  return forks;
+}
+
+/**
+ * The kept trial lines of a branch of a round, in ledger order, up to the ledger position `before`.
+ * A branch that a prune forked from the leader starts at the leader's best, so the leader's keeps
+ * before the prune come first.
+ */
+export function branchLineage(results, round, branch, before = Infinity, forks = forksOf(results ?? []), seen = new Set()) {
+  const lines = results ?? [];
+  if (seen.has(branch)) return [];
+  seen.add(branch);
+  const own = lines.filter((t, i) => t.event === 'trial' && t.round === round && t.branch === branch && t.verdict === 'kept' && i < before);
+  const fork = forks.get(`${round}:${branch}`);
+  return fork ? [...branchLineage(lines, round, fork.from, Math.min(before, fork.at), forks, seen), ...own] : own;
+}
+
+/**
+ * The kept trials that the trunk holds at the end, in ledger order: the kept trials of the trunk
+ * (with its merge trials, ports and bundles), the lineage of each round winner, and the kept
+ * trials of each branch that a merge trial brought in (`viaMerge`: the merge trial is their one
+ * change). A keep that `resume --revert` took off the trunk is not on it. finish, its commits, its
+ * step rows and the mechanism report all read this one list.
+ *   → { kept: [line], viaMerge: Set<line> }
+ */
+export function trunkLineage(results) {
+  const lines = results ?? [];
+  const forks = forksOf(lines);
+  const dropped = new Set(lines.filter((l) => l.event === 'resume').flatMap((l) => l.dropped ?? []));
+  const adopted = new Set();
+  for (const c of lines.filter((l) => l.event === 'round-close' && l.winner?.name)) for (const t of branchLineage(lines, c.round, c.winner.name, Infinity, forks)) adopted.add(t);
+  const viaMerge = new Set();
+  for (const m of lines.filter((l) => l.event === 'merge-close')) {
+    for (const name of m.merged ?? []) for (const t of branchLineage(lines, m.round, name, Infinity, forks)) if (!adopted.has(t)) viaMerge.add(t);
+  }
+  const kept = lines.filter((t) => t.event === 'trial' && t.verdict === 'kept' && !dropped.has(t.trial) && (!t.branch || adopted.has(t) || viaMerge.has(t)));
+  return { kept, viaMerge };
+}
+
+/**
+ * The report of one run, from its ledger lines. Each kept change that the trunk holds at the end
+ * counts for exactly one mechanism, with its measured gain (`delta`):
+ *   - a kept trunk trial, merge trial, port or bundle counts for its own mechanism;
+ *   - a kept trial of a round's winning branch counts for the mechanism of that branch (round,
+ *     seed or prune). When a prune forked the winner from the leader, the leader's keeps before
+ *     the fork count too, for the leader's mechanism;
+ *   - a keep of a branch that did not win adds nothing. A merge or a port that brought it in
+ *     counts for merge or port;
+ *   - a keep that `resume --revert` took off the trunk adds nothing.
+ * Every trial counts for its mechanism in `trials` and in `ms` (the time of its guard and measurement).
+ */
+export function mechanismReport(results, { direction = 'lower', unit = '', best = null } = {}) {
+  const lines = results ?? [];
+  const trials = lines.filter((l) => l.event === 'trial');
+  const forkLines = forksOf(lines);
+  const forks = new Map([...forkLines.values()].map((p) => [p.into, p]));
+  const seeded = new Set(lines.filter((l) => l.event === 'round-open').flatMap((l) => Object.keys(l.seeds ?? {})));
+  for (const p of forks.values()) if (p.seed) seeded.add(p.into);
+  const ctx = { forks, seeded };
+  const lineage = (round, branch) => branchLineage(lines, round, branch, Infinity, forkLines);
+  const closes = lines.filter((l) => l.event === 'round-close');
+  // A kept trial of a merged branch is in the trunk through its merge trial, which counts for merge.
+  const trunk = trunkLineage(lines);
+  const onTrunk = new Set(trunk.kept.filter((t) => !trunk.viaMerge.has(t)));
+  const counts = (t) => onTrunk.has(t);
+  const rows = Object.fromEntries(MECHANISMS.map((m) => [m, { trials: 0, keeps: 0, gain: 0, ms: 0, weak: 0 }]));
+  const byTrial = new Map();
+  for (const t of trials) {
+    const m = mechanismOf(t, ctx);
+    byTrial.set(t.trial, m);
+    const r = rows[m];
+    r.trials++;
+    if (Number.isFinite(t.ms)) r.ms += t.ms;
+    if (counts(t)) { r.keeps++; if (Number.isFinite(t.delta)) r.gain += t.delta; }
+  }
+  const ablation = lines.filter((l) => l.event === 'ablate').at(-1);
+  for (const c of ablation?.changes ?? []) if (c.verdict === 'weak' && byTrial.has(c.trial)) rows[byTrial.get(c.trial)].weak++;
+  const total = MECHANISMS.reduce((s, m) => s + rows[m].gain, 0);
+  for (const m of MECHANISMS) finishRow(rows[m], total);
+  const baseline = lines.find((l) => l.event === 'baseline');
+  const opens = new Map(lines.filter((l) => l.event === 'round-open').map((l) => [l.round, l]));
+  const merges = new Map(lines.filter((l) => l.event === 'merge-close').map((l) => [l.round, l.merged ?? []]));
+  const rounds = closes.map((c) => {
+    const inRound = trials.filter((t) => t.round === c.round && t.branch);
+    const own = c.winner?.name ? lineage(c.round, c.winner.name) : [];
+    const from = opens.get(c.round)?.fromValue;
+    const gain = !c.winner ? 0 : Number.isFinite(from) && Number.isFinite(c.winner.value) ? gainOf(direction, from, c.winner.value) : own.reduce((s, t) => s + (Number.isFinite(t.delta) ? t.delta : 0), 0);
+    return {
+      round: c.round, reason: opens.get(c.round)?.reason ?? null, trials: inRound.length, ms: inRound.reduce((s, t) => s + (Number.isFinite(t.ms) ? t.ms : 0), 0),
+      winner: c.winner?.name ?? null, from: Number.isFinite(from) ? from : null, to: c.winner?.value ?? null, gain: num(gain), merged: merges.get(c.round) ?? [],
+    };
+  });
+  const prunes = [...forks.values()].map((p) => {
+    const mine = trials.filter((t) => t.round === p.round && t.branch === p.into);
+    const won = closes.some((c) => c.round === p.round && c.winner?.name && lineage(c.round, c.winner.name).some((t) => t.branch === p.into));
+    const kept = mine.filter(counts);
+    return { round: p.round, branch: p.branch, into: p.into, from: p.from, given: p.trials ?? null, used: mine.length, keeps: kept.length, won: won || closes.some((c) => c.round === p.round && c.winner?.name === p.into), gain: num(kept.reduce((s, t) => s + (Number.isFinite(t.delta) ? t.delta : 0), 0)) };
+  });
+  const profiles = lines.filter((l) => l.event === 'profile');
+  return {
+    unit, direction,
+    baseline: baseline?.median ?? null,
+    best,
+    finalGain: Number.isFinite(best) && Number.isFinite(baseline?.median) ? num(gainOf(direction, baseline.median, best)) : null,
+    trials: trials.length,
+    keeps: MECHANISMS.reduce((s, m) => s + rows[m].keeps, 0),
+    keptGain: num(total),
+    mechanisms: rows,
+    rounds,
+    prunes,
+    profile: { runs: profiles.filter((l) => l.source !== 'skipped').length, skipped: profiles.filter((l) => l.source === 'skipped').length, ms: profiles.reduce((s, l) => s + (Number.isFinite(l.ms) ? l.ms : 0), 0) },
+    idle: MECHANISMS.filter((m) => rows[m].trials > 0 && !(rows[m].gain > 0)),
+  };
+}
+
+/** The share of the total kept gain and the gain per hour of measurement of one mechanism row. */
+function finishRow(r, total) {
+  r.gain = num(r.gain);
+  r.share = total > 0 ? num(r.gain / total) : null;
+  r.gainPerHour = r.ms > 0 ? num(r.gain / (r.ms / 3_600_000)) : null;
+  return r;
+}
+
+/**
+ * The sum of the reports of several runs. `runs` counts each mechanism's runs that used it, and
+ * `paid` the runs where it brought kept gain. A gain adds up only in one unit: when the runs
+ * measure different units, `gain` and `gainPerHour` are null and `share` is the mean share.
+ */
+export function sumMechanismReports(reports) {
+  const list = reports ?? [];
+  const units = [...new Set(list.map((r) => `${r.unit ?? ''}`))];
+  const oneUnit = units.length <= 1;
+  const rows = Object.fromEntries(MECHANISMS.map((m) => [m, { runs: 0, paid: 0, trials: 0, keeps: 0, gain: 0, ms: 0, weak: 0, shares: [] }]));
+  for (const rep of list) {
+    for (const m of MECHANISMS) {
+      const a = rep.mechanisms?.[m];
+      if (!a) continue;
+      const r = rows[m];
+      if (a.trials > 0) r.runs++;
+      if (a.gain > 0) r.paid++;
+      r.trials += a.trials; r.keeps += a.keeps; r.gain += a.gain; r.ms += a.ms; r.weak += a.weak;
+      if (a.share !== null && a.share !== undefined) r.shares.push(a.share);
+    }
+  }
+  const total = MECHANISMS.reduce((s, m) => s + rows[m].gain, 0);
+  for (const m of MECHANISMS) {
+    const r = rows[m];
+    const shares = r.shares;
+    delete r.shares;
+    if (oneUnit) finishRow(r, total);
+    else Object.assign(r, { gain: null, gainPerHour: null, share: shares.length ? num(shares.reduce((s, x) => s + x, 0) / list.filter((x) => x.keptGain > 0).length) : null });
+  }
+  return {
+    runs: list.length,
+    units,
+    trials: list.reduce((s, r) => s + r.trials, 0),
+    keeps: list.reduce((s, r) => s + r.keeps, 0),
+    keptGain: oneUnit ? num(total) : null,
+    mechanisms: rows,
+    rounds: { count: list.reduce((s, r) => s + r.rounds.length, 0), trials: list.reduce((s, r) => s + r.rounds.reduce((x, y) => x + y.trials, 0), 0), won: list.reduce((s, r) => s + r.rounds.filter((x) => x.winner).length, 0) },
+    prunes: { count: list.reduce((s, r) => s + r.prunes.length, 0), used: list.reduce((s, r) => s + r.prunes.reduce((x, y) => x + y.used, 0), 0), won: list.reduce((s, r) => s + r.prunes.filter((x) => x.won).length, 0) },
+    never: MECHANISMS.filter((m) => rows[m].runs > 0 && rows[m].paid === 0),
+  };
+}
+
+/** The mechanism report as a markdown table, for the implement artifact. */
+export function mechanismTable(report) {
+  const unit = report.unit ? ` ${report.unit}` : '';
+  const pct = (x) => (x === null || x === undefined ? '—' : `${Math.round(x * 1000) / 10}%`);
+  const min = (ms) => `${Math.round(ms / 6000) / 10} min`;
+  const rows = MECHANISMS.filter((m) => report.mechanisms[m].trials > 0).map((m) => {
+    const r = report.mechanisms[m];
+    return `| ${m} | ${r.trials} | ${r.keeps} | ${r.gain}${unit} | ${pct(r.share)} | ${min(r.ms)} | ${r.gainPerHour === null ? '—' : `${r.gainPerHour}${unit}`} | ${r.weak} |`;
+  });
+  return ['| Mechanism | Trials | Keeps | Kept gain | Share | Measured | Gain per hour | Weak |', '|---|---|---|---|---|---|---|---|', ...rows].join('\n');
 }
 
 /** The first line of a text as a commit subject of at most `max` characters, cut at a word. */

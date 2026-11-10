@@ -2,7 +2,7 @@
 
 Ask focused product-owner questions in two batches: substance first (Batch B), process second (Batch A). Ask Batch B first: the branch and appetite answers are better informed after the PO has described the work.
 
-**Batch B — Freeform substance questions (in chat — ASK THESE FIRST):**
+**Batch B — Freeform substance questions (in chat — ASK THESE first):**
 Ask freeform questions covering the areas below. 2–5 is typical, but the count is need-driven, not fixed: keep asking (in small batches, building on earlier answers) while the desired outcome is vague, a success criterion is not yet falsifiable, or a mentioned constraint is uncaptured, and stop the moment those are pinned down. Never pad to reach a count; park anything the PO cannot answer now in `open-questions` (`status: awaiting-input`) instead of pressing. **Ground questions in the Step 0.7 research findings where relevant**: "the code already has X — does this request replace it or extend it?" beats asking the PO to describe what the code already answers. Cover:
 - desired outcome and who benefits
 - concrete success criteria

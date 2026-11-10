@@ -99,7 +99,7 @@ When a workflow changes screens, `/wf design` draws each screen as an HTML page 
 | `project` | The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`). |
 | `docs` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. |
 
-`loop optimize` has a gap on Codex and pi.
+Every key runs on every host.
 <!-- end generated -->
 
 Arguments and artifacts for each key are on the [command page](docs/commands.html). The surface is frozen by [docs/internal/SURFACE-POLICY.md](docs/internal/SURFACE-POLICY.md); `npm run verify:surface` enforces the pins.

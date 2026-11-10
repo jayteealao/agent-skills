@@ -25,6 +25,12 @@ export const TARGETED_FORMS = Object.freeze(['extension', 'fix', 'hotfix']);
 export const PACKET_STATES = Object.freeze(['written', 'open', 'built', 'done', 'dropped']);
 // A packet in one of these states is never rewritten: the walk owns it.
 export const STARTED_STATES = Object.freeze(['open', 'built', 'done', 'dropped']);
+// The fields of a packet file that the walk writes besides `state`: a skip of the person, the
+// packets that the person let this packet run ahead of, and the time it reached done. A write
+// of the list keeps them.
+export const WALK_FIELDS = Object.freeze(['skipped', 'ahead-of', 'done-at']);
+/** The walk fields of a packet file's frontmatter that are set. */
+export const walkFieldsOf = (data) => Object.fromEntries(WALK_FIELDS.filter((k) => data?.[k] != null).map((k) => [k, data[k]]));
 // The slice band of a packet: a target of 10, a band of 6 to 14.
 export const SLICE_TARGET = 10;
 export const SLICE_MIN = 6;
@@ -410,7 +416,7 @@ export function packetSketches(board, packet) {
 }
 
 /** The frontmatter object of a packet file (4.1). */
-export function packetFrontmatter(board, packet, { revision = 1, generatedAt = null, state = null } = {}) {
+export function packetFrontmatter(board, packet, { revision = 1, generatedAt = null, state = null, walk = {} } = {}) {
   const decisions = carriedDecisionItems(board, packet);
   const keysOf = (l) => l.map((i) => i.key);
   const build = isBuildPacket(packet);
@@ -457,6 +463,7 @@ export function packetFrontmatter(board, packet, { revision = 1, generatedAt = n
     'design-form': packet['design-form'] ?? 'none',
     ...(packet.sketches?.length ? { sketches: packetSketches(board, packet) } : {}),
     ...(packet.migrated ? { migrated: packet.migrated } : {}),
+    ...walkFieldsOf(walk),
     ...(generatedAt ? { 'generated-at': generatedAt } : {}),
   };
 }
@@ -466,8 +473,8 @@ function bullets(l) {
 }
 
 /** The full text of a packet file (4.1). */
-export function renderPacket(board, packet, { revision = 1, generatedAt = null, researchFiles = [], files = DEFAULT_FILES, state = null } = {}) {
-  const fm = packetFrontmatter(board, packet, { revision, generatedAt, state });
+export function renderPacket(board, packet, { revision = 1, generatedAt = null, researchFiles = [], files = DEFAULT_FILES, state = null, walk = {} } = {}) {
+  const fm = packetFrontmatter(board, packet, { revision, generatedAt, state, walk });
   const packets = board.work ?? [];
   const packetKeys = byKey(packets);
   const decisions = carriedDecisionItems(board, packet);
@@ -621,7 +628,7 @@ export function packetContent(text) {
   const p = safeParseFrontmatter(String(text ?? ''));
   if (!p.data) return signature(text);
   const d = { ...p.data };
-  for (const k of ['revision', 'generated-at', 'state']) delete d[k];
+  for (const k of ['revision', 'generated-at', 'state', ...WALK_FIELDS]) delete d[k];
   return `${JSON.stringify(d)}\n${signature(p.content)}`;
 }
 
@@ -649,7 +656,7 @@ export function startedPacketRewriteError(oldText, newText) {
   if (!after.data) return null;
   const strip = (data) => {
     const copy = { ...data };
-    for (const k of ['state', 'order', 'generated-at']) delete copy[k];
+    for (const k of ['state', 'order', 'generated-at', ...WALK_FIELDS]) delete copy[k];
     return JSON.stringify(copy);
   };
   if (strip(before.data) !== strip(after.data) || signature(before.content) !== signature(after.content)) {
@@ -725,8 +732,10 @@ export function writeList(dir, { now = null, isIgnored = null, dryRun = false, b
     existing.delete(packet.key);
     const state = prior && PACKET_STATES.includes(prior.data.state) ? prior.data.state : (isStartedState(packet.state) ? packet.state : 'written');
     states[packet.key] = state;
-    const text = renderPacket(board, packet, { revision, generatedAt: at, researchFiles, files, state });
-    const shape = validateFrontmatter(packetFrontmatter(board, packet, { revision, generatedAt: at, state }));
+    // The walk fields of the old file stay: a write of the list does not undo a skip of the person.
+    const walk = prior ? walkFieldsOf(prior.data) : {};
+    const text = renderPacket(board, packet, { revision, generatedAt: at, researchFiles, files, state, walk });
+    const shape = validateFrontmatter(packetFrontmatter(board, packet, { revision, generatedAt: at, state, walk }));
     if (!shape.valid) return { ok: false, errors: shape.errors.map((e) => `packet ${packet.key}: ${e.path} ${e.message}`), warnings: check.warnings };
     if (prior && isStartedState(prior.data.state)) {
       kept.push(packet.key);

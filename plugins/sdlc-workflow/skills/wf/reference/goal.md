@@ -22,7 +22,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 | `kind` | `check` prints `GOAL: MET` when | Chosen when |
 |---|---|---|
 | `lifecycle` | every selected slice has a clean verify and the review that the scope needs is clean, by the stop rules in `lib/lifecycle-done.mjs`, which `goal.mjs lifecycle` reads: a verify is clean when `convergence` is `not-needed` or `converged` and `result` is `pass`; a review is clean when `verdict` is `ship` or `ship-with-caveats` and no blocker is open | the default |
-| `optimize` | `optimize.mjs status` prints `complete` or `finished`. A stopped loop prints `BLOCKED` with the stop reason | the slug has `workflow-type: optimize` |
+| `optimize` | `optimize.mjs status` prints `finished`: the kept changes are on the slug branch and the records are written. A `complete` loop prints `NOT-MET` with the reason `finish`. A stopped loop, or a finish that needs the person, prints `BLOCKED` with the reason | the slug has `workflow-type: optimize` |
 | `proofs` | every proof command exits 0 | the person names commands that must pass, for example "CI green and coverage at 80" |
 
 `check` counts its runs. Past `max-checks` (default 30) it prints `GOAL: BLOCKED budget`, because the host goal of one host has no cap of its own.
@@ -58,7 +58,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
    ```
 
    `--host` takes one value for every host: `claude-code`, `codex`, or `pi`. Write one `--proof` for each proof command.
-3. On `ok: false`, show the error and end the run.
+3. On `ok: false`, follow the failure rule of [_host-invocation.md](_host-invocation.md), and end the run.
 4. Arm the host goal with `arm.how`, `arm.instruction` and the `condition` text:
    - `goal-command`: show `arm.command` in a fenced block. Say what happens next, from `arm.instruction`. Do not try to run the command yourself.
    - `create_goal`: call the host's goal tool with the condition as the objective. When the host's goals feature is off, show `arm.instruction` and end the run.
@@ -71,7 +71,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
 1. Do the next unit of work:
    - `lifecycle`: run the stage that `goal.mjs lifecycle` names in `next`. Run that stage by its own reference file (`/wf <stage> <slug> [<slice>]`).
-   - `optimize`: run the one action that `optimize.mjs status` names in `next.action` ([optimize.md](optimize.md), "Without the driver"): the baseline first, then a trial or a step of a round, and the finish when the loop is complete.
+   - `optimize`: run the one action that `optimize.mjs status` names in `next.action` ([optimize.md](optimize.md), "Without the driver"): the baseline first, then a trial or a step of a round, and the finish when the loop is complete. The goal is met only after the finish.
    - `proofs`: change the code toward the objective. Keep the change inside the scope of the slug.
 2. When a `/wf` gate needs the person, run `park`, per [_autonomy-guards.md](_autonomy-guards.md), "Goal park". Do not answer the gate.
 3. At the end of the turn, run `check`:
@@ -82,7 +82,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
    The output of `check` is the last tool output of the turn, so the judge reads it. Do not shorten or restate the output.
 4. When `check` prints `GOAL: MET` in this turn, complete the host goal where the host has a model-side goal tool. Do not complete it on any other line.
-5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn. For an optimize stop, the person first makes the loop able to go on (a new budget in the spec, or `optimize.mjs resume`); then `/wf loop goal <slug> resume` arms the contract again.
+5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn. For an optimize stop, the person first makes the loop able to go on (a new budget in the spec, or `optimize.mjs resume`). For a finish that needs the person, the person does what the reason says, for example switches the main checkout to the slug branch. Then `/wf loop goal <slug> resume` arms the contract again.
 
 ## Step 3 — Hand back
 

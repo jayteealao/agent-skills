@@ -175,5 +175,5 @@ Every key runs on Claude Code, Codex and pi in the same form, with these excepti
 - `loop goal` on Claude Code: the mod puts the /goal line into the prompt box.
 - `loop goal` on Codex: the agent calls create_goal.
 - `loop goal` on pi: the agent runs the loop in this session; pi has no host goal.
-- `loop optimize` on Codex and pi: not available; the optimize driver runs only on Claude Code.
+- `loop optimize` on Codex and pi: no driver; the goal contract carries the loop, one action for each turn.
 <!-- end generated -->

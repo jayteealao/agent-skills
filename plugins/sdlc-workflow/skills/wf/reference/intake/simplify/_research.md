@@ -2,7 +2,7 @@
 
 Load this file from `simplify.md` Step 2. It holds the effort tier, the shared inputs, the output contract, and the three charters. The body keeps the dispatch rule: all three sub-agents launch in one parallel wave per [_subagents.md](../../_subagents.md).
 
-**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../../_subagents.md)). REQUIRED on every dispatch — reviewers must not silently inherit the parent's model.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../../_subagents.md)). Required on every dispatch — reviewers must not silently inherit the parent's model.
 
 Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and one charter below. In plan scope, an agent may search the repository read-only to check the code and helpers the plan names.
 

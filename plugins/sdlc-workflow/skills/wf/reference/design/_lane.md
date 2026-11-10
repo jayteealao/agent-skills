@@ -36,8 +36,8 @@ A person approves the design before any stage that a driver can run. The `design
 The design is **reopened**, and not settled, while `00-index.md` records `progress.design: in-progress`. An extension that adds surfaces sets it, and so does rule 2 below. Step 6 of the design stage sets `progress.design: complete` again.
 
 Rules for every stage after `design`:
-1. When design is needed and not settled, STOP. Set `status: awaiting-input` and route to `/wf design <slug>`. Under an autonomous run, this is a stop condition.
-2. When the approved design cannot be built as drawn, STOP. Set `status: awaiting-input` and `progress.design: in-progress`, and route to `/wf design <slug> amend`. Do not redraw the design inside the stage.
+1. When design is needed and not settled, stop. Set `status: awaiting-input` and route to `/wf design <slug>`. Under an autonomous run, this is a stop condition.
+2. When the approved design cannot be built as drawn, stop. Set `status: awaiting-input` and `progress.design: in-progress`, and route to `/wf design <slug> amend`. Do not redraw the design inside the stage.
 3. Consume the approved design. Do not change its direction.
 
 The pre-write hook refuses a `04-plan*.md` write while design is needed and not settled, including while an approved screen page is missing. Under `checks: warn` in `.ai/sdlc-config.json` the write stands with a warning.

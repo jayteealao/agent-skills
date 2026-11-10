@@ -9,6 +9,7 @@ import { addDecision, decisionsOf } from './decisions.mjs';
 import { PATH_FORMS, applySet, enumAt, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
 import { INDEX_NAME, assertWritable, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
+import { agentFix, refuse } from './fix.mjs';
 
 const SCHEMA_FILE = fileURLToPath(new URL('../schemas/frontmatter.schema.json', import.meta.url));
 
@@ -49,10 +50,10 @@ export function settleQuestion(dir, key) {
 // of the index, so the watch and a look-in can name its exact key. A second hold of the same key
 // replaces the entry. `settleQuestion` removes it when an answer with that key is recorded.
 export function holdQuestion(dir, q) {
-  if (!q?.key) throw new Error('decide hold: --key is required');
-  if (!q.question) throw new Error('decide hold: --question is required');
+  if (!q?.key) throw refuse('decide hold: --key is required', agentFix('Run decide hold again with --key, a short stable name of the question.'));
+  if (!q.question) throw refuse('decide hold: --question is required', agentFix('Run decide hold again with --question, the question in full.'));
   const fm = frontmatterOfDoc(dir, INDEX_NAME);
-  if (!fm) throw new Error(`decide hold: the workflow has no ${INDEX_NAME}`);
+  if (!fm) throw refuse(`decide hold: the workflow has no ${INDEX_NAME}`, agentFix('Run the command again with the slug of a workflow that status lists.'));
   const open = Array.isArray(fm['open-questions']) ? fm['open-questions'] : [];
   const entry = {
     key: q.key, question: q.question, stage: q.stage ?? null,
@@ -97,7 +98,7 @@ export function resolveRecord(dir, name, verb = 'record') {
   for (const fits of rules) {
     const hits = names.filter((r) => r !== INDEX_NAME && fits(r));
     if (hits.length === 1) return hits[0];
-    if (hits.length > 1) throw new Error(`${verb}: ${name} fits ${hits.length} records: ${hits.join(', ')}; name one of them`);
+    if (hits.length > 1) throw refuse(`${verb}: ${name} fits ${hits.length} records: ${hits.join(', ')}; name one of them`, agentFix('Run the command again with one of the record names that the error lists.'));
   }
   return n;
 }
@@ -112,15 +113,15 @@ export function resolveRecord(dir, name, verb = 'record') {
  */
 export function checkDismissDecision(dir, id, what = 'findings set') {
   const d = decisionsOf(dir).find((x) => x.id === id);
-  if (!d) throw new Error(`${what}: no decision ${id}`);
-  if (d['superseded-by']) throw new Error(`${what}: decision ${d.id} is superseded by ${d['superseded-by']}`);
-  if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw new Error(`${what}: decision ${d.id} is not an answer, steer or approval of the person`);
+  if (!d) throw refuse(`${what}: no decision ${id}`, agentFix('List the decisions with decide list, then run the command again with an id that it lists.'));
+  if (d['superseded-by']) throw refuse(`${what}: decision ${d.id} is superseded by ${d['superseded-by']}`, agentFix('Run the command again with the id of the decision that supersedes it.'));
+  if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw refuse(`${what}: decision ${d.id} is not an answer, steer or approval of the person`, agentFix('Run the command again with the id of an answer, steer or approval of the person.'));
 }
 
 export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
   assertWritable(dir, name);
   const doc = readDoc(dir, name);
-  if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
+  if (!doc?.frontmatter) throw refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.'));
   const schema = schemaOf();
   const def = defOfType(schema, doc.frontmatter.type ?? (name === INDEX_NAME ? 'index' : null));
   const fm = structuredClone(doc.frontmatter);
@@ -130,7 +131,7 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
   for (const c of changes) {
     const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
     if (allowed && !allowed.includes(c.value)) {
-      throw new Error(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`);
+      throw refuse(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`, agentFix('Run record set again with one of the values that the error lists.'));
     }
     applySet(fm, c);
   }
@@ -147,11 +148,11 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
  */
 export function editRecord(dir, name, change, { slug = basename(dir), now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') } = {}) {
   const doc = readDoc(dir, name);
-  if (!doc?.frontmatter) throw new Error(noRecord(name, slug, dir));
+  if (!doc?.frontmatter) throw refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.'));
   let body;
   if (change.section !== undefined) body = replaceSection(doc.body, change.section, change.text ?? '');
   else if (change.replace !== undefined) body = replaceOnce(doc.body, change.replace, change.with ?? '');
-  else throw new Error('record edit: give --section <heading> --from <file>, or --replace <old> --with <new>');
+  else throw refuse('record edit: give --section <heading> --from <file>, or --replace <old> --with <new>', agentFix('Run record edit again with --section <heading> --from <file>, or with --replace <old> --with <new>.'));
   const frontmatter = Object.hasOwn(doc.frontmatter, 'updated-at') ? { ...doc.frontmatter, 'updated-at': now } : doc.frontmatter;
   const tmp = mkdtempSync(join(tmpdir(), 'wf-edit-'));
   try {

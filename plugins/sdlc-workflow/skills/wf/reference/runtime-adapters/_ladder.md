@@ -21,7 +21,7 @@ record the verdict: **would a change to code in THIS repo dissolve this wall?**
 - `external` — genuinely outside the run's authority: another user's process, a third-party account,
   hardware the host lacks, a real OAuth consent.
 
-**A `code-owned` wall may NOT be deferred until the repo-change option has been surfaced as a
+**A `code-owned` wall may not be deferred until the repo-change option has been surfaced as a
 decision.** It is not an environment wall; it is unfinished verifiability work wearing one's clothes,
 and deferring it re-pays the cost every slice while the cure sits unwritten. Route it three ways —
 scope the change in this slice, scope it as a prerequisite slice/harness, or record an explicit PO
@@ -82,7 +82,7 @@ Allowed unprompted (reversible, run-scoped, nobody else's state):
 - Run a provisioning script the repo already ships (`scripts/create-*-avd.ps1`, a seed script).
 - Execute an install/bootstrap the plan's `## Verification Strategy` already authorized.
 
-NOT allowed without an explicit decision — surface it, do not improvise:
+Not allowed without an explicit decision — surface it, do not improvise:
 - **Killing, stopping, or restarting a process the run did not start.** Another user's server holding
   a port is not the run's to reclaim, however convenient the port.
 - Mutating host or system configuration: port-forward rules, hosts file, firewall, service
@@ -100,4 +100,4 @@ triage runs first.
 
 Per-wall rung lists (web UI, Android, backend, deploy-time, auth-gated, inbound-callback, infra-prerequisite): [_ladder-walls.md](_ladder-walls.md).
 
-Both `wf-verify` (per-slice gate) and `/wf probe` (slug-wide sweep) climb this ladder. `plan`'s `## Verification Strategy` records, per AC, the rung it expects to reach and what must be built to get there; `verify` executes against that plan and records the rung actually reached.
+Both `/wf verify` (per-slice gate) and `/wf probe` (slug-wide sweep) climb this ladder. `plan`'s `## Verification Strategy` records, per AC, the rung it expects to reach and what must be built to get there; `verify` executes against that plan and records the rung actually reached.

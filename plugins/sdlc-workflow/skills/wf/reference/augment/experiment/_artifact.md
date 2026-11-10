@@ -86,7 +86,7 @@ Rollback procedure: set `<flag-name>` to `false` (or remove treatment code path 
 
 ## 6. Implementation notes
 
-Guidance for `wf-implement` on what to build for the flag scaffold:
+Guidance for `/wf implement` on what to build for the flag scaffold:
 
 - **Flag registration**: where to register the new flag (`<file:line>` pattern from existing flags)
 - **Flag check**: where in the code to check the flag (cite the specific function and file from `02-shape.md`)

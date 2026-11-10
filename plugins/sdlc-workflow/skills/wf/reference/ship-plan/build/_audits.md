@@ -111,7 +111,7 @@ Skip if `framework: none`.
 - `issue-templates: true` → does `.github/ISSUE_TEMPLATE/` exist with at least one template?
 - `dependency-automation.tool ≠ none` → does the tool's config exist (`.github/dependabot.yml` or `renovate.json`) covering the planned `ecosystems[]`?
 - `branch-protection` → compare the live protection (read via the mechanism's API — `branches/<base>/protection` or `rulesets`) against planned `required-checks[]`, `required-approvals`, `dismiss-stale-reviews`, `enforce-admins`, `require-conversation-resolution`, `require-linear-history`, `allow-force-pushes`, `allow-deletions`.
-  - **Code-owner enforcement:** if `codeowners[]` is non-empty but live protection does NOT set `require_code_owner_reviews`, flag **Non-compliant** — the CODEOWNERS file is otherwise cosmetic.
+  - **Code-owner enforcement:** if `codeowners[]` is non-empty but live protection does not set `require_code_owner_reviews`, flag **Non-compliant** — the CODEOWNERS file is otherwise cosmetic.
 - **Missing:** config file absent, or live branch protection is unset / weaker than planned.
 - **Non-compliant:** present but diverges from the plan (e.g. fewer required checks, code-owner review not required, mechanism mismatch).
 - **Compliant (stronger):** live protection exceeds the plan — report and do not weaken (see Step 12b in [governance.md](governance.md)).

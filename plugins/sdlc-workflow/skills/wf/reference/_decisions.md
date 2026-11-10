@@ -18,7 +18,7 @@ Each entry has these fields:
 | `key` | a stable kebab-case name of the decision, for example `auth-method`; a `steer` entry can have none |
 | `question` | the question as asked |
 | `answer` | the answer, in the person's exact words |
-| `by` | `person`, `policy`, `delegate` or `standing:<id>`; `standing:<id>` names the standing answer that settled the case |
+| `by` | `person`, `policy`, `delegate`, `standing:<id>`, `standing rule` or `standing default`; `standing:<id>` names the standing answer of the workflow that settled the case, and `standing rule` a standing answer of the project ([_gate-question.md](_gate-question.md), "Standing answers") |
 | `scope` | `packet`, `slice` and `files`; an absent field means every packet, slice or file |
 | `stage` | the stage that asked |
 | `rewrote` | the records that the answer changed |

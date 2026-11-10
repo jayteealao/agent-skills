@@ -4,7 +4,8 @@
  * skills/wf/scripts/optimize.mjs runs this script.
  *
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
- *   status          <root> <slug>                     running | complete | stopped | finished, and the next action
+ *   status          <root> <slug>                     running | complete | stopped | finished, and the next action with
+ *                                                     its exact command, what the agent supplies, and what comes after
  *   propose-context <root> <slug> [--on <lane>]       the digest of the next proposer and the worktree of its lane
  *   trial           <root> <slug> <id> [--on <lane>] [--hypothesis t | --hypothesis-file f] [--expected e] [--apply] [--idea <id>]
  *                                                     judge the change in the worktree of the lane: kept, reverted, rejected, crashed, timeout
@@ -33,6 +34,8 @@
  *   ablate          <root> <slug>                     revert each kept change alone and measure what it still gives (finish runs it too)
  *   resume          <root> <slug> [--revert]          clear a stored stop (plateau, holdout-regression); --revert first puts the trunk
  *                                                     back at the best of the last good checkpoint
+ *   report          <root> <slug> | <root> --all      the trials, keeps, kept gain and measurement time of each search
+ *                                                     mechanism; --all sums every optimize slug of the project
  *
  * `--on <lane>` names a branch that status lists in `next.ready`. A round whose branches have
  * their own worktrees lets the driver edit them at the same time; `trial` holds the measure
@@ -59,18 +62,27 @@ import {
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
+  nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
 } from '../lib/optimize.mjs';
 import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
-import { workflowDir } from '../lib/records-root.mjs';
+import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { findRunFile } from '../lib/run-files.mjs';
 import { isMainModule, runShell } from '../lib/proc.mjs';
 import { costFiles, readCostRows } from '../lib/cost-ledger.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { dropLock as dropFileLock, isStaleLock, refreshLock, takeLock as takeFileLock, withLock as withFileLockAt } from '../lib/file-lock.mjs';
+import { agentFix, failure, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 
-const USAGE = 'Usage: optimize.mjs <baseline|status|propose-context|trial|round-open|round-close|merge-consider|merge-trial|merge-close|checkpoint|finish|cleanup|probe-open|probe|idea-claim|profile|profile-record|prune|ablate|resume> <projectRoot> <slug> ...';
+/** The commands of this script, in the order of USAGE. */
+export const COMMANDS = Object.freeze(['baseline', 'status', 'propose-context', 'trial', 'round-open', 'round-close', 'merge-consider', 'merge-trial', 'merge-close', 'checkpoint', 'finish', 'cleanup', 'probe-open', 'probe', 'idea-claim', 'profile', 'profile-record', 'prune', 'ablate', 'resume', 'report']);
+const USAGE = `Usage: optimize.mjs <${COMMANDS.join('|')}> <projectRoot> <slug>|--all ...`;
+// A usage error names its repair like every other failure.
+const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+// The commands that `status` prints in `next` run the scripts of the skill, as the reference files do.
+const SKILL_SCRIPT = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'optimize.mjs');
+const GOAL_SCRIPT = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'goal.mjs');
 const SLICE = 'optimize';
 
 const wfDir = workflowDir;
@@ -98,7 +110,7 @@ function gitDiff(cwd, args) {
 }
 const gitOk = (cwd, args, what) => {
   const r = git(cwd, args);
-  if (!r.ok) throw new Error(`${what}: git ${args.join(' ')} failed: ${r.err || r.out}`);
+  if (!r.ok) throw refuse(`${what}: git ${args.join(' ')} failed: ${r.err || r.out}`, gitFix(cwd));
   return r.out;
 };
 
@@ -131,10 +143,11 @@ function readRecord(dir, name) {
 
 function loadSpec(root, slug) {
   const f = readRecord(wfDir(root, slug), SPEC_FILE);
-  if (!f) throw new Error(`no ${SPEC_FILE}: write the spec with /wf intake optimize first`);
-  if (f.error) throw new Error(`${SPEC_FILE} does not parse: ${f.error}`);
+  if (!f) throw refuse(`no ${SPEC_FILE}: write the spec with /wf intake optimize first`, personFix(`The workflow ${slug} has no optimize spec. Write it with the person through /wf intake optimize; the person confirms it.`));
+  const specAt = `the ${SPEC_FILE} record of ${slug}`;
+  if (f.error) throw refuse(`${SPEC_FILE} does not parse: ${f.error}`, agentFix(`Repair the frontmatter of ${specAt} where the parse error points, then run the command again.`));
   const { spec, errors } = parseSpec(f.data);
-  if (errors.length) throw new Error(`${SPEC_FILE}: ${errors.join('; ')}`);
+  if (errors.length) throw refuse(`${SPEC_FILE}: ${errors.join('; ')}`, agentFix(`Repair the fields that the error names in ${specAt}, then run the command again.`));
   return { spec, prose: f.content.trim() };
 }
 
@@ -174,7 +187,7 @@ function withIdeas(root, slug, fn) {
     const out = fn(book);
     writeAtomic(ideasPath(root, slug), `${JSON.stringify(book, null, 2)}\n`);
     return out;
-  }, { waitMs: 10_000, pollMs: 50, busy: () => new Error('the ideas ledger is locked by another command: try again') });
+  }, { waitMs: 10_000, pollMs: 50, busy: () => refuse('the ideas ledger is locked by another command: try again', agentFix('Wait a few seconds for the other command to end, then run the command again.')) });
 }
 const readProfile = (root, slug) => (existsSync(profileFile(root, slug)) ? JSON.parse(readFileSync(profileFile(root, slug), 'utf8')) : null);
 
@@ -208,10 +221,10 @@ const samePath = (a, b) => {
 
 /** WARNING guard: a reset runs only inside an optimize worktree: the trunk worktree, or the worktree of a branch. */
 function assertWorktreePath(root, wt) {
-  if (!wt || !existsSync(wt)) throw new Error(`the optimize worktree ${wt} does not exist`);
-  if (samePath(wt, root)) throw new Error('the optimize worktree is the project root: refusing to reset it');
+  if (!wt || !existsSync(wt)) throw refuse(`the optimize worktree ${wt} does not exist`, personFix(`The worktree ${wt} of the loop is gone. Check git worktree list with the person: the loop cannot go on without it.`));
+  if (samePath(wt, root)) throw refuse('the optimize worktree is the project root: refusing to reset it', personFix('The loop state names the project root as its worktree. Show this to the person; do not run the loop until the state names its own worktree.'));
   const top = git(wt, ['rev-parse', '--show-toplevel']);
-  if (!top.ok || !samePath(top.out, wt)) throw new Error(`git does not report ${wt} as its own top level: refusing to reset it`);
+  if (!top.ok || !samePath(top.out, wt)) throw refuse(`git does not report ${wt} as its own top level: refusing to reset it`, personFix(`${wt} is not a worktree of its own. Check git worktree list with the person; nothing is reset until it is.`));
 }
 const assertWorktree = (root, state) => assertWorktreePath(root, state.worktree);
 
@@ -260,8 +273,8 @@ function takeLock(root, slug, spec, lane, kind = 'trial') {
     return { ok: true };
   }
   const holder = lockHolder(root, slug, spec.budget.trialTimeoutMs);
-  if (holder) return { ok: false, busy: true, holder, error: `a ${holder.kind ?? 'measurement'} runs on ${holder.lane ?? 'a lane'} (process ${holder.pid}, since ${holder.at}): measurements run one at a time` };
-  return { ok: false, busy: true, error: 'another measurement took the lock at the same time: measurements run one at a time' };
+  if (holder) return { ok: false, busy: true, holder, error: `a ${holder.kind ?? 'measurement'} runs on ${holder.lane ?? 'a lane'} (process ${holder.pid}, since ${holder.at}): measurements run one at a time`, fix: busyFix() };
+  return { ok: false, busy: true, error: 'another measurement took the lock at the same time: measurements run one at a time', fix: busyFix() };
 }
 const LOCK_POLL_MS = Number(process.env.OPTIMIZE_LOCK_POLL_MS) || 1000;
 const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -309,7 +322,11 @@ function resetTo(root, wt, commit) {
 }
 function checkout(root, state, branch) {
   if (currentBranch(state.worktree) === branch) return;
-  if (dirtyPaths(state.worktree).length) throw new Error(`the worktree has uncommitted changes on ${currentBranch(state.worktree)}: run trial on them, or discard them, before another branch takes its turn`);
+  if (dirtyPaths(state.worktree).length) {
+    const on = currentBranch(state.worktree);
+    throw refuse(`the worktree has uncommitted changes on ${on}: run trial on them, or discard them, before another branch takes its turn`,
+      agentFix(`Run trial on the changes in ${state.worktree} on ${on}; ask the person before they are discarded.`, opt(root, state.slug, 'trial', `<id> --on ${on}`)));
+  }
   gitOk(state.worktree, ['checkout', '-q', branch], 'checkout');
 }
 
@@ -350,7 +367,7 @@ function ensureRef(root, state, spec, commit) {
   gitOk(root, ['worktree', 'add', '-q', '--detach', wt, commit], 'worktree add');
   if (spec.setup) {
     const s = runCommand(spec.setup, wt, 60 * 60_000, refEnvOf(state, spec));
-    if (s.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${s.code})`, output: tail(s.stdout + s.stderr) };
+    if (s.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${s.code})`, output: tail(s.stdout + s.stderr), fix: specCommandFix('setup command') };
   }
   return { ok: true, worktree: wt };
 }
@@ -481,13 +498,13 @@ function runAblation(root, slug, state, spec) {
 
 function ablate(root, slug) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: nothing to check');
-  if (state.finished) throw new Error('the loop is finished');
-  if (state.round) throw new Error('a branch round is open: run round-close first');
-  if (state.merge) throw new Error('the merge step is open: run merge-close first');
+  if (!state) throw refuse('no baseline: nothing to check', statusFix(root, slug, 'The loop of this slug has no baseline yet: run status to see the state.'));
+  if (state.finished) throw refuse('the loop is finished', agentFix('The loop is finished: run report to read what it kept.', opt(root, slug, 'report')));
+  if (state.round) throw refuse('a branch round is open: run round-close first', statusFix(root, slug, 'Close the branch round first: status names round-close when the round is done, or the next trial of the round.'));
+  if (state.merge) throw refuse('the merge step is open: run merge-close first', statusFix(root, slug, 'End the merge step first: status names its next action, merge-close at its end.'));
   const { spec } = loadSpec(root, slug);
   const err = consistency(root, slug, state, readResults(root, slug), spec);
-  if (err) throw new Error(`state-error: ${err}`);
+  if (err) throw refuse(`state-error: ${err}`, stateErrorFix());
   state.ablation = runAblation(root, slug, state, spec);
   saveState(root, slug, state);
   return { ...optimizeStatus(root, slug), ok: true, ablation: state.ablation };
@@ -521,10 +538,54 @@ function consistency(root, slug, state, results, spec) {
   return null;
 }
 
-/** The status of the loop. Exported for scripts/goal.mjs (kind optimize). */
+/** One command line of the optimize script of the skill, for `next.command`. */
+const commandLine = (root, slug) => (sub, rest = '') => `node "${SKILL_SCRIPT}" ${sub} "${root}" ${slug}${rest ? ` ${rest}` : ''}`;
+
+// The fixes of the failures of this script (lib/fix.mjs): who repairs a failure, and the exact next command.
+const opt = (root, slug, sub, rest = '') => commandLine(root, slug)(sub, rest);
+const statusFix = (root, slug, doText = 'Run status: it names the next action and its exact command. Run that action.') => agentFix(doText, opt(root, slug, 'status'));
+const baselineFix = (root, slug) => agentFix('Run baseline first: every other step of the loop starts from it.', opt(root, slug, 'baseline'));
+const gitFix = (cwd) => personFix(`Git failed in ${cwd}. Look at its error and at git status in that folder, then run the command again.`);
+const specCommandFix = (what) => personFix(`The ${what} of the spec failed. Look at its output with the person, repair the ${what} or the spec, then run the command again.`);
+const busyFix = () => agentFix('Wait for the running measurement to end, then run the command again. Measurements run one at a time.');
+const stateErrorFix = () => personFix('The loop state and the disk disagree. Show the error to the person; do not repair the branches or the state by hand.');
+const leftoverFix = (what) => personFix(`${what} Check what it holds, and remove or rename it by hand only when nothing in it is needed; then run the command again.`);
+
+/** The check command of a goal of kind optimize that is armed on the slug, or null. */
+function goalCheckOf(root, slug) {
+  const g = readFm(join(wfDir(root, slug), 'goal.md'));
+  return g?.data?.state === 'armed' && g.data.kind === 'optimize' ? `node "${GOAL_SCRIPT}" check "${root}" ${slug}` : null;
+}
+
+/** The status with `next.command`, `next.needs` and `next.after` (lib/optimize.mjs nextSteps). */
+function withSteps(root, slug, st) {
+  if (!st?.next?.action) return st;
+  const dirty = st.next.action === 'finish' && !!git(root, ['status', '--porcelain', '--untracked-files=no']).out;
+  st.next = { ...st.next, ...nextSteps(st, { run: commandLine(root, slug), goal: goalCheckOf(root, slug), slug, dirty }) };
+  return st;
+}
+
+/**
+ * The status of the loop. Exported for scripts/goal.mjs (kind optimize). `next` carries the exact
+ * command of the next action, what the agent supplies for it, and what it does after.
+ */
 export function optimizeStatus(root, slug) {
+  return withSteps(root, slug, statusOf(root, slug));
+}
+
+function statusOf(root, slug) {
   const state = readState(root, slug);
-  if (!state) return { ok: true, state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
+  if (!state) {
+    // No loop yet: a baseline is the next action only for an optimize workflow that exists.
+    const type = indexOf(root, slug)?.['workflow-type'] ?? null;
+    if (type !== 'optimize') {
+      return failure(
+        type ? `${slug} is a ${type} workflow, not an optimize workflow` : `no workflow ${slug}`,
+        agentFix('Start an optimize workflow with /wf intake optimize <description>, or name an optimize slug that status lists.'),
+      );
+    }
+    return { ok: true, state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
+  }
   const { spec } = loadSpec(root, slug);
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
@@ -550,16 +611,19 @@ export function optimizeStatus(root, slug) {
       return { id, target: i?.target, family: i?.family, pooled: i?.pooled, hypotheses: results.filter((r) => r.event === 'trial' && r.idea === id).map((r) => r.hypothesis?.text ?? ''), patches: (i?.patches ?? []).map((t) => join(patchesDir(root, slug), `${t}.patch`)) };
     });
   }
+  // A complete loop goes on to finish; a finish that needs the person first says why.
+  const blocked = st.state === 'complete' ? finishBlock(root, slug, state) : null;
   return {
     ok: true,
     ...st,
     ...recover,
+    ...(blocked ? { finishBlocked: blocked } : {}),
     best: state.best,
     baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}) },
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
-    merge: state.merge ? { ...state.merge, candidates: state.merge.candidates.map((c) => mergeView(root, slug, c, ideas, results)) } : null,
+    merge: state.merge ? { ...state.merge, candidates: state.merge.candidates.map((c) => mergeView(root, slug, c, ideas, results, state.rounds.find((x) => x.n === state.merge.round)?.winner?.name ?? null)) } : null,
     rounds: state.rounds.length,
     metric: { command: spec.metric.command, unit: spec.metric.unit, direction: spec.metric.direction },
     worktree: state.worktree,
@@ -571,22 +635,29 @@ export function optimizeStatus(root, slug) {
  * A merge candidate as the consider step reads it: a port or a bundle names its diff files, its
  * targets, and every idea of the ledger on those targets, with the lanes of their trials and their status.
  */
-function mergeView(root, slug, c, ideas, results) {
+function mergeView(root, slug, c, ideas, results, winner = null) {
   if (!c.kind) return c;
   const own = c.kind === 'port' ? [c.idea] : c.ideas ?? [];
   const targets = [...new Set(own.map((id) => ideas.ideas.find((i) => i.id === id)?.target).filter(Boolean))];
   const laneOfTrial = (t) => results.find((x) => x.event === 'trial' && x.trial === t)?.branch ?? 'trunk';
   const ledger = ideas.ideas.filter((i) => targets.some((t) => normTarget(t) === normTarget(i.target)))
     .map((i) => ({ id: i.id, target: i.target, status: i.status, pooled: i.pooled, trials: i.trials.map((t) => ({ trial: t, lane: laneOfTrial(t) })) }));
+  // The ideas of another lane on the same target that the winner or the trunk kept or nearly kept: a try may repeat them.
+  const repeats = ledger.filter((i) => !own.includes(i.id) && ['kept', 'marginal'].includes(i.status) && i.trials.some((t) => t.lane === 'trunk' || t.lane === winner)).map((i) => i.id);
   return c.kind === 'port'
-    ? { ...c, patchFile: join(optDir(root, slug), c.patch), targets, ledger }
-    : { ...c, patchFiles: c.patches.map((x) => join(optDir(root, slug), x)), targets, ledger };
+    ? { ...c, patchFile: join(optDir(root, slug), c.patch), targets, ledger, repeats }
+    : { ...c, patchFiles: c.patches.map((x) => join(optDir(root, slug), x)), targets, ledger, repeats };
 }
 
 function requireNext(root, slug, action) {
   const st = optimizeStatus(root, slug);
   if (st.state !== 'running' || st.next?.action !== action) {
-    throw new Error(`the next action is ${st.next?.action ?? 'none'} (${st.state}${st.reason && st.reason !== 'running' ? `: ${st.reason}` : ''}${st.detail ? `, ${st.detail}` : ''}), not ${action}`);
+    const fix = st.reason === 'state-error' || st.next?.action === 'person'
+      ? stateErrorFix()
+      : st.state === 'running' && st.next?.command && COMMANDS.includes(st.next.action)
+        ? agentFix(`The next action is ${st.next.action}, not ${action}: run it.`, st.next.command)
+        : statusFix(root, slug, `The next action is ${st.next?.action ?? 'none'}, not ${action}: run status and follow its next action.`);
+    throw refuse(`the next action is ${st.next?.action ?? 'none'} (${st.state}${st.reason && st.reason !== 'running' ? `: ${st.reason}` : ''}${st.detail ? `, ${st.detail}` : ''}), not ${action}`, fix);
   }
   return st;
 }
@@ -595,22 +666,22 @@ function requireNext(root, slug, action) {
 // baseline
 // ---------------------------------------------------------------------------
 function baseline(root, slug) {
-  if (readState(root, slug)) throw new Error('the baseline exists: run status, or /wf loop optimize <slug> to continue');
+  if (readState(root, slug)) throw refuse('the baseline exists: run status, or /wf loop optimize <slug> to continue', statusFix(root, slug, 'The baseline is there already: run status and go on with its next action.'));
   const { spec } = loadSpec(root, slug);
-  if (!spec.confirmedBy) throw new Error(`${SPEC_FILE} has no confirmed-by: the person confirms the spec before the first trial (D3)`);
+  if (!spec.confirmedBy) throw refuse(`${SPEC_FILE} has no confirmed-by: the person confirms the spec before the first trial (D3)`, personFix(`Show the spec of ${slug} to the person: only the person confirms it, and the confirmation goes in its confirmed-by field.`));
   const index = indexOf(root, slug);
   const slugBranch = String(index?.branch ?? '').trim() || currentBranch(root);
   const base = git(root, ['rev-parse', '--verify', `${slugBranch || 'HEAD'}^{commit}`]);
-  if (!base.ok) throw new Error(`the slug branch ${slugBranch} does not resolve`);
+  if (!base.ok) throw refuse(`the slug branch ${slugBranch} does not resolve`, personFix(`The branch ${slugBranch || 'HEAD'} that the index of ${slug} names does not exist. Ask the person which branch the loop starts from.`));
   const wt = spec.worktree ? resolve(root, spec.worktree) : join(dirname(root), `${basename(root)}.optimize`, slug);
   const trunk = `optimize/${slug}`;
   if (existsSync(wt)) {
-    if (!samePath(git(wt, ['rev-parse', '--show-toplevel']).out || '', wt) || currentBranch(wt) !== trunk) throw new Error(`${wt} exists and is not the optimize worktree of ${slug}: remove it or set worktree: in the spec`);
-    if (headOf(wt) !== base.out) throw new Error(`${wt} is at ${headOf(wt).slice(0, 12)}, not at the slug branch ${base.out.slice(0, 12)}`);
+    if (!samePath(git(wt, ['rev-parse', '--show-toplevel']).out || '', wt) || currentBranch(wt) !== trunk) throw refuse(`${wt} exists and is not the optimize worktree of ${slug}: remove it or set worktree: in the spec`, leftoverFix(`${wt} exists and is not the worktree of this loop.`));
+    if (headOf(wt) !== base.out) throw refuse(`${wt} is at ${headOf(wt).slice(0, 12)}, not at the slug branch ${base.out.slice(0, 12)}`, leftoverFix(`${wt} is a worktree of an earlier run at another commit.`));
   } else {
     mkdirSync(dirname(wt), { recursive: true });
     const has = git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${trunk}`]).ok;
-    if (has) throw new Error(`the branch ${trunk} exists from another run: ask the person to delete or rename it`);
+    if (has) throw refuse(`the branch ${trunk} exists from another run: ask the person to delete or rename it`, leftoverFix(`The branch ${trunk} is left from another run.`));
     gitOk(root, ['worktree', 'add', '-q', '-b', trunk, wt, base.out], 'worktree add');
   }
   const build = { worktree: wt };
@@ -618,16 +689,16 @@ function baseline(root, slug) {
   const env = envOf(build, spec);
   if (spec.setup) {
     const s = runCommand(spec.setup, wt, 60 * 60_000, env);
-    if (s.code !== 0) return { ok: false, error: `the setup command failed (exit ${s.code})`, output: tail(s.stdout + s.stderr) };
+    if (s.code !== 0) return { ok: false, error: `the setup command failed (exit ${s.code})`, output: tail(s.stdout + s.stderr), fix: specCommandFix('setup command') };
   }
   const g = runCommand(spec.guard.command, wt, spec.budget.trialTimeoutMs, env);
-  if (g.code !== 0) return { ok: false, guardRed: true, error: `the guard fails at the baseline (exit ${g.code}): a loop cannot start from a red guard`, output: tail(g.stdout + g.stderr) };
+  if (g.code !== 0) return { ok: false, guardRed: true, error: `the guard fails at the baseline (exit ${g.code}): a loop cannot start from a red guard`, output: tail(g.stdout + g.stderr), fix: personFix('The guard of the spec fails before any change. Show its output to the person: the code or the guard is repaired first, then the baseline runs again.') };
   const m = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
-  if (m.crashed || m.timeout) return { ok: false, error: `the metric ${m.timeout ? 'timed out' : 'did not print a number'} at the baseline`, output: m.output };
+  if (m.crashed || m.timeout) return { ok: false, error: `the metric ${m.timeout ? 'timed out' : 'did not print a number'} at the baseline`, output: m.output, fix: specCommandFix('metric command') };
   let holdout = null;
   if (spec.holdout) {
     const h = measure(spec, wt, spec.metric.repeat, spec.holdout.command, null, env);
-    if (h.crashed || h.timeout) return { ok: false, error: 'the holdout did not print a number at the baseline', output: h.output };
+    if (h.crashed || h.timeout) return { ok: false, error: 'the holdout did not print a number at the baseline', output: h.output, fix: specCommandFix('holdout command') };
     holdout = h.median;
   }
   // An A/A block of the reference worktree against the trunk worktree, at the same commit,
@@ -636,9 +707,9 @@ function baseline(root, slug) {
   let aa = null;
   if (spec.metric.paired) {
     const ref = ensureRef(root, build, spec, base.out);
-    if (!ref.ok) return { ok: false, error: ref.error, output: ref.output };
+    if (!ref.ok) return { ok: false, error: ref.error, output: ref.output, fix: ref.fix };
     aa = pairedBlock(spec, { cwd: ref.worktree, env: refEnvOf(build, spec) }, { cwd: wt, env }, spec.metric.repeat);
-    if (aa.timeout || aa.crashed) return { ok: false, error: 'the metric failed in the paired A/A block of the baseline', output: aa.output };
+    if (aa.timeout || aa.crashed) return { ok: false, error: 'the metric failed in the paired A/A block of the baseline', output: aa.output, fix: specCommandFix('metric command') };
     pairedNoise = noiseOf(aa.gains);
   }
   const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise });
@@ -677,7 +748,7 @@ function solutionsFor(root, spec) {
 function laneOf(st, f) {
   const on = typeof f.on === 'string' && f.on ? f.on : st.next.on;
   const ready = st.next.ready ?? [st.next.on];
-  if (!ready.includes(on)) throw new Error(`the lane ${on} cannot take a trial now; the ready lanes are: ${ready.join(', ')}`);
+  if (!ready.includes(on)) throw refuse(`the lane ${on} cannot take a trial now; the ready lanes are: ${ready.join(', ')}`, agentFix(`Run the command again with --on set to a ready lane: ${ready.join(', ')}.`));
   return on;
 }
 
@@ -715,8 +786,8 @@ const probePath = (state, tag) => join(dirname(state.worktree), `${basename(stat
 /** The lane of a probe: the trunk, or a branch of the open round. */
 function probeLane(state, f) {
   const lane = !f.on || f.on === 'trunk' ? state.trunk : String(f.on);
-  if (state.finished) throw new Error('the loop is finished: no probe');
-  if (!laneBest(state, lane)) throw new Error(`${lane} is not a lane of the loop now: use the trunk or a branch of the open round`);
+  if (state.finished) throw refuse('the loop is finished: no probe', agentFix('The loop is finished, and a probe has nothing to measure. Stop the research of this proposer.'));
+  if (!laneBest(state, lane)) throw refuse(`${lane} is not a lane of the loop now: use the trunk or a branch of the open round`, agentFix(`Run the command again with --on trunk, or --on a branch of the open round${state.round ? `: ${state.round.branches.filter((b) => !b.pruned).map((b) => b.name).join(', ')}` : ''}.`));
   return lane;
 }
 
@@ -732,12 +803,12 @@ function proposerOverTime(root, slug, state, spec, lane) {
   const over = proposeOvertime(at, spec.budget.proposeTimeMs);
   if (!over) return null;
   appendResult(root, slug, { event: 'propose-overtime', lane: tag, ms: over.elapsedMs });
-  return { ok: false, refused: true, overtime: true, lane, error: overtimeRefusal(lane, over) };
+  return { ok: false, refused: true, overtime: true, lane, error: overtimeRefusal(lane, over), fix: agentFix('The proposer is past twice its propose-time: end the research, and return the hypothesis that it has now. No further probe runs for it.') };
 }
 
 function probeOpen(root, slug, f, { locked = false, proposer = false } = {}) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: run baseline first');
+  if (!state) throw refuse('no baseline: run baseline first', baselineFix(root, slug));
   const { spec } = loadSpec(root, slug);
   const lane = probeLane(state, f);
   const over = proposer ? proposerOverTime(root, slug, state, spec, lane) : null;
@@ -757,7 +828,7 @@ function probeOpen(root, slug, f, { locked = false, proposer = false } = {}) {
     if (!l.ok) return l;
     try {
       const r = runCommand(spec.setup, wt, 60 * 60_000, probeEnvOf(state, spec));
-      if (r.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${r.code})`, output: tail(r.stdout + r.stderr) };
+      if (r.code !== 0) return { ok: false, error: `the setup command failed in ${wt} (exit ${r.code})`, output: tail(r.stdout + r.stderr), fix: specCommandFix('setup command') };
     } finally { if (!locked) dropLock(root, slug); }
   }
   return { ok: true, lane, worktree: wt, commit: best.commit, fresh: true };
@@ -765,14 +836,14 @@ function probeOpen(root, slug, f, { locked = false, proposer = false } = {}) {
 
 function probe(root, slug, f) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: run baseline first');
+  if (!state) throw refuse('no baseline: run baseline first', baselineFix(root, slug));
   const { spec } = loadSpec(root, slug);
   const lane = probeLane(state, f);
   const tag = laneTagOf(state, lane);
   const wt = probePath(state, tag);
-  if (!existsSync(wt)) throw new Error(`no probe worktree for ${lane}: run probe-open --on ${lane} first`);
+  if (!existsSync(wt)) throw refuse(`no probe worktree for ${lane}: run probe-open --on ${lane} first`, agentFix(`Open the probe worktree of ${lane} first, then run the probe again.`, opt(root, slug, 'probe-open', `--on ${lane === state.trunk ? 'trunk' : lane}`)));
   const command = typeof f.cmd === 'string' ? f.cmd.trim() : '';
-  if (!command) throw new Error('probe needs --cmd "<command>"');
+  if (!command) throw refuse('probe needs --cmd "<command>"', agentFix('Run probe again with --cmd and the command to run in the probe worktree.', opt(root, slug, 'probe', `--on ${lane === state.trunk ? 'trunk' : lane} --cmd "<command>"`)));
   const label = (typeof f.label === 'string' && f.label.trim()) || command.slice(0, 60);
   const over = proposerOverTime(root, slug, state, spec, lane);
   if (over) return over;
@@ -790,14 +861,18 @@ function probe(root, slug, f) {
 // ---------------------------------------------------------------------------
 function ideaClaim(root, slug, f) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: run baseline first');
+  if (!state) throw refuse('no baseline: run baseline first', baselineFix(root, slug));
   const lane = probeLane(state, f);
   const res = withIdeas(root, slug, (book) => claimIdea(book, { lane, target: f.target === true ? '' : f.target, family: f.family === true ? '' : f.family, again: typeof f.again === 'string' ? f.again : null }));
-  return res.ok ? { ok: true, lane, idea: res.idea, released: res.released } : { ok: false, refused: true, error: res.reason, idea: res.idea ?? null };
+  if (res.ok) return { ok: true, lane, idea: res.idea, released: res.released };
+  // The lib names the repair; the command of a claim again is filled in here.
+  const on = lane === state.trunk ? 'trunk' : lane;
+  const again = /--again/.test(res.fix?.do ?? '') ? ` --again "<a new reason>"` : '';
+  return { ok: false, refused: true, error: res.reason, idea: res.idea ?? null, fix: { ...res.fix, command: opt(root, slug, 'idea-claim', `--on ${on} --target "<target>"${again}`) } };
 }
 
 /** Write the profile, and keep the instrumentation of the trunk probe worktree as a patch for the next profile. */
-function saveProfile(root, slug, state, entries, source) {
+function saveProfile(root, slug, state, entries, source, ms = null) {
   const at = nowIso();
   writeAtomic(profileFile(root, slug), `${JSON.stringify({ commit: state.best.commit, at, trial: state.counters.trials, source, entries }, null, 2)}\n`);
   const wt = probePath(state, 'trunk');
@@ -806,7 +881,7 @@ function saveProfile(root, slug, state, entries, source) {
     if (d) writeFileSync(profilePatch(root, slug), d);
   }
   state.profile = { commit: state.best.commit, at, trial: state.counters.trials, source, entries: entries.length };
-  appendResult(root, slug, { event: 'profile', commit: state.best.commit, source, entries: entries.length, top: entries.slice(0, 5).map((e) => `${e.name} ${Math.round(e.share * 1000) / 10}%`) });
+  appendResult(root, slug, { event: 'profile', commit: state.best.commit, source, entries: entries.length, top: entries.slice(0, 5).map((e) => `${e.name} ${Math.round(e.share * 1000) / 10}%`), ...(Number.isFinite(ms) ? { ms } : {}) });
   saveState(root, slug, state);
 }
 
@@ -815,14 +890,14 @@ function profileRun(root, slug) {
   requireNext(root, slug, 'profile');
   const state = readState(root, slug);
   const { spec } = loadSpec(root, slug);
-  if (spec.profile === 'agent') throw new Error('the spec names the profiler agent: the agent writes the profile with profile-record');
+  if (spec.profile === 'agent') throw refuse('the spec names the profiler agent: the agent writes the profile with profile-record', agentFix('The profiler agent writes this profile: record it with profile-record.', opt(root, slug, 'profile-record', '--file "<profile.json>"')));
   const open = probeOpen(root, slug, { on: 'trunk' }, { locked: true });
   if (!open.ok) return open;
   const r = runCommand(spec.profile, open.worktree, spec.budget.trialTimeoutMs, probeEnvOf(state, spec));
-  if (r.code !== 0) return { ok: false, error: `the profile command failed (exit ${r.code})`, output: tail(r.stdout + r.stderr) };
+  if (r.code !== 0) return { ok: false, error: `the profile command failed (exit ${r.code})`, output: tail(r.stdout + r.stderr), fix: specCommandFix('profile command') };
   const { entries, errors } = parseProfile(profileLines(r.stdout));
-  if (!entries.length) return { ok: false, error: `the profile command printed no entry${errors.length ? `: ${errors[0]}` : ''}`, output: tail(r.stdout) };
-  saveProfile(root, slug, state, entries, 'command');
+  if (!entries.length) return { ok: false, error: `the profile command printed no entry${errors.length ? `: ${errors[0]}` : ''}`, output: tail(r.stdout), fix: specCommandFix('profile command') };
+  saveProfile(root, slug, state, entries, 'command', r.ms);
   return { ...optimizeStatus(root, slug), ok: true, entries: entries.length, top: entries.slice(0, 5) };
 }
 
@@ -837,11 +912,11 @@ function profileRecord(root, slug, f) {
     return { ...optimizeStatus(root, slug), ok: true, skipped: true };
   }
   const file = typeof f.file === 'string' ? resolve(root, f.file) : null;
-  if (!file || !existsSync(file)) throw new Error('profile-record needs --file <json> with the entries, or --skip "<reason>"');
+  if (!file || !existsSync(file)) throw refuse('profile-record needs --file <json> with the entries, or --skip "<reason>"', agentFix('Write the entries of the profile to a JSON file and pass it with --file, or skip the profile with --skip and the reason.', opt(root, slug, 'profile-record', '--file "<profile.json>"')));
   let input;
-  try { input = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { throw new Error(`the profile file does not parse: ${e.message}`); }
+  try { input = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { throw refuse(`the profile file does not parse: ${e.message}`, agentFix(`Repair the JSON of ${file} where the parse error points, then run profile-record again.`, opt(root, slug, 'profile-record', `--file "${file}"`))); }
   const { entries, errors } = parseProfile(input);
-  if (!entries.length) return { ok: false, error: `the profile holds no valid entry${errors.length ? `: ${errors[0]}` : ''}` };
+  if (!entries.length) return { ok: false, error: `the profile holds no valid entry${errors.length ? `: ${errors[0]}` : ''}`, fix: agentFix(`Repair the entries of ${file} that the error names, then run profile-record again.`, opt(root, slug, 'profile-record', `--file "${file}"`)) };
   saveProfile(root, slug, state, entries, 'agent');
   return { ...optimizeStatus(root, slug), ok: true, entries: entries.length, ignored: errors.length };
 }
@@ -869,7 +944,7 @@ function probeTags(state) {
 // trial
 // ---------------------------------------------------------------------------
 function trial(root, slug, id, f) {
-  if (!id) throw new Error('trial needs a hypothesis id');
+  if (!id) throw refuse('trial needs a hypothesis id', agentFix('Run trial again with the id of the hypothesis as its first argument after the slug.', opt(root, slug, 'trial', `<id>${typeof f.on === 'string' ? ` --on ${f.on}` : ''}`)));
   const st = requireNext(root, slug, 'trial');
   const state = readState(root, slug);
   const { spec } = loadSpec(root, slug);
@@ -877,15 +952,17 @@ function trial(root, slug, id, f) {
   const wt = laneWorktree(state, laneName);
   assertWorktreePath(root, wt);
   const isTrunk = laneName === state.trunk;
-  if (currentBranch(wt) !== laneName) throw new Error(`the worktree is on ${currentBranch(wt)}, and this trial runs on ${laneName}: run propose-context first`);
+  if (currentBranch(wt) !== laneName) throw refuse(`the worktree is on ${currentBranch(wt)}, and this trial runs on ${laneName}: run propose-context first`, agentFix(`Run propose-context for ${laneName} first: it puts the worktree on the lane. Then run the trial again.`, opt(root, slug, 'propose-context', `--on ${laneName}`)));
   if (ensureBuildDir(state, spec)) saveState(root, slug, state);
   const env = envOf(state, spec);
   const round = state.round;
   const branch = isTrunk ? null : round.branches.find((b) => b.name === laneName);
   const best = isTrunk ? state.best : branch.best;
   const hf = f['hypothesis-file'] ? resolve(root, f['hypothesis-file']) : null;
-  const text = hf && existsSync(hf) ? readFileSync(hf, 'utf8').trim() : String(f.hypothesis ?? '').trim();
-  const hypothesis = { id, text, expected: String(f.expected ?? '').trim() };
+  // A port or a bundle has no proposer: with no hypothesis given, the text names the trials whose diffs it makes again.
+  const text = (hf && existsSync(hf) ? readFileSync(hf, 'utf8').trim() : String(f.hypothesis === true ? '' : f.hypothesis ?? '').trim())
+    || reuseText({ port: st.next.port ? state.merge?.candidates.find((c) => c.name === st.next.port) : null, bundle: Array.isArray(st.next.bundle) ? st.next.bundle : null, bundleOf: st.next.bundleOf ?? [] });
+  const hypothesis = { id, text, expected: String(f.expected === true ? '' : f.expected ?? '').trim() || (st.next.portOf?.gain !== undefined ? String(st.next.portOf.gain) : '') };
   const n = state.counters.trials + 1;
   const line = { event: 'trial', trial: n, round: isTrunk ? null : round.n, branch: isTrunk ? null : laneName, hypothesis, values: [], median: null, delta: null, noise: state.baseline.noise, guard: null };
   const stamp = proposeStamp(root, slug, laneTagOf(state, laneName));
@@ -908,10 +985,10 @@ function trial(root, slug, id, f) {
     const files = port
       ? (port.patches ?? [port.patch]).map((x) => join(optDir(root, slug), x))
       : bundle.map((id) => book.ideas.find((i) => i.id === id)?.patches?.at(-1)).filter((t) => t !== undefined).map((t) => join(patchesDir(root, slug), `${t}.patch`));
-    const a = files.length && files.every((x) => existsSync(x)) ? git(wt, ['apply', '--3way', ...files]) : { ok: false, err: 'a saved diff is missing' };
+    const a = files.length && files.every((x) => existsSync(x)) ? git(wt, ['apply', '--3way', ...files]) : { ok: false, err: 'a saved diff is missing' } /* internal */;
     if (!a.ok) {
       resetTo(root, wt, best.commit);
-      return { ok: false, apply: 'failed', error: `the saved diffs do not apply: ${tail(`${a.out ?? ''}\n${a.err ?? ''}`)}`, next: st.next };
+      return { ok: false, apply: 'failed', error: `the saved diffs do not apply: ${tail(`${a.out ?? ''}\n${a.err ?? ''}`)}`, next: st.next, fix: agentFix(`Make the change of the saved diffs by hand in ${wt}, then run the trial again without --apply.`, opt(root, slug, 'trial', `${id} --on ${laneName}`)) };
     }
     line.applied = files.map((x) => basename(x));
   }
@@ -942,7 +1019,10 @@ function trial(root, slug, id, f) {
       if (!appended) appendResult(root, slug, { ...line, verdict: 'crashed', reason: `the trial failed after its commit: ${error}` });
       saveState(root, slug, fresh);
     }
-    return { ok: false, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict: 'crashed', error: `${error}${resetError}` };
+    const fix = resetError
+      ? personFix(`The trial failed after its commit, and the lane ${wt} could not go back to its best. Show the error to the person; do not reset the worktree by hand.`)
+      : statusFix(root, slug, 'The trial is recorded as crashed, and its lane is back at its best. Run status and go on with its next action.');
+    return { ok: false, trial: n, lane: isTrunk ? 'trunk' : laneName, verdict: 'crashed', error: `${error}${resetError}`, fix };
   };
   const finish = (verdict, extra = {}) => {
     try { return record(verdict, extra); } catch (e) { return crash(e); }
@@ -1034,7 +1114,7 @@ function roundOpen(root, slug) {
   const state = readState(root, slug);
   const { spec } = loadSpec(root, slug);
   assertWorktree(root, state);
-  if (dirtyPaths(state.worktree).length) throw new Error('the worktree has uncommitted changes: a round forks from the trunk best only');
+  if (dirtyPaths(state.worktree).length) throw refuse('the worktree has uncommitted changes: a round forks from the trunk best only', agentFix(`Run trial on the changes in ${state.worktree} first; ask the person before they are discarded. Then open the round again.`, opt(root, slug, 'trial', `<id> --on ${state.trunk}`)));
   const n = state.rounds.length + 1;
   const point = st.next.point;
   const reason = point === 'extra' || /^plateau/.test(st.next.why ?? '') ? 'plateau' : 'schedule';
@@ -1043,8 +1123,8 @@ function roundOpen(root, slug) {
   for (let k = 1; k <= spec.rounds.branches; k++) {
     const name = branchNameOf(slug, n, k);
     const worktree = join(dirname(state.worktree), `${basename(state.worktree)}--r${n}b${k}`);
-    if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok) throw new Error(`the branch ${name} exists: a branch of round ${n} from another run. Ask the person.`);
-    if (existsSync(worktree)) throw new Error(`${worktree} exists: a worktree of round ${n} from another run. Ask the person.`);
+    if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok) throw refuse(`the branch ${name} exists: a branch of round ${n} from another run. Ask the person.`, leftoverFix(`The branch ${name} is left from another run.`));
+    if (existsSync(worktree)) throw refuse(`${worktree} exists: a worktree of round ${n} from another run. Ask the person.`, leftoverFix(`The worktree ${worktree} is left from another run.`));
     branches.push({ k, name, worktree, best: { ...state.best, reachedAt: 0 }, trials: 0, keeps: 0 });
   }
   // Each branch starts at its own hot spot of the profile.
@@ -1065,17 +1145,19 @@ function roundOpen(root, slug) {
   for (const b of branches) {
     gitOk(root, ['branch', b.name, state.best.commit], 'branch');
     const w = git(root, ['worktree', 'add', '-q', b.worktree, b.name]);
-    if (!w.ok) { undo(); throw new Error(`git worktree add ${b.worktree} failed: ${w.err}`); }
+    if (!w.ok) { undo(); throw refuse(`git worktree add ${b.worktree} failed: ${w.err}`, gitFix(root)); }
     if (spec.setup) {
       const s = runCommand(spec.setup, b.worktree, 60 * 60_000, env);
-      if (s.code !== 0) { undo(); return { ok: false, error: `the setup command failed in ${b.worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr) }; }
+      if (s.code !== 0) { undo(); return { ok: false, error: `the setup command failed in ${b.worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr), fix: specCommandFix('setup command') }; }
     }
   }
   state.version = STATE_VERSION;
   state.round = { n, reason, point, why: st.next.why, branchTrials: spec.rounds.branchTrials, openedAtTrial: state.counters.trials, from: state.best.commit, fromValue: state.best.value, branches };
   if (point === 'extra') state.extraRounds++;
   else state.schedule.used.push(point);
-  appendResult(root, slug, { event: 'round-open', round: n, reason, why: st.next.why, from: state.best.commit, branches: branches.map((b) => b.name) });
+  // The value at the fork and the seed of each branch: the mechanism report measures a round and its seeds with them.
+  const seeds = Object.fromEntries(branches.filter((b) => b.seed).map((b) => [b.name, b.seed]));
+  appendResult(root, slug, { event: 'round-open', round: n, reason, why: st.next.why, from: state.best.commit, fromValue: state.best.value, branches: branches.map((b) => b.name), ...(Object.keys(seeds).length ? { seeds } : {}) });
   saveState(root, slug, state);
   return { ok: true, round: n, reason, why: st.next.why, branches: branches.map((b) => b.name), branchTrials: spec.rounds.branchTrials, next: optimizeStatus(root, slug).next };
 }
@@ -1091,7 +1173,7 @@ function prune(root, slug) {
   const r = state.round;
   const b = r.branches.find((x) => x.name === st.next.branch);
   const leader = pickWinner({ branches: r.branches.filter((x) => !x.pruned) }, spec.metric.direction);
-  if (!b || !leader) throw new Error(`prune: ${st.next.branch} or the leader of round ${r.n} is missing`);
+  if (!b || !leader) throw new Error(`prune: ${st.next.branch} or the leader of round ${r.n} is missing`); /* defect */
   if (existsSync(b.worktree) && dirtyPaths(b.worktree).length) resetTo(root, b.worktree, b.best.commit);
   const res = removeWorktree(root, b.worktree);
   if (res.removed) git(root, ['branch', '-D', b.name]);
@@ -1104,7 +1186,7 @@ function prune(root, slug) {
   const k = Math.max(...r.branches.map((x) => x.k)) + 1;
   const name = branchNameOf(slug, r.n, k);
   const worktree = join(dirname(state.worktree), `${basename(state.worktree)}--r${r.n}b${k}`);
-  if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok || existsSync(worktree)) throw new Error(`${name} or ${worktree} exists from another run. Ask the person.`);
+  if (git(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]).ok || existsSync(worktree)) throw refuse(`${name} or ${worktree} exists from another run. Ask the person.`, leftoverFix(`The branch ${name} or the worktree ${worktree} is left from another run.`));
   gitOk(root, ['branch', name, leader.best.commit], 'branch');
   // A fork that fails goes again, as roundOpen undoes its branches: the round goes on without it.
   const undo = () => {
@@ -1113,10 +1195,10 @@ function prune(root, slug) {
     saveState(root, slug, state);
   };
   const w = git(root, ['worktree', 'add', '-q', worktree, name]);
-  if (!w.ok) { undo(); return { ok: false, error: `git worktree add ${worktree} failed: ${w.err}` }; }
+  if (!w.ok) { undo(); return { ok: false, error: `git worktree add ${worktree} failed: ${w.err}`, fix: gitFix(root) }; }
   if (spec.setup) {
     const s = runCommand(spec.setup, worktree, 60 * 60_000, envOf(state, spec));
-    if (s.code !== 0) { undo(); return { ok: false, error: `the setup command failed in ${worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr) }; }
+    if (s.code !== 0) { undo(); return { ok: false, error: `the setup command failed in ${worktree} (exit ${s.code})`, output: tail(s.stdout + s.stderr), fix: specCommandFix('setup command') }; }
   }
   const prof = readProfile(root, slug);
   const used = new Set(r.branches.filter((x) => !x.pruned).map((x) => x.seed).filter(Boolean));
@@ -1151,17 +1233,17 @@ function runCheckpoint(root, slug, state, spec) {
  */
 function resumeLoop(root, slug, f) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: run baseline first');
-  if (state.finished) throw new Error('the loop is finished: nothing to resume');
+  if (!state) throw refuse('no baseline: run baseline first', baselineFix(root, slug));
+  if (state.finished) throw refuse('the loop is finished: nothing to resume', agentFix('The loop is finished: run report to read what it kept.', opt(root, slug, 'report')));
   const stop = state.stopped;
   if (!stop) return { ...optimizeStatus(root, slug), ok: true, resumed: null, note: 'the loop has no stored stop: status names the next action' };
   const out = { resumed: stop.reason };
   const event = { event: 'resume', reason: stop.reason };
   if (f.revert === true) {
-    if (state.round || state.merge) throw new Error('a round or a merge step is open: resume --revert works on the trunk only');
+    if (state.round || state.merge) throw refuse('a round or a merge step is open: resume --revert works on the trunk only', personFix('A revert works on the trunk only, while no round or merge step is open. Ask the person whether to resume without --revert.'));
     const cp = state.lastCheckpoint ?? { trial: 0 };
     const to = cp.best ?? (cp.trial ? null : { commit: state.baseCommit, value: state.baseline.median, trial: 0, reachedAt: 0 });
-    if (!to) throw new Error(`the checkpoint of trial ${cp.trial} holds no commit: finish, or resume without --revert`);
+    if (!to) throw refuse(`the checkpoint of trial ${cp.trial} holds no commit: finish, or resume without --revert`, personFix(`The last good checkpoint holds no commit to revert to. Ask the person: finish the loop as it is, or resume without --revert.`));
     assertWorktree(root, state);
     checkout(root, state, state.trunk);
     resetTo(root, state.worktree, to.commit);
@@ -1304,21 +1386,23 @@ function mergeConsider(root, slug, f) {
   const tries = String(f.try ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   const skips = (Array.isArray(f.skip) ? f.skip : f.skip ? [f.skip] : []).map(String);
   const decided = new Map();
+  const open = () => mg.candidates.filter((c) => !c.conflict).map((c) => c.name);
+  const again = (doText) => agentFix(doText, opt(root, slug, 'merge-consider', '--try <names> --skip "<name>:<reason>"'));
   const decide = (token, decision, reason) => {
     const c = candidateOf(mg, token);
-    if (!c) throw new Error(`merge-consider: ${token} is not a candidate; the candidates are: ${mg.candidates.map((x) => x.name).join(', ')}`);
-    if (c.conflict) throw new Error(`merge-consider: ${c.name} conflicts with the trunk; it is skipped already`);
-    if (decided.has(c.name)) throw new Error(`merge-consider: ${c.name} has two decisions`);
+    if (!c) throw refuse(`merge-consider: ${token} is not a candidate; the candidates are: ${mg.candidates.map((x) => x.name).join(', ')}`, again(`Run merge-consider again, and name only the candidates: ${open().join(', ')}.`));
+    if (c.conflict) throw refuse(`merge-consider: ${c.name} conflicts with the trunk; it is skipped already`, again(`Run merge-consider again without ${c.name}: it is skipped already. Decide the others: ${open().join(', ')}.`));
+    if (decided.has(c.name)) throw refuse(`merge-consider: ${c.name} has two decisions`, again(`Run merge-consider again with one decision for ${c.name}: --try or --skip, not both.`));
     decided.set(c.name, { decision, reason });
   };
   for (const t of tries) decide(t, 'try', null);
   for (const s of skips) {
     const i = s.indexOf(':');
-    if (i < 1 || !s.slice(i + 1).trim()) throw new Error(`merge-consider: --skip "${s}" needs the form "<branch>:<reason>"`);
+    if (i < 1 || !s.slice(i + 1).trim()) throw refuse(`merge-consider: --skip "${s}" needs the form "<branch>:<reason>"`, again('Run merge-consider again with each --skip in the form "<branch>:<reason>".'));
     decide(s.slice(0, i), 'skip', s.slice(i + 1).trim());
   }
-  const open = mg.candidates.filter((c) => !c.conflict && !decided.has(c.name));
-  if (open.length) throw new Error(`merge-consider: decide every candidate with --try or --skip; no decision for: ${open.map((c) => c.name).join(', ')}`);
+  const undecided = mg.candidates.filter((c) => !c.conflict && !decided.has(c.name));
+  if (undecided.length) throw refuse(`merge-consider: decide every candidate with --try or --skip; no decision for: ${undecided.map((c) => c.name).join(', ')}`, again(`Run merge-consider again with a decision for every candidate: ${open().join(', ')}.`));
   for (const [name, d] of decided) Object.assign(mg.candidates.find((c) => c.name === name), d, d.decision === 'skip' ? { verdict: 'skipped' } : {});
   mg.order = tries.map((t) => candidateOf(mg, t).name);
   mg.considered = true;
@@ -1334,11 +1418,11 @@ function mergeTrial(root, slug, f) {
   const { spec } = loadSpec(root, slug);
   const mg = state.merge;
   const cand = f.branch ? candidateOf(mg, f.branch) : mg.candidates.find((c) => c.name === st.next.branch);
-  if (!cand || cand.name !== st.next.branch) throw new Error(`the next merge is ${st.next.branch}, not ${f.branch}`);
+  if (!cand || cand.name !== st.next.branch) throw refuse(`the next merge is ${st.next.branch}, not ${f.branch}`, agentFix(`The merges run in the order of merge-consider: run the merge of ${st.next.branch}.`, opt(root, slug, 'merge-trial', `--branch ${st.next.branch}`)));
   assertWorktree(root, state);
   const wt = state.worktree;
-  if (currentBranch(wt) !== state.trunk) throw new Error(`the trunk worktree is on ${currentBranch(wt)}, not on ${state.trunk}`);
-  if (dirtyPaths(wt).length) throw new Error('the trunk worktree has uncommitted changes: a merge starts from the trunk best only');
+  if (currentBranch(wt) !== state.trunk) throw refuse(`the trunk worktree is on ${currentBranch(wt)}, not on ${state.trunk}`, personFix(`The trunk worktree ${wt} is on ${currentBranch(wt) || 'a detached HEAD'}, and the loop left it on ${state.trunk}. Show this to the person; do not switch it by hand.`));
+  if (dirtyPaths(wt).length) throw refuse('the trunk worktree has uncommitted changes: a merge starts from the trunk best only', personFix(`The trunk worktree ${wt} has uncommitted changes that no trial holds. Ask the person whether they are needed before anything discards them.`));
   const env = envOf(state, spec);
   const best = state.best;
   const n = state.counters.trials + 1;
@@ -1395,8 +1479,8 @@ function mergeClose(root, slug) {
 
 function checkpoint(root, slug) {
   const st = optimizeStatus(root, slug);
-  if (st.state !== 'running') throw new Error(`the loop is ${st.state}: ${st.reason}`);
-  if (st.round) throw new Error('a branch round is open: the checkpoint runs at round-close');
+  if (st.state !== 'running') throw refuse(`the loop is ${st.state}: ${st.reason}`, st.reason === 'state-error' ? stateErrorFix() : statusFix(root, slug, `The loop is ${st.state}, and a checkpoint runs only while it runs: run status and follow its next action.`));
+  if (st.round) throw refuse('a branch round is open: the checkpoint runs at round-close', statusFix(root, slug, 'The checkpoint runs at round-close: run status and go on with the round.'));
   const state = readState(root, slug);
   const { spec } = loadSpec(root, slug);
   if (!spec.holdout) return { ok: true, ran: false, note: 'the spec names no holdout' };
@@ -1412,9 +1496,9 @@ function checkpoint(root, slug) {
 
 function finish(root, slug, f) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: nothing to finish');
+  if (!state) throw refuse('no baseline: nothing to finish', statusFix(root, slug, 'The loop of this slug has no baseline yet: run status to see the state.'));
   if (state.finished) return { ok: true, already: true, finished: state.finished };
-  if (state.round) throw new Error('a branch round is open: run round-close first');
+  if (state.round) throw refuse('a branch round is open: run round-close first', statusFix(root, slug, 'Close the branch round first: status names round-close when the round is done, or the next trial of the round.'));
   // A finish that stopped midway left its branch, its worktree or its commits: put them away first.
   // When the slug branch holds the commits already, only the records are left to write.
   const rec = recoverFinish(root, slug, state);
@@ -1424,7 +1508,7 @@ function finish(root, slug, f) {
   const { spec } = loadSpec(root, slug);
   const results = readResults(root, slug);
   const err = consistency(root, slug, state, results, spec);
-  if (err) throw new Error(`state-error: ${err}`);
+  if (err) throw refuse(`state-error: ${err}`, stateErrorFix());
   // The ablation runs before the commits of finish, while the trunk worktree holds the final code.
   if (!rec.built && ablationDue(spec, state) && f['no-ablate'] !== true) {
     state.ablation = runAblation(root, slug, state, spec);
@@ -1434,35 +1518,35 @@ function finish(root, slug, f) {
   if (!rec.built && spec.holdout && f['no-holdout'] !== true && state.best.commit !== state.baseCommit && (state.lastCheckpoint?.trial ?? 0) < (state.best.trial ?? 0)) {
     const cp = runCheckpoint(root, slug, state, spec);
     saveState(root, slug, state);
-    if (!cp.ok) throw new Error(`the holdout regressed before finish: ${state.stopped?.detail ?? `it reads ${cp.value}`}. Look at the trials since the last good checkpoint; finish --no-holdout commits them anyway`);
+    if (!cp.ok) throw refuse(`the holdout regressed before finish: ${state.stopped?.detail ?? `it reads ${cp.value}`}. Look at the trials since the last good checkpoint; finish --no-holdout commits them anyway`, personFix('The holdout got worse with the trials since the last good checkpoint. Ask the person: resume with --revert to drop them, or finish with --no-holdout to commit them anyway.'));
   }
   const at = nowIso();
-  // The lineage: the trunk's keeps and the keeps of each round's winner. A losing branch's keeps are not on the trunk.
-  const winners = new Set(state.rounds.flatMap((r) => [...(r.winner ? [`${r.n}:${r.winner.name}`] : []), ...(r.merged ?? []).map((name) => `${r.n}:${name}`)]));
-  // A trial that resume --revert took out of the trunk is not on it either.
-  const dropped = new Set(results.filter((r) => r.event === 'resume').flatMap((r) => r.dropped ?? []));
-  const lineage = results.filter((r) => r.event !== 'trial' || ((r.branch === null || winners.has(`${r.round}:${r.branch}`)) && !dropped.has(r.trial)));
-  const kept = lineage.filter((r) => r.event === 'trial' && r.verdict === 'kept');
+  // The kept trials that the trunk holds (lib/optimize.mjs trunkLineage): the commits, the table and the report read the same list.
+  const kept = trunkLineage(results).kept;
   if (state.best.commit === state.baseCommit) {
     state.finished = { commit: null, at, gain: 0, kept: 0 };
     appendResult(root, slug, { event: 'finish', commit: null, gain: 0 });
     saveState(root, slug, state);
-    return { ok: true, kept: 0, note: 'no trial was kept: nothing to commit. Close the slug, or write a new spec.', ...recovered, cleanup: cleanupAll(root, slug, state) };
+    return { ok: true, kept: 0, note: 'no trial was kept: nothing to commit. Close the slug, or write a new spec.', mechanisms: { idle: reportOf(root, slug, state, spec).idle, keptGain: 0 }, ...recovered, cleanup: cleanupAll(root, slug, state) };
   }
   // The finish stopped after the slug branch moved: the commits are there, and only the records are written.
   if (rec.built) return { ...land(rec.built), ...recovered };
   const branch = state.slugBranch;
-  if (branch && currentBranch(root) !== branch) throw new Error(`the main checkout is on ${currentBranch(root) || 'a detached HEAD'}, not on the slug branch ${branch}: switch to it, then finish again`);
+  if (branch && currentBranch(root) !== branch) throw refuse(`the main checkout is on ${currentBranch(root) || 'a detached HEAD'}, not on the slug branch ${branch}: switch to it, then finish again`, personFix(`The main checkout is on ${currentBranch(root) || 'a detached HEAD'}. The person moves it to the slug branch ${branch}; then finish runs again.`));
   // A finish that stopped with --stash left the person's files in the stash. A new stash would replace their copies.
   const stashDir = join(optDir(root, slug), 'finish-stash');
-  if (existsSync(stashDir)) throw new Error(`a finish that stopped left the stashed files of the main checkout: \`git stash list\` names "optimize finish ${slug}", and the copies are in ${stashDir}. Put them back with git stash pop --index, delete that folder, then finish again`);
+  if (existsSync(stashDir)) throw refuse(`a finish that stopped left the stashed files of the main checkout: \`git stash list\` names "optimize finish ${slug}", and the copies are in ${stashDir}. Put them back with git stash pop --index, delete that folder, then finish again`, personFix(`The person's own files wait in the stash "optimize finish ${slug}", with copies in ${stashDir}. The person puts them back with git stash pop --index and deletes that folder; then finish runs again.`));
   // --stash puts the person's uncommitted tracked files aside for the commits of finish, and restores them after.
   const stash = stashForFinish(root, slug, state, f);
   let out;
   try {
     out = { ...land(buildHistory(root, slug, state, spec, results, f)), ...recovered };
   } catch (e) {
-    if (stash) e.message += `; ${JSON.stringify(popFinishStash(root, stash))}`;
+    if (stash) {
+      const back = popFinishStash(root, stash);
+      e.message += `; ${JSON.stringify(back)}`;
+      if (!back.restored) e.fix = personFix(`The finish stopped, and the person's stashed files did not all come back: ${back.error}. The person puts them back before anything else runs.`);
+    }
     throw e;
   }
   if (stash) out.stash = popFinishStash(root, stash);
@@ -1479,6 +1563,7 @@ function finish(root, slug, f) {
     const added = stat.reduce((s, x) => s + (Number(x[0]) || 0), 0);
     const removed = stat.reduce((s, x) => s + (Number(x[1]) || 0), 0);
     const dir = wfDir(root, slug);
+    const mech = reportOf(root, slug, state, spec);
     const next = { 'next-command': 'wf-verify', 'next-invocation': `/wf verify ${slug} ${SLICE}` };
     if (!hasDoc(dir, '03-slice.md')) {
       writeDoc(dir, '03-slice.md', {
@@ -1523,10 +1608,14 @@ function finish(root, slug, f) {
         ? `- ${shas.length} commit${shas.length === 1 ? '' : 's'} on the slug branch, one for each kept change, ending at ${sha}.`
         : `- One commit with every kept change: ${sha}. Each change could not get its own commit: ${built.reason}.`,
       '', '## Kept Changes', '', changesTable(changes, unit), '',
-      '## Kept Trials', '', keptTable(lineage, spec), '',
+      '## Kept Trials', '', keptTable(kept, spec), '',
       ...(state.ablation ? ['## Ablation', '',
         `Each kept change, reverted alone on the final code and measured in pairs against it. A change whose removal costs no more than ${state.ablation.threshold}${unit} is weak; decide at verify whether it stays.`, '',
         ablationTable(state.ablation, spec), ''] : []),
+      '## Search Mechanisms', '',
+      'The trials, keeps, kept gain and measurement time of each way the loop searched. A kept change counts for one mechanism: a keep of a round winner counts for its branch (round, seed, or prune when a prune forked it).', '',
+      mechanismTable(mech), '',
+      mech.idle.length ? `Produced no kept gain in this run: ${mech.idle.join(', ')}.` : 'Every mechanism that ran produced kept gain.', '',
       '## Files Changed', '', ...files.map((p) => `- ${p}`), '',
       ].join('\n'),
     });
@@ -1548,6 +1637,7 @@ function finish(root, slug, f) {
       ok: true, commit: sha, commits: shas, history, ...why, gain, kept: kept.length,
       ...(history === 'per-change' && String(f.message ?? '').trim() ? { message: 'unused: each kept change has its own commit and subject' } : {}),
       ...(state.ablation ? { weak: state.ablation.changes.filter((c) => c.verdict === 'weak').length } : {}),
+      mechanisms: { idle: mech.idle, keptGain: mech.keptGain },
       files, wrote: ['03-slice.md', `03-slice-${SLICE}.md`, `05-implement-${SLICE}.md`], cleanup: cleanupAll(root, slug, state), next: { action: 'verify', invocation: `/wf verify ${slug} ${SLICE}` },
     };
   }
@@ -1589,14 +1679,15 @@ function buildHistory(root, slug, state, spec, results, f) {
   const slugBranch = currentBranch(root) || null;
   const where = slugBranch || 'HEAD';
   const mt = git(root, ['merge-tree', '--write-tree', head, state.best.commit]);
-  if (!mt.ok) throw new Error(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${tail(mt.out, 8) || mt.err}`);
+  const conflictFix = personFix(`The kept changes of ${state.trunk} conflict with ${where}, which moved since the loop started. The person merges them by hand, or brings ${where} back in line; then finish runs again.`);
+  if (!mt.ok) throw refuse(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${tail(mt.out, 8) || mt.err}`, conflictFix);
   const want = mt.out.split(/\r?\n/)[0].trim();
   const temp = finishBranch(state);
-  if (refOf(root, temp)) throw new Error(`the branch ${temp} exists from a finish that stopped: delete it, then finish again`);
+  if (refOf(root, temp)) throw refuse(`the branch ${temp} exists from a finish that stopped: delete it, then finish again`, leftoverFix(`The branch ${temp} is left from a finish that stopped.`));
   // The trunk worktree has the setup and the tools of the trials. When it is gone, a worktree of its own.
   const own = !existsSync(state.worktree);
   const wt = own ? finishWorktree(state) : state.worktree;
-  if (!own && dirtyPaths(wt).length) throw new Error('the trunk worktree has uncommitted changes: run trial on them, or discard them, then finish again');
+  if (!own && dirtyPaths(wt).length) throw refuse('the trunk worktree has uncommitted changes: run trial on them, or discard them, then finish again', agentFix(`Run trial on the changes in ${wt}; ask the person before they are discarded. Then run finish again.`, opt(root, slug, 'trial', `<id> --on ${state.trunk}`)));
   state.finishing = { branch: slugBranch, base: head, at: nowIso() };
   saveState(root, slug, state);
   if (own) gitOk(root, ['worktree', 'add', '-q', '-b', temp, wt, head], 'worktree add');
@@ -1610,10 +1701,13 @@ function buildHistory(root, slug, state, spec, results, f) {
     delete state.finishing;
     saveState(root, slug, state);
   };
-  const fail = (message) => { close(); return new Error(message); };
+  // Each failure of the build undoes it; the fix of a refused commit is the person's.
+  const hookFix = personFix(`A commit hook of the repo refuses the commits of finish, and the finish is undone: ${where} did not move. The person reads the hook's message and decides how the commits pass it; then finish runs again.`);
+  const nothingFix = personFix(`${where} holds every kept change of the loop already, so finish has nothing to commit. Ask the person whether the loop is done.`);
+  const fail = (message, fix = hookFix) => { close(); return refuse(message, fix); };
 
   const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
-  const kept = results.filter((r) => r.event === 'trial' && r.verdict === 'kept' && r.commit);
+  const kept = trunkLineage(results).kept.filter((r) => r.commit);
   const verdicts = new Map((state.ablation?.changes ?? []).map((c) => [c.commit, c.verdict]));
   const commits = git(root, ['rev-list', '--first-parent', '--reverse', `${state.baseCommit}..${state.best.commit}`]).out.split(/\r?\n/).filter(Boolean);
   let before = state.baseline.median;
@@ -1644,8 +1738,8 @@ function buildHistory(root, slug, state, spec, results, f) {
     // One commit with every change, from the tip of the slug branch.
     resetTo(root, wt, head);
     const m = git(wt, ['merge', '--squash', state.best.commit]);
-    if (!m.ok) throw fail(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${m.err || m.out}`);
-    if (git(wt, ['diff', '--cached', '--quiet']).ok) throw fail(`${where} holds every kept change already: finish has nothing to commit`);
+    if (!m.ok) throw fail(`the kept changes of ${state.trunk} do not apply cleanly to ${where}: ${m.err || m.out}`, conflictFix);
+    if (git(wt, ['diff', '--cached', '--quiet']).ok) throw fail(`${where} holds every kept change already: finish has nothing to commit`, nothingFix);
     const subject = String(f.message ?? '').trim() || `${spec.objective}: ${state.baseline.median}${unit} to ${state.best.value}${unit}`;
     const trials = changes.map((c) => c.trial).filter((t) => t !== null);
     const body = `One commit holds every kept change, because ${reason}.${trials.length ? `\nTrials: ${trials.join(', ')}.` : ''}`;
@@ -1653,10 +1747,10 @@ function buildHistory(root, slug, state, spec, results, f) {
     if (!made.ok) throw fail(`the commit of finish failed, and the finish is undone: ${made.err || made.out}`);
     const one = headOf(wt);
     for (const c of changes) Object.assign(c, { commit: one, subject: c.row ? keepMessage(c.row, { before: c.before, after: c.after, spec }).subject : null, note: undefined });
-    if (treeOf(wt) !== want) throw fail('the commit of finish does not give the tree of the trunk, and the finish is undone');
+    if (treeOf(wt) !== want) throw fail('the commit of finish does not give the tree of the trunk, and the finish is undone', personFix(`The commit of finish does not hold the code of ${state.trunk}, so the finish is undone and ${where} did not move. A hook may change files at commit: show this to the person.`));
   }
   const tip = headOf(wt);
-  if (tip === head) throw fail(`${where} holds every kept change already: finish has nothing to commit`);
+  if (tip === head) throw fail(`${where} holds every kept change already: finish has nothing to commit`, nothingFix);
   // The commits were made on the temporary branch. A hook that decides by branch name judges them again on the slug branch.
   if (slugBranch) {
     const refused = hooksAs(wt, slugBranch, head, tip);
@@ -1674,7 +1768,7 @@ function buildHistory(root, slug, state, spec, results, f) {
   if (!ff.ok) {
     delete state.finishing;
     saveState(root, slug, state);
-    throw new Error(`${where} did not fast-forward to the commits of finish, and the finish is undone: ${ff.err || ff.out}`);
+    throw refuse(`${where} did not fast-forward to the commits of finish, and the finish is undone: ${ff.err || ff.out}`, personFix(`${where} moved while finish ran, so it did not fast-forward to the commits of finish. The person looks at what moved it; then finish runs again.`));
   }
   return built;
 }
@@ -1772,10 +1866,10 @@ function recoverFinish(root, slug, state) {
   const left = finishLeft(root, state);
   if (!anyLeft(left)) return { recovered: [], built: null };
   const trunkAt = refOf(root, state.trunk);
-  if (trunkAt && trunkAt !== state.best.commit) throw new Error(`state-error: a finish stopped midway, and ${state.trunk} is at ${trunkAt.slice(0, 12)}, not at ${state.best.commit.slice(0, 12)} where the loop left it: the branch moved outside the loop, and finish changes nothing`);
+  if (trunkAt && trunkAt !== state.best.commit) throw refuse(`state-error: a finish stopped midway, and ${state.trunk} is at ${trunkAt.slice(0, 12)}, not at ${state.best.commit.slice(0, 12)} where the loop left it: the branch moved outside the loop, and finish changes nothing`, stateErrorFix());
   if (left.own) {
     const links = linksUnder(left.own);
-    if (links.length) throw new Error(`a finish stopped midway, and its worktree ${left.own} holds links (${links.slice(0, 3).join(', ')}). A recursive delete can follow a link. Remove the links, then finish again`);
+    if (links.length) throw refuse(`a finish stopped midway, and its worktree ${left.own} holds links (${links.slice(0, 3).join(', ')}). A recursive delete can follow a link. Remove the links, then finish again`, personFix(`The worktree ${left.own} of a finish that stopped holds links, and a recursive delete can follow a link into the main checkout. The person removes the links by hand; then finish runs again.`));
   }
   const m = left.marker;
   const slugBranch = m?.branch ?? state.slugBranch ?? null;
@@ -1783,10 +1877,10 @@ function recoverFinish(root, slug, state) {
   const landed = !!(m?.built && slugAt && isAncestor(root, m.built.tip, slugAt));
   // The slug branch holds commits of the temporary branch only after the fast-forward.
   if (!landed && m && left.temp && slugAt && left.temp !== m.base && isAncestor(root, left.temp, slugAt)) {
-    throw new Error(`state-error: ${slugBranch ?? 'HEAD'} holds commits of ${finishBranch(state)} that finish did not move onto it: look at both branches, then delete ${finishBranch(state)}`);
+    throw refuse(`state-error: ${slugBranch ?? 'HEAD'} holds commits of ${finishBranch(state)} that finish did not move onto it: look at both branches, then delete ${finishBranch(state)}`, personFix(`${slugBranch ?? "HEAD"} holds commits of ${finishBranch(state)} that finish did not move onto it. The person looks at both branches and decides; nothing is deleted before that.`));
   }
   const out = clearFinishLeft(root, state, left);
-  if (out.kept.length) throw new Error(`a finish stopped midway, and its leftovers stay: ${out.kept.map((k) => `${k.path ?? k.branch}: ${k.reason}`).join('; ')}`);
+  if (out.kept.length) throw refuse(`a finish stopped midway, and its leftovers stay: ${out.kept.map((k) => `${k.path ?? k.branch}: ${k.reason}`).join('; ')}`, leftoverFix('A finish that stopped left worktrees or branches that it could not put away; the error names each one and why.'));
   if (landed) out.recovered.push(`${slugBranch ?? 'HEAD'} holds the commits of the finish that stopped, up to ${m.built.tip.slice(0, 12)}: finish writes their records`);
   else {
     if (m && slugAt && slugAt !== m.base) out.recovered.push(`${slugBranch ?? 'HEAD'} moved since the finish that stopped: the commits are built on its new tip`);
@@ -1802,16 +1896,37 @@ function recoverFinish(root, slug, state) {
  * it, each such file is copied to optimize/finish-stash/ and stashed. A file that the commits or the
  * records of finish also write is refused: its pop would conflict.
  */
-function stashForFinish(root, slug, state, f) {
-  const tracked = git(root, ['status', '--porcelain', '--untracked-files=no']).out;
-  if (!tracked) return null;
-  if (f.stash !== true) throw new Error('the main checkout has uncommitted changes to tracked files: commit or stash them, or run finish --stash, then finish again');
+/** The uncommitted tracked files of the main checkout, and those of them that the commits or the records of finish also change. */
+function stashOverlap(root, slug, state) {
   const files = git(root, ['diff', '--name-only', 'HEAD']).out.split(/\r?\n/).filter(Boolean);
   const changed = new Set(git(root, ['diff', '--name-only', 'HEAD', state.trunk]).out.split(/\r?\n/).filter(Boolean));
   const records = relative(root, wfDir(root, slug)).split('\\').join('/');
-  const overlap = files.filter((x) => changed.has(x) || x === records || x.startsWith(`${records}/`));
-  if (overlap.length) throw new Error(`finish --stash: ${overlap.join(', ')} also change in the commits or in the records of finish; commit them first`);
-  const dir = join(optDir(root, slug), 'finish-stash');
+  return { files, overlap: files.filter((x) => changed.has(x) || x === records || x.startsWith(`${records}/`)) };
+}
+const finishStashDir = (root, slug) => join(optDir(root, slug), 'finish-stash');
+
+/**
+ * Why a finish of a complete loop cannot run without the person, or null: the main checkout is
+ * not on the slug branch, a finish that stopped left its stashed files, or an uncommitted file
+ * also changes in the commits or the records of finish (`--stash` refuses it).
+ */
+function finishBlock(root, slug, state) {
+  const branch = state.slugBranch;
+  const on = currentBranch(root);
+  if (branch && on !== branch) return `the main checkout is on ${on || 'a detached HEAD'}, not on the slug branch ${branch}: the person switches to it`;
+  if (existsSync(finishStashDir(root, slug))) return `a finish that stopped left the stashed files of the main checkout in ${finishStashDir(root, slug)}: the person puts them back with git stash pop --index and deletes that folder`;
+  if (!git(root, ['status', '--porcelain', '--untracked-files=no']).out) return null;
+  const { overlap } = stashOverlap(root, slug, state);
+  return overlap.length ? `${overlap.join(', ')} have uncommitted changes and also change in the commits or the records of finish: the person commits them` : null;
+}
+
+function stashForFinish(root, slug, state, f) {
+  const tracked = git(root, ['status', '--porcelain', '--untracked-files=no']).out;
+  if (!tracked) return null;
+  if (f.stash !== true) throw refuse('the main checkout has uncommitted changes to tracked files: commit or stash them, or run finish --stash, then finish again', personFix('The main checkout has uncommitted changes of the person. Ask the person: commit them, or let finish put them aside with finish --stash.'));
+  const { files, overlap } = stashOverlap(root, slug, state);
+  if (overlap.length) throw refuse(`finish --stash: ${overlap.join(', ')} also change in the commits or in the records of finish; commit them first`, personFix(`${overlap.join(", ")} have uncommitted changes and also change in the commits or the records of finish. The person commits them; then finish runs again.`));
+  const dir = finishStashDir(root, slug);
   rmSync(dir, { recursive: true, force: true });
   const copies = files.map((x) => {
     const from = join(root, x);
@@ -1925,10 +2040,48 @@ function cleanupAll(root, slug, state) {
 
 function cleanup(root, slug) {
   const state = readState(root, slug);
-  if (!state) throw new Error('no baseline: nothing to clean up');
-  if (!state.finished) throw new Error('the loop is not finished: run finish first');
+  if (!state) throw refuse('no baseline: nothing to clean up', agentFix('There is no loop of this slug: nothing to clean up. Run status to see the state.', opt(root, slug, 'status')));
+  if (!state.finished) throw refuse('the loop is not finished: run finish first', statusFix(root, slug, 'Cleanup runs after finish: run status and go on with its next action.'));
   const out = cleanupAll(root, slug, state);
-  return { ok: out.kept.length === 0, ...out, ...(out.kept.length ? { error: out.kept.map((k) => `${k.path}: ${k.reason}`).join('; ') } : {}) };
+  return {
+    ok: out.kept.length === 0, ...out,
+    ...(out.kept.length ? {
+      error: out.kept.map((k) => `${k.path}: ${k.reason}`).join('; '),
+      fix: leftoverFix('Cleanup could not remove each worktree, branch or folder that the error names, for the reason it gives.'),
+    } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// report: which search mechanisms produced kept gain (lib/optimize.mjs mechanismReport)
+// ---------------------------------------------------------------------------
+function reportOf(root, slug, state, spec) {
+  return mechanismReport(readResults(root, slug), { direction: spec.metric.direction, unit: spec.metric.unit, best: state?.best?.value ?? null });
+}
+
+function report(root, slug) {
+  const state = readState(root, slug);
+  if (!state) throw refuse('no baseline: nothing to report', statusFix(root, slug, 'The loop of this slug has no baseline yet: run status to see the state.'));
+  const { spec } = loadSpec(root, slug);
+  return { ok: true, slug, finished: !!state.finished, ...reportOf(root, slug, state, spec) };
+}
+
+/** The report of every optimize slug of the project, summed. The records may live in a linked records clone. */
+function reportAll(root) {
+  const home = workflowsRoot(root);
+  const names = existsSync(home) ? readdirSync(home, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort() : [];
+  const runs = [];
+  const skipped = [];
+  for (const slug of names) {
+    if (!existsSync(resultsPath(root, slug)) || indexOf(root, slug)?.['workflow-type'] !== 'optimize') continue;
+    try { runs.push(report(root, slug)); } catch (e) { skipped.push({ slug, reason: e.message }); }
+  }
+  return {
+    ok: true,
+    ...sumMechanismReports(runs),
+    slugs: runs.map((r) => ({ slug: r.slug, unit: r.unit, trials: r.trials, keeps: r.keeps, keptGain: r.keptGain, finished: r.finished, idle: r.idle })),
+    ...(skipped.length ? { skipped } : {}),
+  };
 }
 
 /**
@@ -1975,7 +2128,7 @@ function flags(rest) {
 
 export function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, slug, ...rest] = argv;
-  if (!cmd || !rootArg || !slug) { process.stderr.write(`${USAGE}\n`); return 2; }
+  if (!cmd || !rootArg || !slug) { process.stderr.write(`${USAGE}\n${USAGE_FIX}\n`); return 2; }
   const root = resolve(rootArg);
   const { pos, f } = flags(rest);
   let out;
@@ -2001,12 +2154,14 @@ export function main(argv = process.argv.slice(2)) {
       case 'profile-record': out = withLock(root, slug, null, () => profileRecord(root, slug, f)); break;
       case 'prune': out = withLock(root, slug, null, () => prune(root, slug)); break;
       case 'resume': out = withLock(root, slug, null, () => resumeLoop(root, slug, f)); break;
+      case 'report': out = slug === '--all' ? reportAll(root) : report(root, slug); break;
       default: out = null;
     }
   } catch (e) {
-    out = { ok: false, error: e.message };
+    out = failureOf(e, 'optimize.mjs');
   }
-  if (out === null) { process.stderr.write(`${USAGE}\n`); return 2; }
+  if (out === null) { process.stderr.write(`${USAGE}\n${USAGE_FIX}\n`); return 2; }
+  withFix(out, 'optimize.mjs');
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   return out.ok ? 0 : 1;
 }

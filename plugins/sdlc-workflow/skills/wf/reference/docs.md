@@ -103,7 +103,7 @@ Write `plan.md` with the `docs-plan` frontmatter (per-tier counts, `total-action
 
 If `audit-only: true` → present the plan, then go to Step 7 (the final summary). Do not run Steps 4–6.
 
-**After writing:** Present a summary and confirm with the user through ONE gate question per [_gate-question.md](_gate-question.md):
+**After writing:** Present a summary and confirm with the user through one gate question per [_gate-question.md](_gate-question.md):
 ```yaml
 question: "Documentation plan ready: P0 broken=<N>, P1 missing=<N>, P2 wrong-quadrant=<N>. Proceed with generation?"
 header: "Doc plan"

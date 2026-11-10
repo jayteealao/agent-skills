@@ -27,7 +27,7 @@ Provenance is explicit or inferred — explicit always wins:
    (investigate), the idea labels (ideate), or the packet-of-work titles (brainstorm,
    `work[].title` in `brainstorm-board.json`) from its lead artifact (`record get "<root>" <slug> 01-<type>.md`). Attach only on an
    **exact label match** — the description contains a label exactly (case-insensitive).
-   A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
+   A partial or fuzzy resemblance is not a match. When exactly one workflow matches, ask one
    confirmation question ("This description matches `<id> — <label>` from `<type>` workflow
    `<slug>`. Use that analysis as context?") and attach on yes. If several match, ask which
    one (or none). Zero matches → proceed without provenance; that is the common case and

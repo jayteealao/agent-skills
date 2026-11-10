@@ -4,7 +4,7 @@
 
 ### research sub-agent 1 — Pre-Implementation Codebase Verification
 
-Prompt with ALL of the following. The agent reports findings for each section:
+Prompt with all of the following. The agent reports findings for each section:
 
 **Plan drift detection:**
 - For each file in `04-plan-<slice-slug>.md` → `## Likely Files / Areas to Touch`, read the current version and compare against plan assumptions.
@@ -23,7 +23,7 @@ Prompt with ALL of the following. The agent reports findings for each section:
 
 ### research sub-agent 2 — Dependency & API Freshness (only if external dependencies are involved)
 
-Launch ONLY if the plan involves external APIs, third-party libraries, or cross-service communication. Prompt with:
+Launch only if the plan involves external APIs, third-party libraries, or cross-service communication. Prompt with:
 
 **Dependency state:**
 - Check whether any dependency version in the manifest changed since planning.

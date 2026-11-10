@@ -96,12 +96,12 @@ next-command: wf-verify                      # also set next-invocation and reco
 |--------|--------|-------------|----------------|
 | `<target>` | `+X%` | `<one-line: e.g., "new validation loop added in step 3 of plan">` | `<one-line: profile this target via `/wf probe` or the `augment/profile.md` sub-procedure, or accept if within acceptable range>` |
 
-**Tripwires** (warn-and-continue — do NOT refuse to complete the comparison):
+**Tripwires** (warn-and-continue — do not refuse to complete the comparison):
 
-- `[performance-regression]: <target> slowdown +X% exceeds 10% threshold` — recorded, wf-verify should review.
+- `[performance-regression]: <target> slowdown +X% exceeds 10% threshold` — recorded; `/wf verify` reviews it.
 - `[memory-regression]: <target> allocations +X% exceeds 25% threshold` — recorded.
 - `[no-improvement]: performance investment produced no measurable improvement` — flag for product decision.
 
 For each fired tripwire, write one line. Then add:
 
-> One or more wf-benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to `/wf verify`.
+> One or more benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to `/wf verify`.

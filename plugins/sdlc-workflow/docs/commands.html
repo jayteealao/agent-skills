@@ -735,11 +735,10 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li class="phase"><span class="pn">1</span><b>Open the board</b><span class="who auto">agent</span><p>Maps the areas the idea touches and asks the first batch.</p></li>
           <li class="phase"><span class="pn">2</span><b>The loop</b><span class="who you">you lead</span><p>Batches of one to four questions, talk turns, and your replies. No floor, no cap.</p></li>
           <li class="phase"><span class="pn">3</span><b>Check in</b><span class="who you">you</span><p>At natural moments: a short summary you correct, and where to go next.</p></li>
-          <li class="phase"><span class="pn">4</span><b>Close an area</b><span class="who you">you</span><p>Its price, the core items, the first version, and the risk that worries you most.</p></li>
-          <li class="phase"><span class="pn">5</span><b>done</b><span class="who you">you</span><p>Scope the work now, or keep the board and think more later.</p></li>
-          <li class="phase"><span class="pn">6</span><b>Walk the discussion</b><span class="who you">you</span><p>Area by area: keep, cut, leave for later, or change each item.</p></li>
-          <li class="phase"><span class="pn">7</span><b>Shape the work</b><span class="who you">you</span><p>Group kept items into pieces, put them in order with a reason, pick each form.</p></li>
-          <li class="phase"><span class="pn">8</span><b>Confirm</b><span class="who you">you</span><p>Nothing is written before you confirm. Then the packets are written, and document-only pieces are done in the session.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Close an area</b><span class="who you">you</span><p>When an area stops giving new ground: one digest of its scope and its open questions, with the agent's proposal on each line. You correct it in your own words.</p></li>
+          <li class="phase"><span class="pn">5</span><b>done</b><span class="who you">you</span><p>One digest of the whole scope. The agent proposes the scope of each area that never closed. Confirm it, name what to change, or keep the board for later.</p></li>
+          <li class="phase"><span class="pn">6</span><b>The work packets</b><span class="who you">you</span><p>The agent proposes the whole split: the order with a reason, the forms, the sizes and the write-ups. You confirm it in one answer, or say what to change.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Written</b><span class="who auto">agent</span><p>Nothing is written before you confirm. Then the packets are written, and document-only pieces are done in the session.</p></li>
         </ol>
       </div>
 
@@ -779,7 +778,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       <h3 class="group" id="bs-checkin">Check-ins and closing an area</h3>
       <ul class="rules">
         <li data-s><b>A check-in</b><span>Comes when a thread feels settled, the answers get short, the direction changes a lot, or the agent thinks the thinking is complete. You correct the summary, then choose: go deeper, open a new area, zoom out, show where we are, or stop for now.</span></li>
-        <li data-s><b>Closing an area</b><span>The agent writes a brief of five lines or fewer and shows the area's price against your budgets. You pick the core decisions, what goes in the first version (the rest waits; nothing is cut unless you say so), and the risk that worries you most.</span></li>
+        <li data-s><b>Scoping as you go</b><span>A decision you make is kept at once, unless you say it waits. Ideas stay open until their area closes.</span></li>
+        <li data-s><b>Closing an area</b><span>When an area stops giving new ground, the agent writes a brief of five lines or fewer, shows the area's price against your budgets, and proposes on each line: the core decisions, the first version (nothing is cut unless you say so), each open idea, and what happens to each open question. You confirm it, or say in your own words what to change.</span></li>
         <li data-s><b>Changes to started work</b><span>A work packet whose workflow started is never rewritten. A new decision about it becomes a new work packet: an extension, a fix or a hotfix.</span></li>
       </ul>
 
@@ -1229,6 +1229,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <li data-s><b>Your tree stays yours</b><span>Trials run in separate worktrees: the trunk <code>optimize/&lt;slug&gt;</code>, and one for each branch of a round. Measurement is serial, so runs do not disturb each other. Finish removes the worktrees.</span></li>
           <li data-s><b>The spec is fenced</b><span>A trial that touches the metric, the guard, the holdout or their files is rejected before it is measured. The proposer never sees the holdout's output.</span></li>
           <li data-s><b>When it stops early</b><span>You choose: raise the budget and continue, finish with what was kept, or start a new optimize slug.</span></li>
+          <li data-s><b>Which searches pay</b><span><code>optimize.mjs report</code> counts the trials, keeps, kept gain and measurement time of each search mechanism: trunk trials, rounds, seeds, prunes, merges, ports and bundles. <code>report --all</code> sums every optimize slug of the project.</span></li>
         </ul>
       </div>
 
@@ -1605,7 +1606,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     ["A slug cannot be a command word", "A new workflow cannot be named after a key, a sub-key or a mode word, such as fix or status. status flags an old slug with such a name.", ""],
     ["Quote to force the default flow", "When your description starts with a mode word, put it in quotes so intake reads it as one description.", ""],
     ["Drivers stop before ship", "yolo and loop goal never open a PR or release. Ship is always your call.", "warn"],
-    ["loop optimize is Claude Code only", "On Codex and pi, use loop goal for an optimize slug.", ""],
+    ["The optimize driver is Claude Code only", "On Codex and pi, loop optimize arms loop goal, which runs the loop one action for each turn.", ""],
     ["Human gates stay human", "The design stage, task authorization for shared or irreversible actions, and the end of a brainstorm wait for you. No policy answers them.", "warn"],
     ["Nothing is overwritten", "Re-runs merge findings, snapshot evidence and add files. Close deletes no artifact, branch or PR.", ""],
     ["Git is required", "The first run in a folder that is not a git repo asks to run git init. Without it, artifacts still write, but no slug branch exists until you run git init.", ""],

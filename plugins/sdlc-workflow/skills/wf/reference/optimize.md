@@ -5,7 +5,7 @@ argument-hint: <slug> | <description>
 
 You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecycle: intake and the metric spec (`/wf intake optimize`), then the loop, then verify, review, ship and retro as for any slug. This sub-key runs the loop. The loop changes code toward one number: the metric of `02-optimize-spec.md`.
 
-> **Hosts.** The script and the ledger are the same on every host. The driver (`workflows/optimize.js`) is Claude Code only. On a host with no driver, the goal contract carries the loop in the session, one trial for each turn ([goal.md](goal.md)).
+> **Hosts.** The script and the ledger are the same on every host. The driver (`workflows/optimize.js`) is Claude Code only. On a host with no driver, the goal contract carries the loop in the session, one action for each turn ([goal.md](goal.md)). `status` prints the exact command of each action in `next.command`.
 
 ## What the loop is, and is not
 
@@ -62,7 +62,7 @@ CAUTION: do not delete an optimize worktree with a recursive delete. A `node_mod
 ## Step 1 — Baseline
 
 1. Run `baseline`. The script makes the worktree and the trunk, runs the guard, runs the metric `repeat` times, and runs the holdout.
-2. On `ok: false`, show the error and end the run. A red guard ends the loop before it starts: the guard is fixed first.
+2. On `ok: false`, follow the failure rule of [_host-invocation.md](_host-invocation.md), and end the run. A red guard ends the loop before it starts: the guard is fixed first.
 3. Show the baseline median, the noise floor, and the worktree path. Continue at Step 2.
 
 ## Step 2 — Run the loop
@@ -78,19 +78,31 @@ To resume, run `/wf loop optimize <slug>` again. The script continues from `stat
 
 ### Without the driver
 
-On a host with no driver, the goal contract carries the loop: `/wf loop goal <slug>` arms `kind: optimize` ([goal.md](goal.md)). Each worker turn runs one action:
+On a host with no driver, the goal contract carries the loop. Load [goal.md](goal.md) and arm the goal of the slug: it arms `kind: optimize`. Each worker turn runs one action. `status` prints that action in `next`, with three fields:
 
-1. Run `status`. When `next.action` is `baseline`, run Step 1. When it is `ablate` or `finish`, run Step 3. When `next.action` is `prune`, run `prune`. When `next.action` is `profile`, run `profile` for a command, or make the profile as the profiler of `profile: agent` does and run `profile-record`. When `next.action` is `round-open`, `round-close`, `checkpoint` or `merge-close`, run that command; for `merge-trial`, run `merge-trial --branch <next.branch>`. Then run `check` of the goal and end the turn.
-2. When `next.action` is `merge-consider`, read the candidates in `merge` of the status and the diff of each one against `merge.from`. Skip a candidate whose change removes the same cost as the winner's change, and a port whose target already has a kept or marginal idea on the winner or the trunk; try the others, a bundle of near misses first, then the largest expected added gain. Run `merge-consider --try <n1,b2,t7> --skip "<b3>:<reason>"`, then run `check` of the goal and end the turn.
-3. For a `trial` that names `port` or `bundle`, run `trial h<n> --apply --hypothesis "<text>"`. When it returns `apply: failed`, make the change of the diffs in `next.portOf` or `next.bundleOf` by hand, and run `trial` again without `--apply`. Then run `check` of the goal and end the turn. For any other `trial`, run `propose-context`. Its `digest` is all that you may know about the run. Do not read `optimize/` or other branches' history.
-4. Write one hypothesis: what to change, why, and the expected gain.
-5. Make the change in the worktree that the digest names, on the branch that it names. Change nothing outside `allowed-paths`.
-6. Before the edit, claim the idea with `idea-claim --on <digest.lane> --target "<target>" --family "<family>"`: the lane of the digest, so a claim in a branch round lands on its branch. Then run `trial h<n> --idea <id> --hypothesis "<text>" --expected "<gain>"`. The script judges the change.
-7. Run `check` of the goal, and end the turn.
+- `command`: the exact command line. `then` lists the commands that follow it in the same turn. A `<…>` in a command is a value that you supply.
+- `needs`: what you supply, and what you read first. `needs.fill` describes each `<…>`.
+- `after`: what you do next. When a goal carries the loop, it names the `check` of the goal as the last command of the turn.
+
+Do these steps in each turn:
+
+1. Run `status`.
+2. Do what `next.needs` says. Then run `next.command`, and each command of `next.then` in order. For `baseline`, `ablate` and `finish`, Step 1 and Step 3 say what to show and when to end the run.
+3. When the result matches `next.fallback.when`, do what `next.fallback.needs` says, and run `next.fallback.command`.
+4. Do what `next.after` says.
+
+When `next.command` is null, the next step is the person's: show `reason`, `detail` and `next.why`, as Step 0 says.
+
+Judge these parts yourself:
+
+- **What you may read for a trial.** The digest of `propose-context` is all that you may know about the run, with the code in its worktree. Do not read `optimize/` or the history of other branches.
+- **A good hypothesis.** It says what to change, why, and the expected gain. It targets a large entry of the profile that can pass alone. It does not repeat a target that failed, or that another lane claims. It never special-cases the inputs that the metric measures. Prefer a simpler change at equal gain.
+- **The claim comes before the edit.** Run the `idea-claim` command of `next.then` first, then make the change, then run the `trial` command.
+- **When to skip a merge candidate.** Read each diff that `next.needs.candidates` names, and the winner's change in the trunk worktree. Skip a candidate whose change removes the same cost as the winner's change. Skip a port or a bundle that `repeats` an idea of the winner or the trunk, unless its mechanism differs. Do not try a branch and a port of the same branch. Try a bundle of near misses first, then the largest expected added gain.
 
 ## Step 3 — Finish
 
-1. Confirm that the main checkout is on the slug branch. When it has uncommitted changes to tracked files, run `finish` with `--stash`: the script copies those files to `optimize/finish-stash/`, stashes them for the commits of finish, and restores them byte for byte. It refuses a file that those commits also change; ask the person to commit that file.
+1. When `status` shows `finishBlocked`, show it and end the run: the person acts first. A goal of the slug then prints `BLOCKED` with that reason, and it is met only when `status` shows `finished`. Confirm that the main checkout is on the slug branch. When it has uncommitted changes to tracked files, run `finish` with `--stash`: the script copies those files to `optimize/finish-stash/`, stashes them for the commits of finish, and restores them byte for byte. It refuses a file that those commits also change; ask the person to commit that file.
 2. Run `finish --message "<one-line commit message in product language>"`. The script runs the ablation when it did not run, and the holdout when a change was kept after the last checkpoint. Then it puts each kept change on the slug branch as its own commit, in the order the trunk kept it. A reverted trial is not on the trunk, so it gets no commit. A round winner gives one commit for each of its keeps, and a port or a bundle gives one commit. A merged branch gives one commit, because the loop measured the merge as one change. The subject of each commit comes from its hypothesis, and the body gives the measured gain, the metric before and after, and the trial.
 3. The script builds the commits on a temporary branch in the trunk worktree, with the same hooks as the trials, and moves the slug branch only when the result has the tree of the trunk. Before that move, it runs the commit hooks again in the trunk worktree as the slug branch sees them: a hook that decides by branch name sees the slug branch. That `pre-commit` sees every change of finish staged at once, and `commit-msg` sees each message. A commit that a hook refuses undoes the whole finish, and the slug branch stays as it was. A finish that stopped midway (a crash or a kill) leaves its temporary branch; the next `finish` puts it away by itself and says so in `recovered`, and when the slug branch already holds the commits, it only writes their records. `status` names such a finish in `recover`. It stops instead when the trunk branch moved, or when the stashed files of a `--stash` finish are still in the stash. When a change does not apply on its own (for example, the slug branch changed the same lines since the baseline), the script makes one commit with every change instead. `--message` is the subject of that one commit; with one commit for each change, it is not used. The result then says `history: 'one-commit'` and the reason.
 4. The script writes `03-slice.md`, `03-slice-optimize.md` with the acceptance criteria, and `05-implement-optimize.md` with each kept change, its commit and its ablation verdict. The step ledger records each commit as a done step of the slice. Then the script removes the worktrees, the trunk branch and the shared build folder.
@@ -99,7 +111,23 @@ On a host with no driver, the goal contract carries the loop: `/wf loop goal <sl
 
 ## Step 4 — Hand back
 
-End with the dispatcher's summary block (SKILL.md Step 2). The narrative says the baseline and the kept value with the noise floor, the trials and the keeps, each branch round and its winner (a branch or the trunk), why the loop stopped, and the next step: `/wf verify <slug> optimize` after a finish, or the person's choice after a stop.
+End with the dispatcher's summary block (SKILL.md Step 2). The narrative says the baseline and the kept value with the noise floor, the trials and the keeps, each branch round and its winner (a branch or the trunk), why the loop stopped, and the next step: `/wf verify <slug> optimize` after a finish, or the person's choice after a stop. In one line, name the search mechanisms that produced no kept gain in this run: `mechanisms.idle` of the result of `finish`, or `idle` of `report` after a stop.
+
+## The mechanism report
+
+`report` measures which search mechanisms of the loop produce kept gain. It reads only the ledger and changes nothing:
+
+```
+node "<skill-dir>/scripts/optimize.mjs" report "<projectRoot>" <slug>
+node "<skill-dir>/scripts/optimize.mjs" report "<projectRoot>" --all
+```
+
+- For each mechanism, it counts the trials, the keeps, the kept gain (in the metric's unit, and as a share of the total kept gain), the measurement time (`ms`), the gain per hour of measurement, and the keeps that the ablation called `weak`.
+- The mechanisms are `trunk` (proposed trunk trials), `round` and `seed` (the keeps of a round winner, from a branch with no seed or with a seed), `prune` (the keeps of a branch that a prune forked), `merge`, `port`, `near-misses` and `marginal-bundle`.
+- A kept change counts for one mechanism. A keep of a round winner counts for its branch. When a prune forked the winner, the keeps of the leader before the fork count for the leader. A keep of a branch that did not win adds nothing, unless a merge or a port brought it in; then it counts for that merge or port. A keep that `resume --revert` took off the trunk adds nothing.
+- `rounds` gives each round's trials against the gain of its winner over the trunk best at round-open. `prunes` gives the trials that each replacement branch got, used and turned into keeps.
+- `finish` writes the same table into `05-implement-optimize.md`.
+- `--all` sums the runs of every optimize slug of the project, with `runs` and `paid` for each mechanism. `never` lists the mechanisms that ran in some run and never paid. A gain adds up only across runs of one unit.
 
 ## The files
 
@@ -111,5 +139,5 @@ End with the dispatcher's summary block (SKILL.md Step 2). The narrative says th
 | `optimize/ideas.json` | the optimize script | The ideas ledger of every lane |
 | `optimize/profile.json`, `optimize/profile.patch` | the optimize script | The last profile, and the counters of the profiler agent |
 | `optimize/patches/<trial>.patch` | the optimize script | The diff of each kept trial, and of each reverted trial with a positive gain |
-| `03-slice-optimize.md`, `05-implement-optimize.md` | the optimize script at finish | The one slice of the loop, for verify and review. The implement record lists each kept change with its commit and its ablation verdict |
+| `03-slice-optimize.md`, `05-implement-optimize.md` | the optimize script at finish | The one slice of the loop, for verify and review. The implement record lists each kept change with its commit and its ablation verdict, and the mechanism report |
 | `steps.jsonl` | the optimize script at finish | One done step for each commit of finish, and the complete row of the slice |

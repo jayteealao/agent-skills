@@ -41,7 +41,7 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 - It does **not** write application code, emit config, or stand up any infrastructure — that is
   `/wf project observability build`'s job, behind its own confirm gates.
 - It does **not** run or modify any logger, collector, or dashboard. Discovery is read-only.
-- It does **not** overwrite an existing `.ai/observability.md`. If one exists, STOP and tell the user to amend by
+- It does **not** overwrite an existing `.ai/observability.md`. If one exists, stop and tell the user to amend by
   hand (there is no `edit` sub-key yet).
 - It does **not** modify `.ai/ship-plan.md` — it only *reads* it.
 
@@ -49,14 +49,14 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 
 You are a **contract author**, not an implementer.
 - Do not write code, emit config, or provision anything.
-- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at `.ai/observability.md`. Amend it by hand, then re-run `/wf project observability build` or `/wf project observability audit`."*
+- Do not overwrite an existing `.ai/observability.md`. If one exists, stop: *"Observability contract exists at `.ai/observability.md`. Amend it by hand, then re-run `/wf project observability build` or `/wf project observability audit`."*
 - Do not skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
 
 ---
 
 # Step 0 — Orient
 
-1. STOP if `.ai/observability.md` already exists. Tell the user to amend by hand.
+1. Stop if `.ai/observability.md` already exists. Tell the user to amend by hand.
 2. Detect repo basics: `git remote get-url origin` (derive `<owner>/<repo>` when present), and `project-name`
    from the directory / primary manifest.
 3. Note whether `.ai/ship-plan.md` exists — Step 2 reads it.

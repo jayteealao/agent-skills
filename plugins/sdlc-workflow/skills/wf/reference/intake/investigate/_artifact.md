@@ -25,7 +25,7 @@ One subsection per **presented** option (the ≤3 full cards selected in Step 3)
 ### Option A — `<label>`
 
 - **Mechanism:** one paragraph. What does this option *do*? Reference specific files and abstractions.
-- **Sketch:** 2 to 5 lines: the technique and the rough boundary of the change. NOT implementation steps. Cite at least one `file:line` to anchor it.
+- **Sketch:** 2 to 5 lines: the technique and the rough boundary of the change. Not implementation steps. Cite at least one `file:line` to anchor it.
 - **Files touched (estimated):** list of paths or a count + range.
 - **Requires new dependency:** yes/no; name it if yes.
 - **Requires schema change:** yes/no; describe the shape if yes.
@@ -66,7 +66,7 @@ This command does not pick a winner. Pick the option you want, record the pick, 
 | If you … | Do |
 |---|---|
 | Pick an option with `effort: small` (per the effort rubric) and a clear mechanism | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake fix "<option-label> — <one-line option description>" from <slug>` |
-| Pick an option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake "<option-label> — <one-line option description>" from <slug>` |
+| Pick an option with `effort: medium` or `large`, or `requires_schema_change: yes`, or `requires_new_dependency: yes` with non-trivial integration | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake "<option-label> — <one-line option description>" from <slug>` |
 | Are not sure which option to pick | Resolve the cheapest **Decisive unknown** among the candidate cards first: a truth question about the system → `/wf intake <slug> discover <the unknown>` (the answer lands as a compressed slice on this workflow); an API fact about a dependency → the `study-sources` skill, with the finding noted in this artifact; a product or policy call → the human who owns it (see the `problem-not-engineering` tripwire). Then pick. If the stall is comprehension rather than evidence, `/wf status recap <slug> [plan|shape|slice|review|findings]` still applies. |
 
 Routing directly (`… from <slug>`) without recording a pick also works: the downstream mode records the pick implicitly and closes this workflow (see `_intake-provenance-consume.md`).
@@ -84,4 +84,4 @@ Write this section only when a tripwire fired. Tripwires are **warn-and-continue
 
 For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Closing line:
 
-> One or more wf-investigate tripwires fired. The option set is still recorded, but review the warnings before picking.
+> One or more investigate tripwires fired. The option set is still recorded, but review the warnings before picking.

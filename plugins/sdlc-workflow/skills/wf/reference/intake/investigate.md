@@ -1,7 +1,7 @@
 # Output boundary & shared context
 Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
-You are running `/wf intake investigate`, a **solution-options sketcher** that proposes multiple engineering approaches to a stated problem and characterizes their tradeoffs — without picking a winner.
+You are running `/wf intake investigate`, a **solution-options sketcher**. It proposes several engineering approaches to a stated problem, and characterizes their tradeoffs. It does not pick a winner.
 
 # Slug-mode
 
@@ -12,11 +12,11 @@ When the dispatcher selected slug-mode, follow [_compressed-slice.md](../_compre
 
 | | Detail |
 |---|---|
-| Requires | See [## Requires](#requires). Pass a problem statement or an existing slug to resume; pass `<slug> <option>` to record a pick. |
-| Produces | `01-investigate.md` (problem + architecture map + every distinct option sketched with tradeoffs — ≤3 full cards, surplus as compressed entries — plus a status-quo baseline), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf intake fix`) does the shape pass on the chosen option, seeded from this artifact via `_intake-provenance.md`. |
-| Skips | No fix, no plan, no implementation, no recommendation. The option set *is* the output. |
-| Next | User picks an option → record it (`/wf intake investigate <slug> <option> [reason]`), then `/wf intake fix "<option> — <one-line>" from <slug>` (`effort: small` per the effort rubric below) or `/wf intake "<option> — <one-line>" from <slug>` (medium+). |
-| Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
+| Requires | See [## Requires](#requires). Pass a problem statement, or an existing slug to resume; pass `<slug> <option>` to record a pick. |
+| Produces | `01-investigate.md` (the problem, the architecture map, and every distinct option sketched with its tradeoffs: at most 3 full cards, the surplus as compressed entries; and a status-quo baseline), and `00-index.md`. **No `02-shape.md`:** the person chooses an option first. The next command (`/wf intake` or `/wf intake fix`) does the shape pass on the chosen option, seeded from this artifact through `_intake-provenance.md`. |
+| Skips | No fix, no plan, no implementation, no recommendation. The option set is the output. |
+| Next | The person picks an option. Record it (`/wf intake investigate <slug> <option> [reason]`), then run `/wf intake fix "<option> — <one-line>" from <slug>` (`effort: small` per the effort rubric below) or `/wf intake "<option> — <one-line>" from <slug>` (medium or more). |
+| Escalate | When the sub-agents agree that no viable option exists within the current architecture, raise `architecture-blocking`, and recommend a design pass through `/wf intake`, with the problem framed as an architecture question. |
 
 ## Requires
 
@@ -36,71 +36,76 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-investigate.md` | writes | | |
 
-> **Ground options in real source.** When a candidate approach hinges on what a
-> library, framework, or SDK *actually* supports — an extension point, a config
-> surface, a limit, whether an API even exists in the installed version — invoke the
-> `study-sources` skill to read its installed source (or clone it into `.scratch/`)
-> before characterizing feasibility, effort, and risk. An option's tradeoffs are only
-> as sound as the API facts behind them; reading the real source keeps a sketch from
-> resting on an API that doesn't exist. Read-only — reads land in `.scratch/`, no repo
-> or application-code changes.
+> **Ground the options in real source.** When an approach depends on what a library, a framework or an SDK actually supports (an extension point, a config surface, a limit, whether an API exists in the installed version), use the `study-sources` skill to read its installed source, or clone it into `.scratch/`, before you characterize feasibility, effort and risk. The tradeoffs of an option are only as sound as the API facts behind them, and the real source keeps a sketch off an API that does not exist. This is read-only: the reads land in `.scratch/`, with no change to the repo or the application code.
 
 # Effort rubric (single source)
 
-The one definition of effort for this command. Every other mention in this file — sub-agent prompts, option sections, routing — cites this rubric instead of restating thresholds; pass it unchanged into any sub-agent prompt that needs it.
+The one definition of effort for this command. Every other mention in this file (the sub-agent prompts, the option sections, the routing) cites this rubric instead of restating the thresholds. Pass it unchanged into each sub-agent prompt that needs it.
 
 - **small** — ≤3 files, ≤5 steps, no new dependency, no schema change.
 - **medium** — 4–10 files, or a new dependency, or a config change.
 - **large** — >10 files, or an architecture change, migration, or cross-team coordination.
 
 # Sketching discipline
-You are an **options sketcher**, not a chooser, planner, or implementer.
-- The **only** acceptable output is the investigate artifact and index. Do not edit application code. Do not write a plan. Do not pick a winning option (the user picks).
-- Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
-- Each option must be **distinct**: option B is not "option A but with a twist" — it should embody a meaningfully different design choice (different layer, different abstraction, different mechanism). If you cannot find 2 genuinely distinct options, say so (a tripwire) rather than padding with near-duplicates.
-- Each option's "Sketch" section is **direction, not a plan** — 2 to 5 lines naming the technique, the area, and the rough boundary. Do not enumerate implementation steps.
-- Ask at most **3 questions** in chat. No structured gate question. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
+You sketch options. You do not choose, plan or implement.
+- The only acceptable output is the investigate artifact and the index. Do not edit application code. Do not write a plan. Do not pick a winning option: the person picks.
+- Investigate read-only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
+- Each option is **distinct**. Option B is not "option A with a twist": it embodies a different design choice (a different layer, abstraction or mechanism). When you cannot find 2 really distinct options, say so (a tripwire); do not pad with near-duplicates.
+- The "Sketch" section of each option is a direction, not a plan: 2 to 5 lines that name the technique, the area and the rough boundary. Do not list implementation steps.
+- Ask at most 3 questions in chat, and no structured gate question. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
+- Keep the stated order only where a step uses the output of an earlier step or crosses a gate. Reading and research may interleave freely.
 
 # Step 0 — Orient
-1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: investigate` → the workflow exists. Read that index, then split on three sub-cases:
-     - **A token after the slug matches an option id (`A`, `B`, …) or an option label** from `01-investigate.md` → **pick mode**. Jump to `# Pick — decision closure` below; any trailing prose after the option token is the decision note. If the token matches more than one label, ask one question to disambiguate. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
-     - **`01-investigate.md` is complete and no pick token is present** → tell the user the option set is ready and how to record a pick — `/wf intake investigate <slug> <option-id-or-label> [one-line reason]` — and stop.
-     - **`01-investigate.md` is incomplete** → **resume mode**: pick up from the missing section.
-   - Otherwise → **new investigate**.
-2. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `investigate-<short-problem>`.
-2b. **Provenance check:** apply `intake/_intake-provenance.md`: detect an inherited analysis decision (a trailing `from <source-slug>` token, implied when this investigation runs from a work packet; see [../intake.md](../intake.md), "List work packet"), consume the matching Consume-table row, and link back (record `origin-<type>` here, and `origin-packet` when the source is a work packet). No match → continue; that is the common case.
-3. **Branch posture (do NOT switch branches):**
-   - This is read-only — do not create or switch branches.
-   - Record the current branch in the index.
-4. **Read project context (lightweight):**
-   - Read `README.md` (top 100 lines) for project shape and conventions, so option sketches use vocabulary that fits the codebase.
-   - Read `AGENTS.md` if present for project conventions.
+1. **Resolve the slug and the mode** from `$ARGUMENTS`:
+   - When the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: investigate`, the workflow exists. Read that index, then take one of three cases:
+     - **A token after the slug matches an option id (`A`, `B`, …) or an option label** of `01-investigate.md`: this is **pick mode**. Go to `# Pick — decision closure` below. The prose after the option token is the decision note. When the token matches more than one label, ask one question to tell them apart. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
+     - **`01-investigate.md` is complete, and there is no pick token:** tell the person that the option set is ready, and how to record a pick (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`). Stop.
+     - **`01-investigate.md` is incomplete:** this is **resume mode**. Continue from the missing section.
+   - Otherwise this is a **new investigate**.
+2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `investigate-<short-problem>`.
+
+2b. **Provenance check.** Apply `intake/_intake-provenance.md`:
+   - Detect an inherited analysis decision: a trailing `from <source-slug>` token. It is implied when this investigation runs from a work packet ([../intake.md](../intake.md), "List work packet").
+   - Use the matching row of the Consume table.
+   - Link back: record `origin-<type>` here, and `origin-packet` when the source is a work packet.
+
+   With no match, go on. That is the common case.
+3. **Branch posture.** This mode is read-only: do not create or switch branches. Record the current branch in the index.
+4. **Read the project context, lightly:**
+   - Read the top 100 lines of `README.md` for the shape and the conventions of the project, so that the sketches use words that fit the codebase.
+   - Read `AGENTS.md`, when present, for the conventions of the project.
 
 # Step 1 — Problem clarification
-Ask at most **3 questions** — stop as soon as the problem is sketchable:
+Ask at most 3 questions, and stop as soon as the problem can be sketched:
 
-1. **What is the problem?** — State as a code-level problem the user wants to solve, not a feature ask. Good: "checkout p99 latency is 2s and the bottleneck is unknown". Bad: "we need a faster checkout" (no constraint), "should we rewrite checkout?" (that is `/wf intake discover`). Required if not clear from `$ARGUMENTS`.
-2. **Where in the codebase?** — A starting file, module, or area. The sketches will be scoped to options that touch this area; if the user truly doesn't know, the cartographer sub-agent will widen the search and that will be flagged.
-3. **Constraints?** — Anything off-limits (no schema change, no new dependency, must work without a rebuild, ≤1 week of work, no breaking API change). Constraints prune the option space; without them, the sketches will lean wider than the user may want.
+1. **What is the problem?** State it as a code-level problem that the person wants to solve, not as a feature ask. Good: "checkout p99 latency is 2s and the bottleneck is unknown". Bad: "we need a faster checkout" (no constraint), "should we rewrite checkout?" (that is `/wf intake discover`). Ask it when `$ARGUMENTS` does not make it clear.
+2. **Where in the codebase?** A starting file, module or area. The sketches are scoped to options that touch this area. When the person does not know, the cartographer sub-agent widens the search, and the wider search is flagged.
+3. **Constraints?** Anything off-limits: no schema change, no new dependency, must work without a rebuild, at most 1 week of work, no breaking API change. Constraints prune the option space. Without them, the sketches lean wider than the person may want.
 
-If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
+When `$ARGUMENTS` answers all three, go to Step 2.
 
-Do not write the artifact yet. Hold answers in working memory and proceed.
+Do not write the artifact yet. Hold the answers in working memory, and go on.
 
 # Step 2 — Map and sketch (two waves)
-Three sub-agents, dispatched in two waves: the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
+Three sub-agents run in two waves:
+1. The cartographer and the option generator are independent, and launch **in parallel**.
+2. The tradeoff characterizer launches **after both return**, because it uses their output: launched blind, it can only produce an empty template.
 
-Charters, effort tier, and return shapes for the three sub-agents are in `intake/investigate/_research.md`.
+Each is a separate read-only sub-agent dispatch ([_subagents.md](../_subagents.md)). Do not start the synthesis until all three are done.
+
+`intake/investigate/_research.md` holds the charters, the effort tier and the return shapes of the three sub-agents.
 
 # Step 3 — Synthesize and write `01-investigate.md`
 
-Merge findings from the three sub-agents. **Do not invent options the agents did not surface; do not silently drop options that survived the agents' filtering.** If sub-agent 2 returned only one option and `options_considered_and_rejected` shows nothing was rejected, that's a tripwire — surface it.
+Merge the findings of the three sub-agents. Do not invent an option that the agents did not surface. Do not silently drop an option that survived the filtering of the agents. When sub-agent 2 returned only one option and `options_considered_and_rejected` shows that nothing was rejected, that is a tripwire: surface it.
 
-**Constraint cross-check:** before writing, verify every surviving option against sub-agent 1's `architectural_constraints` and `integration_boundaries` — start from sub-agent 3's `constraint_collisions` and add any collision it missed. A collision does not drop the option: set or extend that option's `requires_architecture_violation` and add the collision to its top risks, with the `file:line` evidence from the map. If every option collides, that is the `architecture-blocking` tripwire. Extend the same check to the **user's stated constraints** from Step 1 question 3: start from sub-agent 3's `honors_stated_constraints`, correct it where the map contradicts it, and add any violation to that option's top risks — a violating option loses ties in the presentation-cap selection but is not dropped (the user may relax a constraint once they see the price of keeping it).
+**Constraint cross-check.** Before you write, check every surviving option against the `architectural_constraints` and `integration_boundaries` of sub-agent 1.
+- Start from the `constraint_collisions` of sub-agent 3, and add each collision it missed.
+- A collision does not drop the option. Set or extend the `requires_architecture_violation` of that option, and add the collision to its top risks, with the `file:line` evidence of the map.
+- When every option collides, that is the `architecture-blocking` tripwire.
+- Extend the same check to the **constraints that the person stated** in question 3 of Step 1. Start from the `honors_stated_constraints` of sub-agent 3, correct it where the map contradicts it, and add each violation to the top risks of that option. A violating option loses ties in the selection for the presentation cap, but it is not dropped: the person may relax a constraint after seeing the price of keeping it.
 
-**Select for presentation (cap = 3 full cards):** if more than 3 viable options survived, pick the 3 that maximize spread across mechanism, effort, and risk profile (preferring options that honor the user's constraints) for full option sections. Demote the surplus to compressed entries under "Demoted by presentation cap" in the rejected section — `<label> — <mechanism, one phrase> — effort:<X> — <why it lost the differentiation cut>` — taking the effort value from sub-agent 3's cards. Demotion by cap is NOT rejection on merit: fire the `option-space-truncated` tripwire so the reader knows the option space was wider than the full cards.
+**Select for presentation (cap = 3 full cards).** When more than 3 viable options survived, give full option sections to the 3 that spread most across mechanism, effort and risk profile, preferring options that honor the constraints of the person. Demote the surplus to compressed entries under "Demoted by presentation cap" in the rejected section: `<label> — <mechanism, one phrase> — effort:<X> — <why it lost the differentiation cut>`, with the effort value from the cards of sub-agent 3. A demotion by the cap is not a rejection on merit: fire the `option-space-truncated` tripwire, so the reader knows that the option space was wider than the full cards.
 
 **`01-investigate.md` frontmatter:**
 ```yaml
@@ -141,20 +146,18 @@ augmentations: []
 
 `option-labels` lists the full-card options only. `demoted-labels` lists the labels that the presentation cap demoted. It is empty when the cap demoted none.
 
-Body: one-line description of the problem + pointer to `01-investigate.md` and the option labels.
+Body: a one-line description of the problem, and a pointer to `01-investigate.md` and the option labels.
 
-The workflow stays open until the user picks. The pick (`# Pick — decision closure` below, or the
-implicit pick in `_intake-provenance-consume.md`) later flips this index to `closed` with
-`chosen-option` provenance and `superseded-by` pointing at the successor workflow.
+The workflow stays open until the person picks. The pick (`# Pick — decision closure` below, or the implicit pick in `_intake-provenance-consume.md`) later sets this index to `closed`, with the `chosen-option` provenance and `superseded-by` pointing at the successor workflow.
 
 # Step 5 — Hand off to user
 
 Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then the structured anchors below.
 
-Emit a compact chat summary:
+Write a compact chat summary:
 
 ```
-wf-investigate complete: <slug>
+wf intake investigate complete: <slug>
 Problem: <one-line problem>
 Options found: <N> (<presented-count> full cards)
   A — <label> — effort:<X> radius:<Y> reversibility:<Z>
@@ -168,21 +171,19 @@ Next: pick an option — record it via /wf intake investigate <slug> <option> [r
 Artifact: <wf-dir>/01-investigate.md
 ```
 
-If `single-viable-option` tripped, prefix with:
+When `single-viable-option` tripped, put this first:
 
 > ⓘ Only one viable option found. There isn't really a choice here — the next step is to execute the single option.
 
-If `architecture-blocking` tripped, prefix with:
+When `architecture-blocking` tripped, put this first:
 
 > ⚠ All sketched options require an architecture violation. The right next step is probably a design pass, not picking from these options. See artifact for details.
 
 # Pick — decision closure
 
-Runs only from Step 0 pick mode (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`). Follow "Closure" of [_light-index.md](_light-index.md) with the `investigate` row. Step 4 prints the invocation of the effort routing in `## Routing` of the artifact: `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or `/wf intake "<label> — <one-line mechanism>" from <slug>` (medium+).
+This runs only from the pick mode of Step 0 (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`). Follow "Closure" of [_light-index.md](_light-index.md) with the `investigate` row. Step 4 prints the invocation of the effort routing in `## Routing` of the artifact: `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or `/wf intake "<label> — <one-line mechanism>" from <slug>` (medium or more).
 
-A `discover` compressed slice landing on this slug (the `## Routing` escalation ladder) is NOT a pick
-and re-opens nothing: it is drill-down on a still-open decision, and its answer stays in the
-slice — no option-card write-back.
+A `discover` compressed slice that lands on this slug (the escalation ladder of `## Routing`) is not a pick, and it reopens nothing. It drills down on a decision that is still open. Its answer stays in the slice, with no write-back to the option card.
 
 # What this command is NOT
 

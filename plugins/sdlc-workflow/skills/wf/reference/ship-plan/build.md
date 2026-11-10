@@ -25,7 +25,7 @@ You are running `wf project ship-plan build`. Your job: read the ship plan as th
 # Step 0 — Orient
 
 1. Parse `$ARGUMENTS` for `--dry-run`. If present, run all audit steps and generate the full gap report but write nothing. Label every planned change `[DRY RUN — not written]`.
-2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf project ship-plan init` first."* Parse all blocks A–K into in-memory state. A plan written before an inbound block was added does not have its key, and its audits skip (see the block table in [build/_audits.md](build/_audits.md)).
+2. **Read `.ai/ship-plan.md`.** Stop if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf project ship-plan init` first."* Parse all blocks A–K into in-memory state. A plan written before an inbound block was added does not have its key, and its audits skip (see the block table in [build/_audits.md](build/_audits.md)).
 3. **Detect the language/runtime ecosystem** from the plan's `version-source-of-truth[]` paths and `publish-cmd` content:
 
    | Signal | Ecosystem |
@@ -111,8 +111,8 @@ Write `.ai/pipeline-compliance.md` with the frontmatter and body in [build/_arti
 
 Build's outputs are release-critical code that no lifecycle stage has reviewed. Left silently uncommitted, they sit in the working tree until `/wf ship`'s clean-tree gate forces a commit-or-drop decision at the worst moment. Never end a build that wrote files without an explicit routing decision. Ask (as a gate question per [_gate-question.md](../_gate-question.md); skip when nothing was written or `--dry-run`):
 
-- **Route to a review slice (Recommended when release/deploy workflows were touched)** — print the seed `/wf intake <slug> fix review ship-plan build outputs (plan v<N>): <file list>` and STOP after Step 19. The slice's verify/review then treat the build diff like any other code before it can ship. Record `routing: sliced`.
-- **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>`. Recommend `/wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this command makes — the "does NOT push/open PRs/release" boundary is unchanged.
+- **Route to a review slice (Recommended when release/deploy workflows were touched)** — print the seed `/wf intake <slug> fix review ship-plan build outputs (plan v<N>): <file list>` and stop after Step 19. The slice's verify/review then treat the build diff like any other code before it can ship. Record `routing: sliced`.
+- **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>`. Recommend `/wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this command makes — the "does not push/open PRs/release" boundary is unchanged.
 - **Leave uncommitted** — allowed, but recorded: `routing: left-uncommitted` + `uncommitted-outputs: [paths]` in the compliance artifact. `/wf ship`'s Step 1.1 classification refuses to silently sweep these (it routes them to review or an explicit recorded acceptance).
 
 ---

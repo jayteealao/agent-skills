@@ -165,6 +165,28 @@ test('a board with budgets, briefs, first-version items, and top risks validates
 // batch. The person said: "I haven't learnt anything, the agent hasn't spoken to
 // me, and I don't know what we did."
 
+// The end of a brainstorm is light: the loop scopes as it goes, and done confirms one digest
+// and the work packets. The loop does not load done.
+const REF = path.join(pluginRoot, 'skills', 'wf', 'reference', 'intake');
+const ref = (rel) => readFileSync(path.join(REF, rel), 'utf8');
+
+test('done lives in its own file, loaded only on done, and confirms a digest and the work packets', () => {
+  const loop = ref('brainstorm.md');
+  assert.match(loop, /^\| `intake\/brainstorm\/_done\.md` \| procedure \| mode:done \| \|$/m);
+  assert.doesNotMatch(loop, /^## 3\.\d/m, 'the steps of done are not in the loop');
+  assert.match(loop, /\*\*Scope as you go\.\*\*/);
+  assert.match(loop, /\*\*A proposal is not a recommendation\.\*\*/);
+  assert.match(loop, /board digest "<root>" <slug>/);
+  const done = ref('brainstorm/_done.md');
+  for (const h of ['## 1. Prepare', '## 2. The scope digest', '**More than one question.**', '## 3. Record the scope', '## 4. Propose the work packets, one question', '## 5. Record the work', '## A second `done`', '## Stopping in the middle']) {
+    assert.ok(done.includes(h), h);
+  }
+  assert.match(done, /"areas": "open"/);
+  for (const f of ['brainstorm/_work.md', 'brainstorm/_design.md', 'brainstorm/_cohere.md', 'brainstorm/_page.md', 'brainstorm/_artifact.md']) {
+    assert.doesNotMatch(ref(f), /\b3\.[1-4]\b/, `${f} names a step of the old done`);
+  }
+});
+
 test('a board with stories and talk entries validates', () => {
   const board = jsonBoard();
   board.stories = [{ session: 1, text: 'We set out to see what a project costs, and learned that the ledger already records every run.' }];

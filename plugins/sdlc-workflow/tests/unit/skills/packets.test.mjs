@@ -318,6 +318,10 @@ test('a write never rewrites a started packet; its new text goes to history/ onc
     ok(!existsSync(join(dir, 'history', 'work-engine-modules.r3.md')), 'no copy that differs only in revision and time');
     match(startedPacketRewriteError(open, open.replace('one module contract', 'two module contracts')), /a started packet is never rewritten/);
     equal(startedPacketRewriteError(open, open.replace('state: open', 'state: built')), null, 'the walk may move the state');
+    const skipped = open.replace('state: open', 'state: open\nskipped: {reason: later, by: person}\nahead-of: [a]\ndone-at: 2026-10-21T12:00:00Z');
+    equal(startedPacketRewriteError(open, skipped), null, 'the walk may write a skip, an ahead answer and done-at');
+    writeFileSync(packetPath, skipped);
+    ok(writeList(dir, { now: new Date('2026-10-22T12:00:00Z') }).unchanged, 'the walk fields make no history copy');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

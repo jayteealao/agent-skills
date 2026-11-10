@@ -1,7 +1,7 @@
 // Where a workflow stands, as data: the list of workflows, the status of one workflow, and the
 // brief block of `status --brief`. The CLI (scripts/wf.mjs) prints these; the library
 // (lib/wf-api.mjs) returns them from `wf.status.summary()`.
-import { aggregateCost, readCostRows } from './cost-ledger.mjs';
+import { aggregateCost, readCostRows, rebookedEntries } from './cost-ledger.mjs';
 import { openDeferrals } from './deferrals.mjs';
 import { driveClass } from './drive-class.mjs';
 import { progressOf, readDriverOutcome } from './progress.mjs';
@@ -53,9 +53,23 @@ function summaryOf(w, now) {
   };
 }
 
+/**
+ * The cost of a workflow: the sum of its cost rows, or null when it has none. Rows of the old
+ * hook book the same sub-agent usage again in every row; their sum is false, so a workflow with
+ * such rows has no total, only a note that names the repair (the same detector as the cost
+ * basis of the campaign plan).
+ */
 export function costSummary(dir) {
   const rows = readCostRows(dir);
-  return rows.length ? aggregateCost(rows) : null;
+  if (!rows.length) return null;
+  const rebooked = rebookedEntries(rows);
+  if (rebooked) {
+    return {
+      total: null, byKey: null, rebooked,
+      note: `No cost total: ${rebooked} sub-agent entries of the cost rows book again a usage that an earlier row booked. The rows must be repaired: scripts/cost-rebuild.mjs rebuilds them from the transcripts.`,
+    };
+  }
+  return aggregateCost(rows);
 }
 
 export async function statusOf(root, slug = null, now = Date.now()) {

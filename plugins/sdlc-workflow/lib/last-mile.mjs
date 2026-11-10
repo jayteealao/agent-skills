@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { linkedProject } from './records-root.mjs';
+import { personFix } from './fix.mjs';
 
 export const MERGE_METHODS = Object.freeze(['merge', 'rebase', 'squash']);
 export const SHIP_PLAN = join('.ai', 'ship-plan.md');
@@ -65,7 +66,7 @@ export function baseCheck(root, base, { remote = 'origin', run = defaultRun, fas
   if (!ok(counts)) return { base, state: 'no-remote-base', stop: false, reason: counts.stderr };
   const [ahead, behind] = counts.stdout.split(/\s+/).map(Number);
   if (ahead && behind) {
-    return { base, state: 'diverged', ahead, behind, stop: true, reason: `${base} has ${ahead} commit(s) that ${remote}/${base} lacks, and lacks ${behind} of its commits. Reconcile it by hand before a branch is cut from it.` };
+    return { base, state: 'diverged', ahead, behind, stop: true, reason: `${base} has ${ahead} commit(s) that ${remote}/${base} lacks, and lacks ${behind} of its commits. Reconcile it by hand before a branch is cut from it.`, fix: personFix(`${base} and ${remote}/${base} have diverged: the person reconciles ${base} by hand (look at the commits on both sides first), then the command runs again.`) };
   }
   if (ahead) return { base, state: 'ahead', ahead, behind: 0, stop: false, reason: `${base} has ${ahead} commit(s) that are not pushed; a branch cut from it carries them.` };
   if (!behind) return { base, state: 'even', ahead: 0, behind: 0, stop: false };
@@ -74,7 +75,7 @@ export function baseCheck(root, base, { remote = 'origin', run = defaultRun, fas
   const ff = current === base
     ? git(run, root, ['merge', '--ff-only', '--quiet', `${remote}/${base}`])
     : git(run, root, ['fetch', '--quiet', '.', `${remote}/${base}:${base}`]);
-  if (!ok(ff)) return { base, state: 'behind', ahead: 0, behind, stop: true, fastForwarded: false, reason: `the fast-forward of ${base} failed: ${ff.stderr}` };
+  if (!ok(ff)) return { base, state: 'behind', ahead: 0, behind, stop: true, fastForwarded: false, reason: `the fast-forward of ${base} failed: ${ff.stderr}`, fix: personFix(`git cannot fast-forward ${base} to ${remote}/${base}: the person reads what git says and settles it in the checkout without a force, then the command runs again.`) };
   return { base, state: 'behind', ahead: 0, behind, stop: false, fastForwarded: true };
 }
 
@@ -91,7 +92,7 @@ const json = (r) => { try { return ok(r) && r.stdout ? JSON.parse(r.stdout) : nu
  */
 export function shipFacts(root, base, { run = defaultRun, plan = readShipPlan(root) } = {}) {
   const repo = json(run('gh', ['repo', 'view', '--json', 'nameWithOwner,defaultBranchRef,mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed,deleteBranchOnMerge'], { cwd: root }));
-  if (!repo) return { ok: false, reason: 'gh repo view failed: gh is missing, not logged in, or the repo has no GitHub remote' };
+  if (!repo) return { ok: false, reason: 'gh repo view failed: gh is missing, not logged in, or the repo has no GitHub remote', fix: personFix('gh cannot read the repo: the person installs gh or signs in (gh auth login), or adds the GitHub remote, then the command runs again.') };
   const branch = base || repo.defaultBranchRef?.name || 'main';
   let allowed = MERGE_METHODS.filter((m) => repo[`${m === 'merge' ? 'mergeCommit' : `${m}Merge`}Allowed`]);
   const rules = json(run('gh', ['api', `repos/${repo.nameWithOwner}/rules/branches/${branch}`], { cwd: root })) ?? [];
@@ -189,10 +190,10 @@ export function readyGaps(root, { run = defaultRun, base = null, allowNoPlan = f
  * A refused local delete keeps the remote branch too.
  */
 export function finishShip(root, { branch, base, pr = null, remote = 'origin', run = defaultRun, deleteRemote = true, keepBranch = false } = {}) {
-  if (!branch || !base || branch === base) return { ok: false, reason: 'finish needs a branch other than the base' };
+  if (!branch || !base || branch === base) return { ok: false, reason: 'finish needs a branch other than the base', fix: personFix('The checkout is on the base branch: finish runs for the branch of a merged PR. The person names the branch, or ships from it first.') };
   const state = pr ? json(run('gh', ['pr', 'view', String(pr), '--json', 'state,headRefName,headRefOid'], { cwd: root })) : null;
-  if (pr && state?.state !== 'MERGED') return { ok: false, reason: `PR ${pr} is ${state?.state ?? 'not readable'}, not merged` };
-  if (pr && state.headRefName && state.headRefName !== branch) return { ok: false, reason: `PR ${pr} is for ${state.headRefName}, not ${branch}` };
+  if (pr && state?.state !== 'MERGED') return { ok: false, reason: `PR ${pr} is ${state?.state ?? 'not readable'}, not merged`, fix: personFix(`PR ${pr} is not merged: the person merges it on GitHub (or checks that gh is signed in when it is not readable), then finish runs again.`) };
+  if (pr && state.headRefName && state.headRefName !== branch) return { ok: false, reason: `PR ${pr} is for ${state.headRefName}, not ${branch}`, fix: personFix(`PR ${pr} is the PR of ${state.headRefName}: the person names the PR of ${branch}, then finish runs again.`) };
   const steps = [];
   const fetch = git(run, root, ['fetch', '--quiet', '--prune', remote]);
   steps.push(['fetch', ok(fetch)]);
@@ -204,22 +205,22 @@ export function finishShip(root, { branch, base, pr = null, remote = 'origin', r
     // A commit made here after the last push is in no PR head: deleting the branch would lose it.
     const head = state.headRefOid || sha(`refs/remotes/${remote}/${branch}`);
     if (tip && !within(tip, remoteBase) && !(head && (tip === head || within(tip, head)))) {
-      return { ok: false, steps, reason: `${branch} holds commits that PR ${pr} did not merge (local ${tip.slice(0, 8)}, PR head ${head ? head.slice(0, 8) : 'unknown'}). Push them and merge them, or move them to another branch first` };
+      return { ok: false, steps, reason: `${branch} holds commits that PR ${pr} did not merge (local ${tip.slice(0, 8)}, PR head ${head ? head.slice(0, 8) : 'unknown'}). Push them and merge them, or move them to another branch first`, fix: personFix(`${branch} has commits that no merge holds: the person pushes and merges them, or moves them to another branch, then finish runs again. Nothing was deleted.`) };
     }
   } else {
     const ref = tip ?? sha(`refs/remotes/${remote}/${branch}`);
-    if (!ref || !within(ref, remoteBase)) return { ok: false, steps, reason: `${branch} is not merged into ${remoteBase}, and no PR number proves a merge` };
+    if (!ref || !within(ref, remoteBase)) return { ok: false, steps, reason: `${branch} is not merged into ${remoteBase}, and no PR number proves a merge`, fix: personFix(`${branch} is not merged into ${remoteBase}: the person merges it, or gives the number of the PR that merged it, then finish runs again.`) };
   }
   const sw = git(run, root, ['switch', base]);
-  if (!ok(sw)) return { ok: false, steps, reason: `git switch ${base} failed: ${sw.stderr}` };
+  if (!ok(sw)) return { ok: false, steps, reason: `git switch ${base} failed: ${sw.stderr}`, fix: personFix(`The checkout cannot move to ${base}: the person reads what git says and settles it without a stash or a force, then finish runs again.`) };
   const ff = git(run, root, ['merge', '--ff-only', '--quiet', `${remote}/${base}`]);
-  if (!ok(ff)) return { ok: false, steps, reason: `${base} does not fast-forward to ${remote}/${base}: ${ff.stderr}. Reconcile it by hand.` };
+  if (!ok(ff)) return { ok: false, steps, reason: `${base} does not fast-forward to ${remote}/${base}: ${ff.stderr}. Reconcile it by hand.`, fix: personFix(`${base} does not fast-forward to ${remote}/${base}: the person reconciles it by hand, then finish runs again.`) };
   steps.push(['fast-forward', true]);
   if (keepBranch) return { ok: true, steps, base, branch, kept: true };
   // A squash or rebase merge leaves the branch unmerged in git's eyes: the merged PR is the proof.
   const del = tip ? git(run, root, ['branch', pr ? '-D' : '-d', branch]) : null;
   steps.push(['delete-local', Boolean(del && ok(del))]);
-  if (del && !ok(del)) return { ok: false, steps, reason: `git branch -d ${branch} refused: ${del.stderr}. The branch stays here and on ${remote}` };
+  if (del && !ok(del)) return { ok: false, steps, reason: `git branch -d ${branch} refused: ${del.stderr}. The branch stays here and on ${remote}`, fix: personFix(`git kept ${branch}: the person checks why git refused the delete before deleting it by hand.`) };
   if (deleteRemote) {
     const still = git(run, root, ['ls-remote', '--exit-code', '--heads', remote, branch]);
     if (ok(still)) steps.push(['delete-remote', ok(git(run, root, ['push', remote, '--delete', branch]))]);

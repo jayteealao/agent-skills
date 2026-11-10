@@ -8,7 +8,7 @@ Run the page agent at these moments, and at no other:
 
 - after a check-in (2.5);
 - at `pause`;
-- after the record step of `done` (3.4).
+- after the record step of `done` ([_done.md](_done.md), step 5).
 
 ## Run the page agent
 

@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.mjs';
 import { withFileLock } from './file-lock.mjs';
+import { agentFix } from './fix.mjs';
 
 export const SUITES = ['fast', 'affected', 'full', 'heavy'];
 export const SLICE_SUITES = ['fast', 'affected'];
@@ -75,7 +76,7 @@ export const setSuiteFix = (suite) => `wf.mjs profile set <root> ${suite} --comm
 
 /** The refusal for a suite that has no command; its `fix` names the command that sets one. */
 export function noCommand(suite, prefix = '') {
-  return Object.assign(new Error(`${prefix}the test profile has no command for the ${suite} suite`), { fix: setSuiteFix(suite) });
+  return Object.assign(new Error(`${prefix}the test profile has no command for the ${suite} suite`), { fix: agentFix(`Set the command of the ${suite} suite in the test profile (the test command of the project, with its time in seconds), then run the first command again.`, setSuiteFix(suite)) });
 }
 
 // Change one suite of the profile and write the config back. Returns the suite entry.

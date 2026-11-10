@@ -17,8 +17,8 @@ The dispatch prints one records line, or none when the records are in order. In 
 
 | Line | Action |
 |---|---|
-| `records: ask "<question>" yes=<command> no=<command>` | Ask the question once, per [_gate-question.md](_gate-question.md), with Yes first. Run the command of the answer. When the command exits 0, run the key. When it exits 1, tell the person its output in one line. STOP. |
-| `records: stop <reason>` | Do not run the key, and stop a stage that runs. Tell the person the reason in one line. STOP. |
+| `records: ask "<question>" yes=<command> no=<command>` | Ask the question once, per [_gate-question.md](_gate-question.md), with Yes first. Run the command of the answer. When the command exits 0, run the key. When it exits 1, tell the person its output in one line. Stop. |
+| `records: stop <reason>` | Do not run the key, and stop a stage that runs. Tell the person the reason in one line. Stop. |
 
 The script writes each question and its commands:
 - A push of the records, a records commit, or a send of the GitHub layer failed, or GitHub edits wait for more than one day. Yes retries in the background, and the next `/wf` call shows the result. No asks again only about a newer failure.

@@ -69,13 +69,13 @@ Resolve the first token by an exact existence check. Never fuzzy-match: a wrong 
    - `audit` or `critique` → **review**;
    - `extract` → **upkeep** (the report attaches to the slug);
    - `explore` → **explore**, linked to the slug;
-   - anything else → STOP and render the usage below.
+   - anything else → Stop and render the usage below.
 2. **Else**, `token0` is the command:
    - `explore` → **explore**; when `token1` is a slug (`record get` exits 0), the run links to it;
    - `setup`, `teach`, `extract`, `direction`, `sync` → **upkeep**;
    - `audit`, `critique` → **review**, freestanding against the target code;
    - one of the 15 moves → **new workflow**;
-   - anything else, or no token → STOP and render the usage below.
+   - anything else, or no token → Stop and render the usage below.
 
 The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`. Each move's reference is `design/<move>.md`. Step 1 names the reference of every other job.
 

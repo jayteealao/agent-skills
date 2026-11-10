@@ -1,14 +1,14 @@
 # Work packets and write-now work packets (brainstorm `done`)
 
 `done` ends in one list. Each agreed work packet is one of two things:
-- a **work packet**: the file `work/<packet-slug>.md` (`type: packet`) for a work packet that opens or extends a workflow slug. The list is `work/index.md` (`type: list`). The campaign walk builds the work packets in list order, one at a time, on the list branch `packets/<slug>` (`/wf campaign <slug>`).
+- a **work packet**: the file `work/<packet-slug>.md` (`type: packet`) for a work packet that opens or extends a workflow slug. The list is `work/index.md` (`type: list`). The campaign walk builds the work packets in list order, one at a time, on the list branch `packets/<slug>` (`/wf campaign <slug>`). A work packet runs ahead of an earlier one only when the person skips the earlier one and names the later one.
 - a **write-now work packet**: a work packet that changes only documents. The brainstorm writes it in this session, after the person confirms the list. It gets no work packet file and no workflow.
 
 The board's `work` list stays the single truth. A script writes the work packet files from the board, so a kept decision reaches its work packet word for word. Do not write a work packet file by hand, and do not edit a work packet file to change its content: change the board, then write again.
 
-## What 3.3 agrees for each work packet
+## What the split agrees for each work packet
 
-Agree these with the person, in plain words, and give your view with its reason. Record them on the work packet's `work` entry ([_artifact.md](_artifact.md)).
+Propose these yourself in the split of `done` ([_done.md](_done.md), step 4), in plain words, with your reason. The person confirms the split. Record them on the work packet's `work` entry ([_artifact.md](_artifact.md)).
 
 | Field | What to agree |
 |---|---|
@@ -26,7 +26,7 @@ Propose the order and each `why-here` note yourself, with the reason. Put first 
 
 ### The write-up of a build work packet
 
-The brainstorm writes each build work packet (form `intake`, `fix`, `hotfix`, `extension`) in full at `done`. No intake and no shape run for a work packet: `campaign.mjs open` writes its `01-intake.md` and `02-shape.md` from these fields, word for word. Write them yourself from the board, and show them in the confirmation of 3.4.
+The brainstorm writes each build work packet (form `intake`, `fix`, `hotfix`, `extension`) in full at `done`. No intake and no shape run for a work packet: `campaign.mjs open` writes its `01-intake.md` and `02-shape.md` from these fields, word for word. Write them yourself from the board, and show them in the work packet question of [_done.md](_done.md), step 4.
 
 | Field | What to write |
 |---|---|
@@ -40,7 +40,7 @@ The brainstorm writes each build work packet (form `intake`, `fix`, `hotfix`, `e
 | `try-out` | `yes` when `ux-impact` is not `none`, or when the work packet adds a user-facing command. Otherwise `no`. The person confirms it. A work packet with `try-out: yes` gets a try-out pause in the walk. |
 | `estimated-slices` | Your estimate of the capability slices of the work packet (Size, below). |
 
-**Open items.** The person settles each open item of a kept area in the scope walk ([../brainstorm.md](../brainstorm.md) 3.2 step 6). An item left to the build travels in the work packet file as `left-to-build`. `campaign.mjs open` puts each `ask` item into `open-questions` of the work packet's index, and the walk asks it before the slice. It puts each `decide` item into the decision store of the work packet as a steer, and into the `## Unknowns / Open Questions` of its shape.
+**Open items.** The person settles each open item when its area closes ([../brainstorm.md](../brainstorm.md), 2.8, Open items), or in the digest at `done` ([_done.md](_done.md)). An item left to the build travels in the work packet file as `left-to-build`. `campaign.mjs open` puts each `ask` item into `open-questions` of the work packet's index, and the walk asks it before the slice. It puts each `decide` item into the decision store of the work packet as a steer, and into the `## Unknowns / Open Questions` of its shape.
 
 **The stack.** Detect the stack once for the list: run the probes in `intake/default/_stack-fingerprint.md`. Ask the person to confirm or correct it. Write it to the board's top-level `stack` with `user-confirmed: true`. The `write` command copies it into `work/index.md`, and `open` copies it into each work packet.
 
@@ -90,7 +90,7 @@ The person decides.
 
 ### Run a write-now work packet
 
-Run each write-now work packet after the board write in 3.4, before the work packet files are written. Run the work packets in list order.
+Run each write-now work packet after the board write of [_done.md](_done.md) step 5, before the work packet files are written. Run the work packets in list order.
 1. Copy each document that the work packet changes to `history/`, with the session number in the name: `history/<name>.s<session>.<ext>`.
 2. Write the changes. Each changed section names the item keys that it carries, in an HTML comment: `<!-- brainstorm: <slug>#<item-key>, ... -->`.
 3. Read back each changed section. Every carried decision key of the work packet must appear in the changed text. A missing key is a failed check.
@@ -99,9 +99,9 @@ Run each write-now work packet after the board write in 3.4, before the work pac
 
 The `write` command (below) adds the entry to `work/changes.md` that lists the changed documents. A write-now work packet earlier in the list is done when its `state` is `written`.
 
-## Check and write the list (3.4)
+## Check and write the list
 
-Run the commands from the project root. `<skill-dir>` resolves per [_host-invocation.md](../../_host-invocation.md).
+Run these steps in [_done.md](_done.md) step 5. Run the commands from the project root. `<skill-dir>` resolves per [_host-invocation.md](../../_host-invocation.md).
 
 1. After the board write, check the list:
    ```
@@ -111,7 +111,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    - a work packet with no `order`, or a list with a gap or a repeat: the orders are 1 to n, each used once;
    - a work packet after order 1 with no `why-here` note;
    - a kept decision that lands in no work packet, or in two work packets;
-   - an open question, an open tension or a named assumption that touches a build work packet and that the person did not settle (3.2 step 6): it touches the work packet when it is in the items, on a thread, or (a tension) names a carried decision;
+   - an open question, an open tension or a named assumption that touches a build work packet and that the person did not settle ([../brainstorm.md](../brainstorm.md), 2.8, Open items): it touches the work packet when it is in the items, on a thread, or (a tension) names a carried decision;
    - an item with `left-to-build` that is not in the items of exactly one build work packet;
    - a work packet with no `slug`, two work packets with one slug, or an `extension`, `fix` or `hotfix` work packet with no `target-slug`;
    - a build work packet with no `goal`, no `acceptance-criteria`, or a `ux-impact` that the person did not confirm;
@@ -145,7 +145,7 @@ Never print a write-now work packet as a `/wf intake task` command.
 ## Reopening a list
 
 A person can resume a brainstorm at any time, also while the walk runs.
-- **The brainstorm owns the board and the work packet files.** The walk writes only the `state` of a work packet file, through `campaign.mjs`.
+- **The brainstorm owns the board and the work packet files.** The walk writes only its own fields of a work packet file, through `campaign.mjs`: `state`, `done-at`, `skipped` and `ahead-of`.
 - **Each change has a revision.** Each `write` that changes the list adds 1 to `list-revision` and appends one entry to `work/changes.md`.
 - **A started work packet is never rewritten.** A work packet whose `state` is `open`, `built`, `done` or `dropped` keeps its text. The `write` command keeps it, and puts the regenerated text in `history/` beside it. A new decision about its slug becomes a new work packet:
   - `extension` when it adds scope to the slug;
@@ -168,7 +168,7 @@ A person can resume a brainstorm at any time, also while the walk runs.
 4. Run the check, then run the `write` command, then `node "<skill-dir>/scripts/wf.mjs" board render "<root>" <brainstorm-slug>`.
 5. Return `/wf campaign <brainstorm-slug>` as `Next`.
 
-A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the work packet files. No other session writes them, except the regroup of a migration (below) and the `state` field. The walk sets `state` through `campaign.mjs`. The mode of a routed work packet sets `state: open` ([../_intake-provenance-consume.md](../_intake-provenance-consume.md), Link back).
+A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the work packet files. No other session writes them, except the regroup of a migration (below) and the fields of the walk. The walk sets `state`, `done-at`, `skipped` and `ahead-of` through `campaign.mjs`. The mode of a routed work packet sets `state: open` ([../_intake-provenance-consume.md](../_intake-provenance-consume.md), Link back).
 
 ## Regroup (the migration of an old campaign)
 
@@ -177,8 +177,8 @@ The first `/wf campaign <slug>` on a board with an old campaign ledger migrates 
 2. Take the units that are not started, in their old order. Propose work packets from them under the Size rules. Every kept decision goes into exactly one work packet. Do not confirm the decisions again. When you merge work packets, count their decisions after step 1, not before.
 3. A unit with intake and shape already written (`01-intake.md` and `02-shape.md`) can stay one work packet. Keep its slug as the work packet slug. `open` then keeps its folder, and the walk does not slice it again when it has `03-slice.md`.
 4. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `<wf-dir>/../<packet-slug>/` before the walk opens the work packet: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <unit-slug> 02c-craft.md` to the draft `<wf-dir>/../<packet-slug>/.draft/02c-craft.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <packet-slug>` (per [_records.md](../../_records.md)), and move the `design/` folder. The design stage of the work packet then starts from them.
-5. Write the write-up of each new build work packet, and confirm the stack, as at `done`. Settle with the person each open item that touches a new build work packet ([../brainstorm.md](../brainstorm.md) 3.2 step 6).
-6. Confirm the whole list with the person as in 3.4: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
+5. Write the write-up of each new build work packet, and confirm the stack, as at `done`. Settle with the person each open item that touches a new build work packet, as an area close does ([../brainstorm.md](../brainstorm.md), 2.8, Open items).
+6. Confirm the whole list with the person as in [_done.md](_done.md), step 4: the `done` work packets, the in-flight work packets first, then the new work packets. The person can merge, split, reorder or drop work packets. Follow the regroup rules of `campaign/_migrate.md` step 7: settle each wait, confirm in batches, split or keep, give the size.
 7. Run the check and the `write` command, then `board render` to bring the document up to date.
 
 ## An older board

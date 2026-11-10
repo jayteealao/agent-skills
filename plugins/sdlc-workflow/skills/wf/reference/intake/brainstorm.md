@@ -37,6 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/brainstorm/_talk.md` | procedure | always | |
 | `intake/brainstorm/_page.md` | procedure | always | |
 | `intake/brainstorm/_design.md` | procedure | mode:design | |
+| `intake/brainstorm/_done.md` | procedure | mode:done | |
 | `intake/brainstorm/_work.md` | procedure | mode:done | |
 | the source's `01-ideate.md` | artifact | mode:from | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -54,7 +55,7 @@ When the person asks for options, give them in the conversation. A thread that n
 # Invariants
 These rules protect the person. They have no exceptions.
 - **Only the person ends the loop.** Never decide that the thinking is complete.
-- **Plain words.** The person reads every question, option, header, and chat line. Write no board key, no internal number, and no mode mechanics in that text: no batch number, no turn count, no "check-in", no item count. Name every thread, decision, finding, and tension in words, for example "the finding that real players move pass completion by only about 3.6 points".
+- **Plain words.** The person reads every question, option, header, and chat line. Write no board key, no internal number, and no mode mechanics in that text: no batch number, no turn count, no "check-in", no item count. The one count the person reads is the settled line of the scope digest at `done` ([brainstorm/_done.md](brainstorm/_done.md), step 2). Name every thread, decision, finding, and tension in words, for example "the finding that real players move pass completion by only about 3.6 points".
 - **No commitments and no code.** See Your role.
 - **Nothing becomes work until the person confirms it** (Step 3).
 - **The board is the memory.** Change the board with the board commands after every batch, so a lost session loses at most one batch. The person's document follows the board in the same call.
@@ -103,7 +104,7 @@ An item has one of six kinds: a **decision**, which the person chose; an **idea*
 4. **Announce the plan** in chat: the topic, the slug, the map in plain words, the control words (2.3), and how to leave (`done`). The first batch asks where to start.
 
 # Step 1 — Open the board
-Write the draft of `00-index.md` (from [_light-index.md](_light-index.md), the `brainstorm` row), and the file `brainstorm-board.json` per [brainstorm/_artifact.md](brainstorm/_artifact.md), with the Step 0 map, one `live` thread named from the topic, and any Step 0 findings. Write no draft of `01-brainstorm.md`. A board seeded from an idea also gets, on that thread: each `evidence:` anchor of the idea as a `finding` with `source: code` and the anchor as its `evidence`; each `notes:` entry of the idea's discussion as a `decision` with `source: person`, in the person's words; and the idea's description as an `idea`. Re-verify each anchor with one bounded read before the first batch; a stale anchor becomes a `question`. Put the index draft with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Then run `node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>`: it writes `01-brainstorm.md` from the board. A board seeded from an idea then adds `from` to the document's `modes` (`record set "<root>" <slug> 01-brainstorm.md "modes+=from"`). Timestamps follow [_timestamp.md](../_timestamp.md).
+Write the draft of `00-index.md` (from [_light-index.md](_light-index.md), the `brainstorm` row), and the file `brainstorm-board.json` per [brainstorm/_artifact.md](brainstorm/_artifact.md), with the Step 0 map, one `live` thread named from the topic, and any Step 0 findings. Write no draft of `01-brainstorm.md`. A board seeded from an idea also gets, on that thread: each `evidence:` anchor of the idea as a `finding` with `source: code` and the anchor as its `evidence`; each `notes:` entry of the idea's discussion as a `decision` with `source: person` and `scope: keep`, in the person's words; and the idea's description as an `idea`. Re-verify each anchor with one bounded read before the first batch; a stale anchor becomes a `question`. Put the index draft with `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Then run `node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>`: it writes `01-brainstorm.md` from the board. A board seeded from an idea then adds `from` to the document's `modes` (`record set "<root>" <slug> 01-brainstorm.md "modes+=from"`). Timestamps follow [_timestamp.md](../_timestamp.md).
 
 # Step 2 — The loop
 > **WARNING: you never end this loop.** Only the person's `done` reaches Step 3. A board where every thread has material is not a reason to stop. When you believe the thinking is complete, check in (2.5) and continue. A distillation the person did not ask for takes the person's decision and ends the session the person wanted.
@@ -122,6 +123,8 @@ Deliver the batch through rung 1 of [_gate-question.md](../_gate-question.md), u
 
 ## 2.2 Read the answers
 A free-text answer whose first token is a control word is a command (2.3), not an answer. A reply that carries a brief, pasted or as a file path, runs [brainstorm/_brief.md](brainstorm/_brief.md); the brief is copied into `references/briefs/` first. An answer that asks a question, or asks you to explain or go deeper, gets a talk turn. Every other answer becomes board content: a chosen reading or a choice is a decision, a new direction is an idea or a new thread, a rejected premise changes an assumption's state, and a checkable statement gets its bounded read.
+
+**Scope as you go.** A decision is kept from the moment the person makes it: `board apply` and `board add` record `scope: keep` on a new decision. When the person says that the decision waits or is out, write `scope: later` or `scope: cut` in its entry. An idea stays undecided until its area closes (2.8).
 
 ## 2.3 Control words
 | Word | Effect |
@@ -149,7 +152,8 @@ After every batch, change the board in one call. Write one change file with the 
 ```
 The command fills `session` and `decided-at` on a new decision and on a log entry, moves `batches` to the newest log entry, and moves `updated-at`. It checks the whole board against the schema, writes it, and renders `01-brainstorm.md` from it in the same call. A change that would break the board writes nothing. Do not write a script for these edits.
 
-The parts of a change file are `add` (with the kinds `item`, `thread`, `area`, `work`, `log`, `sketch`, `budget`, and `brief`), `set` (fields by key; a null value removes the field), `board` (the fields of the board itself, for example `sessions` or `status`), `summary`, `story`, `briefs` (the brief text by area key), and `remove`. One edit has its own command:
+The parts of a change file are `add` (with the kinds `item`, `thread`, `area`, `work`, `log`, `sketch`, `budget`, and `brief`), `set` (fields by key; a null value removes the field), `close` (the scope of whole areas, 2.8), `board` (the fields of the board itself, for example `sessions` or `status`), `summary`, `story`, `briefs` (the brief text by area key), and `remove`. Each of these edits also has a command of its own, and one command only reads:
+- Read the scope: `board digest "<root>" <slug> [--area <area>] [--full] [--file <close.json>]`. It writes nothing. By default it is compact: per area the counts, and the text only of the items that are not settled (with their default mark) and of the cuts that wait. `--area` gives every item text of that area, `--full` of every area. With `--file`, it shows the board as that close would leave it.
 - Add entries of one kind: `board add "<root>" <slug> <kind> --file <entries.json>`.
 - Move items into a thread: `board move "<root>" <slug> <item>... --to <thread>`, or `--new <thread> --name "<name>" --area <area>` for a new thread.
 - Move threads into another area: `board regroup "<root>" <slug> <thread>... --to <area>`.
@@ -165,7 +169,7 @@ The document follows the board. Never edit its body, and never put a draft of it
 Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. The question text carries everything the person needs to answer it, per [_gate-question.md](../_gate-question.md): the host can hide the chat text before a question. A check-in has three parts:
 1. **Sum up.** Write the summary: what we believe now, in 150 words or fewer. Set it with `summary` in the change file of the batch, or with `board prose "<root>" <slug> summary --file <file>`; the document's `## The Brainstorm` follows. Put the summary in the question text, with one line on what we learned since the last check-in.
 2. **Ask** whether the summary is right, and where to go next, the move you recommend first: go deeper here; open a new area (name the unexplored areas); zoom out and look for what is missing; show where we are; stop for now (the story of this sitting, as `pause`). Say that `done` ends the session.
-3. **Close the area** (2.8) when the check-in follows an area that feels explored.
+3. **Close each area that is ready** (2.8), when no close has followed it yet.
 4. **Update the page.** Run the page agent per [brainstorm/_page.md](brainstorm/_page.md).
 
 A correction to the summary is a decision. Record it, and rewrite the summary.
@@ -177,62 +181,33 @@ In plain words, with no key: the summary, then the map with each area's brief an
 Run this only when the person says `second opinion`; never run it unasked. Run `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` with the live threads and open tensions as the brief. Write the panel's answer as a research note in `research/`. Fold the panel's distinct additions in as findings with `source: consult` and `evidence` pointing at the note, never as work packets.
 
 ## 2.8 Close an area
-An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
-1. Write the area's brief: five plain lines or fewer — what we decided, what is core, what is still open, and the scope. Set it with `briefs` in the change file, or with `board prose "<root>" <slug> brief --area <area> --file <file>`; the document's map follows.
-2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the document for the rest.
-3. Give the area's price in the question text: its rough size, and what it adds to each budget on the board ([brainstorm/_cohere.md](brainstorm/_cohere.md)). List its accepted risks.
-4. Ask in one batch, as one digest with your recommendation marked on each item: which decisions are core (multi-select); which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so; and whether the area changes a work packet that already exists (name each work packet in words). Ask which risk worries the person most only when a risk has no owner and no mitigating decision; otherwise mark the risk you rank highest and say so.
-5. Record `core: true` on each core item, `first-version: true` and `scope: keep` on each first-version item, `scope: later` on the rest, `top-risk: true` on the chosen risk, and the area's `scope`, in the `set` part of one change file. Only a top risk appears in the document's front. Then run a coherence pass.
-6. When the area changes an existing work packet, set `stale: true` and `stale-because` on that work packet; step 3.3 proposes the work packet that brings it up to date. When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
+An area is ready to close when its threads stop producing new ground. Close each area then: at a check-in, or between two batches. Do not wait for a check-in, and do not leave the scoping to `done`. The person can answer "not yet". An area that closes in the loop asks no question at `done`.
+1. Read the area: `node "<skill-dir>/scripts/wf.mjs" board digest "<root>" <slug> --area <area> --json` gives its kept, later and cut items, its ideas not decided, its open items with their handling, and the default mark of each item that is not settled.
+2. Write the area's brief: five plain lines or fewer — what we decided, what is core, what is still open, and the scope. Set it with `briefs` in the change file, or with `board prose "<root>" <slug> brief --area <area> --file <file>`; the document's map follows.
+3. Compose one digest for the question text. Give the brief, then the area's price: its rough size, what it adds to each budget on the board ([brainstorm/_cohere.md](brainstorm/_cohere.md)), and its accepted risks. Then give one plain line per item, with your proposal marked on it:
+   - each decision: in the first version, or left for later; mark the core ones. Nothing is cut unless the person says so.
+   - each idea not decided: keep, leave for later, or cut, with your reason in a few words.
+   - each open item, with the handling you propose (Open items, below).
+   - each work packet that the area changes, named in words.
+   - the risk you rank highest, and why.
 
-# Step 3 — `done`: scope the work together
-Enter this step only when the person's reply is the control word `done`.
+   When the area holds more than about twelve items, give the likely core items, each idea and each open item, and point to the document for the rest.
+4. Ask one question: close the area as proposed, or keep thinking here. Free text names what to change. Mark no option `(Recommended)`.
+5. Record the close in one change file, with the `close` part: `{"close": {"areas": ["<area>"], "marks": {"<key>": "<mark>"}}}`. Name in `marks` only the items whose mark is not the default. The marks are `keep`, `later` and `cut` for a decision or an idea; `answered`, `resolved`, `confirmed`, `rejected`, `ask`, `decide` and `drop` for an open item. A mark can also be an object of fields, for example `{"scope": "keep", "core": true, "first-version": true}`, `{"scope": "cut", "reason": "<the person's reason>"}`, or `{"scope": "keep", "top-risk": true}`. A mark on the area key applies `keep`, `later` or `cut` to each of its decisions and ideas. The `close` part gives the default mark to each item of the area that is not settled, and sets the area's `scope` from its decisions and ideas. A cut of a decision that a started work packet holds becomes `pending-cut` ([brainstorm/_work.md](brainstorm/_work.md), Reopening). Put the brief and each answer of an open item (a new decision) in the same change file. Only a top risk appears in the document's front. Then run a coherence pass.
+6. When the area changes an existing work packet, set `stale: true` and `stale-because` on that work packet; `done` proposes the work packet that brings it up to date ([brainstorm/_done.md](brainstorm/_done.md), step 4). When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
 
-The person decides what goes into work, and decides it with you. You recap, explain, and propose; the person keeps, cuts, and shapes. Every text in this step follows the Plain words invariant.
+**Open items.** An open item is an open question (also a question for the plan), an open tension, or an assumption that is only named. No shape stage runs for a build work packet, so the close settles each open item with the person, while it is fresh. The handlings are:
+- **Answer it now.** For a question, record the answer as a new decision, and mark the question `answered`. For a tension, record the decision that settles it, and mark the tension `resolved`. For an assumption, ask whether it is true: mark it `confirmed` or `rejected`. When a rejected assumption changes a decision, ask about that decision again.
+- **Ask me before the slice** (`ask`). The campaign walk asks the person this question before it slices the work packet.
+- **Let the build decide** (`decide`). The build chooses the option that best fits the acceptance criteria, and records the choice as an assumption.
+- **Drop it** (`drop`). The item gets `scope: cut`, with the person's reason.
 
-## 3.1 Choose what happens now
-1. Snapshot both board files to `history/` (the JSON file, and the output of `record get "<root>" <slug> 01-brainstorm.md`) and add a `revisions:` entry (`trigger: manual`, `because: done`). Run a coherence pass unless one ran after the last change.
-2. In the question text, give the summary (2.5), and say in plain words how many decisions and open ideas each area holds. Print no entry command.
-3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
-   - **Keep the board.** Change the timestamps only. `status` stays `open`.
-   - **Scope the work.** Go to 3.2.
+Propose `ask` for an open question and a tension, and `decide` for a question for the plan and an assumption, unless the board gives you a reason for another handling. The `close` part uses the same defaults.
 
-## 3.2 Walk through the discussion
-Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**, then the **open items** of each kept area (step 6). A finding appears only as the reason behind a decision. An area closed with a scope (2.8) is not walked again: give each such area and its first version in one line, and ask whether any has changed.
-1. In each question's text, list the area's decisions and ideas, one plain sentence each, with the reason given for it. For a long area, list the core items and point to the document for the rest.
-2. Ask what happens to the area: keep all of it; go through it one by one; cut all of it; leave it for later. Ask about up to four areas per batch.
-3. For an area the person goes through one by one, ask one question per item: keep; cut; later; change it (free text says how). Ask about up to four items per batch. When you have a view, give it and its reason in the question text. The person decides.
-4. Record each answer on the item as `scope: keep`, `scope: cut`, or `scope: later`. Rewrite a changed item, then record it as kept. Record the person's reason for a cut when the person gives one.
-5. When a kept item needs an item that is cut or left for later, say so in plain words. Ask how to resolve it before the next area.
-6. **Settle the open items of a kept area.** No shape stage runs for a build work packet, so this walk is the last point where the person settles an open item before the build. An open item is an open question (also a question for the plan), an open tension, or an assumption that is only named. For each open item of an area that is kept in whole or in part, write the item in plain words and ask what happens to it. Ask about up to four items per batch; for a long list, follow "A list of items" of [_gate-question.md](../_gate-question.md). Mark no option `(Recommended)`. The options are:
-   - **Answer it now.** For a question, record the answer as a new decision with `scope: keep`, and set the question's `state: answered`. For a tension, record the decision that settles it, and set the tension's `state: resolved`. For an assumption, the options are "true" and "not true": set `state: confirmed` or `state: rejected`. When a rejected assumption changes a decision, ask about that decision again.
-   - **Ask me before the slice.** Set `left-to-build: ask`. The campaign walk asks the person this question before it slices the work packet.
-   - **Let the build decide.** Set `left-to-build: decide`. The build chooses the option that best fits the acceptance criteria, and records the choice as an assumption.
-   - **Drop it.** Set `scope: cut`, with the person's reason.
-7. The person can stop the walk at any time. The `scope` fields hold the progress, and a resume continues the walk at the first area with no answer.
+**A proposal is not a recommendation.** A `(Recommended)` mark picks one answer to a question that has no right answer, and so it steers the thinking. A proposal in a digest records what the person already said, item by item, and fills in the bookkeeping that the person did not state. It adds no new choice, and the person corrects it in free text. Mark each proposal as yours, for example "I propose: later", so the person sees which lines are records and which are proposals. A new choice never goes into a digest: it is a question of the loop.
 
-## 3.3 Shape the work
-When every area has an answer, talk through how the kept items become work. Load [brainstorm/_work.md](brainstorm/_work.md) now: it lists what to agree for each work packet, the write-up of a build work packet, the forms, and the size rules. Ask in batches, and give your view with its reason:
-- What comes first: the smallest work packet that shows the thinking is right.
-- How the kept items group into work packets, their slugs, forms and sizes, and the split of a work packet that is too large. Each kept decision goes into exactly one work packet. Each item with `left-to-build` goes into the items of exactly one build work packet: the work packet whose build needs the answer first.
-- The sequence: one strict order of every work packet, write-now work packets included (`order` 1, 2, 3, and so on), and a `why-here` note on each work packet after the first. Work packet N may use anything that work packets 1 to N−1 built. Propose the sequence and each note with its reason; the person confirms them. Do not agree a dependency graph: the campaign walk builds the work packets in this order, one at a time.
-- A stale work packet (2.8): propose the work packet that brings it up to date.
-- The write-up of each build work packet, its `ux-impact` and its `try-out`, and the stack of the list once. Write the goal, the scope, the acceptance criteria, the constraints and the risks yourself from the board. The person confirms `ux-impact`, `try-out` and the stack.
-- The form of each work packet. A work packet that changes only documents is `write-now`: this session writes it after the person confirms ([brainstorm/_work.md](brainstorm/_work.md) says when it stays a `task`). A design focus adds `design` or `design-direction` to the work packet it serves (`brainstorm/_design.md`).
-
-Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
-
-## 3.4 Confirm and record
-1. Write the agreed scope in plain words: each work packet in sequence order, with its kept items, its form, its `why-here` note, and for a build work packet its goal, its acceptance criteria, its `ux-impact`, its `try-out`, and each open item left to its build (asked before the slice, or the build decides); then the stack; then the items left for later; then the cut items with their reasons. Name each write-now work packet and the documents it changes.
-2. Put that scope in the text of a question that asks the person to confirm it or to change it. The person confirms the grouping into work packets, `ux-impact`, `try-out` and the stack. Do not ask the person to confirm the decisions again: the person decided them in the loop, and the script copies them word for word. Say that a confirmation also starts the write-now work packets. A change returns to 3.2 or 3.3.
-3. After the person confirms, add one work packet per agreed work packet to the board's `work` list, with the fields of [brainstorm/_work.md](brainstorm/_work.md), and mark them `selected`. Write the stack to the board with `user-confirmed: true`. One change file holds all three: `add.work`, and `selected` and `stack` in its `board` part. Then check the list, run each write-now work packet, and write the list, per that file's "Check and write the list". Run no command that starts a workflow.
-4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`. A thread whose kept items are all in work packets becomes `routed`.
-5. Set `status: distilled` on the board (`board set "<root>" <slug> status=distilled`). The document then shows `## Scope` and `## Work`, rendered from the `scope` of each item and the `work` list. `## Work` links each work packet file; it holds no second copy. After the `write` command and the archive command, run `board render "<root>" <slug>` once. Set `progress.brainstorm: complete` with `record set "<root>" <slug> index progress.brainstorm=complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf intake <slug> close"` in the same call. The `record set` refreshes the registry row.
-6. Run the page agent per [brainstorm/_page.md](brainstorm/_page.md).
-
-A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
-
-**Link-back.** The campaign walk opens each build work packet with `campaign.mjs open`, which records `origin-packet` in the work packet's `00-index.md`. A work packet of another form starts through its mode ([../intake.md](../intake.md), "List work packet"), which records `origin-packet` too. The walk sets the `state` of each work packet file. A successor started with `from <slug>` applies [_intake-provenance-consume.md](_intake-provenance-consume.md). An item with `scope: cut` never seeds a successor, and never goes into a work packet. The board is never superseded.
+# Step 3 — `done`
+Enter this step only when the person's reply is the control word `done`. Load [brainstorm/_done.md](brainstorm/_done.md) now, and follow it. The person confirms one digest of the scope and the grouping into work packets; everything else was settled in the loop.
 
 # What this command is NOT
 

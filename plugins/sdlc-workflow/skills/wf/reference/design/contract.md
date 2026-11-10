@@ -29,7 +29,7 @@ surface-modes:                 # one design mode per surface, from the brief's c
 north-star-screen: <screen key>
 surfaces: [every surface drawn]
 directions: [<name>: <axis>]   # only when design stage Step 3b ran
-references-loaded: [union of the brief's recommended-references + any references loaded while authoring the contract — authoritative; wf-plan and wf-implement re-read this]
+references-loaded: [union of the brief's recommended-references + any references loaded while authoring the contract — authoritative; /wf plan and /wf implement re-read this]
 next-command: wf-slice
 next-invocation: "/wf slice <slug>"
 recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person approved the design", default: true}]

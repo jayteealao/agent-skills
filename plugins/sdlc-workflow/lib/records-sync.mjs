@@ -23,6 +23,7 @@ import { hostname } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
+import { agentFix, personFix, refuse } from './fix.mjs';
 import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { maxFileBytes, sweepRunFiles } from './run-files.mjs';
@@ -271,7 +272,7 @@ export { dropLock };
 /** Run `fn` while this process holds the records lock. Throws when the lock stays busy. */
 export function withRecordsLock(fn, opts = {}) {
   const path = recordsLockPath();
-  if (!takeLock(path, opts)) throw new Error(`the records lock ${path} stayed busy`);
+  if (!takeLock(path, opts)) throw refuse(`the records lock ${path} stayed busy`, agentFix('Another records command holds the lock: wait for it to end, then run the command again.'));
   try { return fn(); } finally { dropLock(path); }
 }
 
@@ -324,27 +325,27 @@ export function commitPaths(home, { paths, message, push = true, pushArgs = null
 
 function commitLocked(home, paths, message) {
   const blocked = cloneBlocked(home);
-  if (blocked) throw new Error(blocked);
+  if (blocked) throw refuse(blocked, personFix(`The records clone at ${home} is in a rebase or on a detached HEAD: finish the rebase, or check out its main branch, then run the command again.`));
   const head = sha(home, 'HEAD');
   const specs = [];
   const roots = [];
   for (const p of paths) {
     const rel = String(p).replace(/\\/g, '/').replace(/\/+$/, '');
     // A folder that still has a live branch of an older version waits for the move of that branch.
-    if (sha(home, `${LIVE_PREFIX}${rel}`)) throw new Error(`${rel} still has a live branch; run wf.mjs records migrate`);
+    if (sha(home, `${LIVE_PREFIX}${rel}`)) throw refuse(`${rel} still has a live branch; run wf.mjs records migrate`, agentFix('Move the live branches with records migrate, then run the command again.', 'wf.mjs records migrate <root>'));
     const onDisk = existsSync(join(home, rel));
     if (!onDisk && !gitIn(home, ['ls-files', '--', rel]).stdout) continue;
     // A file that stays out of the commits is not even hashed: the add and the commit skip it.
     const mine = [rel, ...(onDisk ? keptOutFiles(home, rel).map((f) => `:(exclude,literal)${f}`) : [])];
     // A failed add is a failed commit, never a commit that leaves the files out.
     const add = gitIn(home, ['add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { input: nulList(mine) });
-    if (add.status !== 0) throw new Error(`the add of ${rel} failed: ${add.stderr.split('\n')[0]}`);
+    if (add.status !== 0) throw refuse(`the add of ${rel} failed: ${add.stderr.split('\n')[0]}`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
     specs.push(...mine);
     roots.push(rel);
   }
   if (!roots.length || gitIn(home, ['diff', '--cached', '--quiet', '--', ...roots]).status === 0) return head;
   const c = gitIn(home, ['commit', '-q', '-m', message, '--pathspec-from-file=-', '--pathspec-file-nul'], { input: nulList(specs) });
-  if (c.status !== 0) throw new Error(`the commit failed: ${(c.stderr || c.stdout).split('\n')[0]}`);
+  if (c.status !== 0) throw refuse(`the commit failed: ${(c.stderr || c.stdout).split('\n')[0]}`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
   return sha(home, 'HEAD');
 }
 
@@ -531,15 +532,15 @@ function moveOne(home, m) {
   if (m.action === 'commit') {
     gitIn(home, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', m.name]);
     const ls = spawnSync('git', [...LONG_PATHS, '-C', home, 'ls-tree', '-r', '-z', '--full-tree', m.tip, '--', m.name], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-    if (ls.status !== 0 || gitIn(home, ['update-index', '-z', '--index-info'], { input: ls.stdout }).status !== 0) throw new Error(`the tree of ${m.ref} could not be read`);
+    if (ls.status !== 0 || gitIn(home, ['update-index', '-z', '--index-info'], { input: ls.stdout }).status !== 0) throw refuse(`the tree of ${m.ref} could not be read`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
     const c = gitIn(home, ['commit', '-q', '-m', `${m.name}: the records of the live branch`]);
-    if (c.status !== 0) throw new Error(`the commit of ${m.name} failed: ${(c.stderr || c.stdout).split('\n')[0]}`);
+    if (c.status !== 0) throw refuse(`the commit of ${m.name} failed: ${(c.stderr || c.stdout).split('\n')[0]}`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
     m.commit = sha(home, 'HEAD');
     if (m.tip !== m.sha) m.kept = catchUpFolder(home, m.sha, m.tip, m.name);
   }
-  if (m.diverged && gitIn(home, ['update-ref', `refs/archive/live-remote/${m.name}`, m.remote]).status !== 0) throw new Error(`the archive of the remote tip of ${m.ref} failed`);
-  if (gitIn(home, ['update-ref', `${ARCHIVE_PREFIX}${m.name}`, m.tip]).status !== 0) throw new Error(`the archive of ${m.ref} failed`);
-  if (gitIn(home, ['update-ref', '-d', m.ref, m.sha]).status !== 0) throw new Error(`the delete of ${m.ref} failed`);
+  if (m.diverged && gitIn(home, ['update-ref', `refs/archive/live-remote/${m.name}`, m.remote]).status !== 0) throw refuse(`the archive of the remote tip of ${m.ref} failed`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
+  if (gitIn(home, ['update-ref', `${ARCHIVE_PREFIX}${m.name}`, m.tip]).status !== 0) throw refuse(`the archive of ${m.ref} failed`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
+  if (gitIn(home, ['update-ref', '-d', m.ref, m.sha]).status !== 0) throw refuse(`the delete of ${m.ref} failed`, personFix(`Check the records clone at ${home} with git status (a rebase, a lock file or a hook can stop git there), then run the command again.`));
 }
 
 /**
@@ -711,19 +712,19 @@ export function worktreeRecords(root, project, separate = null) {
  *   repo tracks, and the `.gitignore` line that it lacks.
  */
 export function linkProject(root, project) {
-  if (!PROJECT_NAME_RE.test(String(project ?? ''))) return { ok: false, reason: `the project name ${project} must match ${PROJECT_NAME_RE}` };
+  if (!PROJECT_NAME_RE.test(String(project ?? ''))) return { ok: false, reason: `the project name ${project} must match ${PROJECT_NAME_RE}`, fix: agentFix('Run records link again with a project name that the pattern allows: lowercase letters, digits and dashes.', 'wf.mjs records link <root> <project>') };
   const home = recordsHome();
-  if (!existsSync(join(home, '.git'))) return { ok: false, reason: `no records clone at ${home}: git clone <records repo> "${home}"` };
+  if (!existsSync(join(home, '.git'))) return { ok: false, reason: `no records clone at ${home}: git clone <records repo> "${home}"`, fix: personFix(`Clone the records repo into ${home} (git clone <records repo> "${home}"), then link the project again.`) };
   const configFile = join(root, '.ai', 'sdlc-config.json');
   const config = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
   if (config.records?.project && config.records.project !== project && linkedProject(root)) {
-    return { ok: false, reason: `the project is linked as ${config.records.project}` };
+    return { ok: false, reason: `the project is linked as ${config.records.project}`, fix: personFix(`The project is linked as ${config.records.project} already: keep that name, or say which name the project takes.`) };
   }
   const separate = [];
   const waiting = worktreeRecords(root, project, separate);
   if (waiting.length) {
     const shown = waiting.slice(0, 20).map((w) => `${w.worktree}: ${w.file}`).join('\n  ');
-    return { ok: false, worktreeFiles: waiting, reason: `${waiting.length} workflow file(s) in a worktree of the project are not in the main checkout. Copy them home or remove the worktree, then link again:\n  ${shown}` };
+    return { ok: false, worktreeFiles: waiting, fix: personFix('Copy the workflow files of each worktree to the main checkout, or remove the worktree after a check that nothing in it is lost, then link again.'), reason: `${waiting.length} workflow file(s) in a worktree of the project are not in the main checkout. Copy them home or remove the worktree, then link again:\n  ${shown}` };
   }
   const target = join(home, project);
   mkdirSync(target, { recursive: true });
@@ -901,7 +902,7 @@ export function closeRecords(root, slug) {
   const project = linkedProject(root);
   if (!project) return null;
   const c = commitWorkflow(root, slug, `${project}/${slug}: close`, { push: false });
-  if (!c.commit) return { ok: false, reason: 'the commit of the workflow folder failed' };
+  if (!c.commit) return { ok: false, reason: 'the commit of the workflow folder failed', fix: personFix(`Check the records clone at ${c.home ?? recordsHome()} with git status (a rebase, a lock file or a hook can stop the commit), then close the workflow again.`) };
   const p = pushRecords(c.home);
   return { ok: true, commit: c.commit, pushed: Boolean(p.pushed), ...(!p.pushed && p.reason ? { reason: p.reason } : {}) };
 }

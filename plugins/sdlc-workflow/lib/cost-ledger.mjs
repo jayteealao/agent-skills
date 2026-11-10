@@ -835,6 +835,29 @@ export function aggregateCost(rows) {
 const weight = (u) => CLAUDE_USAGE_FIELDS.reduce((n, f) => n + int(u?.[f]), 0);
 
 /**
+ * The sub-agent entries of a slug's rows that book again a usage that an earlier row
+ * booked: the same agent id, model and four counts, with usage. The hook books only the
+ * new messages of an agent, so a later row never repeats an entry. Before the cursor fix,
+ * the hook read an agent's transcript again from its first byte on every Stop, and booked
+ * it again in every row (scripts/cost-rebuild.mjs repairs that from the transcripts). A
+ * plain sum of such rows multiplies; a count above 0 means the rows cannot be summed.
+ * @returns {number}
+ */
+export function rebookedEntries(rows) {
+  const seen = new Set();
+  let n = 0;
+  for (const r of rows ?? []) {
+    for (const s of Array.isArray(r?.subagents) ? r.subagents : []) {
+      if (!s?.agent_id || s.rebuilt || !weight(s)) continue;
+      const k = [s.agent_id, s.model ?? '', ...CLAUDE_USAGE_FIELDS.map((f) => int(s[f]))].join('|');
+      if (seen.has(k)) n += 1;
+      else seen.add(k);
+    }
+  }
+  return n;
+}
+
+/**
  * The exact total of each sub-agent of the given transcript files, read in full:
  * each response counts once across every file of its agent id (a copy repeats the
  * responses), and the last line of a response wins.

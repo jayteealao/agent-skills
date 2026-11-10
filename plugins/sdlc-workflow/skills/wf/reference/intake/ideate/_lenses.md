@@ -2,7 +2,7 @@
 
 Step 1 of `/wf intake ideate` dispatches one exploration sub-agent per active lens. Prompt each lens agent with its goal below plus the shared evidence rule from `intake/ideate.md`: every finding cites `file:line` (or a file range) from this codebase, states the problem, states why it matters, and carries an effort estimate (xs/s/m/l/xl). Generic advice with no citation is not a finding.
 
-**Effort tier for every dispatched code lens agent (Lenses 1 to 6):** **low** (per [_subagents.md](../../_subagents.md)). REQUIRED on every dispatch. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Low is the right tier. Dispatch in waves of at most 6.
+**Effort tier for every dispatched code lens agent (Lenses 1 to 6):** **low** (per [_subagents.md](../../_subagents.md)). Required on every dispatch. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Low is the right tier. Dispatch in waves of at most 6.
 
 ## Lens 1 — Code Quality & Technical Debt
 
@@ -70,7 +70,7 @@ Runs when the `source-items:` roster is not empty ([_sources.md](_sources.md)). 
 2. compares the installed version with the version that ships the item;
 3. proposes one result from the results table in `_sources.md`.
 
-A Lens 7 finding cites two anchors: the source anchor (the item id, with its line in the reference copy) and a `file:line` in the code. A finding with one anchor is not a finding. When an idea needs an upgrade first, its `depends-on:` names `/wf intake update-deps`, and the pick (step 9 of `# Pick` in [../ideate.md](../ideate.md)) prints that command before the idea's own entry.
+A Lens 7 finding cites two anchors: the source anchor (the item id, with its line in the reference copy) and a `file:line` in the code. A finding with one anchor is not a finding. When an idea needs an upgrade first, its `depends-on:` names `/wf intake update-deps`, and the pick (step 9 of [_pick.md](_pick.md)) prints that command before the idea's own entry.
 
 ## Research
 

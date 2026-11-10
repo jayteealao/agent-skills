@@ -23,7 +23,7 @@ reused by a new workflow.
 Every mode that creates a workflow names it in three steps. A mode card cites this section and keeps only its own form and its exceptions.
 
 1. **Derive.** The form is `<mode>-<descriptor>`: lowercase kebab-case, at most 5 words, from the description (for example `fix-checkout-button-spacing`). A dated mode adds the date: `<mode>-<descriptor>-<YYYYMMDD>` (`ideate`, `simplify`, `brainstorm`) or `<mode>-<YYYYMMDD>` (`update-deps`), from the date-only row of [_timestamp.md](../_timestamp.md) with the dashes removed. Default intake derives a kebab-case slug with no prefix, or uses the slug that the person gives.
-2. **Reserved check.** The slug must not be one of the reserved words below. A slug with a mode prefix never matches, so the check stops a default slug, a given slug or a work packet slug. On a match, STOP and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
+2. **Reserved check.** The slug must not be one of the reserved words below. A slug with a mode prefix never matches, so the check stops a default slug, a given slug or a work packet slug. On a match, stop, and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
 3. **Collision.** Use the rule of the class of the mode:
 
 | Class | Modes | When `record get "<root>" <slug> index` exits 0 |

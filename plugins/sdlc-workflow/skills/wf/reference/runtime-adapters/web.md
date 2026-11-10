@@ -22,7 +22,7 @@ The PO chose a driver during shape (from `02-shape.md` and the `stack:` block); 
 **Responsive & media-query ACs — never skip on a pinned viewport.** A host-pinned `innerWidth` in an in-session browser MCP (the window will not resize, so `@media` never fires) is **not** a reason to pass-by-static-reasoning or quietly skip the criterion. Drive a viewport-controllable browser instead: Playwright with explicit `viewport` + `deviceScaleFactor`, or CDP `Emulation.setDeviceMetricsOverride` — rungs 1–2 of the Web UI ladder in [_ladder-walls.md](_ladder-walls.md). If neither is reachable in this environment, the AC is *deferred with the rungs named*, not passed.
 
 ### 1. `dev-browser` (if installed or PO opted in)
-Check if installed: `command -v dev-browser`. If not installed AND the PO did not select it during shape, skip this option — do not auto-prompt for installation here.
+Check if installed: `command -v dev-browser`. If not installed and the PO did not select it during shape, skip this option — do not auto-prompt for installation here.
 
 If available, dev-browser provides Playwright's full Page API in a sandboxed QuickJS runtime with persistent pages across scripts:
 

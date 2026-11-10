@@ -38,10 +38,25 @@ Any other mode, for example `triage` or a command argument such as `audit`, appl
 
 The table is a checklist. Before you write the stage artifact, read every row whose When value applies to this run. An `if-present` input is optional to exist and mandatory to read when it exists. Honor what it says in the stage artifact; a silent omission is a contract violation. This file is the one owner of that rule.
 
-1. Read each whole-file input from its first line to its last line.
-2. For an input with named sections, read each named section in full.
+Run the check in one call:
+
+```
+node "<skill-dir>/scripts/wf.mjs" requires "<root>" <slug> <stage> [--slice <slice>] [--mode <mode>]... [--on-resume]
+```
+
+`<stage>` is the stage key of the reference, for example `plan`, `verify` or `intake:fix`. Pass `--mode` for each mode that only the command line names, for example `triage` or `audit`. Pass `--on-resume` when you resume a stage run. The command applies the disk facts and the `modes:` list itself. It prints one JSON object:
+
+- `artifacts`: each input that applies and exists, with its `content`. A row with named sections gives only those sections.
+- `procedures`: each procedure row with its `path`. Read each one whose `read` is `true` with the host's file-read tool.
+- `missing`: each input that is not on disk. An entry with `stop: true` is a missing required input. Stop the stage, and tell the person which input is missing.
+- `guard`: when the content is over the size limit, the largest artifacts come with an `outline` and a `read` command, and no `content`. Run that command for each part that this stage needs.
+
+The command exits 1 when an input stops the stage. Then:
+
+1. Read the content of each artifact in the JSON in full. That is the read of the input.
+2. For an outlined artifact, read each part you need with its `read` command, and read each named section of its row in full.
 3. Read each input yourself. A read by a research sub-agent does not count for you, because its reads do not reach your context.
-4. Read a record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`, or from the stage brief when the brief gives its content. Read any other file with the host's file-read tool. A search hit does not count. A shell read counts only on a host that has no file-read tool: there, one shell command that prints the whole file (`Get-Content -Raw <path>`, or `cat <path>`) is the file read.
+4. When the stage brief gives the content of an input, the brief is the read. Read any file that the command does not print with the host's file-read tool. A search hit does not count. A shell read counts only on a host that has no file-read tool: there, one shell command that prints the whole file (`Get-Content -Raw <path>`, or `cat <path>`) is the file read.
 
 A partial read does not count. The line ranges you read must cover the whole file, or each named section.
 

@@ -40,7 +40,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What is the application deployment order?** (Code-first vs schema-first)
 - **An unbatched backfill on a large table is BLOCKER** under the locking rule: a large `UPDATE` inside the schema migration. An `UPDATE` with no `WHERE` is a finding at any size.
 - **A lossy transformation is HIGH**: `ROUND(price)`, `DECIMAL` → `VARCHAR`, or a `DROP COLUMN` or `DROP TABLE` with no backup. A down migration does not bring lost data back.
-- A NOT NULL column on an existing table takes three steps: add it nullable, backfill it, then set NOT NULL.
+- A not NULL column on an existing table takes three steps: add it nullable, backfill it, then set not NULL.
 - A column rename takes expand, dual-write, then contract, so old code keeps working during a rolling deploy.
 - CHECK and FK constraints are added `NOT VALID`, then validated in a separate step.
 - Postgres: no `ALTER TYPE … ADD VALUE` inside a transaction; no enum value removed while rows still use it.

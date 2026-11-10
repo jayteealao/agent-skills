@@ -41,7 +41,7 @@ entry itself (id, files, rationale, severity) travels in the invocation text per
    source, and an `ideate` source with a list, is never superseded. When the successor starts from a
    work packet file, record `origin-packet: <packet path>` and `origin-items` (every carried key) in the index, the same way as step 1.
    Set `state: open` in the work packet file and on the work packet in the board file, and change no other field of
-   the work packet file. The campaign walk sets `done` when the workflow completes (`campaign.md`, step 5).
+   the work packet file. The campaign walk sets `done` when the workflow completes (`campaign.md`, the action `close`).
    Set each thread of the work packet to `routed` when no other work packet draws on the thread. Updating those
    fields on an open board is additive; the board stays open until `/wf intake <slug> close`.
 3. If a decision-shaped source is still **open** (the user routed without recording the

@@ -4,17 +4,18 @@
 // an old wave campaign (report, apply, start of a migrated packet, finish, the guarded remove).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { execFileSync, execSync } from 'node:child_process';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { migrateApply, migrationReport, removeWorktree, run, untrackedLinks } from '../../scripts/campaign.mjs';
+import { PLAN_CEILING, PLAN_KEYS, PLAN_NEXT, PLAN_TITLE, migrateApply, migrationReport, removeWorktree, run, untrackedLinks } from '../../scripts/campaign.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
 import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
+import { mergeRun, writeLedger } from '../../lib/findings.mjs';
 import { linkProject } from '../../lib/records-sync.mjs';
 import { commitIdentity, gitSteps, whereOf } from '../../lib/steps.mjs';
 
@@ -1131,4 +1132,374 @@ test('12.3: start stops before the one-commit step when a tracked .ai/ file has 
     assert.equal(git(m.root, 'branch', '--list', `campaign/${SRC}/backup--eng`), '', 'no one-commit step ran');
     assert.ok(Number(git(m.wtEng, 'rev-list', '--count', 'HEAD')) <= Number(before) + 1, 'at most the snapshot commit');
   } finally { dropOldCampaign(m); }
+});
+
+// ---------------------------------------------------------------- next, skip, plan
+
+/** Run the exact command line of a `next` action, and return its JSON. */
+function execAction(a) {
+  assert.ok(a.command, `the action ${a.action} has a command: ${JSON.stringify(a)}`);
+  let out;
+  try { out = execSync(a.command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { out = e.stdout; }
+  return JSON.parse(out);
+}
+const journalLine = (root, slug, line) => appendFileSync(path.join(wf(root, slug), '.driver-journal.jsonl'), `${JSON.stringify(line)}\n`);
+const ago = (ms) => new Date(Date.now() - ms).toISOString();
+const packetFiles = (root) => {
+  const dir = path.join(wf(root, SRC), 'work');
+  return readdirSync(dir).filter((n) => n.endsWith('.md')).sort().map((n) => readFileSync(path.join(dir, n), 'utf8'));
+};
+
+test('next gives one action at a time over the whole walk, and changes nothing', () => {
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP, 'try-out': 'yes' },
+      { key: 'why-slow', title: 'Why slow', shape: 'rca', slug: 'why-slow', entry: 'x', state: 'proposed', order: 3, 'why-here': 'it measures the screen', items: ['d-three'] },
+    ], ['d-one', 'd-two', 'd-three']);
+    assert.equal(run(['write', dir]).ok, true);
+    const next = (...flags) => run(['next', root, SRC, ...flags]);
+
+    // Each written build packet opens first, in list order. next itself changes nothing.
+    const before = [packetFiles(root), git(root, 'branch', '--show-current'), git(root, 'status', '--porcelain')];
+    let a = next();
+    assert.deepEqual([a.ok, a.action, a.key], [true, 'open', 'engine']);
+    assert.match(a.command, /campaign\.mjs" open ".+" brainstorm-demo engine$/);
+    assert.match(a.then.next, /campaign\.mjs" next ".+" brainstorm-demo$/);
+    assert.deepEqual([packetFiles(root), git(root, 'branch', '--show-current'), git(root, 'status', '--porcelain')], before, 'next is read-only');
+    assert.equal(execAction(a).opened, true);
+    a = next();
+    assert.deepEqual([a.action, a.key], ['open', 'screen']);
+    execAction(a);
+
+    // Once per call: the plan, then how far to go.
+    a = next();
+    assert.equal(a.action, 'ask-how-far');
+    assert.match(a.command, /campaign\.mjs" plan ".+" brainstorm-demo$/);
+    assert.match(a.shipReady, /wf\.mjs" ship ready ".+" brainstorm-demo$/);
+    assert.match(a.then.next, /--how-far <next\|all\|N> --since \S+ --run-decisions "<answer>"$/);
+    const F = ['--how-far', 'all', '--since', a.since, '--run-decisions', 'Stop and wait for me'];
+
+    a = next(...F);
+    assert.deepEqual([a.action, a.key], ['land', 'engine']);
+    assert.equal(execAction(a).branch, `packets/${SRC}`);
+    a = next(...F);
+    assert.deepEqual([a.action, a.args], ['slice', { slug: 'demo-engine' }], 'the first packet reviews from the trunk: start changes nothing');
+    writeFileSync(path.join(wf(root, 'demo-engine'), '03-slice.md'), '---\ntype: slice\n---\n');
+    a = next(...F);
+    assert.deepEqual([a.action, a.args], ['launch-driver', { slug: 'demo-engine' }]);
+    assert.match(a.command, /wf\.mjs" decide add ".+" demo-engine --kind steer --key run-decisions --question ".+" --answer "Stop and wait for me"$/);
+    addDecision(wf(root, 'demo-engine'), { kind: 'steer', key: 'run-decisions', question: 'q', answer: 'Stop and wait for me' });
+    assert.equal(next(...F).command, undefined, 'the answer is recorded once');
+
+    // The run: live, then a clean end.
+    journalLine(root, 'demo-engine', { at: new Date().toISOString(), run: 'r1', seq: 1, event: 'agent-start', agent: 'plan:a' });
+    a = next(...F);
+    assert.deepEqual([a.action, a.slug], ['wait', 'demo-engine']);
+    writeFileSync(path.join(root, 'app.txt'), 'v1 engine\n');
+    git(root, 'commit', '-qam', 'engine');
+    journalLine(root, 'demo-engine', { at: ago(60_000), run: 'r1', event: 'run-end', agent: 'run-end' });
+    a = next(...F);
+    assert.equal(a.action, 'built');
+    assert.equal(execAction(a).state, 'built');
+    a = next(...F);
+    assert.equal(a.action, 'launch-driver');
+    assert.match(a.why, /no ## Decision Fidelity table/);
+
+    // The fidelity rows, a fix, the rows again, the approval, done.
+    review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
+    a = next(...F);
+    assert.deepEqual([a.action, a.ask.map((e) => [e.key, e.kind])], ['ask', [['engine', 'fidelity']]]);
+    const ledger = mergeRun({ findings: [], runs: [] }, [{ key: 'd-one', dimension: 'intent-fidelity', severity: 'HIGH', file: null, issue: 'narrowed', fix: 'widen it' }], { dimensions: ['intent-fidelity'] });
+    writeLedger(wf(root, 'demo-engine'), ledger.ledger);
+    a = next(...F);
+    assert.deepEqual([a.action, a.args], ['fix-run', { slug: 'demo-engine', reviewFindings: true }]);
+    journalLine(root, 'demo-engine', { at: new Date(Date.now() + 2000).toISOString(), run: 'r2', event: 'run-end', agent: 'run-end' });
+    assert.equal(next(...F).action, 'ask', 'after the fix run the rows are asked again');
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-one', answer: 'approved', question: 'q' });
+    a = next(...F);
+    assert.equal(a.action, 'done');
+    assert.equal(execAction(a).state, 'done');
+    assert.ok(fm(path.join(dir, 'work', 'demo-engine.md'))['done-at'], 'done stamps done-at');
+
+    // How far: the next packet only ends the call here.
+    a = next('--how-far', 'next', '--since', F[3]);
+    assert.deepEqual([a.action, a.doneThisCall, a.nextPacket?.key], ['end', ['engine'], 'screen']);
+    assert.equal(a.tell, `Type \`/wf campaign ${SRC}\``);
+    a = next('--end');
+    assert.deepEqual([a.action, a.why, a.nextPacket?.key], ['end', 'the call ends', 'screen'], '--end ends the call');
+
+    // The second packet: start moves its base to the end branch of the first.
+    a = next(...F);
+    assert.deepEqual([a.action, a.key], ['start', 'screen']);
+    assert.match(a.why, /start sets it to packets\/brainstorm-demo--engine/);
+    assert.equal(execAction(a).base, `packets/${SRC}--engine`);
+    writeFileSync(path.join(wf(root, 'demo-screen'), '03-slice.md'), '---\ntype: slice\n---\n');
+    journalLine(root, 'demo-screen', { at: ago(60_000), run: 'r1', event: 'run-end', agent: 'run-end', stoppedAt: 'verify', reason: 'a check failed twice' });
+    a = next(...F);
+    assert.deepEqual([a.action, a.stoppedAt, a.args], ['driver-stop', 'verify', { slug: 'demo-screen' }]);
+    assert.match(a.tell, /stopped at verify: a check failed twice/);
+    journalLine(root, 'demo-screen', { at: ago(30_000), run: 'r2', event: 'run-end', agent: 'run-end' });
+    assert.equal(execAction(next(...F)).state, 'built');
+    review(root, 'demo-screen', [['d-two', 'honored', 'app.txt:1', '—']]);
+    a = next(...F);
+    assert.deepEqual([a.action, a.ask.map((e) => e.kind)], ['ask', ['try-out']]);
+    addDecision(wf(root, 'demo-screen'), { kind: 'try-out', key: 'try-out', answer: 'works', question: 'q' });
+    assert.equal(execAction(next(...F)).state, 'done');
+
+    // A routed packet: the person runs its command; a complete workflow closes it.
+    a = next(...F);
+    assert.deepEqual([a.action, a.route, a.tell], ['route-stop', '/wf intake rca why-slow', 'Type `/wf intake rca why-slow`']);
+    mkdirSync(wf(root, 'why-slow'), { recursive: true });
+    writeFileSync(path.join(wf(root, 'why-slow'), '00-index.md'), '---\nschema: sdlc/v1\ntype: workflow-index\nslug: why-slow\nstatus: complete\n---\n');
+    a = next(...F);
+    assert.equal(a.action, 'close');
+    assert.equal(execAction(a).state, 'done');
+    a = next(...F);
+    assert.deepEqual([a.action, a.tell], ['hand-off', `Type \`/wf ship packets/${SRC}\``]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('skip: a later packet runs ahead only with the answer of the person, and the skipped packet runs later on the list branch as it then is', () => {
+  const root = makeRepo();
+  try {
+    const packet = (key, order, extra = {}) => ({ key, title: key, shape: 'intake', slug: `demo-${key}`, entry: 'x', state: 'proposed', order, ...(order > 1 ? { 'why-here': `${key} comes after the ones before it` } : {}), items: [`d-${key}`], goal: `Build ${key}.`, 'acceptance-criteria': [`${key} works.`], ...WRITE_UP, ...extra });
+    const dir = writeBoard(root, [packet('engine', 1), packet('screen', 2, { 'ux-impact': 'visual', 'try-out': 'yes' }), packet('api', 3), packet('docs', 4)], ['d-engine', 'd-screen', 'd-api', 'd-docs']);
+    assert.equal(run(['write', dir]).ok, true);
+    const file = (key) => path.join(dir, 'work', `demo-${key}.md`);
+    const next = (...flags) => run(['next', root, SRC, '--how-far', 'all', '--since', '2026-01-01T00:00:00Z', ...flags]);
+
+    // A skip of a written packet survives a write of the list.
+    assert.match(run(['skip', root, SRC, 'docs']).error, /needs --reason/);
+    assert.equal(run(['skip', root, SRC, 'docs', '--reason', 'later']).changed, true);
+    const boardFile = path.join(dir, 'brainstorm-board.json');
+    const board = JSON.parse(readFileSync(boardFile, 'utf8'));
+    board.work.find((w) => w.key === 'docs').goal = 'Write the docs.';
+    writeFileSync(boardFile, JSON.stringify(board, null, 2));
+    const w = run(['write', dir]);
+    assert.deepEqual(w.changed, ['docs']);
+    assert.deepEqual([fm(file('docs')).skipped.reason, fm(file('docs')).skipped.by], ['later', 'person']);
+    assert.match(readFileSync(file('docs'), 'utf8'), /Write the docs\./);
+    assert.equal(run(['unskip', root, SRC, 'docs']).changed, true);
+    assert.equal(fm(file('docs')).skipped, undefined);
+    assert.equal(run(['unskip', root, SRC, 'docs']).changed, false);
+
+    for (const k of ['engine', 'screen', 'api', 'docs']) assert.equal(run(['open', root, SRC, k]).ok, true);
+    run(['land', root, SRC]);
+    assert.equal(run(['start', root, SRC, 'engine']).ok, true);
+    writeFileSync(path.join(root, 'app.txt'), 'engine\n');
+    git(root, 'commit', '-qam', 'engine');
+    run(['built', root, SRC, 'engine']);
+    review(root, 'demo-engine', [['d-engine', 'honored', 'app.txt:1', '—']]);
+    assert.equal(run(['done', root, SRC, 'engine']).ok, true);
+    const engineEnd = git(root, 'rev-parse', `packets/${SRC}--engine`);
+
+    // The design of the screen is not settled: the walk stops, and the person skips it.
+    let a = next();
+    assert.deepEqual([a.action, a.key, a.tell], ['design-stop', 'screen', 'Type `/wf design demo-screen`']);
+    const skip = run(['skip', root, SRC, 'screen', '--reason', 'the brand is not ready']);
+    assert.deepEqual([skip.ok, skip.state, skip.skipped.reason], [true, 'open', 'the brand is not ready']);
+    assert.equal(fm(file('screen')).state, 'open', 'a skipped packet keeps its state');
+    let st = run(['status', root, SRC]);
+    assert.deepEqual(st.packets.find((p) => p.key === 'screen').skipped.reason, 'the brand is not ready');
+    assert.deepEqual(st.skipped.map((s) => s.key), ['screen']);
+    assert.equal(st.current, null, 'no later packet runs without the person');
+    assert.deepEqual(st.held.map((h) => [h.key, h.waitsFor]), [['api', ['screen']], ['docs', ['screen', 'api']]]);
+    assert.equal(st.finished, false);
+
+    // next asks which may run ahead, with the why-here of each.
+    a = next();
+    assert.equal(a.action, 'ask');
+    assert.equal(a.ask[0].kind, 'ahead');
+    assert.deepEqual(a.ask[0].candidates.map((c) => [c.key, c['why-here']]), [['api', 'api comes after the ones before it'], ['docs', 'docs comes after the ones before it']]);
+    assert.match(a.then.record, /campaign\.mjs" ahead ".+" brainstorm-demo <key>\.\.\.$/);
+    assert.match(run(['ahead', root, SRC, 'engine']).error, /does not wait for a skipped packet/);
+    const ahead = run(['ahead', root, SRC, 'api']);
+    assert.deepEqual(ahead.recorded, [{ key: 'api', 'ahead-of': ['screen'] }]);
+    assert.deepEqual(fm(file('api'))['ahead-of'], ['screen']);
+
+    // api runs ahead: it reviews from the end branch of engine, never from the skipped screen.
+    st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current['ahead-of']], ['api', ['screen']]);
+    a = next();
+    assert.deepEqual([a.action, a.key], ['start', 'api']);
+    assert.equal(run(['start', root, SRC, 'api']).base, `packets/${SRC}--engine`);
+    writeFileSync(path.join(root, 'api.txt'), 'api\n');
+    git(root, 'add', 'api.txt');
+    git(root, 'commit', '-qm', 'api');
+    assert.match(run(['skip', root, SRC, 'api', '--reason', 'x']).error, /holds work of api that is not built/);
+    assert.match(run(['unskip', root, SRC, 'screen']).error, /api runs ahead of screen/);
+    run(['built', root, SRC, 'api']);
+    review(root, 'demo-api', [['d-api', 'honored', 'api.txt:1', '—']]);
+    assert.equal(run(['done', root, SRC, 'api']).ok, true);
+    const apiEnd = git(root, 'rev-parse', `packets/${SRC}--api`);
+    assert.notEqual(apiEnd, engineEnd);
+
+    // docs still waits on screen: the walk asks again, never guesses.
+    a = next();
+    assert.deepEqual([a.action, a.ask[0].candidates.map((c) => [c.key, c.waitsFor])], ['ask', [['docs', ['screen']]]]);
+
+    // The skip is taken back: screen runs, on the list branch as it is now.
+    assert.equal(run(['unskip', root, SRC, 'screen']).changed, true);
+    setRecordFields(wf(root, 'demo-screen'), '00-index.md', { 'ux-impact': 'none' });
+    a = next();
+    assert.deepEqual([a.action, a.key], ['start', 'screen']);
+    assert.equal(run(['start', root, SRC, 'screen']).base, `packets/${SRC}--api`, 'the skipped packet reviews only its own work');
+    assert.equal(run(['status', root, SRC]).finished, false, 'ship waits for every packet');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('skip: a skipped built packet holds nothing, and asks nothing until the skip is taken back', () => {
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+      { key: 'api', title: 'Api', shape: 'intake', slug: 'demo-api', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it serves the engine', items: ['d-two'], goal: 'Serve it.', 'acceptance-criteria': ['It serves.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(run(['write', dir]).ok, true);
+    run(['open', root, SRC, 'engine']);
+    run(['land', root, SRC]);
+    run(['start', root, SRC, 'engine']);
+    writeFileSync(path.join(root, 'app.txt'), 'engine\n');
+    git(root, 'commit', '-qam', 'engine');
+    run(['built', root, SRC, 'engine']);
+    review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
+    assert.equal(run(['status', root, SRC]).current.key, 'engine');
+    assert.equal(run(['skip', root, SRC, 'engine', '--reason', 'I look at it tomorrow']).ok, true);
+    const st = run(['status', root, SRC]);
+    assert.deepEqual([st.current.key, st.current.step, st.held], ['api', 'open', undefined]);
+    assert.deepEqual([...st.ask, ...st.askLater], [], 'the rows of a skipped packet wait for the person');
+    run(['open', root, SRC, 'api']);
+    assert.equal(run(['start', root, SRC, 'api']).base, `packets/${SRC}--engine`, 'its built work is on the list branch');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('skip: the stacked shape refuses a skip and an ahead answer', () => {
+  const root = makeRepo();
+  try {
+    mkdirSync(path.join(root, '.ai'), { recursive: true });
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\nschema: sdlc/v1\ntype: ship-plan\nslug: ship-plan\nproject-name: demo\nplan-version: 1\npr-shape: stacked\n---\n');
+    const packet = (key, order) => ({ key, title: key, shape: 'intake', slug: `demo-${key}`, entry: 'x', state: 'proposed', order, ...(order > 1 ? { 'why-here': 'It needs the engine.' } : {}), items: [`d-${key}`], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP });
+    writeBoard(root, [packet('engine', 1), packet('ui', 2)], ['d-engine', 'd-ui']);
+    assert.equal(run(['write', wf(root, SRC)]).ok, true);
+    const r = run(['skip', root, SRC, 'engine', '--reason', 'later']);
+    assert.equal(r.ok, false);
+    assert.match(r.error, /stacked shape builds each layer on the layer below it/);
+    assert.equal(fm(path.join(wf(root, SRC), 'work', 'demo-engine.md')).skipped, undefined);
+    assert.match(run(['ahead', root, SRC, 'ui']).error, /stacked shape/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+/** A past run: an index with `slices` complete slices, and cost rows. */
+function pastRun(root, slug, slices, rows) {
+  mkdirSync(wf(root, slug), { recursive: true });
+  writeFileSync(path.join(wf(root, slug), '00-index.md'), `---\nschema: sdlc/v1\ntype: index\nslug: ${slug}\nslices:\n${Array.from({ length: slices }, (_, i) => `  - slug: s${i}\n    status: complete\n`).join('')}---\n`);
+  writeFileSync(path.join(wf(root, slug), 'cost-2026-10.jsonl'), rows.map((r, i) => JSON.stringify({ ts: `2026-10-01T00:00:${String(i).padStart(2, '0')}Z`, host: 'claude', session: 's', turn: i + 1, key: 'implement', slug, slice: 's0', main: null, subagents: [], external: [], ...r })).join('\n') + '\n');
+}
+const usage = (input, output, cacheRead, cacheWrite = 0) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheWrite });
+
+function mixedList(root) {
+  const dir = writeBoard(root, [
+    { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP, 'estimated-slices': 8 },
+    { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two', 'q-format'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP, 'ux-impact': 'visual', 'try-out': 'yes', 'estimated-slices': 10 },
+    { key: 'why-slow', title: 'Why slow', shape: 'rca', slug: 'why-slow', entry: 'x', state: 'proposed', order: 3, 'why-here': 'it measures the screen', items: ['d-three'] },
+  ], ['d-one', 'd-two', 'd-three']);
+  const boardFile = path.join(dir, 'brainstorm-board.json');
+  const board = JSON.parse(readFileSync(boardFile, 'utf8'));
+  board.items.push({ key: 'q-format', kind: 'question', thread: 'main', text: 'Which format?', source: 'agent', state: 'for-plan', 'left-to-build': 'ask' });
+  writeFileSync(boardFile, JSON.stringify(board, null, 2));
+  assert.equal(run(['write', dir]).ok, true);
+  return dir;
+}
+
+test('plan shows the whole walk: forms, states, design, stops, slices, and a cost range per column only from past runs', () => {
+  const root = makeRepo();
+  try {
+    mixedList(root);
+    const before = packetFiles(root);
+    let p = run(['plan', root, SRC, '--full']);
+    assert.equal(p.ok, true, JSON.stringify(p));
+    assert.deepEqual(packetFiles(root), before, 'plan is read-only');
+    assert.deepEqual(p.packets.map((r) => [r.key, r.form, r.state, r.design, r.estimatedSlices]), [
+      ['engine', 'intake', 'written', 'none', 8], ['screen', 'intake', 'written', 'needed', 10], ['why-slow', 'rca', 'written', 'none', null],
+    ]);
+    assert.deepEqual(p.packets.map((r) => r.stops.map((s) => s.kind)), [[], ['design', 'carried', 'try-out'], ['route']]);
+    assert.equal(p.packets[1].stops.find((s) => s.kind === 'carried').count, 1);
+    assert.equal(p.packets[2].stops[0].route, '/wf intake rca why-slow');
+    assert.deepEqual(p.totals.stops, { route: { count: 1, packets: 'why-slow' }, design: { count: 1, packets: 'screen' }, carried: { count: 1, packets: 'screen' }, 'try-out': { count: 1, packets: 'screen' } });
+    assert.equal(p.totals.slicesLeft, 18);
+    // No past run: no number.
+    assert.deepEqual([p.cost.runs, p.cost.perSlice, p.totals.cost, p.packets[0].cost], [0, null, null, null]);
+    assert.match(p.cost.note, /no cost estimate/);
+
+    // Two past runs with cost rows and complete slices: each column apart.
+    pastRun(root, 'old-one', 2, [{ main: { model: 'm', ...usage(200, 1000, 50_000, 4000) } }]);
+    pastRun(root, 'old-two', 1, [{ main: { model: 'm', ...usage(300, 3000, 90_000, 6000) } }]);
+    p = run(['plan', root, SRC, '--full']);
+    assert.deepEqual([p.cost.runs, p.cost.slices, p.cost.unit], [2, 3, 'tokens']);
+    assert.deepEqual(Object.keys(p.cost.perSlice), ['output', 'input', 'cacheWrite', 'cacheRead'], 'output and fresh input lead');
+    assert.deepEqual([p.cost.perSlice.output.low, p.cost.perSlice.output.high, p.cost.perSlice.input.low, p.cost.perSlice.cacheRead.high], [500, 3000, 100, 90_000]);
+    assert.deepEqual(p.packets[0].cost.output, { low: 8 * 500, high: 8 * 3000 });
+    assert.equal(p.packets[2].cost, undefined, 'a routed packet has no build cost');
+    assert.deepEqual(p.totals.cost.output, { low: 18 * 500, high: 18 * 3000 });
+    assert.equal(p.totals.costLine, 'output 9k–54k, fresh input 2k–5k tokens; cache write 36k–108k, cache read 450k–1.6M');
+
+    // The compact default: totals, the stops, the next packets in full, and the cost line.
+    p = run(['plan', root, SRC]);
+    assert.deepEqual(p.next.map((r) => r.key), ['engine', 'screen', 'why-slow']);
+    assert.equal(p.next[0].cost, 'output 4k–24k, fresh input 800–2k tokens; cache write 16k–48k, cache read 200k–720k');
+    assert.equal(p.cost.perSlice, 'per slice: output 500–3k, fresh input 100–300 tokens; cache write 2k–6k, cache read 25k–90k');
+    assert.deepEqual([p.rest, p.closed], [[], { done: 0, dropped: 0 }]);
+    assert.match(p.full, /campaign\.mjs" plan ".+" brainstorm-demo --full$/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('plan gives no cost from rows that book a sub-agent again, or from a figure past the bound', () => {
+  const root = makeRepo();
+  try {
+    mixedList(root);
+    // The failing shape: each row books the same sub-agent again with the same usage.
+    const agent = { agent_id: 'a0cac6f94da7', model: 'claude-opus', ...usage(358, 1946, 41_052_828) };
+    pastRun(root, 'rebooked', 2, Array.from({ length: 5 }, () => ({ main: { model: 'm', ...usage(10, 100, 5000) }, subagents: [agent] })));
+    let p = run(['plan', root, SRC, '--full']);
+    assert.deepEqual([p.cost.runs, p.cost.perSlice, p.totals.cost], [0, null, null]);
+    assert.match(p.cost.note, /^the cost rows of this project cannot be summed: /);
+    assert.deepEqual(p.cost.excluded.map((e) => e.slug), ['rebooked']);
+    assert.match(p.cost.excluded[0].reason, /^4 sub-agent entries book again a usage that an earlier row booked; scripts\/cost-rebuild\.mjs repairs/);
+
+    // A clean run past the bound is left out too; a clean run in the bound is the basis.
+    pastRun(root, 'huge', 1, [{ main: { model: 'm', ...usage(10, 100, 2_000_000_000) } }]);
+    pastRun(root, 'clean', 1, [{ main: { model: 'm', ...usage(10, 100, 5000) } }, { subagents: [{ agent_id: 'b1', model: 'm', ...usage(5, 50, 1000) }] }]);
+    p = run(['plan', root, SRC]);
+    assert.deepEqual([p.cost.runs, p.cost.excluded, p.cost.excludedWhy.length], [1, 2, 2]);
+    assert.ok(p.cost.excludedWhy.some((w) => /is above the bound of 1,000,000,000/.test(w)));
+    assert.equal(p.cost.perSlice, 'per slice: output 150, fresh input 15 tokens; cache write 0, cache read 6k');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('plan is compact by default: a list of 60 packets stays under the ceiling, and --full gives every packet', () => {
+  const root = makeRepo();
+  try {
+    const work = Array.from({ length: 60 }, (_, i) => ({
+      key: `packet-number-${String(i + 1).padStart(2, '0')}-of-the-long-list`, title: `A long title of packet ${i + 1} `.repeat(12), shape: 'intake', slug: `packet-number-${String(i + 1).padStart(2, '0')}-of-the-long-list`, entry: 'x', state: 'proposed',
+      order: i + 1, ...(i ? { 'why-here': 'it builds on the one before it' } : {}), items: [`d-${i + 1}`], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP,
+      ...(i % 2 ? { 'ux-impact': 'visual', 'try-out': 'yes' } : {}),
+    }));
+    writeBoard(root, work, work.map((w) => w.items[0]));
+    assert.equal(run(['write', wf(root, SRC)]).ok, true);
+    pastRun(root, 'old-one', 2, [{ main: { model: 'm', ...usage(200, 1000, 50_000, 4000) } }]);
+    const p = run(['plan', root, SRC]);
+    const size = JSON.stringify(p, null, 2).length;
+    assert.ok(size < PLAN_CEILING, `the compact plan is ${size} characters`);
+    assert.equal(p.next.length, PLAN_NEXT);
+    assert.ok(p.next.every((r) => r.title.length <= PLAN_TITLE));
+    assert.equal(p.rest.length, 60 - PLAN_NEXT);
+    assert.match(p.rest[0], /^packet-number-06-of-the-long-list · intake · written · design needed · 8 slices$/);
+    assert.equal(p.totals.stops['try-out'].count, 30);
+    assert.match(p.totals.stops['try-out'].packets, new RegExp(` and ${30 - PLAN_KEYS} more$`));
+    const full = run(['plan', root, SRC, '--full']);
+    assert.equal(full.packets.length, 60);
+    assert.ok(JSON.stringify(full, null, 2).length > size * 2, 'the full plan holds every packet');
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

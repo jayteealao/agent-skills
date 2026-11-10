@@ -1,4 +1,4 @@
-You are running `wf-instrument`, an **observability augmentation** that adds an instrumentation plan to an existing workflow.
+You are running the **instrument augmentation** (`augment/instrument.md`), an **observability augmentation** that adds an instrumentation plan to an existing workflow.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
@@ -27,7 +27,7 @@ existing-workflow/
 | Produces | `04b-instrument.md` — observability plan for the workflow scope |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
-| When to run | After the shape phase of `/wf intake` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
+| When to run | After the shape phase of `/wf intake` and before or during `/wf implement`. Running during implement is fine — `/wf implement` reads this file as additional context. |
 | Next | `/wf implement <slug>` (if not already running), or continue the existing implement stage. |
 
 ## Requires
@@ -46,14 +46,14 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Scope discipline
 You are an **observability architect**, not an implementer.
 - Do not write application code. Do not modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.
-- Your output is the instrumentation *plan*, not the implementation. `wf-implement` builds the code; this command tells it what to build.
+- Your output is the instrumentation *plan*, not the implementation. `/wf implement` builds the code; this augmentation tells it what to build.
 - Be specific enough to implement (name exact files, functions, and signal fields) but do not write the implementation itself.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. This must match an existing workflow directory.
-   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
+   - If `<wf-dir>/` does not exist → Stop: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → Stop: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists (`record get` exits 0) → read it and continue: plan runs once per slice, and the plan is one per slug. Do not overwrite it. Fold its signals into the steps of this slice. Re-author it only when the person asked for it; then note that this is a re-instrumentation run.
 3. **Use the workflow context.** `02-shape.md` defines the scope. The plan files name specific files and steps. The index shows `current-stage`, `status`, and existing `augmentations:` entries.
@@ -67,7 +67,7 @@ Launch both sub-agents in parallel. Do not proceed to write the plan until both 
 
 ### research sub-agent 1 — Current instrumentation inventory
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - For each file in scope (from Step 0), read the file and identify all existing observability signals:
   - **Logging**: any log statement (`console.log`, `logger.info`, `log.Printf`, `logging.info`, structured log calls, etc.)
   - **Metrics**: any metric emission (`counter.inc`, `histogram.observe`, `statsd.increment`, `prometheus.Counter`, etc.)
@@ -87,7 +87,7 @@ Return as structured text:
 
 ### research sub-agent 2 — Instrumentation design
 
-Prompt with ALL of the following context:
+Prompt with all of the following context:
 - The workflow's `02-shape.md` (what is being changed and why)
 - The list of `dark_paths` from sub-agent 1
 - The detected `instrumentation_framework` from sub-agent 1
@@ -138,7 +138,7 @@ Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (secti
 Emit a compact chat summary:
 
 ```
-wf-instrument complete: <slug>
+instrument complete: <slug>
 Files in scope: <N>
 Dark paths found: <N>
 Signals designed: <N> (<log/metric/trace/error breakdown>)
@@ -155,7 +155,7 @@ If dark paths are zero, note:
 
 # What this sub-procedure is NOT
 
-- **Not an implementer** — `wf-instrument` designs the instrumentation plan. `wf-implement` builds it. Do not write application code.
+- **Not an implementer** — The instrument augmentation designs the instrumentation plan. `/wf implement` builds it. Do not write application code.
 - **Not the project-wide foundation** — it does not set up the schema, emit layer, sampling, pipeline, backend, or dashboards. That is `/wf project observability` (`init`/`build`/`audit`). This augmentation plans **per-change** signals *against* that foundation; when `.ai/observability.md` exists it designs to that contract's schema and pipeline.
 - **Not a logging style guide** — it designs signals for this specific workflow change, not a general logging policy for the entire codebase.
-- **Not a prerequisite** — instrumentation is optional. `wf-implement` works without it. But if you're shipping something to production and you can't tell whether it worked, you should run this.
+- **Not a prerequisite** — instrumentation is optional. `/wf implement` works without it. But if you're shipping something to production and you can't tell whether it worked, you should run this.

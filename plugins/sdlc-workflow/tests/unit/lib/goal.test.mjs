@@ -45,7 +45,9 @@ test('each kind maps to a goal verdict', () => {
   assert.equal(fromLifecycle({ verdict: 'met' }).verdict, 'MET');
   assert.match(fromLifecycle({ verdict: 'not-met', reason: 'r', next: { stage: 'verify', slice: 'a' } }).reason, /^next: verify a/);
   assert.equal(fromLifecycle({ verdict: 'blocked', reason: 'gate' }).verdict, 'BLOCKED');
-  assert.equal(fromOptimize({ ok: true, state: 'complete' }).verdict, 'MET');
+  assert.equal(fromOptimize({ ok: true, state: 'finished' }).verdict, 'MET');
+  assert.deepEqual(fromOptimize({ ok: true, state: 'complete', next: { action: 'finish' } }), { verdict: 'NOT-MET', reason: 'optimize: next finish' }, 'a complete loop is met only after finish');
+  assert.deepEqual(fromOptimize({ ok: true, state: 'complete', finishBlocked: 'the main checkout is on main' }), { verdict: 'BLOCKED', reason: 'optimize finish: the main checkout is on main' });
   assert.equal(fromOptimize({ ok: true, state: 'stopped', reason: 'plateau' }).verdict, 'BLOCKED');
   assert.equal(fromOptimize({ ok: true, state: 'running', next: { action: 'trial', on: 'optimize/s' } }).verdict, 'NOT-MET');
   assert.equal(fromProofs([{ command: 'a', code: 0 }]).verdict, 'MET');

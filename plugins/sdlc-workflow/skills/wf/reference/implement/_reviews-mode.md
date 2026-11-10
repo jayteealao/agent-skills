@@ -17,7 +17,7 @@ Do this in order for reviews mode:
    ...
    Starting parallel fixes...
    ```
-6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. Send each sub-agent the prompt of [../_fix-prompt.md](../_fix-prompt.md). Fill `Source` with the `dimension` of the finding.
+6. **Dispatch all finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. Send each sub-agent the prompt of [../_fix-prompt.md](../_fix-prompt.md). Fill `Source` with the `dimension` of the finding.
    a. **As each sub-agent completes, verify its fix (the merge gate):** read its `Method:` line and self-check first. Then read the changed file(s), confirm the fix addresses the finding and the suggested method ([../_fix-loop.md](../_fix-loop.md) rule 5), and check for regressions before merging its patch into the shared tree.
    b. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
    c. If a fix failed or was partial, record `COULD NOT FIX: <reason>` on its checklist item.
@@ -27,7 +27,7 @@ Do this in order for reviews mode:
    c. **Record each outcome in the ledger** with `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>` or `wf.mjs findings set "<root>" <slug> <id> could-not-fix --reason "<reason>"`. Then write the draft of the review record (`07-review.md`, or `07-review-<slice-slug>.md` in per-slice mode) whole from the ledger and put it, per `review/_stage.md` Step 5.
    d. Update the index fields with one `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...` call.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by path and fail closed on any other dirty path, per the commit rule of [../_workflow-rules.md](../_workflow-rules.md). Commit as `<type>: <what the fix does>` ([_steps.md](_steps.md)). Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
-8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:
+8. **Evaluate adaptive routing.** Write all viable options into the record's `recommended-routes`:
    - **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>` when fixes were applied. Compact recommended: review-fix context is noise for re-verification.
    - **Option B: Re-review** → `/wf review <slug> <slice-slug>` when some findings could not be fixed and need re-assessment. Compact recommended: a fresh review needs clean context.
    - **Option C: Ship** → `/wf ship <slug>` when all findings were fixed and the change was already verified.

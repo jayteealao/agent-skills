@@ -29,7 +29,7 @@ carried-risk (an unresolved deferral, probe finding, or intent-risk), in which c
 carried-risk section only.
 
 If advise-scope narrowed to a branch/`pr#N`, restrict the set to that branch's roster: the `slugs` of
-`node "<skill-dir>/scripts/wf.mjs" target "<root>" <scope> --json`. An `error` → show it and STOP.
+`node "<skill-dir>/scripts/wf.mjs" target "<root>" <scope> --json`. An `error` → show it and stop.
 
 ## Step A2 — Build the constraint graph (Tier 1, skipped under `fast`)
 
@@ -64,7 +64,7 @@ edge it settled so the sequencing note can cite it as evidence.
 
 ## Step A4 — Rank, serialize, and run the WIP pass
 
-1. **Ready set** — non-terminal, not blocked (`status` ≠ `awaiting-input` AND no `open-questions`),
+1. **Ready set** — non-terminal, not blocked (`status` ≠ `awaiting-input` and no `open-questions`),
    and every dependency predecessor already satisfied (shipped, or ranked ahead this run).
 2. **Rank the ready set** by descending weight: (a) steer priority (Step A5); (b) proximity to done
    (higher `stage-number` — closest to shippable value); (c) carried-risk paid-down soonest; (d) decay

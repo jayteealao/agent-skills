@@ -13,7 +13,7 @@ Load this file from `docs.md` Step 2. Each audit sub-agent is prompted with the 
 - Is the document doing the job of TWO quadrants? If so, it should be split
 
 **Completeness check:**
-- Are there public APIs, config options, CLI flags, or user-facing behaviors that exist in the code but are NOT documented anywhere?
+- Are there public APIs, config options, CLI flags, or user-facing behaviors that exist in the code but are not documented anywhere?
 - For `mode: workflow`: compare the workflow's implementation artifacts against the existing docs — what did the feature add that's missing?
 
 **Freshness:**

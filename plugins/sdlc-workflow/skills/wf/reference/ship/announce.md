@@ -24,7 +24,7 @@ You are a **communications writer**, not a developer; respect the stated order o
 2. **Resolve the audience** in Step 3. Valid audiences: `eng`, `product`, `users`, `all`. The default is `all` (all three).
 3. **Read the index** (`record get "<root>" <slug> index`) — parse `title`, `slug`, `status`, `current-stage`, and `selected-slice`.
 4. **Check prerequisites and resolve ship-run artifact:**
-   - List the records with `record list "<root>" <slug>` and take the `09-ship-run-*.md` names. Read each with `record get "<root>" <slug> <name>` (exit 1 = absent). Sort by `run-id` descending; take the most recent with `go-nogo: go` or `conditional-go`. Record it as `<latest-run-path>` and capture its `run-id`. When that run has `rolled-back: true`, read its `rollback-artifact` (`09-rollback-<run-id>.md`) too, and draft a **rollback notice** instead of a ship announcement: the subject `[Rolled back] <title>`, then what was rolled back, why, the current state, and the next step. The audience is usually eng and ops. If no qualifying run exists but `09-ship.md` exists (legacy shape) → WARN: "Using legacy ship artifact — some run-level details will be missing." Use it. If neither exists but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only." Proceed. If nothing exists → STOP: "No handoff or ship artifact found. Run `/wf ship <slug>` first."
+   - List the records with `record list "<root>" <slug>` and take the `09-ship-run-*.md` names. Read each with `record get "<root>" <slug> <name>` (exit 1 = absent). Sort by `run-id` descending; take the most recent with `go-nogo: go` or `conditional-go`. Record it as `<latest-run-path>` and capture its `run-id`. When that run has `rolled-back: true`, read its `rollback-artifact` (`09-rollback-<run-id>.md`) too, and draft a **rollback notice** instead of a ship announcement: the subject `[Rolled back] <title>`, then what was rolled back, why, the current state, and the next step. The audience is usually eng and ops. If no qualifying run exists but `09-ship.md` exists (legacy shape) → WARN: "Using legacy ship artifact — some run-level details will be missing." Use it. If neither exists but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only." Proceed. If nothing exists → Stop: "No handoff or ship artifact found. Run `/wf ship <slug>` first."
    - **Read `.ai/ship-plan.md`** if it exists. Parse `announcement.channels[]` and `announcement.template-path` into in-memory state as plan defaults. If the ship plan is absent, proceed without plan defaults (the channel question in Step 3 will have no pre-fill).
 5. **Read source artifacts** (all that exist, each with `record get "<root>" <slug> <name>`):
    - `<latest-run-path>` — deployment details, rollout strategy, go/no-go decision, version, environment, merge info, recovery actions taken
@@ -145,13 +145,13 @@ refs:
 
 # Step 5a — Update `announcements-sent` in the ship-run artifact
 
-Set ONLY `announcements-sent` on the run record: its current list plus the channels the announcements were drafted for. Run `record set "<root>" <slug> <latest-run-path> "announcements-sent=[<current entries>, <channels>]"`. `updated-at` moves by itself.
+Set only `announcements-sent` on the run record: its current list plus the channels the announcements were drafted for. Run `record set "<root>" <slug> <latest-run-path> "announcements-sent=[<current entries>, <channels>]"`. `updated-at` moves by itself.
 
 Do not change any other field. This closes the ship→announce loop: the run artifact records which channels received the announcement, visible to retro analysis. If the legacy `09-ship.md` was used instead of a run artifact, skip this step.
 
 # Step 6 — Update index
 
-Change ONLY `workflow-files`: add `announce.md` and any doc paths generated in Step 2 that it does not hold yet. Run `record set "<root>" <slug> index "workflow-files=[<current entries>, announce.md, <doc paths>]"`. `updated-at` moves by itself.
+Change only `workflow-files`: add `announce.md` and any doc paths generated in Step 2 that it does not hold yet. Run `record set "<root>" <slug> index "workflow-files=[<current entries>, announce.md, <doc paths>]"`. `updated-at` moves by itself.
 
 Do not change `status`, `current-stage`, or any other field.
 

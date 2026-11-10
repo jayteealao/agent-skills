@@ -19,7 +19,7 @@ quantities instead of abstract statements.
    plain-language sentences: what is being decided, why it surfaced now, and
    what the choice affects (delivery time, risk, cost, user experience, future
    flexibility). The technical mechanism comes second, never first.
-2. **Name jargon AND translate it.** Keep the precise technical term — the
+2. **Name jargon and translate it.** Keep the precise technical term — the
    artifact needs it — but attach a short gloss (≤10 words) on first use:
    *"extend the existing repository layer (the code that already talks to the
    database)"*. Never simplify by dropping the term, and never assume the term
@@ -49,7 +49,7 @@ quantities instead of abstract statements.
    each option must say, in one sentence, what the user or learner **experiences
    differently at runtime**, not the name of the architecture behind it:
    *"the model never decides what to ask next; a fixed 5-stage script asks the
-   same questions in the same order every time"* — NOT *"state-machine-driven
+   same questions in the same order every time"* — Not *"state-machine-driven
    interview"*. The design label is exactly where the narrowing hides; naming
    the lived consequence is what lets a non-technical PO catch it before it
    ships.

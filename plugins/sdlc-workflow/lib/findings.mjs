@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.mjs';
 import { withFileLock } from './file-lock.mjs';
 import { parse, stringify } from './yaml.mjs';
+import { agentFix, refuse } from './fix.mjs';
 
 export const FINDINGS_FILE = 'findings.yaml';
 export const SOURCES = ['review', 'audit', 'pr-bot'];
@@ -96,7 +97,7 @@ const rank = (s) => SEVERITIES.indexOf(s);
  * nothing; `reopenedFixed` lists the `fixed` entries that the run found again and opened.
  */
 export function mergeRun(ledger, found, { source = 'review', dimensions = [], slice = null, run = null, files = null, now = nowIso() } = {}) {
-  if (!SOURCES.includes(source)) throw new Error(`source must be one of ${SOURCES.join(', ')}`);
+  if (!SOURCES.includes(source)) throw refuse(`source must be one of ${SOURCES.join(', ')}`, agentFix('Run the command again with a --source that the error lists.'));
   const inPacket = Array.isArray(files) && files.length ? new Set(files.map(norm)) : null;
   const outOfScope = [];
   if (inPacket) {
@@ -115,9 +116,9 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
   // Within-run dedupe: the same file and line in one run is one finding, at the higher severity.
   const merged = [];
   for (const f of found) {
-    if (!SEVERITIES.includes(f.severity)) throw new Error(`severity must be one of ${SEVERITIES.join(', ')}`);
+    if (!SEVERITIES.includes(f.severity)) throw refuse(`severity must be one of ${SEVERITIES.join(', ')}`, agentFix('Give each finding a severity that the error lists, then run the command again.'));
     // A finding with no dimension could never be resolved: no run checks the dimension null.
-    if (!f.dimension || !String(f.dimension).trim()) throw new Error(`a finding needs its dimension: ${String(f.issue ?? '').slice(0, 80) || JSON.stringify(f).slice(0, 80)}`);
+    if (!f.dimension || !String(f.dimension).trim()) throw refuse(`a finding needs its dimension: ${String(f.issue ?? '').slice(0, 80) || JSON.stringify(f).slice(0, 80)}`, agentFix('Give each finding its dimension, then run the command again.'));
     const g = { ...f, source, slice };
     const twin = merged.find((m) => sameFinding(m, g) || (m.file && g.file && norm(m.file) === norm(g.file) && lineNo(m.line) != null && lineNo(m.line) === lineNo(g.line)));
     if (twin) {
@@ -204,12 +205,12 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
  * and it is the reason. Returns the entry.
  */
 export function setStatus(ledger, id, status, reason = null, { now = nowIso(), commit = null, decision = null } = {}) {
-  if (!STATUSES.includes(status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
+  if (!STATUSES.includes(status)) throw refuse(`status must be one of ${STATUSES.join(', ')}`, agentFix('Run findings set again with a status that the error lists.'));
   const e = ledger.findings.find((f) => f.id === id);
-  if (!e) throw new Error(`no finding ${id}`);
-  if (decision && status !== 'dismissed') throw new Error('only a dismissed finding names a decision');
+  if (!e) throw refuse(`no finding ${id}`, agentFix('List the findings with findings list, then run the command again with an id that it lists.'));
+  if (decision && status !== 'dismissed') throw refuse('only a dismissed finding names a decision', agentFix('Run the command again with no decision, or with the status dismissed.'));
   if (decision) reason = reason ? `decision ${decision}: ${reason}` : `decision ${decision}`;
-  if (TRIAGED.has(status) && status !== 'fixed' && !reason) throw new Error(`a ${status} finding needs a reason`);
+  if (TRIAGED.has(status) && status !== 'fixed' && !reason) throw refuse(`a ${status} finding needs a reason`, agentFix('Run the command again with --reason, the reason for the status.'));
   e.status = status;
   e.reason = reason;
   e['resolved-at'] = OPEN_STATUSES.has(status) ? null : now;

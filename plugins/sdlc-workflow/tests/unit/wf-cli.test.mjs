@@ -75,9 +75,14 @@ test('dispatch: an unsafe token fits only text', () => {
 });
 
 test('dispatch: a host gap stops the key; a different form rides along as a note', () => {
-  const gap = run(['loop', 'optimize', 'demo'], disk({ demo: [] }), { host: 'codex' });
+  const gapped = structuredClone(reg);
+  gapped.keys.find((k) => k.name === 'loop').subkeys.find((s) => s.name === 'prototype').hosts.codex = 'gap: not available; a gap of this test';
+  const gap = dispatch(gapped, ['loop', 'prototype', 'demo'], disk({ demo: [] }), { host: 'codex' });
   assert.equal(gap.reference, null);
   assert.match(gap.reason, /^host gap: not available/);
+  const optimize = run(['loop', 'optimize', 'demo'], disk({ demo: [] }), { host: 'codex' });
+  assert.equal(optimize.reference, 'reference/optimize.md', 'with no driver, the goal contract carries the loop');
+  assert.match(optimize.hostNote, /^differs: no driver/);
   assert.equal(run(['yolo', 'demo'], disk({ demo: [] }), { host: 'codex' }).reference, 'reference/yolo.md');
   assert.equal(run(['yolo', 'demo'], disk({ demo: [] }), { host: 'pi' }).reference, 'reference/yolo.md');
   const part = run(['loop', 'goal', 'demo'], disk({ demo: [] }), { host: 'pi' });

@@ -17,7 +17,7 @@ import {
   parseClaudeEntries, parseCodexEntries, codexDelta, parsePiEntries, applyPatchPaths,
   keyFromArtifactName, attributeWrites, workflowPathParts,
   sumMain, sumSubagents, collectTurn, newCursor, readCursor, writeCursor, stageOfLabel,
-  agentTotalsFromFiles, rebuildLedgerRows,
+  agentTotalsFromFiles, rebuildLedgerRows, rebookedEntries,
   appendCostRow, readCostRows, aggregateCost, usageColumns, COST_FILE,
 } from '../../../lib/cost-ledger.mjs';
 
@@ -473,4 +473,16 @@ test('workflowPathParts: . and .. name no workflow folder', () => {
 test('usageColumns: a codex row shows its uncached input; a claude row is as it is', () => {
   assert.deepEqual(usageColumns({ input_tokens: 1000, cached_input_tokens: 900, output_tokens: 5 }), { input: 100, output: 5, cacheRead: 900, cacheWrite: 0 });
   assert.deepEqual(usageColumns({ input_tokens: 10, cache_read_input_tokens: 900, output_tokens: 5 }), { input: 10, output: 5, cacheRead: 900, cacheWrite: 0 });
+});
+
+test('rebookedEntries: a sub-agent booked again with the same usage counts; new messages, a rebuilt entry and an empty entry do not', () => {
+  const u = (o, c) => ({ input_tokens: 2, output_tokens: o, cache_read_input_tokens: c, cache_creation_input_tokens: 0 });
+  const a = { agent_id: 'a1', model: 'm', ...u(1946, 41052828) };
+  // The shape of the old hook: the same entry in every row.
+  assert.equal(rebookedEntries([{ subagents: [a] }, { subagents: [a] }, { subagents: [a, { agent_id: 'a2', model: 'm', ...u(5, 9) }] }]), 2);
+  // The fixed hook books the new messages of an agent in each row: no repeat.
+  assert.equal(rebookedEntries([{ subagents: [{ agent_id: 'a1', model: 'm', ...u(10, 100) }] }, { subagents: [{ agent_id: 'a1', model: 'm', ...u(12, 300) }] }]), 0);
+  assert.equal(rebookedEntries([{ subagents: [{ ...a, rebuilt: true }] }, { subagents: [{ ...a, rebuilt: true }] }]), 0);
+  assert.equal(rebookedEntries([{ subagents: [{ agent_id: 'a1', model: 'm', ...u(0, 0), input_tokens: 0 }] }, { subagents: [{ agent_id: 'a1', model: 'm', ...u(0, 0), input_tokens: 0 }] }]), 0);
+  assert.equal(rebookedEntries([{ main: { input_tokens: 1 } }, {}]), 0);
 });

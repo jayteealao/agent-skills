@@ -8,7 +8,7 @@ No commitlint config → `commitlint-status: skipped`. Otherwise run `npx commit
 
 - All pass → `pass`.
 - A `BREAKING CHANGE` footer or a `!:` subject → `warn`. Record the commits in `## Reviewer Focus Areas`. Do not block.
-- A violation → `commitlint-status: fail`. STOP. Print the violating commits and ask the person to amend them. Do not fix them yourself.
+- A violation → `commitlint-status: fail`. Stop. Print the violating commits and ask the person to amend them. Do not fix them yourself.
 
 ## T3.6 — Public-surface drift
 
@@ -16,7 +16,7 @@ Read `public-surface:` from the index. Absent → `public-surface-drift: skipped
 
 - No change → `none`.
 - Changed, and clean before → commit `chore(api): regenerate <kind> surface mirror` → `regenerated`.
-- Changed, and dirty before → `drift-without-regen`. STOP: the regen output does not agree with the staged version. Ask the person to reconcile it with `/wf implement <slug> <slice>`.
+- Changed, and dirty before → `drift-without-regen`. Stop: the regen output does not agree with the staged version. Ask the person to reconcile it with `/wf implement <slug> <slice>`.
 
 Record the regen summary of every kind in `## Reviewer Focus Areas`.
 

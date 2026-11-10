@@ -2,7 +2,7 @@
 
 Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **shape phase** of `intake` runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
 
-**Scope**: Design planning only. This procedure does NOT write code, does NOT draw screens, and does NOT approve visual direction. It produces the thinking that makes code good. The screens, the approval and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
+**Scope**: Design planning only. This procedure does not write code, does not draw screens, and does not approve visual direction. It produces the thinking that makes code good. The screens, the approval and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
 
 ## Philosophy
 
@@ -18,7 +18,7 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 
 1. For each question in the rounds below, search the user prompt, the carried design thoughts ([_carried.md](_carried.md) → In the brief), PRODUCT.md, DESIGN.md, `.ai/design/current.md`, `.ai/design/direction.md`, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source in the brief. Do not ask that question.
-3. Ask the unanswered questions in ONE batched round. When the shape phase of intake runs this procedure, that round is Round 3b of `../shape.md`: intake asks every design-brief question there, with its own questions, and this procedure asks no second round. When the design stage runs this procedure, ask the round here. Then stop and wait for the answers.
+3. Ask the unanswered questions in one batched round. When the shape phase of intake runs this procedure, that round is Round 3b of `../shape.md`: intake asks every design-brief question there, with its own questions, and this procedure asks no second round. When the design stage runs this procedure, ask the round here. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Phase 2.
 
 ### Round 1 — Purpose and context
@@ -75,7 +75,7 @@ List of content elements, edge cases, and state variants (empty, error, loading,
 - The design mode of each surface, with the reason for each choice
 - The three brand words, the tone, and the first-five-seconds goal of each surface
 - Two or three named anchor references with brief rationale, each with its reference key when it has a file, and the anti-references
-- Anti-goals: what this should NOT look like
+- Anti-goals: what this should not look like
 
 ### 5. Scope and fidelity
 What level of completeness is expected. States to cover.
@@ -105,7 +105,7 @@ Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/referen
 
 The design brief records the **intended** visual direction — color strategy, scene
 sentence, named anchor references, anti-goals — from the discovery interview. It does
-**NOT** draw screens, and does **NOT** run the approval. Those two moves belong
+**not** draw screens, and does **not** run the approval. Those two moves belong
 to the design stage, which a person runs:
 
 - **Screens** — the design stage draws each changed screen on the design surface when it authors

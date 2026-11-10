@@ -45,6 +45,10 @@ import { fileURLToPath } from 'node:url';
 import { modelsOf } from '../lib/campaign.mjs';
 import { runDelegatedIn } from '../lib/decisions.mjs';
 import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
+
+const SELF = fileURLToPath(import.meta.url);
+const stageLine = (root, ...rest) => [`node "${SELF}"`, `"${root}"`, ...rest].join(' ');
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
@@ -74,13 +78,13 @@ function pluginVersion() {
  */
 export function stageYoloDriver(projectRoot, opts = {}) {
   if (typeof projectRoot !== 'string' || !path.isAbsolute(projectRoot)) {
-    throw new Error(`stage-yolo-driver: projectRoot must be an absolute path (got ${JSON.stringify(projectRoot)})`);
+    throw refuse(`stage-yolo-driver: projectRoot must be an absolute path (got ${JSON.stringify(projectRoot)})`, agentFix('Run it again with the absolute path of the project root.', stageLine('<absolute projectRoot>')));
   }
   if (!existsSync(workflowsRoot(projectRoot))) {
-    throw new Error(`stage-yolo-driver: ${projectRoot} has no .ai/workflows — pass the repo root that owns the workflow`);
+    throw refuse(`stage-yolo-driver: ${projectRoot} has no .ai/workflows — pass the repo root that owns the workflow`, agentFix('Run it again with the root of the repo that holds .ai/workflows (git rev-parse --show-toplevel in the main checkout names it).', stageLine('<absolute projectRoot>')));
   }
   const name = opts.driver ?? 'yolo';
-  if (!DRIVERS.includes(name)) throw new Error(`stage-yolo-driver: the driver is one of ${DRIVERS.join(', ')}`);
+  if (!DRIVERS.includes(name)) throw refuse(`stage-yolo-driver: the driver is one of ${DRIVERS.join(', ')}`, agentFix(`Run it again with --driver ${DRIVERS.join(' or --driver ')}.`, stageLine(projectRoot, '--driver', DRIVERS[0])));
   const source = opts.source ?? path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', `${name}.js`);
   const log = opts.log ?? ((line) => console.error(line));
   const bytes = readFileSync(source);
@@ -126,12 +130,14 @@ function main() {
   const slug = slugAt > -1 ? process.argv[slugAt + 1] : undefined;
   if (!projectRoot) {
     console.error('usage: node scripts/stage-yolo-driver.mjs <absolute projectRoot>');
+    for (const l of fixLines(agentFix('Run it again with the absolute path of the project root.', stageLine('<absolute projectRoot>')))) console.error(l);
     process.exit(2);
   }
   try {
     console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver, slug })));
   } catch (err) {
     console.error(err.message);
+    for (const l of fixLines(err.fix ?? defectFix('stage-yolo-driver.mjs', err))) console.error(l);
     process.exit(1);
   }
 }

@@ -31,12 +31,21 @@ import { optimizeStatus } from './optimize.mjs';
 import { runDir, workflowDir } from '../lib/records-root.mjs';
 import { runFileFor } from '../lib/run-files.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from '../lib/records.mjs';
+import { agentFix, failureOf, fixLines, refuse, withFix } from '../lib/fix.mjs';
 
-const USAGE = 'Usage: goal.mjs <arm|check|park|status|clear|lifecycle> <projectRoot> <slug> ...';
+/** The commands of this script, in the order of USAGE. */
+export const COMMANDS = Object.freeze(['arm', 'check', 'park', 'status', 'clear', 'lifecycle']);
+const USAGE = `Usage: goal.mjs <${COMMANDS.join('|')}> <projectRoot> <slug> ...`;
+// A usage error names its repair like every other failure.
+const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const WRAPPER = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'goal.mjs');
+const WF_WRAPPER = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'wf.mjs');
 const PROOF_TIMEOUT_MS = 30 * 60_000;
+
+/** One command line of the goal script of the skill, for the fix of a failure (lib/fix.mjs). */
+const goalCommand = (root, slug, sub, rest = '') => `node "${WRAPPER}" ${sub} "${root}" ${slug}${rest ? ` ${rest}` : ''}`;
 
 const wfDir = workflowDir;
 const goalPath = (root, slug) => join(wfDir(root, slug), 'goal.md');
@@ -63,7 +72,7 @@ function readContract(root, slug) {
   const f = goalPath(root, slug);
   if (!existsSync(f)) return null;
   const p = safeParseFrontmatter(readFileSync(f, 'utf8'));
-  if (!p.data) throw new Error(`goal.md does not parse: ${p.parseError}`);
+  if (!p.data) throw refuse(`goal.md does not parse: ${p.parseError}`, agentFix(`Repair the frontmatter of ${f} where the parse error points, then run the command again.`));
   return { ...p.data, prose: (p.content ?? '').trim() };
 }
 const saveContract = (root, slug, c) => writeAtomic(goalPath(root, slug), renderGoalMd({ ...c, slug }, c.prose));
@@ -80,13 +89,13 @@ function indexOf(root, slug) {
 }
 
 function arm(root, slug, f) {
-  if (!existsSync(wfDir(root, slug))) throw new Error(`no workflow ${slug}: start it with /wf intake first`);
+  if (!existsSync(wfDir(root, slug))) throw refuse(`no workflow ${slug}: start it with /wf intake first`, agentFix(`There is no workflow ${slug}. List the workflows, and arm the goal on one of them; a new one starts with /wf intake.`, `node "${WF_WRAPPER}" status "${root}"`));
   const prior = readContract(root, slug);
   const index = indexOf(root, slug);
   const proofs = [].concat(f.proof ?? []).map(String).filter((p) => p.trim());
   const kind = f.kind ?? prior?.kind ?? (proofs.length ? 'proofs' : index?.['workflow-type'] === 'optimize' ? 'optimize' : 'lifecycle');
   const host = f.host ?? prior?.host ?? 'claude-code';
-  if (!HOSTS.includes(host)) throw new Error(`host must be one of ${HOSTS.join(', ')}`);
+  if (!HOSTS.includes(host)) throw refuse(`host must be one of ${HOSTS.join(', ')}`, agentFix(`Run arm again with --host set to the host of this session: one of ${HOSTS.join(', ')}.`, goalCommand(root, slug, 'arm', `--host <${HOSTS.join('|')}>`)));
   const objective = String(f.objective ?? prior?.objective ?? '').trim()
     || (kind === 'lifecycle' ? `Drive slug ${slug} to ship-ready` : kind === 'optimize' ? `Finish the optimize loop of slug ${slug}` : '');
   const c = {
@@ -102,7 +111,7 @@ function arm(root, slug, f) {
     prose: prior?.prose ?? '',
   };
   const errors = contractErrors(c);
-  if (errors.length) return { ok: false, error: `the contract is not valid: ${errors.join('; ')}` };
+  if (errors.length) return { ok: false, error: `the contract is not valid: ${errors.join('; ')}`, fix: agentFix('Run arm again with the fields that the error names set right: --objective, --kind, --proof or --max-checks.', goalCommand(root, slug, 'arm', '--objective "<objective>"')) };
   const condition = conditionText({ script: WRAPPER, root, slug, maxChecks: c['max-checks'] });
   saveContract(root, slug, c);
   const plan = armPlan(host, condition);
@@ -138,7 +147,7 @@ function check(root, slug) {
       v = fromLifecycle(l);
     } else if (contract.kind === 'optimize') {
       let s;
-      try { s = optimizeStatus(root, slug); } catch (e) { s = { ok: false, error: e.message }; }
+      try { s = optimizeStatus(root, slug); } catch (e) { s = { ok: false, error: e.message } /* internal */; }
       lines.push(`  optimize: ${s.state ?? 'error'}${s.reason ? ` (${s.reason})` : ''}${s.detail ? `: ${s.detail}` : ''}`);
       if (s.best) lines.push(`  best ${s.best.value} against the baseline ${s.baseline?.median}; trials ${s.counters?.trials} of ${s.budget?.trials}`);
       v = fromOptimize(s);
@@ -162,9 +171,9 @@ function check(root, slug) {
 }
 
 function park(root, slug, gate, f) {
-  if (!gate) throw new Error('park needs a gate id');
+  if (!gate) throw refuse('park needs a gate id', agentFix('Run park again with the id of the gate that waits for the person.', goalCommand(root, slug, 'park', '<gate-id> --reason "<reason>"')));
   const c = readContract(root, slug);
-  if (!c) throw new Error('no goal contract: nothing to park');
+  if (!c) throw refuse('no goal contract: nothing to park', agentFix('No goal is armed on this slug, so nothing parks: go on with the gate without it. Status shows the goal state.', goalCommand(root, slug, 'status')));
   const parked = { gate: String(gate), reason: String(f.reason ?? '').trim(), at: nowIso() };
   saveContract(root, slug, { ...c, parked });
   return { ok: true, parked, next: 'run check: it prints GOAL: BLOCKED, and the host goal ends. After the person answers, run /wf loop goal <slug> resume.' };
@@ -209,7 +218,7 @@ function flags(rest) {
 
 export function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, slug, ...rest] = argv;
-  if (!cmd || !rootArg || !slug) { process.stderr.write(`${USAGE}\n`); return 2; }
+  if (!cmd || !rootArg || !slug) { process.stderr.write(`${USAGE}\n${USAGE_FIX}\n`); return 2; }
   const root = resolve(rootArg);
   const { pos, f } = flags(rest);
   if (cmd === 'check') {
@@ -227,9 +236,10 @@ export function main(argv = process.argv.slice(2)) {
       default: out = null;
     }
   } catch (e) {
-    out = { ok: false, error: e.message };
+    out = failureOf(e, 'goal.mjs');
   }
-  if (out === null) { process.stderr.write(`${USAGE}\n`); return 2; }
+  if (out === null) { process.stderr.write(`${USAGE}\n${USAGE_FIX}\n`); return 2; }
+  withFix(out, 'goal.mjs');
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   return out.ok ? 0 : 1;
 }

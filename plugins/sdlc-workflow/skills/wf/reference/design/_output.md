@@ -42,7 +42,7 @@ artifact lets `/wf review` and `/wf ship` see exactly what design augmentations 
 **Rules:**
 - **First line.** Name the command and the slug; no-slug runs that created a slug name the new
   slug; truly standalone runs use `"freestanding"`.
-- **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
+- **Narrative — the heart of the summary, required for any command that produces an artifact.**
   Lead with the narrative per [_chat-return.md](../_chat-return.md) (section *The narrative*). Write a short
   **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person approved and how many screens
   the approval holds; for `audit`/`critique`, the verdict and top findings; for `extract`, what

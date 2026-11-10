@@ -12,7 +12,7 @@ The person starts a round from the loop ([_loop.md](_loop.md)) with a steer word
 /wf intake ideate <slug> surprise me
 ```
 
-`ideate-sources.mjs args` returns `mode: steer`, with `steer:` the word and `target:` the rest. From the command line, run Step 0 sub-steps 3 to 3c of `intake/ideate.md`, then the round, then go into the loop.
+`ideate-sources.mjs args` returns `mode: steer`, with `steer:` the word and `target:` the rest. From the command line, run items 4 to 6 of Step 0 of `intake/ideate.md`, then the round, then go into the loop.
 
 ## The kinds of round
 
@@ -33,7 +33,7 @@ A source is not a steer word. To add a source, start a new run, or run `refresh`
 1. **Announce.** Print one line before the agents start: the kind of round, its target in words, and the number of agents. The person asked for the round, so do not ask again.
 2. **Scan.** Run Step 1 of `intake/ideate.md` with the scope of the round. Give every agent the ideas already in the roster, so it reports new ground only.
 3. **Generate and filter.** Run Step 2 and Step 3 on the new candidates only. The filter also reads:
-   - the memory of earlier runs (Step 3c);
+   - the memory of earlier runs (Step 0, item 6);
    - this run's `culled:` roster. A candidate that matches an idea that the person dropped is culled with the reason "you dropped this", and is not shown;
    - the ideas already in the roster. Challenge 5 joins a new symptom to an existing root cause: the new evidence goes onto the existing idea.
 4. **Record.** Give each new idea the next free `IDEA-NNN` id, `round:` the round number, and `triage: open`. Give each new cull `round:`. Add one entry to `rounds:`:

@@ -1,6 +1,6 @@
 # External Output Boundary
 
-This file is the ONE canonical statement of the boundary rule. Every stage reference, skill, and
+This file is the one canonical statement of the boundary rule. Every stage reference, skill, and
 sub-agent prompt cites it instead of restating it — a conventions test fails the build if the full
 rule body appears anywhere else under `skills/`.
 
@@ -37,5 +37,5 @@ Workflow artifacts and command internals are private implementation context. Nev
   `ship.md` finds build output by that marker, so write it exactly as the build reference gives it.
 - The **chat return** at the end of a `/wf` invocation is an internal audience, per
   [_chat-return.md](_chat-return.md). The boundary governs what leaves the session: commits, PRs, releases, docs, code.
-- Sub-agents spawned with fresh context do NOT inherit this rule automatically; dispatcher prompts
+- Sub-agents spawned with fresh context do not inherit this rule automatically; dispatcher prompts
   re-assert a compressed form of it. That compressed restatement is the only sanctioned duplication.

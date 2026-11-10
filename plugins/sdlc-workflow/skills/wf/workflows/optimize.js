@@ -106,10 +106,10 @@ async function call(prompt, opts) {
 const unwrap = (res, label) => res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
 
 /** A bookkeeping agent: runs one optimize.mjs command and changes nothing else. */
-async function book(sub, rest, label, phaseName, pre = '') {
+async function book(sub, rest, label, phaseName, pre = '', line = null) {
   const res = await call(
     `BOOKKEEPING for the optimize loop of '${slug}'. ${pre}Run exactly this command and nothing else:\n` +
-    `  ${cmd(sub, rest)}\n` +
+    `  ${line || cmd(sub, rest)}\n` +
     `Return { ok, result } where result is the JSON object that the command printed on stdout, parsed, every field ` +
     `as printed. When the command exits non-zero it still prints JSON: return it as result with ok false. Do not ` +
     `edit any other file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
@@ -351,7 +351,8 @@ while (st && st.state === 'running') {
   if (['round-open', 'round-close', 'checkpoint', 'merge-trial', 'merge-close', 'prune'].includes(next.action)) {
     queue.length = 0
     const isMerge = next.action === 'merge-trial'
-    const r = await book(next.action, isMerge ? `--branch ${next.branch}` : '', isMerge ? `merge:${laneTag(next.branch)}` : next.action, 'Loop')
+    // status prints the exact command of a boundary action in next.command; the line built here is the fallback.
+    const r = await book(next.action, isMerge ? `--branch ${next.branch}` : '', isMerge ? `merge:${laneTag(next.branch)}` : next.action, 'Loop', '', typeof next.command === 'string' ? next.command : null)
     events.push({ event: next.action, ok: r.ok !== false, why: next.why || '', winner: r.winner || null, ...(isMerge ? { branch: next.branch, verdict: r.verdict, median: r.median ?? null } : {}) })
     if (r.ok === false) { stoppedAt = 'bookkeeping'; reason = `${next.action}: ${r.error || 'failed'}`; break }
     log(isMerge

@@ -2,13 +2,13 @@
 
 Step 2 of `/wf intake rca` dispatches the three sub-agents below in parallel. Every dispatch is read-only. Wait for all of them before synthesis.
 
-**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../../_subagents.md)). REQUIRED on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
+**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../../_subagents.md)). Required on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
 
 When an inbound `discover` verdict supplied ranked counter-hypotheses (`_intake-provenance-consume.md`), seed every prompt below with them: they are candidate root causes.
 
 ### research sub-agent 1 — Code path investigation
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - Identify the code path most likely to contain the bug from the symptom description and any error/stack trace.
 - Read the implicated files in full. Look for: incorrect assumptions, missing null/undefined handling, race conditions, off-by-one errors, incorrect state transitions, mismatched contract between caller and callee.
 - Check tests covering the implicated path. If tests exist, identify why they did not catch this. If tests do not exist, note the gap.
@@ -23,7 +23,7 @@ Return as structured text:
 
 ### research sub-agent 2 — Recent change correlation
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - Run `git log --since="7 days ago" --oneline` and identify commits in or near the implicated path.
 - For each candidate commit, read the diff and check whether it could plausibly cause the symptom.
 - Check open PRs touching the implicated path: `gh pr list --search "path:<implicated-dir>"`.
@@ -36,7 +36,7 @@ Return as structured text:
 
 ### research sub-agent 3 — Blast radius
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - Given the implicated mechanism, identify what else might be silently affected: callers of the broken function, sibling code paths sharing the same flawed assumption, data already corrupted by past invocations, downstream systems consuming the bad output.
 - Search the codebase for the same pattern that caused the bug, in case it exists in multiple places.
 

@@ -36,7 +36,7 @@ The first token of `$ARGUMENTS` (after `project ship-plan` is stripped by `wf/SK
 | `audit` | Read-only soundness audit of the plan + built pipeline + release-relevant codebase | `ship-plan/audit.md` |
 | missing / unknown | Show usage and ask | (see below) |
 
-**No token or unknown token** → STOP. Render usage:
+**No token or unknown token** → Stop. Render usage:
 
 ```
 Usage:

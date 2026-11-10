@@ -51,7 +51,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What's the testing coverage?** (Smoke tests, integration tests, e2e tests)
 - **What's the migration path?** (For users upgrading from previous version)
 - **A schema change in code with no migration file is BLOCKER**.
-- Migration safety: a NOT NULL column with no default, a dropped column that holds data, a long `ALTER` on a big table with no batching, and a migration that breaks old code still running mid-rollout (see `api-contracts`, focus migrations).
+- Migration safety: a not NULL column with no default, a dropped column that holds data, a long `ALTER` on a big table with no batching, and a migration that breaks old code still running mid-rollout (see `api-contracts`, focus migrations).
 - Rollback after a data migration: state whether it is possible, how the database rolls back, and where the down migration is.
 - Removal with no deprecation period; an optional parameter now required; changed error codes.
 - New required secrets or env vars are documented; the old config keeps working with a deprecation warning.

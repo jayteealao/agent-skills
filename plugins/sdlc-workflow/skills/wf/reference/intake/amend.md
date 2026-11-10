@@ -44,13 +44,13 @@ Nothing else. In particular:
 1. The dispatcher consumed `<slug>` and the `amend` keyword. What remains is the user's request in
    free text (`"base should be develop, not main"`, `"switch to slug-wide review"`). A trailing
    `dry-run` token (same grammar as modernize) means: resolve and present the Step 1 diff, then
-   STOP without writing.
-2. Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)). If `status: closed`, WARN and confirm before
+   stop without writing.
+2. Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)). When `status: closed`, warn, and confirm before
    proceeding: *"`<slug>` is closed (close-reason: `<reason>`). Amend its recorded config anyway?"*
    — amending a closed record is legitimate (fixing history's metadata) but never silent. Map the
    request onto the whitelist above. Record, for each field you intend to change: current value →
    proposed value.
-3. **If the request maps onto nothing in the whitelist**, STOP and route — do not improvise a wider
+3. **When the request maps onto nothing in the whitelist,** stop and route. Do not improvise a wider
    edit and do not silently fall through to extension:
    - new/changed scope → *"That is new scope, not config. Run `/wf intake `<slug>` `<the scope>`` — it
      adds net-new slices without touching completed work."*
@@ -58,7 +58,7 @@ Nothing else. In particular:
      `<the defect>``."*
    - derived state looks wrong → *"`status`/`progress` are derived from the artifacts. Run
      `/wf status `<slug>` deep` to reconcile them."*
-4. **If the request maps onto a field but trips its guard**, STOP with the guard's own remedy (above).
+4. **When the request maps onto a field but trips its guard,** stop with the guard's own remedy (above).
    A guard is a genuine cross-surface consequence, not a formality.
 5. **If the request is ambiguous** between two whitelisted fields, ask **once** as a gate question per [_gate-question.md](../_gate-question.md)
    with the concrete before → after for each reading. Config edits are cheap to confirm and annoying

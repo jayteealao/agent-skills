@@ -15,7 +15,7 @@ Ask the budget question when `profile budget` prints `no budget`. The first of t
 - setup ([setup.md](setup.md) Step 2)
 - intake Batch B ([intake/default.md](intake/default.md) Step 0.6)
 - shape Round 6 ([shape.md](shape.md) Step 2.3)
-- the campaign walk ([campaign.md](campaign.md) step 2)
+- the campaign walk ([campaign.md](campaign.md), the action `ask-how-far`)
 
 ## The question
 

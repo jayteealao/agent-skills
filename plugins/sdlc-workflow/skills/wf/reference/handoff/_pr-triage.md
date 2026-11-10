@@ -4,7 +4,7 @@ T5.1 is a **bounded loop**, not a one-shot pass. It runs until either no unresol
 
 ## Loop bound
 
-Maximum **5 iterations**. After the bound, set `readiness-verdict: awaiting-input` and STOP. This avoids infinite ping-pong with bots that re-comment after every fix.
+Maximum **5 iterations**. After the bound, set `readiness-verdict: awaiting-input` and stop. This avoids infinite ping-pong with bots that re-comment after every fix.
 
 ## Default review-bots list
 
@@ -95,7 +95,7 @@ If the user has a strong reason to decline a 🔴 (for example, the bot is wrong
 
 ### 6. Address 🟡 suggestions
 
-Ask ONE multi-select gate question per [_gate-question.md](../_gate-question.md) listing all 🟡 items:
+Ask one multi-select gate question per [_gate-question.md](../_gate-question.md) listing all 🟡 items:
 
 ```yaml
 question: "Which suggestions should we apply now?"
@@ -150,9 +150,9 @@ Re-run step 1. Compare the fresh unresolved-thread set against the prior iterati
 
 | Condition | Frontmatter outcome |
 |---|---|
-| No unresolved 🔴 AND user has triaged every 🟡 | `readiness-verdict` decided in T5.3 (likely `ready` or `awaiting-input`) |
+| No unresolved 🔴 and user has triaged every 🟡 | `readiness-verdict` decided in T5.3 (likely `ready` or `awaiting-input`) |
 | User chose "defer remaining" | `has-deferred-comments: true`; verdict `awaiting-input` unless 🔴 deferred → `blocked` |
-| 5-iteration bound hit | `readiness-verdict: awaiting-input`. STOP. Tell the user the loop terminated by bound. |
+| 5-iteration bound hit | `readiness-verdict: awaiting-input`. Stop. Tell the user the loop terminated by bound. |
 
 ## Frontmatter contract
 

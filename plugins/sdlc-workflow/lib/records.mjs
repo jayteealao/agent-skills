@@ -35,6 +35,7 @@ import { safeParseFrontmatter } from './frontmatter.mjs';
 import { validateFrontmatter, formatValidationErrors } from './schema-validator.mjs';
 import { parse, stringify } from './yaml.mjs';
 import { undoGitBashPath } from './msys.mjs';
+import { agentFix, refuse } from './fix.mjs';
 
 export const RECORD_SCHEMA = 'sdlc/v2';
 export const STATE_FILE = 'state.yaml';
@@ -120,9 +121,9 @@ function readYamlForWrite(file) {
   if (!existsSync(file)) return null;
   let value;
   try { value = parse(readFileSync(file, 'utf8')); } catch (e) {
-    throw new Error(`${file} does not parse (${String(e?.message ?? e).split('\n')[0]}): repair it first`);
+    throw refuse(`${file} does not parse (${String(e?.message ?? e).split('\n')[0]}): repair it first`, agentFix('Repair the file that the error names so that it parses, then run the command again.'));
   }
-  if (value != null && (typeof value !== 'object' || Array.isArray(value))) throw new Error(`${file} does not parse as a map: repair it first`);
+  if (value != null && (typeof value !== 'object' || Array.isArray(value))) throw refuse(`${file} does not parse as a map: repair it first`, agentFix('Repair the file that the error names so that it holds one map, then run the command again.'));
   return value ?? null;
 }
 
@@ -262,7 +263,7 @@ function writeDocLocked(dir, name, { frontmatter: rawFrontmatter, body = '' }, o
     return { file: STATE_FILE, section: null };
   }
   const loc = locate(n, { slices: opts.slices ?? (/^07-review-/.test(n) ? slicesOfDir(dir) : []) });
-  if (!loc) throw new Error(`${n} has no place in the record layout`);
+  if (!loc) throw refuse(`${n} has no place in the record layout`, agentFix('Run the command again with the name of a record of the layout, such as 04-plan-<slice>.md.'));
   const file = join(dir, loc.file);
   const doc = readYamlForWrite(file) ?? {};
   const sections = { ...(doc.sections ?? {}), [loc.section]: { name: n, frontmatter: frontmatter ?? {}, body: text } };
@@ -326,7 +327,7 @@ export function setFields(dir, name, changes, { now = nowIso(), opts } = {}) {
   return withRecordLock(dir, () => {
     assertWritable(dir, name, opts);
     const doc = readDoc(dir, name, opts);
-    if (!doc || !doc.frontmatter) throw new Error(`no record ${name} in ${dir}`);
+    if (!doc || !doc.frontmatter) throw refuse(`no record ${name} in ${dir}`, agentFix('Run the command again with the name of a record of the workflow.'));
     const fm = { ...doc.frontmatter };
     for (const [k, v] of Object.entries(changes)) setPath(fm, k, v);
     if (!Object.hasOwn(changes, 'updated-at') && Object.hasOwn(fm, 'updated-at')) fm['updated-at'] = now;
@@ -461,11 +462,11 @@ function findSection(body, heading, verb) {
   let hits = sections.filter((s) => s.heading.toLowerCase() === want);
   if (!hits.length) hits = sections.filter((s) => s.heading.toLowerCase().startsWith(want));
   const list = sections.map((s) => s.heading).join(' | ') || 'none';
-  if (!hits.length) throw new Error(`${verb}: no section "${heading}"; the ## headings are: ${list}`);
+  if (!hits.length) throw refuse(`${verb}: no section "${heading}"; the ## headings are: ${list}`, agentFix('Run the command again with one of the headings that the error lists.'));
   if (hits.length > 1 && new Set(hits.map((s) => s.heading)).size === 1) {
-    throw new Error(`${verb}: the heading "${hits[0].heading}" appears ${hits.length} times; read them with --full, or change one with --replace`);
+    throw refuse(`${verb}: the heading "${hits[0].heading}" appears ${hits.length} times; read them with --full, or change one with --replace`, agentFix('Read the sections with --full, or change one of them with --replace <old> --with <new>.'));
   }
-  if (hits.length > 1) throw new Error(`${verb}: "${heading}" fits ${hits.length} sections: ${hits.map((s) => s.heading).join(' | ')}; name one of them in full`);
+  if (hits.length > 1) throw refuse(`${verb}: "${heading}" fits ${hits.length} sections: ${hits.map((s) => s.heading).join(' | ')}; name one of them in full`, agentFix('Run the command again with one of the headings that the error lists, in full.'));
   return { lines, section: hits[0] };
 }
 
@@ -486,10 +487,10 @@ export function replaceSection(body, heading, text, verb = 'record edit') {
 /** The body with one exact text replaced; an error when it matches zero times or more than once. */
 export function replaceOnce(body, old, text, verb = 'record edit') {
   const b = String(body ?? '');
-  if (!old) throw new Error(`${verb}: --replace needs a text`);
+  if (!old) throw refuse(`${verb}: --replace needs a text`, agentFix('Run the command again with the old text after --replace.'));
   const n = b.split(old).length - 1;
-  if (n === 0) throw new Error(`${verb}: the text of --replace matches nothing in the body`);
-  if (n > 1) throw new Error(`${verb}: the text of --replace matches ${n} times in the body; give more of the text, so that it matches once`);
+  if (n === 0) throw refuse(`${verb}: the text of --replace matches nothing in the body`, agentFix('Read the record, then run the command again with a --replace text that is in its body.'));
+  if (n > 1) throw refuse(`${verb}: the text of --replace matches ${n} times in the body; give more of the text, so that it matches once`, agentFix('Run the command again with more of the text after --replace, so that it matches once.'));
   const at = b.indexOf(old);
   return b.slice(0, at) + text + b.slice(at + old.length);
 }

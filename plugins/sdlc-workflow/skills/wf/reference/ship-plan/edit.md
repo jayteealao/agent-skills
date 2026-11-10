@@ -1,10 +1,10 @@
-You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT change a workflow's record (`/wf intake <slug> amend` edits a workflow's configuration).
+You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does not create a new one (use `/wf project ship-plan init` for that) and does not change a workflow's record (`/wf intake <slug> amend` edits a workflow's configuration).
 
 ---
 
 ## Step S0 — Orient
 
-1. Verify `.ai/ship-plan.md` exists. If not, STOP: *"No ship plan exists. Run `/wf project ship-plan init` first."*
+1. Verify `.ai/ship-plan.md` exists. If not, stop: *"No ship plan exists. Run `/wf project ship-plan init` first."*
 2. Read the plan in full. Capture the current `plan-version` integer.
 
 ## Step S0.5 — Scoped invocation (when called as a sub-step, not by the user)

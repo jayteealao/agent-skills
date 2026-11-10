@@ -2207,7 +2207,7 @@
               "first-version": { "type": "boolean" },
               "top-risk": { "type": "boolean" },
               "accepted-risk": { "type": "string" },
-              "left-to-build": { "enum": ["ask", "decide"], "description": "An open question, an open tension or a named assumption that the person left to the build at done: ask (the campaign walk asks the person before it slices the packet) or decide (the build chooses, and records the choice as an assumption). The item is in the items of exactly one build packet." },
+              "left-to-build": { "enum": ["ask", "decide"], "description": "An open question, an open tension or a named assumption that the person left to the build when its area closed, or at done: ask (the campaign walk asks the person before it slices the packet) or decide (the build chooses, and records the choice as an assumption). The item is in the items of exactly one build packet." },
               "replaced-by": { "$ref": "#/$defs/brainstormKey" },
               "design": { "type": "boolean" },
               "was": { "type": "string" }
@@ -2368,6 +2368,9 @@
         "design-form": { "enum": ["none", "design", "design-direction"] },
         "sketches": { "type": "array", "description": "The carried sketches, each with its file: an explore sketch in .ai/design/explore/, or on an older board a file under its design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
         "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: the in-flight unit of the old campaign that this packet finishes." },
+        "skipped": { "type": "object", "required": ["reason", "by"], "description": "campaign.mjs skip: the person told the walk to go on with a later packet. The packet keeps its state; campaign.mjs unskip removes the field.", "properties": { "reason": { "type": "string", "minLength": 1 }, "by": { "const": "person" }, "at": { "$ref": "#/$defs/iso8601" } } },
+        "ahead-of": { "$ref": "#/$defs/stringArray", "description": "campaign.mjs ahead: the keys of the earlier packets that the person let this packet run ahead of." },
+        "done-at": { "$ref": "#/$defs/iso8601", "description": "When campaign.mjs done or close set the state done." },
         "generated-at": { "$ref": "#/$defs/iso8601" }
       }
     },

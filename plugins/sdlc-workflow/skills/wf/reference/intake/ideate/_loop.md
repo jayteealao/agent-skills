@@ -124,7 +124,7 @@ A control word that names no known idea gets the titles back and changes nothing
 
 `done` ends the loop.
 
-- **One idea or more is `take`.** Set `selected:` to the taken ideas, in rank order. Run `# Pick — decision closure` of `intake/ideate.md` with them. The proposed order of its step 3 is the rank order. `decision-note:` holds the reasons that the person gave during triage, in the person's words. Do not ask for the pick reason again.
+- **One idea or more is `take`.** Set `selected:` to the taken ideas, in rank order. Run the pick of `intake/ideate.md` (`# Pick — decision closure`, [_pick.md](_pick.md)) with them. The proposed order of its step 3 is the rank order. `decision-note:` holds the reasons that the person gave during triage, in the person's words. Do not ask for the pick reason again.
 - **No idea is `take`.** Ask one question: keep the run open and decide later, or close it with no list. A close runs `record set "<root>" <slug> index status=closed close-reason=no-pick closed-at=<timestamp> next-command=none "next-invocation=none — closed with no pick"`.
 
 The `later` ideas stay in `ideas:` after the close.
@@ -146,4 +146,4 @@ The `later` ideas stay in `ideas:` after the close.
 4. Show where we are, in plain words: the taken ideas, the open ideas in rank order, the later ideas, the drops as titles only, and what each round looked at.
 5. Ask the first question of Step 5 again, with "Go through the open ideas one by one" as the first option.
 
-A later pick on a closed run with a list appends its work packets to the list, per `# Pick — decision closure`.
+A later pick on a closed run with a list appends its work packets to the list, per the pick ([_pick.md](_pick.md)).

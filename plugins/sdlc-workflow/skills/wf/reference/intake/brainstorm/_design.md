@@ -29,14 +29,14 @@ A sketch is an idea the person can drop tomorrow at no cost. The sketches are ex
 - **Sketch when a picture decides faster than words**, for example when two options differ in layout, density, or tone. Run `node "<skill-dir>/scripts/wf.mjs" design explore add "<root>" <key> --title "<caption>" --link <slug>`, then write the page `.ai/design/explore/<key>.html` per `design/explore.md`. The file is the source: change a sketch only through its file. The person sees it on the canvas, in the Sketches lane. Number the sketches in the question text, so the person can pick one or a mix (`design/explore.md` → Exact picks).
 - **Record each sketch** in the board's `sketches[]`, with `add.sketch` in the change file: its key, its thread, the keys of the items it shows, its link (the canvas URL), its `path` (`.ai/design/explore/<key>.html`), a one-line caption in plain words, and `state: idea`. Give the link and the caption in the question text.
 - **Raise a tension** when an idea pulls against `PRODUCT.md` or against a goal in `direction.md`. Name the goal in words.
-- **Close an area** as in step 2.8. Also ask which of the area's sketches carry forward. Set `state: carried` or `state: dropped` on each.
+- **Close an area** as in step 2.8. In the same digest, propose for each of the area's sketches whether it carries forward. Set `state: carried` or `state: dropped` on each.
 
 ## At `done`
 
-The walk (3.2) and the split (3.3) run as usual. These additions apply:
+`done` runs as usual ([_done.md](_done.md)). These additions apply:
 
-1. A work packet that holds a kept item with `design: true` records `ux-impact` (the value you propose per `design/_lane.md`) and `sketches` (the keys of its carried sketches). The person confirms `ux-impact` in 3.4, with `ux-impact-confirmed: true`. A work packet with a `ux-impact` other than `none` gets `try-out: yes`.
-2. The `design-form` flag of 3.3 ([_work.md](_work.md)) takes one of two values:
+1. A work packet that holds a kept item with `design: true` records `ux-impact` (the value you propose per `design/_lane.md`) and `sketches` (the keys of its carried sketches). The person confirms `ux-impact` in the work packet question ([_done.md](_done.md), step 4), with `ux-impact-confirmed: true`. A work packet with a `ux-impact` other than `none` gets `try-out: yes`.
+2. The `design-form` flag of the split ([_work.md](_work.md)) takes one of two values:
    - `design-direction` — a change to the project's design direction. Entry: `/wf design direction from <slug>`. The direction command shows the carried items to the person and writes only what the person confirms.
    - `design` — the design stage of a feature workflow (next section).
 3. When the kept `design: true` items fall in more than one work packet, propose one work packet for the shared look first, with `design-form: design-direction`. Give it the lowest `order` of these work packets. Name it in the `why-here` of each feature work packet that follows it, and keep the shared look out of the feature work packets.
@@ -50,4 +50,4 @@ The walk (3.2) and the split (3.3) run as usual. These additions apply:
    - When `02c-craft.md` does not carry `direction-confirmed-by`, the entry is `/wf design <slug>`.
    - When it does, the entry is `/wf design <slug> amend`. Also set `progress.design: in-progress` in `00-index.md`: the design is reopened per `design/_lane.md`.
    - When `02-shape.md` is complete, set `next-command: wf-design` and `next-invocation` to the entry in `00-index.md`. When it is not, leave both: shape pre-fills the brief from the carried thoughts, and the design stage follows shape.
-3. A kept item that is not about the design becomes a work packet of another form, per 3.3.
+3. A kept item that is not about the design becomes a work packet of another form, per the split of [_done.md](_done.md), step 4.

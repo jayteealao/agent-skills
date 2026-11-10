@@ -18,9 +18,9 @@ Skip if no `governance` block.
 
 Compute the desired protection from `governance.branch-protection`. Read the current state — for `mechanism: branch-protection`, `gh api repos/<owner>/<repo>/branches/<base>/protection` (404 = none); for `mechanism: ruleset`, `gh api repos/<owner>/<repo>/rulesets`.
 
-**Mechanism mismatch guard.** If the plan's `mechanism` differs from what the repo already uses (e.g. plan says `branch-protection` but the base branch is governed by a ruleset), do NOT create a conflicting second control — surface the mismatch and ask the user to reconcile (switch the plan's `mechanism`, or migrate the repo). Two overlapping controls is worse than one.
+**Mechanism mismatch guard.** If the plan's `mechanism` differs from what the repo already uses (e.g. plan says `branch-protection` but the base branch is governed by a ruleset), do not create a conflicting second control — surface the mismatch and ask the user to reconcile (switch the plan's `mechanism`, or migrate the repo). Two overlapping controls is worse than one.
 
-**Stronger-than-plan guard.** If live protection already *exceeds* the plan (more required checks, higher approval count, stricter flags), report Audit O as `compliant (stronger)` and do NOT propose weakening it. Only widen toward the plan; reducing requires the user to explicitly lower the plan first.
+**Stronger-than-plan guard.** If live protection already *exceeds* the plan (more required checks, higher approval count, stricter flags), report Audit O as `compliant (stronger)` and do not propose weakening it. Only widen toward the plan; reducing requires the user to explicitly lower the plan first.
 
 For `mechanism: branch-protection`, build the desired payload (use `checks` — the current shape; fall back to `contexts` if targeting an older GHES):
 

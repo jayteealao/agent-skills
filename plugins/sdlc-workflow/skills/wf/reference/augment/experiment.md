@@ -1,4 +1,4 @@
-You are running `wf-experiment`, an **experiment design augmentation** that designs a controlled rollout for an existing workflow's change.
+You are running the **experiment augmentation** (`augment/experiment.md`), an **experiment design augmentation** that designs a controlled rollout for an existing workflow's change.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
@@ -20,7 +20,7 @@ existing-workflow/
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Implement flag infrastructure, modify the plan, or advance the workflow stage. |
 | When to run | After the shape phase of `/wf intake` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
-| Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do not block. |
+| Warning | If `04b-instrument.md` is not present, surface a warning — experiments are hard to evaluate without observable signals. Do not block. |
 
 ## Requires
 
@@ -37,18 +37,18 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Scope discipline
 You are an **experiment designer**, not an implementer.
 - Do not write application code. Do not write feature flag code. Do not modify `02-shape.md`, `04-plan-*.md`, or any existing artifact.
-- Your output is the experiment *design*. `wf-implement` builds the flag scaffold and rollout code.
+- Your output is the experiment *design*. `/wf implement` builds the flag scaffold and rollout code.
 - Be specific enough to implement (name flag keys, cohort logic, metric names) but do not write the implementation itself.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
-   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
+   - If `<wf-dir>/` does not exist → Stop: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → Stop: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists (`record get` exits 0) → read it and continue: plan runs once per slice, and the design is one per slug. Do not overwrite it. Fold its flag and cohorts into the steps of this slice. Re-author it only when the person asked for it.
 3. **Check for instrumentation:**
-   - If `04b-instrument.md` does NOT exist (`record get` exits 1) → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
+   - If `04b-instrument.md` does not exist (`record get` exits 1) → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do not block. Proceed regardless.
 4. **Use the workflow context.** `02-shape.md` holds the hypothesis. `04b-instrument.md` names the available metrics. The index shows `current-stage`, `status`, existing `augmentations:`, and `tags`.
 
@@ -57,7 +57,7 @@ Launch the sub-agent to design the experiment. Do not skip to writing the artifa
 
 ### research sub-agent — Experiment design
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - Read `02-shape.md` in full with `wf.mjs record get`. Extract:
   - The implicit or explicit hypothesis: "We believe that [change] will [outcome] for [users]."
   - The change being made (treatment).
@@ -71,7 +71,7 @@ Prompt with ALL of the following:
 
 Design the experiment:
 1. **Hypothesis** — state it as: "We believe that [treatment] will [metric movement] for [cohort] compared to [control]. We'll know this worked when [primary metric] improves by [threshold] without [guardrail metric] degrading."
-2. **Experiment type** — choose ONE:
+2. **Experiment type** — choose one:
    - `feature-flag`: boolean on/off, rolled out by cohort or percentage
    - `a-b-test`: two distinct variants shown to split cohorts (UI-facing changes)
    - `canary`: new behavior rolled out to increasing % of traffic (infra/backend changes)
@@ -83,7 +83,7 @@ Design the experiment:
 4. **Metrics**:
    - Primary: one metric that proves the hypothesis (conversion rate, latency p99, error rate, retention)
    - Secondary: 2-3 correlated signals to watch
-   - Guardrails: metrics that must NOT regress (e.g., checkout error rate, session duration, revenue per user)
+   - Guardrails: metrics that must not regress (e.g., checkout error rate, session duration, revenue per user)
 5. **Duration & stopping rules**:
    - Minimum runtime: enough for statistical significance (use rough heuristic: ≥1000 users in each cohort, ≥7 days)
    - Early stop — WIN: primary metric moves by threshold with p<0.05 (or practical significance)
@@ -117,7 +117,7 @@ Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (secti
 Emit a compact chat summary:
 
 ```
-wf-experiment complete: <slug>
+experiment complete: <slug>
 Hypothesis: <one-line>
 Type: <feature-flag|a-b-test|canary|shadow>
 Flag: <flag-name> (default: false)
@@ -136,7 +136,7 @@ If `04b-instrument.md` was not found, prefix with:
 
 # What this sub-procedure is NOT
 
-- **Not a flag infrastructure builder** — `wf-experiment` designs the experiment. `wf-implement` builds the flag scaffold and rollout code.
+- **Not a flag infrastructure builder** — The experiment augmentation designs the experiment. `/wf implement` builds the flag scaffold and rollout code.
 - **Not a stats engine** — sample size and significance calculations are directional guidelines, not rigorous statistical analysis. For high-stakes experiments, run a proper power calculation.
 - **Not a rollout orchestrator** — it does not flip flags, monitor rollouts, or trigger rollbacks automatically. Those are operational tasks.
 - **Not a substitute for product judgment** — it designs the experiment framework; deciding whether the hypothesis is worth testing, and what constitutes a meaningful result, requires human judgment.

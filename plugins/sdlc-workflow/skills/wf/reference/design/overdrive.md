@@ -18,7 +18,7 @@ Read: invisible but felt. Search is instant and navigation is smooth. Nothing mo
 
 Overdrive is not adding more elements. It is taking fewer elements further. The difference between a well-designed surface and a technically extraordinary one is usually the depth of commitment to 2–3 choices — not the number of choices.
 
-Before adding anything, identify the ONE thing this surface is trying to be. Then push that thing as far as the performance budget allows.
+Before adding anything, identify the one thing this surface is trying to be. Then push that thing as far as the performance budget allows.
 
 Change how a feature feels, not what the product does. Route a new capability (offline use, real-time collaboration) to `shape`.
 
@@ -78,7 +78,7 @@ Overdrive relaxes the *taste* ceiling, not the *craft* floor. The signature effe
 ## The one extraordinary thing
 
 Identify the signature move before building effects:
-- What is the ONE moment this surface is remembered for?
+- What is the one moment this surface is remembered for?
 - What effect serves that moment and no other?
 - What is the performance cost, and is it worth it?
 

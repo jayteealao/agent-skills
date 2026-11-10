@@ -48,9 +48,9 @@ Do this step once, right after the path question. On a resume, start at the firs
 4. The commit message describes the product change. Read the SHA with `git rev-parse HEAD`.
 5. Get the note, fill `## Change` (the files and one line each) and `commit-sha: [<sha>]`, write the draft and put it. Then run `record set "<root>" <slug> index progress.implement=complete progress.verify=in-progress current-stage=verify stage-number=6`.
 
-When a suite fails and the cause is not in the change, STOP. Record the failure in `## Checks Run`, and set `status: awaiting-input` on the note. Do not commit a change that fails its own checks.
+When a suite fails and the cause is not in the change, stop. Record the failure in `## Checks Run`, and set `status: awaiting-input` on the note. Do not commit a change that fails its own checks.
 
-When the change turns out to need more than one commit, a design, or a plan, STOP and tell the person in one line: *"This is larger than the small path. Close this workflow with `/wf intake <slug> close superseded`, then run `/wf intake "<description>" from <slug>` and take the full path; or say how to cut it down."*
+When the change turns out to need more than one commit, a design, or a plan, stop, and tell the person in one line: *"This is larger than the small path. Close this workflow with `/wf intake <slug> close superseded`, then run `/wf intake "<description>" from <slug>` and take the full path; or say how to cut it down."*
 
 # Step 3 — Verify
 
@@ -60,7 +60,7 @@ When the change turns out to need more than one commit, a design, or a plan, STO
 
 # Step 4 — The PR question
 
-Ask one gate question per [_gate-question.md](../_gate-question.md):
+Ask one gate question per [_gate-question.md](../_gate-question.md). The question follows "Standing answers" of that file:
 
 > The change is commit `<short sha>` on `<branch>`. Do you want a PR for it?
 > - **No — keep the commit (Recommended):** the workflow closes now.

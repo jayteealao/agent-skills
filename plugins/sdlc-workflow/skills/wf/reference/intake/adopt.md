@@ -5,7 +5,7 @@ You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hot
 
 # What adopt is (and is not)
 
-- **Adopt is standalone-only and always creates a NEW workflow** from the current working-tree / branch state. There is no slug-mode: attaching already-done work to an *existing* slug as a slice is deliberately out of scope for this mode (the dispatcher never routes `<slug> adopt` here — see the dispatcher's Step 0). If the dispatcher somehow hands you a slug, STOP and tell the user adopt only roots new workflows.
+- **Adopt is standalone only, and always creates a new workflow** from the current state of the working tree and the branch. There is no slug-mode: attaching work already done to an *existing* slug as a slice is out of scope for this mode on purpose. The dispatcher never routes `<slug> adopt` here (see Step 0 of the dispatcher). When the dispatcher hands you a slug anyway, stop, and tell the person that adopt only roots new workflows.
 - **Adopt does not write code and does not undo it.** The change already exists in the tree; adopt records it. The one thing adopt authors *forward* is the verification strategy — that is the entire point of adopting.
 - **Adopt is not archaeology.** The adoptable surface is the *working tree plus the unpushed / unmerged branch delta* against the base branch. Work that is already pushed and merged has no quality tail left to gate — adopt refuses it (Step A0).
 - **Every artifact adopt writes carries `provenance: adopted`** so no downstream stage, reader, or learnings-harvester mistakes reconstruction for forethought. This is load-bearing: retro's learnings distillation and any pattern-mining over `04-plan`/`05-implement` must be able to tell authored work from adopted work.
@@ -45,7 +45,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Scope discipline
 You are a **reconstruction orchestrator**, not a coder and not a shaper inventing new scope.
 - Infer scope from *what the diff actually does*, never from what it *could* have done. Scope-in is exactly the changed surface; scope-out is explicitly everything else.
-- **Constraint forethought still applies.** An adopted AC with an environment dependency on its critical path is NOT exempt just because the code exists — resolve it to a prerequisite slice, a proxy AC + named clearing event, or explicit PO risk-acceptance, exactly as a forward plan would. Adopted work does not get to skip verification engineering.
+- **Constraint forethought still applies.** An adopted AC with an environment dependency on its critical path is not exempt because the code exists. Resolve it to a prerequisite slice, a proxy AC + named clearing event, or explicit PO risk-acceptance, exactly as a forward plan would. Adopted work does not get to skip verification engineering.
 - Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into `01-adopt.md`.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
@@ -53,7 +53,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 
 1. **New slug:** name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `adopt-<short-description>`, from the optional `[description]` argument.
 2. **No description:** derive the descriptor from the main concern of the diff after Step A0 collects it, and resolve the collision before any write.
-3. **Same-branch active-workflow scan:** read `.ai/workflows/INDEX.md`; if any **active** workflow records `branch:` equal to the current branch, the diff on this branch probably belongs to that workflow — STOP and recommend the extension path (`/wf intake <that-slug> <scope>`) or that workflow's own next command. Adopting another workflow's in-flight branch work as a new workflow forks the record.
+3. **Same-branch active-workflow scan:** read `.ai/workflows/INDEX.md`; if any **active** workflow records `branch:` equal to the current branch, the diff on this branch probably belongs to that workflow. Stop, and recommend the extension path (`/wf intake <that-slug> <scope>`) or that workflow's own next command. Adopting another workflow's in-flight branch work as a new workflow forks the record.
 4. **Provenance check:** apply `_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
 5. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (adopt rides verify's caveat path; its two questions are spent on reconstruction).
 
@@ -66,19 +66,19 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
    - unstaged: `git diff`;
    - untracked: every path from `git status --porcelain` (`??` rows), each **enumerated explicitly and read in full** — never summarized as "notable ones".
    Exclusions: paths under `.ai/**` and `.scratch/**` are never part of the adoptable surface — workflow artifacts and scratch reads are records *about* work, not product changes (and may belong to another session).
-3. **Refuse when there is nothing to adopt.** If the surface union is empty (clean tree AND zero commits ahead of `<base>`) → STOP with:
+3. **Refuse when there is nothing to adopt.** When the union of the surface is empty (a clean tree, and zero commits ahead of `<base>`), stop with:
    > *"Nothing to adopt — the working tree matches `<base>` and no unmerged commits are ahead. Use `/wf intake <description>` to start new work, or make the change first and re-run adopt."*
-4. **Refuse fully-published work — decidably.** `git fetch <remote>` first (skip on network failure with a one-line note), then check every commit ahead of `<base>` with `git branch -r --contains <sha>`: if **every** ahead-SHA is contained in the remote base branch AND the local diff (staged + unstaged + untracked) is empty → STOP: adoption's quality tail has nothing to gate; recommend `/wf intake <slug> <scope>` extension or a fresh workflow instead.
+4. **Refuse fully-published work — decidably.** `git fetch <remote>` first (skip on network failure with a one-line note), then check every commit ahead of `<base>` with `git branch -r --contains <sha>`: when **every** SHA ahead is contained in the remote base branch, and the local diff (staged + unstaged + untracked) is empty, stop: the quality tail of the adoption has nothing to gate; recommend `/wf intake <slug> <scope>` extension or a fresh workflow instead.
 5. **Record the surface** — the changed-file list with per-file insertion/deletion counts (`git diff --stat`), the enumerated untracked list, the commit SHAs ahead of base, and the current branch name. This becomes the *provenance evidence* embedded in `01-adopt.md` and referenced by every reconstructed artifact.
 
 # Step A1 — Reconstruct the shape (parallel grounding, then infer)
 
 Use parallel research sub-agents to understand the diff before inferring intent — do not reconstruct from the diff text alone.
 
-**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both do bounded, targeted reads with structured-output extraction.
+**Effort tier.** Give every agent the tier **low** ([_subagents.md](../_subagents.md)). Both do bounded, targeted reads with structured output.
 
 #### research sub-agent 1 — Diff comprehension
-Prompt with ALL of the following:
+Give it all of these:
 - Given this changed-file set `<files>`, read each changed file around the changed hunks and summarize **what behavior the change introduces or alters** (observable effect, not line-by-line).
 - Identify the entry points and callers touched; note anything the change *implies* should also have changed but did not (a smell the adoption should flag).
 - Classify the change surface: is it one coherent concern, or clearly-separable concerns (disjoint file sets that are independently revertable)?
@@ -113,7 +113,7 @@ options:
 ```
 
 - On **Adjust**, revise the contested part and **re-present once**. On a second correction, fall back to interactive shape questions (the default-intake question style) for the still-contested part only, then proceed.
-- On **Cancel**, STOP — write nothing.
+- On **Cancel**, stop, and write nothing.
 - Show the AC list and the changed-file roster in the chat around the question so the user is confirming against real content, not a summary.
 
 # Step 3 — Write the reconstructed artifacts (each schema-conformant, each `provenance: adopted`)

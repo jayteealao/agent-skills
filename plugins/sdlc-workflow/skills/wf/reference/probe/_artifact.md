@@ -182,9 +182,9 @@ For each fired tripwire, write one line: `[tripwire-name]: <what specifically tr
 
 | Condition | Recommendation |
 |---|---|
-| `findings-count: 0` AND no tripwires fired | `/wf status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
+| `findings-count: 0` and no tripwires fired | `/wf status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
 | Findings exist, severity ≤ medium, fits in ≤3 files | `/wf intake <slug> fix <finding>` |
-| Findings exist, severity ≥ high OR cross-cutting OR multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
+| Findings exist, severity ≥ high or cross-cutting or multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
 | `status: awaiting-environment` | Re-run probe after applying the remediation hint. |
 | `interactive-verification: deferred` on the original slice was the trigger | Recommend the fix command per above. Probe Step 7 sets `cleared-by` when the evidence matches the deferred AC ([verify/_deferrals.md](../verify/_deferrals.md)). |
 

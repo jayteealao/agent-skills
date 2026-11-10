@@ -1,4 +1,4 @@
-You are running `wf-benchmark`, a **performance benchmarking wrapper** that runs twice in the lifecycle — once before implement to record a baseline, and once after to measure the delta.
+You are running the **benchmark augmentation** (`augment/benchmark.md`), a **performance benchmarking wrapper** that runs twice in the lifecycle — once before implement to record a baseline, and once after to measure the delta.
 
 > **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
@@ -58,14 +58,14 @@ You are a **performance analyst**, not an optimizer.
 
 # Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
-   - If `<wf-dir>/` does not exist → STOP: "No workflow `<slug>` found."
-   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → STOP: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
+   - If `<wf-dir>/` does not exist → Stop: "No workflow `<slug>` found."
+   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → Stop: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
 2. **Resolve mode:**
    - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
    - If no mode is named → auto-detect:
      - No `05c-benchmark.md` (`record get` exits 1) → baseline mode.
      - `05c-benchmark.md` exists with `mode: baseline` and no `comparison:` block → compare mode.
-     - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline AND comparison data; the calling stage must name `baseline` or `compare`. Stopping." Stop.
+     - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline and comparison data; the calling stage must name `baseline` or `compare`. Stopping." Stop.
 3. **Use the workflow context.** `02-shape.md` names the performance-sensitive areas. The plan files name the files and functions that change. In compare mode, `05c-benchmark.md` names the exact targets to run again.
 
 # ━━━━━━━━━━━━━━━━━━━━━━
@@ -76,7 +76,7 @@ You are a **performance analyst**, not an optimizer.
 
 ### research sub-agent — Benchmark target discovery
 
-Prompt with ALL of the following:
+Prompt with all of the following:
 - Read `02-shape.md` and any `04-plan-*.md` records with `wf.mjs record get` (`wf.mjs record list` names them). Identify the functions, endpoints, operations, or modules that:
   - Are explicitly named in the shape's `## Affected Areas` section
   - Are performance-sensitive (called frequently, latency-critical, or processing-heavy)
@@ -133,8 +133,8 @@ If `augmentations:` already has a benchmark entry (e.g., from a prior run), upda
 ## Compare Step 1 — Read baseline
 
 Read `05c-benchmark.md` in full with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05c-benchmark.md`. Extract:
-- All targets from "## Benchmark Targets" — these are the ONLY targets to measure.
-- All commands from "## Measurement Commands" — run these EXACTLY as recorded.
+- All targets from "## Benchmark Targets" — these are the only targets to measure.
+- All commands from "## Measurement Commands" — run these exactly as recorded.
 - All baseline numbers from "## Baseline Results".
 
 Do not add new targets or change commands. Compare mode must be a faithful reproduction of baseline mode.
@@ -162,7 +162,7 @@ Add the `## Comparison Results` section and the comparison frontmatter per [benc
 
 **Baseline mode summary.** Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors:
 ```
-wf-benchmark baseline complete: <slug>
+benchmark baseline complete: <slug>
 Language: <language>, framework: <framework>
 Targets measured: <N> (<N> failed)
 Branch: <branch> @ <commit>
@@ -173,7 +173,7 @@ Artifact: <wf-dir>/05c-benchmark.md
 
 **Compare mode summary.** Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors:
 ```
-wf-benchmark compare complete: <slug>
+benchmark compare complete: <slug>
 Targets compared: <N>
 Regressions: <N> (<list target names>) | none
 Improvements: <N> (<list target names>) | none
@@ -189,7 +189,7 @@ If regressions found, prefix compare summary with:
 
 # What this sub-procedure is NOT
 
-- **Not a profiler** — `wf-benchmark` measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use the `augment/profile.md` sub-procedure (or `/wf probe` for ad-hoc).
-- **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
+- **Not a profiler** — The benchmark augmentation measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use the `augment/profile.md` sub-procedure (or `/wf probe` for ad-hoc).
+- **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, a load test is needed, and no augmentation runs one yet.
 - **Not a CI gate** — it is a developer workflow tool. Integrating benchmark regression detection into CI is a separate infrastructure concern.
 - **Not a profiling substitute** — if a regression is found but the cause is unclear, run the `augment/profile.md` sub-procedure (or `/wf probe`) to find the hotspot before attempting to fix it.

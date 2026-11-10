@@ -6,6 +6,8 @@
 // `GOAL: BLOCKED <reason>`. The condition tells the host judge to trust only that
 // line. Nothing here asks a model: the check is a rule, not a judgment.
 
+import { personFix, refuse } from './fix.mjs';
+
 export const KINDS = Object.freeze(['lifecycle', 'optimize', 'proofs']);
 export const HOSTS = Object.freeze(['claude-code', 'codex', 'pi']);
 export const STATES = Object.freeze(['armed', 'met', 'blocked', 'cleared']);
@@ -36,7 +38,7 @@ export function contractErrors(c) {
 
 /** The last line of every check. A reason never spans lines. */
 export function goalLine(verdict, reason = '') {
-  if (!VERDICTS.includes(verdict)) throw new Error(`unknown verdict ${verdict}`);
+  if (!VERDICTS.includes(verdict)) throw new Error(`unknown verdict ${verdict}`); /* defect */
   const r = str(reason).replace(/\s+/g, ' ');
   return verdict === 'MET' || !r ? `GOAL: ${verdict}` : `GOAL: ${verdict} ${r}`;
 }
@@ -64,7 +66,7 @@ export function conditionText({ script, root, slug, maxChecks }) {
     `The goal is met only when the most recent output of \`${check}\` in this conversation ends with the line ` +
     '`GOAL: MET`. If that line is `GOAL: BLOCKED`, the goal is impossible. A claim without that output is not ' +
     `evidence. Stop after ${maxChecks} checks.`;
-  if (text.length > CONDITION_LIMIT) throw new Error(`the condition is ${text.length} characters, above the limit of ${CONDITION_LIMIT}`);
+  if (text.length > CONDITION_LIMIT) throw refuse(`the condition is ${text.length} characters, above the limit of ${CONDITION_LIMIT}`, personFix('The paths of the project and the plugin make the goal condition longer than the host accepts. Show this to the person: the goal cannot be armed from this folder.'));
   return text;
 }
 
@@ -126,7 +128,11 @@ export function fromLifecycle(l) {
  */
 export function fromOptimize(s) {
   if (!s || s.ok === false) return { verdict: 'BLOCKED', reason: s?.error ? `optimize: ${s.error}` : 'optimize: no state' };
-  if (s.state === 'complete' || s.state === 'finished') return { verdict: 'MET', reason: '' };
+  // The goal is met only when finish put the kept changes on the slug branch and wrote the records.
+  if (s.state === 'finished') return { verdict: 'MET', reason: '' };
+  if (s.state === 'complete') {
+    return s.finishBlocked ? { verdict: 'BLOCKED', reason: `optimize finish: ${s.finishBlocked}` } : { verdict: 'NOT-MET', reason: 'optimize: next finish' };
+  }
   if (s.state === 'stopped' && s.reason === 'no-baseline') return { verdict: 'NOT-MET', reason: 'optimize: next baseline' };
   if (s.state === 'stopped') return { verdict: 'BLOCKED', reason: `optimize stopped: ${s.reason}; after the loop can go on, run /wf loop goal <slug> resume` };
   return { verdict: 'NOT-MET', reason: `optimize: next ${s.next?.action ?? 'trial'}${s.next?.on ? ` on ${s.next.on}` : ''}` };

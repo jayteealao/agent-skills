@@ -45,7 +45,7 @@ The first token of `$ARGUMENTS` (after `project observability` is stripped by `w
 | `audit` | Read-only soundness sweep of the contract + its built surface + the codebase | `observability/audit.md` |
 | missing / unknown | Show usage and ask | (see below) |
 
-**No token or unknown token** → STOP. Render usage:
+**No token or unknown token** → Stop. Render usage:
 
 ```
 Usage:

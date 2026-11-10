@@ -47,7 +47,7 @@ version. Valid YAML, compliant with the plan, and wrong. Drift detection is blin
 1. **Parse `$ARGUMENTS`.** The first token, if present, is either a **lens key** (run that one lens inline
    instead of the full fan-out) or `triage` (re-surface `acknowledged` findings for a fresh decision — see
    Step 5). No token → full fan-out across all seven lenses (the default).
-2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan at `.ai/ship-plan.md`. There is nothing to
+2. **Read `.ai/ship-plan.md`.** Stop if missing: *"No ship plan at `.ai/ship-plan.md`. There is nothing to
    audit yet — run `/wf project ship-plan init` first."* Parse every block A–K (and any `additional-contracts[]`) into
    memory. Note `plan-version` and `updated-at`.
 3. **Read the existing ledger** `.ai/ship-plan-audit.md` if it exists. Parse `runs[]` and `findings[]` — this
@@ -80,7 +80,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
 
 # Step 2 — Dispatch the fan-out (default) or one lens
 
-**Default (no lens token) — full parallel fan-out.** Dispatch ONE read-only sub-agent per lens (all seven), per [_subagents.md](../_subagents.md):
+**Default (no lens token) — full parallel fan-out.** Dispatch one read-only sub-agent per lens (all seven), per [_subagents.md](../_subagents.md):
 
 - **Effort tier, set explicitly** — children must not inherit an expensive parent configuration; [_subagents.md](../_subagents.md) maps each tier to the host's model pin. **high**
   effort for the causal-reasoning lenses `plan-soundness`, `release-safety`, `ci-correctness`, and
@@ -100,7 +100,7 @@ after a fix.
 ## Refute-before-report (inside every lens prompt)
 
 Instruct each lens: for every candidate finding, **first try to refute it** — read the real workflow/file/plan
-text, and (where behavior is claimed) the real dependency source via `study-sources`. Report a finding ONLY if
+text, and (where behavior is claimed) the real dependency source via `study-sources`. Report a finding only if
 it survives the refutation, and attach a concrete **failure-scenario** (the inputs/state → the wrong outcome).
 Default to dropping anything you cannot ground. A short list of real findings beats a long list of plausible ones.
 

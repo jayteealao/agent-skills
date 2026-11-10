@@ -12,6 +12,7 @@
 //   question       the question as asked, or null
 //   answer         the answer, exact
 //   by             person | policy | delegate | standing:<id> (a case that a standing answer settled)
+//                  | standing rule (a standing answer of the project) | standing default (of a campaign)
 //   scope          { packet, slice, files } — an absent field means every packet, slice or file
 //   stage          the stage that asked, or null
 //   source         where the entry came from (a stage, or the file an import read)
@@ -23,6 +24,7 @@ import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.mjs';
 import { withFileLock } from './file-lock.mjs';
 import { parse, stringify } from './yaml.mjs';
+import { agentFix, refuse } from './fix.mjs';
 
 export const DECISIONS_FILE = 'decisions.yaml';
 export const KINDS = ['answer', 'steer', 'approval', 'try-out', 'delegate'];
@@ -94,10 +96,18 @@ export const STANDING_PREFIX = 'standing:';
 /** True when an entry was settled by a standing answer: its `by` is `standing:<id>`. */
 const byStanding = (by) => typeof by === 'string' && by.startsWith(STANDING_PREFIX);
 
+/**
+ * The `by` of an entry that a standing answer of the project settled (`standing rule`,
+ * lib/standing.mjs), or a standing default of a campaign (`standing default`).
+ */
+export const STANDING_BY = ['standing rule', 'standing default'];
+
+const settledByStanding = (by) => byStanding(by) || STANDING_BY.includes(by);
+
 /** The live entries in a scope, in the order of writing. `by: 'standing'` takes the cases that a standing answer settled. */
 export function liveDecisions(list, query = {}, { by = null, kind = null } = {}) {
   return list.filter((e) => isLive(e) && inScope(e, query)
-    && (!by || (by === 'standing' ? byStanding(e.by) : e.by === by)) && (!kind || e.kind === kind));
+    && (!by || (by === 'standing' ? settledByStanding(e.by) : e.by === by)) && (!kind || e.kind === kind));
 }
 
 /** The kind of a question key: the part before the first colon, or null for a key with no colon. */
@@ -158,11 +168,11 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
   const kind = input.kind ?? 'answer';
   const by = input.by ?? 'person';
   if (!KINDS.includes(kind)) {
-    throw new Error(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`);
+    throw refuse(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`, agentFix('Run the command again with a --kind that the error lists.'));
   }
-  if (!BY.includes(by) && !(byStanding(by) && /^D-\d+$/.test(by.slice(STANDING_PREFIX.length)))) throw new Error(`by must be one of ${BY.join(', ')}, or standing:<id> of a standing answer`);
-  if (input.answer == null || String(input.answer).trim() === '') throw new Error('an answer is required');
-  if (kind !== 'steer' && !input.key) throw new Error(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`);
+  if (!BY.includes(by) && !STANDING_BY.includes(by) && !(byStanding(by) && /^D-\d+$/.test(by.slice(STANDING_PREFIX.length)))) throw refuse(`by must be one of ${BY.join(', ')}, ${STANDING_BY.join(', ')}, or standing:<id> of a standing answer`, agentFix('Run the command again with the --by that says who decided: one of the values that the error lists.'));
+  if (input.answer == null || String(input.answer).trim() === '') throw refuse('an answer is required', agentFix('Run the command again with --answer, the answer in the words of who gave it.'));
+  if (kind !== 'steer' && !input.key) throw refuse(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`, agentFix('Run the command again with --key, a short stable name of the question.'));
   const max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
   const entry = {
     id: idOf(max + 1),
@@ -332,6 +342,16 @@ export const RUN_DECISIONS_QUESTION = 'When the run reaches a decision of yours,
 
 /** The 2 answers of the run-decisions question. */
 export const RUN_DECISIONS_OPTIONS = ['Stop and wait for me', 'Take the recommended option and show me each one at the end'];
+
+/**
+ * The key of the answer to how far one call of a campaign walk goes, recorded in the folder of
+ * the list's source. Its answers are next, all, or a number of packets: a number is free text, so
+ * the key has no closed set of options and no standing answer.
+ */
+export const HOW_FAR_KEY = 'campaign-how-far';
+
+/** The question of how far, recorded under HOW_FAR_KEY. */
+export const HOW_FAR_QUESTION = 'How far should this call of the walk go: the next packet, all of them, or a number of packets?';
 
 /**
  * True when a run-decisions answer says: take the recommended option, do not stop and wait.

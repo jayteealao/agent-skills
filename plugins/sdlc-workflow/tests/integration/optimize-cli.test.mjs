@@ -108,12 +108,17 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
     assert.equal(b.baseline.median, 100);
     assert.equal(b.baseline.noise, 0);
     assert.equal(b.next.action, 'round-open', 'the 0% round opens from the baseline');
+    assert.equal(b.next.command, `node "${path.join(pluginRoot, 'skills', 'wf', 'scripts', 'optimize.mjs')}" round-open "${root}" ${S}`, 'status prints the exact command of the next action');
+    assert.equal(b.next.after, 'run status for the next action');
     assert.equal(run(root, 'trial', 'h0').ok, false, 'no trial before the scheduled round opens');
 
     const r1 = run(root, 'round-open');
     assert.equal(r1.ok, true, JSON.stringify(r1));
     assert.deepEqual(r1.branches, [`optimize/${S}--r1b1`, `optimize/${S}--r1b2`]);
 
+    const lane = run(root, 'status').next;
+    assert.ok(lane.command.endsWith(`propose-context "${root}" ${S} --on optimize/${S}--r1b1`), lane.command);
+    assert.match(lane.then[1], / trial "[^"]+" speed h1 --on optimize\/speed--r1b1 --idea <idea> --hypothesis "<hypothesis>"/);
     const a = step(root, wt, 'h1', 90);
     assert.equal(a.ctx.digest.lane, `optimize/${S}--r1b1`);
     assert.equal(a.ctx.digest.flushed, true);
@@ -157,12 +162,27 @@ test('the loop: an opening round, a winner, a plateau that adds a round and then
 
     const g = execFileSync(process.execPath, [GOAL, 'arm', root, S], { encoding: 'utf8' });
     assert.equal(JSON.parse(g).kind, 'optimize');
+    const stopped = run(root, 'status').next;
+    assert.equal(stopped.command, null, 'a stop is the person');
+    assert.ok(stopped.after.includes(`goal.mjs" check "${root}" ${S}`), 'an armed goal names its check after the action');
     const check = execFileSync(process.execPath, [GOAL, 'check', root, S], { encoding: 'utf8' }).trim().split(/\r?\n/).at(-1);
     assert.match(check, /^GOAL: BLOCKED optimize stopped: plateau/);
+    assert.equal(run(root, 'status').next.after, 'end the run', 'a blocked goal no longer carries the loop');
+
+    const rep = run(root, 'report');
+    assert.equal(rep.ok, true, JSON.stringify(rep));
+    assert.deepEqual([rep.mechanisms.round.trials, rep.mechanisms.round.keeps, rep.mechanisms.round.gain], [8, 2, 20], 'the keeps of the winner of round 1 count for the round');
+    assert.deepEqual([rep.mechanisms.trunk.trials, rep.mechanisms.trunk.keeps], [2, 0]);
+    assert.deepEqual(rep.idle, ['trunk']);
+    assert.deepEqual(rep.rounds.map((r) => [r.round, r.trials, r.winner, r.from, r.gain]), [[1, 4, `optimize/${S}--r1b1`, 100, 20], [2, 4, null, 80, 0]]);
 
     const fin = run(root, 'finish');
     assert.equal(fin.ok, true, JSON.stringify(fin));
     assert.equal(fin.kept, 2);
+    assert.deepEqual(fin.mechanisms, { idle: ['trunk'], keptGain: 20 }, 'the hand-back names the mechanisms that produced nothing');
+    assert.match(readDoc(path.join(root, '.ai', 'workflows', S), '05-implement-optimize.md').body, /## Search Mechanisms[\s\S]*\| round \| 8 \| 2 \| 20 \| 100% \|[\s\S]*Produced no kept gain in this run: trunk\./);
+    const all = JSON.parse(execFileSync(process.execPath, [SCRIPT, 'report', root, '--all'], { encoding: 'utf8' }));
+    assert.deepEqual([all.ok, all.runs, all.slugs.map((x) => x.slug), all.mechanisms.round.paid, all.never], [true, 1, [S], 1, ['trunk']]);
     assert.equal(readFileSync(path.join(root, 'src', 'value.txt'), 'utf8').trim(), '80', 'the kept changes land on the slug branch');
     assert.equal(fin.history, 'per-change', JSON.stringify(fin));
     assert.deepEqual(git(root, 'log', '--format=%s').split(/\r?\n/), ['set the value to 80', 'set the value to 90', 'base'], 'one commit for each kept trial of the winner, and no reverted trial');
@@ -761,6 +781,51 @@ test('a prune: a branch with no keep that trails the leader gives its trials to 
     assert.deepEqual(p.next.ready, [B1, B3]);
     assert.equal(step(root, wt, 'h5', 60, undefined, B3).t.verdict, 'kept');
     assert.deepEqual(ledger(root).find((l) => l.event === 'prune'), { event: 'prune', round: 1, branch: B2, into: B3, from: B1, trials: 1, at: ledger(root).find((l) => l.event === 'prune').at });
+
+    // The fork wins the round: the trunk holds the leader's keeps before the fork, and the fork's own keep.
+    assert.equal(step(root, wt, 'h6', 75, undefined, B1).t.verdict, 'reverted');
+    const close = run(root, 'round-close');
+    assert.equal(close.winner.name, B3, JSON.stringify(close));
+    const rep = run(root, 'report');
+    assert.deepEqual([rep.mechanisms.round.keeps, rep.mechanisms.round.gain, rep.mechanisms.prune.keeps, rep.mechanisms.prune.gain], [2, 30, 1, 10]);
+    const fin = run(root, 'finish');
+    assert.equal(fin.ok, true, JSON.stringify(fin));
+    assert.equal(fin.history, 'per-change', JSON.stringify(fin));
+    assert.equal(fin.kept, 3, 'the leader keeps before the fork are kept changes too');
+    assert.equal(fin.commits.length, fin.kept, 'one commit for each kept change listed');
+    const dir = path.join(root, '.ai', 'workflows', S);
+    const body = readDoc(dir, '05-implement-optimize.md').body;
+    const table = body.slice(body.indexOf('## Kept Trials'), body.indexOf('##', body.indexOf('## Kept Trials') + 3));
+    assert.deepEqual([...table.matchAll(/^\| (\d+) \|/gm)].map((m) => Number(m[1])), [1, 3, 5]);
+    assert.equal(frontmatterOfDoc(dir, '05-implement-optimize.md')['optimize-kept'], 3);
+    const steps = readFileSync(path.join(dir, 'steps.jsonl'), 'utf8').trim().split(/\r?\n/).map((l) => JSON.parse(l)).filter((r) => r.event === 'done');
+    assert.deepEqual(steps.map((r) => r.trials), [[1], [3], [5]], 'one done step for each kept change, with its trial');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('an optimize goal is met only after finish, and a finish that needs the person blocks it', () => {
+  const { parent, root, wt } = makeRepo();
+  const goal = (...a) => execFileSync(process.execPath, [GOAL, ...a, root, S], { encoding: 'utf8' });
+  const verdict = () => goal('check').trim().split(/\r?\n/).at(-1);
+  try {
+    respec(root, 'min-gain: 0', 'min-gain: 0\n  target: 90', 'at: ["0%"]', 'at: []');
+    assert.equal(run(root, 'baseline').ok, true);
+    assert.equal(step(root, wt, 'h1', 85).t.verdict, 'kept');
+    assert.equal(run(root, 'status').state, 'complete');
+    goal('arm');
+    assert.equal(verdict(), 'GOAL: NOT-MET optimize: next finish', 'a complete loop is not met before its finish');
+    git(root, 'checkout', '-q', '-b', 'elsewhere');
+    const st = run(root, 'status');
+    assert.match(st.finishBlocked, /not on the slug branch main/);
+    assert.equal(st.next.command, null, 'a blocked finish is the person');
+    assert.match(verdict(), /^GOAL: BLOCKED optimize finish: the main checkout is on elsewhere, not on the slug branch main/);
+    git(root, 'checkout', '-q', 'main');
+    goal('arm');
+    assert.equal(verdict(), 'GOAL: NOT-MET optimize: next finish');
+    assert.equal(run(root, 'finish').ok, true);
+    assert.equal(verdict(), 'GOAL: MET');
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

@@ -28,7 +28,7 @@ ideas:
     entry: "<the entry invocation — new-workflow or extension form>"
     confidence: <high|medium|low>      # the confidence rules below
     source-items: [S01-I04, S02-#42]   # only when sources fed the idea
-    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3c)
+    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 0, item 6)
     changed: "<what changed since that run>"
     triage: <open|take|later|drop|brainstorm>   # _loop.md; every idea starts open
     triage-reason: "<the person's words>"       # required on a drop

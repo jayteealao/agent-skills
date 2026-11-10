@@ -9,6 +9,12 @@
  *   archive <source-dir|board-file> [--dry-run]     move the closed part of the board to archive/board.json
  *   status  <root> <source> [--end]                 the list, the current packet and its next step, the packets that need design,
  *                                                   the questions to ask now (ask), the ones that wait (askLater), and then
+ *   next    <root> <source> [--end] [--how-far n|next|all --since t] [--run-decisions a] [--trunk t]
+ *                                                   the one next action of the walk; it changes nothing
+ *   plan    <root> <source> [--full]                the whole walk before it starts: forms, stops, slices, a cost range
+ *   skip    <root> <source> <packet-key> --reason r  the person's skip: the walk goes on with a later packet
+ *   unskip  <root> <source> <packet-key>             take the skip back
+ *   ahead   <root> <source> <packet-key>...          the person let these packets run ahead of the skipped ones
  *   digest  <root> <source> <packet-key> [--answer a]  mark the delegate digest of a packet as answered
  *   open    <root> <source> <packet-key>             write the workflow folder of a build packet (section 5)
  *   land    <root> <source> [<packet-key>] [--trunk t]  put the walk's checkout on the list branch packets/<source>
@@ -33,7 +39,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFile
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
-import { DECISIONS_FILE, addDecision, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
+import { DECISIONS_FILE, HOW_FAR_KEY, HOW_FAR_QUESTION, RUN_DECISIONS_KEY, RUN_DECISIONS_QUESTION, addDecision, answeredBy, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
@@ -50,8 +56,23 @@ import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 import { STALE_FLOOR_MS, parseJsonLines } from '../lib/live-events.mjs';
+import { readLedger } from '../lib/findings.mjs';
+import { lastRunEndAt } from '../lib/stop-request.mjs';
+import { aggregateCost, readCostRows, rebookedEntries } from '../lib/cost-ledger.mjs';
+import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 
-const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|digest|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
+/** The sub-commands of this script: a fix names only these. */
+export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'slice-order', 'migrate', 'remove-worktree']);
+
+const USAGE ='Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|next|plan|digest|open|land|start|built|reopen|done|close|skip|unskip|ahead|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
+// A usage error names its repair like every other failure.
+const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
+
+// scripts/ sits one level under the plugin root. The commands that `next` prints run the skill's
+// wrappers, as the walk does.
+const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const CAMPAIGN_CLI = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs');
+const WF_CLI = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'wf.mjs');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const sourceDir = workflowDir;
@@ -200,15 +221,24 @@ function boardAt(arg) {
 function checkCmd(arg) {
   const { dir, boardFile, root } = boardAt(arg);
   const board = readJson(join(dir, boardFile));
-  if (!board) return { ok: false, error: `no ${boardFile} in ${dir}` };
+  if (!board) return { ok: false, error: `no ${boardFile} in ${dir}`, fix: noBoardFix() };
   const res = checkList(board, { isIgnored: gitIgnoredCheck(root) });
-  return { ok: !res.errors.length, ...res };
+  if (!res.errors.length) return { ok: true, ...res };
+  return { ok: false, ...res, error: res.errors[0], fix: boardErrorsFix('check', arg) };
 }
+
+/** A board that fails the list check or the schema: the agent repairs the entries that `errors` names. */
+const boardErrorsFix = (cmd, arg) => agentFix(
+  'Repair the board at each entry of errors (a choice that only the person can make goes to the person first), then run the command again.',
+  sourceLine('check', resolve(arg)), cmd === 'check' ? null : sourceLine(cmd, resolve(arg)),
+);
 
 function writeCmd(arg, f) {
   const { dir, boardFile, root } = boardAt(arg);
-  if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}` };
-  return writeList(dir, { isIgnored: gitIgnoredCheck(root), dryRun: Boolean(f['dry-run']), boardFile });
+  if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}`, fix: noBoardFix() };
+  const r = writeList(dir, { isIgnored: gitIgnoredCheck(root), dryRun: Boolean(f['dry-run']), boardFile });
+  if (r.ok) return r;
+  return { ...r, error: r.error ?? r.errors?.[0] ?? 'the list does not pass its check', fix: boardErrorsFix('write', arg) };
 }
 
 /** Move the closed part of the board to archive/board.json, and check the caps of the lead document. */
@@ -243,15 +273,16 @@ function readList(root, src) {
 
 function packetOf(root, src, key) {
   const { index, packets } = readList(root, src);
-  if (index?.type !== 'list') throw new Error(`${src} has no list: run campaign.mjs write first`);
-  const packet = packets.find((p) => p.key === key || p['packet-slug'] === key);
-  if (!packet) throw new Error(`${key} is not a packet of the list ${src}`);
+  if (index?.type !== 'list') throw refuse(`${src} has no list: run campaign.mjs write first`, noListFix(src));
+  const packet = key ? packets.find((p) => p.key === key || p['packet-slug'] === key) : null;
+  if (!packet) throw refuse(`${key} is not a packet of the list ${src}`, agentFix('Name a packet of the list by its key: status lists the packets.', campaignLine(root, 'status', src)));
   return { index, packets, packet };
 }
 
 function setPacketState(packet, state) {
-  if (!PACKET_STATES.includes(state)) throw new Error(`unknown packet state ${state}`);
-  setFields(packet.path, { state });
+  if (!PACKET_STATES.includes(state)) throw new Error(`unknown packet state ${state}`); /* defect */
+  // `next` counts the packets that reached done in this call by `done-at`.
+  setFields(packet.path, state === 'done' ? { state, 'done-at': nowIso() } : { state });
 }
 
 /** The reason the design of a workflow is not settled, or null (design/_lane.md, "Design is settled"). */
@@ -415,7 +446,8 @@ export function walkQuestions(root, packets, current, waiting, { end = false } =
     if (e) entries.push(e);
   }
   for (const p of packets) {
-    if (!BUILD_FORMS.includes(p.form) || !['built', 'done'].includes(p.state)) continue;
+    // A skipped packet asks nothing until the person takes the skip back.
+    if (!BUILD_FORMS.includes(p.form) || !['built', 'done'].includes(p.state) || (p.skipped && p.state !== 'done')) continue;
     if (shippedOrClosed(root, p['packet-slug'])) continue;
     const open = openDigest(wfDir(root, p['packet-slug']));
     if (open.length) entries.push({ key: p.key, slug: p['packet-slug'], kind: 'digest', entries: open });
@@ -451,37 +483,24 @@ function routeOf(src, packet) {
 
 function statusCmd(root, src, f = {}) {
   const dir = sourceDir(root, src);
-  if (!existsSync(dir)) return { ok: false, error: `no source folder ${workflowRel(src)}` };
+  if (!existsSync(dir)) return { ok: false, error: `no source folder ${workflowRel(src)}`, fix: agentFix('Name the source by the slug of its brainstorm folder: status lists the workflows.', wfLine(root, 'status')) };
   const { index, packets } = readList(root, src);
   const oldLedger = existsSync(join(oldCampDir(root, src), 'ledger.json'));
   if (oldLedger && index?.type !== 'list') {
     return { ok: true, source: src, migrate: true, reason: 'an old campaign ledger and no list: migrate first (section 12.2)', next: `campaign.mjs migrate <root> ${src} report` };
   }
-  if (index?.type !== 'list') return { ok: false, source: src, error: `${src} has no list. Write it at brainstorm done (campaign.mjs write).` };
+  if (index?.type !== 'list') return { ok: false, source: src, error: `${src} has no list. Write it at brainstorm done (campaign.mjs write).`, fix: noListFix(src) };
   if (oldLedger) {
     // The regroup wrote the list, and migrate finish did not run: the old ledger, worktrees and strays are still there.
     return { ok: true, source: src, migrate: 'finish', reason: 'the list is written and the old ledger is still in work/campaign/: finish the migration (section 12.2 steps 8 to 10)', next: `campaign.mjs migrate <root> ${src} finish` };
   }
   const branch = listBranch(src);
-  const rows = packets.map((p) => ({ key: p.key, slug: p['packet-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null, ...(p.migrated ? { migrated: true } : {}) }));
-  // In delegate mode, a built packet that waits only on the person (its fidelity rows or its
-  // try-out) does not hold the walk: the next packet starts, and the walk asks the waiting
-  // questions while that run works. The waiting packet stays built. Only the flat shape: a
-  // stacked layer starts from the layer below it when that layer is done.
-  const waiting = [];
-  let current = null;
-  for (const p of packets.filter((x) => !['done', 'dropped'].includes(x.state))) {
-    const step = nextStep(root, src, p);
-    if (canWait(root, p, step) && shapeOf(root) !== 'stacked') { waiting.push({ key: p.key, slug: p['packet-slug'], ...step }); continue; }
-    current = { packet: p, step };
-    break;
-  }
-  if (!current && waiting.length) {
-    // Every open packet waits on the person: the first of them is the current packet.
-    const first = packets.find((p) => p.key === waiting[0].key);
-    current = { packet: first, step: nextStep(root, src, first) };
-    waiting.shift();
-  }
+  const rows = packets.map((p) => ({
+    key: p.key, slug: p['packet-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null,
+    ...(p.migrated ? { migrated: true } : {}), ...(p.skipped ? { skipped: p.skipped } : {}), ...(p['ahead-of']?.length ? { 'ahead-of': p['ahead-of'] } : {}),
+  }));
+  const { current, waiting, held } = walkPick(root, src, packets);
+  const skipped = packets.filter((p) => p.skipped && !['done', 'dropped'].includes(p.state)).map((p) => ({ key: p.key, slug: p['packet-slug'], state: p.state, reason: p.skipped.reason ?? null }));
   const needDesign = packets
     .filter((p) => BUILD_FORMS.includes(p.form) && !['done', 'dropped'].includes(p.state))
     .map((p) => {
@@ -497,14 +516,58 @@ function statusCmd(root, src, f = {}) {
     branch,
     onListBranch: currentBranch(root) === branch,
     packets: rows,
-    current: current ? { key: current.packet.key, slug: current.packet['packet-slug'], state: current.packet.state, ...current.step } : null,
+    current: current ? { key: current.packet.key, slug: current.packet['packet-slug'], state: current.packet.state, ...current.step, ...(current.ahead ? { 'ahead-of': current.ahead } : {}) } : null,
     ...(waiting.length ? { waiting } : {}),
+    ...(skipped.length ? { skipped } : {}),
+    ...(held.length ? { held: held.map((h) => ({ key: h.packet.key, slug: h.packet['packet-slug'], waitsFor: h.blockers })) } : {}),
     ask,
     askLater,
     then,
     needDesign,
-    finished: !current,
+    finished: packets.every((p) => ['done', 'dropped'].includes(p.state)),
   };
+}
+
+/**
+ * The packet the walk works on now, in list order (6.1). A packet that is done or dropped is
+ * behind the walk. A packet that the person skipped keeps its state and is passed. In delegate
+ * mode, a built packet that waits only on the person (its fidelity rows or its try-out) does not
+ * hold the walk: the next packet starts, and the walk asks the waiting questions while that run
+ * works; the waiting packet stays built. Only the flat shape: a stacked layer starts from the
+ * layer below it when that layer is done. A skipped built packet holds nothing either: its work
+ * is on the list branch. Any other earlier packet that is not done holds a later packet, unless
+ * the person let that packet run ahead of it (`ahead-of`). A held packet is a question for the
+ * person (`held`), never a guess.
+ */
+function walkPick(root, src, packets) {
+  const stacked = shapeOf(root) === 'stacked';
+  const live = packets.filter((x) => !['done', 'dropped'].includes(x.state));
+  const waiting = [];
+  const held = [];
+  const passes = new Set();
+  let current = null;
+  for (const p of live) {
+    if (p.skipped) {
+      if (p.state === 'built' && !stacked) passes.add(p.key);
+      continue;
+    }
+    const step = nextStep(root, src, p);
+    if (!stacked && canWait(root, p, step)) { waiting.push({ key: p.key, slug: p['packet-slug'], ...step }); passes.add(p.key); continue; }
+    const blockers = live.filter((e) => (e.order ?? 0) < (p.order ?? 0) && !passes.has(e.key)).map((e) => e.key);
+    const ahead = Array.isArray(p['ahead-of']) ? p['ahead-of'].map(String) : [];
+    if (blockers.every((k) => ahead.includes(k))) {
+      current = { packet: p, step, ...(blockers.length ? { ahead: blockers } : {}) };
+      break;
+    }
+    held.push({ packet: p, step, blockers });
+  }
+  if (!current && waiting.length && !held.length) {
+    // Every open packet waits on the person: the first of them is the current packet.
+    const first = packets.find((p) => p.key === waiting[0].key);
+    current = { packet: first, step: nextStep(root, src, first) };
+    waiting.shift();
+  }
+  return { current, waiting, held };
 }
 
 /**
@@ -707,7 +770,7 @@ export function packetFolderFiles(args) {
 
 function openCmd(root, src, [key], f) {
   const { index: list, packet } = packetOf(root, src, key);
-  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a ${packet.form} packet; the walk routes it to its own command`, route: routeOf(src, packet) };
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a ${packet.form} packet; the walk routes it to its own command`, route: routeOf(src, packet), fix: routeFix(src, packet) };
   if (packet.state !== 'written') return { ok: true, opened: false, key: packet.key, state: packet.state, reason: 'already open' };
   const slug = packet['packet-slug'];
   const dir = wfDir(root, slug);
@@ -750,11 +813,11 @@ function landCmd(root, src, [key], f) {
   if (!exists) {
     // A branch is cut only from a base that matches its remote.
     const bc = baseCheck(root, trunk);
-    if (bc.stop) return { ok: false, branch, base: bc, error: bc.reason };
+    if (bc.stop) return { ok: false, branch, base: bc, error: bc.reason, fix: bc.fix };
   }
   // Do not stash and do not force: git refuses a switch that would overwrite a change.
   const r = exists ? git(root, ['switch', branch]) : git(root, ['switch', '-c', branch, trunk]);
-  if (r.status !== 0) return { ok: false, branch, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.` };
+  if (r.status !== 0) return { ok: false, branch, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.`, fix: gitFix(`The checkout cannot move to ${branch}.`, 'run land again') };
   return { ok: true, branch, switched: true, created: !exists, from: exists ? null : trunk };
 }
 
@@ -764,25 +827,25 @@ function landCmd(root, src, [key], f) {
  * the build packet before (`gh stack add`).
  */
 function landStacked(root, src, key, f) {
-  if (!key) return { ok: false, error: 'the stacked shape lands on the layer of a packet: pass the packet key' };
+  if (!key) return { ok: false, error: 'the stacked shape lands on the layer of a packet: pass the packet key', fix: agentFix('Run land again with the key of the packet whose layer the walk needs.', campaignLine(root, 'land', src, '<packet-key>')) };
   const { packets, packet } = packetOf(root, src, key);
   const layer = endBranch(src, packet.key);
   if (currentBranch(root) === layer) return { ok: true, branch: layer, switched: false, shape: 'stacked' };
   if (commitOf(root, `refs/heads/${layer}`)) {
     const r = git(root, ['switch', layer]);
-    if (r.status !== 0) return { ok: false, branch: layer, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.` };
+    if (r.status !== 0) return { ok: false, branch: layer, error: `git switch failed: ${r.stderr}. Ask the person; do not stash and do not force.`, fix: gitFix(`The checkout cannot move to ${layer}.`, 'run land again') };
     return { ok: true, branch: layer, switched: true, shape: 'stacked' };
   }
   const below = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === 'done').pop();
   const from = below ? endBranch(src, below.key) : trunkOf(root, f);
   if (!below) {
     const bc = baseCheck(root, from);
-    if (bc.stop) return { ok: false, branch: layer, base: bc, error: bc.reason };
+    if (bc.stop) return { ok: false, branch: layer, base: bc, error: bc.reason, fix: bc.fix };
   }
   const sw = git(root, ['switch', from]);
-  if (sw.status !== 0) return { ok: false, branch: layer, error: `git switch ${from} failed: ${sw.stderr}. Ask the person; do not stash and do not force.` };
+  if (sw.status !== 0) return { ok: false, branch: layer, error: `git switch ${from} failed: ${sw.stderr}. Ask the person; do not stash and do not force.`, fix: gitFix(`The checkout cannot move to ${from}.`, 'run land again') };
   const r = gh(root, below ? ['stack', 'add', layer] : ['stack', 'init', layer]);
-  if (r.status !== 0) return { ok: false, branch: layer, error: `gh stack ${below ? 'add' : 'init'} ${layer} failed: ${r.stderr || r.stdout}` };
+  if (r.status !== 0) return { ok: false, branch: layer, error: `gh stack ${below ? 'add' : 'init'} ${layer} failed: ${r.stderr || r.stdout}`, fix: personFix(`gh stack ${below ? 'add' : 'init'} failed: check that gh is signed in (gh auth status) and that the gh-stack extension is installed, then run land again.`) };
   return { ok: true, branch: layer, switched: true, created: true, from, shape: 'stacked' };
 }
 
@@ -832,14 +895,14 @@ function requireWalkBranch(root, src, packet) {
   if (shapeOf(root) !== 'stacked') return requireListBranch(root, src);
   const layer = endBranch(src, packet.key);
   const cur = currentBranch(root);
-  if (cur !== layer) throw new Error(`the walk's checkout is on ${cur ?? 'a detached HEAD'}, not on the layer ${layer}: run campaign.mjs land ${src} ${packet.key} first`);
+  if (cur !== layer) throw refuse(`the walk's checkout is on ${cur ?? 'a detached HEAD'}, not on the layer ${layer}: run campaign.mjs land ${src} ${packet.key} first`, agentFix(`Run land: it puts the checkout on the layer ${layer}. Then run the command again.`, campaignLine(root, 'land', src, packet.key)));
   return layer;
 }
 
 function requireListBranch(root, src) {
   const branch = listBranch(src);
   const cur = currentBranch(root);
-  if (cur !== branch) throw new Error(`the walk's checkout is on ${cur ?? 'a detached HEAD'}, not on the list branch ${branch}: run campaign.mjs land first`);
+  if (cur !== branch) throw refuse(`the walk's checkout is on ${cur ?? 'a detached HEAD'}, not on the list branch ${branch}: run campaign.mjs land first`, agentFix(`Run land: it puts the checkout on the list branch ${branch}. Then run the command again.`, campaignLine(root, 'land', src)));
   return branch;
 }
 
@@ -854,11 +917,11 @@ const SNAPSHOT_MAX_BYTES = 1024 * 1024;
  */
 function stageSnapshot(wt) {
   const u = git(wt, ['add', '-u', '--', '.']);
-  if (u.status !== 0) return { ok: false, error: `git add -u failed in ${wt}: ${u.stderr}` };
+  if (u.status !== 0) return { ok: false, error: `git add -u failed in ${wt}: ${u.stderr}` }; /* internal */
   // The records are not code: a tracked .ai/ change stays out of the commit.
   git(wt, ['reset', '-q', '--', '.ai']);
   const others = git(wt, ['ls-files', '--others', '--exclude-standard', '-z']);
-  if (others.status !== 0) return { ok: false, error: `git ls-files failed in ${wt}: ${others.stderr}` };
+  if (others.status !== 0) return { ok: false, error: `git ls-files failed in ${wt}: ${others.stderr}` }; /* internal */
   const add = [];
   const leftOut = [];
   for (const rel of others.stdout.split('\0').filter(Boolean)) {
@@ -874,7 +937,7 @@ function stageSnapshot(wt) {
   }
   for (let i = 0; i < add.length; i += 100) {
     const r = git(wt, ['--literal-pathspecs', 'add', '--', ...add.slice(i, i + 100)]);
-    if (r.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${r.stderr}` };
+    if (r.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${r.stderr}` }; /* internal */
   }
   const staged = git(wt, ['diff', '--cached', '--name-only', '-z']).stdout.split('\0').filter(Boolean);
   return { ok: true, any: staged.length > 0, files: staged.length, leftOut };
@@ -910,21 +973,21 @@ function landMigrated(root, src, packet) {
   const waveBase = m['wave-base'];
   const needsRebase = m.land === 'squashed' && Boolean(waveBase) && !(wt && isAncestor(wt, list, 'HEAD'));
   if (needsRebase) {
-    if (!wt) return { ok: false, error: `the unit ${packet.key} needs a rebase, and its worktree ${m.worktree ?? '(none)'} is gone. Ask the person.` };
+    if (!wt) return { ok: false, error: `the unit ${packet.key} needs a rebase, and its worktree ${m.worktree ?? '(none)'} is gone. Ask the person.`, fix: personFix(`The unit ${packet.key} needs a rebase onto ${list}, and its worktree is gone: the person brings the work of ${branch} onto ${list} by hand, then runs start again.`) };
     // Before the snapshot: a unit with no commit beyond the wave base has its work in the wave base, or has no work yet.
     if (!Number(git(wt, ['rev-list', '--count', `${waveBase}..HEAD`]).stdout || 0)) {
-      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${packet.key} to ${list}.` };
+      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${packet.key} to ${list}.`, fix: personFix(`${branch} has nothing to rebase: the person says how the work of ${packet.key} comes to ${list} (merge the wave base first, or drop the packet).`) };
     }
   }
   if (wt) {
     const dirty = dirtyOutsideAi(wt) ?? [];
     if (dirty.length) {
       const staged = stageSnapshot(wt);
-      if (!staged.ok) return { ok: false, error: staged.error };
+      if (!staged.ok) return { ok: false, error: staged.error, fix: gitFix(`git cannot stage the uncommitted files of ${wt}.`, 'run start again') };
       const leftOut = staged.leftOut.length ? { leftOut: staged.leftOut } : {};
       if (staged.any) {
         const c = git(wt, ['commit', ...message(SUBJECTS.snapshot, `The campaign migration saved the uncommitted files of the work packet ${packet['packet-slug']}.`)]);
-        if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, ...leftOut, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}. The files are staged. Ask the person to commit them by hand with a message that the repo accepts, then start again.` };
+        if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, ...leftOut, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}. The files are staged. Ask the person to commit them by hand with a message that the repo accepts, then start again.`, fix: personFix(`The repo refused the snapshot commit in ${wt}: the person commits the staged files by hand with a message that the repo accepts, then runs start again.`) };
       }
       steps.push({ snapshot: staged.files, ...leftOut });
     }
@@ -933,19 +996,19 @@ function landMigrated(root, src, packet) {
     // The snapshot leaves tracked .ai/ changes in the tree, and git refuses to rebase a dirty tree:
     // stop before the one-commit step, so nothing changes.
     const unstaged = git(wt, ['diff', '--name-only']).stdout.split(/\r?\n/).filter(Boolean);
-    if (unstaged.length) return { ok: false, unstaged: unstaged.slice(0, 20), error: `${unstaged.length} tracked file(s) in ${wt} have uncommitted changes (${unstaged.slice(0, 3).join(', ')}), and git does not rebase a tree with changes. Ask the person to commit or stash them in ${wt}, then start again.` };
+    if (unstaged.length) return { ok: false, unstaged: unstaged.slice(0, 20), error: `${unstaged.length} tracked file(s) in ${wt} have uncommitted changes (${unstaged.slice(0, 3).join(', ')}), and git does not rebase a tree with changes. Ask the person to commit or stash them in ${wt}, then start again.`, fix: personFix(`${wt} has uncommitted changes to tracked files: the person commits or stashes them there, then runs start again.`) };
     const ahead = Number(git(wt, ['rev-list', '--count', `${waveBase}..HEAD`]).stdout || 0);
     if (ahead > 1) {
       // One commit, so the rebase can stop on a conflict once, not once per commit. The old commits stay on a backup branch.
       const backup = `campaign/${src}/backup--${packet['packet-slug']}`;
       const bk = git(wt, ['branch', '-f', backup, 'HEAD']);
-      if (bk.status !== 0) return { ok: false, error: `git branch ${backup} failed: ${bk.stderr}` };
+      if (bk.status !== 0) return { ok: false, error: `git branch ${backup} failed: ${bk.stderr}`, fix: gitFix(`git cannot make the backup branch ${backup} in ${wt}.`, 'run start again') };
       const fork = git(wt, ['merge-base', waveBase, 'HEAD']).stdout;
       git(wt, ['reset', '-q', '--soft', fork]);
       const c = git(wt, ['commit', '-q', ...message(SUBJECTS.squash, `The work packet ${packet['packet-slug']}, in one commit for the campaign migration. The old commits are on ${backup}.`)]);
       if (c.status !== 0) {
         git(wt, ['reset', '-q', '--soft', backup]);
-        return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}. Nothing changed. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
+        return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}. Nothing changed. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.`, fix: rebaseByHand(wt, list, waveBase) };
       }
       const ledger = recordSquash(root, wt, packet['packet-slug'], fork, backup);
       steps.push({ squashed: ahead, backup, ...(ledger ? { stepLedger: ledger } : {}) });
@@ -955,51 +1018,88 @@ function landMigrated(root, src, packet) {
       // A conflict leaves unmerged files; any other stop is a refusal.
       const unmerged = git(wt, ['diff', '--name-only', '--diff-filter=U']).stdout.split(/\r?\n/).filter(Boolean);
       git(wt, ['rebase', '--abort']);
-      if (!unmerged.length) return { ok: false, refused: 'rebase', error: `git refused the rebase of ${branch} onto ${list}, with no conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
-      return { ok: false, conflict: 'rebase', error: `the rebase of ${branch} onto ${list} stopped on a conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.` };
+      if (!unmerged.length) return { ok: false, refused: 'rebase', error: `git refused the rebase of ${branch} onto ${list}, with no conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.`, fix: rebaseByHand(wt, list, waveBase) };
+      return { ok: false, conflict: 'rebase', error: `the rebase of ${branch} onto ${list} stopped on a conflict: ${r.stderr || r.stdout}. Ask the person to rebase by hand in ${wt} (git rebase --onto ${list} ${waveBase}), then start again.`, fix: rebaseByHand(wt, list, waveBase) };
     }
     steps.push({ rebased: true });
   }
   const mg = git(root, ['merge', '--no-ff', ...message(SUBJECTS.unitMerge, `Merge ${branch} into ${list} for the work packet ${packet['packet-slug']}.`), branch]);
   if (mg.status !== 0) {
     const stop = abortMerge(root, mg);
-    if (stop.conflict) return { ok: false, conflict: 'merge', unmerged: stop.unmerged, error: `the merge of ${branch} into ${list} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then start again.` };
-    return { ok: false, refused: 'merge', error: `git refused the merge commit of ${branch} into ${list}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then start again.` };
+    if (stop.conflict) return { ok: false, conflict: 'merge', unmerged: stop.unmerged, error: `the merge of ${branch} into ${list} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then start again.`, fix: mergeByHand(branch, list, 'start') };
+    return { ok: false, refused: 'merge', error: `git refused the merge commit of ${branch} into ${list}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then start again.`, fix: mergeByHand(branch, list, 'start', true) };
   }
   steps.push({ merged: branch });
   setFields(packet.path, { migrated: { ...m, merged: true } });
   return { ok: true, steps };
 }
 
+/**
+ * The review base of a packet (6.2): the newest end branch of a done or built build packet that
+ * `head` holds, else the trunk. In list order that is the end branch of the build packet before.
+ * A built packet counts: in delegate mode it can wait on the person while this packet starts. A
+ * skipped packet that is not built has no end branch, so a packet that runs ahead of it reviews
+ * from the packet before the skipped one. When the skipped packet runs later, the newest end
+ * branch is the one of the packet that ran ahead: it reviews only its own work.
+ */
+function reviewBase(root, src, packets, packet, trunk, head = 'HEAD') {
+  let best = null;
+  for (const p of packets) {
+    if (p.key === packet?.key || !BUILD_FORMS.includes(p.form) || !['done', 'built'].includes(p.state)) continue;
+    const end = endBranch(src, p.key);
+    if (!commitOf(root, `refs/heads/${end}`) || !isAncestor(root, end, head)) continue;
+    if (!best || isAncestor(root, best, end)) best = end;
+  }
+  return best ?? trunk;
+}
+
+/**
+ * The code files that commits on the list branch changed after the newest done or built end
+ * branch, outside `.ai/`, leaving out the trunk merges: the work of a packet that is not built.
+ */
+function inFlightFiles(root, src, packets, trunk) {
+  const list = `refs/heads/${listBranch(src)}`;
+  if (!commitOf(root, list)) return [];
+  const base = reviewBase(root, src, packets, null, trunk, list);
+  if (!commitOf(root, base)) return [];
+  const not = [trunk, `origin/${trunk}`].filter((r) => commitOf(root, r)).map((r) => `^${r}`);
+  const r = git(root, ['log', '--no-merges', '--format=', '--name-only', `${base}..${list}`, ...not, '--', '.', ':(exclude).ai']);
+  return r.status === 0 ? [...new Set(r.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean))] : [];
+}
+
+/** Why `start` must run for a packet before its slice or its run, or null: start would change nothing. */
+function startNeeded(root, src, packets, packet, trunk) {
+  if (packet.migrated?.['from-branch'] && !packet.migrated.merged) return `the work of the old unit ${packet.migrated['from-branch']} is not on the list branch yet`;
+  const index = recordFm(wfDir(root, packet['packet-slug']), INDEX_NAME);
+  if (!index) return null;
+  const base = reviewBase(root, src, packets, packet, trunk);
+  if (index['base-branch'] !== base) return `base-branch is ${index['base-branch'] ?? 'not set'}; start sets it to ${base}`;
+  if (index.branch !== listBranch(src)) return `branch is ${index.branch ?? 'not set'}; start sets it to ${listBranch(src)}`;
+  return null;
+}
+
 function startCmd(root, src, [key], f) {
   const { packets, packet } = packetOf(root, src, key);
-  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is not a build packet` };
-  if (packet.state === 'written') return { ok: false, error: `${packet.key} is not open: run campaign.mjs open first` };
-  if (['done', 'dropped'].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}` };
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is not a build packet`, fix: routeFix(src, packet) };
+  if (packet.state === 'written') return { ok: false, error: `${packet.key} is not open: run campaign.mjs open first`, fix: agentFix(`Run open: it writes the workflow folder of ${packet.key}. Then run start again.`, campaignLine(root, 'open', src, packet.key), campaignLine(root, 'start', src, packet.key)) };
+  if (['done', 'dropped'].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}`, fix: nextFix(root, src, `${packet.key} is ${packet.state}: nothing starts it. Run next for the next step of the list.`) };
   requireWalkBranch(root, src, packet);
   const trunk = trunkOf(root, f);
   let migration = null;
   if (packet.migrated) {
     migration = landMigrated(root, src, packet);
-    if (!migration.ok) return { ok: false, key: packet.key, ...migration };
+    if (!migration.ok) return { ok: false, key: packet.key, ...migration, fix: migration.fix };
   }
-  // 6.2: the end branch of the build packet before, when HEAD holds it; else the trunk. A built
-  // packet before counts: in delegate mode it can wait on the person while this packet starts.
-  const before = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && ['done', 'built'].includes(p.state)).pop();
-  let base = trunk;
-  if (before) {
-    const end = endBranch(src, before.key);
-    if (commitOf(root, `refs/heads/${end}`) && isAncestor(root, end, 'HEAD')) base = end;
-  }
+  const base = reviewBase(root, src, packets, packet, trunk);
   const wdir = wfDir(root, packet['packet-slug']);
-  if (!hasDoc(wdir, INDEX_NAME)) return { ok: false, error: `${posix(relative(root, join(wdir, INDEX_NAME)))} does not exist: run campaign.mjs open` };
+  if (!hasDoc(wdir, INDEX_NAME)) return { ok: false, error: `${posix(relative(root, join(wdir, INDEX_NAME)))} does not exist: run campaign.mjs open`, fix: personFix(`The packet ${packet.key} is open, and its workflow folder has no index: the person restores ${posix(relative(root, join(wdir, INDEX_NAME)))} from git, or says to drop the packet.`) };
   setRecordFields(wdir, INDEX_NAME, { 'base-branch': base, branch: listBranch(src), 'updated-at': nowIso() });
   return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}) };
 }
 
 function builtCmd(root, src, [key], f = {}) {
   const { packet } = packetOf(root, src, key);
-  if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open` };
+  if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open`, fix: nextFix(root, src, `${packet.key} is ${packet.state}: built marks an open packet after a clean run. Run next for its step now.`) };
   setPacketState(packet, 'built');
   // The flat shape: the end branch marks the built work, so a packet that starts while this one
   // waits reviews from it. done moves it again.
@@ -1016,7 +1116,7 @@ function builtCmd(root, src, [key], f = {}) {
 function reopenCmd(root, src, [key]) {
   const { packet } = packetOf(root, src, key);
   if (packet.state === 'open') return { ok: true, key: packet.key, state: 'open', changed: false };
-  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; only a built packet opens again` };
+  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; only a built packet opens again`, fix: nextFix(root, src, `${packet.key} is ${packet.state}, and only a built packet opens again. Run next for its step now.`) };
   setPacketState(packet, 'open');
   return { ok: true, key: packet.key, state: 'open', changed: true };
 }
@@ -1053,29 +1153,29 @@ function runningDriver(root, packets) {
 
 function doneCmd(root, src, [key], f) {
   const { packets, packet } = packetOf(root, src, key);
-  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)` };
+  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)`, fix: nextFix(root, src, `${packet.key} is ${packet.state}, and done needs a built packet. Run next for its step now.`) };
   const slug = packet['packet-slug'];
   const unbuilt = openSlices(root, slug);
-  if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(', ')} of ${slug} are not complete: run the driver again`, unbuilt };
+  if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(', ')} of ${slug} are not complete: run the driver again`, unbuilt, fix: nextFix(root, src, `The slices ${unbuilt.join(', ')} of ${slug} are not complete: run next, which launches the driver for them.`) };
   const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
-  if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table` };
-  if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing };
-  if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
-  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: run wf.mjs decide add ${root} ${slug} --kind try-out --key try-out --answer works` };
+  if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table`, fix: agentFix(`Run the review of ${slug}: it writes the ## Decision Fidelity table in 07-review.md. Then run done again.`) };
+  if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing, fix: agentFix(`Add a row for each of ${fid.missing.join(', ')} to the ## Decision Fidelity table of ${slug}/07-review.md, as the review writes it. Then run done again.`) };
+  if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows, fix: personFix(`Show the person each fidelity row that is not honored: the person approves it, or asks for a fix run. Then run done again.`) };
+  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: run wf.mjs decide add ${root} ${slug} --kind try-out --key try-out --answer works`, fix: personFix(`The person tries ${packet.key} out and says whether it works; the answer is recorded with wf.mjs decide add --kind try-out --key try-out. Then run done again.`) };
   requireWalkBranch(root, src, packet);
   // The merge and the branch moves of done need a still checkout: a later packet's driver that
   // still runs edits and commits in it.
   const live = liveLaterDriver(root, packets, packet);
-  if (live) return { ok: false, busy: true, running: live, error: `the driver of ${live} still runs in this checkout: run done after its run ends` };
+  if (live) return { ok: false, busy: true, running: live, error: `the driver of ${live} still runs in this checkout: run done after its run ends`, fix: waitFix(live, 'run done again') };
   const dirty = dirtyOutsideAi(root);
-  if (dirty?.length) return { ok: false, busy: true, dirty: dirty.slice(0, 20), error: `${dirty.length} uncommitted change(s) outside .ai/ in the checkout: run done after the running driver ends, or commit them` };
+  if (dirty?.length) return { ok: false, busy: true, dirty: dirty.slice(0, 20), error: `${dirty.length} uncommitted change(s) outside .ai/ in the checkout: run done after the running driver ends, or commit them`, fix: personFix(`The checkout has ${dirty.length} uncommitted change(s) outside .ai/ (dirty lists them): when no driver runs, the person commits them or says what to do with them. Then run done again.`) };
   const trunk = trunkOf(root, f);
   if (shapeOf(root) === 'stacked') {
     // The layer is the end branch. gh stack sync rebases the stack onto the trunk and pushes it
     // with --force-with-lease; no trunk merge enters a layer.
     const sync = f['no-push'] || !hasRemote(root) ? null : gh(root, ['stack', 'sync', '--remote', 'origin']);
-    if (sync && sync.status === 3) return { ok: false, conflict: 'stack', error: `gh stack sync stopped on a rebase conflict: run gh stack rebase, resolve the files, git add them, and gh stack rebase --continue. Then run done again. ${sync.stderr}` };
-    if (sync && sync.status !== 0) return { ok: false, error: `gh stack sync failed: ${sync.stderr || sync.stdout}` };
+    if (sync && sync.status === 3) return { ok: false, conflict: 'stack', error: `gh stack sync stopped on a rebase conflict: run gh stack rebase, resolve the files, git add them, and gh stack rebase --continue. Then run done again. ${sync.stderr}`, fix: personFix('The stack has a rebase conflict: the person runs gh stack rebase, settles the files, adds them, and runs gh stack rebase --continue. Then run done again.') };
+    if (sync && sync.status !== 0) return { ok: false, error: `gh stack sync failed: ${sync.stderr || sync.stdout}`, fix: personFix('gh stack sync failed: check that gh is signed in (gh auth status) and that the gh-stack extension is installed, then run done again.') };
     if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'updated-at': nowIso() });
     setPacketState(packet, 'done');
     return { ok: true, key: packet.key, state: 'done', endBranch: endBranch(src, packet.key), shape: 'stacked', synced: Boolean(sync), publish: publish(root, src, trunk, f) };
@@ -1086,8 +1186,8 @@ function doneCmd(root, src, [key], f) {
     const mg = git(root, ['merge', ...message(SUBJECTS.trunkMerge, `Merge ${from} into ${listBranch(src)} at the end of the work packet ${slug}.`), from]);
     if (mg.status !== 0) {
       const stop = abortMerge(root, mg);
-      if (stop.conflict) return { ok: false, conflict: 'trunk', unmerged: stop.unmerged, error: `the merge of ${from} into ${listBranch(src)} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then run done again.` };
-      return { ok: false, refused: 'trunk', error: `git refused the merge commit of ${from} into ${listBranch(src)}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then run done again.` };
+      if (stop.conflict) return { ok: false, conflict: 'trunk', unmerged: stop.unmerged, error: `the merge of ${from} into ${listBranch(src)} stopped on a conflict in ${stop.unmerged.join(', ')}. Ask the person to merge by hand, then run done again.`, fix: mergeByHand(from, listBranch(src), 'done') };
+      return { ok: false, refused: 'trunk', error: `git refused the merge commit of ${from} into ${listBranch(src)}, with no conflict: ${stop.text}. A commit-msg hook can refuse it. Ask the person to merge by hand with a message that the repo accepts, then run done again.`, fix: mergeByHand(from, listBranch(src), 'done', true) };
     }
     merged = true;
   }
@@ -1097,7 +1197,7 @@ function doneCmd(root, src, [key], f) {
   const later = packets.some((p) => (p.order ?? 0) > (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && ['open', 'built'].includes(p.state));
   if (!(later && commitOf(root, `refs/heads/${end}`))) {
     const b = git(root, ['branch', '-f', end, 'HEAD']);
-    if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
+    if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}`, fix: gitFix(`git cannot move the end branch ${end}.`, 'run done again') };
   }
   if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'base-branch': trunk, 'updated-at': nowIso() });
   setPacketState(packet, 'done');
@@ -1112,10 +1212,10 @@ function doneCmd(root, src, [key], f) {
  * and the board packet both change; a dropped packet holds no kept decision on the next check.
  */
 function closeCmd(root, src, [key, to]) {
-  if (!['done', 'dropped'].includes(to)) throw new Error('close: the state is done or dropped');
+  if (!['done', 'dropped'].includes(to)) throw refuse('close: the state is done or dropped', agentFix('Run close again with done (a routed packet whose workflow is complete) or dropped (a packet that the person drops) as its last word.'));
   const { packet } = packetOf(root, src, key);
   if (['done', 'dropped'].includes(packet.state)) return { ok: true, key: packet.key, state: packet.state, changed: false };
-  if (to === 'done' && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read` };
+  if (to === 'done' && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read`, fix: nextFix(root, src, `${packet.key} is a build packet: run next, which leads it through built and done.`) };
   setPacketState(packet, to);
   const { path: boardPath, board } = boardOf(root, src);
   const onBoard = board?.work?.find((w) => w.key === packet.key);
@@ -1129,18 +1229,513 @@ function closeCmd(root, src, [key, to]) {
   return { ok: true, key: packet.key, state: to, changed: true, board: Boolean(onBoard), ...(worktree ? { worktree } : {}) };
 }
 
+// ---------------------------------------------------------------- skip, unskip, ahead
+
+const STACKED_SKIP = 'the stacked shape builds each layer on the layer below it, so no packet can run ahead of another. Finish or drop the packet, or set pr-shape: single in .ai/ship-plan.md before the first packet starts';
+const stackedSkipFix = (keys) => personFix(`In the stacked shape no packet runs ahead of another: the person finishes or drops ${keys}, or sets pr-shape: single in .ai/ship-plan.md before the first packet starts.`);
+
+/** Remove top-level keys from the frontmatter of a packet file. */
+function removeFields(file, keys) {
+  const text = readFileSync(file, 'utf8');
+  const m = /^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/.exec(text);
+  if (!m) return false;
+  const nl = m[1].endsWith('\r\n') ? '\r\n' : '\n';
+  const lines = m[2].split(/\r?\n/);
+  for (const key of keys) {
+    const k = lines.findIndex((l) => l.startsWith(`${key}:`));
+    if (k < 0) continue;
+    let c = k + 1;
+    while (c < lines.length && lines[c].trim() && (/^\s/.test(lines[c]) || /^- /.test(lines[c]))) c++;
+    lines.splice(k, c - k);
+  }
+  writeFileSync(file, `${m[1]}${lines.join(nl)}${m[3]}${text.slice(m[0].length)}`);
+  return true;
+}
+
+/**
+ * The person's skip (in chat): the walk goes on with a later packet. The packet keeps its state.
+ * A later packet runs only when the person lets it run ahead (`ahead`). The flat shape only.
+ * Refused while the packet's driver runs, and while the list branch holds work of this packet
+ * that is not built: a packet that ran ahead would carry that work into its review.
+ */
+function skipCmd(root, src, [key], f) {
+  const { packets, packet } = packetOf(root, src, key);
+  const slug = packet['packet-slug'];
+  const reason = String(f.reason ?? '').trim();
+  if (!reason) return { ok: false, error: 'skip needs --reason "<the person\'s words>"', fix: agentFix('Run skip again with the words of the person who asked for the skip.', campaignLine(root, 'skip', src, packet.key, '--reason', '"<the person\'s words>"')) };
+  if (['done', 'dropped'].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}: nothing waits on it`, fix: nextFix(root, src, `${packet.key} is ${packet.state}, so there is nothing to skip. Run next for the next step of the list.`) };
+  if (packet.skipped) return { ok: true, key: packet.key, slug, state: packet.state, skipped: packet.skipped, changed: false };
+  if (shapeOf(root) === 'stacked') return { ok: false, error: `skip: ${STACKED_SKIP}`, fix: stackedSkipFix(packet.key) };
+  if (driverLive(root, slug)) return { ok: false, busy: true, error: `the driver of ${slug} runs: skip it after its run ends`, fix: waitFix(slug, 'run skip again') };
+  if (packet.state === 'open' && walkPick(root, src, packets).current?.packet.key === packet.key) {
+    const files = inFlightFiles(root, src, packets, trunkOf(root, f));
+    if (files.length) {
+      return {
+        ok: false, files: files.slice(0, 20),
+        error: `the list branch holds work of ${packet.key} that is not built: ${files.length} file(s), ${files.slice(0, 3).join(', ')}. A packet that runs ahead would carry that work into its review. Finish ${packet.key}, or drop it and revert its commits by hand, before a later packet runs`,
+        fix: personFix(`The list branch holds work of ${packet.key} that is not built: the person says to finish ${packet.key} first, or drops it and reverts its commits by hand. A skip cannot leave that work in the review of a later packet.`),
+      };
+    }
+  }
+  const skipped = { reason, by: 'person', at: nowIso() };
+  setFields(packet.path, { skipped });
+  return { ok: true, key: packet.key, slug, state: packet.state, skipped, changed: true };
+}
+
+/**
+ * Take a skip back. Refused while a later packet that runs ahead of this one has work on the
+ * list branch that is not built: this packet would start on top of it.
+ */
+function unskipCmd(root, src, [key], f) {
+  const { packets, packet } = packetOf(root, src, key);
+  if (!packet.skipped) return { ok: true, key: packet.key, state: packet.state, changed: false };
+  const { current } = walkPick(root, src, packets);
+  if (current && current.packet.state === 'open' && (current.packet.order ?? 0) > (packet.order ?? 0)) {
+    const files = inFlightFiles(root, src, packets, trunkOf(root, f));
+    if (files.length) return { ok: false, running: current.packet.key, error: `${current.packet.key} runs ahead of ${packet.key}, and its work is not built yet. Take the skip back after campaign.mjs built ${current.packet.key}`, fix: agentFix(`Go on with the walk until ${current.packet.key} is built (next names its steps), then run unskip again.`, campaignLine(root, 'next', src), campaignLine(root, 'unskip', src, packet.key)) };
+  }
+  removeFields(packet.path, ['skipped']);
+  return { ok: true, key: packet.key, state: packet.state, changed: true };
+}
+
+/**
+ * The person's answer to "which may run ahead": each named packet may run before every earlier
+ * packet that holds it now, except the other packets of the same answer, which run first in
+ * list order. Recorded as `ahead-of` on the packet. A packet that nothing holds is refused.
+ */
+function aheadCmd(root, src, keys) {
+  if (!keys.length) return { ok: false, error: 'ahead: name each packet that the person lets run ahead', fix: agentFix('Run ahead again with the key of each packet that the person lets run ahead.', campaignLine(root, 'ahead', src, '<packet-key>...')) };
+  if (shapeOf(root) === 'stacked') return { ok: false, error: `ahead: ${STACKED_SKIP}`, fix: stackedSkipFix(keys.join(', ')) };
+  const { packets } = readList(root, src);
+  const named = keys.map((k) => packetOf(root, src, k).packet);
+  const { held } = walkPick(root, src, packets);
+  const allowed = new Set(named.map((p) => p.key));
+  const recorded = [];
+  for (const p of named) {
+    const h = held.find((x) => x.packet.key === p.key);
+    if (!h) return { ok: false, error: `${p.key} does not wait for a skipped packet: nothing to answer`, held: held.map((x) => x.packet.key), fix: agentFix(`Name only packets that wait for a skipped packet (held lists them${held.length ? `: ${held.map((x) => x.packet.key).join(', ')}` : ''}), and run ahead again.`) };
+    const of = [...new Set([...(Array.isArray(p['ahead-of']) ? p['ahead-of'].map(String) : []), ...h.blockers.filter((b) => !allowed.has(b))])];
+    setFields(p.path, { 'ahead-of': of });
+    recorded.push({ key: p.key, 'ahead-of': of });
+  }
+  return { ok: true, recorded };
+}
+
+// ---------------------------------------------------------------- next (one action of the walk)
+
+const shellQuote = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
+const campaignLine = (root, cmd, src, ...rest) => [`node "${CAMPAIGN_CLI}"`, cmd, shellQuote(root), src, ...rest].join(' ');
+const wfLine = (root, cmd, ...rest) => [`node "${WF_CLI}"`, ...cmd.split(' '), shellQuote(root), ...rest].join(' ');
+const sourceLine = (cmd, dir, ...rest) => [`node "${CAMPAIGN_CLI}"`, cmd, shellQuote(dir), ...rest].join(' ');
+
+// ---------------------------------------------------------------- the fixes of the failures
+
+/** A command of the walk out of its order: `next` names the step that the packet needs now. */
+const nextFix = (root, src, doText = 'Run next: it names the step that the list needs now.') => agentFix(doText, campaignLine(root, 'next', src));
+/** A packet that is not a build packet runs its own command with the person. */
+const routeFix = (src, packet) => personFix(`Type \`${routeOf(src, packet)}\`: a ${packet.form} packet runs its own command with the person.`);
+/** A git or gh step that stopped: the person reads what it says and settles it. */
+const gitFix = (what, then) => personFix(`${what} Read what git says, settle it in the checkout without a stash or a force, then ${then}.`);
+/** A driver that still runs: wait for its end. */
+const waitFix = (slug, then) => agentFix(`Wait for the run of ${slug} to end, then ${then}.`);
+/** A list that is not written yet: the person ends the brainstorm, and brainstorm done writes it. */
+const noListFix = (src) => personFix(`The list of ${src} is written when the person ends its brainstorm: ask the person to end the brainstorm ${src}, or check that ${src} is the source of the list.`);
+/** A rebase of a migrated unit that git stopped: the person rebases by hand. */
+const rebaseByHand = (wt, list, waveBase) => personFix(`The person rebases by hand in ${wt} (git rebase --onto ${list} ${waveBase}) and settles any conflict, then runs start again.`);
+/** A merge that stopped on a conflict, or that a commit hook refused: the person merges by hand. */
+const mergeByHand = (from, into, cmd, hook = false) => personFix(hook
+  ? `The repo refused the merge commit of ${from} into ${into} (a commit-msg hook can): the person merges by hand with a message that the repo accepts, then runs ${cmd} again.`
+  : `The merge of ${from} into ${into} has conflicts: the person merges by hand and settles them, then runs ${cmd} again.`);
+/** A migrated board that fails the schema: nothing was written, and the board on disk holds the field. */
+const boardSchemaFix = (root, src, phase) => agentFix(`The migration wrote nothing. Repair the field of the board on disk that each entry of errors names, then run migrate ${phase} again.`, campaignLine(root, 'migrate', src, phase));
+/** A board that is not where the command looked. */
+const noBoardFix = () => agentFix('Pass the folder of the brainstorm that holds the board (its workflow folder), or the board file itself.');
+
+/** The last line of the driver journal of a workflow, or null. */
+function lastJournalLine(root, slug) {
+  try { return parseJsonLines(readFileSync(join(wfDir(root, slug), '.driver-journal.jsonl'), 'utf8')).lines.at(-1) ?? null; } catch { return null; }
+}
+
+/** The fidelity and try-out findings that the walk put in the ledger after the last run of the packet ended. */
+function freshFixes(root, slug) {
+  const dir = wfDir(root, slug);
+  const ended = lastRunEndAt(join(dir, '.driver-journal.jsonl')) ?? 0;
+  return readLedger(dir).findings.filter((e) => e.status === 'open' && ['intent-fidelity', 'try-out'].includes(e.dimension)
+    && (Date.parse(e['last-seen-at'] ?? '') || 0) > ended).map((e) => e.id);
+}
+
+/** True when the checkout stands on the branch the walk needs for a packet. */
+function onWalkBranch(root, src, packet) {
+  return currentBranch(root) === (shapeOf(root) === 'stacked' ? endBranch(src, packet.key) : listBranch(src));
+}
+
+/** The how-far answer as a count of packets: 1 for the next only, Infinity for the whole list, null when not given. */
+function howFarOf(v) {
+  if (v === undefined || v === null || v === true) return null;
+  const s = String(v).trim().toLowerCase();
+  if (s === 'next' || s === 'one') return 1;
+  if (s === 'all' || s === 'whole') return Infinity;
+  const n = Number(s);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
+/**
+ * The one next action of the walk, from the disk: `{ ok, action, why, command?, args?, ask?,
+ * tell?, then }`. `command` is the exact command line to run; `ask` holds entries of `status`
+ * `ask`; `tell` is the text for the person at a stop; `then.next` runs `next` again. It changes
+ * nothing. The how-far answer of the call comes back in `--how-far` and `--since`, and the
+ * run-decisions answer in `--run-decisions`. A how-far answer that the decision store of the
+ * source does not hold yet comes with `recordHowFar`, the command that records it; `ask-how-far`
+ * returns the last recorded answer as `howFar`.
+ */
+function nextCmd(root, src, f = {}) {
+  const end = Boolean(f.end);
+  const st = statusCmd(root, src, { end });
+  if (!st.ok) return st;
+  if (st.migrate) {
+    const phase = st.migrate === 'finish' ? 'finish' : 'report';
+    return { ok: true, source: src, action: 'migrate', phase, why: st.reason, command: campaignLine(root, 'migrate', src, phase), then: { next: campaignLine(root, 'next', src) } };
+  }
+  const howFar = howFarOf(f['how-far']);
+  if (howFar === undefined) return { ok: false, error: `--how-far is next, all or a number, not ${f['how-far']}`, fix: agentFix('Run next again with the person\'s answer as --how-far next, all, or a whole number of packets.', campaignLine(root, 'next', src, '--how-far', '<next|all|N>', ...(f.since ? ['--since', String(f.since)] : []))) };
+  const since = f.since ? String(f.since) : null;
+  const carry = [
+    ...(f['how-far'] ? ['--how-far', String(f['how-far'])] : []), ...(since ? ['--since', since] : []),
+    ...(f['run-decisions'] ? ['--run-decisions', shellQuote(f['run-decisions'])] : []), ...(f.trunk ? ['--trunk', String(f.trunk)] : []),
+  ];
+  const nextLine = campaignLine(root, 'next', src, ...carry, ...(end ? ['--end'] : []));
+  // The how-far answer goes to the decision store of the source under its stable key, as the
+  // run-decisions answer does: `recordHowFar` is the command that records it, while the store
+  // holds another answer or none.
+  let lastHowFar = null;
+  try { lastHowFar = answeredBy(decisionsOf(sourceDir(root, src)), HOW_FAR_KEY); } catch { lastHowFar = null; }
+  const howFarText = f['how-far'] && f['how-far'] !== true ? String(f['how-far']).trim() : null;
+  const recordHowFar = howFarText && howFarText.toLowerCase() !== String(lastHowFar?.answer ?? '').trim().toLowerCase()
+    ? wfLine(root, 'decide add', src, '--kind answer --key', HOW_FAR_KEY, '--question', shellQuote(HOW_FAR_QUESTION), '--answer', shellQuote(howFarText))
+    : null;
+  const out = (o) => ({ ok: true, source: src, ...(st.skipped ? { skipped: st.skipped } : {}), ...(recordHowFar ? { recordHowFar } : {}), ...o, then: { next: nextLine, ...(o.then ?? {}) } });
+  const { packets } = readList(root, src);
+  const byKey = new Map(packets.map((p) => [p.key, p]));
+  const trunk = trunkOf(root, f);
+  const stacked = shapeOf(root) === 'stacked';
+  const pk = (p) => ({ key: p.key, slug: p['packet-slug'] });
+  const land = (p, why) => out({ action: 'land', ...pk(p), why, command: campaignLine(root, 'land', src, p.key, ...(f.trunk ? ['--trunk', f.trunk] : [])) });
+
+  // A driver runs in this checkout: ask what waits, else wait for its end.
+  if (st.then.running) {
+    if (st.ask.length) return out({ action: 'ask', why: `the driver of ${st.then.running} runs: ask the questions that wait now`, ask: st.ask, then: st.then });
+    return out({ action: 'wait', slug: st.then.running, why: `the driver of ${st.then.running} runs: wait for its run to end` });
+  }
+  // Open each written build packet, in list order.
+  const written = end ? null : packets.find((p) => BUILD_FORMS.includes(p.form) && p.state === 'written');
+  if (written) return out({ action: 'open', ...pk(written), why: `${written.key} is written: open writes its workflow folder`, command: campaignLine(root, 'open', src, written.key, ...(f.trunk ? ['--trunk', f.trunk] : [])) });
+  // Once per call: the plan, then how far to go.
+  if (!end && howFar === null) {
+    const at = nowIso();
+    const lastAnswer = packets.map((p) => {
+      try { return answeredBy(decisionsOf(wfDir(root, p['packet-slug'])), RUN_DECISIONS_KEY); } catch { return null; }
+    }).filter(Boolean).sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? ''))).at(-1);
+    return out({
+      action: 'ask-how-far', why: 'a new call: show the plan, then ask how far to go and how the runs settle the person\'s decisions',
+      command: campaignLine(root, 'plan', src), shipReady: wfLine(root, 'ship ready', src), since: at,
+      runDecisions: lastAnswer ? { answer: lastAnswer.answer } : null, howFar: lastHowFar ? { answer: lastHowFar.answer } : null, needDesign: st.needDesign,
+      then: { next: campaignLine(root, 'next', src, '--how-far', '<next|all|N>', '--since', at, '--run-decisions', '"<answer>"', ...(f.trunk ? ['--trunk', f.trunk] : [])) },
+    });
+  }
+  const cur = st.current ? byKey.get(st.current.key) : null;
+  const step = st.current;
+  // A clean run of the current packet ended: built first, before any other step.
+  if (cur && cur.state === 'open' && step.step === 'yolo') {
+    const last = lastJournalLine(root, cur['packet-slug']);
+    if (last?.event === 'run-end' && !last.stoppedAt && !openSlices(root, cur['packet-slug']).length) {
+      if (!onWalkBranch(root, src, cur)) return land(cur, 'built marks the end branch at HEAD of the walk branch');
+      return out({ action: 'built', ...pk(cur), why: `the run of ${cur['packet-slug']} reached its endpoint`, command: campaignLine(root, 'built', src, cur.key) });
+    }
+  }
+  // A fix that the person asked for runs before the walk starts any further packet.
+  // A done packet counts too: a reversal of its delegate digest is a fix.
+  for (const p of packets) {
+    if (!BUILD_FORMS.includes(p.form) || !['built', 'done'].includes(p.state) || (p.skipped && p.state !== 'done')) continue;
+    if (p.state === 'done' && shippedOrClosed(root, p['packet-slug'])) continue;
+    const fixes = freshFixes(root, p['packet-slug']);
+    if (!fixes.length) continue;
+    if (!onWalkBranch(root, src, p)) return land(p, 'the fix run works on the walk branch');
+    return out({ action: 'fix-run', ...pk(p), why: `the findings ${fixes.join(', ')} of ${p['packet-slug']} wait for a fix run`, findings: fixes, args: { slug: p['packet-slug'], reviewFindings: true } });
+  }
+  const doneThisCall = since ? packets.filter((p) => p.state === 'done' && String(p['done-at'] ?? '') >= since).map((p) => p.key) : [];
+  if (end || st.finished || (howFar !== null && doneThisCall.length >= howFar)) {
+    const fin = end ? st : statusCmd(root, src, { end: true });
+    if (fin.finished) {
+      return out({
+        action: 'hand-off', why: 'every packet is done or dropped', ask: fin.ask, then: { ...fin.then, next: campaignLine(root, 'next', src, '--end') },
+        tell: stacked ? 'Ship each layer as its own PR, bottom first, or merge the whole stack with gh stack merge.' : `Type \`/wf ship packets/${src}\``,
+      });
+    }
+    return out({
+      action: 'end', why: end ? 'the call ends' : `${doneThisCall.length} packet(s) reached done in this call, as far as the person asked`,
+      ask: fin.ask, then: { ...fin.then, next: campaignLine(root, 'next', src, '--end') }, doneThisCall,
+      nextPacket: fin.current ? { key: fin.current.key, slug: fin.current.slug, step: fin.current.step } : null, needDesign: fin.needDesign,
+      tell: `Type \`/wf campaign ${src}\``,
+    });
+  }
+  if (!cur) {
+    if (st.held?.length && !stacked) {
+      const entry = {
+        kind: 'ahead',
+        skipped: (st.skipped ?? []),
+        candidates: st.held.map((h) => {
+          const p = byKey.get(h.key);
+          return { key: p.key, slug: p['packet-slug'], title: p.title ?? null, order: p.order, form: p.form, 'why-here': p['why-here'] ?? null, waitsFor: h.waitsFor };
+        }),
+      };
+      return out({ action: 'ask', why: 'every packet that may run waits for a skipped packet: the person says which may run ahead', ask: [entry], then: { record: campaignLine(root, 'ahead', src, '<key>...') } });
+    }
+    return out({
+      action: 'end', why: stacked && st.held?.length ? `every packet left waits for a skipped packet, and ${STACKED_SKIP}` : 'every packet left is skipped',
+      ask: [], doneThisCall, tell: `Each packet left is skipped. Take a skip back with campaign.mjs unskip, then type \`/wf campaign ${src}\``,
+    });
+  }
+  const ahead = step['ahead-of'] ? { 'ahead-of': step['ahead-of'] } : {};
+  switch (step.step) {
+    case 'route': {
+      const index = recordFm(wfDir(root, cur['packet-slug']), INDEX_NAME);
+      if (['complete', 'closed'].includes(String(index?.status ?? ''))) {
+        return out({ action: 'close', ...pk(cur), ...ahead, why: `the workflow ${cur['packet-slug']} is ${index.status}`, command: campaignLine(root, 'close', src, cur.key, 'done') });
+      }
+      return out({ action: 'route-stop', ...pk(cur), ...ahead, form: cur.form, route: step.route, why: `a ${cur.form} packet runs its own command with the person`, tell: `Type \`${step.route}\`` });
+    }
+    case 'open':
+      return out({ action: 'open', ...pk(cur), why: `${cur.key} is written`, command: campaignLine(root, 'open', src, cur.key) });
+    case 'design': {
+      const direction = cur['design-form'] === 'design-direction';
+      return out({
+        action: 'design-stop', ...pk(cur), ...ahead, why: step.reason, route: step.route,
+        tell: direction ? `Type \`/wf design direction from ${src}\` first, then \`${step.route}\`` : `Type \`${step.route}\``,
+      });
+    }
+    default: break;
+  }
+  if (!onWalkBranch(root, src, cur)) return land(cur, `the checkout is on ${currentBranch(root) ?? 'a detached HEAD'}`);
+  const slug = cur['packet-slug'];
+  if (step.step === 'slice' || (step.step === 'yolo' && cur.state === 'open')) {
+    const why = startNeeded(root, src, packets, cur, trunk);
+    if (why) return out({ action: 'start', ...pk(cur), ...ahead, why, command: campaignLine(root, 'start', src, cur.key, ...(f.trunk ? ['--trunk', f.trunk] : [])) });
+    if (step.questions?.length) {
+      return out({ action: 'ask-carried', ...pk(cur), why: 'the person left these questions to this build: ask them before the slice', ask: [{ kind: 'carried', ...pk(cur), questions: step.questions }] });
+    }
+    if (step.step === 'slice') return out({ action: 'slice', ...pk(cur), ...ahead, why: `${slug} has no slice roster`, args: { slug } });
+  }
+  if (step.step === 'yolo' || (step.step === 'fidelity' && step.reason)) {
+    const last = lastJournalLine(root, slug);
+    const args = { slug };
+    if (last?.event === 'run-end' && last.stoppedAt) {
+      return out({ action: 'driver-stop', ...pk(cur), why: `the run of ${slug} stopped at ${last.stoppedAt}`, stoppedAt: last.stoppedAt, reason: last.reason ?? null, args, tell: `The run of ${slug} stopped at ${last.stoppedAt}${last.reason ? `: ${last.reason}` : ''}.` });
+    }
+    const steer = f['run-decisions'] ? String(f['run-decisions']) : null;
+    let have = null;
+    try { have = answeredBy(decisionsOf(wfDir(root, slug)), RUN_DECISIONS_KEY)?.answer ?? null; } catch { have = null; }
+    const record = steer && steer !== have
+      ? wfLine(root, 'decide add', slug, '--kind steer --key', RUN_DECISIONS_KEY, '--question', shellQuote(RUN_DECISIONS_QUESTION), '--answer', shellQuote(steer))
+      : null;
+    return out({ action: 'launch-driver', ...pk(cur), ...ahead, why: step.reason ?? `${slug} is sliced: the driver builds it`, ...(record ? { command: record } : {}), args });
+  }
+  if (step.step === 'fidelity' || step.step === 'try-out') {
+    return out({ action: 'ask', ...pk(cur), why: step.step === 'fidelity' ? `${slug} has fidelity rows that the person has not approved` : `${slug} waits for its try-out`, ask: st.ask, then: st.then });
+  }
+  if (step.step === 'done') return out({ action: 'done', ...pk(cur), why: `${cur.key} is built and clear`, command: campaignLine(root, 'done', src, cur.key, ...(f.trunk ? ['--trunk', f.trunk] : [])) });
+  // A step that the walk does not know is a defect of the plugin.
+  throw new Error(`next: no action for the step ${step.step} of ${cur.key}`); /* defect */
+}
+
+// ---------------------------------------------------------------- plan (a dry run of the walk)
+
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
+const range = (xs) => ({ low: Math.round(Math.min(...xs)), median: Math.round(median(xs)), high: Math.round(Math.max(...xs)) });
+
+/** The token columns of a cost, output and fresh input first; cache reads come apart. */
+export const COST_COLUMNS = Object.freeze(['output', 'input', 'cacheWrite', 'cacheRead']);
+
+/**
+ * The sanity bound of one sample: all tokens of a past run over its complete slices. A slice
+ * above it would need more than a thousand turns that each read a full context of a million
+ * tokens; a figure past it is a fault of the rows, never a cost, so it is not shown.
+ */
+export const SLICE_TOKEN_BOUND = 1_000_000_000;
+
+/**
+ * The tokens per complete slice of the past runs of this project, per column. Each workflow
+ * folder with rows in its cost ledger and complete slices in its roster gives one sample: its
+ * totals (aggregateCost) over its complete slices. A folder whose rows book a sub-agent again
+ * (rebookedEntries), or whose sample passes SLICE_TOKEN_BOUND, is left out with its reason. The
+ * ledger holds tokens, never currency. No sample gives no number.
+ */
+export function costBasis(root, { exclude = [] } = {}) {
+  let names = [];
+  try { names = readdirSync(workflowsRoot(root), { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('.')).map((d) => d.name); } catch { names = []; }
+  const samples = [];
+  const excluded = [];
+  for (const name of names) {
+    if (exclude.includes(name)) continue;
+    const dir = wfDir(root, name);
+    const rows = readCostRows(dir);
+    if (!rows.length) continue;
+    const slices = (recordFm(dir, INDEX_NAME)?.slices ?? []).filter((s) => s && s.status === 'complete').length;
+    if (!slices) continue;
+    const rebooked = rebookedEntries(rows);
+    if (rebooked) {
+      excluded.push({ slug: name, reason: `${rebooked} sub-agent entries book again a usage that an earlier row booked; scripts/cost-rebuild.mjs repairs the rows from the transcripts` });
+      continue;
+    }
+    const t = aggregateCost(rows).total;
+    const per = Object.fromEntries(COST_COLUMNS.map((c) => [c, t[c] / slices]));
+    const all = COST_COLUMNS.reduce((n, c) => n + per[c], 0);
+    if (!all) continue;
+    if (all > SLICE_TOKEN_BOUND) {
+      excluded.push({ slug: name, reason: `${Math.round(all).toLocaleString('en-US')} tokens per slice is above the bound of ${SLICE_TOKEN_BOUND.toLocaleString('en-US')}` });
+      continue;
+    }
+    samples.push({ slug: name, slices, per });
+  }
+  const left = excluded.length ? { excluded } : {};
+  if (!samples.length) {
+    const note = excluded.length
+      ? `the cost rows of this project cannot be summed: ${excluded.length} past run(s) have rows that book a usage again or pass the bound, and no other run has cost rows and complete slices`
+      : 'no past run of this project has cost rows and complete slices: no cost estimate';
+    return { runs: 0, perSlice: null, note, ...left };
+  }
+  return {
+    runs: samples.length, slices: samples.reduce((n, s) => n + s.slices, 0), unit: 'tokens',
+    perSlice: Object.fromEntries(COST_COLUMNS.map((c) => [c, range(samples.map((s) => s.per[c]))])),
+    from: samples.map((s) => s.slug), ...left,
+  };
+}
+
+/** The cost range of `n` slices, per column, from the low and the high sample. */
+const costOf = (cost, n) => (cost.perSlice && n ? Object.fromEntries(COST_COLUMNS.map((c) => [c, { low: n * cost.perSlice[c].low, high: n * cost.perSlice[c].high }])) : null);
+
+/** The packets that the compact plan shows in full: the next ones that will run. */
+export const PLAN_NEXT = 5;
+
+/**
+ * The whole walk before it starts, in list order: forms, states, design, stops, slices and a cost
+ * range. It changes nothing. The default is compact: the totals, each kind of stop with its count
+ * and the keys of the packets that stop, the next PLAN_NEXT packets in full, and one short line
+ * for each other packet. `--full` gives every packet in full.
+ */
+function planCmd(root, src, f = {}) {
+  const st = statusCmd(root, src, {});
+  if (!st.ok) return st;
+  if (st.migrate) return { ok: false, source: src, error: `${src} has an old campaign: migrate it first`, migrate: st.migrate, fix: nextFix(root, src, `${src} has an old campaign: run next, which names the step of its migration. Then run plan again.`) };
+  const { packets } = readList(root, src);
+  const cost = costBasis(root, { exclude: [src] });
+  const rows = packets.map((p) => {
+    const slug = p['packet-slug'];
+    const dir = wfDir(root, slug);
+    const build = BUILD_FORMS.includes(p.form);
+    const index = build ? recordFm(dir, INDEX_NAME) : null;
+    const closed = ['done', 'dropped'].includes(p.state);
+    let design = 'none';
+    let designWhy = null;
+    if (build && index) {
+      const block = designBlock(root, slug);
+      if (block) { design = 'needed'; designWhy = block; } else if (designNeeded(index, hasDoc(dir, '02b-design.md'))) design = 'settled';
+    } else if (build && ((p['ux-impact'] ?? 'none') !== 'none' || (p['design-form'] ?? 'none') !== 'none')) {
+      design = 'needed'; designWhy = 'the design stage runs after open';
+    }
+    const carried = index
+      ? (index['open-questions'] ?? []).filter((q) => q && typeof q === 'object' && q.stage === 'slice' && q.key).length
+      : (Array.isArray(p['left-to-build']) ? p['left-to-build'].filter((q) => q?.how === 'ask').length : 0);
+    const stops = [];
+    if (!closed) {
+      if (!build) stops.push({ kind: 'route', route: routeOf(src, p) });
+      if (design === 'needed') stops.push({ kind: 'design', why: designWhy, route: p['design-form'] === 'design-direction' ? `/wf design direction from ${src}` : `/wf design ${slug}` });
+      if (carried) stops.push({ kind: 'carried', count: carried });
+      if (build && p['try-out'] === 'yes' && !tryOutRecorded(root, slug)) stops.push({ kind: 'try-out' });
+    }
+    const sliced = Array.isArray(index?.slices) ? index.slices.length : null;
+    const estimated = Number.isInteger(p['estimated-slices']) ? p['estimated-slices'] : null;
+    const left = !build || closed ? 0 : (sliced !== null && hasDoc(dir, ROSTER_DOC) ? openSlices(root, slug).length : estimated);
+    return {
+      key: p.key, slug, title: p.title ?? null, order: p.order, form: p.form, state: p.state,
+      ...(p.skipped ? { skipped: p.skipped } : {}), design, ...(designWhy ? { designWhy } : {}),
+      stops, estimatedSlices: estimated, ...(sliced !== null ? { slices: sliced } : {}), slicesLeft: left ?? null,
+      ...(build && !closed ? { cost: costOf(cost, left) } : {}),
+    };
+  });
+  const open = rows.filter((r) => !['done', 'dropped'].includes(r.state));
+  const stopsOf = (kind) => {
+    const hit = open.filter((r) => r.stops.some((s) => s.kind === kind));
+    return { count: hit.reduce((n, r) => n + r.stops.filter((s) => s.kind === kind).reduce((m, s) => m + (s.count ?? 1), 0), 0), packets: hit.map((r) => r.key).join(', ') };
+  };
+  const priced = open.filter((r) => r.cost);
+  const totalCost = priced.length
+    ? { ...Object.fromEntries(COST_COLUMNS.map((c) => [c, { low: priced.reduce((n, r) => n + r.cost[c].low, 0), high: priced.reduce((n, r) => n + r.cost[c].high, 0) }])), unit: 'tokens', packets: priced.length }
+    : null;
+  const totals = {
+    packets: open.length, build: open.filter((r) => BUILD_FORMS.includes(r.form)).length,
+    slicesLeft: open.reduce((n, r) => n + (r.slicesLeft ?? 0), 0),
+    unestimated: open.filter((r) => BUILD_FORMS.includes(r.form) && r.slicesLeft === null).map((r) => r.key).join(', '),
+    stops: Object.fromEntries(['route', 'design', 'carried', 'try-out'].map((k) => [k, stopsOf(k)])),
+    cost: totalCost,
+  };
+  const basis = { ...cost, ...(cost.excluded ? { excluded: cost.excluded.length, excludedWhy: [...new Set(cost.excluded.map((e) => e.reason.replace(/^[\d,]+ /, '')))] } : {}) };
+  delete basis.from;
+  if (f.full) return { ok: true, source: src, shape: shapeOf(root), full: true, packets: rows, totals: { ...totals, costLine: costLine(totalCost) }, cost };
+  // The next packets that will run: open, not skipped, in list order.
+  const next = open.filter((r) => !r.skipped).slice(0, PLAN_NEXT).map((r) => ({
+    ...r, title: r.title && r.title.length > PLAN_TITLE ? `${r.title.slice(0, PLAN_TITLE - 1)}…` : r.title,
+    ...(r.cost !== undefined ? { cost: costLine(r.cost) } : {}),
+  }));
+  const shown = new Set(next.map((r) => r.key));
+  const line = (r) => [r.key, r.form, r.state + (r.skipped ? ' (skipped)' : ''), `design ${r.design}`, r.slicesLeft === null ? 'slices ?' : `${r.slicesLeft} slices`].join(' · ');
+  // The packets behind the walk are counts only; --full names them.
+  const closed = Object.fromEntries(['done', 'dropped'].map((s) => [s, rows.filter((r) => r.state === s).length]));
+  const capped = (list) => {
+    const keys = list ? list.split(', ') : [];
+    return keys.length > PLAN_KEYS ? `${keys.slice(0, PLAN_KEYS).join(', ')} and ${keys.length - PLAN_KEYS} more` : list;
+  };
+  return {
+    ok: true, source: src, shape: shapeOf(root),
+    totals: {
+      ...totals, unestimated: capped(totals.unestimated),
+      stops: Object.fromEntries(Object.entries(totals.stops).map(([k, v]) => [k, { count: v.count, packets: capped(v.packets) }])),
+      costLine: costLine(totalCost),
+    },
+    cost: { ...basis, perSlice: basis.perSlice ? costLine(basis.perSlice, 'per slice') : null },
+    closed,
+    next,
+    rest: open.filter((r) => !shown.has(r.key)).map(line),
+    full: `node "${CAMPAIGN_CLI}" plan ${shellQuote(root)} ${src} --full`,
+  };
+}
+
+/** The compact plan: the length of a title in full rows, and the keys named per kind of stop. */
+export const PLAN_TITLE = 120;
+export const PLAN_KEYS = 8;
+/** The ceiling of the compact plan, as printed (2-space JSON), for a list of 60 packets. */
+export const PLAN_CEILING = 12_000;
+
+const short = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}G` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(Math.round(n)));
+const span = (r) => (r.low === r.high ? short(r.low) : `${short(r.low)}–${short(r.high)}`);
+/** One line of a cost: output and fresh input first, the cache columns apart. */
+function costLine(c, label = '') {
+  if (!c) return null;
+  return `${label ? `${label}: ` : ''}output ${span(c.output)}, fresh input ${span(c.input)} tokens; cache write ${span(c.cacheWrite)}, cache read ${span(c.cacheRead)}`;
+}
+
 function sliceOrder(root, slug, [action], f) {
-  if (action !== 'add') throw new Error('slice-order: the action is add');
+  const addLine = [`node "${CAMPAIGN_CLI}"`, 'slice-order', shellQuote(root), slug, 'add', '--slice', '<slice>', '--after', '<another slice>'].join(' ');
+  if (action !== 'add') throw refuse('slice-order: the action is add', agentFix('Run slice-order with the action add.', addLine));
   const s = String(f.slice ?? '').trim();
   const t = String(f.after ?? '').trim();
-  if (!s || !t || s === t) throw new Error('slice-order add: give --slice <slice> --after <another slice>');
+  if (!s || !t || s === t) throw refuse('slice-order add: give --slice <slice> --after <another slice>', agentFix('Run slice-order add again with two different slices of the roster: --slice is the one that runs after --after.', addLine));
   const dir = workflowDir(root, slug);
-  if (!hasDoc(dir, ROSTER_DOC)) return { ok: false, error: `slice-order: ${relative(root, join(dir, ROSTER_DOC))} does not exist` };
+  if (!hasDoc(dir, ROSTER_DOC)) return { ok: false, error: `slice-order: ${relative(root, join(dir, ROSTER_DOC))} does not exist`, fix: agentFix(`Run the slice stage of ${slug} first: it writes the roster. Then run slice-order again.`) };
   const roster = rosterOf(dir);
   const entry = roster.find((e) => e.slug === s);
-  if (!entry || !roster.some((e) => e.slug === t)) return { ok: false, error: `slice-order: ${!entry ? s : t} is not a slice of the roster of ${slug}` };
+  if (!entry || !roster.some((e) => e.slug === t)) return { ok: false, error: `slice-order: ${!entry ? s : t} is not a slice of the roster of ${slug}`, fix: agentFix(`Name slices of the roster of ${slug} (${roster.map((e) => e.slug).join(', ') || 'none yet'}), and run slice-order again.`) };
   if (entry.dependsOn.includes(t)) return { ok: true, slug, slice: s, after: t, added: false, walkOrder: rosterWalkOrder(roster).map((e) => e.slug) };
-  if (closesCycle(roster, s, t)) return { ok: false, cycle: true, error: `slice-order: ${s} after ${t} closes a cycle, because ${t} already depends on ${s}` };
+  if (closesCycle(roster, s, t)) return { ok: false, cycle: true, error: `slice-order: ${s} after ${t} closes a cycle, because ${t} already depends on ${s}`, fix: personFix(`The roster runs ${t} after ${s}, and this order asks for ${s} after ${t}: the person says which of the two runs first.`) };
   const deps = [...entry.dependsOn, t];
   const edited = setRosterEntry(dir, s, { 'depends-on': deps });
   const sliceName = `03-slice-${s}.md`;
@@ -1243,22 +1838,23 @@ function unitKeyOf(root, src, path) {
 
 export function removeWorktree(root, src, path, { unitKey = null, allowIgnored = false, linkLimit = 5000 } = {}) {
   const entry = worktreeList(root).find((w) => samePath(w.path, path));
-  if (!entry) return { ok: false, path, error: `${path} is not a worktree of ${root}` };
-  if (!isOldCampaignWorktree(entry, src)) return { ok: false, path, untouched: true, error: `${path} is not an old campaign worktree of ${src}; the migration does not touch it` };
+  if (!entry) return { ok: false, path, error: `${path} is not a worktree of ${root}`, fix: agentFix(`Pass the path of a worktree of ${root}, as git worktree list prints it, and run remove-worktree again.`) };
+  if (!isOldCampaignWorktree(entry, src)) return { ok: false, path, untouched: true, error: `${path} is not an old campaign worktree of ${src}; the migration does not touch it`, fix: agentFix(`Leave ${path} as it is: the migration removes only the old campaign worktrees of ${src}.`) };
   if (!existsSync(path)) {
     git(root, ['worktree', 'prune']);
     return { ok: true, path, removed: true, pruned: true };
   }
+  const keep = (what) => personFix(`The worktree ${path} stays: ${what} The person checks it and removes the worktree by hand, or keeps it.`);
   const dirty = dirtyOutsideAi(path);
-  if (dirty === null) return { ok: false, path, error: `git status failed in ${path}` };
-  if (dirty.length) return { ok: false, path, error: `${dirty.length} uncommitted change(s) outside .ai/; the worktree stays. Ask the person.`, dirty: dirty.slice(0, 20) };
+  if (dirty === null) return { ok: false, path, error: `git status failed in ${path}`, fix: keep('git cannot read its status.') };
+  if (dirty.length) return { ok: false, path, error: `${dirty.length} uncommitted change(s) outside .ai/; the worktree stays. Ask the person.`, dirty: dirty.slice(0, 20), fix: keep(`it has ${dirty.length} uncommitted change(s) outside .ai/ (dirty lists them).`) };
   if (entry.detached && entry.head && !git(root, ['branch', '--all', '--contains', entry.head]).stdout) {
-    return { ok: false, path, error: `the detached HEAD ${entry.head.slice(0, 12)} is on no branch; its commits would be lost. Ask the person.` };
+    return { ok: false, path, error: `the detached HEAD ${entry.head.slice(0, 12)} is on no branch; its commits would be lost. Ask the person.`, fix: keep(`its detached HEAD ${entry.head.slice(0, 12)} is on no branch, and a remove would lose its commits.`) };
   }
   if (existsSync(join(path, '.ai'))) {
     const m = unitKey ? manifestOf(root, src, unitKey) : null;
     const pending = recordsPending({ main: root, worktree: path, manifest: m?.manifest ?? { files: {} }, exclude: (rel) => rel === '.gitignore' });
-    if (pending.length) return { ok: false, path, error: `${pending.length} record file(s) in the worktree exist nowhere else; the records sync did not bring them home. Ask the person.`, pending: pending.slice(0, 20) };
+    if (pending.length) return { ok: false, path, error: `${pending.length} record file(s) in the worktree exist nowhere else; the records sync did not bring them home. Ask the person.`, pending: pending.slice(0, 20), fix: keep(`${pending.length} record file(s) in it exist nowhere else (pending lists them).`) };
   }
   if (!allowIgnored) {
     const st = git(path, ['status', '--porcelain', '--ignored=matching'], { raw: true });
@@ -1267,18 +1863,19 @@ export function removeWorktree(root, src, path, { unitKey = null, allowIgnored =
       return {
         ok: false, path, ignoredAtRisk: true, ignored: risk.slice(0, 20),
         error: 'git worktree remove deletes these ignored files without asking, and they are not build output. Show them to the person. On a yes, run remove-worktree again with --allow-ignored.',
+        fix: personFix(`Show the person the ignored files of ${path} (ignored lists them): a remove deletes them. On the person's yes, remove-worktree runs again with --allow-ignored.`),
       };
     }
   }
   // CAUTION (12.7): remove each link as a link first, so no delete follows it into its target.
   const { links, complete } = linksIn(path, linkLimit);
-  if (!complete) return { ok: false, path, error: `the worktree has more than ${linkLimit} links; a link after the limit could take the remove into its target. Ask the person.` };
+  if (!complete) return { ok: false, path, error: `the worktree has more than ${linkLimit} links; a link after the limit could take the remove into its target. Ask the person.`, fix: keep(`it has more than ${linkLimit} links, and a delete could follow one into its target.`) };
   // A tracked link stays: deleting it makes the worktree dirty, and git then refuses the remove.
   // git removes a tracked link as a link.
   const own = untrackedLinks(path, links);
   for (const l of own) removeLink(l);
   const r = git(root, ['worktree', 'remove', path]);
-  if (r.status !== 0) return { ok: false, path, linksRemoved: own.length, removedLinks: own.map((l) => posix(relative(path, l))), error: `git refused to remove ${path}: ${r.stderr}. These links were removed first: ${own.map((l) => posix(relative(path, l))).join(', ') || 'none'}. Ask the person; do not force.` };
+  if (r.status !== 0) return { ok: false, path, linksRemoved: own.length, removedLinks: own.map((l) => posix(relative(path, l))), error: `git refused to remove ${path}: ${r.stderr}. These links were removed first: ${own.map((l) => posix(relative(path, l))).join(', ') || 'none'}. Ask the person; do not force.`, fix: keep('git refused to remove it (do not force the remove).') };
   return { ok: true, path, removed: true, linksRemoved: own.length };
 }
 
@@ -1289,7 +1886,7 @@ export function untrackedLinks(wt, links) {
 }
 
 function removeWorktreeCmd(root, src, [path], f) {
-  if (!path) throw new Error('remove-worktree: give the worktree path');
+  if (!path) throw refuse('remove-worktree: give the worktree path', agentFix('Run remove-worktree again with the path of the old campaign worktree.', campaignLine(root, 'remove-worktree', src, '"<worktree path>"')));
   const at = resolve(path);
   const unitKey = f.unit ? String(f.unit) : unitKeyOf(root, src, at);
   return removeWorktree(root, src, at, { unitKey, allowIgnored: Boolean(f['allow-ignored']) });
@@ -1345,7 +1942,7 @@ function landingOf(root, ledger, wave, trunk, isMerged = prMerged) {
 /** The migration report of an old ledger (12.2 step 2), as data. */
 export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {}) {
   const ledger = readJson(join(oldCampDir(root, src), 'ledger.json'));
-  if (!ledger?.units) return { ok: false, error: `no old campaign ledger in ${posix(relative(root, oldCampDir(root, src)))}` };
+  if (!ledger?.units) return { ok: false, error: `no old campaign ledger in ${posix(relative(root, oldCampDir(root, src)))}`, fix: nextFix(root, src, `${src} has no old campaign to migrate: run next for the step of its list.`) };
   const trunk = ledger.trunk ?? trunkOf(root, f);
   const ageMs = journalAgeMs(root, src, ledger);
   const running = (ledger.waves ?? []).filter((w) => w.state === 'running');
@@ -1459,10 +2056,10 @@ function boardOf(root, src) {
 export function migrateApply(root, src, f = {}, deps = {}) {
   const rep = migrationReport(root, src, f, deps);
   if (!rep.ok) return rep;
-  if (rep.live) return { ok: false, error: `an old wave run is live (last ledger event ${rep.ledgerAgeMinutes} minutes ago). Stop it first.` };
-  if (rep.blocked.length) return { ok: false, error: 'the trunk does not hold the earlier waves of an in-flight unit. Merge the open wave PRs first.', blocked: rep.blocked };
+  if (rep.live) return { ok: false, error: `an old wave run is live (last ledger event ${rep.ledgerAgeMinutes} minutes ago). Stop it first.`, fix: personFix(`An old wave run of ${src} is live: the person stops it, or waits for it to end, then runs migrate apply again.`) };
+  if (rep.blocked.length) return { ok: false, error: 'the trunk does not hold the earlier waves of an in-flight unit. Merge the open wave PRs first.', blocked: rep.blocked, fix: personFix('The person merges the open wave PRs that blocked lists into the trunk, then runs migrate apply again.') };
   const { path: boardPath, board } = boardOf(root, src);
-  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}` };
+  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}`, fix: personFix(`The brainstorm ${src} has no board file, and the migration needs it: the person restores the board of ${workflowRel(src)} from git, then the migration runs again.`) };
 
   // Step 4: the records of each in-flight worktree come home (local records only).
   const records = [];
@@ -1523,7 +2120,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   // it never enters the board. The report names it (`prStack`), for `pr-shape` in the ship plan.
   board.work = order;
   const shape = validateBrainstormBoard(board);
-  if (!shape.valid) return { ok: false, error: 'the migrated board does not pass the board schema', errors: shape.errors.slice(0, 10), records };
+  if (!shape.valid) return { ok: false, error: 'the migrated board does not pass the board schema', errors: shape.errors.slice(0, 10), records, fix: boardSchemaFix(root, src, 'apply') };
   const backup = backupBoard(root, src, boardPath, 'apply');
   writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
 
@@ -1561,9 +2158,9 @@ function backupBoard(root, src, boardPath, phase) {
  */
 export function migrateRegroup(root, src, f = {}) {
   const ledger = readJson(join(oldCampDir(root, src), 'ledger.json'));
-  if (!ledger?.units) return { ok: false, error: `no old campaign ledger in ${posix(relative(root, oldCampDir(root, src)))}` };
+  if (!ledger?.units) return { ok: false, error: `no old campaign ledger in ${posix(relative(root, oldCampDir(root, src)))}`, fix: nextFix(root, src, `${src} has no old campaign to migrate: run next for the step of its list.`) };
   const { path: boardPath, board } = boardOf(root, src);
-  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}` };
+  if (!board) return { ok: false, error: `no board in ${workflowRel(src)}`, fix: personFix(`The brainstorm ${src} has no board file, and the migration needs it: the person restores the board of ${workflowRel(src)} from git, then the migration runs again.`) };
   const units = new Set(Object.keys(ledger.units));
   const items = new Map((board.items ?? []).map((i) => [i.key, i]));
   const live = (board.work ?? []).filter((w) => w.state !== 'dropped');
@@ -1596,7 +2193,7 @@ export function migrateRegroup(root, src, f = {}) {
   const out = { ok: true, source: src, dryRun: Boolean(f['dry-run']), moved: moves.length, groups, unsettled, empty: packets.filter((p) => !p.decisions).map((p) => p.key), packets };
   if (f['dry-run'] || !moves.length) return out;
   const shape = validateBrainstormBoard(board);
-  if (!shape.valid) return { ok: false, error: 'the regrouped board does not pass the board schema', errors: shape.errors.slice(0, 10) };
+  if (!shape.valid) return { ok: false, error: 'the regrouped board does not pass the board schema', errors: shape.errors.slice(0, 10), fix: boardSchemaFix(root, src, 'regroup') };
   out.backup = backupBoard(root, src, boardPath, 'regroup');
   writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
   return out;
@@ -1605,7 +2202,7 @@ export function migrateRegroup(root, src, f = {}) {
 /** 12.2 steps 8 to 10, after the list is written: archive the ledger, move the strays, remove the old worktrees. */
 export function migrateFinish(root, src) {
   const idx = readFm(join(workDir(root, src), 'index.md'));
-  if (idx?.type !== 'list') return { ok: false, error: 'write the list first (campaign.mjs write)' };
+  if (idx?.type !== 'list') return { ok: false, error: 'write the list first (campaign.mjs write)', fix: agentFix('Write the list from the migrated board, then run migrate finish again.', sourceLine('write', sourceDir(root, src)), campaignLine(root, 'migrate', src, 'finish')) };
   const rep = existsSync(join(oldCampDir(root, src), 'ledger.json')) ? migrationReport(root, src) : null;
   const moved = [];
   if (existsSync(oldCampDir(root, src))) {
@@ -1648,13 +2245,13 @@ function migrateCmd(root, src, [phase], f) {
   if (phase === 'apply') return migrateApply(root, src, f);
   if (phase === 'regroup') return migrateRegroup(root, src, f);
   if (phase === 'finish') return migrateFinish(root, src);
-  throw new Error('migrate: the phase is report, apply, regroup or finish');
+  throw refuse('migrate: the phase is report, apply, regroup or finish', agentFix('Run migrate with its phase: report first; then apply, regroup and finish, in that order.', campaignLine(root, 'migrate', src, 'report')));
 }
 
 // ---------------------------------------------------------------- main
 
 function flags(args) {
-  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored', 'no-push', 'end']);
+  const BOOLEAN = new Set(['dry-run', 'json', 'allow-ignored', 'no-push', 'end', 'full']);
   const pos = [];
   const f = {};
   for (let i = 0; i < args.length; i++) {
@@ -1666,7 +2263,7 @@ function flags(args) {
 }
 
 /** The commands that write no record: they make no commit in the clone. */
-const READ_ONLY = new Set(['check', 'status', 'remove-worktree']);
+const READ_ONLY = new Set(['check', 'status', 'next', 'plan', 'remove-worktree']);
 
 /**
  * A linked project keeps its records in the clone of the records repo. Commit what the command
@@ -1701,7 +2298,7 @@ function dispatchCmd(cmd, pos, f) {
     if (cmd === 'check') return checkCmd(arg);
     if (cmd === 'write') return writeCmd(arg, f);
     const { dir, boardFile } = boardAt(arg);
-    if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}` };
+    if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}`, fix: noBoardFix() };
     return archiveCommand(dir, boardFile, { dryRun: Boolean(f['dry-run']) });
   }
   const [rootArg, second, ...rest] = pos;
@@ -1709,6 +2306,11 @@ function dispatchCmd(cmd, pos, f) {
   const root = resolve(rootArg);
   switch (cmd) {
     case 'status': return statusCmd(root, second, f);
+    case 'next': return nextCmd(root, second, f);
+    case 'plan': return planCmd(root, second, f);
+    case 'skip': return skipCmd(root, second, rest, f);
+    case 'unskip': return unskipCmd(root, second, rest, f);
+    case 'ahead': return aheadCmd(root, second, rest);
     case 'digest': return digestCmd(root, second, rest, f);
     case 'open': return openCmd(root, second, rest, f);
     case 'land': return landCmd(root, second, rest, f);
@@ -1729,15 +2331,16 @@ function dispatchCmd(cmd, pos, f) {
 export function run(argv) {
   const [cmd, ...rest] = argv;
   try {
-    return cmd ? dispatch(cmd, rest) : null;
+    const out = cmd ? dispatch(cmd, rest) : null;
+    return out === null ? null : withFix(out, 'campaign.mjs');
   } catch (e) {
-    return { ok: false, error: e.message };
+    return failureOf(e, 'campaign.mjs');
   }
 }
 
 export function main(argv = process.argv.slice(2)) {
   const out = run(argv);
-  if (out === null) { process.stderr.write(`${USAGE}\n`); return 2; }
+  if (out === null) { process.stderr.write(`${USAGE}\n${USAGE_FIX}\n`); return 2; }
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   return out.ok ? 0 : 1;
 }

@@ -26,7 +26,7 @@ Before you ask any question, pre-fill the answers:
 
 1. For each missing or incomplete section, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source. Do not ask that question.
-3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
+3. Ask the unanswered questions in one batched round. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Step 3.
 
 Example questions:

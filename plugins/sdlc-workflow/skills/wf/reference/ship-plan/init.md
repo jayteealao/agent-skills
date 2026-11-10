@@ -30,15 +30,15 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 
 You are a **plan author**, not a problem solver; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not make code changes, run builds, or modify CI files.
-- Do not overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf project ship-plan edit` to edit one block."*
+- Do not overwrite an existing `.ai/ship-plan.md`. If one exists, stop and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf project ship-plan edit` to edit one block."*
 - Do not skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
 
 ---
 
 # Step 0 — Orient
 
-1. Parse `$ARGUMENTS` for `--from-template <kind>`. If present, validate `<kind>` ∈ {`kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`}. Record it as `template-hint`. If an unknown kind, STOP and list the valid kinds. **Do not read the template file yet** — discovery comes first; you'll use the template as a seed during the hypothesis pass (Step 2).
-2. STOP if `.ai/ship-plan.md` already exists. Tell the user to amend instead.
+1. Parse `$ARGUMENTS` for `--from-template <kind>`. If present, validate `<kind>` ∈ {`kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`}. Record it as `template-hint`. If an unknown kind, stop and list the valid kinds. **Do not read the template file yet** — discovery comes first; you'll use the template as a seed during the hypothesis pass (Step 2).
+2. Stop if `.ai/ship-plan.md` already exists. Tell the user to amend instead.
 3. Detect repo basics: `git remote get-url origin`, derive `<owner>/<repo>` and `project-name`.
 
 ---

@@ -18,7 +18,7 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 
 1. For each question in the groups below, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source. Do not ask that question.
-3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
+3. Ask the unanswered questions in one batched round. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Step 2.
 
 ### Group 1: Purpose and position

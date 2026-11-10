@@ -59,7 +59,7 @@ The canonical catch: a screen whose local-only state dies with an unrelated remo
 ```
 
 ## Remediation hints
-- `adb devices` empty AND no AVDs → "Install at least one Android Virtual Device via Android Studio's AVD Manager, or connect a physical device with USB debugging enabled."
+- `adb devices` empty and no AVDs → "Install at least one Android Virtual Device via Android Studio's AVD Manager, or connect a physical device with USB debugging enabled."
 - Emulator boot hangs from a background sub-agent or a host with no display → boot again with `-no-window -gpu swiftshader_indirect`.
 - Headless boot still fails → record the `emulator -accel-check` output as the capability probe, and defer only the residual of the AVD rung.
 - `installDebug` fails → "Run `./gradlew assembleDebug` manually to see the build error. Common causes: missing signing config, expired Gradle cache, network failure fetching dependencies."

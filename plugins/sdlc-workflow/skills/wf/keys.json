@@ -238,8 +238,8 @@
           "reference": "reference/optimize.md",
           "hosts": {
             "claude": "full",
-            "codex": "gap: not available; the optimize driver runs only on Claude Code",
-            "pi": "gap: not available; the optimize driver runs only on Claude Code"
+            "codex": "differs: no driver; the goal contract carries the loop, one action for each turn",
+            "pi": "differs: no driver; the goal contract carries the loop, one action for each turn"
           }
         },
         { "name": "prototype", "reference": "reference/prototype.md", "hosts": { "claude": "full", "codex": "full", "pi": "full" } }

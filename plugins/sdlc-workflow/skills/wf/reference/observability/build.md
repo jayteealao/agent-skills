@@ -60,7 +60,7 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 
 1. Parse `$ARGUMENTS` for `--dry-run`. If present, run all audit steps and produce the full gap report but write
    nothing. Label every planned change `[DRY RUN — not written]`.
-2. **Read `.ai/observability.md`.** STOP if missing: *"No observability contract found at `.ai/observability.md`.
+2. **Read `.ai/observability.md`.** Stop if missing: *"No observability contract found at `.ai/observability.md`.
    Run `/wf project observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`) into memory. Note
    `plan-version` and `provisioning.ceiling`.
 3. **Read `.ai/ship-plan.md` if present** — for env → endpoint mapping and deploy target, to make IaC concrete.

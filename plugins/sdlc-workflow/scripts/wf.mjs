@@ -112,8 +112,16 @@
  *             Example: wf.mjs board add . ideas item --key cap-warns --kind decision --thread limits --text "A cap warns." --source person
  *   board    apply <root> <slug> --file <change.json> [--board <file>]
  *             one batch in one write: {"add": {"<kind>": [...]}, "set": {"<key>": {...}}, "board": {...},
+ *             "close": {"areas": [...] | "open", "marks": {"<key>": "<mark>"}},
  *             "summary": "...", "story": {"session": n, "text": "..."}, "briefs": {"<area>": "..."}, "remove": [...]}
  *             Example: wf.mjs board apply . ideas --file .draft/batch.json
+ *   board    digest <root> <slug> [--area a[,b...]] [--full] [--file <close.json>] [--board <file>]
+ *             read the scope, writing nothing. Compact by default: per area the counts, and the text
+ *             only of what the person must look at (the items not settled, with the proposed mark,
+ *             and the cuts that wait), and the planned questions of done; --area gives the item
+ *             texts of those areas, --full of every area; --file shows the board as that close
+ *             would leave it
+ *             Example: wf.mjs board digest . ideas --area seeing-the-cost --json
  *   board    set <root> <slug> [<key>] <field=value>... [--board <file>]
  *             set fields of one entry by its key, or of the board itself with no key; a value is
  *             read as JSON when it parses, else as text; field=null removes the field
@@ -342,6 +350,29 @@
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/. --review-findings:
  *             the slug-wide review fixes only the findings that the campaign walk put in the ledger
  *             Example: wf.mjs drive . demo api --time-box 90
+ *   inbox    <root> [--json]
+ *             everything that waits on the person, across every workflow, oldest first: the slug,
+ *             the kind, what is asked, since when, and what the person types to answer it. It
+ *             reads the disk only (lib/inbox.mjs lists the sources) and calls no network
+ *             Example: wf.mjs inbox . --json
+ *   requires <root> <slug> <stage> [--mode m]... [--slice s] [--on-resume] [--max-bytes n] [--json]
+ *             the inputs of a stage run in one call, from the Requires table of the stage
+ *             reference: each artifact with its content (or its named sections), each procedure
+ *             with whether to read it, and the missing rows. Over --max-bytes (60 KB) the largest
+ *             artifacts come as their outline. Exit 1 when a missing input stops the stage
+ *             Example: wf.mjs requires . demo plan --slice api --json
+ *   standing <suggest|list> <root> [--json]
+ *             the standing answers of the project: suggest lists the questions whose last three
+ *             answers of the person are the same, with no standing answer and no declined offer
+ *             Example: wf.mjs standing suggest .
+ *   standing <check|clear|decline> <root> <key> [--json]
+ *             check: exit 0 and the standing answer of a key, exit 1 when none; clear: ask the
+ *             question again; decline: the person said no to the offer, so it is not made again
+ *             Example: wf.mjs standing check . ship-merge
+ *   standing set <root> <key> --answer a --question q --by person [--json]
+ *             set a standing answer, only on the person's yes to the offer: the answer and the
+ *             question in the person's words
+ *             Example: wf.mjs standing set . pr-wanted --answer "No — keep the commit" --question "Make it the standing answer?" --by person
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fromGitBashPath, undoGitBashPath, unrepairedWarning } from '../lib/msys.mjs';
@@ -382,7 +413,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs'
 import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
-import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
+import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardDigest, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { isMainModule } from '../lib/proc.mjs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
@@ -398,6 +429,10 @@ import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '.
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
 import { checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
+import { inboxOf, inboxText } from '../lib/inbox.mjs';
+import { REQUIRES_MAX_BYTES, resolveRequires } from '../lib/requires-resolve.mjs';
+import { runStanding } from '../lib/standing.mjs';
+import { agentFix, asFix, defectFix, fixLines, personFix, refuse } from '../lib/fix.mjs';
 
 // The status and record bodies live in lib/, so the library calls the same functions.
 export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
@@ -411,10 +446,21 @@ const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const wfRoot = workflowsRoot;
 const out = (v) => process.stdout.write(`${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}\n`);
 
-// A refusal whose last line names the command that fixes it: `fix: <command>` (hintOf prints it).
-const refuse = (message, fix) => Object.assign(new Error(message), { fix });
+// A refusal names its fix (lib/fix.mjs), and hintOf prints it as the last lines: `fix.who:`,
+// `fix.do:`, then `fix: <command>` when a command makes the repair.
 // An argument as a shell word in a fix line.
 const word = (s) => (/^[A-Za-z0-9#._/:\\=,+-]+$/.test(String(s)) ? String(s) : `"${String(s).replace(/"/g, '\\"')}"`);
+const ARGS_FIX = 'Run the command again with the arguments that its forms above name.';
+/** A call that misses an argument or names a wrong verb: hintOf prints the forms of the command. */
+const usage = (message) => refuse(message, agentFix(ARGS_FIX));
+/** A slug that names no workflow: status lists the workflows of the root. */
+const noFolder = (message, root) => refuse(message, agentFix('List the workflows with status, then run the command again with a slug that it names.', `wf.mjs status ${word(root)}`));
+/** A repair that the agent makes alone. */
+const redo = (message, doText, command = null) => refuse(message, agentFix(doText, command));
+/** A repair that only the person makes. */
+const ask = (message, doText) => refuse(message, personFix(doText));
+/** The fix lines of a failed result on stderr; the result itself prints on stdout as before. */
+const printFix = (fix) => { const lines = fixLines(fix ?? agentFix('Read the reason above, repair what it names, then run the command again.')); process.stderr.write(`${lines.join('\n')}\n`); };
 
 function flags(argv) {
   const pos = [];
@@ -424,14 +470,15 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
         const { value } = undoGitBashPath(argv[(i += 1)]);
         const warn = unrepairedWarning(`--${name}`, value);
         if (warn) process.stderr.write(warn);
-        opt[name] = value;
+        // `--mode` may repeat (requires): the values join with a comma.
+        opt[name] = name === 'mode' && opt.mode != null ? `${opt.mode},${value}` : value;
       }
     } else pos.push(fromGitBashPath(a));
   }
@@ -443,14 +490,14 @@ function flags(argv) {
 /** The yolo driver on Codex: the script runs here, and each agent runs as `codex exec`. */
 async function runDrive(pos, opt) {
   const [root, slug, slice] = pos;
-  if (!root || !slug) throw new Error('drive: <root> <slug> are required');
+  if (!root || !slug) throw usage('drive: <root> <slug> are required');
   const projectRoot = resolve(root);
   const staged = stageYoloDriver(projectRoot, { slug });
   const answered = opt.answered ? JSON.parse(readFileSync(resolve(opt.answered), 'utf8')) : null;
-  if (answered && !Array.isArray(answered)) throw new Error('drive: --answered must name a JSON array of answers');
+  if (answered && !Array.isArray(answered)) throw redo('drive: --answered must name a JSON array of answers', 'Write the answers file as a JSON array of answers, then run drive again.');
   const run = opt.resume || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
   const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
-  if (opt.resume && !existsSync(runDir)) throw new Error(`drive: no earlier run ${run} in .scratch/wf/drive/`);
+  if (opt.resume && !existsSync(runDir)) throw redo(`drive: no earlier run ${run} in .scratch/wf/drive/`, 'Run drive again with no --resume to start a new run, or with the name of a run folder in .scratch/wf/drive/.');
   const args = driveArgs({ projectRoot, referenceRoot: REFERENCE_ROOT, slug, run, staged, slice, answered, delegate: Boolean(opt.delegate), reviewFindings: Boolean(opt['review-findings']) });
   const r = await driveScript({
     source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,
@@ -471,7 +518,7 @@ async function runDrive(pos, opt) {
 
 async function runDispatch(pos, opt) {
   const [root, ...tokens] = pos;
-  if (!root) throw new Error('dispatch: <root> is required');
+  if (!root) throw usage('dispatch: <root> is required');
   const safe = tokens.map((t) => (t === UNSAFE || SAFE_TOKEN.test(t) ? t : UNSAFE));
   const projectRoot = resolve(root);
   // The dispatch commits nothing and fetches nothing: a records commit pushes in the background,
@@ -655,6 +702,7 @@ function indexText(r) {
 
 function costText(agg) {
   if (!agg) return 'No cost ledger.';
+  if (agg.note) return agg.note;
   const head = 'key\tturns\tsubagents\tinput\toutput\tcache-read\tcache-write\texternal-in\texternal-out';
   const line = (k, a) => [k, a.turns, a.subagents, a.input, a.output, a.cacheRead, a.cacheWrite, a.externalInput, a.externalOutput].join('\t');
   return [head, ...Object.entries(agg.byKey).map(([k, a]) => line(k, a)), line('total', agg.total)].join('\n');
@@ -668,7 +716,7 @@ const yamlScalar = (v) => (typeof v === 'string' ? (v === '' || /[:#\-[\]{},&*!|
 export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } = {}) {
   const schema = schemaOf();
   const def = defOfType(schema, type);
-  if (!def) throw new Error(`stamp: no artifact type ${type} in the schema`);
+  if (!def) throw redo(`stamp: no artifact type ${type} in the schema`, 'Run stamp again with an artifact type of schemas/frontmatter.schema.json.');
   const lines = ['---'];
   for (const key of def.required ?? []) {
     const p = resolveRef(schema, def.properties?.[key] ?? {});
@@ -702,16 +750,16 @@ const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice && opt.slice !=
 
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
-  if (!verb || !root || !slug) throw new Error('decide: <add|list|answered|hold|drop|import> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('decide: <add|list|answered|hold|drop|import> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
-  if (!existsSync(dir)) throw new Error(`decide: no workflow folder ${dir}`);
+  if (!existsSync(dir)) throw noFolder(`decide: no workflow folder ${dir}`, root);
   switch (verb) {
     case 'add': {
       if (opt.file) {
         // Every answer of a file in one call: [{ key, question, answer, by, kind, stage, slice, files }].
         const doc = JSON.parse(readFileSync(resolve(opt.file), 'utf8'));
         const list = Array.isArray(doc) ? doc : doc.answers ?? doc.decisions ?? [];
-        if (!list.length) throw new Error(`decide add: ${opt.file} holds no answers`);
+        if (!list.length) throw redo(`decide add: ${opt.file} holds no answers`, 'Write the answers into the file as a JSON array, or give one answer with --answer, then run decide add again.');
         const rows = list.map((a) => decideAdd(dir, a, { by: opt.by ?? null, stage: opt.stage ?? null }));
         out(opt.json ? rows : rows.flatMap((r) => [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...(r.settled ? [`settled ${r.entry.key}`] : [])]).join('\n'));
         return 0;
@@ -734,7 +782,7 @@ export function runDecide(pos, opt) {
       return 0;
     }
     case 'answered': {
-      if (!opt.key) throw new Error('decide answered: --key is required');
+      if (!opt.key) throw usage('decide answered: --key is required');
       const hit = answeredBy(decisionsOf(dir), opt.key, scopeOf(opt));
       out(opt.json ? { answered: Boolean(hit), entry: hit } : hit ? decisionLine(hit) : `not answered: ${opt.key}`);
       return hit ? 0 : 1;
@@ -749,7 +797,7 @@ export function runDecide(pos, opt) {
       return 0;
     }
     case 'drop': {
-      if (!arg) throw new Error('decide drop: <questions.json> is required');
+      if (!arg) throw usage('decide drop: <questions.json> is required');
       const doc = JSON.parse(readFileSync(resolve(arg), 'utf8'));
       const questions = Array.isArray(doc) ? doc : doc.questions ?? [];
       const r = dropAnswered(decisionsOf(dir), questions, scopeOf(opt));
@@ -762,7 +810,7 @@ export function runDecide(pos, opt) {
       return 0;
     }
     default:
-      throw new Error(`decide: unknown verb ${verb}`);
+      throw usage(`decide: unknown verb ${verb}`);
   }
 }
 
@@ -771,10 +819,10 @@ export function runDecide(pos, opt) {
 
 export function runStep(pos, opt) {
   const [verb, root, slug, slice, n] = pos;
-  if (!verb || !root || !slug) throw new Error('step: <start|done|stop|retry|complete|where> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('step: <start|done|stop|retry|complete|where> <root> <slug> are required');
   const projectRoot = resolve(root);
   const dir = join(wfRoot(projectRoot), slug);
-  if (!existsSync(dir)) throw new Error(`step: no workflow folder ${dir}`);
+  if (!existsSync(dir)) throw noFolder(`step: no workflow folder ${dir}`, root);
   // A step commit in a worktree of the project is resolved there; its branch decides, not the checkout.
   const checkout = stepCheckout(projectRoot);
   const branch = branchOf(checkout);
@@ -782,7 +830,7 @@ export function runStep(pos, opt) {
   const sha = () => {
     if (!opt.sha) return null;
     const s = gitRevParse(checkout, opt.sha);
-    if (!s) throw new Error(`step: ${opt.sha} is not a commit of ${checkout}`);
+    if (!s) throw redo(`step: ${opt.sha} is not a commit of ${checkout}`, 'Run the command again with --sha set to a commit of the checkout, such as HEAD after the step commit.');
     return s;
   };
   if (verb === 'where') {
@@ -792,23 +840,23 @@ export function runStep(pos, opt) {
     out(opt.json ? w : whereLine(w));
     return 0;
   }
-  if (!slice) throw new Error(`step ${verb}: <slice> is required`);
+  if (!slice) throw usage(`step ${verb}: <slice> is required`);
   // The same step command with other arguments, for the fix line of a refusal.
   const again = (v, s, tail = '') => `wf.mjs step ${v} ${word(root)} ${word(slug)} ${word(s)}${tail}`;
   if (['start', 'done', 'complete'].includes(verb)) {
     const refused = sliceRefusal(dir, slug, slice);
     const one = refused && /its one slice is (\S+)$/.exec(refused)?.[1];
-    if (refused) throw refuse(`step ${verb}: ${refused}`, one ? again(verb, one, n != null ? ` ${n}` : '') : null);
+    if (refused) throw refuse(`step ${verb}: ${refused}`, one ? agentFix('Run the step command again with the one slice of the workflow.', again(verb, one, n != null ? ` ${n}` : '')) : agentFix('Run the step command again with a slice that the error names.'));
   }
   const step = n == null ? null : Number(n);
   const where = () => whereOf(dir, slice, stepGit(projectRoot, dir));
   const commitThenDone = `git commit -m "<what step ${step} does>" && ${again('done', slice, ` ${step} --sha HEAD`)}`;
   const done = () => {
     if (opt['no-change']) {
-      if (opt.sha) throw refuse('step done: give --sha or --no-change, not both', again('done', slice, ` ${step} --no-change`));
+      if (opt.sha) throw refuse('step done: give --sha or --no-change, not both', agentFix('Run step done again with --no-change and no --sha.', again('done', slice, ` ${step} --no-change`)));
       return { slice, event: 'done', step, noChange: true, head: head(), branch };
     }
-    if (!opt.sha) throw refuse('step done: --sha <commit> is required, or --no-change for a step that changed no file', again('done', slice, ` ${step} --sha HEAD`));
+    if (!opt.sha) throw refuse('step done: --sha <commit> is required, or --no-change for a step that changed no file', agentFix('Run step done again with --sha HEAD after the step commit, or with --no-change when the step changed no file.', again('done', slice, ` ${step} --sha HEAD`)));
     const s = sha();
     // A step commit moves HEAD: the sha of the start, or of another done step, is not this step's commit.
     const run = readSteps(dir).filter((r) => r.slice === slice);
@@ -816,17 +864,17 @@ export function runStep(pos, opt) {
     run.forEach((r, i) => { if (r.event === 'complete') from = i + 1; });
     const current = run.slice(from);
     const start = [...current].reverse().find((r) => r.event === 'start' && r.step === step);
-    if (start?.head && start.head === s) throw refuse(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change when the step changed no file`, commitThenDone);
+    if (start?.head && start.head === s) throw refuse(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change when the step changed no file`, agentFix('Commit the step, then run step done with --sha HEAD.', commitThenDone));
     const owner = current.find((r) => r.event === 'done' && r.step !== step && r.sha === s);
-    if (owner) throw refuse(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`, commitThenDone);
+    if (owner) throw refuse(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`, agentFix('Commit the step, then run step done with --sha HEAD.', commitThenDone));
     return { slice, event: 'done', step, sha: s, ...commitIdentity(checkout, s), branch };
   };
   const complete = () => {
     const w = where();
     const skip = opt.skip ? String(opt.skip).split(',').map((x) => Number(x.trim())).filter(Number.isInteger) : [];
-    if (skip.length && !opt.reason) throw refuse('step complete: --skip needs --reason', again('complete', slice, ` --skip ${skip.join(',')} --reason "<why>"`));
+    if (skip.length && !opt.reason) throw refuse('step complete: --skip needs --reason', agentFix('Run step complete again with --reason, the reason for the skip.', again('complete', slice, ` --skip ${skip.join(',')} --reason "<why>"`)));
     const open = w.steps.filter((s) => !w.done.some((d) => d.n === s.n) && !skip.includes(s.n)).map((s) => s.n);
-    if (open.length) throw refuse(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip`, again('complete', slice, ` --skip ${[...skip, ...open].join(',')} --reason "<why>"`));
+    if (open.length) throw refuse(`step complete: steps ${open.join(', ')} of the plan are open. Do them, or name them with --skip`, agentFix('Do the open steps first, or name them with --skip and a --reason.', again('complete', slice, ` --skip ${[...skip, ...open].join(',')} --reason "<why>"`)));
     const plan = readPlan(planDocOf(dir, slice)?.body ?? '');
     return { slice, event: 'complete', sha: sha(), planHash: plan.hash, ...(skip.length ? { skipped: skip.map((x) => ({ n: x, reason: opt.reason })) } : {}), branch };
   };
@@ -837,7 +885,7 @@ export function runStep(pos, opt) {
     retry: () => ({ slice, event: 'retry' }),
     complete,
   };
-  if (!rows[verb]) throw new Error(`step: unknown verb ${verb}`);
+  if (!rows[verb]) throw usage(`step: unknown verb ${verb}`);
   const line = appendStep(dir, rows[verb]());
   // The progress record follows the step of the slice.
   if (verb === 'start') {
@@ -856,7 +904,7 @@ export function runStep(pos, opt) {
 
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
-  if (!verb || !root) throw new Error('profile: <show|set|record|run|timebox|budget|hooks> <root> are required');
+  if (!verb || !root) throw usage('profile: <show|set|record|run|timebox|budget|hooks> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'show') {
     const p = readProfile(projectRoot);
@@ -865,20 +913,20 @@ export function runProfile(pos, opt) {
     return 0;
   }
   if (verb === 'set') {
-    if (!a || !opt.command || opt.estimate == null) throw new Error('profile set: <suite> --command c --estimate seconds are required');
+    if (!a || !opt.command || opt.estimate == null) throw usage('profile set: <suite> --command c --estimate seconds are required');
     const s = setSuite(projectRoot, a, { command: opt.command, estimateSeconds: Number(opt.estimate) });
     out(opt.json ? s : `${a}: \`${s.command}\` (${s.estimateSeconds}s estimated)`);
     return 0;
   }
   if (verb === 'record') {
-    if (!a || b == null) throw new Error('profile record: <suite> <seconds> are required');
+    if (!a || b == null) throw usage('profile record: <suite> <seconds> are required');
     const s = recordRun(projectRoot, a, Number(b));
     out(opt.json ? s : `${a}: ${s.measuredSeconds}s measured`);
     return 0;
   }
   if (verb === 'run') {
     // Run the command of a suite in the project root, and record its time: no timer by hand.
-    if (!a) throw new Error('profile run: <suite> is required');
+    if (!a) throw usage('profile run: <suite> is required');
     // One read: the run records only the suite time, so the budget stays the same.
     const profile = readProfile(projectRoot);
     const suite = profile[a];
@@ -900,7 +948,7 @@ export function runProfile(pos, opt) {
     return pass ? 0 : 1;
   }
   if (verb === 'timebox') {
-    if (!a) throw new Error('profile timebox: <stage> is required');
+    if (!a) throw usage('profile timebox: <stage> is required');
     const suites = STAGE_SUITES[a] ?? [];
     const box = timeBox(readProfile(projectRoot), suites, { workSeconds: Number(opt.work ?? 0) || 0 });
     out(opt.json ? { stage: a, suites, ...box } : `${a}: ${Math.round(box.seconds / 60)} minutes${box.from.length ? ` (${box.from.join(', ')})` : ' (no suite time; the floor)'}`);
@@ -922,23 +970,23 @@ export function runProfile(pos, opt) {
     out(opt.json ? hooks : hooks.length ? hooks.map(line).join('\n') : 'no push or commit hook');
     return 0;
   }
-  throw new Error(`profile: unknown verb ${verb}`);
+  throw usage(`profile: unknown verb ${verb}`);
 }
 
 // ---------------------------------------------------------------- findings
 
 export function runFindings(pos, opt) {
   const [verb, root, slug, a, b] = pos;
-  if (!verb || !root || !slug) throw new Error('findings: <add|list|set|table|metrics> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('findings: <add|list|set|table|metrics> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
-  if (!existsSync(dir)) throw new Error(`findings: no workflow folder ${dir}`);
+  if (!existsSync(dir)) throw noFolder(`findings: no workflow folder ${dir}`, root);
   const ledger = readLedger(dir);
   const source = opt.source ?? null;
   // A review file shows one source and one scope: the packet (no slice) unless --slice names one.
   const scope = { source: source ?? 'review', slice: opt.slice ?? null };
   switch (verb) {
     case 'add': {
-      if (!a) throw new Error('findings add: <found.json> is required');
+      if (!a) throw usage('findings add: <found.json> is required');
       const doc = JSON.parse(readFileSync(resolve(a), 'utf8'));
       const found = Array.isArray(doc) ? doc : doc.findings ?? [];
       const dimensions = opt.dimensions ? String(opt.dimensions).split(',').map((d) => d.trim()).filter(Boolean) : (doc.dimensions ?? []);
@@ -963,7 +1011,7 @@ export function runFindings(pos, opt) {
       return 0;
     }
     case 'set': {
-      if (!a || !b) throw new Error('findings set: <id> <status> are required');
+      if (!a || !b) throw usage('findings set: <id> <status> are required');
       // A dismissal by a decision names a live answer, steer or approval of the person.
       if (opt.decision) checkDismissDecision(dir, opt.decision);
       const e = updateLedger(dir, (now) => {
@@ -979,7 +1027,7 @@ export function runFindings(pos, opt) {
       return 0;
     }
     default:
-      throw new Error(`findings: unknown verb ${verb}`);
+      throw usage(`findings: unknown verb ${verb}`);
   }
 }
 
@@ -989,7 +1037,7 @@ export function runFindings(pos, opt) {
 /** `key=value` → [key, value], the value read as a YAML scalar or flow collection. */
 export function fieldOf(arg) {
   const at = arg.indexOf('=');
-  if (at < 1) throw new Error(`record set: ${arg} is not key=value`);
+  if (at < 1) throw usage(`record set: ${arg} is not key=value`);
   // Git Bash turns `key=/wf ...` into `key=C:/Program Files/Git/wf ...`; lib/msys.mjs undoes it.
   const { value: raw } = undoGitBashPath(arg.slice(at + 1));
   const warn = unrepairedWarning(arg.slice(0, at), raw);
@@ -1021,10 +1069,10 @@ function outlineText(name, o) {
 function runRecord(pos, opt) {
   const [verb, root, slug, ...rest] = pos;
   if (!RECORD_VERBS.includes(verb) || !root || !slug) {
-    throw new Error(`record: <${RECORD_VERBS.join('|')}> <root> <slug> are required`);
+    throw usage(`record: <${RECORD_VERBS.join('|')}> <root> <slug> are required`);
   }
   const dir = join(wfRoot(resolve(root)), slug);
-  if (!existsSync(dir)) throw new Error(`record: no workflow folder ${dir}`);
+  if (!existsSync(dir)) throw noFolder(`record: no workflow folder ${dir}`, root);
   switch (verb) {
     case 'put': {
       // The agents write the drafts in <wf-dir>/.draft/. A linked project of the old layout kept
@@ -1037,7 +1085,7 @@ function runRecord(pos, opt) {
         ? rest.map((p) => (existsSync(resolve(p)) ? resolve(p) : homes.map((h) => draftPath(h, p)).find(existsSync) ?? homes.map((h) => keptPath(h, p)).find(existsSync) ?? draftPath(dir, p)))
         // A draft of the wf-dir wins over an old local draft of the same name.
         : homes.flatMap(draftsOf).filter((p, i, all) => all.findIndex((q) => named(q) === named(p)) === i);
-      if (!drafts.length) throw new Error(`record put: no draft in ${join(dir, DRAFT_DIR)}`);
+      if (!drafts.length) throw redo(`record put: no draft in ${join(dir, DRAFT_DIR)}`, 'Write the draft with record draft first, then run record put again.', `wf.mjs record draft ${word(root)} ${word(slug)} <name>`);
       const results = drafts.map((p) => putChecked(dir, p));
       // A put that refused one draft exits 1, and the drafts that it did put still get the
       // follow-up of a change (the INDEX.md row, the records commit): main reads this mark.
@@ -1049,7 +1097,7 @@ function runRecord(pos, opt) {
       return results.some((r) => r.errors.length) ? 1 : 0;
     }
     case 'get': {
-      if (!rest.length) throw new Error('record get: <name> is required');
+      if (!rest.length) throw usage('record get: <name> is required');
       // Several names read in one call; --fields a,b prints only those frontmatter fields.
       // --section, --field and --outline read one part; a record over 20 KB prints its outline
       // unless --full (or --json) asks for all of it.
@@ -1060,6 +1108,7 @@ function runRecord(pos, opt) {
       });
       const missing = docs.filter((d) => !d.doc);
       for (const d of missing) process.stderr.write(`wf.mjs: ${noRecord(d.name, slug, dir)}\n`);
+      if (missing.length) printFix(agentFix('Run record get again with a name of a record that the error lists.'));
       const found = docs.filter((d) => d.doc);
       const part = (d) => {
         if (opt.outline) return outlineOf(d.doc);
@@ -1092,7 +1141,7 @@ function runRecord(pos, opt) {
     }
     case 'stage-done': {
       const [stage, slice] = rest;
-      if (!stage) throw new Error(`record stage-done: <stage> is required; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
+      if (!stage) throw usage(`record stage-done: <stage> is required; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
       const changes = stageDone(dir, slug, stage, slice ?? null, { next: opt.next ?? null, status: opt.status ?? null });
       // The drafts that were put in this stage are kept until here, for a second edit.
       for (const h of new Set([join(localWorkflowsRoot(resolve(root)), slug), dir])) clearKept(h, { slice: slice ?? null });
@@ -1105,7 +1154,7 @@ function runRecord(pos, opt) {
     case 'draft': {
       // The record as a draft, ready for an edit and a put: the change of a body in three steps.
       const [name] = rest;
-      if (!name) throw new Error('record draft: <name> is required');
+      if (!name) throw usage('record draft: <name> is required');
       const n = resolveRecord(dir, name, 'record draft');
       const doc = readDoc(dir, n);
       if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
@@ -1117,7 +1166,7 @@ function runRecord(pos, opt) {
     }
     case 'set': {
       const [name, ...fields] = rest;
-      if (!name || !fields.length) throw new Error(`record set: <name> <key=value>... are required. The forms are: ${PATH_FORMS}`);
+      if (!name || !fields.length) throw usage(`record set: <name> <key=value>... are required. The forms are: ${PATH_FORMS}`);
       const n = resolveRecord(dir, name, 'record set');
       const r = setRecordPaths(dir, n, fields, { slug });
       out(opt.json ? r.frontmatter : `set ${r.keys.join(', ')} in ${n}`);
@@ -1129,7 +1178,7 @@ function runRecord(pos, opt) {
       const bySection = opt.section !== undefined && opt.from !== undefined;
       const byReplace = opt.replace !== undefined && opt.with !== undefined;
       if (!name || bySection === byReplace) {
-        throw new Error('record edit: <name> and one of --section <heading> --from <file> or --replace <old> --with <new> are required');
+        throw usage('record edit: <name> and one of --section <heading> --from <file> or --replace <old> --with <new> are required');
       }
       const n = resolveRecord(dir, name, 'record edit');
       const change = bySection
@@ -1146,7 +1195,7 @@ function runRecord(pos, opt) {
     }
     case 'where': {
       const [name] = rest;
-      if (!name) throw new Error('record where: <old path> is required');
+      if (!name) throw usage('record where: <old path> is required');
       const to = redirectOf(name);
       out(to ?? `${name} keeps its place`);
       return 0;
@@ -1170,7 +1219,7 @@ function runRecord(pos, opt) {
 
 function runConsent(pos, opt) {
   const [verb, root, slug] = pos;
-  if (!['check', 'grant', 'revoke'].includes(verb) || !root || !slug) throw new Error('consent: <check|grant|revoke> <root> <slug> are required');
+  if (!['check', 'grant', 'revoke'].includes(verb) || !root || !slug) throw usage('consent: <check|grant|revoke> <root> <slug> are required');
   const projectRoot = resolve(root);
   if (verb === 'check') {
     const r = checkConsent(projectRoot, slug);
@@ -1195,48 +1244,52 @@ function runConsent(pos, opt) {
 
 function runBase(pos, opt) {
   const [verb, root] = pos;
-  if (verb !== 'check' || !root) throw new Error('base: check <root> is required');
+  if (verb !== 'check' || !root) throw usage('base: check <root> is required');
   const projectRoot = resolve(root);
   const base = opt.base ?? (defaultRun('git', ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'], { cwd: projectRoot }).stdout.replace(/^origin\//, '') || 'main');
   const r = baseCheck(projectRoot, base, { remote: opt.remote ?? 'origin' });
   out(opt.json ? r : `${base}: ${r.state}${r.fastForwarded ? ` (fast-forwarded ${r.behind})` : ''}${r.reason ? ` — ${r.reason}` : ''}`);
+  if (r.stop && !opt.json) printFix(r.fix ?? personFix(`Check the base branch ${base} with git status and git log, and bring it in line with its remote by hand, then run the command again.`));
   return r.stop ? 1 : 0;
 }
 
 function runWorktree(pos, opt) {
   const [verb, root, slug, name, commit] = pos;
   if (verb === 'add') {
-    if (!root || !slug || !name || !commit) throw new Error('worktree: add <root> <slug> <name> <commit> are required');
+    if (!root || !slug || !name || !commit) throw usage('worktree: add <root> <slug> <name> <commit> are required');
     const r = addScratchWorktree(resolve(root), slug, name, commit);
     out(opt.json ? r : r.ok ? r.path : r.error);
+    if (!r.ok && !opt.json) printFix(r.fix);
     return r.ok ? 0 : 1;
   }
   if (verb === 'remove') {
-    if (!root || !slug) throw new Error('worktree: remove <root> <slug> are required');
+    if (!root || !slug) throw usage('worktree: remove <root> <slug> are required');
     const r = removeScratchWorktrees(resolve(root), slug, name ?? null);
     const kept = [...r.refused, ...r.failed];
     if (opt.json) out(r);
     else {
       const lines = [...r.removed.map((p) => `removed ${p}`), ...kept.map((k) => `kept ${k.path}: ${k.reason}`)];
       out(lines.join('\n') || 'no scratch worktree');
+      if (kept.length) printFix(personFix('Each kept worktree may hold work: check it with git status before it is removed by hand.'));
     }
     return kept.length ? 1 : 0;
   }
-  throw new Error('worktree: <add|remove> is required');
+  throw usage('worktree: <add|remove> is required');
 }
 
 const TASK_PREFIX = 'ship-ready:';
 
 function runShip(pos, opt) {
   const [verb, root, slug] = pos;
-  if (!['facts', 'ready', 'merge', 'finish'].includes(verb) || !root) throw new Error('ship: <facts|ready|merge|finish> <root> are required');
+  if (!['facts', 'ready', 'merge', 'finish'].includes(verb) || !root) throw usage('ship: <facts|ready|merge|finish> <root> are required');
   const projectRoot = resolve(root);
   const index = slug ? frontmatterOf(join(wfRoot(projectRoot), slug), INDEX_NAME) : null;
-  if (slug && !index) throw new Error(`ship: no workflow ${slug}`);
+  if (slug && !index) throw noFolder(`ship: no workflow ${slug}`, root);
   const base = opt.base ?? index?.['base-branch'] ?? null;
   if (verb === 'facts') {
     const f = shipFacts(projectRoot, base);
     out(opt.json ? f : f.ok ? `${f.repo} ${f.base}: merge by ${f.method ?? 'nothing allowed'} (allowed ${f.allowed.join(', ') || 'none'}); reviews ${f.requiredReviews}; merge queue ${f.mergeQueue}; ${f.direct ? 'ship merges' : 'ship prints the command'}` : f.reason);
+    if (!f.ok && !opt.json) printFix(f.fix ?? personFix('Check that gh is installed and signed in (gh auth status) and that the repo has a GitHub remote, then run the command again.'));
     return f.ok ? 0 : 1;
   }
   if (verb === 'ready') {
@@ -1250,22 +1303,23 @@ function runShip(pos, opt) {
     out(opt.json ? { ready: !gaps.length, gaps } : gaps.length ? gaps.map((g) => `gap: ${g.task}`).join('\n') : 'ready: no gap that a script sees');
     return gaps.length ? 1 : 0;
   }
-  if (!slug) throw new Error(`ship ${verb}: <slug> is required`);
+  if (!slug) throw usage(`ship ${verb}: <slug> is required`);
   const pr = opt.pr ?? index['pr-number'] ?? null;
   if (verb === 'merge') {
-    if (!pr) throw new Error('ship merge: the workflow has no pr-number; pass --pr N');
+    if (!pr) throw redo('ship merge: the workflow has no pr-number; pass --pr N', 'Run ship merge again with --pr and the number of the pull request of the workflow.');
     const f = shipFacts(projectRoot, base);
-    if (!f.ok) throw new Error(f.reason);
+    if (!f.ok) throw refuse(f.reason, f.fix ?? personFix('Check that gh is installed and signed in (gh auth status) and that the repo has a GitHub remote, then run the command again.'));
     const method = opt.method ? String(opt.method) : null;
-    if (method && !f.allowed.includes(method)) throw new Error(`ship merge: ${f.base} does not allow --method ${method}; allowed: ${f.allowed.join(', ') || 'none'}`);
+    if (method && !f.allowed.includes(method)) throw redo(`ship merge: ${f.base} does not allow --method ${method}; allowed: ${f.allowed.join(', ') || 'none'}`, 'Run ship merge again with --method set to an allowed method, or with no --method.');
     const cmd = mergeCommand(f, pr, { method });
-    if (!cmd) throw new Error(`ship merge: the repo allows no merge method for ${f.base}`);
+    if (!cmd) throw ask(`ship merge: the repo allows no merge method for ${f.base}`, 'The repo allows no merge method for this base: allow one in the settings of the repo on GitHub, or merge the pull request by hand.');
     if (opt.print || !f.direct) {
       out(opt.json ? { merged: false, command: cmd, facts: f } : `run: ${cmd}${f.direct ? '' : ` (${f.mergeQueue ? 'the merge queue merges it' : `${f.requiredReviews} review(s) are required`})`}`);
       return 3;
     }
     const r = defaultRun('gh', cmd.split(' ').slice(1), { cwd: projectRoot });
     out(opt.json ? { merged: r.status === 0, command: cmd, stderr: r.stderr } : r.status === 0 ? `merged PR ${pr} by ${method ?? f.method}` : `the merge failed: ${r.stderr}\nrun: ${cmd}`);
+    if (r.status !== 0 && !opt.json) printFix(personFix('The merge of the pull request failed: read the reason above (checks, reviews or a conflict), then merge it by hand or ask for what it waits on.'));
     return r.status === 0 ? 0 : 1;
   }
   const r = finishShip(projectRoot, { branch: index.branch, base: base ?? 'main', pr, keepBranch: Boolean(opt['keep-branch']) });
@@ -1283,6 +1337,7 @@ function runShip(pos, opt) {
     r.shipped = [slug, ...followers];
   }
   out(opt.json ? r : r.ok ? `on ${r.base}; ${r.steps.map(([k, v]) => `${k} ${v ? 'ok' : 'skipped'}`).join(', ')}${r.kept ? `; kept ${r.branch}` : ''}; ${slug} is shipped` : `not finished: ${r.reason}`);
+  if (!r.ok && !opt.json) printFix(r.fix ?? personFix('Read the reason above, and settle the branch and its pull request by hand, then run ship finish again.'));
   return r.ok ? 0 : 1;
 }
 
@@ -1313,15 +1368,16 @@ async function runRecords(pos, opt) {
     ].join('\n'));
     return r.failed.length ? 1 : 0;
   }
-  if (!root) throw new Error('records: <link|status|sync|push|close|retry|dismiss|migrate> <root> are required');
+  if (!root) throw usage('records: <link|status|sync|push|close|retry|dismiss|migrate> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'link') {
-    if (!arg) throw new Error('records link: <project> is required');
+    if (!arg) throw usage('records link: <project> is required');
     const r = linkProject(projectRoot, arg);
+    if (!r.ok && r.fix?.command) r.fix = { ...r.fix, command: r.fix.command.replace('<root>', word(root)) };
     // The last step of the link: each workflow of the project gets its issue when the GitHub layer is on.
     if (r.ok && layerOf(projectRoot)) r.queued = backfillProject(projectRoot);
     if (opt.json) { out(r); return r.ok && !r.conflicts.length ? 0 : 1; }
-    if (!r.ok) { out(r.reason); return 1; }
+    if (!r.ok) { out(r.reason); printFix(r.fix); return 1; }
     out([
       `linked as ${r.project} in ${r.home}${r.moved.length ? `; moved ${r.moved.join(', ')}` : ''}`,
       ...r.separate.map((p) => `separate: ${p} has its own .ai/sdlc-config.json with no link, so its records stay in it`),
@@ -1399,19 +1455,20 @@ async function runRecords(pos, opt) {
     out(opt.json ? r : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
     return r.pushed ? 0 : 1;
   }
-  if (!arg) throw new Error(`records ${verb}: <slug> is required`);
+  if (!arg) throw usage(`records ${verb}: <slug> is required`);
   if (verb === 'close') {
     const r = closeRecords(projectRoot, arg);
     if (r?.ok) releaseLease(projectRoot, arg);
     out(opt.json ? r : !r ? 'records: local' : r.ok ? `closed ${arg}${r.pushed ? '' : `; not pushed: ${r.reason ?? 'offline'}`}` : r.reason);
+    if (r && !r.ok && !opt.json) printFix(r.fix);
     return !r || r.ok ? 0 : 1;
   }
-  throw new Error(`records: unknown verb ${verb}`);
+  throw usage(`records: unknown verb ${verb}`);
 }
 
 async function runLease(pos, opt) {
   const [verb, root, slug] = pos;
-  if (!['claim', 'release', 'show', 'decline'].includes(verb) || !root || !slug) throw new Error('lease: <claim|release|show|decline> <root> <slug> are required');
+  if (!['claim', 'release', 'show', 'decline'].includes(verb) || !root || !slug) throw usage('lease: <claim|release|show|decline> <root> <slug> are required');
   const projectRoot = resolve(root);
   // The answer no to a lease question of the dispatch: the key does not run on this computer.
   if (verb === 'decline') { out(`${slug}: not run on this computer; another computer may write it`); return 1; }
@@ -1431,7 +1488,7 @@ async function runLease(pos, opt) {
 
 function runPage(pos, opt) {
   const [verb, root, slug] = pos;
-  if (!['brief', 'put', 'check'].includes(verb) || !root || !slug) throw new Error('page: <brief|put|check> <root> <slug> are required');
+  if (!['brief', 'put', 'check'].includes(verb) || !root || !slug) throw usage('page: <brief|put|check> <root> <slug> are required');
   const projectRoot = resolve(root);
   if (verb === 'brief') {
     const b = pageBrief(projectRoot, slug);
@@ -1455,19 +1512,19 @@ function runPage(pos, opt) {
  */
 async function runRun(pos, opt) {
   const [root, script, ...args] = pos;
-  if (!root || !script) throw new Error('run: <root> <script.mjs> are required');
+  if (!root || !script) throw usage('run: <root> <script.mjs> are required');
   const projectRoot = realpathSync(resolve(root));
   const file = [resolve(projectRoot, script), resolve(script)].find(existsSync);
-  if (!file) throw new Error(`run: no script ${script}`);
+  if (!file) throw redo(`run: no script ${script}`, 'Write the script in <wf-dir>/.draft/ or in .scratch/, then run the command again with its path.');
   const real = realpathSync(file);
   const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
   // The workflows of a linked project are in the records clone, so a script in a wf-dir runs too.
   const homes = [projectRoot, existsSync(wfRoot(projectRoot)) ? realpathSync(wfRoot(projectRoot)) : null].filter(Boolean);
   if (!homes.some((h) => fold(real).startsWith(fold(`${h}${sep}`)))) {
-    throw new Error(`run: ${real} is outside the project ${projectRoot}. Write the script in <wf-dir>/.draft/ or in .scratch/`);
+    throw redo(`run: ${real} is outside the project ${projectRoot}. Write the script in <wf-dir>/.draft/ or in .scratch/`, 'Move the script into <wf-dir>/.draft/ or .scratch/ of the project, then run the command again.');
   }
   const mod = await import(`${pathToFileURL(real).href}?run=${Date.now()}`);
-  if (typeof mod.default !== 'function') throw new Error(`run: ${script} has no default export function; write export default async function ({ wf, open, args }) { ... }`);
+  if (typeof mod.default !== 'function') throw redo(`run: ${script} has no default export function; write export default async function ({ wf, open, args }) { ... }`, 'Give the script a default export, export default async function ({ wf, open, args }) { ... }, then run it again.');
   const dryRun = Boolean(opt['dry-run']);
   const r = await runScript(projectRoot, mod.default, { slug: opt.slug ?? null, script: real, args, dryRun });
   const writes = r.ops.filter((o) => o.write).map(({ slug, op, record, keys }) => ({ slug, op, record, keys }));
@@ -1495,7 +1552,7 @@ function importIssueComments(projectRoot, slug) {
 
 function runMsg(pos, opt) {
   const [verb, root, slug, id] = pos;
-  if (!['post', 'list', 'read'].includes(verb) || !root || !slug) throw new Error('msg: <post|list|read> <root> <slug> are required');
+  if (!['post', 'list', 'read'].includes(verb) || !root || !slug) throw usage('msg: <post|list|read> <root> <slug> are required');
   const projectRoot = resolve(root);
   const to = opt.to ?? null;
   if (verb === 'post') {
@@ -1513,7 +1570,7 @@ function runMsg(pos, opt) {
     out(opt.json ? rows : rows.length ? rows.map((m) => `${m.read ? ' ' : '*'} ${m.id} (${m.kind} from ${m.from})`).join('\n') : 'no messages');
     return 0;
   }
-  if (!id) throw new Error('msg read: <id> is required');
+  if (!id) throw usage('msg read: <id> is required');
   const r = readMessage(projectRoot, slug, id, { to });
   out(opt.json ? r : r.text);
   return 0;
@@ -1552,9 +1609,9 @@ function changed(cmd, pos, opt = {}) {
 function runGh(pos, opt) {
   const [verb, root] = pos;
   if (verb === 'backfill') {
-    if (!root) throw new Error('gh backfill: <root> is required');
+    if (!root) throw usage('gh backfill: <root> is required');
     const projectRoot = resolve(root);
-    if (!layerOf(projectRoot)) throw new Error('gh backfill: the layer is off (records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json)');
+    if (!layerOf(projectRoot)) throw ask('gh backfill: the layer is off (records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json)', 'The GitHub layer is off. To turn it on, set records.repo in ~/.sdlc/config.json and records.project in .ai/sdlc-config.json.');
     const queued = backfillProject(projectRoot);
     out(opt.json ? { queued } : queued.length ? `queued ${queued.length} workflow(s): ${queued.join(', ')}` : 'no workflow');
     return 0;
@@ -1581,7 +1638,7 @@ function runGh(pos, opt) {
     out(opt.json ? s : lines.join('\n'));
     return 0;
   }
-  throw new Error('gh: <flush|status|backfill> is required');
+  throw usage('gh: <flush|status|backfill> is required');
 }
 
 // Commands that run but have no help block: none today. A command must have a help block, so
@@ -1737,12 +1794,13 @@ async function runMain(cmd, pos, opt) {
       case 'design': return await runDesign(pos, opt, out);
       case 'modernize': {
         const [root, slug] = pos;
-        if (!root || !slug) throw new Error('modernize: <root> <slug> are required');
+        if (!root || !slug) throw usage('modernize: <root> <slug> are required');
         const dir = join(wfRoot(resolve(root)), slug);
-        if (!existsSync(dir)) throw new Error(`modernize: no workflow folder ${dir}`);
+        if (!existsSync(dir)) throw noFolder(`modernize: no workflow folder ${dir}`, root);
         const r = modernizeWorkflow(dir, { check: Boolean(opt.check) });
+        if (!r.ok) r.fix = agentFix('The workflow folder has no index: list the workflows with status, then run modernize again with a slug that it names.', `wf.mjs status ${word(root)}`);
         if (opt.json) { out(r); return r.ok ? 0 : 1; }
-        if (!r.ok) { out(r.reason); return 1; }
+        if (!r.ok) { out(r.reason); printFix(r.fix); return 1; }
         const verb = r.check ? 'would move' : 'moved';
         const lines = [
           ...r.moved.map((m) => `${verb} ${m.from} → ${m.to}`),
@@ -1755,7 +1813,7 @@ async function runMain(cmd, pos, opt) {
       case 'doctor': {
         // The checks of a project. A pre-push command that no suite runs is first seen at the push.
         const [root] = pos;
-        if (!root) throw new Error('doctor: <root> is required');
+        if (!root) throw usage('doctor: <root> is required');
         const projectRoot = resolve(root);
         const loose = hookSuites(projectRoot, readProfile(projectRoot)).filter((h) => h.hook === 'pre-push' && !h.suite);
         const warnings = loose.map((h) => `the pre-push command \`${h.command}\` of ${h.source} is in no suite of the test profile; add it to the heavy suite with profile set`);
@@ -1764,7 +1822,7 @@ async function runMain(cmd, pos, opt) {
       }
       case 'setup': {
         const [root] = pos;
-        if (!root) throw new Error('setup: <root> is required');
+        if (!root) throw usage('setup: <root> is required');
         const r = setupProject(resolve(root), { about: opt.about ?? null, ignore: Boolean(opt.ignore) });
         if (opt.json) { out(r); return 0; }
         const lines = [`${r.created ? 'created' : 'kept'} .ai/ and ${r.config}`];
@@ -1780,16 +1838,18 @@ async function runMain(cmd, pos, opt) {
       }
       case 'close': {
         const [root, slug] = pos;
-        if (!root || !slug) throw new Error('close: <root> <slug> are required');
+        if (!root || !slug) throw usage('close: <root> <slug> are required');
         const r = closeWorkflow(resolve(root), slug, { reason: opt.reason ?? 'merged', note: opt.note ?? null, decline: Boolean(opt.decline) });
+        if (!r.ok) r.fix = agentFix('List the workflows with status, then run close again with a slug that it names.', `wf.mjs status ${word(root)}`);
+        if (!r.ok && !opt.json) printFix(r.fix);
         out(opt.json ? r : !r.ok ? r.reason : r.declined ? `${slug} stays open; the close question is not asked again` : r.closed ? `${slug} is closed` : r.reason);
         return r.ok ? 0 : 1;
       }
       case 'status': {
         const [root, slug] = pos;
-        if (!root) throw new Error('status: <root> is required');
+        if (!root) throw usage('status: <root> is required');
         if (opt.brief) {
-          if (!slug) throw new Error('status --brief: <slug> is required');
+          if (!slug) throw usage('status --brief: <slug> is required');
           const b = await statusBrief(resolve(root), slug);
           out(opt.json ? b : briefText(b));
           return b.error ? 1 : 0;
@@ -1800,28 +1860,28 @@ async function runMain(cmd, pos, opt) {
       }
       case 'target': {
         const [root, arg] = pos;
-        if (!root) throw new Error('target: <root> is required');
+        if (!root) throw usage('target: <root> is required');
         const t = await resolveTarget(resolve(root), arg ?? null);
         out(opt.json ? t : targetText(t));
         return t.error ? 1 : 0;
       }
       case 'index': {
         const [root] = pos;
-        if (!root) throw new Error('index: <root> is required');
+        if (!root) throw usage('index: <root> is required');
         const r = await reconcileIndex(resolve(root), { write: !opt.check });
         out(opt.json ? r : indexText(r));
         return opt.check && r.changed ? 1 : 0;
       }
       case 'cost': {
         const [root, slug] = pos;
-        if (!root || !slug) throw new Error('cost: <root> <slug> are required');
+        if (!root || !slug) throw usage('cost: <root> <slug> are required');
         const agg = costSummary(join(wfRoot(resolve(root)), slug));
         out(opt.json ? agg : costText(agg));
         return 0;
       }
       case 'stamp': {
         const [type] = pos;
-        if (!type) throw new Error('stamp: <type> is required');
+        if (!type) throw usage('stamp: <type> is required');
         out(stampOf(type, { slug: opt.slug, slice: opt.slice ?? null }));
         return 0;
       }
@@ -1837,9 +1897,9 @@ async function runMain(cmd, pos, opt) {
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;
-        if (!['set', 'show'].includes(verb) || !root || !slug) throw new Error('progress: <set|show> <root> <slug> are required');
+        if (!['set', 'show'].includes(verb) || !root || !slug) throw usage('progress: <set|show> <root> <slug> are required');
         const dir = join(wfRoot(resolve(root)), slug);
-        if (!existsSync(dir)) throw new Error(`progress: no workflow folder ${dir}`);
+        if (!existsSync(dir)) throw noFolder(`progress: no workflow folder ${dir}`, root);
         if (verb === 'set') {
           const change = Object.fromEntries(['stage', 'slice', 'status', 'run', 'driver', 'reason', 'resume'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
           writeProgress(dir, change);
@@ -1850,42 +1910,44 @@ async function runMain(cmd, pos, opt) {
       }
       case 'defer': {
         const [verb, root, slug] = pos;
-        if (verb !== 'check' || !root || !slug) throw new Error('defer: check <root> <slug> is required');
+        if (verb !== 'check' || !root || !slug) throw usage('defer: check <root> <slug> is required');
         const r = checkDeferrals(resolve(root), slug, { next: opt.next ?? null });
         out(opt.json ? r : r.entries.length ? r.entries.map(deferralLine).join('\n') : 'no open deferrals');
         return r.stop.length ? 1 : 0;
       }
       case 'board': {
         const [verb, root, slug, ...keys] = pos;
-        if (!['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'].includes(verb) || !root || !slug) throw new Error('board: <add|move|regroup|remove|apply|set|prose|render|adopt> <root> <slug> are required');
+        if (!['add', 'move', 'regroup', 'remove', 'apply', 'digest', 'set', 'prose', 'render', 'adopt'].includes(verb) || !root || !slug) throw usage('board: <add|move|regroup|remove|apply|digest|set|prose|render|adopt> <root> <slug> are required');
         const dir = join(wfRoot(resolve(root)), slug);
-        if (!existsSync(dir)) throw new Error(`board: no workflow folder ${dir}`);
+        if (!existsSync(dir)) throw noFolder(`board: no workflow folder ${dir}`, root);
         const file = opt.board ?? null;
         let r;
         if (verb === 'add') {
           const [kind] = keys;
-          if (!kind) throw new Error(`board add: <${BOARD_KINDS.join('|')}> is required`);
+          if (!kind) throw usage(`board add: <${BOARD_KINDS.join('|')}> is required`);
           // A file holds one entry or a list; flags hold one entry. A file avoids the quoting of a shell.
           const entries = opt.file
             ? JSON.parse(readFileSync(resolve(opt.file), 'utf8'))
             : Object.fromEntries(['key', 'kind', 'thread', 'text', 'why', 'source', 'name', 'area', 'side', 'state'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
           r = boardAdd(dir, kind, entries, { file });
         } else if (verb === 'move') {
-          if (!keys.length) throw new Error('board move: <item>... are required');
-          if (!opt.to && !opt.new) throw new Error('board move: --to <thread>, or --new <thread> --name n [--area a], is required');
+          if (!keys.length) throw usage('board move: <item>... are required');
+          if (!opt.to && !opt.new) throw usage('board move: --to <thread>, or --new <thread> --name n [--area a], is required');
           r = boardMove(dir, keys, opt.to ?? null, { newThread: opt.new ? { key: opt.new, name: opt.name, area: opt.area } : null, file });
         } else if (verb === 'regroup') {
-          if (!keys.length || !opt.to) throw new Error('board regroup: <thread>... --to <area> are required');
+          if (!keys.length || !opt.to) throw usage('board regroup: <thread>... --to <area> are required');
           r = boardRegroup(dir, keys, opt.to, { file });
         } else if (verb === 'apply') {
-          if (!opt.file) throw new Error('board apply: --file <change.json> is required');
+          if (!opt.file) throw usage('board apply: --file <change.json> is required');
           r = boardApply(dir, JSON.parse(readFileSync(resolve(opt.file), 'utf8')), { file });
+        } else if (verb === 'digest') {
+          r = boardDigest(dir, { file, close: opt.file ? JSON.parse(readFileSync(resolve(opt.file), 'utf8')) : null, full: Boolean(opt.full), areas: opt.area ? String(opt.area).split(',').map((a) => a.trim()).filter(Boolean) : null });
         } else if (verb === 'set') {
           const key = keys[0] && !keys[0].includes('=') ? keys[0] : null;
           r = boardSet(dir, key, boardFieldArgs(key ? keys.slice(1) : keys), { file });
         } else if (verb === 'prose') {
           const [what] = keys;
-          if (!what || (opt.file == null && opt.text == null)) throw new Error(`board prose: <${PROSE_KINDS.join('|')}> and --file <text file> or --text x are required`);
+          if (!what || (opt.file == null && opt.text == null)) throw usage(`board prose: <${PROSE_KINDS.join('|')}> and --file <text file> or --text x are required`);
           const text = opt.file != null ? readFileSync(resolve(opt.file), 'utf8') : String(opt.text);
           r = boardProse(dir, what, text, { file, session: opt.session ?? null, date: opt.date ?? null, area: opt.area ?? null, heading: opt.heading ?? null });
         } else if (verb === 'render') {
@@ -1894,7 +1956,7 @@ async function runMain(cmd, pos, opt) {
         } else if (verb === 'adopt') {
           r = boardAdopt(dir, { file });
         } else {
-          if (!keys.length) throw new Error('board remove: <item>... are required');
+          if (!keys.length) throw usage('board remove: <item>... are required');
           r = boardRemove(dir, keys, { file });
         }
         out(opt.json ? r : `${verb}: ${JSON.stringify(r)}`);
@@ -1903,10 +1965,10 @@ async function runMain(cmd, pos, opt) {
       case 'receipt': {
         // Run the suites of the slice at HEAD; a receipt is written only when every suite passed.
         const [root, slug, slice] = pos;
-        if (!root || !slug || !slice) throw new Error('receipt: <root> <slug> <slice> are required');
+        if (!root || !slug || !slice) throw usage('receipt: <root> <slug> <slice> are required');
         const projectRoot = resolve(root);
         const dir = join(wfRoot(projectRoot), slug);
-        if (!existsSync(dir)) throw new Error(`receipt: no workflow folder ${dir}`);
+        if (!existsSync(dir)) throw noFolder(`receipt: no workflow folder ${dir}`, root);
         const file = join(dir, `.test-receipt-${slice}.json`);
         if (opt.check) {
           // A reader reuses the receipt only while the tree is the one that ran.
@@ -1918,7 +1980,7 @@ async function runMain(cmd, pos, opt) {
         }
         const g = (args) => spawnSync('git', ['-C', projectRoot, ...args], { encoding: 'utf8', windowsHide: true });
         const head = g(['rev-parse', 'HEAD']);
-        if (head.status !== 0) throw new Error(`receipt: ${projectRoot} has no commit`);
+        if (head.status !== 0) throw ask(`receipt: ${projectRoot} has no commit`, 'The project has no commit yet: make its first commit, then run receipt again.');
         // A change outside .ai that HEAD lacks does not refuse the receipt: it is named, with the
         // hash of the file that the suites run with, so a reader can tell when it changes.
         const dirty = treeChanges(projectRoot);
@@ -1954,10 +2016,10 @@ async function runMain(cmd, pos, opt) {
       }
       case 'slice': {
         const [verb, root, slug, slice] = pos;
-        if (!['drop', 'move'].includes(verb) || !root || !slug || !slice) throw new Error('slice: <drop|move> <root> <slug> <slice> are required');
+        if (!['drop', 'move'].includes(verb) || !root || !slug || !slice) throw usage('slice: <drop|move> <root> <slug> <slice> are required');
         const projectRoot = resolve(root);
         const dir = join(wfRoot(projectRoot), slug);
-        if (!existsSync(dir)) throw new Error(`slice: no workflow folder ${dir}`);
+        if (!existsSync(dir)) throw noFolder(`slice: no workflow folder ${dir}`, root);
         const r = verb === 'drop'
           ? dropSlice(dir, slice, { reason: opt.reason })
           : moveSlice(dir, join(wfRoot(projectRoot), String(opt.to ?? '')), slice, { fromSlug: slug, toSlug: opt.to, reason: opt.reason });
@@ -1969,17 +2031,39 @@ async function runMain(cmd, pos, opt) {
       }
       case 'brief': {
         const [root, slug, stage, slice] = pos;
-        if (!root || !slug || !stage) throw new Error('brief: <root> <slug> <stage> are required');
+        if (!root || !slug || !stage) throw usage('brief: <root> <slug> <stage> are required');
         const b = buildBrief({ projectRoot: resolve(root), referenceRoot: REFERENCE_ROOT, slug, stage, slice: slice ?? null, wfCli: join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'wf.mjs') });
         if (opt.json) out(b); else process.stdout.write(b.text);
         return 0;
+      }
+      case 'inbox': {
+        const [root] = pos;
+        if (!root) throw usage('inbox: <root> is required');
+        const r = await inboxOf(resolve(root));
+        out(opt.json ? r : inboxText(r));
+        return 0;
+      }
+      case 'requires': {
+        // One JSON object always: the agent reads the content from it.
+        const [root, slug, stage] = pos;
+        if (!root || !slug || !stage) throw usage('requires: <root> <slug> <stage> are required');
+        const modes = String(opt.mode ?? '').split(',').map((m) => m.trim()).filter(Boolean);
+        const r = resolveRequires({ projectRoot: resolve(root), referenceDir: REFERENCE_ROOT, slug, stage, modes, slice: opt.slice ?? null, resume: Boolean(opt['on-resume']), maxBytes: opt['max-bytes'] ? Number(opt['max-bytes']) : REQUIRES_MAX_BYTES });
+        if (!r.ok) throw refuse(`requires: ${r.error}`, r.fix);
+        out(r);
+        return r.stop ? 1 : 0;
+      }
+      case 'standing': {
+        const r = runStanding(pos, opt);
+        out(opt.json ? r.value : r.text);
+        return r.code;
       }
       default:
         process.stderr.write(`${USAGE}\n`);
         return 2;
     }
   } catch (e) {
-    process.stderr.write(`wf.mjs: ${e.message}\n${hintOf(cmd, pos, e.message, e.fix)}`);
+    process.stderr.write(`wf.mjs: ${e.message}\n${hintOf(cmd, pos, e.message, e.fix, e)}`);
     return 1;
   }
 }
@@ -2041,27 +2125,34 @@ export function bareHelp(cmd, rest) {
 const valuesLine = (values) => `values: ${Object.entries(values).map(([k, v]) => `${k} ${v.join('|')}`).join('; ')}`;
 
 // The lines after an error: a slug in the place of the root, the forms and the allowed values of
-// a usage error, and last the fix line, `fix: <command>`, when a command fixes the refusal.
-function hintOf(cmd, pos, message, fix = null) {
+// a usage error, and last the fix lines (lib/fix.mjs): `fix.who:`, `fix.do:`, and `fix: <command>`
+// when a command makes the repair. Every error ends with them: its own fix, the fix of its class,
+// or the report of a defect.
+function hintOf(cmd, pos, message, fix = null, err = null) {
   const verbs = formsOf(cmd);
   const at = verbs ? 1 : 0;
   const verb = verbs && verbs.has(pos[0]) ? pos[0] : null;
   const root = pos[at];
   const lines = [];
-  let fixLine = fix;
+  let f = asFix(fix);
+  const isUsage = /are required|is required|needs <|unknown verb|must be one of|is not key=value|is not a stage/.test(message);
   if (/no workflow folder/.test(message) && root && !existsSync(join(resolve(root), '.ai')) && existsSync(join(process.cwd(), '.ai'))) {
     lines.push(`wf.mjs: ${root} is not a project root. The project root comes first: wf.mjs ${cmd} ${at ? `${pos[0]} ` : ''}"<project root>" <slug> ...`);
+    f = agentFix('Run the command again with the project root first, then the slug.');
   } else if (/no workflow folder/.test(message) && root) {
-    fixLine ??= `wf.mjs status ${word(root)}`;
+    f ??= agentFix('List the workflows with status, then run the command again with a slug that it names.', `wf.mjs status ${word(root)}`);
   }
-  if (/are required|is required|needs <|unknown verb|must be one of|is not key=value|is not a stage/.test(message) && cmd) {
+  if (isUsage && cmd) {
     const blocks = blocksOf(cmd, verb);
     if (blocks.length) lines.push(`wf.mjs: the forms of ${cmd}${verb ? ` ${verb}` : ''}:`, ...blocks.map((b) => b.lines.join('\n')));
     const values = verb && ENUM_ARGS[`${cmd} ${verb}`];
     if (values) lines.push(valuesLine(values));
   }
-  if (fixLine) lines.push(`fix: ${root ? fixLine.replace(/<root>/g, word(root)) : fixLine}`);
-  return lines.length ? `${lines.join('\n')}\n` : '';
+  if (!f && isUsage) f = agentFix(ARGS_FIX);
+  if (!f) f = defectFix('wf.mjs', err ?? new Error(message));
+  const fill = (s) => (root && s ? s.replace(/<root>/g, word(root)) : s);
+  lines.push(...fixLines({ ...f, ...(f.command ? { command: fill(f.command) } : {}), ...(f.then ? { then: fill(f.then) } : {}) }));
+  return `${lines.join('\n')}\n`;
 }
 
 const isMain = isMainModule(import.meta.url);

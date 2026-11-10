@@ -8,7 +8,7 @@
  *   records from drafts (lib/records.mjs). A file in a subfolder (evidence, notes) goes through.
  * - Refuse a write by a local .ai/workflows/ path in a linked project, and name the wf-dir path.
  * - Refuse a Write, Edit or MultiEdit of .ai/sdlc-config.json that lowers `checks` or
- *   `semantic.mode`, in every checks mode: only the person lowers them.
+ *   `semantic.mode`, or that changes `standing`, in every checks mode: only the person sets them.
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -32,6 +32,7 @@ import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-la
 import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
+import { standingChanged } from '../lib/standing.mjs';
 import { blockToolCall, hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
@@ -112,6 +113,11 @@ async function configLoweringRefusal(filePath, toolInput, projectRoot) {
   const prior = await readTextIfExists(abs);
   const next = textAfterWrite(prior, toolInput);
   if (next === null) return null;
+  // The standing answers are the person's: only `wf.mjs standing set` writes them, on the person's words.
+  if (standingChanged(prior, next)) {
+    return `wf-validate: blocked a write to ${abs}: it changes the standing answers.\n`
+      + 'Only the person sets a standing answer. Offer it to the person; on a yes, run wf.mjs standing set with the person\'s words.\n';
+  }
   const lowered = guardLowerings(prior, next);
   if (!lowered.length) return null;
   const what = lowered.map((l) => `${l.key} from ${l.from} to ${l.to}`).join(' and ');

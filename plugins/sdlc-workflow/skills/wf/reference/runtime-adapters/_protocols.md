@@ -6,7 +6,7 @@ Load this file with the registry, [../runtime-adapters.md](../runtime-adapters.m
 
 A sweep's coverage claim needs a **denominator**: what surface exists, not only
 what was reached. A per-adapter `Enumerate` recipe is the top rung, not the only
-one — an adapter with no recipe is **NOT unsupported**. Climb down and RECORD
+one — an adapter with no recipe is **not unsupported**. Climb down and RECORD
 the rung reached, exactly as the constraint-resolution ladder does for
 environment walls. Silent degradation is the failure to prevent: an unqualified
 `enumerated: 5` from a run that merely reached five things is a claim the method
@@ -44,7 +44,7 @@ rung in [_ladder.md](_ladder.md), which this cites rather than restates:
 - **One dependency at a time.** Two simultaneous faults produce an unattributable
   observation.
 - **Always reversible, always restored** before teardown. Record the
-  perturbation AND the restore in evidence.
+  perturbation and the restore in evidence.
 - **Never state the run does not own.** Do not stop a process the run did not
   start, mutate host configuration, or edit product code to induce a fault.
 - **Never against a shared or production backend without explicit

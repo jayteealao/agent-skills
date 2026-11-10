@@ -5,7 +5,7 @@ A coherence pass holds the whole board against three things: its own earlier dec
 ## When it runs
 - After an area close (2.8).
 - When a brief closes ([_brief.md](_brief.md) step 5).
-- Before the scope walk at `done` (3.1).
+- At `done`, before the scope digest ([_done.md](_done.md), step 1).
 - When the person says `cohere`.
 
 Do not run it after every batch.

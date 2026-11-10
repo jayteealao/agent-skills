@@ -65,7 +65,7 @@ Generated designs cluster around a few looks, whatever the subject. Steer away f
 - Truth binds claims, not demonstrations. Author demo data at full fidelity, and label it synthetic. Never invent prices, customers, benchmarks or capabilities.
 
 ### Typography
-- Establish hierarchy through size AND weight contrast — not just one.
+- Establish hierarchy through size and weight contrast — not just one.
 - Set body text at the platform body size or larger (16 px on the web). Use a line height of 1.5 or more for prose.
 - Max 65–75ch line length for prose content.
 - Type scale. Persuade and Experience: a modular scale at a ratio of 1.25 or more, with fluid headings. Operate and Read: a fixed scale at a ratio of 1.125–1.2. `typeset.md` → Type scale gives example tokens.

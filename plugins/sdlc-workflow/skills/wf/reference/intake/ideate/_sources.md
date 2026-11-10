@@ -1,6 +1,6 @@
-# Ideation sources (Step 0.5 of `intake/ideate.md`)
+# Ideation sources (Step 1 of `intake/ideate.md`)
 
-Step 0.5 of `/wf intake ideate` runs when Step 0 found one or more source arguments. A source is outside material: a web page, a document, a dependency's changelog, or GitHub issues. Each announced item of a source ends with exactly one result. That is the coverage guarantee: no announced feature or fix goes unchecked against the code.
+Step 1 of `/wf intake ideate` reads the sources when Step 0 found one or more source arguments. A source is outside material: a web page, a document, a dependency's changelog, or GitHub issues. Each announced item of a source ends with exactly one result. That is the coverage guarantee: no announced feature or fix goes unchecked against the code.
 
 The sources script does the disk work. Each command prints one JSON object:
 

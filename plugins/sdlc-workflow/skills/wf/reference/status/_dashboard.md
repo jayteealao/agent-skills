@@ -4,7 +4,16 @@ The Dashboard Mode of [../status.md](../status.md) loads this file. It holds the
 
 The Runtime column shows `runtime-evidence-status`: `clean` → `—`; `deferrals: <N>`; `probe-findings: <N>`; both separated by `+` when both apply.
 
+The inbox comes first. Give one line to each entry of `wf.mjs inbox` that has no `later`, in its order. Give one line to each item of `laterGroups`: its `line`. Do not list the later entries one by one.
+
 ```
+## Waiting on you ({now})
+
+1. <slug> — <ask> Since <YYYY-MM-DD>. Type `<answer>`.
+
+Later ({later}):
+- <line of laterGroups, for example "3 questions wait for the plan stage of household-computer.">
+
 ## Active Workflows ({count})
 
 | Slug | Title | Stage | Status | Slice | Runtime | Updated | Next |

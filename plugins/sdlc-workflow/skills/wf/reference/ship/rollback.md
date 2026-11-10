@@ -16,11 +16,11 @@ You are a **release reversal operator**, not a developer; each runbook step is i
 2. **Resolve the target run.** Optional third positional = `<run-id>`. Default: the most recent
    run in `09-ship-runs.md` (`record get "<root>" <slug> 09-ship-runs.md`) with `status: complete` and `go-nogo` not `no-go`: a no-go run ends
    `complete` but shipped nothing, so it is never a target. Refusals:
-   - `status: awaiting-input` → STOP: "Run `<run-id>` is paused mid-ship — nothing has fully
+   - `status: awaiting-input` → Stop: "Run `<run-id>` is paused mid-ship — nothing has fully
      shipped, so there is nothing to roll back. Resume it (`/wf ship <slug>`) or mark it failed."
-   - `status: rolled-back` → STOP: "Run `<run-id>` was already rolled back (see its
+   - `status: rolled-back` → Stop: "Run `<run-id>` was already rolled back (see its
      `rollback-artifact`)."
-   - No completed run at all → STOP: "No completed ship run found for `<slug>`."
+   - No completed run at all → Stop: "No completed ship run found for `<slug>`."
 3. **Load the run record** `09-ship-run-<run-id>.md` with `record get "<root>" <slug> 09-ship-run-<run-id>.md` — capture everything the forward run
    published: `merge-sha`, `merge-strategy`, `release-tag`, `release-workflow-run-id`,
    `environment`, `version`, `prior-version`, `post-release-bump-sha`, `announcements-sent`.
@@ -42,9 +42,9 @@ row **reversible** or **irreversible**:
 | Merge to `<base-branch>` (`merge-sha`) | `git revert -m 1 <merge-sha>` (or plain `git revert` for squash/rebase merges) on `<base-branch>`, pushed as a normal commit — never a history rewrite | reversible |
 | Tag + release (`release-tag`) | Yank or mark the release superseded (`gh release edit <tag> --prerelease` / delete the release, keep or delete the tag per plan convention) | reversible-with-residue (clones that fetched the tag keep it) |
 | Deploy to `<environment>` | `rollback-cmd` when the plan defines it; else redeploy the prior artifact (`prior-version`) via the plan's deploy pipeline — check `prior-artifact-retention` still covers it | reversible |
-| Post-release version bump (`post-release-bump-sha`) | **Normally NOT reverted** — forward-fix the version instead (a reused version string poisons caches and registries). Record why when you do revert it. | policy: forward-fix |
+| Post-release version bump (`post-release-bump-sha`) | **Normally not reverted** — forward-fix the version instead (a reused version string poisons caches and registries). Record why when you do revert it. | policy: forward-fix |
 | Published packages / registry artifacts | Most registries won't unpublish — surface as **mitigation**: publish a superseding patch, deprecate the bad version (`npm deprecate` etc.) | irreversible |
-| DB migrations | Reversible ONLY if `db-migrations-reversible: true` and a down-migration exists; otherwise irreversible — mitigation per Block F playbooks | depends |
+| DB migrations | Reversible only if `db-migrations-reversible: true` and a down-migration exists; otherwise irreversible — mitigation per Block F playbooks | depends |
 | Announcements sent (`announcements-sent`) | Cannot be unsent — mitigation: a correction notice (offer the announce phase in Step 5) | irreversible |
 
 **Irreversible steps are surfaced as mitigations, never silently skipped.** Every row the runbook
@@ -65,13 +65,13 @@ multiSelect: false
 ```
 
 On **No-Go**: still write the artifact (Step 4) with `go-nogo: no-go`, `status: aborted`, zero
-steps executed — the authored runbook is itself valuable. STOP after writing.
+steps executed — the authored runbook is itself valuable. Stop after writing.
 
 # Step 3 — Execute + verify
 
 1. Execute the runbook rows in order. Record per row: command run, exit/evidence, `done | no-op |
    failed | mitigated`. A failed row pauses the phase: set `status: awaiting-input`, record what is
-   blocking, STOP (re-invoking resumes at the first row without evidence — same resume contract as
+   blocking, stop (re-invoking resumes at the first row without evidence — same resume contract as
    the forward run).
 2. **Verify the prior state is live:** run `rollback-verify-cmd` when the plan defines it;
    otherwise the plan's post-publish health checks pointed at `prior-version` (version endpoint,

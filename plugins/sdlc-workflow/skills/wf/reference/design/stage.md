@@ -10,11 +10,11 @@ The human-only stage between `intake` and `slice`. It turns the brief into scree
 
 ## Step 0 — Orient
 
-1. Read `00-index.md` with `<wf> record get "<root>" <slug> index` ([_records.md](../_records.md)). When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, run `wf.mjs record set "<root>" <slug> index status=in-progress`. Then run `/wf design <slug>` again."*
-2. When a driver (`yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
-3. When `02-shape.md` is missing (`record get` exits 1) or not complete, STOP and route to `/wf intake <slug>`.
-4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, run `<wf> record set "<root>" <slug> index progress.design=skipped design-skip-reason="<reason>"`, then STOP with the next step of the Next row.
-5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` (`record get`) already carries `direction-confirmed-by:` and the invocation is not `amend` or `import` and names no move, report the approved design and STOP with the next step of the Next row. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
+1. Read `00-index.md` with `<wf> record get "<root>" <slug> index` ([_records.md](../_records.md)). When `status: closed`, stop: *"Workflow `<slug>` is closed. To reopen it, run `wf.mjs record set "<root>" <slug> index status=in-progress`. Then run `/wf design <slug>` again."*
+2. When a driver (`yolo`) invoked this stage, stop. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
+3. When `02-shape.md` is missing (`record get` exits 1) or not complete, stop and route to `/wf intake <slug>`.
+4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, run `<wf> record set "<root>" <slug> index progress.design=skipped design-skip-reason="<reason>"`, then stop with the next step of the Next row.
+5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` (`record get`) already carries `direction-confirmed-by:` and the invocation is not `amend` or `import` and names no move, report the approved design and stop with the next step of the Next row. When it carries `direction-confirmed-by:` and the invocation names a move → run the **Move pass** below. Do not run Step 1.
 6. When `02c-craft.md` is missing and `<wf> design versions <root> <slug>` lists a round, the stage was stopped before the approval. Run Step 1, skip Steps 2–4, and continue at Step 4b with the saved screens.
 
 ## Step 1 — Load the design record
@@ -23,7 +23,7 @@ The human-only stage between `intake` and `slice`. It turns the brief into scree
 2. Read `PRODUCT.md`. When it is missing, empty, or carries `[TODO]` markers, run `/wf design setup` now with the person, then continue.
 3. Read `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. When a `.ai/design/` file is missing, create it from the [record.md](record.md) template with `[TODO]` sections and tell the person. Do not stop.
 4. When `.ai/design/screens.json` is missing, run `<wf> design init <root>`. Read the screens of the repo with `<wf> design list <root>`: a screen that the brief touches already exists, and this stage changes it in place.
-5. Run `<wf> design refs check <root>`. When it exits 1, STOP the stage and show the person each unreadable reference. A reference must be a file in the repo that an agent can read: export a canvas or a page to a file, then add it with `<wf> design refs add <root> <key> --file <path>`. Run this check before each design sub-agent starts, too.
+5. Run `<wf> design refs check <root>`. When it exits 1, stop the stage and show the person each unreadable reference. A reference must be a file in the repo that an agent can read: export a canvas or a page to a file, then add it with `<wf> design refs add <root> <key> --file <path>`. Run this check before each design sub-agent starts, too.
 6. When the person named a move, or `00-index.md` records `design-move`, read `design/<move>.md`. The move focuses the contract; it does not widen the scope of `02-shape.md`.
 
 ## Step 1b — Present the carried design thoughts

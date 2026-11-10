@@ -11,7 +11,7 @@ this file.
 1. **Orchestrator discipline.** The stage orchestrator never patches code
    inline. Every fix is delegated to a dispatched sub-agent; only the
    sub-agent's compact result returns to the orchestrator context. If you catch
-   yourself editing code outside the stage's fix-dispatch step, STOP and return
+   yourself editing code outside the stage's fix-dispatch step, stop and return
    to the next unfinished workflow step. One exception: a verify that has no
    tool to start a sub-agent (a stage agent of a driver) makes each fix itself,
    one after another, under the same prompt and rules 4 to 7. See "No sub-agent
@@ -30,14 +30,14 @@ this file.
    dispatch rules (for example verify's parallel dispatch with write isolation)
    are additive requirements defined in the stage file.
 4. **Minimal patch, self-checked by command.** The sub-agent prompt always
-   requires: apply the minimal fix for this one issue; do NOT refactor,
+   requires: apply the minimal fix for this one issue; do not refactor,
    reformat, or broaden scope; then **run a real check command the
    orchestrator passes in** and report its exit status before returning a
    brief summary — never diffs or full file dumps. "Self-check for no new
    lint/type errors" as prose is unenforceable, so the stage passes the
    narrowest gate the fix's file type implies (or its configured pre-push
    check) so the claim has an exit code behind it.
-5. **Orchestrator sanity check — issue AND method.** The orchestrator inspects
+5. **Orchestrator sanity check — issue and method.** The orchestrator inspects
    each returned patch against **both** the issue (does it address it; does it
    obviously break sibling code) and the **method the proposed fix
    prescribed**. A diagnosis names *how*, not only *what*, and a patch that
@@ -55,7 +55,7 @@ this file.
    never silently disappears, and it feeds the stage's escalation state
    (`convergence: escalated`, `could-not-fix`, `readiness-verdict: blocked`).
 7. **Commit discipline.** When fixes landed and `branch-strategy` is
-   `dedicated`/`shared`: stage ONLY the files the fix sub-agents touched, by
+   `dedicated`/`shared`: stage only the files the fix sub-agents touched, by
    path, per the commit rule of [_workflow-rules.md](_workflow-rules.md). Commit
    as `<type>: <what the fix does>` ([implement/_steps.md](implement/_steps.md)). Never push from
    the fix loop (handoff's orchestrator batch-push is the sanctioned exception,
