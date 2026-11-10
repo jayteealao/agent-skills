@@ -170,7 +170,9 @@ test('designSettled: boards decide only for visual and new-surface', () => {
   equal(designSettled({ 'ux-impact': 'visual' }, contract, []), true);
   equal(designSettled({ 'ux-impact': 'visual' }, contract, null), true, 'a caller that read no disk keeps the frontmatter rule');
   equal(designSettled({ 'ux-impact': 'flow' }, contract, ['x']), true);
-  equal(designSettled({ 'ux-impact': 'visual' }, CONFIRMED, ['x']), true, 'a contract without boards: keeps the old rule');
+  equal(designSettled({ 'ux-impact': 'visual' }, CONFIRMED, []), true, 'a contract without boards: keeps the old rule');
+  equal(designSettled({ 'ux-impact': 'visual' }, CONFIRMED, ['02c-craft.md names no screens, and this repo has a design surface']), false, 'the old rule ends where the repo has a surface');
+  equal(designSettled({ 'ux-impact': 'visual' }, { 'image-gate': 'pass', 'direction-confirmed-by': 'the agent says so' }, []), false, 'a free value confirms nothing');
   match(designGateRefusal({ index: { 'ux-impact': 'new-surface' }, hasBrief: true, contract, slug: 'demo', missingBoards: ['design/r1/boards/a--b.png'] }), /not on disk: design\/r1\/boards\/a--b\.png/);
 });
 

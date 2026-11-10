@@ -6,7 +6,7 @@ The single source of truth for the **design modes** and the **shared design laws
 
 **Consumer contract.** Each stage loads only its sections, through the Sections cell of its Requires row, when the design lane says design is needed (`design/_lane.md`). This asymmetry is intentional, not drift:
 - `slice` — Design modes (maps each surface to its design mode; never redesigns).
-- `plan` — Design modes; Shared design laws. Then load the craft home (`animate.md`, `polish.md`, `typeset.md`) for what the feature touches.
+- `plan` — Design modes; Shared design laws. Then load the craft home (`animate.md` and `_motion-build.md`, `polish.md`, `typeset.md`) for what the feature touches.
 - `implement` — Design modes; Shared design laws, and the craft home.
 - `verify`, `review`, and the design `audit` and `critique` — they do not load this file. They load `_craft-floor.md` only.
 - The design stage — the whole file at Step 1, and `design/_preflight.md` at Step 3.
@@ -44,10 +44,10 @@ Rules:
 These laws apply to every design, in every design mode. The build checks itself against [_craft-floor.md](_craft-floor.md) at the edit step. The font reflex list is in [typeset.md](typeset.md) → Font selection.
 
 ### Color
-- Use OKLCH. Reduce chroma as lightness approaches 0 or 100.
+- Use the color space of the project; for a new palette, prefer OKLCH. Reduce chroma as lightness approaches 0 or 100. `colorize.md` → Choose the palette derives the colors.
 - Tint a neutral toward the brand hue only when it creates cohesion. A plain neutral is valid.
 - Choose a color strategy before you choose a color:
-  - **Restrained.** Tinted or plain neutrals, and one accent at 10% or less of the surface, for action, selection and state.
+  - **Restrained.** Neutrals carry the content area, and one accent at 10% or less of it serves action, selection and state. On an Operate surface the shell (a rail, a header, a tinted ground) may commit to the palette: gray with one accent is the category default, not Restrained.
   - **Committed.** One saturated color carries 30–60% of the surface.
   - **Full palette.** Three to five colors, each with a named role.
   - **Drenched.** Color owns the surface; the brand is its palette.
@@ -66,8 +66,7 @@ Generated designs cluster around a few looks, whatever the subject. Steer away f
 
 ### Typography
 - Establish hierarchy through size and weight contrast — not just one.
-- Set body text at the platform body size or larger (16 px on the web). Use a line height of 1.5 or more for prose.
-- Max 65–75ch line length for prose content.
+- The limits of size, line height and measure are in `_craft-floor.md` rules 17–19. The stage reads them at Step 4.
 - Type scale. Persuade and Experience: a modular scale at a ratio of 1.25 or more, with fluid headings. Operate and Read: a fixed scale at a ratio of 1.125–1.2. `typeset.md` → Type scale gives example tokens.
 
 ### Spacing
@@ -76,12 +75,12 @@ Generated designs cluster around a few looks, whatever the subject. Steer away f
 - Whitespace as emphasis: contrast between dense and spacious creates hierarchy.
 
 ### Components
-- Every interactive element: default, hover, focus, active, disabled states.
+- Every interactive element has the control states of `_craft-floor.md` rule 14.
 - Loading: skeletons not spinners for content areas.
 - Empty states teach and guide; they are not error states.
 
 ### Motion & interface detail
-- Motion craft lives in `animate.md`: the frequency and purpose gates (never animate keyboard / 100+-per-day actions), strong curve tokens (never ease-in on UI, entering or exiting), sub-300ms Operate UI, the trigger origin for popovers, never scale from 0, retargetable animations and springs, cheap properties only, the 8.3 ms frame budget, the hover-pointer gate, `bounce: 0` on Operate and Read. Platform forms of each term live in `_platforms.md` (web, iOS, Android Compose, desktop); recipes in `_motion-recipes.md`.
-- Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, and the minimum hit area of [_platforms.md](_platforms.md).
+- Motion craft is in `animate.md`: the gates, the values and the choreography. The build rules (property cost, frame budget, gestures) are in `_motion-build.md`, and the recipes in `_motion-recipes.md`. `_platforms.md` names the platform file.
+- Interface-detail craft is in `polish.md`: shape, optical alignment and depth tokens. The hit area is in `harden.md` → Touch targets.
 - These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail must load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, written at the design stage) draws from them too.
 - Building a *reusable* component (a design-system primitive or library, not a one-off screen)? See `_component-craft.md` — DX-first API, excellent defaults, memorable naming, a touchable example.

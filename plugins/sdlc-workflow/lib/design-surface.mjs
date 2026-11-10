@@ -11,12 +11,18 @@
 //
 // The comments and the approval pictures do not live here: a product repo can be public. They
 // live in the records (lib/design-records.mjs).
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { writeFileAtomic } from './atomic-write.mjs';
+import { withLock } from './file-lock.mjs';
+import { agentFix, refuse } from './fix.mjs';
 import { sdlcHomeDir } from './home.mjs';
-import { missingBoardFiles } from './design-boards.mjs';
+import { boardsRef, missingBoardFiles } from './design-boards.mjs';
+import { approvalProblems } from './design-versions.mjs';
+import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 
 export const SURFACE_REL = '.ai/design';
 export const SCREENS_DIR = 'screens';
@@ -41,10 +47,25 @@ export const screenUrl = (root, key, state) => `${pathToFileURL(screenFile(root,
 
 /** Write a JSON file whole: to a temporary file first, then a rename. The folder is made when it is missing. */
 export function writeJson(file, value) {
-  mkdirSync(dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
-  renameSync(tmp, file);
+  writeFileAtomic(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * The lock of one design file or folder. The lock file is in the SDLC home, never beside the file:
+ * the surface is a tracked folder of the product repo, and the design server watches it.
+ */
+export const designLockPath = (target) => join(sdlcHomeDir(), 'locks',
+  `design-${createHash('sha1').update(process.platform === 'win32' ? resolve(target).toLowerCase() : resolve(target)).digest('hex').slice(0, 20)}.lock`);
+
+/**
+ * Run `fn` while this process holds the lock of `target`, for one read-modify-write. The hold is
+ * short: `fn` reads, changes and writes files, and starts no git and no network call.
+ */
+export function withDesignLock(target, fn, { waitMs = 10_000 } = {}) {
+  return withLock(designLockPath(target), fn, {
+    waitMs,
+    busy: () => refuse('another design command writes the same file now', agentFix('Wait a moment, then run the command again.')),
+  });
 }
 function readJson(file, fallback) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fallback; }
@@ -61,12 +82,56 @@ export const emptyManifest = () => ({ schema: SCREENS_SCHEMA, viewports: { ...DE
 /** The manifest, or an empty one. */
 export function readManifest(root) {
   const m = readJson(join(surfaceDir(root), MANIFEST_FILE), null);
-  if (!m || typeof m !== 'object') return emptyManifest();
-  return { ...emptyManifest(), ...m, screens: m.screens ?? {}, explore: m.explore ?? {}, components: m.components ?? {} };
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return emptyManifest();
+  // An entry that is no object (a hand edit, a bad merge) is left out, so no reader fails on it.
+  const entries = (v) => Object.fromEntries(Object.entries(v && typeof v === 'object' && !Array.isArray(v) ? v : {}).filter(([, x]) => x && typeof x === 'object' && !Array.isArray(x)));
+  const strings = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+  const screens = Object.fromEntries(Object.entries(entries(m.screens)).map(([k, sc]) => [k, {
+    ...sc,
+    ...(Object.hasOwn(sc, 'workflows') ? { workflows: strings(sc.workflows) } : {}),
+    ...(Object.hasOwn(sc, 'slices') ? { slices: strings(sc.slices) } : {}),
+    ...(Object.hasOwn(sc, 'approvals') ? { approvals: (Array.isArray(sc.approvals) ? sc.approvals : []).filter((a) => a && typeof a === 'object') } : {}),
+  }]));
+  return { ...emptyManifest(), ...m, areas: strings(m.areas), screens, explore: entries(m.explore), components: entries(m.components) };
+}
+/**
+ * Why the manifest on disk cannot be read, or null. A missing file is no fault. `readManifest`
+ * gives an empty manifest for a file that is not JSON (a bad merge, a cut write), so that no
+ * reader fails; a caller that writes or reports asks this first.
+ */
+export function manifestFault(root) {
+  let text;
+  try { text = readFileSync(join(surfaceDir(root), MANIFEST_FILE), 'utf8'); } catch { return null; }
+  try {
+    const m = JSON.parse(text);
+    return m && typeof m === 'object' && !Array.isArray(m) ? null : `${SURFACE_REL}/${MANIFEST_FILE} holds no JSON object`;
+  } catch (e) {
+    return `${SURFACE_REL}/${MANIFEST_FILE} is not JSON${/<<<<<<<|>>>>>>>/.test(text) ? ' (it holds the marks of a merge conflict)' : ''}: ${e.message}`;
+  }
+}
+/** The refusal of a command that needs a manifest that reads. */
+export function manifestRefusal(root) {
+  const fault = manifestFault(root);
+  return fault ? refuse(`${fault}. Nothing was changed`, agentFix(`Repair ${SURFACE_REL}/${MANIFEST_FILE} by hand: resolve the conflict or restore the file from git (git log -- ${SURFACE_REL}/${MANIFEST_FILE}). Then run the command again.`)) : null;
 }
 export function writeManifest(root, m) {
   mkdirSync(surfaceDir(root), { recursive: true });
   writeJson(join(surfaceDir(root), MANIFEST_FILE), m);
+}
+
+/**
+ * One read-modify-write of the manifest, under its lock: `change(m)` gets the manifest as it is
+ * on disk now and changes it; a return of `false` writes nothing. Returns the manifest.
+ */
+export function updateManifest(root, change) {
+  return withDesignLock(join(surfaceDir(root), MANIFEST_FILE), () => {
+    // A manifest that does not read is never written over: its screens would be lost.
+    const refusal = manifestRefusal(root);
+    if (refusal) throw refusal;
+    const m = readManifest(root);
+    if (change(m) !== false) writeManifest(root, m);
+    return m;
+  });
 }
 
 /** The problems of a manifest; an empty list is a good one. */
@@ -145,13 +210,26 @@ export function designMdOf(root) {
  * Write tokens.css from DESIGN.md (see designMdOf). Returns the token rows, with `file` (the
  * DESIGN.md read, or null) and `skipped` (the Role cells that name no single role).
  */
-export function writeTokens(root) {
+export function writeTokens(root, { keep = false } = {}) {
   const design = designMdOf(root);
   const rows = design ? tokensFromDesign(readFileSync(design, 'utf8')) : Object.defineProperty([], 'skipped', { value: [] });
   Object.defineProperty(rows, 'file', { value: design });
+  const sheet = join(surfaceDir(root), TOKENS_FILE);
+  if (!rows.length) {
+    // A sheet with no role would take the colors from every screen. `keep` (init) leaves the
+    // sheet as it is, and makes an empty one only when there is none.
+    if (keep) {
+      if (!existsSync(sheet)) writeFileAtomic(sheet, '/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n}\n');
+      return rows;
+    }
+    const place = DESIGN_MD_PLACES.find((p) => join(root, p) === design);
+    throw refuse(design ? `${place} has no token role: tokens.css stays as it is` : `no DESIGN.md at ${DESIGN_MD_PLACES.join(', ')}: tokens.css stays as it is`,
+      agentFix(design
+        ? `Add a "| Role | Token | Value |" table with one row for each role under "## Colors" of ${place}, then run the command again.`
+        : 'Write DESIGN.md with a "| Role | Token | Value |" table under "## Colors", then run the command again.'));
+  }
   const body = rows.flatMap((r) => [`  --${r.role}: ${r.value};`, ...(r.token && r.token !== `--${r.role}` ? [`  ${r.token}: var(--${r.role});`] : [])]);
-  mkdirSync(surfaceDir(root), { recursive: true });
-  writeFileSync(join(surfaceDir(root), TOKENS_FILE), `/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);
+  writeFileAtomic(sheet, `/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);
   return rows;
 }
 
@@ -196,15 +274,12 @@ export function screenTemplate(key, title) {
 /** Set the viewports of the surface: `{ name: 'WxH' }`. Each name is kebab-case and each size is WxH. */
 export function setViewports(root, viewports) {
   const entries = Object.entries(viewports ?? {});
-  if (!entries.length) throw new Error('name at least one viewport, as name=WxH');
+  if (!entries.length) throw refuse('name at least one viewport, as name=WxH', agentFix('Run the command again with at least one name=WxH pair.'));
   for (const [name, size] of entries) {
-    if (!KEY_RE.test(name)) throw new Error(`the viewport name ${name} is not kebab-case`);
-    if (!parseViewport(size)) throw new Error(`the viewport ${name}=${size} is not WxH`);
+    if (!KEY_RE.test(name)) throw refuse(`the viewport name ${name} is not kebab-case`, agentFix('Name each viewport in lower case with hyphens, as name=WxH, then run the command again.'));
+    if (!parseViewport(size)) throw refuse(`the viewport ${name}=${size} is not WxH`, agentFix('Give each viewport a size as WIDTHxHEIGHT, for example phone=375x812, then run the command again.'));
   }
-  const m = readManifest(root);
-  m.viewports = Object.fromEntries(entries);
-  writeManifest(root, m);
-  return m.viewports;
+  return updateManifest(root, (m) => { m.viewports = Object.fromEntries(entries); }).viewports;
 }
 
 /**
@@ -213,12 +288,11 @@ export function setViewports(root, viewports) {
  */
 export function setAreas(root, areas) {
   const list = [...new Set((areas ?? []).map((a) => String(a).trim()).filter(Boolean))];
-  if (!list.length) throw new Error('name at least one area, in the order of the navigation');
-  const m = readManifest(root);
-  const used = Object.values(m.screens).map((s) => s.area).filter(Boolean);
-  m.areas = [...list, ...[...new Set([...(m.areas ?? []), ...used])].filter((a) => !list.includes(a))];
-  writeManifest(root, m);
-  return m.areas;
+  if (!list.length) throw refuse('name at least one area, in the order of the navigation', agentFix('Run the command again with the areas in the order of the navigation.'));
+  return updateManifest(root, (m) => {
+    const used = Object.values(m.screens).map((s) => s.area).filter(Boolean);
+    m.areas = [...list, ...[...new Set([...(m.areas ?? []), ...used])].filter((a) => !list.includes(a))];
+  }).areas;
 }
 
 /** The screens that `02c-craft.md` `screens:` approves but that have no page on the surface. */
@@ -228,18 +302,37 @@ export function missingScreens(root, contract) {
 }
 
 /**
- * The design files that a contract names but that are not on disk: the screens of `screens:`,
- * or the board files of `boards:` for a contract from before the surface.
+ * What stops the design of a contract from being settled, read from the disk: a list of lines,
+ * empty when nothing does.
+ *
+ * - A contract that names `screens:`: the screen pages that are missing, and each way in which
+ *   the records and the manifest do not hold the approval that the contract claims
+ *   (lib/design-versions.mjs approvalProblems).
+ * - A contract from before the surface that names `boards:`: the board files that are missing.
+ * - A contract that names neither: nothing in a repo with no design surface, where the rule
+ *   from before the surface holds. In a repo with a surface, an open workflow must name its
+ *   approved screens, so the line says that.
  */
 export function missingDesignFiles(root, workflowDir, contract) {
   if (!contract) return null;
-  return Array.isArray(contract.screens) && contract.screens.length ? missingScreens(root, contract) : missingBoardFiles(workflowDir, contract);
+  if (Array.isArray(contract.screens) && contract.screens.length) {
+    const missing = missingScreens(root, contract);
+    return [...missing, ...approvalProblems(root, basename(workflowDir), contract).filter((p) => !missing.includes(p))];
+  }
+  if (boardsRef(contract)) return missingBoardFiles(workflowDir, contract);
+  const closed = frontmatterOfDoc(workflowDir, INDEX_NAME)?.status === 'closed';
+  if (!closed && existsSync(join(surfaceDir(root), MANIFEST_FILE))) {
+    return ['02c-craft.md names no screens, and this repo has a design surface: the screens of the workflow need an approval (wf.mjs design approve)'];
+  }
+  return missingBoardFiles(workflowDir, contract);
 }
 
 /** The states that a screen page declares with `data-state`. */
 export function statesOf(html) {
   const found = new Set();
-  for (const m of String(html).matchAll(/data-state=["']([^"']+)["']/g)) for (const s of m[1].split(/\s+/)) if (STATES.includes(s)) found.add(s);
+  // Only an element declares a state. A selector of a style sheet or a string of a script does not.
+  const markup = String(html).replace(/<(style|script)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+  for (const m of markup.matchAll(/<[a-zA-Z][^<>]*?\sdata-state=["']([^"']+)["']/g)) for (const s of m[1].split(/\s+/)) if (STATES.includes(s)) found.add(s);
   return STATES.filter((s) => found.has(s));
 }
 
@@ -255,8 +348,13 @@ export function linksOf(html) {
  * and a slice are added to the lists of the screen, never replaced.
  */
 export function addScreen(root, key, { title = null, area = null, flow = null, order = null, workflow = null, slice = null, now = new Date() } = {}) {
-  if (!KEY_RE.test(String(key ?? ''))) throw new Error(`the screen key ${key} must be kebab-case`);
-  const m = readManifest(root);
+  if (!KEY_RE.test(String(key ?? ''))) throw refuse(`the screen key ${key} must be kebab-case`, agentFix('Name the screen in lower case with hyphens, for example order-list, then run the command again.'));
+  let out = null;
+  updateManifest(root, (m) => { out = addScreenTo(root, m, key, { title, area, flow, order, workflow, slice, now }); });
+  return out;
+}
+
+function addScreenTo(root, m, key, { title, area, flow, order, workflow, slice, now }) {
   const was = m.screens[key];
   const s = { title: title ?? was?.title ?? key, area: area ?? was?.area ?? null, flow: flow ?? was?.flow ?? null, order: order == null ? was?.order ?? null : Number(order),
     workflows: [...new Set([...(was?.workflows ?? []), ...(workflow ? [workflow] : [])])],
@@ -268,7 +366,6 @@ export function addScreen(root, key, { title = null, area = null, flow = null, o
   mkdirSync(join(surfaceDir(root), SCREENS_DIR), { recursive: true });
   const created = !existsSync(file);
   if (created) writeFileSync(file, screenTemplate(key, s.title));
-  writeManifest(root, m);
   return { key, created, screen: s, file };
 }
 
@@ -301,11 +398,11 @@ export function listExplore(root) {
 
 /** Record an explore sketch: its title and the brainstorm or intake that it belongs to. */
 export function addExplore(root, key, { title = null, link = null, now = new Date() } = {}) {
-  if (!KEY_RE.test(String(key ?? ''))) throw new Error(`the explore key ${key} must be kebab-case`);
-  const m = readManifest(root);
-  m.explore[key] = { ...(m.explore[key] ?? {}), title: title ?? m.explore[key]?.title ?? key, link: link ?? m.explore[key]?.link ?? null, 'updated-at': nowIso(now) };
+  if (!KEY_RE.test(String(key ?? ''))) throw refuse(`the explore key ${key} must be kebab-case`, agentFix('Name the sketch in lower case with hyphens, then run the command again.'));
   mkdirSync(join(surfaceDir(root), EXPLORE_DIR), { recursive: true });
-  writeManifest(root, m);
+  const m = updateManifest(root, (x) => {
+    x.explore[key] = { ...(x.explore[key] ?? {}), title: title ?? x.explore[key]?.title ?? key, link: link ?? x.explore[key]?.link ?? null, 'updated-at': nowIso(now) };
+  });
   return { key, ...m.explore[key] };
 }
 
@@ -331,7 +428,7 @@ export function trackSurface(root, { write = true } = {}) {
   if (folder >= 0) lines[folder] = lines[folder].startsWith('/') ? '/.ai/*' : '.ai/*';
   let out = lines.join('\n');
   if (!/^!\/?\.ai\/design\/?\s*$/m.test(out)) out = `${out}${out && !out.endsWith('\n') ? '\n' : ''}!.ai/design/\n`;
-  writeFileSync(file, out);
+  writeFileAtomic(file, out);
   const tracked = !ignored();
   return { tracked, changed: true, ...(tracked ? {} : { manual: 'another pattern (a global ignore or a parent folder) still ignores .ai/design/; add an exception by hand' }) };
 }
@@ -349,17 +446,18 @@ export function readDesignRepos() {
 /** Add a repo to the list of the design server. The name is the folder name, made unique. */
 export function registerRepo(root) {
   const abs = resolve(root);
-  const repos = readDesignRepos();
   const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
-  const hit = repos.find((r) => same(resolve(r.root), abs));
-  if (hit) return { ...hit, added: false };
-  const base = basename(abs).toLowerCase().replace(/[^a-z0-9._-]+/g, '-') || 'repo';
-  let name = base;
-  for (let n = 2; repos.some((r) => r.name === name); n += 1) name = `${base}-${n}`;
-  repos.push({ name, root: abs });
-  mkdirSync(sdlcHomeDir(), { recursive: true });
-  writeJson(designReposPath(), { repos });
-  return { name, root: abs, added: true };
+  return withDesignLock(designReposPath(), () => {
+    const repos = readDesignRepos();
+    const hit = repos.find((r) => same(resolve(r.root), abs));
+    if (hit) return { ...hit, added: false };
+    const base = basename(abs).toLowerCase().replace(/[^a-z0-9._-]+/g, '-') || 'repo';
+    let name = base;
+    for (let n = 2; repos.some((r) => r.name === name); n += 1) name = `${base}-${n}`;
+    repos.push({ name, root: abs });
+    writeJson(designReposPath(), { repos });
+    return { name, root: abs, added: true };
+  });
 }
 
 /** Make the surface: the folders, the manifest, the token and component sheets, the git rule and the repo entry. */
@@ -372,7 +470,7 @@ export function initSurface(root) {
   if (!existsSync(join(dir, COMPONENTS_FILE))) writeFileSync(join(dir, COMPONENTS_FILE), '/* The style of each component of the library. Use tokens only. */\n');
   if (created) writeManifest(root, emptyManifest());
   if (!existsSync(join(dir, REFERENCES_FILE))) writeJson(join(dir, REFERENCES_FILE), { references: [] });
-  const tokens = writeTokens(root);
+  const tokens = writeTokens(root, { keep: true });
   const track = trackSurface(root);
   const repo = registerRepo(root);
   return { created, tokens: tokens.length, track, repo };

@@ -5,7 +5,7 @@
 // result of a git call, read by its caller) says so with `/* internal */`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,6 +15,10 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const SCRIPTS = [
   'scripts/campaign.mjs', 'scripts/optimize.mjs', 'scripts/goal.mjs', 'scripts/ideate-sources.mjs',
   'scripts/release.mjs', 'scripts/yolo-watch.mjs', 'scripts/stage-yolo-driver.mjs', 'scripts/wf.mjs',
+  // The design commands: `wf.mjs design` prints the failures of these libs as they are. A worker
+  // file sends its result to the thread that started it, and prints nothing.
+  ...readdirSync(path.join(pluginRoot, 'lib')).filter((n) => /^design-.*\.mjs$/.test(n) && !/-worker\.mjs$/.test(n)).sort().map((n) => `lib/${n}`),
+  'scripts/design-boards.mjs', 'skills/wf/scripts/design-boards.mjs', 'scripts/design-server.mjs', 'scripts/migrate-design-types.mjs',
 ];
 
 /** The text of the object literal around `at`: from its `{` to the matching `}`. */

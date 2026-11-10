@@ -37,7 +37,7 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 
 Do not ask a question that `.ai/design/direction.md`, `DESIGN.md`, or `PRODUCT.md` already answers. Record the answer in the brief with its source. When a carried sketch answers a question, or shows the options of a question, give the sketch's local path and caption in the question text ([_carried.md](_carried.md) → The file is the source).
 
-The aesthetic questions are asked here, per surface. `setup` and `teach` do not ask them.
+The aesthetic questions are asked here, per surface. The record interview (`/wf design record`) does not ask them.
 
 - **Design mode of each surface**: Persuade, Operate, Read, or Experience ([_design-context.md](_design-context.md) → Design modes). Choose one per surface, not one per product.
 - **Three brand words** for this surface: three concrete, physical-object words. Not "modern" or "clean".
@@ -88,7 +88,7 @@ Which reference docs from `skills/wf/reference/design/` should be loaded for imp
 - `colorize.md` — if significant color work
 - `layout.md` — if layout-heavy
 - `harden.md` — if accessibility is a concern
-- `optimize.md` — if performance is a concern
+- `adapt.md` — if the surface targets a phone, a native platform or a desktop window
 
 **Mirror this list as a `recommended-references:` array in `02b-design.md`'s YAML frontmatter** so `/wf implement` can resolve it deterministically:
 
@@ -131,3 +131,8 @@ When `shape` runs this procedure (`../shape.md` Step 5a):
 - Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
   the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors
   the visual contract `02c-craft.md`.
+
+When the design stage runs this procedure ([stage.md](stage.md) Step 2):
+- Ask the discovery round there, in one batch, with the open items of the design record.
+- Write the same draft and put it the same way. Leave the index as it is.
+- Return to the stage at its Step 3. The brief gets no chat return of its own: the first stop message of the stage names the direction that the brief records.

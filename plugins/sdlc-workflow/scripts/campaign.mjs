@@ -294,7 +294,7 @@ export function designBlock(root, slug) {
   const contract = recordFm(dir, '02c-craft.md');
   const missing = missingDesignFiles(root, dir, contract);
   if (!designSettled(index, contract, missing)) {
-    if (missing?.length) return `the approved ${namesScreens(contract) ? 'screens' : 'boards'} are missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
+    if (missing?.length) return `the approval of the ${namesScreens(contract) ? 'screens' : 'boards'} does not stand: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
     return `the design is not settled; run /wf design ${slug} with the person`;
   }
   const skipped = index.progress && typeof index.progress === 'object' && index.progress.design === 'skipped';

@@ -1,191 +1,132 @@
-Polish refines. It never hides a redesign. Keep the established world, content, behavior and everything outside scope. When the concept is wrong, say so and recommend `bolder` or an amend.
+Polish refines the details of a design that is already right. It does not hide a redesign. Keep the established world, content, behavior and everything outside scope. When the concept is wrong, say so, and recommend `bolder` or an amend.
+
+Every value in this file that names a number is a default for a project whose tokens do not yet hold it. A token of `DESIGN.md` overrides it. The limits that no token overrides are in [_craft-floor.md](_craft-floor.md).
 
 ---
 
 ## Design mode
 
-Persuade and Experience: the details are surprising in their specificity. A hover state that is more than a color change. A transition that has character. The 10% of decisions that make someone ask "who made this?"
-
-Operate: the interface behaves exactly as a skilled user expects. No surprises, no missing state, no rough edges. Polished Operate UI is invisible in the best way.
-
-Read: a calm column. Wayfinding stays consistent. Code, tables and notes use known forms.
+| Mode | Polished means |
+|---|---|
+| Persuade and Experience | The details are specific to this product: a hover state that is more than a color change, a transition with character. |
+| Operate | The interface behaves as a skilled user expects. No surprise, no missing state, no rough edge. |
+| Read | A calm column. Wayfinding stays consistent. Code, tables and notes use known forms. |
 
 ---
 
 ## Establish the system
 
-1. Read DESIGN.md, the tokens, the shared components and the neighboring flows.
+1. Read `DESIGN.md`, the tokens, the component library and the neighboring flows.
 2. Classify each drift before you fix it:
-   - **missing token** — the system needs a reusable value;
-   - **one-off** — a shared component or pattern should replace it;
-   - **conceptual mismatch** — the flow, structure or hierarchy differs from comparable areas;
-   - **local defect** — the build is incomplete or inconsistent.
+
+   | Drift | Meaning | Fix at |
+   |---|---|---|
+   | Missing token | The system needs a value that it does not hold | `DESIGN.md`: add the role |
+   | One-off | A shared component or pattern should replace it | The component library |
+   | Conceptual mismatch | The flow, structure or hierarchy differs from comparable areas | The screen; say so when it is a redesign |
+   | Local defect | The screen is incomplete or inconsistent | The screen |
+
 3. Fix the cause at the narrowest correct level.
 4. When a system principle is not clear, ask the person. Do not guess.
 
-## Gather evidence
-
-- Use the feature yourself at representative sizes and on each device class it ships to.
-- Find the quality bar, the constraints and the work left unfinished on purpose.
-- When a critique note exists in `design-notes/`, use it as one input. Do your own pass too.
-
 ## Triage
 
-Fix in this order:
-1. Broken tasks, data loss, misleading state and inaccessible paths.
+Fix in this order. Do not perfect one corner while the rest is below the bar.
+1. Broken tasks, misleading state and inaccessible paths.
 2. Missing states.
-3. Flow, hierarchy, responsive and system drift.
-4. Visual and motion inconsistency.
-5. Code and asset cleanup.
+3. Drift in flow, hierarchy, responsive structure and system.
+4. Inconsistency of detail and motion.
 
-Do not perfect one corner while the rest is below the bar.
+## The details
 
-## Flow and hierarchy
+**Type.** The rules are in [typeset.md](typeset.md): tracking at display sizes, line height by role, line breaks, tabular numerals. Use real quotation marks and apostrophes in the copy. Hang the opening quotation mark of a block quote outside the text edge ([_platforms.md](_platforms.md) → hanging punctuation).
 
-- Match the terms, the disclosure and the save behavior of neighboring flows.
-- Make the primary task and the current state obvious. Do not flatten every element to equal weight.
-- Connect the arrival, empty and recovery paths. They are not isolated screens.
+**Spacing.** Every spacing value is a step of the spacing tokens ([layout.md](layout.md) → The spatial system). A value that fits no step is a symptom: find the step that was meant. Check that padding asymmetry in a component is intended. Align an icon to the cap height of its label, not to the line box.
 
-## What polish addresses
+**Color.** Every color is a token ([_craft-floor.md](_craft-floor.md) rule 11). Replace a raw value with its token. Both themes read the same roles.
 
-Polish is not a single category of change — it is attention to the full surface of the design. Work through each dimension:
+**States.** Every control has the states of [_craft-floor.md](_craft-floor.md) rule 14. A disabled control looks inactive and is not interactive. A loading skeleton matches the shape of the content that replaces it. The `empty` state follows [onboard.md](onboard.md), and the `worst` state follows [_worst-case.md](_worst-case.md).
 
-### Typographic fine-tuning
-- Heading tracking: display sizes (48px+) benefit from negative tracking (−0.02 to −0.04 em)
-- Body line height: 1.6–1.75 for long-form, 1.4–1.5 for dense UI text
-- Optical size adjustments: lighter weight for large type, slightly heavier for very small labels
-- Smart quotes and proper apostrophes in user-facing copy
-- Hang the opening quotation mark of a block quote outside the text edge: **hanging punctuation** ([_platforms.md](_platforms.md))
-- Control line breaks per [typeset.md](typeset.md) → Line breaks
-- Test measure, wrapping, translation length, zoom and font loading at every supported width
+**Transitions.** A state change that passes the gates of [animate.md](animate.md) has a transition from the motion tokens. A state change that fails the gates stays instant. Do not add motion to make polish visible.
 
-### Spacing consistency
-- All spacing values should be multiples of the base unit (4px or 8px)
-- Find and fix one-off values that break the system (13px, 17px, 22px are symptoms)
-- Padding asymmetry in components: check that it is intentional
-- Icon/label alignment: icons should align to the text cap-height, not the line-height box
+**Consistency.** One icon size as the baseline of the surface. One radius family. One shadow per depth tier, not one per component. The same padding on the same kind of button.
 
-### Color refinement
-- Every color comes from a token. Replace a hard-coded value with its token.
-- Tint a neutral toward the brand hue only when it creates cohesion. A plain neutral is valid.
-- Ensure dark-mode variants use the same token system, not separate hard-coded values
+### Shape
 
-### State completeness
+- Take each radius from the shape tokens of `DESIGN.md`. The direction decides whether corners are square, soft or round; this file does not.
+- **Concentric radius.** When one rounded surface sits inside another, the outer radius equals the inner radius plus the padding between them. Equal radii on a padded parent and child look wrong. Past about 24 units of padding, treat the two as separate surfaces and choose each radius alone.
 
-Every interactive element needs all its states. Audit the following for each interactive component:
-- Default
-- Hover
-- Focus (with visible focus ring meeting 3:1 contrast)
-- Active / pressed
-- Disabled (reduced opacity is the minimum — better to also reduce interactivity)
-- Loading (for async actions — button should show spinner or loading state)
-- Error (for inputs)
-- Success (for an action that completes)
-
-### Transition quality
-- Animate only the state changes that pass the frequency gate in `animate.md` — no instant property switches on those (except `display`)
-- Transition property should be specific, not `all` (avoid accidental transitions)
-- ease-out for entering and leaving elements; never ease-in on UI
-- Duration: use the timing table in `animate.md`
-- For the motion mechanics behind these — curve tokens, retargetable animations, icon/enter-exit choreography, gesture physics — see `animate.md` (this directory); platform forms are in `_platforms.md`
-- Do not add motion only to make polish visible.
-
-Every animation honors the reduced-motion setting: fewer and gentler motion, not zero.
-
-### Empty and loading states
-- Empty states should explain what will appear here and give the user a path forward
-- Loading skeletons should match the shape of the content they're replacing
-- Error states should be specific and actionable
-- Load worst-case content per [harden.md](harden.md) §11.
-
-### Detail moments
-- Icon sizing consistent across the surface (16px, 20px, or 24px — pick one as the baseline)
-- Button padding: minimum 8px vertical, 12px horizontal for standard buttons
-- Border radius consistent across similar components
-- Shadow levels consistent (if using elevation system: one shadow per elevation tier, not per component)
-- System parts carry the design: text selection, caret, scrollbar, focus ring, link underline, table numerals. Theme their color. Never change their behavior. See **system-part colors** in [_platforms.md](_platforms.md).
-
-### Concentric border radius
-When nesting rounded surfaces, the outer radius must equal the inner radius plus the padding between them: `outerRadius = innerRadius + padding`. Equal radius on a padded parent and child is the single most common thing that makes a UI feel "off." (When padding exceeds ~24px, treat the layers as separate surfaces and pick radii independently.)
-
-```tsx
-// Web:
-<div className="rounded-2xl p-2"><div className="rounded-lg"> … </div></div>  {/* 16px outer, 8px inner = 16 − 8 ✓ */}
+```css
+/* Web: 8 px inner radius, 8 px padding, so 16 px outer radius. */
+.panel { border-radius: 16px; padding: 8px; }
+.panel > .item { border-radius: 8px; }
 ```
 
 ### Optical alignment
-When geometric centering looks off, align optically: icon-side button padding ≈ text-side − 2px; shift play-triangles ~2px right (the geometric center is not the visual center); fix asymmetric icons (stars, carets) in the icon's own drawing where possible.
 
-### Shadows over borders (for depth)
-For buttons, cards, and containers that use a border for *elevation*, prefer a layered transparent shadow — it adapts to any background; a solid border does not. Keep real dividers, table boundaries, and input outlines as borders.
+When geometric centering looks off, align by eye, and inspect the rendered result first. An icon beside a label takes about 2 units less padding on the icon side. A play triangle moves about 2 units toward its point. Fix a lopsided glyph (a caret, a star) in the icon itself.
+
+### Depth
+
+Depth is a token role of `DESIGN.md`, like color. A screen and a component use a shadow, a ring and an image outline through `var()`, and `wf.mjs design check` fails a raw color in a `box-shadow` or an `outline`.
+
+- One surface declares its elevation once, with one depth token ([_craft-floor.md](_craft-floor.md) rule 23). A depth token may hold a hairline ring and a shadow together as one value. A separate border under a wide soft shadow is the fault.
+- A border fits an edge that separates: a divider, a table boundary, an input outline. A shadow fits elevation, because it adapts to any ground behind it.
+- In a dark theme, show elevation with a lighter surface for each higher layer. A shadow does not read on a dark ground; a neutral ring can mark the edge.
+- An image takes a 1-unit outline inside its edge, so that a pale image does not bleed into the ground. Its color is a neutral: black or white at low opacity. A tinted outline picks up the color of the surface and reads as dirt.
+
+With no depth tokens, start from these defaults, and write them into `DESIGN.md` as depth roles. Change them to fit the direction: a flat direction may hold borders only.
 
 ```css
-/* Web: */
---shadow-border: 0 0 0 1px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06), 0 2px 4px 0 rgba(0,0,0,0.04); /* light: ring + lift + ambient */
---shadow-border-hover: 0 0 0 1px rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.08), 0 2px 4px 0 rgba(0,0,0,0.06); /* hover: deepen ring + lift */
-/* dark: a single white ring — layered depth isn't visible on dark backgrounds */
---shadow-border: 0 0 0 1px rgba(255,255,255,0.08);
---shadow-border-hover: 0 0 0 1px rgba(255,255,255,0.13);
-```
-Transition the shadow (≈150ms ease-out) between the resting and hover variants for a smooth lift on hover/focus.
+/* Web defaults for the depth roles. tokens.css holds them; a page uses var(). */
+--depth-1: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.04);
+--depth-1-hover: 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08), 0 2px 4px rgb(0 0 0 / 0.06);
+--image-outline: rgb(0 0 0 / 0.1);            /* dark theme: rgb(255 255 255 / 0.1) */
 
-### Image outlines
-Give images a subtle 1px inset outline for consistent depth — but the color must be **pure** black at 10% in light mode or **pure** white at 10% in dark. Never a near-black/near-white from the palette or the brand accent: a tinted outline picks up the surface color and reads as dirt on the edge. Draw it inside the image edge so it does not affect layout.
-
-```tsx
-// Web:
-<img className="outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10" />
+.card { box-shadow: var(--depth-1); }
+img { outline: 1px solid var(--image-outline); outline-offset: -1px; }
 ```
 
-### Minimum hit area
-Give every touch target the platform's **minimum hit area** ([_platforms.md](_platforms.md)). When the visible control is smaller (a 20px checkbox, a small icon button), extend the hit area around its center — but never let two interactive elements' hit areas overlap.
+### Hit area and system parts
 
-```tsx
-// Web:
-<button className="relative size-5 after:absolute after:top-1/2 after:left-1/2 after:size-10 after:-translate-1/2">
-```
-
-## Content and code
-
-- Keep terms, capitals and punctuation consistent.
-- Ask before you change a factual claim.
-- Remove debug output, dead code, unused imports and obsolete styles.
-- Replace a custom part with the shared component when the system owns the pattern.
-- Do not create a token for one local exception.
-
-## Validate
-
-Run through the surface looking for:
-- Any state that is missing from an interactive element
-- Any spacing value that does not fit the system
-- Any color that does not come from a token
-- Any transition that is instant where it should be animated
-- Any nested rounded surface where the radii are not concentric
-- Any image with a tinted (non-pure-black/white) outline
-- Any touch target under the platform's minimum hit area without an extended hit area
-- Anything that does not match across similar components
-
-Then walk the full path again:
-1. Use mouse, keyboard and touch where the surface supports them.
-2. Check zoom, focus and screen-reader names.
-3. Check runtime errors, layout shift and input response.
-4. Check agreement with DESIGN.md and with the scope.
-5. Run the Verify list of [_craft-floor.md](_craft-floor.md).
-6. End with a diff review. Remove accidental changes and temporary files.
+- The hit area of each control follows [harden.md](harden.md) → Touch targets.
+- The system parts carry the palette ([_craft-floor.md](_craft-floor.md) rule 27; [_platforms.md](_platforms.md) → system-part colors).
 
 ## Never
 
-- Micro-polish without macro-structure (fixing hover states on a broken layout)
-- Reinventing the behavior of a system part
-- Polishing for visual complexity rather than functional completeness
+- Detail on a broken structure: a hover state on a layout that does not hold.
+- A new behavior for a system part.
+- Visual complexity in place of completeness.
 
 ## In the workflow
 
-This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
-Focus: finishing detail. Checks: the triage and the Validate list. Notes record: each drift and its class, the triage order, the fix, and the checks that code alone cannot settle.
+This file is a move. [_lane.md](_lane.md) → Moves says when each use runs. A note follows [_output.md](_output.md).
+
+### At the design stage
+
+The move changes the details of the screens and of the component library: the missing states, the values that fit no token, the radii, the depth tokens, the alignment, and the consistency of similar components. The contract records each drift with its class and its fix.
+
+### As a pass on an approved design
+
+The pass changes nothing. Walk each screen in each viewport and state. Write each answer as a finding with its screen key or `file:line`, its drift class and the fix.
+1. Which control lacks a state of floor rule 14?
+2. Which spacing, radius or depth value fits no token?
+3. Which nested rounded surfaces are not concentric?
+4. Which surface declares elevation twice, and which image has a tinted outline or none?
+5. What differs between two components of the same kind?
+6. Does the Verify list of [_craft-floor.md](_craft-floor.md) hold?
+7. When a critique exists (`07-design-critique.md`), which of its findings are details? Use it as one input, and do your own pass too.
+
+### In implement
+
+- Replace a custom part with the shared component when the system owns the pattern.
+- Keep terms, capitals and punctuation as the approved screens have them. Ask before you change a factual claim.
+- Use the feature at each viewport with the mouse, the keyboard and touch. Check zoom, focus, the names that a screen reader speaks, runtime errors, layout shift and input response.
+- Remove debug output, dead code, unused imports and obsolete styles.
+- End with a review of the diff. Remove accidental changes and temporary files.
 
 ---
 
-> *The concentric-radius, optical-alignment, shadows-over-borders, image-outline, and hit-area details here are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under MIT license.*
+> *The concentric-radius, optical-alignment, shadows-over-borders, image-outline and hit-area details here are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under MIT license.*
 >
 > *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

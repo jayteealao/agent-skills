@@ -15,7 +15,7 @@ import { closeWorkflow } from '../../lib/closing.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
 import { runChecks } from '../../lib/design-check.mjs';
-import { designHandler } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, designHandler, writeToken } from '../../lib/design-server.mjs';
 import { canvasState } from '../../lib/design-state.mjs';
 import { addScreen, initSurface, readManifest, screenFile } from '../../lib/design-surface.mjs';
 import { approvedPages, dropRounds, listVersions, restoreVersion, saveApproved, saveRound, versionDir, versionDrift, versionName } from '../../lib/design-versions.mjs';
@@ -203,13 +203,39 @@ test('the server shows a version, falls back to the surface, and restores only b
     assert.deepEqual((await (await fetch(`${base}/state.json`)).json()).versions.w1.approved.map((v) => v.id), ['v1']);
 
     const post = (headers, body) => fetch(`${base}/versions/w1/restore`, { method: 'POST', headers, body: JSON.stringify(body) });
-    assert.equal((await post({ 'content-type': 'text/plain' }, { id: 'v1' })).status, 403);
-    assert.equal((await post({ 'content-type': 'application/json', origin: 'http://evil.test' }, { id: 'v1' })).status, 403);
-    assert.equal((await post({ 'content-type': 'application/json' }, { id: 'v9' })).status, 400);
-    const ok = await post({ 'content-type': 'application/json' }, { id: 'v1' });
+    const canvas = { 'content-type': 'application/json', origin: `http://127.0.0.1:${server.address().port}`, [WRITE_HEADER]: writeToken() };
+    assert.equal((await post({ ...canvas, 'content-type': 'text/plain' }, { id: 'v1' })).status, 403);
+    assert.equal((await post({ ...canvas, origin: 'http://evil.test' }, { id: 'v1' })).status, 403);
+    assert.equal((await post({ 'content-type': 'application/json' }, { id: 'v1' })).status, 403, 'no origin and no token');
+    const none = await post(canvas, { id: 'v9' });
+    assert.equal(none.status, 400);
+    assert.equal((await none.json()).fix.who, 'agent', 'a version that does not exist is a mistake of the sender');
+    const ok = await post(canvas, { id: 'v1' });
     assert.equal(ok.status, 200);
     assert.equal((await ok.json()).restored, 'v1');
     assert.match(readFileSync(screenFile(root, 'basket'), 'utf8'), /old page/);
+
+    // A version that lost a page says so. The page of today never stands in for it, and a
+    // restore of that version changes nothing.
+    edit(root, 'basket', 'page of today');
+    rmSync(join(versionDir(root, 'w1', 'v1'), 'screens', 'basket.html'));
+    const lost = await fetch(`${base}/versions/w1/v1/screens/basket.html`);
+    assert.equal(lost.status, 404);
+    // The answer is JSON, never a page: the canvas tells a missing page by its content type.
+    assert.match(lost.headers.get('content-type'), /^application\/json/);
+    const why = await lost.json();
+    assert.equal(why.ok, false);
+    assert.match(why.reason, /v1 of w1 holds no such page/);
+    const gone = await fetch(`${base}/at/abcdef1/screens/basket.html`);
+    assert.deepEqual([gone.status, gone.headers.get('content-type').split(';')[0]], [404, 'application/json'], 'a page that a commit does not hold');
+    const said404 = JSON.stringify([why, await gone.json()]);
+    assert.ok(!said404.includes(root) && !said404.includes(root.replace(/\\/g, '\\\\')), 'no folder of this computer');
+    const half = await post(canvas, { id: 'v1' });
+    assert.equal(half.status, 400);
+    const said = await half.text();
+    assert.match(said, /lacks the page of basket in the records: nothing was restored/);
+    assert.ok(!said.includes(root) && !said.includes(root.replace(/\\/g, '\\\\')), 'no folder of this computer goes to the client');
+    assert.match(readFileSync(screenFile(root, 'basket'), 'utf8'), /page of today/);
   } finally { server.close(); done(); }
 });
 

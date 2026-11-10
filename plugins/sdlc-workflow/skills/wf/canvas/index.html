@@ -9,40 +9,45 @@
 <body>
 <header class="bar">
   <h1 id="repo">Design canvas</h1>
-  <div class="seg" role="group" aria-label="Layout">
+  <div class="seg" role="group" aria-label="Group the screens by">
     <button type="button" data-view="grid" class="on" aria-pressed="true">Areas</button>
     <button type="button" data-view="flow" aria-pressed="false">Flows</button>
     <button type="button" data-view="slice" aria-pressed="false">Slices</button>
   </div>
-  <label class="search"><span class="sr">Search screens</span><input id="q" type="search" placeholder="Search screens"></label>
+  <label class="search"><span class="sr">Search screens</span><input id="q" type="search" placeholder="Search screens" aria-describedby="shown"></label>
+  <span id="shown" class="shown" hidden></span>
   <details class="filters" id="filters">
     <summary>Filter <span id="fcount" class="count" hidden></span></summary>
     <div class="pop">
       <label>Area <select id="area"><option value="">All</option></select></label>
       <label>Workflow <select id="workflow"><option value="">All</option></select></label>
-      <label class="chk"><input type="checkbox" id="open"> Only screens with open comments</label>
-      <label class="chk"><input type="checkbox" id="failing"> Only screens with failing checks</label>
+      <label class="chk"><input type="checkbox" id="waiting" aria-label="Only screens that wait for your decision"> Only screens that wait for your decision</label>
+      <label class="chk"><input type="checkbox" id="fresh" aria-label="Only screens changed since your last visit"> Only screens changed since your last visit</label>
+      <label class="chk"><input type="checkbox" id="open" aria-label="Only screens with open comments"> Only screens with open comments</label>
+      <label class="chk"><input type="checkbox" id="failing" aria-label="Only screens with failing checks"> Only screens with failing checks</label>
     </div>
   </details>
   <button type="button" id="trace" class="chip" hidden></button>
-  <button type="button" id="health" class="health" data-panel="health" aria-haspopup="dialog">Review</button>
+  <button type="button" id="health" class="health" data-panel="health" aria-expanded="false" aria-controls="panel"><b>Review</b><span id="hcounts"></span></button>
 </header>
+<div id="notice" role="status"></div>
 <main id="stage" aria-label="Screens">
-  <div id="board"><svg id="edges" aria-hidden="true"></svg></div>
+  <div id="board"><svg id="edges" aria-hidden="true"></svg><p class="empty" id="loading">Loading the screens…</p></div>
 </main>
 <div class="dock" role="toolbar" aria-label="View">
   <label class="pick"><span class="sr">Viewport</span><select id="viewport"></select></label>
   <label class="pick" id="version-pick" hidden><span class="sr">Version</span><select id="version"></select></label>
   <div class="seg states" id="states" role="group" aria-label="State"></div>
-  <button type="button" id="arrange" class="btn quiet" hidden>Arrange</button>
+  <label class="pick" id="state-pick"><span class="sr">State</span><select id="state"></select></label>
+  <span id="arrange" class="arrange" hidden></span>
   <div class="zoom" role="group" aria-label="Zoom">
     <button type="button" id="zout" aria-label="Zoom out">−</button>
-    <output id="zval">100%</output>
+    <output id="zval" aria-label="Zoom">100%</output>
     <button type="button" id="zin" aria-label="Zoom in">+</button>
-    <button type="button" id="zfit">Fit</button>
+    <button type="button" id="zfit" aria-label="Fit every screen in the window">Fit</button>
   </div>
 </div>
-<aside id="panel" hidden aria-live="polite"></aside>
+<aside id="panel" hidden aria-label="Review"></aside>
 <div id="focus" hidden role="dialog" aria-modal="true" aria-label="Screen"></div>
 <div id="status" role="status"></div>
 <script src="/canvas/canvas.js"></script>

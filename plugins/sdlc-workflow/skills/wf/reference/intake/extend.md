@@ -171,7 +171,7 @@ This is the one step that writes `00-index.md`: every earlier step only computed
 4. **Point the forward pointers at the new work.** Without this, `/wf status` and the resume point at a slice that is already done.
    - Set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`.
    - When `00-index.md` records `origin-packet`, set `next-invocation: "/wf campaign <source-slug>"` instead: the walk runs the driver on the new slice.
-   - On a design delta of Step 3c, instead raise `ux-impact`, and set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new boards) and `progress.design: in-progress`. With no `02c-craft.md`, set `"/wf design <slug>"`, and leave `progress.design`.
+   - On a design delta of Step 3c, instead raise `ux-impact`, and set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new screens) and `progress.design: in-progress`. With no `02c-craft.md`, set `"/wf design <slug>"`, and leave `progress.design`.
    - When `03-slice.md` has `best-first-slice` and every earlier slice is complete or skipped, set it to the first new slice.
 5. **Revive a complete or closed parent.** Extension means the workflow has live work again. When `status` is `complete` or `closed`, set `status: active` and `current-stage: slice`. Leave `close-reason` and `closed-at` in place as history: the revival is visible, not erased.
 

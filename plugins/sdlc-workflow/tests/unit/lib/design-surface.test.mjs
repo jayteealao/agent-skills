@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addScreen, initSurface, linksOf, listScreens, readDesignRepos, readManifest, screenTemplate, setAreas, statesOf, tokensFromDesign, trackSurface } from '../../../lib/design-surface.mjs';
+import { addScreen, initSurface, linksOf, listScreens, manifestFault, readDesignRepos, readManifest, screenTemplate, setAreas, statesOf, tokensFromDesign, trackSurface } from '../../../lib/design-surface.mjs';
 import { addComment, commentsBrief, openThreads } from '../../../lib/design-records.mjs';
 
 const PLUGIN_ROOT = join(import.meta.dirname, '..', '..', '..');
@@ -43,11 +43,35 @@ test('init tracks .ai/design/ in a repo that ignores .ai/, and registers the rep
   } finally { done(); }
 });
 
+test('a manifest that does not read is never written over, and its fault is named', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', {});
+    assert.equal(manifestFault(root), null);
+    const file = join(root, '.ai', 'design', 'screens.json');
+    const broken = `<<<<<<< HEAD\n${readFileSync(file, 'utf8')}=======\n{}\n>>>>>>> other\n`;
+    writeFileSync(file, broken);
+    assert.match(manifestFault(root), /screens\.json is not JSON \(it holds the marks of a merge conflict\)/);
+    assert.deepEqual(readManifest(root).screens, {}, 'a reader gets an empty manifest and does not fail');
+    assert.throws(() => addScreen(root, 'pay', {}), (e) => e.name === 'Refusal' && /Nothing was changed/.test(e.message) && e.fix?.who === 'agent');
+    assert.equal(readFileSync(file, 'utf8'), broken, 'the file is as it was');
+    assert.equal(initSurface(root).created, false);
+    assert.equal(readFileSync(file, 'utf8'), broken, 'init does not replace it');
+    writeFileSync(file, '[]');
+    assert.match(manifestFault(root), /holds no JSON object/);
+  } finally { done(); }
+});
+
 test('a screen has the five states and links; the list filters one workflow', () => {
   const { root, done } = repo();
   try {
     initSurface(root);
     assert.deepEqual(statesOf(screenTemplate('a', 'A')), ['default', 'empty', 'loading', 'error', 'worst']);
+    // The style sheet of the template names every state. A page that keeps it and one section has one state.
+    const one = screenTemplate('a', 'A').replace(/\s*<section data-state="(?!default)[\s\S]*?<\/section>/g, '');
+    assert.deepEqual(statesOf(one), ['default']);
+    assert.deepEqual(statesOf('<!-- <p data-state="empty"> --><div class="x" data-state="default error">'), ['default', 'error']);
     assert.deepEqual(linksOf('<a href="cart.html?state=empty">x</a><a href="./pay.html">y</a><a href="https://x.html">z</a>'), ['cart', 'pay']);
     addScreen(root, 'basket', { title: 'Basket', area: 'checkout', flow: 'buy', order: 1, workflow: 'w1' });
     addScreen(root, 'pay', { title: 'Pay', area: 'checkout', flow: 'buy', order: 2, workflow: 'w2' });

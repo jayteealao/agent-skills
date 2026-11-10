@@ -1,51 +1,39 @@
-Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md, and the `.ai/design/` record ([record.md](record.md)) — the context anchors that the design stage and every design duty read before doing work.
+# The design record interview (`design/setup.md`)
 
 Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
 
-**Run this once per project before the first design stage.** The design stage runs it for you when PRODUCT.md is missing. `extract` needs no prior context. Running the design stage without context produces generic output that ignores the project.
+`/wf design record [instructions]` writes or completes the design record of the project: `PRODUCT.md`, `DESIGN.md`, `.ai/design/current.md` and `.ai/design/direction.md` ([record.md](record.md)). The words `setup` and `teach` reach the same interview. The design stage runs it when `PRODUCT.md` is missing or empty ([stage.md](stage.md) Step 1).
 
-## What gets created
+One rule sets the size of the interview: ask only what is missing. On a new project, that is most of the groups below. On a project with a record, it is the sections that are missing, empty, marked `[TODO]`, or that the instructions name.
 
-**PRODUCT.md** (required): Users, purpose, positioning, operating context, capabilities and constraints, brand commitments, evidence on hand, strategic principles.
-**DESIGN.md** (optional, strongly recommended): Overview, colors and token roles, typography, layout, elevation and depth, shapes, components, do's and don'ts.
-**`.ai/design/current.md` and `.ai/design/direction.md`**: the current design and the design goals, per [record.md](record.md).
+`PRODUCT.md` holds product facts only. The aesthetic questions (brand words, tone, references) belong to the design brief, per surface: `shape` asks them ([brief.md](brief.md)). Do not ask for an aesthetic direction, colors, type or style here. When the person gives a binding visual constraint, record it under `## Brand Commitments` as given.
 
-PRODUCT.md holds product facts only. The aesthetic questions (brand words, tone, references) belong to the design brief, per surface: `shape` asks them ([brief.md](brief.md)). Do not ask for an aesthetic direction, colors, type or style here. When the person gives a binding visual constraint, record it under `## Brand Commitments` as given.
+## Step 1 — Find what is missing
 
-## Step 1: Discovery interview
+1. Read `PRODUCT.md`, `DESIGN.md` and the two `.ai/design/` files, when they exist. Search the project root first, then `.agents/context/`, then `docs/`.
+2. List each section that is missing, empty or marked `[TODO]`, and each section that the instructions name. A section marked `<!-- intentionally omitted -->` is complete: the person skipped it, and it is not asked again unless the instructions name it.
+3. For each listed section, search the prompt of the person, the four files and the code for an answer. When a source answers, keep the answer and its source, and do not ask.
+4. Read the surfaces of the product from the code: the pages, the views and the reusable components, with their paths. `## Surfaces` of `current.md` needs them.
 
-Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
+Apply the Release valve of [../_autonomy-guards.md](../_autonomy-guards.md).
 
-1. For each question in the groups below, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
-2. When a source answers a question, record the answer and the source. Do not ask that question.
-3. Ask the unanswered questions in one batched round. Then stop and wait for the answers.
-4. When no unanswered questions remain, skip the round and continue to Step 2.
+## Step 2 — Ask one round
 
-### Group 1: Purpose and position
-- What is this product/site for? Who uses it?
-- What does the product make possible? What mechanism or position could a neighboring product not truthfully copy?
+Ask the unanswered questions in one batched round per [_gate-question.md](../_gate-question.md), then wait. When nothing is unanswered, skip the round.
 
-### Group 2: Users and context
-- Who are the primary users? What's their context and expertise level?
-- Where and how do people use or evaluate the product: workflows, environments, tools, documents?
+| Group | Questions | Fills |
+|---|---|---|
+| Purpose and position | What is the product for, and who uses it? What does it make possible that a neighboring product could not truthfully claim? | `## Product Purpose`, `## Positioning` |
+| Users and context | Who are the primary users, in what context, with what expertise? Where and how do people use or evaluate the product? | `## Users`, `## Operating Context` |
+| Brand commitments and evidence | Which name, logo, palette, type or voice must future work keep? What real content, data, testimonials or case studies exist, and which do not exist yet? | `## Brand Commitments`, `## Evidence on Hand` |
+| Constraints | Which technical constraints hold (a CSS framework, a component library)? Which design documents exist (a design file, brand guidelines, tokens)? What is off-limits? | `## Capabilities and Constraints` |
+| Goals and direction | What should the design achieve in the next few releases? Where does it go after that? Which parts of the current design are wrong or out of date? | `## Goals`, `## Future direction`, `## Design debt` |
 
-### Group 3: Brand commitments and evidence
-- Are there existing brand assets (name, logo, color palette, type choices, voice) that future work must keep?
-- What real content, data, demonstrations, testimonials, or case studies exist? Which do not exist yet?
+When the person skips a question, mark its section `<!-- intentionally omitted -->`. Do not write `[TODO]` for a skipped question: a `[TODO]` is a gap that nobody was asked about yet.
 
-### Group 4: Constraints
-- Any technical constraints? (Must use Tailwind? Specific component library? CSS-in-JS?)
-- Any existing design documentation? (Figma file, brand guidelines PDF, design tokens?)
-- Anything else that's off-limits or important to know?
+## Step 3 — Write `PRODUCT.md`
 
-### Group 5: Goals and direction
-- What should the design achieve in the next few releases? Name two or three goals.
-- Where do you expect the design to go after that? (New surfaces, a new audience, a rebrand, a design system?)
-- Which parts of the current design do you already know are wrong or out of date?
-
-## Step 2: Write PRODUCT.md
-
-Write to `PRODUCT.md` in the project root. Write only confirmed facts and open decisions marked as open. Omit a section that does not apply.
+Write `PRODUCT.md` in the project root. Write only confirmed facts, and open decisions marked as open. When the file exists, change only the sections of this run, and keep the others. Never write a value that no source gives.
 
 ```markdown
 # Product
@@ -75,11 +63,13 @@ Write to `PRODUCT.md` in the project root. Write only confirmed facts and open d
 [Two to four durable principles on priorities and trade-offs. No visual recipes.]
 ```
 
-Do not write a `## Register` section: the design mode is chosen per surface ([_design-context.md](_design-context.md) → Design modes). An older PRODUCT.md keeps its legacy sections (Register, Brand Personality, Tone, references) until the person agrees to remove them.
+Do not write a `## Register` section: the design mode is chosen per surface ([_design-context.md](_design-context.md) → Design modes). An older `PRODUCT.md` keeps its legacy sections (Register, Brand Personality, Tone, references) until the person agrees to remove them. Report an old `## Register` one time as deprecated.
 
-## Step 3: Write DESIGN.md (if information available)
+## The DESIGN.md template
 
-Write to `DESIGN.md` in the project root. Write no frontmatter.
+Write `DESIGN.md` in the project root, with no frontmatter. When the file exists, change only the sections of this run. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). With no design information yet, write the headings and one line that says the design stage fills them.
+
+Give each role its own row, with one name in the Role cell: `wf.mjs design tokens` skips a row that holds several names, and says so.
 
 ```markdown
 # Design
@@ -113,7 +103,9 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 |---|---|---|---|
 | font-body | | | body text |
 | font-display | | | headings |
-| text-sm, text-md, text-lg | | | the type scale |
+| text-sm | | | small text |
+| text-md | | | body size |
+| text-lg | | | large text |
 
 ## Layout
 [The grid or spatial model, container behavior, density, responsive changes, and the spacing rhythm.]
@@ -121,7 +113,10 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 ### Token roles
 | Role | Token | Value | Used for |
 |---|---|---|---|
-| space-1, space-2, space-3, space-4 | | | the spacing scale |
+| space-1 | | | the smallest step of the spacing scale |
+| space-2 | | | the second step |
+| space-3 | | | the third step |
+| space-4 | | | the fourth step |
 
 ## Elevation & Depth
 [Shadows, tonal layers, or both. With no shadows, say how depth shows.]
@@ -137,30 +132,28 @@ Write to `DESIGN.md` in the project root. Write no frontmatter.
 ### Token roles
 | Role | Token | Value | Used for |
 |---|---|---|---|
-| radius-sm, radius-md | | | controls and panels |
+| radius-sm | | | controls |
+| radius-md | | | panels |
 
 ## Components
 [The component library, if any, and the icon library. For each main component (buttons, inputs, cards, navigation): its shape, color roles and states.]
 
 ## Do's and Don'ts
-[Concrete guardrails from the existing system or the person's choices. Start each with "Do" or "Don't".]
+[Concrete guardrails from the existing system or the choices of the person. Start each with "Do" or "Don't".]
 ```
 
-Give each role its own row: one name in the Role cell. `wf.mjs design tokens` skips a row with several names, and says so. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
+## Step 4 — Write the `.ai/design/` files
 
-## Step 3b: Write the `.ai/design/` record
+Write `.ai/design/current.md` and `.ai/design/direction.md` from the templates of [record.md](record.md). The goals group fills `## Goals` and `## Future direction`. The surfaces of Step 1 fill `## Surfaces`. The known problems fill `## Design debt`. Apply [record.md](record.md) → Floor guard to every write.
 
-Write `.ai/design/current.md` and `.ai/design/direction.md` from the templates in [record.md](record.md). Group 5 fills `## Goals` and `## Future direction`. List the surfaces the codebase inspection found under `## Surfaces`. Put the known problems from Group 5 under `## Design debt`. Apply [record.md](record.md) → Floor guard to every write.
+## Step 5 — Confirm in chat
 
-## Step 4: Confirm
+The person does not open the files. Send one message that holds the record in plain words:
 
-Present both files to the user for review. List each pre-filled answer with its source in the same message:
-> "I've created PRODUCT.md, DESIGN.md, and the `.ai/design/` record. Please review and confirm — or tell me what to update."
+1. One short paragraph for each part that changed: what it now says.
+2. Each answer that you took from a source, with the source.
+3. Each section that stays open, and why.
 
-Wait for confirmation. After confirmation, set `confirmed-by: setup` in `direction.md`. These files are the context anchors for every later design stage.
+Then ask one gate question: the record is right, or name a correction. On a correction, change the files and send the changed lines. After the confirmation, set `confirmed-by: record` in `direction.md`, when that file changed.
 
-## Notes
-
-- If PRODUCT.md already exists: read it first. Update rather than overwrite. Preserve any sections not covered by the interview.
-- If the user skips questions: write placeholder sections with `[TODO]` markers and note that the design stage asks again when it finds a `[TODO]` marker.
-- These files are project-level and should be committed to the repository.
+Chat return: the parts that changed, and the next step. When a design stage waits for the record, the next step is "Type `/wf design <slug>`." Otherwise it is `Done`. The four files are project files: the person commits them with the repo.

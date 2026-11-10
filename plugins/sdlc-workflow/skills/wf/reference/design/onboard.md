@@ -1,5 +1,3 @@
-> **Additional context needed**: the first-value moment, and the people's experience level.
-
 Design the onboarding, the empty states and the first-run experience of a feature or a product. These are the moments when people meet something new and decide to engage or to leave. Get people to first value fast. Onboarding does not teach the whole product. It brings people to the moment that proves the product is worth their time.
 
 ---
@@ -27,7 +25,7 @@ Find where people get stuck or leave today. Ask about the audience: their experi
 
 ## Empty states
 
-An empty state is a chance to teach, to guide or to delight. A "nothing here" screen misses it.
+An empty state is a chance to teach, to guide or to show personality. A "nothing here" screen misses it. The `empty` state of every screen draws it ([_surface.md](_surface.md)).
 
 ### What a good empty state does
 1. **It explains what will appear here.** Not "no data found" but "your saved items appear here".
@@ -51,13 +49,15 @@ Create your first project to track its progress with your team.
 ```
 
 ### Empty state types
+
+This list is the one list of empty-state types. Other files link here.
 - **First use** (the person never added content): welcome, teach, encourage.
 - **Cleared by the person** (the person removed everything): keep it light, make it easy to create again, do not teach again.
-- **Filtered empty** (a search or filter returned nothing): say that the filter is active, and offer to clear it.
+- **No results** (a search or an active filter returned nothing): say that the filter is active, and offer to clear it.
 - **Error empty** (the content failed to load): say what went wrong, and offer a retry.
 - **Permissions empty** (the person has no access): say why, and offer a path to request access.
 
-For the words of each state, apply [clarify.md](clarify.md).
+For the words of each state, apply [clarify.md](clarify.md). Make the next action clear first, and add personality after that: a first run and a first success are the moments of [animate.md](animate.md) → Moments.
 
 ## First-run experience
 
@@ -92,14 +92,9 @@ For the words of each state, apply [clarify.md](clarify.md).
 - Give sample data, so that each step works on real controls.
 - The person can replay the tour from help.
 
-### Remember progress
-- Record each finished or dismissed step.
-- Never show the first-run flow to a returning person again.
-- Never show a dismissed hint again.
-
 ## Motion in first-run
 
-A first run or an empty state is a rare moment: the frequency tier where a designed entrance is welcome. It never delays the first action. Split the reveal into semantic chunks (illustration, heading, description, action). Stagger the chunks 30–80 ms apart per [animate.md](animate.md) → Choreography. Combine opacity, a small offset and a light blur. Do not animate one container in. The action is reachable at once; never hold interaction behind the animation. A Persuade first run (a landing hero) can be cinematic. On an Operate surface, keep it to one quick staggered reveal. See [animate.md](animate.md) for the reduced-motion form.
+A first run or an empty state is a rare moment: the frequency tier where a designed entrance is welcome. It does not delay the first action, and the action is reachable at once. Split the reveal into semantic chunks (illustration, heading, description, action), and stagger them per [animate.md](animate.md) → Choreography. A Persuade first run (a landing hero) can be cinematic. On an Operate surface, keep it to one quick staggered reveal of opacity and a small offset.
 
 ## Never
 
@@ -118,18 +113,27 @@ A first run or an empty state is a rare moment: the frequency tier where a desig
 - Does the first run show value, or demand commitment?
 - Can a returning person reach their work with no onboarding in the way?
 
-## Measure
-
-Write these measures in the design note, with the place in the product that records each one:
-- the skip rate;
-- the completion rate;
-- the step where people drop off;
-- the time to first value.
-
 ## In the workflow
 
-This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
-Focus: first run and empty states. Checks: the Validate list. Notes record: the first-value definition, each empty state and its type, and the measures.
+This file is a move. [_lane.md](_lane.md) → Moves says when each use runs. A note follows [_output.md](_output.md).
+
+### At the design stage
+
+The move changes these things in the screens: the `empty` state of each screen, by its type; the first-run screens or the checklist, as a flow of linked screens; and each hint in the place where the person meets the feature. The contract records the first-value definition, each empty state with its type, and the onboarding pattern.
+
+### As a pass on an approved design
+
+The pass changes nothing. Answer the Validate list, then these questions. Write each "no" as a finding with its screen key.
+1. What is the one action that proves the value, and how many steps stand before it?
+2. Which type is each `empty` state, and does it say what will appear and give the action?
+3. Does any step demand commitment before it shows value?
+
+### In implement
+
+- Record each finished or dismissed step. Do not show the first-run flow, or a dismissed hint, to a returning person again.
+- Complete a checklist step automatically when the person does it in the product.
+- Give a guided tour sample data, so that each step works on real controls.
+- Record these measures, and name in the design note the place in the product that records each one: the skip rate, the completion rate, the step where people drop off, and the time to first value.
 
 ---
 

@@ -20,9 +20,11 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync,
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { commitSurface } from './design-approve.mjs';
-import { boardsRef, isInsidePath, parseBoardKey, readManifest as readBoards } from './design-boards.mjs';
-import { capturePicture } from './design-records.mjs';
-import { KEY_RE, MANIFEST_FILE, SURFACE_REL, SCREENS_DIR, initSurface, readManifest, screenFile, screenRel, surfaceDir, writeManifest } from './design-surface.mjs';
+import { boardsRef, esc, isInsidePath, parseBoardKey, posix, readManifest as readBoards } from './design-boards.mjs';
+import { changeManifest, word } from './design-components.mjs';
+import { capturePicture, commitDesignRecords } from './design-records.mjs';
+import { KEY_RE, MANIFEST_FILE, SURFACE_REL, SCREENS_DIR, initSurface, readManifest, screenFile, screenRel, surfaceDir } from './design-surface.mjs';
+import { agentFix, personFix, refuse } from './fix.mjs';
 import { frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir, workflowsRoot } from './records-root.mjs';
 
@@ -31,9 +33,7 @@ export const MIGRATED_FILE = 'migrated.json';
 export const MIGRATED_SCHEMA = 'sdlc/design-migrated/v1';
 const CONTRACT = '02c-craft.md';
 
-const posix = (p) => String(p).split('\\').join('/');
 const nowIso = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const legacyRel = (key) => `${SURFACE_REL}/${LEGACY_DIR}/${key}.png`;
 const migratedPath = (root) => join(surfaceDir(root), MIGRATED_FILE);
 
@@ -78,7 +78,7 @@ export function keyMap(boardKeys, slug, taken = new Map()) {
     const free = (key) => key && KEY_RE.test(key) && !used.has(key) && (!taken.has(key) || taken.get(key).includes(slug));
     const candidates = [short.get(screenKeyOf(g)).length === 1 ? screenKeyOf(g) : null, g.replace(/--/g, '-'), `${slug}-${g.replace(/--/g, '-')}`];
     const key = candidates.find(free);
-    if (!key) throw new Error(`no free screen key for the board ${g} of ${slug}`);
+    if (!key) throw refuse(`no free screen key for the board ${g} of ${slug}`, agentFix('Another screen holds each key that this board can take. Rename that screen with design screen rename, then run the migration again.'));
     used.add(key);
     byGroup[g] = key;
   }
@@ -157,16 +157,21 @@ export function relativeLinks(html) {
 /** The revisions of a workflow, in order: `[{ n, rel, dir, manifest }]`, and the working one last as n = null. */
 function revisionsOf(designDir) {
   const out = [];
+  // A manifest that does not read: the migration names it, and never leaves a revision out in silence.
+  const invalid = [];
+  Object.defineProperty(out, 'invalid', { value: invalid });
   if (!existsSync(designDir)) return out;
   for (const name of readdirSync(designDir)) {
     const m = /^r(\d+)$/.exec(name);
     if (!m || !statSync(join(designDir, name)).isDirectory()) continue;
     const { manifest, errors } = readBoards(join(designDir, name, 'boards.json'));
     if (manifest && !errors.length) out.push({ n: Number(m[1]), rel: `design/${name}/boards.json`, dir: join(designDir, name), manifest });
+    else invalid.push({ file: `design/${name}/boards.json`, error: errors[0] ?? 'it does not read' });
   }
   out.sort((a, b) => a.n - b.n);
   const working = readBoards(join(designDir, 'boards.json'));
   if (working.manifest && !working.errors.length && working.manifest.boards.length) out.push({ n: null, rel: 'design/boards.json', dir: designDir, manifest: working.manifest });
+  else if (existsSync(join(designDir, 'boards.json')) && (!working.manifest || working.errors.length)) invalid.push({ file: 'design/boards.json', error: working.errors[0] ?? 'it does not read' });
   return out;
 }
 
@@ -187,7 +192,8 @@ function boardSource(dir, board) {
 export function planWorkflow(root, slug, taken = new Map()) {
   const dir = workflowDir(root, slug);
   const revisions = revisionsOf(join(dir, 'design'));
-  if (!revisions.length) return { slug, skip: 'no boards' };
+  const invalid = revisions.invalid.map((x) => ({ ...x, file: `${slug}/${x.file}` }));
+  if (!revisions.length && !invalid.length) return { slug, skip: 'no boards' };
   const exports = [];
   const missing = [];
   for (const r of revisions) {
@@ -202,12 +208,33 @@ export function planWorkflow(root, slug, taken = new Map()) {
   const map = keyMap(revisions.flatMap((r) => r.manifest.boards.map((b) => b.key)), slug, taken);
   const ref = boardsRef(contract);
   const confirmed = ref ? revisions.find((r) => r.rel === ref) ?? null : null;
-  return { slug, revisions, map, contract, confirmed, exports, missing, ...(exports.length || missing.length ? { blocked: true } : {}) };
+  // A screen key that already holds a page of the surface: the migration never writes over it.
+  // A page that an earlier, stopped run of this migration wrote is its own, and is written again.
+  const conflicts = [];
+  const own = new RegExp(`<meta\\s+name=["']wf:(?:legacy|migrated-from)["']\\s+content=["']${slug}/`, 'i');
+  for (const key of [...new Set(Object.values(map))].sort()) {
+    const file = screenFile(root, key);
+    if (!existsSync(file)) continue;
+    let text = '';
+    try { text = readFileSync(file, 'utf8'); } catch { text = ''; }
+    if (own.test(text)) continue;
+    const boardKey = Object.keys(map).find((b) => map[b] === key);
+    const rev = [...revisions].reverse().find((r) => r.manifest.boards.some((b) => b.key === boardKey));
+    const board = rev?.manifest.boards.find((b) => b.key === boardKey);
+    const changed = spawnSync('git', ['-C', root, 'status', '--porcelain', '--', screenRel(key)], { encoding: 'utf8', windowsHide: true });
+    conflicts.push({
+      key, screen: screenRel(key), uncommitted: Boolean(String(changed.stdout ?? '').trim()),
+      board: `${slug}/${(rev?.rel ?? 'design/boards.json').replace(/boards\.json$/, '')}${board?.html ?? board?.png ?? boardKey}`,
+    });
+  }
+  const blocked = exports.length || missing.length || conflicts.length || invalid.length;
+  return { slug, revisions, map, contract, confirmed, exports, missing, conflicts, invalid, ...(blocked ? { blocked: true } : {}) };
 }
 
 /** Write the screens of one revision onto the surface. Returns the paths written and the link warnings. */
 function writeRevision(root, slug, rev, map, now) {
-  const m = readManifest(root);
+  // The pages are written first; the manifest then changes in one locked step.
+  const entries = [];
   const paths = [];
   const warnings = [];
   const fromOf = (src) => `${slug}/${rev.rel.replace(/boards\.json$/, '')}${src.rel}`;
@@ -258,17 +285,21 @@ function writeRevision(root, slug, rev, map, now) {
       }
       writeFileSync(screenFile(root, key), viewportPage(key, title, `${slug}/${rev.rel}`, variants));
     }
-    const was = m.screens[key];
-    m.screens[key] = {
-      title: was?.title ?? title, area: was?.area ?? null, flow: was?.flow ?? parseBoardKey(first.key).surface, order: was?.order ?? null,
-      workflows: [...new Set([...(was?.workflows ?? []), slug])], slices: was?.slices ?? [],
-      'created-at': was?.['created-at'] ?? nowIso(now), 'updated-at': nowIso(now), approvals: was?.approvals ?? [],
-      ...(legacy ? { legacy: true } : {}),
-    };
-    for (const b of boards) if (b.viewport && rev.manifest.viewports?.[b.viewport] && !m.viewports[b.viewport]) m.viewports[b.viewport] = rev.manifest.viewports[b.viewport];
+    entries.push({ key, title, flow: parseBoardKey(first.key).surface, legacy, boards });
     paths.push(screenRel(key));
   }
-  writeManifest(root, m);
+  changeManifest(root, (m) => {
+    for (const { key, title, flow, legacy, boards } of entries) {
+      const was = m.screens[key];
+      m.screens[key] = {
+        title: was?.title ?? title, area: was?.area ?? null, flow: was?.flow ?? flow, order: was?.order ?? null,
+        workflows: [...new Set([...(was?.workflows ?? []), slug])], slices: was?.slices ?? [],
+        'created-at': was?.['created-at'] ?? nowIso(now), 'updated-at': nowIso(now), approvals: was?.approvals ?? [],
+        ...(legacy ? { legacy: true } : {}),
+      };
+      for (const b of boards) if (b.viewport && rev.manifest.viewports?.[b.viewport] && !m.viewports[b.viewport]) m.viewports[b.viewport] = rev.manifest.viewports[b.viewport];
+    }
+  });
   return { paths: [...paths, `${SURFACE_REL}/${MANIFEST_FILE}`], warnings };
 }
 
@@ -286,7 +317,7 @@ function dropStale(root, slug, revisions, map) {
   const written = new Set(revisions.flatMap((r) => r.manifest.boards.map((b) => map[b.key])));
   const m = readManifest(root);
   const gone = [];
-  let changed = false;
+  const left = [];
   const drop = (rel) => {
     if (!existsSync(join(root, rel))) return;
     rmSync(join(root, rel), { recursive: true, force: true });
@@ -300,19 +331,26 @@ function dropStale(root, slug, revisions, map) {
     }
     const entry = m.screens[key];
     if (!entry) continue;
-    entry.workflows = (entry.workflows ?? []).filter((w) => w !== slug);
-    changed = true;
-    if (entry.workflows.length) continue;
-    delete m.screens[key];
+    left.push(key);
+    if ((entry.workflows ?? []).some((w) => w !== slug)) continue;
     for (const rel of [screenRel(key), dir, legacyRel(key), `${SURFACE_REL}/${LEGACY_DIR}/${key}`]) drop(rel);
   }
-  if (!changed && !gone.length) return null;
-  if (changed) writeManifest(root, m);
+  if (!left.length && !gone.length) return null;
+  if (left.length) changeManifest(root, (now) => {
+    for (const key of left) {
+      const entry = now.screens[key];
+      if (!entry) continue;
+      entry.workflows = (entry.workflows ?? []).filter((w) => w !== slug);
+      if (!entry.workflows.length) delete now.screens[key];
+    }
+  });
   const git = (args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
   if (gone.length) git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', ...gone]);
   git(['add', '--', `${SURFACE_REL}/${MANIFEST_FILE}`]);
   const c = git(['commit', '-q', '-m', `design: the screens that the newest revision of ${slug} dropped`, '--', `${SURFACE_REL}/${MANIFEST_FILE}`, ...gone]);
-  if (c.status !== 0 && !/nothing to commit|no changes added/.test(`${c.stdout}${c.stderr}`)) throw new Error(`git commit failed: ${c.stderr}`);
+  if (c.status !== 0 && !/nothing to commit|no changes added/.test(`${c.stdout}${c.stderr}`)) {
+    throw refuse(`git commit failed: ${c.stderr}`, personFix('The commit of the migration failed, often on a commit hook or a missing git identity. Repair what the error names, then run the migration again: it goes on from the last revision that it committed.'));
+  }
   return git(['rev-parse', 'HEAD']).stdout.trim();
 }
 
@@ -345,48 +383,92 @@ export function boardWorkflows(root) {
   return readdirSync(base).filter((s) => !s.startsWith('_') && !s.startsWith('.') && existsSync(join(base, s, 'design'))).sort();
 }
 
+/** What a blocked workflow waits for, as the fix of its result. */
+function blockedFix(root, plan) {
+  const again = `wf.mjs design migrate ${word(root)} ${plan.slug}`;
+  if (plan.conflicts.length) {
+    const c = plan.conflicts[0];
+    const all = plan.conflicts.map((x) => `${x.screen} (the board ${x.board})`).join('; ');
+    return agentFix(`The surface already has a screen under a key that a board maps to: ${all}. The migration never writes over a screen.${plan.conflicts.some((x) => x.uncommitted) ? ' A screen page here has changes that no commit holds.' : ''} Give the screen another key, then run the migration again: the board then becomes the screen ${c.key}, and both stay.`,
+      `wf.mjs design screen rename ${word(root)} ${c.key} ${c.key}-current`, again);
+  }
+  if (plan.invalid.length) {
+    return agentFix(`A board manifest does not read: ${plan.invalid.map((x) => `${x.file} (${x.error})`).join('; ')}. Repair the file, or take the revision folder out of the workflow when its boards are not needed. Then run the migration again.`, again);
+  }
+  if (plan.exports.length) return agentFix('Read each artifact that the result lists under exports, save its page at the file named there, then run the migration again.', again);
+  return agentFix(`Put each missing board file back (git keeps the older ones): ${plan.missing.slice(0, 5).join(', ')}. Then run the migration again.`, again);
+}
+
 /**
  * Migrate the boards of the repo, or of the given workflows. With `write: false` it only plans.
- * A workflow that is migrated already, or that waits for an export, is left as it is.
+ * A workflow that is migrated already, or that waits (an export, a missing or unreadable board
+ * file, a key that already holds a screen), is left as it is, with the fix in its result. A run
+ * that stopped part way goes on from the last revision that it committed. Returns `{ ok, results }`.
  */
 export function migrateDesign(root, { slugs = null, write = true, now = new Date() } = {}) {
   const done = readMigrated(root);
   const taken = new Map(Object.entries(readManifest(root).screens).map(([k, s]) => [k, s.workflows ?? []]));
   const results = [];
   let surface = null;
-  for (const slug of slugs?.length ? slugs : boardWorkflows(root)) {
+  const known = boardWorkflows(root);
+  for (const slug of slugs?.length ? slugs : known) {
     if (done.workflows[slug]) { results.push({ slug, skip: 'migrated already' }); continue; }
+    if (!existsSync(workflowDir(root, slug))) {
+      throw refuse(`no workflow ${slug}`, agentFix(known.length ? `Run the migration again with a workflow that has boards: ${known.join(', ')}. With no slug it takes each of them.` : 'No workflow of this project has boards: there is nothing to migrate.'));
+    }
     const plan = planWorkflow(root, slug, taken);
     if (plan.skip || plan.blocked || !write) {
-      results.push({ slug, ...(plan.skip ? { skip: plan.skip } : {}), ...(plan.blocked ? { blocked: true, exports: plan.exports, missing: plan.missing } : {}),
+      results.push({ slug, ...(plan.skip ? { skip: plan.skip } : {}),
+        ...(plan.blocked ? { blocked: true, exports: plan.exports, missing: plan.missing, conflicts: plan.conflicts, invalid: plan.invalid, fix: blockedFix(root, plan) } : {}),
         ...(plan.map ? { keys: plan.map, revisions: plan.revisions.map((r) => r.n), confirmed: plan.confirmed?.n ?? null } : {}) });
       continue;
     }
     // The surface before the first write: a repo that ignores `.ai/` gets the git rule for `.ai/design/`.
     if (!surface) {
       surface = initSurface(root);
-      if (!surface.track.tracked) throw new Error(`.ai/design/ is not tracked in git: ${surface.track.manual}`);
+      if (!surface.track.tracked) {
+        throw refuse(`.ai/design/ is not tracked in git: ${surface.track.manual}`, surface.track.manual === 'not a git repo'
+          ? personFix('The migration writes one commit for each revision, so the project must be a git repo. Run git init in the project, or leave the boards as they are.')
+          : personFix('A git ignore rule outside this repo hides .ai/design/. Add an exception for .ai/design/ to that rule, then run the migration again.'));
+      }
     }
-    const commits = {};
+    // The commits that a stopped run made: a revision with a commit is not written again.
+    const held = done.progress?.[slug]?.commits ?? {};
+    const commits = { ...held };
+    const keep = () => {
+      done.progress = { ...(done.progress ?? {}), [slug]: { commits } };
+      writeFileSync(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
+    };
     const warnings = new Set();
     for (const rev of plan.revisions) {
+      const name = rev.n === null ? 'working' : `r${rev.n}`;
+      if (commits[name]) continue;
       const w = writeRevision(root, slug, rev, plan.map, now);
       w.warnings.forEach((x) => warnings.add(x));
       const label = rev.n === null ? 'the working boards' : `revision ${rev.n}`;
       const c = commitSurface(root, w.paths, `design: ${label} of ${slug}, from its boards`);
-      commits[rev.n === null ? 'working' : `r${rev.n}`] = c.commit;
+      commits[name] = c.commit;
+      keep();
     }
-    const dropped = dropStale(root, slug, plan.revisions, plan.map);
-    if (dropped) commits.dropped = dropped;
+    if (!commits.dropped) {
+      const dropped = dropStale(root, slug, plan.revisions, plan.map);
+      if (dropped) { commits.dropped = dropped; keep(); }
+    }
     const approved = plan.confirmed ? commits[`r${plan.confirmed.n}`] : null;
     const screens = plan.confirmed ? [...new Set(plan.confirmed.manifest.boards.map((b) => plan.map[b.key]))] : [];
-    const m = readManifest(root);
     if (approved) {
       const at = plan.confirmed.manifest.confirmed?.at(-1)?.at ?? plan.contract?.['confirmed-at'] ?? nowIso(now);
-      for (const key of screens) m.screens[key].approvals = [...(m.screens[key].approvals ?? []), { commit: approved, at, workflow: slug, migrated: true }];
-      writeManifest(root, m);
+      changeManifest(root, (m) => {
+        for (const key of screens) {
+          if (!m.screens[key]) continue;
+          // A run that went on after a stop records the approval once: the one of this run.
+          const had = (m.screens[key].approvals ?? []).filter((a) => !(a?.workflow === slug && a.migrated));
+          m.screens[key].approvals = [...had, { commit: approved, at, workflow: slug, migrated: true }];
+        }
+      });
     }
     done.workflows[slug] = { at: nowIso(now), commits, keys: plan.map, ...(approved ? { approved: `r${plan.confirmed.n}` } : {}) };
+    if (done.progress) { delete done.progress[slug]; if (!Object.keys(done.progress).length) delete done.progress; }
     writeFileSync(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
     const last = commitSurface(root, [`${SURFACE_REL}/${MANIFEST_FILE}`, `${SURFACE_REL}/${MIGRATED_FILE}`], `design: map the boards of ${slug} to screens`);
     if (approved && plan.contract) {
@@ -395,9 +477,10 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
       });
     }
     const captures = copyCaptures(root, slug, plan.map);
+    if (captures) commitDesignRecords(root, `design: the captures of ${slug}, from its boards`);
     for (const k of screens) taken.set(k, [...(taken.get(k) ?? []), slug]);
     for (const k of Object.values(plan.map)) if (!taken.has(k)) taken.set(k, [slug]);
-    results.push({ slug, migrated: true, keys: plan.map, commits, mapCommit: last.commit, approved, screens, captures, warnings: [...warnings] });
+    results.push({ slug, migrated: true, keys: plan.map, commits, mapCommit: last.commit, approved, screens, captures, warnings: [...warnings], ...(Object.keys(held).length ? { resumed: true } : {}) });
   }
-  return { results };
+  return { ok: !results.some((x) => x.blocked), results };
 }

@@ -15,7 +15,7 @@ import { addScreen, initSurface, writeManifest, readManifest } from '../../lib/d
 import { addReference, checkReferences } from '../../lib/design-references.mjs';
 import { approvalPicture } from '../../lib/design-records.mjs';
 import { canvasState } from '../../lib/design-state.mjs';
-import { listenDesignServer, rebindTailnet, serverInfoPath, startServer, stopServer } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, listenDesignServer, rebindTailnet, serverInfoPath, serverStatus, startServer, stopServer, writeToken } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -29,7 +29,8 @@ function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
     req.end();
   });
 }
-const post = (port, path, value, headers = {}) => raw(port, path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(value) });
+// A write as the canvas sends it: from a page of this server, with the write token of this run.
+const post = (port, path, value, headers = {}) => raw(port, path, { method: 'POST', headers: { 'content-type': 'application/json', origin: `http://127.0.0.1:${port}`, [WRITE_HEADER]: writeToken(), ...headers }, body: JSON.stringify(value) });
 
 async function shop(label) {
   const top = mkdtempSync(join(tmpdir(), label));
@@ -77,6 +78,13 @@ test('a write that a design page sends is refused; the canvas writes', async () 
       assert.equal(r.status, 403, page);
     }
     assert.equal((await post(s.port, '/r/shop/layout', { positions: { basket: { x: 1, y: 2 } } }, { origin: base, referer: `${base}/r/shop/?workflow=w1` })).status, 200);
+    // A design page that hides its Referer still has no write token: the address alone writes nothing.
+    for (const path of ['/r/shop/layout', '/r/shop/comments/basket', '/r/shop/versions/w1/restore', '/r/shop/audit']) {
+      const r = await raw(s.port, path, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: '{}' });
+      assert.equal(r.status, 403, path);
+      assert.match(JSON.parse(r.text).reason, /write token/);
+    }
+    assert.equal((await post(s.port, '/r/shop/layout', { positions: {} }, { origin: base, referer: 'http://evil.test/r/shop/' })).status, 403, 'a Referer of another site');
   } finally { s.done(); }
 });
 
@@ -109,7 +117,8 @@ test('an event stream starts with the boot of the server', async () => {
       stream.on('error', no);
       stream.end();
     });
-    assert.match(first, /retry: 3000\n\nevent: hello\ndata: \{"boot":"[0-9a-z]+"\}\n\n/);
+    assert.match(first, /retry: 3000\n\nevent: hello\ndata: \{"boot":"[0-9a-z]+","writeToken":"[\w-]+"\}\n\n/);
+    assert.ok(first.includes(`"writeToken":"${writeToken()}"`), 'the hello names the write token of this run');
   } finally { stream?.destroy(); s.done(); }
 });
 
@@ -127,13 +136,15 @@ test('a change whose state build failed is sent with the next change', async () 
       stream.on('error', no);
       stream.end();
     });
-    // A manifest that the state build cannot read, with a page change at the same time.
-    const good = readManifest(s.root);
-    writeManifest(s.root, { ...good, screens: { basket: { ...good.screens.basket, approvals: 5 } } });
+    // A token sheet that the state build cannot read (a folder in its place), with a page change at the same time.
+    const sheet = join(s.root, '.ai', 'design', 'tokens.css');
+    rmSync(sheet);
+    mkdirSync(sheet);
     writeFileSync(join(s.root, '.ai', 'design', 'screens', 'basket.html'), '<html><body><section data-state="default">new</section></body></html>');
     await new Promise((ok) => setTimeout(ok, 1500));
     assert.equal(events.length, 0, 'no event while the state does not build');
-    writeManifest(s.root, good);
+    rmSync(sheet, { recursive: true });
+    writeFileSync(sheet, ':root {\n}\n');
     for (let i = 0; i < 100 && !events.length; i += 1) await new Promise((ok) => setTimeout(ok, 100));
     assert.ok(events.length, 'a change came');
     assert.deepEqual(events.at(-1).pages, ['basket'], 'the page change is not lost');

@@ -106,12 +106,12 @@ test('a run writes one report under the SDLC home, refuses a second run, and wri
   } finally { done(); }
 });
 
-test('the prompt sends the first column and the column of the stack platform; an unknown platform gets the whole map', () => {
+test('the prompt sends the craft floor, the map index and the file of the stack platform; an unknown platform gets every platform file', () => {
   const { root, done } = repo();
   try {
     assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), [], 'no stack and no telling file');
     const whole = auditPrompt(root, { workflow: 'w1' });
-    assert.match(whole, /\| Term \| Web \| iOS \| Android \(Compose\) \| Desktop \|/);
+    for (const heading of ['# Craft floor', '# Platform map', '# Platform forms: the web', '# Platform forms: iOS', '# Platform forms: Android', '# Platform forms: desktop']) assert.ok(whole.includes(heading), heading);
     assert.match(whole, /2\. Find the platform of the built UI/);
 
     const dir = join(root, '.ai', 'workflows', 'w1');
@@ -119,15 +119,15 @@ test('the prompt sends the first column and the column of the stack platform; an
     writeFileSync(join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: w1\nstack:\n  platforms: [android]\n---\n');
     assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), ['android']);
     const one = auditPrompt(root, { workflow: 'w1' });
-    assert.match(one, /2\. The platform of the built UI is Android \(Compose\)/);
-    assert.match(one, /\| Term \| Android \(Compose\) \|\n\|---\|---\|\n\| \*\*cheap property\*\*[^\n]*\| `Modifier\.graphicsLayer/);
-    assert.doesNotMatch(one, /\| Web \||\| iOS \|/);
-    assert.match(one, /\| Android \(Compose\) \| Developer option/, 'a table of platform rows keeps the row of the platform');
-    assert.doesNotMatch(one, /^\| Web \| DevTools/m);
+    assert.match(one, /2\. The platform of the built UI is Android \(Compose\)\. The platform map below holds only the file of that platform/);
+    for (const heading of ['# Craft floor', '# Platform map', '# Platform forms: Android']) assert.ok(one.includes(heading), heading);
+    assert.match(one, /\*\*cheap property\*\*[^\n]*\| `Modifier\.graphicsLayer/, 'the Android forms');
+    for (const heading of ['# Platform forms: the web', '# Platform forms: iOS', '# Platform forms: desktop']) assert.ok(!one.includes(heading), `an Android stack gets no ${heading}`);
     assert.ok(whole.length - one.length > 10000, 'the map is much smaller');
 
     writeFileSync(join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: w1\nstack:\n  platforms: [cli]\n---\n');
     assert.deepEqual(auditPlatforms(root, { workflow: 'w1' }), [], 'a platform outside the map is unknown');
+    assert.equal(platformMap(['android', 'web'], (name) => `<${name}>`), '<_platforms.md>\n\n<_platforms-android.md>\n\n<_platforms-web.md>', 'the index, then the file of each platform');
   } finally { done(); }
 });
 
@@ -138,7 +138,6 @@ test('with no stack, the files at the top of the repo tell the platform', () => 
     assert.deepEqual(auditPlatforms(root), ['web']);
     writeFileSync(join(root, 'settings.gradle.kts'), '');
     assert.deepEqual(auditPlatforms(root), [], 'two platforms are not one');
-    assert.equal(platformMap('| Term | Web | iOS |\n|---|---|---|\n| a \\| b | w | i |', ['web']), '| Term | Web |\n|---|---|\n| a \\| b | w |', 'an escaped bar stays in its cell');
   } finally { done(); }
 });
 

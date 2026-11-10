@@ -564,15 +564,24 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>
           <tbody>
-            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt;</code></td><td>Runs the stage: draws each changed screen, checks it, and records your approval.</td></tr>
-            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; &lt;move&gt;</code></td><td>On a new design, the move focuses the stage. On an approved design, it runs the checks of the move, writes a note, and draws nothing.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; [instructions]</code></td><td>Runs the stage: draws each changed screen, checks it, and records your approval. Type it again to resume: a script names the next step from what is on disk.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; amend [instructions]</code></td><td>Reopens an approved design. It changes only the screens that the reason names, asks for a new approval, and names each plan that cites a changed screen.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; import &lt;link|path&gt;…</code></td><td>Turns outside design work into screens, then asks for your approval.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design explore [slug] [instructions]</code></td><td>Sketches ideas in <code>.ai/design/explore/</code>. It settles nothing and writes no screen.</td></tr>
-            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; extract [instructions]</code></td><td>Reads the design system in the code into <code>current.md</code>, and writes the report under the <code>design-notes/</code> of the workflow.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>These four forms cover the stage. The forms below also work.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>More</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> design &lt;slug&gt; &lt;move&gt;</code></td><td>On a new design, the move focuses the stage. On an approved design, it runs the checks of the move, tells you the findings in chat, and draws nothing. The move word may come before the slug.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design [slug] audit|critique</code></td><td>Runs the design review dimension now. Without a slug, the findings come back in chat.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design record</code></td><td>Writes or completes the design record of the project. It asks only what is missing. The words <code>setup</code> and <code>teach</code> run the same command.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design [slug] extract</code></td><td>Reads the design system in the code into <code>current.md</code>. With a slug, it also writes a report under the <code>design-notes/</code> of the workflow.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design direction|sync</code></td><td>Changes the design direction with you, or keeps DESIGN.md and the canvas design system in step. See <a href="#ds-record">The design record</a>.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design &lt;move&gt; &lt;instructions&gt;</code></td><td>Starts a new workflow, with the move recorded for its design stage.</td></tr>
-            <tr data-s><td><code><span class="hp">/wf</span> design setup|teach|extract|direction|sync</code></td><td>Keeps the design record of the project. See <a href="#ds-record">The design record</a>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -580,30 +589,32 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       <h3 class="group" id="ds-flow">The flow <em>a driver never runs this stage</em></h3>
       <div class="flow-wrap static">
         <ol class="flow">
-          <li class="phase"><span class="pn">1</span><b>Orient</b><span class="who auto">agent</span><p>Stops when a driver called it or the shape is not complete. When <code>ux-impact</code> is <code>none</code>, asks whether to design or to skip.</p></li>
+          <li class="phase"><span class="pn">1</span><b>Orient</b><span class="who auto">script</span><p><code>wf.mjs design next</code> names the one next step from what is on disk, so a stopped stage resumes where it was. It stops when the shape is not complete. When <code>ux-impact</code> is <code>none</code>, the agent asks whether to design or to skip.</p></li>
           <li class="phase"><span class="pn">2</span><b>Read the record</b><span class="who auto">agent</span><p>Reads PRODUCT.md, DESIGN.md, the current design and the direction. Every reference must be a file that an agent can read.</p></li>
-          <li class="phase"><span class="pn">3</span><b>Carried thoughts</b><span class="who you">you</span><p>Shows what a design brainstorm or an explore run left, and asks only about contradictions and open questions.</p></li>
-          <li class="phase"><span class="pn">4</span><b>Inspect</b><span class="who auto">agent</span><p>Four sub-agents read the code. When the product runs, each touched surface is captured as it is now.</p></li>
-          <li class="phase"><span class="pn">5</span><b>The form</b><span class="who you">you</span><p>One question: the whole feature, three directions first, a flow of states, or changes to existing screens.</p></li>
-          <li class="phase"><span class="pn">6</span><b>Directions</b><span class="who you">you, when open</span><p>Three named directions on different axes, plus the category standard. You pick one, mix two, or ask for another round.</p></li>
-          <li class="phase"><span class="pn">7</span><b>Foundation</b><span class="who auto">agent</span><p>The tokens and the component library, before the first screen. The agent reuses each component of the code and adds a new one only for a part that nothing covers.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Carried thoughts</b><span class="who you">you, when carried</span><p>Shows what a design brainstorm or an explore run left, and asks only about contradictions and open questions. With nothing carried, the step does not run.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Inspect</b><span class="who auto">agent</span><p>Four inspections read the code. When the stack can run and capture the product, each touched surface is captured as it is now.</p></li>
+          <li class="phase"><span class="pn">5</span><b>The form</b><span class="who auto">agent</span><p>The agent proposes the form from the brief and draws: changes to existing screens, a flow of states, or the whole feature. It asks one question only for a new surface with no settled direction.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Directions</b><span class="who you">you, when open</span><p>Three named directions on different axes, plus the category standard. You pick one, mix two, or ask for another round. You can also ask for directions in any round.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Foundation</b><span class="who auto">agent</span><p>The tokens and the component library, before the first screen. The agent reuses each component of the code and adds a new one only for a part that nothing covers. What it wrote is the first decision of round 1.</p></li>
           <li class="phase"><span class="pn">8</span><b>Draw</b><span class="who auto">agent</span><p>Every changed screen of the whole feature, in five states: default, empty, loading, error and worst. Each step of a flow is a link.</p></li>
-          <li class="phase"><span class="pn">9</span><b>Rounds</b><span class="who you">you</span><p>Three to five decisions per round, with numbered options, until no decision is open. The canvas comments feed each round.</p></li>
-          <li class="phase"><span class="pn">10</span><b>Check and approve</b><span class="who you">you</span><p>The check runs. You answer Approve, Adjust or Stop, with each failure in view.</p></li>
-          <li class="phase"><span class="pn">11</span><b>Record</b><span class="who auto">script</span><p>Commits the screens, keeps one picture of each, writes the visual contract, and updates the tokens in DESIGN.md.</p></li>
+          <li class="phase"><span class="pn">9</span><b>Rounds</b><span class="who you">you</span><p>Up to three decisions per round, with numbered options. The first option of every round is "Nothing more: run the check and ask me to approve". After three rounds, the agent asks whether to go on. A token that a round changes is written to DESIGN.md in that round.</p></li>
+          <li class="phase"><span class="pn">10</span><b>Check and approve</b><span class="who you">you</span><p>The check runs. You answer Approve, Adjust or Stop. The message gives the count of causes, and the canvas shows each one on its screen.</p></li>
+          <li class="phase"><span class="pn">11</span><b>Record</b><span class="who auto">script</span><p>Commits the screens, keeps one picture of each, writes the approval into the visual contract, and sets the next step of the workflow.</p></li>
         </ol>
       </div>
+      <p class="aside" data-s>Each stop sends one message in the same form: the link for the computer and the link for the phone, what changed since the last stop, the check as a count, what to decide, and what happens after your answer. You do not need to open a file.</p>
 
       <h3 class="group" id="ds-approve">Checks and approval <em>only your answer approves</em></h3>
       <ul class="rules">
-        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state. It forces the hover, press and keyboard-focus states of each control, and flags a missing focus indicator and text that loses its contrast in a state. It flags each color that is not a token, each screen style that restyles a component, and each page that differs from its approved version with no round that holds the change. Each failure names its fix: <code>colorize</code>, <code>adapt</code>, <code>layout</code> or <code>harden</code>. The review of the canvas, which the health control of its bar opens, runs a read-only agent over the screens and the built code.</span></li>
+        <li data-s><b>The check</b><span><code>wf.mjs design check</code> tests contrast, target size, viewport fit, worst-case content, display bugs, overlapping text and script errors of each screen, in each viewport and state. It forces the hover, press and keyboard-focus states of each control, and flags a missing focus indicator and text that loses its contrast in a state. It flags each color that is not a token, each screen style that restyles a component, and each page that differs from its approved version with no round that holds the change. Each failure names the move that fixes it, for example <code>colorize</code>, <code>layout</code> or <code>harden</code>. The review of the canvas, which the health control of its bar opens, runs a read-only agent over the screens and the built code.</span></li>
         <li data-s><b>Foundation</b><span>Before the first screen, the agent sets the tokens and the component library. It reuses each component of the code, and adds a new one only for a part that nothing covers. A new component names no code yet: the build makes it, and verify fails until the code uses it.</span></li>
         <li data-s><b>Rounds</b><span>The agent saves the pages as a draft after each decision round, with the decisions as its reason. A draft has no authority, and the workflow close deletes it.</span></li>
-        <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, saves the pages as a numbered version in the records, and writes the approval commit and the version into the contract. Agreement in free chat is not an approval.</span></li>
-        <li data-s><b>Adjust</b><span>The agent changes the screens that you name, runs the check again, and asks again. Each adjustment is a recorded decision.</span></li>
-        <li data-s><b>Stop</b><span>The contract stays unwritten, and the workflow waits for you.</span></li>
+        <li data-s><b>Approve</b><span>A script reads your answer to the approval question, commits the screens in the product repo, saves the pages as a numbered version in the records, and writes the approval commit and the version into the contract. Agreement in free chat is not an approval. The question comes through the question tool of the host only: in a session with no question tool, the stage waits for you.</span></li>
+        <li data-s><b>Adjust</b><span>The agent asks what to change when your answer does not say, changes those screens, runs the check again, and asks again. Each adjustment is a recorded decision. An answer such as "Approve, but make the header smaller" is an Adjust, never an approval.</span></li>
+        <li data-s><b>Stop</b><span>The contract stays unwritten, the rounds stay saved, and the workflow waits for you. <code class="hp">/wf design &lt;slug&gt;</code> resumes at the rounds.</span></li>
+        <li data-s><b>No browser</b><span>When no browser can run the check, the agent says so and asks whether you install one or approve without the check. That question is not the approval: the approval question follows.</span></li>
         <li data-s><b>Restore</b><span>The canvas, or <code>wf.mjs design restore</code>, puts the pages of a version back as a new draft. A restore is never an approval: the screens need a new one.</span></li>
-        <li data-s><b>The settled rule</b><span>A contract that names screens is settled only when a script recorded the approval and every screen page exists. Slice, yolo and the campaign stop until then.</span></li>
+        <li data-s><b>The settled rule</b><span>A design is settled only when the script recorded your approval and every approved screen page exists. The fields of the contract alone settle nothing. Slice, yolo and the campaign stop until then.</span></li>
         <li data-s><b>You always see the screens</b><span>A confirmed PRODUCT.md or an earlier <code>teach</code> answer never replaces the approval.</span></li>
       </ul>
 
@@ -614,7 +625,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <tbody>
             <tr data-s><td>slice</td><td>Writes the screen keys of each slice into its scope and its own <code>ux-impact</code>. The Slices layout of the canvas shows one row for each slice.</td></tr>
             <tr data-s><td>plan</td><td>Cites the screen keys in the steps that build each screen.</td></tr>
-            <tr data-s><td>implement</td><td>Reads each screen page at the approval commit. It makes the worst-case content loadable in development, never in production code.</td></tr>
+            <tr data-s><td>implement</td><td>Reads each screen page of the approved version, and its approval picture, from the paths that <code>wf.mjs design approved</code> prints. It makes the worst-case content loadable in development, never in production code.</td></tr>
             <tr data-s><td>verify</td><td>Captures each built screen, and its worst state, beside its approved picture, and lists the differences.</td></tr>
             <tr data-s><td>retro</td><td>Names the screen keys of each surface in <code>.ai/design/current.md</code>.</td></tr>
           </tbody>
@@ -627,8 +638,11 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>
           <tbody>
-            <tr data-s><td><code>wf.mjs design server start</code></td><td>Starts the server in the background.</td></tr>
-            <tr data-s><td><code>wf.mjs design server url</code></td><td>Prints its addresses. On the phone, open <code>/r/&lt;repo&gt;/?workflow=&lt;slug&gt;</code> on the tailnet address.</td></tr>
+            <tr data-s><td><code>wf.mjs design server url &lt;root&gt; [--workflow &lt;slug&gt;]</code></td><td>Starts the server when it is stopped, and prints the canvas link for the computer and the link for the phone (the tailnet address). <code>#screen=&lt;key&gt;</code> at the end of a link opens one screen.</td></tr>
+            <tr data-s><td><code>wf.mjs design server start</code> · <code>stop</code></td><td>Starts the server in the background, or stops it.</td></tr>
+            <tr data-s><td><code>wf.mjs design next &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the one next action of the design stage of a workflow, from what is on disk.</td></tr>
+            <tr data-s><td><code>wf.mjs design status &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the open comment threads, the pages that changed outside a round, the last check, the newest round and version, and the next action.</td></tr>
+            <tr data-s><td><code>wf.mjs design doctor &lt;root&gt;</code></td><td>Names each fault of the design folder, the manifest and the server.</td></tr>
             <tr data-s><td><code>wf.mjs design server status</code></td><td>Tells whether the server runs and whether the logon task is installed.</td></tr>
             <tr data-s><td><code>wf.mjs design server install</code> · <code>uninstall</code></td><td>Adds or removes one Windows scheduled task that starts the server at logon. After a plugin update, run <code>install</code> again.</td></tr>
             <tr data-s><td><code>wf.mjs design publish &lt;root&gt;</code></td><td>Writes one self-contained canvas page, with no comments and no layout saves, for a reviewer who cannot reach the server.</td></tr>
@@ -644,7 +658,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code>wf.mjs design components verify &lt;root&gt; &lt;slug&gt; [--slice s]</code></td><td>Exits 1 when the code does not have or use a component of the screens.</td></tr>
             <tr data-s><td><code>wf.mjs design round &lt;root&gt; &lt;slug&gt;</code></td><td>Saves the pages as a draft in the records. A change-free round saves nothing.</td></tr>
             <tr data-s><td><code>wf.mjs design versions &lt;root&gt; &lt;slug&gt;</code></td><td>Lists the approved versions and the rounds of a workflow, each with its reason.</td></tr>
-            <tr data-s><td><code>wf.mjs design approved &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the file of each page of the newest approved version. The build reads these files.</td></tr>
+            <tr data-s><td><code>wf.mjs design approved &lt;root&gt; &lt;slug&gt;</code></td><td>Prints the file of each page of the newest approved version, and of its approval picture. The build reads these files.</td></tr>
+            <tr data-s><td><code>wf.mjs design screen rename|remove</code> · <code>component remove</code></td><td>Corrects a screen key, or takes back a screen or a component that was added by mistake.</td></tr>
             <tr data-s><td><code>wf.mjs design restore &lt;root&gt; &lt;slug&gt; &lt;version&gt;</code></td><td>Puts the pages of a version back as a new draft, which needs a new approval.</td></tr>
             <tr data-s><td><code>wf.mjs design rounds drop &lt;root&gt; &lt;slug&gt;</code></td><td>Deletes the drafts of a closed workflow. The approved versions stay.</td></tr>
           </tbody>
@@ -657,17 +672,18 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <thead><tr><th>Move</th><th>For</th></tr></thead>
           <tbody>
             <tr data-s><td><code>adapt</code></td><td>A new context: a window size, an input method, a platform or a medium.</td></tr>
-            <tr data-s><td><code>animate</code></td><td>Motion where it earns its place, and a reason for each motion it rejects.</td></tr>
-            <tr data-s><td><code>bolder</code> · <code>quieter</code></td><td>More presence for a timid design, or less intensity without loss of personality.</td></tr>
+            <tr data-s><td><code>animate</code></td><td>Motion where it earns its place, and a reason for each motion it rejects. The older word <code>delight</code> reads as this move.</td></tr>
+            <tr data-s><td><code>bolder</code></td><td>More presence for a timid design, up to one part of the interface made extraordinary. The older word <code>overdrive</code> reads as this move.</td></tr>
             <tr data-s><td><code>clarify</code></td><td>Interface text that tells a person what happened, what matters and what to do next.</td></tr>
             <tr data-s><td><code>colorize</code></td><td>Color as hierarchy and meaning, inside the confirmed brand. It also fixes contrast failures.</td></tr>
-            <tr data-s><td><code>delight</code> · <code>overdrive</code></td><td>Moments of personality, or one part of the interface made extraordinary.</td></tr>
-            <tr data-s><td><code>distill</code></td><td>Only the essential elements. It removes complexity, decoration and noise.</td></tr>
+
             <tr data-s><td><code>harden</code></td><td>Real people, real data and real failures: access needs, long content, errors and slow networks.</td></tr>
-            <tr data-s><td><code>layout</code> · <code>typeset</code></td><td>Reading order, grouping and space, or the type, inside the current visual identity.</td></tr>
+            <tr data-s><td><code>layout</code></td><td>Reading order, grouping and space, inside the current visual identity.</td></tr>
+            <tr data-s><td><code>typeset</code></td><td>The type: hierarchy, scale, measure and the choice of face.</td></tr>
+            <tr data-s><td><code>optimize</code></td><td>Not a move. It is a reference on UI performance that implement and verify load. On an approved design, the word routes to <code class="hp">/wf design &lt;slug&gt; audit</code>.</td></tr>
             <tr data-s><td><code>onboard</code></td><td>Empty states and the first run, so people reach first value fast.</td></tr>
-            <tr data-s><td><code>optimize</code></td><td>Performance as a feature: find the real bottleneck, fix it, measure again.</td></tr>
             <tr data-s><td><code>polish</code></td><td>The details of an approved design. It never hides a redesign.</td></tr>
+            <tr data-s><td><code>simplify</code></td><td>Less: only the essential elements, and less intensity without loss of personality. The older words <code>quieter</code> and <code>distill</code> read as this move.</td></tr>
           </tbody>
         </table>
       </div>
@@ -677,9 +693,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <table>
           <thead><tr><th>Command</th><th>Does</th></tr></thead>
           <tbody>
-            <tr data-s><td><code><span class="hp">/wf</span> design setup</code></td><td>Writes PRODUCT.md and DESIGN.md from a discovery round, then <code>.ai/design/current.md</code> and <code>direction.md</code>.</td></tr>
-            <tr data-s><td><code><span class="hp">/wf</span> design teach</code></td><td>Asks about the design, and updates each part of the record that your answers touch.</td></tr>
-            <tr data-s><td><code><span class="hp">/wf</span> design extract</code></td><td>Reads the design system in the code into <code>current.md</code>.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design record</code></td><td>Writes or completes PRODUCT.md, DESIGN.md, <code>.ai/design/current.md</code> and <code>direction.md</code>. It asks only what is missing, tells you in chat what the record now says, and asks you to confirm. A question that you skip is not asked again. The words <code>setup</code> and <code>teach</code> run the same command.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> design [slug] extract</code></td><td>Reads the design system in the code into <code>current.md</code>, and adds the components of the code to the library.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design direction [from &lt;board-slug&gt;]</code></td><td>Goes over the goals, the future direction and the open decisions with you, and writes only what you confirm.</td></tr>
             <tr data-s><td><code><span class="hp">/wf</span> design sync</code></td><td>Keeps DESIGN.md and the design system of the host canvas in step, one component at a time.</td></tr>
           </tbody>
@@ -1384,8 +1399,8 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       d: "An old name that stays for this release only. On a workflow whose brief is written, it runs the shape phase of intake. Type intake <slug> instead.",
       w: ["intake.yaml#shape", "design.yaml#design"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
     { g: "stage", id: "design", st: "02", name: "design", b: ["gate"],
-      syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "design <slug> extract [instructions]", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
-      d: "The person approves every changed screen before any driver runs. The screens live on the design surface of the repo, .ai/design/, and the canvas shows them in each viewport and state, from the phone too. The agent asks which form to make, takes the design through rounds of three to five decisions, and runs the checks: contrast, target size, viewport fit, worst-case content, display bugs, overlapping text, script errors and colors that are not tokens. A script records the approval from your answer. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens an approved design; import turns a canvas, a folder, a zip or images into screens; explore sketches ideas and settles nothing. A move without a slug starts a new workflow through intake.",
+      syn: ["design <slug> [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design explore [slug] [instructions]", "more: design <slug> <move>", "more: design [slug] audit|critique|extract", "more: design record|direction|sync", "more: design <move> <instructions>"],
+      d: "The person approves every changed screen before any driver runs. The screens live on the design surface of the repo, .ai/design/, and the canvas shows them in each viewport and state, from the phone too. The agent proposes the form and draws, takes the design through rounds of up to three decisions, and runs the checks: contrast, target size, viewport fit, worst-case content, display bugs, overlapping text, script errors and colors that are not tokens. Each stop gives the link for the computer and the link for the phone. A script names each next step and records the approval from your answer. amend reopens an approved design; import turns a canvas, a folder, a zip or images into screens; explore sketches ideas and settles nothing. A move after the slug focuses the stage: adapt, animate, bolder, clarify, colorize, harden, layout, onboard, polish, simplify, typeset. record writes or completes the design record. A move without a slug starts a new workflow through intake.",
       more: "design-guide", w: ["design.yaml#craft", ".ai/design/screens/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual screens canvas mockup polish look feel explore" },
     { g: "stage", id: "slice", st: "03", name: "slice", syn: ["slice <slug>"],
       d: "Splits the spec into thin vertical slices that can each be verified alone. Slice also asks one time whether review runs per slice or once over the whole workflow.",

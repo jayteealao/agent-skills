@@ -1,122 +1,110 @@
-> **Additional context needed**: existing brand colors.
+Use color as hierarchy, meaning and atmosphere. Keep the confirmed brand and the semantic conventions. Do not replace a visual world under the name of color: when the work needs a new color identity, run [stage.md](stage.md) Step 3b.
 
-Introduce color as hierarchy, meaning and atmosphere. Keep the confirmed brand and semantic conventions. Do not replace a visual world under the name of color.
+`wf.mjs design check` sends a failure of contrast, and a color that is not a token, to this file.
 
 ---
 
 ## Design mode
 
-Persuade and Experience: the palette is the voice. Color may own regions.
-
-Operate: color does real jobs: the shell, state, data and selection. A gray screen with one accent is the category default, not restraint.
-
-Read: the world's color owns the frame. The reading column keeps a calm ground.
+| Mode | Color |
+|---|---|
+| Persuade and Experience | The palette is the voice. Color may own regions. |
+| Operate | Color does real jobs: the shell, state, data and selection. |
+| Read | The color of the world owns the frame. The reading column keeps a calm ground. |
 
 ---
 
-## Audit before choosing
+## Audit before you choose
 
-1. Read DESIGN.md, the color tokens, the themes and the states.
+1. Read `DESIGN.md`, the color tokens, the themes and the states.
 2. List the color commitments and the roles that exist.
 3. List where gray hides hierarchy, each contrast failure, and each signal that uses color only.
-4. When the work needs a new color identity, run [stage.md](stage.md) Step 3b. This move does not replace one.
-5. Give every color a purpose. More color is not better.
 
 ## Pick a strategy
 
-Pick a strategy before you pick a color. [_design-context.md](_design-context.md) → Shared design laws defines the strategies and the default of each design mode.
+Pick a strategy before you pick a color. [_design-context.md](_design-context.md) → Shared design laws defines the four strategies (Restrained, Committed, Full palette, Drenched) and the default of each design mode. Follow the brief, not a percentage.
 
-Name the temperature, the dominant relationship, the contrast range and the dosage. Follow the brief, not a percentage.
+## Choose the palette
+
+Use this method when the tokens do not yet hold the palette, or when a role is missing. It derives the colors from the product, so that two products do not get the same palette.
+
+1. **The scene.** Write one sentence: who uses the surface, where, under what light. It decides light or dark, and the contrast range. A night shift on a dim ward and a shop counter at noon do not share a ground.
+2. **The materials.** Name the world of the direction, and list three to five real materials or objects in it, each with its real color: the enamel of a station sign, the green of a cutting mat, the ink of a ledger. Take them from the subject and the audience, not from other software.
+3. **The dominant and the accent.** The dominant comes from the largest material of the world. The accent comes from its smallest and loudest one: the signal, the stamp, the warning paint.
+4. **The neutrals.** A neutral is plain, or it leans toward the dominant when that makes the surface cohere. Decide; do not tint by habit.
+5. **The dosage.** Give each color its share of the surface from the strategy.
+6. **The test.** Cover the name of the product. When the palette alone could belong to any product of the category, go back to step 2 with more specific materials.
+
+Write the result into `DESIGN.md` as token roles, and run `wf.mjs design tokens`. Use the color space of the project. For a new palette, prefer a perceptual space such as OKLCH, and reduce chroma as lightness nears black or white.
 
 ## Build roles, not swatches
 
-Give each job a role:
-- canvas and raised surfaces;
-- primary and secondary text;
-- action, focus and selection;
-- borders;
-- success, warning, error and info;
-- data series.
+Give each job a role, and make each role a token:
 
-A theme change remaps the roles. It does not repaint each component.
+| Role | Job |
+|---|---|
+| Ground and raised surfaces | The canvas and each layer above it |
+| Primary and secondary text | Reading, and its quieter level |
+| Action, focus and selection | What the person can do, where they are, what is chosen |
+| Borders and edges | Separation |
+| Success, warning, error, info | One stable meaning each across the product |
+| Data series | Categories and values in a chart |
+| Depth | Each shadow tier, each ring, and the outline of an image |
 
-## Introduce color strategically
+- A theme change remaps the roles. It does not repaint each component.
+- Compose the dark theme on its own. Do not invert the light theme.
+- Take the hue of a state from the platform, the domain and the palette, in that order of authority.
+- Separate data series by lightness, chroma, shape, label or pattern, not by hue alone.
+- A surface tint is the accent mixed into the ground through tokens, for example `color-mix(in oklab, var(--accent) 6%, var(--ground))`. Do not write the mixed value raw.
 
-### Semantic color
-- Give each state one stable meaning across the product. Take its hue from the platform, the domain and the palette.
-- Status badges: colored backgrounds for states (active, pending, completed)
-- Progress indicators: colored bars or rings
+**Depth is a token, not a color in the page.** The color of a shadow, a ring and an image outline is a depth token of `DESIGN.md`, used through `var()`. `wf.mjs design check` fails a raw `rgba()` in a `box-shadow` or an `outline`. [polish.md](polish.md) → Depth gives the defaults.
 
-### Accent application
-- Primary actions: color the most important buttons and calls to action
-- Links: colored clickable text (maintain accessibility)
-- Icons: colorize key icons for recognition
-- Headers: color on section headings or key labels
-- Hover states: introduce color on interaction
+## Fix a check failure
 
-### Background and surfaces
-- Tint a neutral toward the brand hue only when it creates cohesion. A plain neutral is valid. Never default to a cream or sand ground.
-- Colored sections: subtle background colors to separate areas
-- Cards and surfaces: a slight tint only when the strategy calls for it
-- Use a gradient only from the world's material. Never use gradient text.
-- Compose the dark theme on its own. Never invert the light theme.
-
-### Borders and accents
-
-Use the project's color space. For a new palette, prefer a perceptual space such as OKLCH. Apply color to borders and frames as:
-- **Hairline full-perimeter borders**: 1px colored strokes around a card or section surface
-- **Surface tints**: 4–8% background wash of the accent color on active or highlighted cards
-- **Focus rings**: colored focus indicators matching brand
-- **Underlines**: colored underlines for active state or emphasis
-
-**Depth is not a color job.** For elevation, prefer a layered shadow to a colored border. A shadow adapts to any background; a solid border does not (see [polish.md](polish.md)). A shadow carries an offset and a soft blur. Give an image edge a pure black or pure white outline at about 10% opacity. Never use a tinted near-black from the palette or the accent: a tinted outline picks up the surface color underneath and reads as dirt on the edge.
-
-### Typography color
-- Colored headings: brand colors for section headers (maintain contrast)
-- Highlight text: color for emphasis or categories
-- Labels and tags: small colored labels for metadata
-
-### Data visualization
-- Charts and graphs: color to encode categories or values
-- Heatmaps: color intensity for density or importance
-- Separate data series by lightness, chroma, shape, label or pattern.
-
-## Balance and refinement
-
-### Maintain hierarchy
-- Keep the dosage that the strategy names.
-- Same color meanings throughout the surface
-
-### Accessibility
-- Contrast: 4.5:1 for body text, 3:1 for large text. 3:1 for controls, icons and focus indicators.
-- Check every state, overlays, text on images, disabled content and both themes.
-- Simulate the common color vision deficiencies.
-- Never use color alone: pair it with an icon, a label or a pattern.
-- Prefer an explicit color to a chain of translucent overlays.
-- Secondary text on a colored ground takes that hue. Never gray.
-
-### Cohesion
-- Use colors from the defined palette only
-- Temperature consistency: warm stays warm, cool stays cool
+| The check says | Do |
+|---|---|
+| `contrast`: text under its minimum | Change the token of the text or of its ground, so that every use is fixed. Do not patch one element. On a colored ground, take secondary text from the hue of the ground ([_craft-floor.md](_craft-floor.md) rules 1 and 16). |
+| `token`: a color that is not a token, with the nearest token named | Use the named token. When no token has the job, add a role to `DESIGN.md` and run `wf.mjs design tokens`. |
+| `token`: a custom property that is not a token | Move it to `DESIGN.md` as a role, or to `components.css` when it belongs to one component. |
 
 ## Verify
 
-- Every color has a stable role.
+- Every color has a stable role, and every role is a token.
 - Attention lands on the intended action.
-- The palette works in quiet, dense, error and empty states.
+- The palette works in the `default`, `empty`, `error` and `worst` states.
 - Both themes are composed.
-- It reads as this product.
+- No state uses color as its only signal ([_craft-floor.md](_craft-floor.md) rule 15).
+- The palette passes the test of step 6: it reads as this product.
 
 ## Never
-- More hues than the strategy names
-- Color applied randomly without semantic meaning
-- WCAG contrast violations
-- Color as the only state indicator (pair with shape, label, or icon)
+
+- More hues than the strategy names.
+- Color with no role.
+- A chain of translucent overlays where one explicit token would do.
+- A gradient that does not come from a material of the world.
 
 ## In the workflow
 
-This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
-Focus: color. Checks: the audit, the Accessibility checks and the Verify list. Notes record: the strategy and its dosage, the role map, each contrast check in both themes, and each signal that used color only.
+This file is a move. [_lane.md](_lane.md) → Moves says when each use runs. A note follows [_output.md](_output.md).
+
+### At the design stage
+
+The move changes the color token roles of `DESIGN.md`, the region that each color owns in the screens, and the state colors of each component. The contract records the strategy and its dosage, the materials of step 2, and the role map.
+
+### As a pass on an approved design
+
+The pass changes nothing. Write each answer as a finding with its screen key or `file:line`.
+1. Does `wf.mjs design check` pass for contrast and tokens, in both themes?
+2. Does each color have a role, and does any role have two colors?
+3. Where does gray hide hierarchy? Where does color alone carry a state?
+4. Does the surface keep the strategy and the dosage of the contract?
+5. Does the palette pass the test of "Choose the palette", step 6?
+
+### In implement
+
+- Take every color from a token of `DESIGN.md`. A hex, an `rgb()` or a named color in a UI file is a fault.
+- Map the theme through the roles, so that a theme change updates every value.
+- Check each contrast pair in both themes after the build.
 
 ---
 

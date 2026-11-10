@@ -8,7 +8,7 @@ The design mode reference for two kinds of surface ([_design-context.md](_design
 
 On these surfaces the design is what the visitor judges, so the world of the direction may own and structure the page. The surfaces span every genre: tech, luxury, consumer products, creative studios. They share the stance (communicate, not transact) and diverge in aesthetic. Do not collapse them into one visual lane.
 
-Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
+Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`. A link to `_craft-floor.md` in this file is a pointer for Step 4: do not open the floor at Step 3b.
 
 ## Directions
 
@@ -22,13 +22,13 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 
 **Interface languages.** When the source of a direction is itself an interface language, the surface may carry its grammar across navigation, content, controls and states, within the conventions of the platform.
 
-**Typography.** Find the face for the brand as a physical object: a museum caption, a 1970s terminal manual, a fabric label. Reject the first face that "looks designy". The font reflex list is in [typeset.md](typeset.md) → Font selection. Use the Persuade type scale of [_design-context.md](_design-context.md) → Shared design laws; a flat scale reads as uncommitted. Display type may carry the voice.
+**Typography.** Find the face for the brand as a physical object: a museum caption, a 1970s terminal manual, a fabric label. Follow [typeset.md](typeset.md) → Font selection: it turns the object into letterform traits, names candidates, holds the reflex list, and asks the person to pick. A screen loads nothing from the network, so a direction shows its face from a font file in the repo or as a named stand-in, and says which. Use the Persuade type scale of [_design-context.md](_design-context.md) → Shared design laws; a flat scale reads as uncommitted. Display type may carry the voice.
 
-**Color.** Committed or higher is the default. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. An unexpected combination is allowed when the strategy calls for it.
+**Color.** Committed or higher is the default. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. Derive the palette from the materials of the world ([colorize.md](colorize.md) → Choose the palette). An unexpected combination is allowed when the strategy calls for it.
 
 **Layout.** Asymmetry is available: editorial grids, white space as content. Several columns are a design choice, not a grid default. The page may tell a story as the visitor scrolls.
 
-**Motion.** Orchestrated entrances, staggered reveals and scroll-driven motion are available when they serve the page. One rehearsed entrance beats scattered micro-interactions. Match motion to the personality: a playful brand may carry a spring with bounce 0.1–0.3; an austere brand stays restrained and slow. Motion stays interruptible and inside the frame budget ([animate.md](animate.md)).
+**Motion.** Orchestrated entrances, staggered reveals and scroll-driven motion are available when they serve the page. One rehearsed entrance beats scattered micro-interactions. Match motion to the personality: a playful brand may carry a spring with bounce; an austere brand stays restrained and slow. The limits are in [animate.md](animate.md) → Design mode. Motion stays interruptible and inside the frame budget ([animate.md](animate.md)).
 
 ## Screens
 
@@ -36,6 +36,7 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 - Cover the page with the world's material: its material is the ground and the major surfaces, and its type sets the headlines. A world reduced to an accent on a neutral template is the category default with a sticker on it.
 - Coverage is not performance. One region acts out the concept; the rest stay in the world's material without performing it.
 - Two results erase the direction: the painted poster, and the generic product page (a headline over subcopy and a button, a row of equal cards below). A split hero with a badge row, or a centered headline over a row of cards, is the template whatever world paints it.
+- A small label above every heading is part of that template. Delete it, and let the heading carry its own weight. A label stays only where it is one part of a real system of the world, such as a running head or a catalog number.
 
 **The parts still work.** Wherever the world puts a part, the page works as a page:
 - navigation set into the world reads as links;

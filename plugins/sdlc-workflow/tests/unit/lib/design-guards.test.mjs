@@ -95,14 +95,18 @@ test('the server usage names the port of start and the root of url', () => {
   assert.match(DESIGN_USAGE, /server url \[<root>\]/);
 });
 
-test('the canvas saves a dragged place before a waiting change, and loads everything after a reconnect', () => {
+test('the canvas saves a dragged place before a waiting change, and catches up after a reconnect', () => {
   const canvas = readFileSync(join(pluginRoot, 'skills', 'wf', 'canvas', 'canvas.js'), 'utf8');
-  const up = canvas.slice(canvas.indexOf('const up = async () => {'), canvas.indexOf('handle.addEventListener(\'pointermove\', move);'));
-  assert.ok(up.indexOf('moved.set(s.key, s.position)') < up.indexOf('await saveLayout()'), 'the place is kept first');
-  assert.ok(up.indexOf('await saveLayout()') < up.indexOf('if (pending) applyChange(pending)'), 'the waiting change loads after the save');
-  assert.match(canvas, /for \(const sc of data\.screens \|\| \[\]\) if \(moved\.has\(sc\.key\)\) sc\.position = moved\.get\(sc\.key\);/, 'a new state keeps a place that is not saved yet');
+  const up = canvas.slice(canvas.indexOf('const up = async (ev) => {'), canvas.indexOf('card.addEventListener(\'pointermove\', move);'));
+  assert.ok(up.length > 0, 'the end of a drag is found');
+  assert.ok(up.indexOf('moved.set(s.key, s.position)') < up.indexOf('await saveLayout('), 'the place is kept first');
+  assert.ok(up.indexOf('await saveLayout(') < up.indexOf('applyChange(pending)'), 'the waiting change loads after the save');
+  assert.match(up, /if \(!card\.dragging\) \{ if \(ev\.type === 'pointerup'\) openScreen\(card\.dataset\.key\); return; \}/, 'a press that did not move opens the screen and saves no place');
+  assert.match(canvas, /if \(moved\.has\(sc\.key\)\) sc\.position = moved\.get\(sc\.key\);/, 'a new state keeps a place that is not saved yet');
   assert.match(canvas, /es\.addEventListener\('hello', \(e\) => \{/);
-  assert.match(canvas, /if \(hello\.boot !== boot\) \{ location\.reload\(\); return; \}/);
-  assert.match(canvas, /applyChange\(merge\(pending, \{ etag: null, all: true, pages: \[\], parts: \[\] \}\)\)/);
+  // A new server reloads the canvas only when no draft and no drag would be lost.
+  assert.match(canvas, /if \(drafts\.any\(\) \|\| ui\.dragging\) notice\('restart'[^\n]*\n\s*else \{ location\.reload\(\); return; \}/);
+  // A stream that opens again reads the state and reloads what differs, not every page.
+  assert.match(canvas, /applyChange\(L\.mergeChange\(pending, \{ catchUp: true, all: false, pages: \[\], parts: \[\] \}\)\)/);
   assert.match(canvas, /r\.link && \/\^https\?:\/i\.test\(r\.link\) \? newTab\(r\.link/, 'only an http link of a reference opens');
 });

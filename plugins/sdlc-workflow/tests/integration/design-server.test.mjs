@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { changeOf, designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, changeOf, designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -25,7 +25,8 @@ function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
     req.end();
   });
 }
-const post = (port, path, value, headers = {}) => raw(port, path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(value) });
+// A write as the canvas sends it: from a page of this server, with the write token of this run.
+const post = (port, path, value, headers = {}) => raw(port, path, { method: 'POST', headers: { 'content-type': 'application/json', origin: `http://127.0.0.1:${port}`, [WRITE_HEADER]: writeToken(), ...headers }, body: JSON.stringify(value) });
 
 test('the design server serves the canvas and the brainstorm pages, and writes only comments and layout', async () => {
   const top = mkdtempSync(join(tmpdir(), 'design-server-'));
@@ -88,6 +89,36 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
     assert.deepEqual(JSON.parse(readFileSync(join(root, '.ai', 'design', 'layout.json'), 'utf8')).positions, { basket: { x: 12, y: 30 } });
     assert.equal((await post(port, '/r/shop/layout', { positions: { ghost: { x: 1, y: 1 } } })).status, 400);
     assert.throws(() => saveLayout(root, { basket: { x: 'a', y: 1 } }), /two numbers/);
+    assert.throws(() => saveLayout(root, { basket: { x: null, y: 1 } }), /two numbers/);
+
+    // A null takes the position of a screen away: the canvas sends nulls to lay the board out again.
+    const reset = await post(port, '/r/shop/layout', { positions: { basket: null, ghost: null } });
+    assert.deepEqual([reset.status, JSON.parse(reset.text)], [200, { ok: true, saved: 0, removed: 1 }]);
+    assert.deepEqual(JSON.parse(readFileSync(join(root, '.ai', 'design', 'layout.json'), 'utf8')).positions, {});
+
+    // The state names the write token, and a write without it, or with no origin, is refused.
+    assert.equal(JSON.parse((await raw(port, '/r/shop/state.json')).text).writeToken, writeToken());
+    assert.deepEqual(JSON.parse((await raw(port, '/r/shop/state.json')).text).recordsCommit, { pending: 0, failed: null });
+    assert.equal((await post(port, '/r/shop/layout', { positions: {} }, { [WRITE_HEADER]: 'wrong' })).status, 403, 'a wrong token');
+    assert.equal((await post(port, '/r/shop/layout', { positions: {} }, { [WRITE_HEADER]: '' })).status, 403, 'no token');
+    assert.equal((await raw(port, '/r/shop/layout', { method: 'POST', headers: { 'content-type': 'application/json', [WRITE_HEADER]: writeToken() }, body: '{"positions":{}}' })).status, 403, 'neither Origin nor Referer');
+    assert.equal((await raw(port, '/r/shop/layout', { method: 'POST', headers: { 'content-type': 'application/json', referer: `http://127.0.0.1:${port}/r/shop/`, [WRITE_HEADER]: writeToken() }, body: '{"positions":{}}' })).status, 200, 'the Referer of the canvas alone');
+    assert.equal((await post(port, '/r/shop/layout', [1])).status, 400, 'a body that is no object');
+    const big = await raw(port, '/r/shop/comments/basket', { method: 'POST', headers: { 'content-type': 'application/json', origin: `http://127.0.0.1:${port}`, [WRITE_HEADER]: writeToken() }, body: JSON.stringify({ text: 'x'.repeat(70 * 1024) }) }).catch(() => ({ status: 400 }));
+    assert.equal(big.status, 400, 'a body over the limit');
+
+    // A design page loads nothing from the network and opens no connection.
+    for (const path of ['/r/shop/s/screens/basket.html', `/r/shop/at/${sha}/screens/basket.html`]) {
+      const csp = (await raw(port, path)).headers['content-security-policy'];
+      assert.match(csp, /default-src 'none'/, path);
+      assert.match(csp, /connect-src 'none'; frame-src 'none'/, path);
+      assert.match(csp, /form-action 'none'; base-uri 'none'/, path);
+      assert.doesNotMatch(csp, /https?:|\*/, `${path} names no outside source`);
+    }
+    assert.equal((await raw(port, '/r/shop/')).headers['content-security-policy'], undefined, 'the canvas is not a design page');
+
+    // The health answer names the server, so no other program on the port passes for it.
+    assert.equal(JSON.parse((await raw(port, '/health')).text).pid, process.pid);
   } finally {
     for (const s of servers) s.close();
     if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
@@ -125,7 +156,7 @@ test('an open canvas gets each change of its repo, with the pages that changed',
     for (let i = 0; i < 80 && !events.length; i += 1) await new Promise((ok) => setTimeout(ok, 100));
     assert.ok(events.length, 'a change came');
     assert.deepEqual([events[0].pages, events[0].all], [['basket'], false]);
-    assert.match(events[0].etag, /^"[0-9a-f]+-[0-9a-z]+"$/);
+    assert.match(events[0].etag, /^"[0-9a-f]+-\d+-[0-9a-z]+"$/);
   } finally {
     stream?.destroy();
     for (const s of servers) s.close();

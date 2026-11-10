@@ -1,67 +1,61 @@
-Treat performance as a feature. Find the real bottleneck on this surface. Fix it, then measure again. Do not optimize what is not slow.
+# UI performance (`design/optimize.md`)
 
----
+A reference for `implement` and `verify`: how to keep a UI fast. It is not a design move. A screen page cannot show performance, so `/wf design` draws nothing from this file. The old move word `optimize` on `/wf design` loads this file as a reference, and the performance dimension of [audit.md](audit.md) checks an approved design.
+
+Treat performance as a feature. Find the real bottleneck on this surface. Fix it, then measure again. Do not optimize what is not slow. The terms in bold are those of [_platforms.md](_platforms.md).
+
+> Load with: `design/optimize.md`
 
 ## Design mode
 
-Persuade and Experience: heavy media and effects need more performance work, not less. The first viewport loads first. A hero animation that drops frames is worse than no animation.
+| Mode | What leads |
+|---|---|
+| Persuade and Experience | Heavy media and effects need more performance work, not less. The first viewport loads first. A hero animation that drops frames is worse than no animation. |
+| Operate | Input response and dynamic data. Query speed, render frequency and the quality of the loading state matter most. |
+| Read | Time to readable text. Nothing shifts the layout while the person reads. |
 
-Operate: input response and dynamic data lead. Query speed, render frequency and the quality of the loading state matter most.
+## What a design decides for performance
 
-Read: time to readable text leads. Nothing shifts the layout while the person reads.
+These are the only parts that the design stage draws:
+- the `loading` state of each screen: a skeleton that matches the final layout, in content areas;
+- a reserved size for each image, video and embed, so that nothing moves when it arrives;
+- the fallback of each heavy effect.
 
----
-
-## Smooth motion, not less motion
-
-When optimizing animations, the goal is to make every frame land inside its budget (8.3 ms at 120 Hz) — not to remove motion that passed the gates of `animate.md`. The reduced-motion setting handles people who need less motion: fewer and gentler, not zero.
-
-The correct optimization question is "why is this animation dropping frames?" not "should we keep this animation?"
-
-## Step 1: Measure first
-
-Find the real bottleneck before you change code. Do not assume it.
+## Measure first
 
 1. Measure the current state: load time, input response, layout shift, frame rate, memory and payload size.
 2. For each problem, write what is slow, the cause, how bad it is, and who it affects.
-3. Use the **profiling tools** of your platform ([_platforms.md](_platforms.md)).
+3. Use the **profiling tools** of the platform.
 4. Measure on a real mid-range device with a slow network. A fast developer machine hides the problem.
-5. Fix the largest bottleneck first. Do not tune small costs while a large one remains.
+5. Fix the largest bottleneck first.
 
-## Step 2: Animation performance
+## Motion
 
-The motion-performance rules are single-sourced in [animate.md](animate.md) → Performance: the 8.3 ms frame budget, the three property tiers (cheap, paint, layout) and the swaps between them, render thread against app thread, per-frame values outside component state, the inherited-value trap, blur cost, the layer hint, and the diagnosis order. [_platforms.md](_platforms.md) gives each term's form on the web, iOS, Android (Compose) and desktop. Load both before you change motion code; do not restate them here.
+The motion-performance rules are in [_motion-build.md](_motion-build.md) → Performance: the frame budget, the three property tiers, the render thread, per-frame values, the inherited-value trap, blur cost, the layer hint and the diagnosis order. Do not restate them. The goal is that every frame lands inside its budget, not that motion which passed the gates of [animate.md](animate.md) is removed.
 
-**Transition only what changes.** Never animate every property at once — it watches every property, animates ones you never intended (colors, padding, shadows), and blocks optimization. Name the properties.
+## Media
 
-```css
-/* Web: never `transition: all`, nor Tailwind's bare `transition` class (it maps to `transition-property: all`). */
-transition-property: transform, opacity;   /* Tailwind: transition-transform, or transition-[transform,opacity] */
-```
-
-## Step 3: Media
-
-- Never defer content in the first viewport. The hero and the first visible images load at once.
-- Load media below the first viewport on demand: **deferred media loading** ([_platforms.md](_platforms.md)).
-- Reserve the size of each image, video and embed before it loads: **reserved media size**. Nothing moves when it arrives.
-- Serve each image at its displayed size, in the most efficient format the platform supports.
+- Do not defer content in the first viewport. The hero and the first visible images load at once.
+- Load media below the first viewport on demand: **deferred media loading**.
+- Reserve the size of each image, video and embed before it loads: **reserved media size**.
+- Serve each image at its displayed size, in the most efficient format that the platform supports.
 
 ```html
-<!-- Web: the hero loads at once; a below-fold image loads on demand. -->
+<!-- Web: the hero loads at once; an image below the first viewport loads on demand. -->
 <img src="hero.webp" width="1200" height="600" fetchpriority="high" alt="...">
 <img src="detail.webp" width="800" height="450" loading="lazy" alt="...">
 ```
 
-## Step 4: Fonts
+## Fonts
 
-- Show text in a fallback face while a custom face loads. Never hide text: **text shown during font load**.
+- Show text in a fallback face while a custom face loads. Do not hide text: **text shown during font load**.
 - Load only the weights and the characters in use.
-- Prefer system faces on Operate and Read surfaces.
+- Match the metrics of the fallback to the face, so that the swap does not move the layout.
 
-## Step 5: Code and render
+## Code and render
 
 - Remove unused styles, code and dependencies.
-- Batch layout reads, then batch layout writes. Never alternate them in a loop.
+- Batch layout reads, then batch layout writes. Do not alternate them in a loop.
 - Render only the visible rows of a long list: **long-list virtualization**.
 - Skip work for content off screen.
 - Throttle scroll, resize and input handlers.
@@ -76,44 +70,20 @@ elements.forEach((el, i) => { el.style.height = heights[i] + 'px'; });
 ## Network
 
 - Page the data. Do not load every record at once.
-- Request only the fields the surface shows.
+- Request only the fields that the surface shows.
 - Compress and cache responses.
 - Show an optimistic result while a save runs, and roll it back on failure.
 
 ## Targets
 
-Meet the platform's responsiveness targets. The web targets and their severities live in the web runtime adapter (`runtime-adapters/web.md`). Verify measures them.
+Meet the responsiveness targets of the platform. The web targets and their severities are in the web runtime adapter (`runtime-adapters/web.md`). `verify` measures them.
 
-## Output format
+## Record
 
-```
-## Performance Optimization Report
-
-### Profiling results
-[What was actually slow — measured, not assumed]
-
-### Changes made
-[With before/after metrics where measurable]
-
-### Remaining opportunities
-[Lower-priority items for future optimization]
-```
-
-Before you report:
-- Compare before and after on the same device and the same network.
-- Check that every function still works.
-- Check that accessibility did not get worse.
-- Record the device and the network in the report.
-
-Next: the `polish` move.
-
-## In the workflow
-
-This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
-Focus: performance. Checks: the Step 1 measurements. Notes record: each bottleneck and its measurement, the change, the before and after numbers, and the device and network used.
+`implement` records each change in its design note per [_output.md](_output.md): each bottleneck and its measurement, the change, the numbers before and after on the same device and network, and the device and network used. Check that every function still works and that accessibility did not get worse.
 
 ---
 
-> *The animation-performance guidance pointed to above is adapted from Emil Kowalski's `animation-performance` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)); the full craft lives in `animate.md` / `polish.md`. Used under MIT license.*
+> *The animation-performance guidance pointed to above is adapted from Emil Kowalski's `animation-performance` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Used under MIT license.*
 >
 > *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

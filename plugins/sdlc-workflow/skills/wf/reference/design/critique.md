@@ -1,122 +1,68 @@
-Provide prescriptive, actionable design feedback. Unlike `audit` (which measures technical quality), critique evaluates the design *decisions* — whether they serve the user and communicate the brand effectively.
+Judge the design decisions: whether they serve the person and whether they belong to this product. The critique draws nothing. The measured checks, the tokens and the Refuse lists are the audit ([audit.md](audit.md)); the critique does not score them again.
 
-Load [_heuristics.md](_heuristics.md) for the scoring rubrics, the cognitive-load check, and the personas. Load [_craft-floor.md](_craft-floor.md) as a checklist: judge the work against its Refuse list and its Model tells. The critique draws nothing.
+The critique has four parts: the specificity verdict, the heuristic score, the personas, and the identity check. Load [_heuristics.md](_heuristics.md) for the rubrics, the cognitive-load check and the personas.
 
 Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
 
 ## Design mode
 
-Read the design mode of each surface from `02c-craft.md` `surface-modes:` (`wf.mjs record get`), or from the brief's content inventory. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
+Read the design mode of each surface from `02c-craft.md` `surface-modes:` (`wf.mjs record get`), or from the content inventory of the brief. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
 
-Persuade and Experience: critique against distinctiveness. Would someone ask "how was this made?" If the answer is "no — it looks like every other AI landing page," the design has failed. Critique for POV, specific aesthetic lane, and committed visual choices.
-
-Operate and Read: critique against earned familiarity. Does the interface feel like a tool a skilled user can trust, or a text a reader can follow? Critique for consistency, state completeness, affordance clarity, and reading order — not for visual novelty.
+| Mode | Critique against |
+|---|---|
+| Persuade and Experience | Distinctiveness. Would someone ask "how was this made?" Look for a point of view, a named aesthetic lane and committed choices. |
+| Operate and Read | Earned familiarity. Does the interface feel like a tool that a skilled user can trust, or a text that a reader can follow? Look for consistency, complete states, clear affordances and reading order, not for novelty. |
 
 ---
 
 ## Stance
 
-A good critique is specific, not general. "The typography feels off" is not a critique. "The heading weight contrast ratio between h1 and h2 is 1.15× — too flat for the information hierarchy required here" is a critique.
-
-Be direct. Don't soften findings. The goal is to surface the real problems, not to make the designer feel good. Surface-level praise before every criticism ("this is nice but…") wastes the critique.
+A critique is specific. "The typography feels off" is not a finding. "The h1 is 1.15 times the h2: too flat for this hierarchy" is a finding. Be direct. Do not soften a finding, and do not put praise before each one.
 
 ## Isolation
 
 Judge the design before you read the evidence, so that the evidence does not anchor the judgment.
 
 1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
-2. In any `/wf design … critique` run, with or without a slug, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
+2. In any `/wf design … critique` run, with or without a slug, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, this file and [_heuristics.md](_heuristics.md). Do not give it the verify results.
 3. Read the `06-verify-*.md` evidence (`wf.mjs record get`) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
 4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
 
-## Design specificity verdict
+## 1. Design specificity verdict
 
-Write this first. Could a neighboring product in the same category ship this design unchanged? Judge the coherence of the whole, the structural sameness, the choices that any product in the category could make, and the missed chances for product character. Give one verdict: `specific`, `partly specific`, or `interchangeable`, with the reason.
+Write this first. Could a neighboring product in the same category ship this design unchanged? Judge:
+- the coherence of the whole;
+- the structure: is it the template of the category?
+- the choices that any product of the category could make: the palette, the face, the shape, the motion;
+- the missed chances for product character.
 
-## Heuristic score
+A refused element or a model tell of [_craft-floor.md](_craft-floor.md) is evidence here. Name it; do not score it. On a Persuade or Experience surface, a face from the reflex list of [typeset.md](typeset.md) → Font selection with no stated reason is evidence too.
 
-Score Nielsen's ten heuristics per [_heuristics.md](_heuristics.md) → Nielsen's ten heuristics. On a Persuade or Experience surface, heuristics 7 and 10 can be `n/a`; rescale the total to the scored maximum. Give the total and its band.
+Give one verdict: `specific`, `partly specific` or `interchangeable`, with the reason.
 
-## Evaluation Dimensions
+## 2. Heuristic score
 
-### 1. Purpose alignment
+Score the ten heuristics per [_heuristics.md](_heuristics.md) → Nielsen's ten heuristics. On a Persuade or Experience surface, heuristics 7 and 10 can be `n/a`; rescale the total to the scored maximum. Give the total and its band.
 
-Does the design serve its stated purpose?
-- Is the primary user action immediately obvious?
-- Does the information hierarchy match the user's decision path?
-- Is the emotional tone appropriate for the context?
+Then run the cognitive-load check of [_heuristics.md](_heuristics.md): the 5-second test and the eight items. Give the count of failed items and the load level. Flag each decision point that shows more than four options.
 
-Ask: "What would a user do in their first 5 seconds here? Does the design support that?"
+## 3. Personas
 
-Run the cognitive-load check of [_heuristics.md](_heuristics.md) → The cognitive-load check: the 5-second test and the eight items. Give the count of failed items and the load level. Flag each decision point that shows more than four options.
+Walk the primary task as two or three personas, chosen per [_heuristics.md](_heuristics.md) → Personas. Report each red flag with its surface. Riley walks the `worst` state of each screen.
 
-### 2. Visual hierarchy
-
-Does the eye travel correctly?
-- Is there a clear entry point?
-- Does size, weight, color, and spacing guide attention in the right order?
-- Are there competing focal points that fight each other?
-
-Run the squint test: blur the detail. The primary element, the secondary element, and the major groups still read in order.
-
-### 3. Typographic execution
-
-- Does the type scale communicate the content hierarchy?
-- Are font choices aligned with the design mode and the brief?
-- Are there line length, line height, or tracking issues?
-- Check against the reflex list in [typeset.md](typeset.md) → Font selection on a Persuade or Experience surface. Flag a listed font on a new surface without a reason.
-
-### 4. Color execution
-
-- Does the color strategy follow the chosen dosage (Restrained / Committed / Full palette / Drenched)?
-- Are semantic colors consistent?
-- Check against the Refuse list of [_craft-floor.md](_craft-floor.md): a colored side stripe above 1 px is always refused. Call each one out explicitly.
-- Does secondary text on a colored ground take its color from that hue?
-
-### 5. Spatial quality
-
-- Is there a consistent spatial system (spacing multiples)?
-- Does whitespace have intent or does it feel accidental?
-- Are there density problems (too tight / too spread)?
-
-### 6. Component consistency
-
-- Do interactive elements follow a consistent vocabulary?
-- Are all required states present (hover, focus, active, disabled)?
-- Are there invented affordances where standard ones would serve better?
-
-### 7. Slop check
-
-Would someone say "AI made this"?
-- Check the Refuse list and the Model tells of [_craft-floor.md](_craft-floor.md). Name each one that is present.
-- Persuade and Experience: does it have a POV? Can you name the aesthetic lane?
-
-### 8. Motion & interaction feel
-
-When the surface has motion in scope:
-- Does each animation pass the gates of `animate.md` — a frequency tier that allows it and a named purpose? Frequently-seen and keyboard-triggered actions do not animate; occasional and first-time moments can.
-- Does it *feel* responsive — ease-out or a strong curve token on entrances and exits (never ease-in), inside the durations of `animate.md`, popovers scaling from their trigger origin, nothing scaling from 0?
-- Is fast-fired or gesture motion retargetable (a retargetable animation or a spring, not a restarting animation)?
-- Does the motion cohere with the component's personality, or does it feel borrowed?
-
-Then run the opportunity sweep of `animate.md` once: list at most 5–7 places that should move but do not, and 2–5 rejected candidates with the gate that rejected each. "The motion here is already right" is a valid result. For the sweep alone on a confirmed design, run `/wf design <slug> animate`.
-
-Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` and the `motion` section of the `interface-craft` review rubric. Platform forms are in `_platforms.md`.
-
-### 9. Identity and direction
+## 4. Identity and direction
 
 Judge the work against the design record:
 - Compare it with the identity in `PRODUCT.md` at the project root.
 - Compare it with the goals in `.ai/design/direction.md`.
+- Compare it with the direction and the anti-goals of `02c-craft.md`.
 - Give a finding that moves away from a stated goal a severity of `medium` or higher.
 
-### 10. Personas
+## Severity and routing
 
-Walk the primary task as two or three personas, chosen per [_heuristics.md](_heuristics.md) → Personas. Report each red flag with its surface. Riley walks the `worst` state of each screen.
+Tag each issue P0 to P3 per [_heuristics.md](_heuristics.md) → Severity of each issue. Write it in the issue list as `blocker`, `high`, `medium` or `low`. Use `nit` for a small observation.
 
-## Severity
-
-Tag each issue P0 to P3 per [_heuristics.md](_heuristics.md) → Severity of each issue. Write it in the issue list as `blocker`, `high`, `medium`, or `low`. Use `nit` for a small observation.
+Name the move that fixes each issue, from the routing table of [_lane.md](_lane.md) → Moves. An issue against an approved screen routes to `/wf design <slug> amend` with that move. For a motion sweep, route to `/wf design <slug> animate`; the critique does not run one.
 
 ## Output Format
 
@@ -138,16 +84,17 @@ Method: <isolated reviewer | sub-agent | single context (<reason>)>
 Cognitive load: <failed items>/8 — <low | moderate | critical>
 
 ### What's working
-[1–3 specific things that are genuinely strong, with reasons]
+[1–3 specific things that are strong, with reasons]
 
 ### Issues — ordered by impact
 
 1. **C1 [Issue title]** — Severity: blocker/high/medium/low/nit (P0–P3)
-   Dimension: [critique dimension]
+   Dimension: [specificity | heuristic <n> | persona <name> | identity]
    What: [specific problem]
-   Where: [file:component or visual area]
-   Why it matters: [effect on user or design quality]
-   Fix: [specific, actionable recommendation]
+   Where: [screen key, or file:component]
+   Why it matters: [effect on the person or on the product character]
+   Fix: [specific recommendation]
+   Move: [the move of the routing table]
 
 2. ...
 
@@ -155,7 +102,7 @@ Cognitive load: <failed items>/8 — <low | moderate | critical>
 [persona — red flag — where]
 
 ### Summary assessment
-[2–3 sentences: the overall design direction and whether it will serve its purpose]
+[2–3 sentences: the direction of the design, and whether it will serve its purpose]
 ```
 
 ## Close with questions
@@ -201,4 +148,4 @@ recommended-routes: [{invocation: "/wf review <slug>", reason: "fold the finding
 ---
 ```
 
-- Give each issue an ID, a severity, and a dimension. Later stages read the severity of each finding from the issue list.
+- Give each issue an ID, a severity and a dimension. Later stages read the severity of each finding from the issue list.

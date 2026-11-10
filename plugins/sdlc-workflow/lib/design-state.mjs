@@ -92,7 +92,9 @@ const gitDirs = new Map();
 function gitDirOf(root) {
   if (!gitDirs.has(root)) {
     const r = spawnSync('git', ['-C', root, 'rev-parse', '--absolute-git-dir'], { encoding: 'utf8', windowsHide: true });
-    gitDirs.set(root, r.status === 0 ? r.stdout.trim() : null);
+    // A folder that is no git repo yet is asked again: it can become one while the server runs.
+    if (r.status !== 0) return null;
+    gitDirs.set(root, r.stdout.trim());
   }
   return gitDirs.get(root);
 }
@@ -232,6 +234,18 @@ export function pageFingerprint(root, key, html) {
   return hash.digest('hex').slice(0, 16);
 }
 
+/** The fingerprint of the token sheet and the component sheet together. A sheet that is missing counts as empty. */
+export function sheetsFingerprint(root) {
+  const hash = createHash('sha1');
+  for (const f of [TOKENS_FILE, COMPONENTS_FILE]) {
+    let text = '';
+    // A checkout can change the line ends, and a change of line ends is no design change.
+    try { text = readFileSync(join(surfaceDir(root), f), 'utf8').replace(/\r\n/g, '\n'); } catch { text = ''; }
+    hash.update(`${f}:${text.length}:`).update(text);
+  }
+  return hash.digest('hex').slice(0, 16);
+}
+
 /**
  * The whole canvas state of a repo. The design server asks for it with `full: false`: then a screen
  * carries the counts of its failures, not the failures and their groups, which the server serves
@@ -290,6 +304,8 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
     versions: versionsOf(root, workflows),
     explore: listExplore(root),
     references: checkReferences(root).references,
+    // The sheets that every page links: when this changes, every page shows another design.
+    sheets: { fingerprint: sheetsFingerprint(root) },
     tokens: tokensOf(tokensCss),
     components: listComponents(root, { uses: listed.map((s) => ({ key: s.key, components: used.get(s.key) })) }),
     noComponents: m['no-components'] ?? null,

@@ -1,26 +1,27 @@
 ---
-description: The design stage, which only a person runs, and the design record. `/wf design <slug> [move]` runs the design stage between intake and slice. It draws each changed screen on the design surface of the repo, checks it, takes the approval of the person from the answer event, and writes the visual contract `02c-craft.md`, so no driven stage decides a design. `explore` sketches ideas and settles nothing. `amend` reopens an approved design. `import` turns outside design work into screens. `setup`, `teach`, `extract`, `direction` and `sync` keep the design record of the project. `audit` and `critique` run the design dimensions of the review on demand.
-argument-hint: "[slug] [move|amend|import|audit|critique|extract|explore] [instructions] | <setup|teach|extract|direction|sync|explore> [instructions]"
+description: The design stage, which only a person runs, and the design record. `/wf design <slug>` runs the design stage between intake and slice. It draws each changed screen on the design surface of the repo, checks it, takes the approval of the person from the answer event, and writes the visual contract `02c-craft.md`, so no driven stage decides a design. `amend` reopens an approved design. `import` turns outside design work into screens. `explore` sketches ideas and settles nothing. `record`, `extract`, `direction` and `sync` keep the design record of the project. `audit` and `critique` run the design dimensions of the review on demand.
+argument-hint: "<slug> [amend|import <link|path>...] [instructions] | explore [slug] [instructions] | more: <slug> <move> | [slug] audit|critique|extract | record|direction|sync"
 ---
 
-You are running `/wf design`. It has four jobs:
-
-1. **The design stage.** A lifecycle stage between `intake` and `slice` that only a person runs. The person approves the screens here, before any stage that `/wf yolo` can run. [design/_lane.md](design/_lane.md) holds the rule and the design duties of each stage. The screens live on the design surface of the repo ([design/_surface.md](design/_surface.md)).
-2. **Explore.** A free path that sketches ideas on the design surface and settles nothing ([design/explore.md](design/explore.md)).
-3. **The design record.** The design memory of the project: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
-4. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
+You are running `/wf design`. It has four jobs: the design stage of a workflow, explore sketches, the upkeep of the design record of the project, and a design review on demand.
 
 ## Card
 
-- This stage is for a person only. A driver never runs it.
-- Only the person approves a design. Take the approval from the answer event of the person.
+- The design stage is for a person only. A driver never runs it.
+- Only the person approves a design. A script takes the approval from the answer event of the person.
 - Draw each screen that changes on the design surface. Check the screens, get the approval, and write the visual contract `02c-craft.md`.
 - Do not decide a visual question for the person.
-- Done when every changed screen is approved and `02c-craft.md` carries the approval.
+- Done when every changed screen is approved and `wf.mjs design approve` recorded the approval.
 
 ## Requires
 
-Read every row that applies before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+Read every row that applies before you write the stage artifact. [_requires.md](_requires.md) defines the check. Step 0 gives the modes of the run. Pass each one to the check, because no disk fact sets a mode of this table:
+
+```
+node "<skill-dir>/scripts/wf.mjs" requires "<root>" <slug> design --mode <mode> [--mode <mode>]...
+```
+
+A run with no slug has no workflow to check: read the procedure rows of its modes yourself.
 
 | Input | Kind | When | Sections |
 |---|---|---|---|
@@ -28,126 +29,115 @@ Read every row that applies before you write the stage artifact. [_requires.md](
 | `02-shape.md` | artifact | always | |
 | `02b-design.md` | artifact | if-present | |
 | `decisions.yaml` | artifact | if-present | |
-| `brainstorm-board-design.json` | artifact | if-present | |
-| the origin brainstorm board named by origin-brainstorm | artifact | mode:stage | |
+| `brainstorm-board-design.json` | artifact | mode:carried | |
+| the origin brainstorm board named by origin-brainstorm | artifact | mode:carried | |
 | `06-verify-*.md` | artifact | mode:audit | Accessibility Gate; Performance Gate |
 | `06-verify-*.md` | artifact | mode:critique | |
-| `design/_lane.md` | procedure | always | |
-| `design/_output.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | The human rule |
 | `design/stage.md` | procedure | mode:stage | |
-| `design/contract.md` | procedure | mode:stage | |
-| `design/_carried.md` | procedure | mode:stage | |
-| `design/_design-context.md` | procedure | mode:stage | |
+| `design/_surface.md` | procedure | mode:stage | The folder; A screen; Arranging the screens |
+| `design/_design-context.md` | procedure | mode:stage | Design modes; Shared design laws |
 | `design/_preflight.md` | procedure | mode:stage | |
 | `design/_craft-floor.md` | procedure | mode:stage | |
-| `design/_surface.md` | procedure | mode:stage | |
-| `design/explore.md` | procedure | mode:explore | |
-| `design/_surface.md` | procedure | mode:explore | |
-| `design/_craft-floor.md` | procedure | mode:audit | |
-| `design/_craft-floor.md` | procedure | mode:critique | |
-| `design/_craft-floor.md` | procedure | mode:upkeep | Record guard |
+| `design/contract.md` | procedure | mode:stage | |
+| `design/_carried.md` | procedure | mode:carried | |
+| `design/directions.md` | procedure | mode:directions | |
+| `design/foundation.md` | procedure | mode:foundation | |
+| `design/_surface.md` | procedure | mode:foundation | The foundation |
+| `design/amend.md` | procedure | mode:amend | |
+| `design/_surface.md` | procedure | mode:amend | Versions |
 | `design/import.md` | procedure | mode:import | |
-| `design/_craft-floor.md` | procedure | mode:import | |
 | `_host-surfaces.md` | procedure | mode:import | Design canvas |
+| `design/move-pass.md` | procedure | mode:move-pass | |
+| `design/_craft-floor.md` | procedure | mode:move-pass | |
+| `design/_output.md` | procedure | mode:move-pass | |
+| `design/explore.md` | procedure | mode:explore | |
+| `design/record.md` | procedure | mode:upkeep | |
+| `design/_craft-floor.md` | procedure | mode:upkeep | Record guard |
+| `design/setup.md` | procedure | mode:record | |
+| `design/extract.md` | procedure | mode:extract | |
+| `design/_craft-floor.md` | procedure | mode:audit | |
 | `design/audit.md` | procedure | mode:audit | |
+| `design/_output.md` | procedure | mode:audit | |
+| `design/_craft-floor.md` | procedure | mode:critique | |
 | `design/critique.md` | procedure | mode:critique | |
 | `design/_heuristics.md` | procedure | mode:critique | |
+| `design/_output.md` | procedure | mode:critique | |
 | `02c-craft.md` | writes | | |
 | `07-design-audit.md` | writes | | |
 | `07-design-critique.md` | writes | | |
 
-The mode of a row is the job that Step 0 resolves: `stage` (also amend and a move), `explore`, `import`, `upkeep`, and `audit` or `critique` for a review. A row applies when it names that job. No `modes:` entry is needed.
+The stage loads `design/_craft-floor.md` at its Step 4 and `design/contract.md` at its Step 6, not before. The modes `carried`, `directions` and `foundation` join a run when the stage reaches that branch. List every mode that ran in `modes:` of `02c-craft.md`.
 
 # Step 0 — Parse the invocation
 
-Resolve the first token by an exact existence check. Do not fuzzy-match: a wrong guess sends the work down the wrong path.
+Resolve the first token by an exact existence check. Do not match a near name: a wrong guess sends the work down the wrong path. A token is a slug when `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token> index` exits 0.
 
-1. When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <token0> index` exits 0, `token0` is the slug. Read `token1`:
+1. When `token0` is a slug, read `token1`:
 
-   | `token1` | Job |
-   |---|---|
-   | absent | stage |
-   | one of the 15 moves | stage, focused on that move |
-   | `amend` | amend |
-   | `import` | import; the rest of the invocation is the link or the paths |
-   | `audit` or `critique` | review |
-   | `extract` | upkeep; the report attaches to the slug |
-   | `explore` | explore, linked to the slug |
-   | anything else | stop, and render the usage below |
+   | `token1` | Job | Modes |
+   |---|---|---|
+   | absent | stage | `stage` |
+   | `amend` | amend | `stage`, `amend` |
+   | `import` | import; the rest is the links or the paths | `stage`, `import` |
+   | a move | stage, focused on that move; on an approved design, the move pass | `stage`, or `move-pass` |
+   | `audit` or `critique` | review | that word |
+   | `extract` | upkeep; the report attaches to the slug | `upkeep`, `extract` |
+   | `explore` | explore, linked to the slug | `explore` |
+   | anything else | stage; `token1` and the rest are the instructions of the person | `stage` |
 
-2. Otherwise `token0` is the command:
+2. Otherwise, `token0` is the command:
 
-   | `token0` | Job |
-   |---|---|
-   | `explore` | explore; when `token1` is a slug (`record get` exits 0), the run links to it |
-   | `setup`, `teach`, `extract`, `direction`, `sync` | upkeep |
-   | `audit`, `critique` | review, freestanding against the target code |
-   | one of the 15 moves | new workflow |
-   | anything else, or no token | stop, and render the usage below |
+   | `token0` | Job | Modes |
+   |---|---|---|
+   | `explore` | explore; when `token1` is a slug, the run links to it | `explore` |
+   | `record`, `setup` or `teach` | upkeep: the record interview | `upkeep`, `record` |
+   | `extract` | upkeep | `upkeep`, `extract` |
+   | `direction` or `sync` | upkeep | `upkeep` |
+   | `audit` or `critique` | review, freestanding against the target code | that word |
+   | a move, and `token1` is a slug | the same as `<slug> <move>` in table 1 | `stage`, or `move-pass` |
+   | a move, and `token1` is not a slug | new workflow | none |
+   | anything else, or no token | stop, and render the usage below | |
 
-The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`. The reference of each move is `design/<move>.md`. Step 1 names the reference of every other job.
+The moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `harden`, `layout`, `onboard`, `polish`, `simplify`, `typeset`. The reference of each move is `design/<move>.md`. An older word reads as the move that replaced it: `quieter` and `distill` as `simplify`, `overdrive` as `bolder`, `delight` as `animate`. `optimize` is no longer a move: the stage loads `design/optimize.md` as a reference and focuses on no move, and on an approved design it routes to `/wf design <slug> audit`.
 
 ```
 Usage:
-  /wf design <slug> [move] [instructions]   Run the design stage: draw the screens, check them, approve, write 02c-craft.md.
-                                            On an approved design, a move runs its checks and draws nothing.
+  /wf design <slug> [instructions]          Run the design stage: draw the screens, check them, approve.
   /wf design <slug> amend [instructions]    Reopen an approved design.
   /wf design <slug> import <link|path>...   Turn outside design work into screens, then approve.
   /wf design explore [slug] [instructions]  Sketch ideas on the design surface. Settles nothing.
-  /wf design [slug] audit|critique          Run a design review dimension now.
-  /wf design <move> <instructions>          Start a new workflow seeded with a move.
-  /wf design setup|teach|extract|direction|sync [instructions]
-                                            Maintain the project's design record.
 
-Moves: adapt · animate · bolder · clarify · colorize · delight · distill · harden ·
-layout · onboard · optimize · overdrive · polish · quieter · typeset
+More:
+  /wf design <slug> <move>                  Focus the stage on a move; on an approved design, run its checks.
+  /wf design [slug] audit|critique|extract  Run a design review now; read the design system out of the code.
+  /wf design record|direction|sync          Complete the design record; change the direction; sync DESIGN.md.
+  /wf design <move> <instructions>          Start a new workflow that records the move.
 ```
-
-Record the resolved job, slug, command and instructions before you continue.
 
 # Step 1 — Run the job
 
-## Stage and amend
-
-Follow [design/stage.md](design/stage.md). The screens follow [design/_surface.md](design/_surface.md). A move on an approved design runs [design/stage.md](design/stage.md) → Move pass. The moves use the generic terms of [design/_platforms.md](design/_platforms.md).
-
-Load [design/_craft-floor.md](design/_craft-floor.md) at Step 4 of the stage, before the first screen. Do not load it at Steps 1–3b. The Move pass reads it as a checklist.
-
-## Explore
-
-Follow [design/explore.md](design/explore.md). An explore run writes only explore sketches and, when it links to a workflow, decisions. It writes no screen and no contract.
-
-## Import
-
-Follow [design/import.md](design/import.md). An import continues at Step 5 of the design stage, where the person approves the imported screens. It loads the design record, the shared design context, and the move reference when a move is named. Load [design/_craft-floor.md](design/_craft-floor.md) with them, because the import skips Step 4.
-
-## New workflow (`/wf design <move> <instructions>`)
-
-Run `/wf intake <instructions>` in default mode. Before intake writes `00-index.md`, preset `ux-impact: visual` (or higher when the instructions add a surface) and `design-move: <move>`. The person confirms `ux-impact` in the stack confirmation of intake. The workflow then runs `shape`, and the design stage focuses on the recorded move.
-
-## Upkeep
-
-Follow the section of the command in [design/record.md](design/record.md). `setup` and `teach` also follow [design/setup.md](design/setup.md) and [design/teach.md](design/teach.md). `extract` also follows [design/extract.md](design/extract.md). Upkeep writes the design record only. It touches no workflow artifact, except that `extract` with a slug writes its report under `design-notes/` of that slug. Before a write to the design record, load [design/_craft-floor.md](design/_craft-floor.md) → Record guard ([design/record.md](design/record.md) → Floor guard).
-
-## Review
-
-Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). Check against its Refuse and Verify lists.
-
-- With a slug, write the draft `<wf-dir>/.draft/07-design-audit.md` or `<wf-dir>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` uses the accessibility, performance and web-vitals results in `06-verify-*.md`. It measures them itself only when no verify ran.
-- Without a slug, write no workflow artifact. Report in chat.
+| Job | Follow |
+|---|---|
+| stage, amend, a move | [design/stage.md](design/stage.md). Its Step 0 runs `wf.mjs design next`, which names the step: the stage, the amend ([design/amend.md](design/amend.md)) or the move pass ([design/move-pass.md](design/move-pass.md)). Load [design/_craft-floor.md](design/_craft-floor.md) at Step 4 of the stage, not at Steps 1–3b. The moves use the generic terms of [design/_platforms.md](design/_platforms.md). |
+| explore | [design/explore.md](design/explore.md). The run writes only explore sketches and, when it links to a workflow, decisions. It writes no screen and no contract. |
+| import | [design/import.md](design/import.md). It continues at Step 5 of the stage, where the person approves the imported screens. |
+| new workflow | Run `/wf intake <instructions>` in default mode. Before intake writes `00-index.md`, preset `ux-impact: visual` (or higher when the instructions add a surface) and `design-move: <move>`. The person confirms `ux-impact` in the stack confirmation of intake. The design stage of that workflow focuses on the recorded move. |
+| upkeep | The section of the command in [design/record.md](design/record.md). `record`, `setup` and `teach` run the interview of [design/setup.md](design/setup.md). `extract` follows [design/extract.md](design/extract.md). Upkeep writes the design record only, and `extract` with a slug also writes its report under `design-notes/` of that slug. Before a write to the record, load [design/_craft-floor.md](design/_craft-floor.md) → Record guard. |
+| review | Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). With a slug, write the draft `<wf-dir>/.draft/07-design-audit.md` or `<wf-dir>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` uses the accessibility, performance and web-vitals results in `06-verify-*.md`, and measures them itself only when no verify ran. Without a slug, write no workflow artifact, and report in chat. |
 
 # Step 2 — Final summary
 
-Emit the summary last, per [design/_output.md](design/_output.md) "Final-summary rules":
+Emit the summary last. The person reads it in chat and opens no record, so it holds every fact that the person needs. Lead with the narrative per [_chat-return.md](_chat-return.md): a short paragraph on what happened, with the counts, the decisions and the top risk.
 
 ```
 wf design <job> complete: <slug-or-"freestanding">
 
-<Narrative — lead with the narrative per _chat-return.md, section The narrative.>
+<Narrative>
 
 Design modes: <surface: persuade|operate|read|experience, ... | n/a>
 Image gate: <pass | skipped:<reason> | n/a>
-Screens: <keys> — approved in <commit> — <canvas URL> | n/a
+Screens: <keys> — approved in <commit> — computer <url> · phone <url> | n/a
 Artifacts: <comma-separated paths, or "none">
 Next: <Type `/wf <key> <args>`. | Done>
 ```
@@ -156,6 +146,11 @@ Write `Next` as "Type `/wf <key> <args>`." The person runs the key. Do not write
 
 | After | `Next` |
 |---|---|
-| the stage | the Next row of [design/stage.md](design/stage.md) |
-| amend | the first plan to revisit |
+| the stage, an import | the step that `wf.mjs design approve` printed |
+| a stop before the approval | "Type `/wf design <slug>`." |
+| amend | the first plan to revisit ([design/amend.md](design/amend.md)) |
+| the move pass | the `next-invocation` of `00-index.md` |
 | explore | [design/explore.md](design/explore.md) → Chat return |
+| upkeep | `Done`, or "Type `/wf design <slug>`." when a design stage waits for the record |
+| a review with a slug | "Type `/wf review <slug>`." |
+| a new workflow | the next step of intake |

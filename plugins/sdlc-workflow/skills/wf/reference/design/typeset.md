@@ -1,177 +1,162 @@
-> **Additional context needed**: the design direction, existing font choices.
+Typography carries information, hierarchy and voice. Improve it inside the established world. A new identity runs through the design stage and updates `DESIGN.md`.
 
-Typography carries information, hierarchy and voice. Improve it inside the established world. A new identity runs through the design stage and updates DESIGN.md.
+The limits of type (measure, sizes, line height, tracking) are in [_craft-floor.md](_craft-floor.md) rules 17–22. The values in this file are defaults inside those limits. The type tokens of `DESIGN.md` override them.
 
 ---
 
 ## Design mode
 
-Persuade and Experience: display type may carry the voice. Use large size contrasts and mixed weights for editorial effect. The reflex list below applies.
-
-Operate: one family. System faces are correct. The type scale serves the information structure, not the brand voice.
-
-Read: the measure and a reading face lead. Use monospace only for code and labels.
+| Mode | Type |
+|---|---|
+| Persuade and Experience | Display type may carry the voice. Use large size contrasts and mixed weights. The reflex list below applies. |
+| Operate | One family is often right. System faces and workhorse UI faces are correct. The scale serves the information structure, not the brand voice. |
+| Read | The measure and a reading face lead. Use monospace for code and small labels only. |
 
 ---
 
-## Font selection (Persuade and Experience)
+## Font selection
 
-Write three concrete brand-voice words first (not "modern" — think physical objects, textures, contexts). Then find a font that is that object, not one that looks designed.
+Use this section when the tokens do not yet hold the faces, on a Persuade or Experience surface, or when the person asks for a new face.
 
-**The reflex list** (training-data defaults — look further):
+### Choose a face
+
+The method works from the product, and needs no catalog.
+
+1. **What exists.** Read `DESIGN.md` and the font files of the repo. A face that the product already owns comes first.
+2. **The voice as objects.** Write three words for the voice as physical things, not as adjectives: a museum caption, a railway timetable, a fabric label. "Modern" and "clean" are not words for this step.
+3. **The traits.** Turn the objects into letterform traits:
+
+   | Trait | Range | The object suggests |
+   |---|---|---|
+   | Construction | geometric, humanist, grotesque, slab, old-style or modern serif, monospace | How the thing was made: drawn, engraved, stamped, typed, machined |
+   | Stroke contrast | none to high | A sign painted with one brush width, or a page set for print |
+   | Width | condensed to extended | Space that was scarce (a timetable, a label), or generous (a title wall) |
+   | x-height and apertures | small and closed to large and open | Text read at a glance and at small sizes needs large and open |
+   | Terminals and details | sharp, round, ink traps, quirks | The tool that made the letters |
+
+4. **Candidates.** Name two or three faces that have those traits. Give each one line: the traits that it matches, and its licence class (a system face, an open licence, a commercial licence). Pass each one through the reflex list.
+5. **The pick.** Ask the person one gate question per [_gate-question.md](../_gate-question.md): which candidate, and whether the product holds or will buy its licence. Do not pick a commercial face for the person.
+6. **One family or two.** One well-chosen family with committed contrast of weight and size is stronger than a timid pair. Add a second family only when the voice needs a role that the first cannot play.
+
+**The reflex list.** These faces are the first answers of a model, and they make designs look alike:
 Fraunces · Playfair Display · Cormorant · Lora · Crimson · Newsreader · Syne · Space Grotesk · Space Mono · IBM Plex · Inter as a display face · DM Sans · DM Serif · Outfit · Plus Jakarta Sans · Instrument Sans
 
-A face from this list needs a reason no other face meets. A subject association is never that reason. On Operate and Read surfaces, system faces and workhorse UI faces are correct.
+A face from this list needs a reason that no other face meets. A subject association is not that reason. Do not pick a face because the category uses it: when someone can guess the face from the category, choose again from the traits. On Operate and Read surfaces, system faces and workhorse UI faces are correct, and the list does not apply.
 
-Browse a real catalog (Google Fonts, Pangram Pangram, Future Fonts, Adobe Fonts, ABC Dinamo, Klim) with the brand-voice words in mind. Reject the first thing that "looks designy."
+### Get the face onto a screen
 
-Font resources:
-- `https://fonts.google.com/` — free, wide selection
-- `https://fonts.adobe.com/` — requires Creative Cloud subscription
-- `https://pangrampangram.com/` — distinctive contemporary fonts
-- `https://klim.co.nz/` — editorial and book-quality Latin typefaces
-- `https://abcdinamo.com/` — contemporary type with strong identity
+A screen page loads nothing from the network ([_surface.md](_surface.md)). A face reaches a screen in one of two ways:
 
-**Font pairing rules**:
-- Two families minimum only when the voice needs it. One well-chosen family with committed weight/size contrast is stronger than a timid display+body pair.
-- Display serif + sans body: magazine shape, works for editorial/luxury brand.
-- One committed sans: correct for tech, fintech, tools.
-- Rule-breaking is available (mono-only, display-only) when it matches the brand voice.
+| Case | Do |
+|---|---|
+| The product holds the font file, and its licence allows the file in the repo | Put the file in the repo. Declare it with a local `@font-face` in `components.css`, with a relative URL. Name the family in the type tokens of `DESIGN.md`. |
+| The file is not available yet, or its licence does not allow the repo | Draw with a named stand-in: a system face or an open-licence face in the repo, chosen for the same traits. Record it in the `02c-craft.md` `## Mock fidelity inventory`: the real face, the stand-in, and that the build replaces it. Tell the person in the approval question that the screens show a stand-in. |
+
+Do not link a font service from a screen page. Do not name a face in a token when no file and no stand-in backs it.
 
 ## Assess
 
-Answer each question with a file, a selector or a computed value:
-- **Authority and fit.** Which faces, weights and roles are established? Do they fit the product, or are they unexamined defaults? Is every family necessary?
-- **Hierarchy.** Can you tell heading, body, label, metadata and data roles apart at a glance?
-- **Scale and consistency.** Is there a deliberate role scale, or a set of arbitrary values?
-- **Reading.** Are the measure, line height, rhythm, contrast and tracking tuned to the face and the width?
-- **Stress.** What happens with long headings, translation, zoom, narrow containers, missing weights and the fallback face?
-- **Delivery.** Does the surface load only the faces in use? Does loading hide text or move the layout?
+Answer each question with a file, a selector or a computed value.
+
+| Question | Look for |
+|---|---|
+| Authority and fit | Which faces, weights and roles are established? Do they fit the product, or are they unexamined defaults? Is every family necessary? |
+| Hierarchy | Can you tell heading, body, label, metadata and data roles apart at a glance? |
+| Scale | Is there a deliberate role scale, or a set of arbitrary values? |
+| Reading | Are the measure, line height and tracking tuned to the face and the width? |
+| Stress | What happens with long headings, translation, zoom, narrow containers, missing weights and the fallback face? |
+| Delivery | Does the surface load only the faces in use? Does loading hide text or move the layout? |
 
 ## Set the system
 
-Before you edit, state:
-- the roles the interface needs;
-- the contrast between those roles;
-- the measure and the density;
-- the established faces and weights;
-- the performance, translation and accessibility constraints.
-
-Use the fewest roles and families that make the hierarchy clear. Combine size, weight, space and tone; do not ask size alone to do the work. Name each role by its purpose, not by its value.
+Before you draw, state the roles that the interface needs, the contrast between them, the measure and the density, and the faces and weights. Use the fewest roles and families that make the hierarchy clear. Combine size, weight, space and tone; size alone does not do the work. Name each role by its purpose, not by its value.
 
 ## Type scale
 
-[_design-context.md](_design-context.md) → Shared design laws gives the scale ratio of each design mode. The tokens below are web examples.
+Take the scale from the type tokens of `DESIGN.md`. With none, build one from a base size and a ratio, and write it into `DESIGN.md`. [_design-context.md](_design-context.md) → Shared design laws gives the ratio of each design mode.
 
-**Persuade and Experience**: fluid headings.
+| Mode | Scale |
+|---|---|
+| Persuade and Experience | A modular scale with fluid headings: each step is a `clamp()` between its size at the narrowest and the widest viewport. The display step stays inside floor rule 21. |
+| Operate and Read | A fixed scale. More type roles need less contrast between steps. |
 
 ```css
-/* Web: */
---type-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
---type-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
---type-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
---type-lg: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
---type-xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
---type-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
---type-3xl: clamp(2.5rem, 2rem + 2.5vw, 4rem);
+/* Web: one fluid step and one fixed step. Derive the others from the base and the ratio. */
 --type-display: clamp(3rem, 2rem + 5vw, 6rem);
-```
-
-**Operate and Read**: fixed scale.
-
-```css
-/* Web: */
---type-xs: 0.75rem;   /* 12px */
---type-sm: 0.875rem;  /* 14px */
---type-base: 1rem;    /* 16px */
---type-lg: 1.125rem;  /* 18px */
---type-xl: 1.25rem;   /* 20px */
---type-2xl: 1.5rem;   /* 24px */
---type-3xl: 1.875rem; /* 30px */
+--type-base: 1rem;
 ```
 
 ## Hierarchy
 
-Heading levels must have visible contrast. If h1 and h2 look similar:
-- Increase size difference (h1 should be at least 1.5× h2)
-- Add weight contrast (h1 at 700–900, body at 400)
-- Add color or tracking difference
-
-Three visible tiers minimum: primary (heading), secondary (subheading/label), tertiary (body/caption).
+- Make three visible tiers: primary, secondary and tertiary.
+- Adjacent tiers differ by at least one step of the scale, and by weight or space as well.
+- On a Persuade or Experience surface, the display step is at least 1.5 times the next step. A flat scale reads as uncommitted.
+- When two heading levels look alike, widen the size step, add weight contrast, or change the space above them.
 
 ## Spacing and readability
 
-Keep body prose at 65–75 characters per line. A narrow column may go down to 45. Give wider lines more line height.
+Defaults, inside the floor limits:
 
-```css
-/* Web: body text */
-font-size: 1rem;
-line-height: 1.65;
-max-width: 70ch;
+| Role | Line height | Tracking |
+|---|---|---|
+| Body prose | 1.5–1.7; a wider line takes more | 0 |
+| Dense UI text | 1.4–1.5 | 0 |
+| Display headings | 1.1–1.2 | −0.02 to −0.03 em at large sizes |
+| Small labels and captions | 1.4 | 0 to 0.02 em |
 
-/* Display headings */
-line-height: 1.1–1.2;
-letter-spacing: -0.02em to -0.04em; /* tighten at large sizes */
-
-/* Small labels and captions */
-line-height: 1.4;
-letter-spacing: 0 to 0.02em; /* can open slightly */
-```
-
-**On dark grounds**: compensate light text on a dark ground on three axes: 0.05–0.1 more line height, a little more tracking, and one weight step up when the face needs it.
-
-- Mark a paragraph boundary with spacing or a first-line indent. Do not use both.
+- **On a dark ground,** light text takes a little more line height, a little more tracking, and one weight step up when the face needs it.
+- Mark a paragraph boundary with spacing or with a first-line indent, not both.
 - Keep repeated roles identical across screens and states.
-- Respect zoom, the user's font settings and the **largest text size** ([_platforms.md](_platforms.md)).
-- Load faces per [optimize.md](optimize.md) → Fonts.
+- Respect zoom, the font settings of the person and the largest text size of the platform ([_platforms.md](_platforms.md) → largest text size).
 
 ## Line breaks
 
 - Use **balanced wrap** on headings and short centered blocks ([_platforms.md](_platforms.md)).
 - Use **even-last-line wrap** on body text. A two-word last line is acceptable.
 - When a column is too narrow for either to help, edit the copy or widen the column.
-- Break a heading by hand only between phrases. Check that break at every width the heading renders at.
-- Long text (10+ lines), code and preformatted text keep the default wrap.
+- Break a heading by hand only between phrases. Check that break at every width where the heading renders.
+- Long text (10 or more lines), code and preformatted text keep the default wrap.
 
 ## Tabular numerals
 
-Use **tabular numerals** ([_platforms.md](_platforms.md)) for numbers that update or align in columns: counters, prices, timers, table columns, scores. Digits keep equal width, so the layout does not shift as values change. Do not use them for static numbers, phone numbers or versions. Some faces redraw the numerals under this setting. Check the result in your real face.
-
-## Common problems and fixes
-
-**Flat hierarchy**: increase size ratio between heading and body. Add weight contrast.
-**Too much font variety**: reduce to 2 sizes per context (heading + body), or 1 family.
-**Poor readability**: raise body text to the platform body size. Add line height. Reduce line length.
-**Display text too tight**: tighten tracking at display sizes (−0.03 em at 48px+).
-**Generic font choice**: apply the reflex list and replace.
-**Inconsistent hierarchy**: establish fixed scale tokens and apply them uniformly.
+Use **tabular numerals** ([_platforms.md](_platforms.md)) for numbers that update or align in columns: counters, prices, timers, table columns, scores. Digits keep equal width, so the layout does not shift as values change. Do not use them for static numbers, phone numbers or versions. Some faces redraw the numerals under this setting: check the result in the real face.
 
 ## Verify
 
 Give evidence for each item: a rendered capture or a source line. A bare "yes" is not evidence.
 - The roles read clearly without the copy.
-- Long text reads well at every width and in every language.
-- Loading causes no invisible text and no reflow.
+- Long text reads well at every viewport, and in the `worst` state.
+- Every face on the screens is a file in the repo, a system face, or a recorded stand-in.
 - Zoom and text scaling work.
-
-Next: the `polish` move.
 
 ## Never
 
-- Font sizes below 12px (captions)
-- Body text below the platform body size (16 px on the web), unless a dense role, a platform convention or a user setting needs it
-- Line height below 1.5 for body text (1.4 only for dense UI, per polish.md)
-- Body prose outside 65–75 characters per line, except a narrow column down to 45
-- Justified alignment in body text (uneven word spacing)
-- Thin weight (100) at small sizes — unreadable at normal resolutions
+- A size, a line height or a tracking value outside the floor limits.
+- Justified body text.
+- A thin weight at small sizes.
+- A face chosen by category.
 
 ## In the workflow
 
-This file is a move. [_lane.md](_lane.md) → Moves says how each stage uses it.
-Focus: typography. Checks: the Assess questions and the Verify list. Notes record: the role system, each finding with its evidence, the fix, and the checks that code alone cannot settle.
+This file is a move. [_lane.md](_lane.md) → Moves says when each use runs. A note follows [_output.md](_output.md).
+
+### At the design stage
+
+The move changes the type tokens of `DESIGN.md` (families, scale, weights, line heights), the type roles of each component, and the hierarchy of each screen. For a new face, it runs "Choose a face" and "Get the face onto a screen". The contract records the role system, the faces with their licence class, and each stand-in.
+
+### As a pass on an approved design
+
+The pass changes nothing. Answer the Assess table and the Verify list. Write each fault as a finding with its screen key or `file:line`, the computed value, and the fix. Name the checks that code alone cannot settle.
+
+### In implement
+
+- Build every size, weight and line height from the type tokens.
+- Replace each recorded stand-in with the real face.
+- Show text in a fallback face while a custom face loads, and load only the weights in use ([optimize.md](optimize.md) → Fonts).
+- Set font smoothing once, at the root ([_platforms.md](_platforms.md) → font smoothing).
 
 ---
 
-> *The text-wrapping and tabular-numbers guidance here, and the font-smoothing form in `_platforms.md`, are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under MIT license.*
+> *The text-wrapping and tabular-numbers guidance here, and the font-smoothing form in the platform files, are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under MIT license.*
 >
 > *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

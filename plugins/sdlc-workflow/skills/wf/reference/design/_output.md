@@ -1,6 +1,6 @@
 # Design — artifact contracts and final-summary rules (`design.md` Steps 1 and 2)
 
-Load this file from `design.md` Step 1 (registration and the transformation artifact) and Step 2 (the final-summary rules). A move pass of `design/stage.md` and a move that `implement` applies also write their notes per "Registration and the transformation artifact".
+A review (`audit`, `critique`) and a move pass load this file from `design.md` Step 1. The design stage does not load it: `design.md` Step 2 holds the form of its summary. A move pass ([move-pass.md](move-pass.md)) and a move that `implement` applies also write their notes per "Registration and the transformation artifact".
 
 ## Registration and the transformation artifact
 
@@ -35,7 +35,7 @@ Body sections: (1) **What changed** — bullets per file; (2) **Why** — design
 none of the refusals in [_craft-floor.md](_craft-floor.md) were introduced (and, for transforms, the `design-mode:` field). This
 artifact lets `/wf review` and `/wf ship` see exactly what design augmentations were applied.
 
-**Move-pass note** (`/wf design <slug> <move>` on an approved design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, screen key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
+**Move-pass note** (`/wf design <slug> <move>` on an approved design, [move-pass.md](move-pass.md)): the same frontmatter with `files-modified: []`. A move pass registers no augmentation: `retro` reads `design-notes/*.md`. Body sections: (1) **Findings** — one row per finding: surface, screen key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
 
 ## Final-summary rules
 
@@ -53,11 +53,11 @@ artifact lets `/wf review` and `/wf ship` see exactly what design augmentations 
 - **Image gate** records whether the person approved the screens (`pass`) or why a flow skipped
   them; `n/a` for commands that don't run it.
 - **Screens** — for the design stage, the approved screen keys, the approval commit, and the
-  canvas URL.
+  `computer:` and `phone:` links that `wf.mjs design server url <root> --workflow <slug>` prints.
+- **The person opens no record.** The summary holds every fact that the person needs to decide the next step: what was approved, what stays open, and each check cause that the person accepted, as a count.
 - **Artifacts.** Comma-separate the `<wf-dir>/` paths written (build runs list the
   whole span; the design stage lists `.ai/design/screens/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
-- **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage writes it from the Next row of [stage.md](stage.md).
-  `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
+- **Next** is "Type `/wf <key> <args>`.", or `Done`. The table of `design.md` Step 2 gives it for each job. The design stage writes the step that `wf.mjs design approve` printed.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
   spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](../_chat-return.md); apply them here.

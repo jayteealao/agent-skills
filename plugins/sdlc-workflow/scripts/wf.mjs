@@ -41,10 +41,126 @@
  *             --to reads a project that is not linked here from the records repo, and a post
  *             to it pushes only the message file
  *             Example: wf.mjs msg post . demo --kind note --text "the API is ready"
- *   design   <init|screen add|explore add|list|tokens|track> <root> ...
- *             the design surface of the repo, .ai/design/: screens, the manifest, the token sheet
- *             and the git rule (lib/design-cli.mjs lists every command)
+ *   design   init <root>
+ *             make .ai/design/: the manifest, tokens.css, the git rule, the repo entry
+ *             Example: wf.mjs design init .
+ *   design   next <root> <slug>
+ *             the one next action of the design stage of a workflow, from disk
+ *             Example: wf.mjs design next . demo --json
+ *   design   status <root> <slug>
+ *             the open threads, the drift, the last check, the newest round and version, and the next action
+ *             Example: wf.mjs design status . demo
+ *   design   doctor <root>
+ *             which browser a check uses, whether the server runs, whether the records are linked, the viewports
+ *             Example: wf.mjs design doctor .
+ *   design   foundation <root>
+ *             the tokens and the components; exit 1 until a new screen can be drawn, with the command for each missing part
+ *             Example: wf.mjs design foundation .
+ *   design   component add <root> <key> [--title t] [--code file --name n] [--workflow slug]
+ *             add a component: --code names the code that has it; with no --code it is new
+ *             Example: wf.mjs design component add . button --code src/components/ui/button.tsx --name Button
+ *   design   component link <root> <key> --code file --name n
+ *             record the code of a new component, after the build makes it
+ *             Example: wf.mjs design component link . order-row --code src/components/OrderRow.tsx --name OrderRow
+ *   design   component remove <root> <key> [--force]
+ *             take a component out of the library; --force when a screen still uses it
+ *             Example: wf.mjs design component remove . order-row
+ *   design   components <root> [--workflow slug]
+ *             the component library, each with its code and its screens
+ *             Example: wf.mjs design components .
+ *   design   components scan <root>
+ *             the components of the product code, each with the command that adds it
+ *             Example: wf.mjs design components scan .
+ *   design   components none <root> --reason r
+ *             record that the product has no reusable parts
+ *             Example: wf.mjs design components none . --reason "A terminal surface"
+ *   design   components verify <root> <slug> [--slice s]
+ *             exit 1 when the code does not have or use a component of the screens
+ *             Example: wf.mjs design components verify . demo
+ *   design   screen add <root> <key> [--title t] [--area a] [--flow f] [--order n] [--workflow slug] [--slice s]
+ *             add a screen, or change its fields
+ *             Example: wf.mjs design screen add . basket --area checkout --workflow demo
+ *   design   screen remove <root> <key> [--force]
+ *             take a screen off the surface; --force when an approval or a contract names it
+ *             Example: wf.mjs design screen remove . basket-old
+ *   design   screen rename <root> <old> <new> [--force]
+ *             give a screen a new key, in the manifest, its page, the links and the layout
+ *             Example: wf.mjs design screen rename . basket cart
+ *   design   list <root> [--workflow slug]
+ *             the screens (one workflow with --workflow), their states and links
  *             Example: wf.mjs design list .
+ *   design   explore add <root> <key> [--title t] [--link slug]
+ *             record an explore sketch
+ *             Example: wf.mjs design explore add . nav-ideas --link demo
+ *   design   tokens <root>
+ *             write tokens.css from DESIGN.md (the root, .agents/context/ or docs/)
+ *             Example: wf.mjs design tokens .
+ *   design   track <root> [--check]
+ *             keep .ai/design/ tracked in git
+ *             Example: wf.mjs design track . --check
+ *   design   check <root> [key...] [--workflow slug]
+ *             the screen checks, in each viewport and state; the last line is the one next action
+ *             Example: wf.mjs design check . --workflow demo
+ *   design   round <root> <slug> [--reason r]
+ *             save the pages as a draft, with the decisions since the last draft
+ *             Example: wf.mjs design round . demo
+ *   design   approve <root> <slug> [key...] [--slice s] [--reason r]
+ *             record the approval from the answer event: commit, version, pictures, 02c-craft.md
+ *             Example: wf.mjs design approve . demo
+ *   design   versions <root> <slug>
+ *             the approved versions and the rounds of a workflow
+ *             Example: wf.mjs design versions . demo
+ *   design   approved <root> <slug>
+ *             the pages of the newest approved version, each with its approval picture, for the build
+ *             Example: wf.mjs design approved . demo
+ *   design   restore <root> <slug> <version>
+ *             put the pages of a version back, as a new round that needs a new approval
+ *             Example: wf.mjs design restore . demo v1
+ *   design   rounds drop <root> <slug>
+ *             delete the rounds of a closed workflow
+ *             Example: wf.mjs design rounds drop . demo
+ *   design   viewports <root> [name=WxH...]
+ *             the viewports of the surface; with pairs, set them
+ *             Example: wf.mjs design viewports . phone=375x812 desktop=1280x800
+ *   design   areas <root> [area...]
+ *             the areas in the order of the navigation; with names, set the order
+ *             Example: wf.mjs design areas . home checkout account
+ *   design   refs check <root>
+ *             exit 1 when a reference is not a readable file in the repo
+ *             Example: wf.mjs design refs check .
+ *   design   refs add <root> <key> --file f [--kind k] [--link l] [--note n]
+ *             record a reference file
+ *             Example: wf.mjs design refs add . mood --file docs/mood.png --kind image
+ *   design   comments <root> [key...] [--workflow slug]
+ *             the open comment threads, as untrusted data for a round
+ *             Example: wf.mjs design comments . --workflow demo
+ *   design   comments reply <root> <key> <thread> --text t [--resolve]
+ *             answer a thread, and close it with --resolve
+ *             Example: wf.mjs design comments reply . basket 1a2b3c4d --text "Moved the total up" --resolve
+ *   design   capture-path <root> <slug> <slice> <key>
+ *             where verify writes the capture of a built screen
+ *             Example: wf.mjs design capture-path . demo api basket
+ *   design   captures <root> <slug> <slice>
+ *             the captures of a slice; a linked project commits them to the records
+ *             Example: wf.mjs design captures . demo api
+ *   design   state <root>
+ *             the canvas data, as JSON
+ *             Example: wf.mjs design state .
+ *   design   publish <root> [--out file]
+ *             one self-contained canvas page (no comments, no layout saves)
+ *             Example: wf.mjs design publish .
+ *   design   migrate <root> [slug...] [--check]
+ *             move the boards of each workflow onto the surface, once; --check only plans
+ *             Example: wf.mjs design migrate . --check
+ *   design   server start [--port n]|stop|status
+ *             the one design server of this computer
+ *             Example: wf.mjs design server status
+ *   design   server url [<root>] [--workflow slug] [--no-start]
+ *             start the server when it is stopped, and print the address for this computer and for the phone
+ *             Example: wf.mjs design server url . --workflow demo
+ *   design   server install|uninstall
+ *             the Windows scheduled task that starts the server at logon
+ *             Example: wf.mjs design server install
  *   modernize <root> <slug> [--check] [--json]
  *             convert an old workflow: the record files into the YAML layout, and the stages
  *             shape and handoff into intake and ship in the index (--check: only report)
@@ -470,7 +586,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -1603,6 +1719,8 @@ const CHANGES = {
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
+  // A plan of a migration (--check) changes nothing.
+  if (cmd === 'design' && opt.check) return null;
   return CHANGES[cmd]?.includes(pos[0]) && pos[1] && pos[2] ? [pos[1], pos[2]] : null;
 }
 
@@ -1648,10 +1766,9 @@ const HIDDEN_COMMANDS = new Set(['close-check']);
 /**
  * The first words (the forms) of a command whose blocks start with a form, such as `record put`
  * or `lease <claim|release|show>`, or null for a command whose first argument is the root.
- * `design` lists its own forms (lib/design-cli.mjs).
+ * The forms of `design` are the list DESIGN_FORMS of lib/design-cli.mjs: a test holds the two together.
  */
 export function formsOf(cmd) {
-  if (cmd === 'design') return null;
   const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
   const head = src.slice(src.indexOf('/**'), src.indexOf('*/'));
   const verbs = new Set();
@@ -1749,6 +1866,11 @@ export async function main(argv = process.argv.slice(2)) {
   const verbs = formsOf(cmd);
   if (verbs && rest.length && !rest[0].startsWith('-') && !verbs.has(rest[0])) {
     process.stderr.write(`wf.mjs: ${cmd} has no form ${rest[0]}. Its forms:\n${known}\n`);
+    if (cmd === 'design') {
+      process.stderr.write(`${fixLines(agentFix(ARGS_FIX)).join('\n')}\n`);
+      // With --json the failure is also one object on stdout, as every other design failure.
+      if (rest.includes('--json')) process.stdout.write(`${JSON.stringify({ ok: false, error: `design has no form ${rest[0]}`, fix: agentFix('Run the command again in one of the forms of wf.mjs design.', 'wf.mjs help design') }, null, 2)}\n`);
+    }
     return 2;
   }
   const { pos, opt } = flags(rest);

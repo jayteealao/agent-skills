@@ -4,7 +4,7 @@ Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache
 
 The design mode reference for a surface where the person completes a task: app UI, dashboards, editors, admin, settings, data tables, tools, authenticated surfaces ([_design-context.md](_design-context.md) → Design modes). The page is first a working product of its category, and the world serves it.
 
-Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
+Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`. A link to `_craft-floor.md` in this file is a pointer for Step 4: do not open the floor at Step 3b.
 
 ## Directions
 
@@ -19,14 +19,14 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 **Typography.**
 - System faces and workhorse UI faces are correct. One family is often right: a well-tuned sans carries headings, buttons, labels, body and data.
 - Use the Operate type scale of [_design-context.md](_design-context.md) → Shared design laws. More type elements need less contrast between steps.
-- Prose keeps a measure of 65–75 characters. Data and compact UI may run denser.
+- Prose keeps the measure of [_craft-floor.md](_craft-floor.md) rule 17. Data and compact UI may run denser, down to the dense size of rule 18.
 
-**Color.** Restrained is the default. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. One surface can earn Committed, such as a dashboard where one category color carries a report.
-- Standardize the state vocabulary on every screen: hover, focus, active, disabled, selected, loading, error, warning, success, info.
+**Color.** Restrained is the default, and on an Operate surface it means a committed shell with one accent, not gray with one accent. [_design-context.md](_design-context.md) → Shared design laws defines each strategy. One surface can earn Committed, such as a dashboard where one category color carries a report. [colorize.md](colorize.md) → Choose the palette derives the colors.
+- Standardize the state vocabulary on every screen: the control states of [_craft-floor.md](_craft-floor.md) rule 14, and one color each for warning, error, success and info.
 - Keep the accent for primary actions, current selection and state indicators, not decoration.
 - Give sidebars, toolbars and panels a second neutral layer, slightly cooler or warmer than the content surface.
 
-**Motion.** 150–250 ms on most transitions. The person is in flow; do not make them wait for choreography. Motion conveys state, feedback, loading or reveal, nothing else. No orchestrated page-load sequences.
+**Motion.** The person is in flow; do not make them wait for choreography. Motion conveys state, feedback, loading or reveal, nothing else. No orchestrated page-load sequence. The limits are in [animate.md](animate.md) → Design mode.
 
 ## Screens
 
@@ -37,7 +37,7 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Screens`.
 
 **Real content.** Draw with the product name, realistic data with plausible values and units, real labels, and one state worth seeing (an alert, a degraded service, an empty filter result). Never draw placeholder tiles. State colors sit on the palette only where they carry meaning. A headline number that changes over time shows its recent history, with the onset of a change marked.
 
-**Components.** Every interactive component has default, hover, focus, active, disabled, loading and error states. Use skeletons for loading content, not spinners in the content. An empty state teaches the interface. Keep one button shape, one form-control vocabulary and one icon style across the surface. An overlay escapes its clipping container.
+**Components.** Every interactive component has the control states of [_craft-floor.md](_craft-floor.md) rule 14. Use skeletons for loading content, not spinners in the content. An empty state teaches the interface. Keep one button shape, one form-control vocabulary and one icon style across the surface. Take the button shape, the radius and the depth from the tokens of the direction: a pill button and a soft card are choices, not defaults. An overlay escapes its clipping container.
 
 **Refuse on an Operate surface:**
 - decorative motion that conveys no state;

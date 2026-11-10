@@ -77,7 +77,7 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "recommendedRoutes": {"type":"array","description":"S3 (ARTIFACT-SPLIT-PLAN): every next-step option; exactly one entry has default: true and its invocation equals next-invocation.","items":{"type":"object","required":["invocation","reason"],"properties":{"invocation":{"type":"string"},"reason":{"type":"string"},"default":{"type":"boolean"}}}},
+    "recommendedRoutes": {"type":"array","description":"Every next-step option; exactly one entry has default: true and its invocation equals next-invocation.","items":{"type":"object","required":["invocation","reason"],"properties":{"invocation":{"type":"string"},"reason":{"type":"string"},"default":{"type":"boolean"}}}},
     "recommendedRoutesAnyForm": {"description":"Index files: the S3 list form, or the old { primary, alternates } object that older workflow-index files carry.","oneOf":[{"$ref":"#/$defs/recommendedRoutes"},{"type":"object","properties":{"primary":{"type":"string"},"alternates":{"$ref":"#/$defs/stringArray"}}}]},
     "revisionLedger": {
       "type": "array",
@@ -165,7 +165,7 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutesAnyForm"},
-        "reconcile-pending": {"type":"boolean","description":"S4 (ARTIFACT-SPLIT-PLAN): true while index-history.jsonl and the index disagree and a reconcile is due."},
+        "reconcile-pending": {"type":"boolean","description":"True while index-history.jsonl and the index disagree and a reconcile is due."},
         "schema": { "const": "sdlc/v1" },
         "type":   { "const": "index" },
         "slug":   { "$ref": "#/$defs/slug" },
@@ -273,7 +273,7 @@
         },
         "runtime-evidence-deferrals": {
           "type": "array",
-          "description": "Open/cleared runtime-evidence deferrals (RUNTIME-PROBE-PLAN §2.4). /wf ship HARD-BLOCKS while any entry has cleared-by: null. cleared-by must be an EVIDENCE descriptor (a probe/re-verify run that produced matching runtime evidence), never a prose risk-acceptance string — PO risk-acceptance uses ship-override-authorization instead.",
+          "description": "Open/cleared runtime-evidence deferrals. /wf ship HARD-BLOCKS while any entry has cleared-by: null. cleared-by must be an EVIDENCE descriptor (a probe/re-verify run that produced matching runtime evidence), never a prose risk-acceptance string — PO risk-acceptance uses ship-override-authorization instead.",
           "items": {
             "type": "object",
             "required": ["slice"],
@@ -314,10 +314,10 @@
             }
           }
         },
-        "origin-packet": { "type": "string", "description": "The packet this workflow builds: .ai/workflows/<source>/work/<packet-slug>.md (WF-PIECES-PLAN section 5). The review rubric intent-fidelity reads its carried decisions. A workflow of the old form names its work-packet file here; the migration points it at the new packet file." },
-        "migrated-from": { "type": "string", "description": "WF-PIECES-PLAN 12.3: the branch of the old campaign unit that this packet finishes." },
-        "wave-base": { "type": "string", "description": "WF-PIECES-PLAN 12.3: the old wave base branch of a migrated unit." },
-        "land": { "enum": ["merged", "squashed"], "description": "WF-PIECES-PLAN 12.2 step 3: how the earlier waves reached the trunk. squashed makes start rebase the unit's own commits." },
+        "origin-packet": { "type": "string", "description": "The packet this workflow builds: .ai/workflows/<source>/work/<packet-slug>.md. The review rubric intent-fidelity reads its carried decisions. A workflow of the old form names its work-packet file here; the migration points it at the new packet file." },
+        "migrated-from": { "type": "string", "description": "The branch of the old campaign unit that this packet finishes." },
+        "wave-base": { "type": "string", "description": "The old wave base branch of a migrated unit." },
+        "land": { "enum": ["merged", "squashed"], "description": "How the earlier waves reached the trunk. squashed makes start rebase the unit's own commits." },
         "origin-items": { "$ref": "#/$defs/stringArray", "description": "The brainstorm item keys this workflow carries (I3). Charter entries and RIMs from a carried decision cite <board>#<item-key> in source." },
         "charter": {
           "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero commitments writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form.",
@@ -444,8 +444,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "intake" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -469,8 +469,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "files-in-scope": {"$ref":"#/$defs/stringArray","description":"From ## Affected Areas; the design stage reads it."},
         "type": { "const": "shape" },
@@ -506,11 +506,11 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "design" },
-        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated: read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
         "design-mode": { "$ref": "#/$defs/designMode", "description": "The design mode of the artifact (persuade, operate, read, or experience). Replaces register." },
         "surface-modes": { "$ref": "#/$defs/surfaceModes" },
         "created-at": { "$ref": "#/$defs/iso8601" },
@@ -533,12 +533,12 @@
       "required": [
         "schema", "type", "slug", "title", "status", "created-at",
         "updated-at", "component", "based-on", "tokens", "states",
-        "sizes", "themes", "refs"
+        "themes", "refs"
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -551,10 +551,11 @@
         "based-on": { "type": "string" },
         "tokens": { "$ref": "#/$defs/stringArray" },
         "states": { "$ref": "#/$defs/stringArray" },
-        "sizes": { "$ref": "#/$defs/stringArray" },
+        "sizes": { "$ref": "#/$defs/stringArray", "description": "Only in an older contract. The viewports of a design are in .ai/design/screens.json." },
+        "north-star-screen": { "type": ["string", "null"], "description": "The key of the screen that sets the direction of the design." },
         "themes": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" },
-        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated: read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
         "surface-modes": { "$ref": "#/$defs/surfaceModes" },
         "image-gate": {
           "oneOf": [
@@ -575,8 +576,8 @@
         "surfaces": { "$ref": "#/$defs/stringArray" },
         "move": { "type": "string", "description": "The move (design/<move>.md) the design stage focused on, when the person named one." },
         "carried-from": { "$ref": "#/$defs/stringArray", "description": "The brainstorm boards whose design thoughts the design stage presented as its starting direction, as `<board path>#<packet-of-work key>` (design/_carried.md)." },
-        "directions": { "$ref": "#/$defs/stringArray", "description": "The directions the design stage drew at Step 3b, as `<name>: <axis>` (DESIGN-CRAFT-PORT-PLAN C10). Omitted when the step did not run; ## Directions considered gives each reason." },
-        "boards": { "type": "string", "pattern": "^design/r[0-9]+/boards[.]json$", "description": "The frozen board manifest the person confirmed, relative to the workflow folder: design/r<N>/boards.json (DESIGN-BOARDS-PLAN section 4). For ux-impact visual or new-surface, the design is settled only when every board it lists exists." },
+        "directions": { "$ref": "#/$defs/stringArray", "description": "The directions the design stage drew at Step 3b, as `<name>: <axis>`. Omitted when the step did not run; ## Directions considered gives each reason." },
+        "boards": { "type": "string", "pattern": "^design/r[0-9]+/boards[.]json$", "description": "The frozen board manifest the person confirmed, relative to the workflow folder: design/r<N>/boards.json. For ux-impact visual or new-surface, the design is settled only when every board it lists exists." },
         "design-revision": { "type": "integer", "minimum": 1, "description": "The confirmed board revision N; equals the r<N> folder that `boards` names." },
         "regenerable": { "type": "boolean" }
       }
@@ -591,8 +592,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "slice-index" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -635,8 +636,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -671,8 +672,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "plan-index" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -699,8 +700,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "plan" },
         "slice-slug": { "type": "string" },
@@ -729,8 +730,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "implement-index" },
         "status": { "enum": ["in-progress", "complete"] },
@@ -758,8 +759,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "files-modified": {"$ref":"#/$defs/stringArray","description":"Files this slice changed; a sibling implement compares its plan against it."},
         "type": { "const": "implement" },
@@ -788,8 +789,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "verify-index" },
         "status": { "enum": ["in-progress", "complete"] },
@@ -815,8 +816,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "stack-source": {"enum":["confirmed","unconfirmed-auto-detect"]},
         "debt-markers-found": {"type":"integer","minimum":0},
@@ -895,8 +896,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "metric-findings-fixed": {"type":"integer","minimum":0},
         "type": { "const": "review" },
@@ -972,8 +973,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "readiness-reason": {"type":"string"},
         "pre-push-checks-skipped": {"type":"array","items":{"type":"object","required":["step","reason"],"properties":{"step":{"type":"string"},"reason":{"type":"string"}}}},
@@ -1073,8 +1074,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "ship-run" },
         "run-id": { "$ref": "#/$defs/runId" },
@@ -1187,8 +1188,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "retro" },
         "status": { "const": "complete" },
@@ -1328,8 +1329,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "simplify-run" },
         "run-id": { "$ref": "#/$defs/runId" },
@@ -1360,8 +1361,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1456,8 +1457,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1485,8 +1486,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1517,10 +1518,10 @@
           "enum": [
             "animate", "bolder", "clarify", "colorize", "delight",
             "distill", "harden", "layout", "onboard", "optimize",
-            "overdrive", "polish", "quieter", "typeset", "adapt", "extract"
+            "overdrive", "polish", "quieter", "simplify", "typeset", "adapt", "extract"
           ]
         },
-        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated: read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
         "design-mode": { "$ref": "#/$defs/designMode", "description": "The design mode of the artifact (persuade, operate, read, or experience). Replaces register." },
         "files-modified": { "$ref": "#/$defs/stringArray" },
         "created-at": { "$ref": "#/$defs/iso8601" }
@@ -1546,8 +1547,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1575,8 +1576,8 @@
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1681,7 +1682,7 @@
 
     "observabilityPlanFrontmatter": {
       "type": "object",
-      "description": ".ai/observability.md — the project-level observability contract authored by `/wf project observability init` and read by `/wf project observability build`, `/wf project observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).",
+      "description": ".ai/observability.md — the project-level observability contract authored by `/wf project observability init` and read by `/wf project observability build`, `/wf project observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0.",
       "required": ["schema", "type", "slug", "plan-version"],
       "properties": {
         "type": { "const": "observability-plan" },
@@ -1910,8 +1911,8 @@
       "required": ["schema", "type", "focus", "created-at"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -1925,7 +1926,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "sources": {
           "type": "array",
-          "description": "WF-IDEATE-SOURCES-PLAN section 7: every outside source the run read (intake/ideate/_sources.md).",
+          "description": "Every outside source the run read (intake/ideate/_sources.md).",
           "items": {
             "type": "object",
             "required": ["id", "kind", "origin", "state"],
@@ -1993,7 +1994,7 @@
               "seen-in": { "type": "string" },
               "changed": { "type": "string" },
               "refresh": { "enum": ["still-valid", "stale", "done-elsewhere", "new"] },
-              "triage": { "enum": ["open", "take", "later", "drop", "brainstorm"], "description": "WF-IDEATE-TRIAGE-PLAN 4.1: the person's triage state (intake/ideate/_loop.md). Absent reads as open (a run from before the loop)." },
+              "triage": { "enum": ["open", "take", "later", "drop", "brainstorm"], "description": "The person's triage state (intake/ideate/_loop.md). Absent reads as open (a run from before the loop)." },
               "triage-reason": { "type": "string", "minLength": 1, "description": "The person's words for the triage state. Required on a drop." },
               "triage-at": { "$ref": "#/$defs/iso8601" },
               "round": { "type": "integer", "minimum": 1, "description": "The round that found the idea (intake/ideate/_rounds.md). Absent means round 1." },
@@ -2004,7 +2005,7 @@
               "discussed": { "type": "boolean" },
               "notes": {
                 "type": "array",
-                "description": "One plain sentence per discussion change (WF-IDEATE-TRIAGE-PLAN 5.2).",
+                "description": "One plain sentence per discussion change.",
                 "items": {
                   "type": "object",
                   "required": ["at", "text"],
@@ -2024,7 +2025,7 @@
           "items": {
             "type": "object",
             "properties": {
-              "source": { "enum": ["filter", "person"], "description": "WF-IDEATE-TRIAGE-PLAN 4.5: who removed the idea. Absent means filter." },
+              "source": { "enum": ["filter", "person"], "description": "Who removed the idea. Absent means filter." },
               "round": { "type": "integer", "minimum": 1 },
               "dropped-at": { "$ref": "#/$defs/iso8601" }
             }
@@ -2032,7 +2033,7 @@
         },
         "rounds": {
           "type": "array",
-          "description": "WF-IDEATE-TRIAGE-PLAN 6.1: the scans of this run. Round 1 is the first scan; each steer adds one round (intake/ideate/_rounds.md).",
+          "description": "The scans of this run. Round 1 is the first scan; each steer adds one round (intake/ideate/_rounds.md).",
           "items": {
             "type": "object",
             "required": ["n", "kind"],
@@ -2080,7 +2081,7 @@
             }
           }
         },
-        "stack": { "type": "object", "description": "WF-PIECES-PLAN 4.3 step 4: the stack of the list, detected once and confirmed by the person at done (user-confirmed: true). campaign.mjs open copies it into each packet's 00-index.md.", "properties": { "user-confirmed": { "type": "boolean" } } },
+        "stack": { "type": "object", "description": "The stack of the list, detected once and confirmed by the person at done (user-confirmed: true). campaign.mjs open copies it into each packet's 00-index.md.", "properties": { "user-confirmed": { "type": "boolean" } } },
         "stories": {
           "type": "array",
           "description": "The story of each session, told to the person at a pause, in the chat return, and on the next resume (intake/brainstorm/_talk.md).",
@@ -2108,7 +2109,7 @@
               "path": { "type": ["string", "null"], "description": "The sketch file: an explore sketch, .ai/design/explore/<key>.html, or on an older board .ai/workflows/<slug>/design/sketches/<key>.<ext>. One file may hold several sketches: <file>#<artboard>." },
               "caption": { "type": "string" },
               "canvas": { "$ref": "#/$defs/sketchCanvas" },
-              "state": { "enum": ["idea", "carried", "dropped", "reference"], "description": "reference: a link to outside design work kept as a reference only, with no file; never a board (WF-DESIGN-PLAN A5b)." }
+              "state": { "enum": ["idea", "carried", "dropped", "reference"], "description": "reference: a link to outside design work kept as a reference only, with no file; never a board." }
             }
           }
         },
@@ -2221,21 +2222,21 @@
             "required": ["key", "title", "shape", "entry", "state"],
             "properties": {
               "key": { "$ref": "#/$defs/brainstormKey" },
-              "order": { "type": "integer", "minimum": 1, "description": "The brainstorm sequence (WF-CAMPAIGN-ORDER-PLAN 4.1): every packet has one, and the orders are 1 to n, each used once. Packet N may use anything that packets 1 to N-1 built." },
+              "order": { "type": "integer", "minimum": 1, "description": "The brainstorm sequence: every packet has one, and the orders are 1 to n, each used once. Packet N may use anything that packets 1 to N-1 built." },
               "why-here": { "type": "string", "description": "Why the packet comes after the packets before it, in the person's words. Required on each packet after order 1; the campaign reads it as evidence for the dependency graph." },
               "title": { "type": "string" },
-              "shape": { "enum": ["intake", "investigate", "rca", "fix", "hotfix", "discover", "task", "extension", "design", "design-direction", "write-now"], "description": "write-now: a packet that changes only documents, written by the brainstorm in the same session (BRAINSTORM-WORK-PACKETS-PLAN K5). It gets no packet." },
+              "shape": { "enum": ["intake", "investigate", "rca", "fix", "hotfix", "discover", "task", "extension", "design", "design-direction", "write-now"], "description": "write-now: a packet that changes only documents, written by the brainstorm in the same session. It gets no packet." },
               "slug": { "$ref": "#/$defs/brainstormKey", "description": "The workflow slug the packet opens. For an extension, the new scope's descriptor." },
               "target-slug": { "type": ["string", "null"], "description": "extension, fix and hotfix: the existing workflow slug." },
               "amends": { "type": ["string", "null"], "description": "The work[].key of the started packet that this packet amends (V3)." },
               "urgency": { "enum": ["normal", "urgent"] },
-              "depends-on": { "$ref": "#/$defs/stringArray", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it." },
-              "provides": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it.", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
-              "expects": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it.", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
-              "needs": { "type": "array", "description": "Deprecated (WF-CAMPAIGN-ORDER-PLAN): the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it. (Was WF-CAMPAIGN-RUN-FIXES-PLAN N1: a partial need on another build packet.)", "items": { "type": "object", "required": ["from"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "through": { "type": "string", "description": "A slice of `from`, or finished (the default)." }, "before": { "type": ["string", "null"], "description": "The slice of this packet that needs it; null is the first slice." }, "why": { "type": "string" } } } },
-              "size": { "enum": ["small", "medium", "large", "too-large"], "description": "Deprecated (WF-PIECES-PLAN 4.2): the decision count no longer sizes a packet. A board of the old form keeps it." },
-              "shared": { "$ref": "#/$defs/stringArray", "description": "Deprecated (WF-PIECES-PLAN 4.2 rule 6): every kept decision lands in exactly one packet. A board of the old form keeps it." },
-              "goal": { "type": "string", "description": "WF-PIECES-PLAN 4.3: the goal of the packet, written at done." },
+              "depends-on": { "$ref": "#/$defs/stringArray", "description": "Deprecated: the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it." },
+              "provides": { "type": "array", "description": "Deprecated: the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it.", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
+              "expects": { "type": "array", "description": "Deprecated: the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it.", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
+              "needs": { "type": "array", "description": "Deprecated: the campaign owns the dependency graph in its ledger. A board of the old form keeps it; no packet file carries it.", "items": { "type": "object", "required": ["from"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "through": { "type": "string", "description": "A slice of `from`, or finished (the default)." }, "before": { "type": ["string", "null"], "description": "The slice of this packet that needs it; null is the first slice." }, "why": { "type": "string" } } } },
+              "size": { "enum": ["small", "medium", "large", "too-large"], "description": "Deprecated: the decision count no longer sizes a packet. A board of the old form keeps it." },
+              "shared": { "$ref": "#/$defs/stringArray", "description": "Deprecated: every kept decision lands in exactly one packet. A board of the old form keeps it." },
+              "goal": { "type": "string", "description": "The goal of the packet, written at done." },
               "in-scope": { "$ref": "#/$defs/stringArray" },
               "out-of-scope": { "$ref": "#/$defs/stringArray" },
               "acceptance-criteria": { "$ref": "#/$defs/stringArray", "description": "Each checkable criterion; the packet file numbers them AC-1, AC-2, …" },
@@ -2245,7 +2246,7 @@
               "ux-impact-confirmed": { "type": "boolean", "description": "The person confirmed ux-impact at done (D20)." },
               "try-out": { "enum": ["yes", "no"], "description": "D37: yes when ux-impact is not none or the packet adds a user-facing command." },
               "estimated-slices": { "type": "integer", "minimum": 1, "description": "The brainstorm's estimate of the capability slices (D15: a target of 10, a band of 6 to 14)." },
-              "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: a packet made from an in-flight unit of the old campaign.", "properties": { "unit-key": { "type": "string" }, "from-branch": { "type": "string" }, "worktree": { "type": ["string", "null"] }, "wave-base": { "type": ["string", "null"] }, "land": { "enum": ["merged", "squashed"] } } },
+              "migrated": { "type": "object", "description": "A packet made from an in-flight unit of the old campaign.", "properties": { "unit-key": { "type": "string" }, "from-branch": { "type": "string" }, "worktree": { "type": ["string", "null"] }, "wave-base": { "type": ["string", "null"] }, "land": { "enum": ["merged", "squashed"] } } },
               "research": { "$ref": "#/$defs/stringArray" },
               "references": { "$ref": "#/$defs/stringArray" },
               "written-files": { "type": "array", "items": { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" }, "section": { "type": "string" } } } },
@@ -2256,7 +2257,7 @@
               "threads": { "$ref": "#/$defs/stringArray" },
               "items": { "$ref": "#/$defs/stringArray" },
               "entry": { "type": "string" },
-              "state": { "enum": ["proposed", "prepared", "routed", "written", "open", "built", "done", "dropped"], "description": "proposed and written are the brainstorm's; open, built, done and dropped are set by the migration (WF-PIECES-PLAN 12.2). prepared and routed are of the old form." },
+              "state": { "enum": ["proposed", "prepared", "routed", "written", "open", "built", "done", "dropped"], "description": "proposed and written are the brainstorm's; open, built, done and dropped are set by the migration. prepared and routed are of the old form." },
               "routed-to": { "type": ["string", "null"] },
               "stale": { "type": "boolean" },
               "stale-because": { "type": "string" },
@@ -2288,11 +2289,11 @@
       }
     },
     "brainstormKey": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
-    "designMode": { "enum": ["persuade", "operate", "read", "experience"], "description": "A design mode (WF-DESIGN-PLAN Part III 9.1): Persuade, Operate, Read, or Experience. Each surface has one." },
-    "surfaceModes": { "type": "object", "description": "The design mode of each surface: surface key → persuade, operate, read, or experience (WF-DESIGN-PLAN Part III 9.1, MQ2). Never named modes:, which is the read-check list.", "additionalProperties": { "$ref": "#/$defs/designMode" } },
+    "designMode": { "enum": ["persuade", "operate", "read", "experience"], "description": "A design mode: Persuade, Operate, Read, or Experience. Each surface has one." },
+    "surfaceModes": { "type": "object", "description": "The design mode of each surface: surface key → persuade, operate, read, or experience. Never named modes:, which is the read-check list.", "additionalProperties": { "$ref": "#/$defs/designMode" } },
     "sketchCanvas": {
       "type": "object",
-      "description": "The published view of a tracked sketch or board file (WF-DESIGN-PLAN A5b). The file is the source; sha256 is the hash of the file that was published. design-boards.mjs canvas-stale reports a changed file or another account.",
+      "description": "The published view of a tracked sketch or board file. The file is the source; sha256 is the hash of the file that was published. design-boards.mjs canvas-stale reports a changed file or another account.",
       "required": ["link", "sha256"],
       "properties": {
         "link": { "type": "string", "minLength": 1 },
@@ -2311,7 +2312,7 @@
     },
     "packetFrontmatter": {
       "type": "object",
-      "description": "work/<packet-slug>.md — one packet of a list (WF-PIECES-PLAN 4.1). Generated from the board by campaign.mjs write; the board wins on a difference. slug is the source folder (a brainstorm or an ideate folder); packet-slug is the workflow slug the packet opens. The campaign walk owns state.",
+      "description": "work/<packet-slug>.md — one packet of a list. Generated from the board by campaign.mjs write; the board wins on a difference. slug is the source folder (a brainstorm or an ideate folder); packet-slug is the workflow slug the packet opens. The campaign walk owns state.",
       "required": ["schema", "type", "slug", "key", "packet-slug", "form", "origin-source", "carried-decisions", "state"],
       "properties": {
         "type": { "const": "packet" },
@@ -2367,7 +2368,7 @@
         "estimated-slices": { "type": "integer", "minimum": 1 },
         "design-form": { "enum": ["none", "design", "design-direction"] },
         "sketches": { "type": "array", "description": "The carried sketches, each with its file: an explore sketch in .ai/design/explore/, or on an older board a file under its design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
-        "migrated": { "type": "object", "description": "WF-PIECES-PLAN 12.3: the in-flight unit of the old campaign that this packet finishes." },
+        "migrated": { "type": "object", "description": "The in-flight unit of the old campaign that this packet finishes." },
         "skipped": { "type": "object", "required": ["reason", "by"], "description": "campaign.mjs skip: the person told the walk to go on with a later packet. The packet keeps its state; campaign.mjs unskip removes the field.", "properties": { "reason": { "type": "string", "minLength": 1 }, "by": { "const": "person" }, "at": { "$ref": "#/$defs/iso8601" } } },
         "ahead-of": { "$ref": "#/$defs/stringArray", "description": "campaign.mjs ahead: the keys of the earlier packets that the person let this packet run ahead of." },
         "done-at": { "$ref": "#/$defs/iso8601", "description": "When campaign.mjs done or close set the state done." },
@@ -2376,7 +2377,7 @@
     },
     "listFrontmatter": {
       "type": "object",
-      "description": "work/index.md — the list (WF-PIECES-PLAN 4.1). Written last by campaign.mjs write, so a reader that sees a new list-revision finds every packet already written.",
+      "description": "work/index.md — the list. Written last by campaign.mjs write, so a reader that sees a new list-revision finds every packet already written.",
       "required": ["schema", "type", "slug", "list-revision", "packets"],
       "properties": {
         "type": { "const": "list" },
@@ -2391,7 +2392,7 @@
     },
     "optimizeSpecFrontmatter": {
       "type": "object",
-      "description": "02-optimize-spec.md — the confirmed spec of a /wf loop optimize loop (WF-OPTIMIZE-PLAN section 3). scripts/optimize.mjs reads it and refuses a baseline until confirmed-by names the person who confirmed it. The loop never edits this file.",
+      "description": "02-optimize-spec.md — the confirmed spec of a /wf loop optimize loop. scripts/optimize.mjs reads it and refuses a baseline until confirmed-by names the person who confirmed it. The loop never edits this file.",
       "required": ["schema", "type", "slug", "objective", "metric", "guard", "allowed-paths"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
@@ -2468,7 +2469,7 @@
     },
     "goalFrontmatter": {
       "type": "object",
-      "description": "goal.md — the goal contract of /wf loop goal (WF-GOAL-PLAN section 3). scripts/goal.mjs writes it; the host goal carries the turns and only goal.mjs check decides that the goal is met. A human gate parks it (parked.gate).",
+      "description": "goal.md — the goal contract of /wf loop goal. scripts/goal.mjs writes it; the host goal carries the turns and only goal.mjs check decides that the goal is met. A human gate parks it (parked.gate).",
       "required": ["schema", "type", "slug", "objective", "kind", "max-checks", "state"],
       "properties": {
         "type": { "const": "goal" },
@@ -2492,7 +2493,7 @@
     },
     "prototypeFrontmatter": {
       "type": "object",
-      "description": "01-prototype.md — the accepted pipeline of a /wf loop prototype, in plain words, for the person (WF-PROTOTYPE-PLAN section 5). The agent's memory is the sibling prototype-ledger.json ($defs.prototypeLedger). The file lives in the POC worktree, on the poc/<slug> branch.",
+      "description": "01-prototype.md — the accepted pipeline of a /wf loop prototype, in plain words, for the person. The agent's memory is the sibling prototype-ledger.json ($defs.prototypeLedger). The file lives in the POC worktree, on the poc/<slug> branch.",
       "required": ["schema", "type", "slug", "idea", "status"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
@@ -2527,7 +2528,7 @@
     },
     "prototypeLedger": {
       "type": "object",
-      "description": "prototype-ledger.json — the proof ledger of a /wf loop prototype (WF-PROTOTYPE-PLAN section 3). The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
+      "description": "prototype-ledger.json — the proof ledger of a /wf loop prototype. The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
       "required": ["schema", "artifact", "slug", "idea", "status", "branch", "rounds", "proofs", "decisions", "pipeline", "rejected"],
       "properties": {
         "schema": { "const": "sdlc/v1" },
@@ -2661,8 +2662,8 @@
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},
@@ -2840,8 +2841,8 @@
       "required": ["schema", "type", "slug"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutesAnyForm"},
-        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
-        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "reads-checked": {"type":"boolean","description":"False when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "next-command": {"type":"string"},
         "next-invocation": {"type":"string"},

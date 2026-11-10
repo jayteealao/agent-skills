@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/design-boards.schema.json",
   "title": "SDLC Workflow Design Boards Manifest",
-  "description": "The manifest of the design boards of one workflow: .ai/workflows/<slug>/design/boards.json, and its frozen copy design/r<N>/boards.json (docs/internal/DESIGN-BOARDS-PLAN.md section 4). Paths in a board entry are relative to the folder of the manifest. scripts/design-boards.mjs writes it; lib/design-boards.mjs validateManifest holds the same rules.",
+  "description": "The manifest of the design boards of one workflow from before the design surface: .ai/workflows/<slug>/design/boards.json, and its frozen copy design/r<N>/boards.json. Paths in a board entry are relative to the folder of the manifest. No command writes it now: scripts/design-boards.mjs check and wf.mjs design migrate read it, and lib/design-boards.mjs validateManifest holds the same rules. A board has an html or a png file; validateManifest checks that, and that no path leaves the design folder.",
   "type": "object",
   "required": ["schema", "slug", "revision", "boards"],
   "properties": {
     "schema": { "const": "sdlc/design-boards/v1" },
     "slug": { "type": "string", "minLength": 1 },
     "revision": { "type": "integer", "minimum": 0, "description": "The newest frozen revision. 0 until the first freeze." },
-    "method": { "enum": ["html", "capture", "import", "canvas-export"], "description": "How the boards were made (DESIGN-BOARDS-PLAN D3)." },
+    "method": { "enum": ["html", "capture", "import", "canvas-export"], "description": "How the boards were made." },
     "viewports": {
       "type": "object",
       "description": "Viewport name to <width>x<height>. The person confirms them at the design stage.",
@@ -31,7 +31,7 @@
           "source": { "type": ["string", "null"] },
           "sketch": { "type": ["string", "null"], "description": "The brainstorm sketch key the board grew from." },
           "caption": { "type": "string" },
-          "canvas": { "type": "object", "description": "The published view of this board's file (WF-DESIGN-PLAN A5b); sha256 is the hash of the html (else png) that was published.", "required": ["link", "sha256"], "properties": { "link": { "type": "string" }, "account": { "type": ["string", "null"] }, "published-at": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }, "previous": { "type": "array" } } }
+          "canvas": { "type": "object", "description": "The published view of this board's file; sha256 is the hash of the html (else png) that was published.", "required": ["link", "sha256"], "properties": { "link": { "type": "string" }, "account": { "type": ["string", "null"] }, "published-at": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }, "previous": { "type": "array" } } }
         }
       }
     },

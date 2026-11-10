@@ -1,8 +1,10 @@
 # Motion recipes (`design/_motion-recipes.md`)
 
-Ready-to-build ingredients for the cases that come up most. Start from the recipe, then adapt; do not rebuild from a blank file. [animate.md](animate.md) loads this file when a request matches a recipe.
+Ingredients for the cases that come up most. Start from the recipe, then adapt it to the product. `implement` loads this file when the work matches a recipe.
 
-Each recipe is platform-neutral. The terms (cheap property, retargetable animation, trigger origin, and so on) and the curve tokens (`ease-out`, `ease-in-out`, `ease-drawer`) are defined in [animate.md](animate.md) and mapped to each platform in [_platforms.md](_platforms.md). The web snippets at the end show one form; build the other platforms from the map.
+The values are defaults. A motion token of `DESIGN.md` overrides the curve, the time, the scale and the spring of a recipe. The structure of a recipe (what moves, from where, on which trigger, and its reduced-motion form) stays.
+
+Each recipe is platform-neutral. The terms (cheap property, retargetable animation, trigger origin, and so on) and the curve tokens (`ease-out`, `ease-in-out`, `ease-drawer`) are defined in [animate.md](animate.md), and [_platforms.md](_platforms.md) maps them to each platform. The web snippets at the end show one form; build the other platforms from the map. Each time is the enter. An exit takes about half of it, on a shorter path ([animate.md](animate.md) → Interruption and exit).
 
 > Load with: `design/_motion-recipes.md`
 
@@ -10,19 +12,19 @@ Each recipe is platform-neutral. The terms (cheap property, retargetable animati
 
 | Recipe | Trigger | Properties (start → end) | Curve and time | Origin | Reduced motion |
 |---|---|---|---|---|---|
-| Press feedback | Press state | scale 1 → 0.97 | `ease-out`, 160 ms | Center | Keep |
+| Press feedback | Press state | scale 1 → 0.97 | `ease-out`, 160 ms | Center | A change of color or opacity |
 | Popover, dropdown, menu, select | Open / close | scale 0.95 → 1, opacity 0 → 1 | `ease-out`, 200 ms | Trigger origin | Opacity only |
 | Tooltip | Open / close after a delay | scale 0.97 → 1, opacity 0 → 1 | `ease-out`, 125 ms; 0 ms once one is open | Trigger origin | Opacity only |
 | Modal | Open / close | scale 0.96 → 1, opacity 0 → 1; backdrop opacity 0 → 1 | `ease-out`, 250 ms | Center (exempt) | Opacity only |
 | Drawer, sheet | Open / close | offset 100% of own height → 0 | `ease-drawer`, 500 ms | — | Opacity only |
-| Toast | Added / dismissed | offset 100% → 0, opacity 0 → 1; exit on the entry edge | `ease`, 400 ms | — | Opacity only |
+| Toast | Added / dismissed | offset 100% → 0, opacity 0 → 1; exit on the entry edge | `ease-out`, 400 ms | — | Opacity only |
 | Accordion, collapse | Expand / collapse | height (measured) and opacity | `ease-out`, 200 ms | — | Instant height, opacity kept |
 | Group entrance | First show of an occasional screen | opacity 0 → 1, offset 8 px → 0 | `ease-out`, 300 ms; 30–80 ms stagger | — | Opacity only, no stagger |
 | Hold to confirm | Press and hold | clip of a fill overlay from one edge → full; scale 0.97 while held | Fill: linear, 2 s. Release: `ease-out`, 200 ms | — | Keep the fill (it is progress) |
 | Tab indicator with color | Active tab change | clip of an "active" copy of the tab list | `ease-in-out`, 250 ms | — | Instant |
 | Scroll reveal | Element enters the viewport, once | clip from the bottom edge → full | `ease-in-out`, 600 ms | — | No reveal |
-| Drag to dismiss | Drag, then release | offset follows the finger 1:1; settle with a spring | spring `duration 0.5 s, bounce 0` (Operate, Read), `bounce 0.2` (Persuade, Experience) | — | Settle with opacity |
-| Crossfade that will not settle | State swap | blur 0 → 2 px → 0, opacity 1 → 0.7 → 1 | `ease`, 200 ms | — | Plain crossfade |
+| Drag to dismiss | Drag, then release | offset follows the finger 1:1; settle with a spring | spring `duration 0.5 s, bounce 0` (Operate, Read), bounce up to 0.2 (Persuade, Experience) | — | Settle with opacity |
+| Crossfade that will not settle | State swap | blur 0 → 2 px → 0, opacity 1 → 0.7 → 1 | built-in `ease`, 200 ms | — | Plain crossfade |
 | Contextual icon swap | State change | opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0 | spring `duration 0.3 s, bounce 0` | Center | Opacity only |
 
 ## Choreography recipes
@@ -47,9 +49,9 @@ Use the imperative form only when several elements coordinate across several eve
 - **Tooltip.** The first tooltip waits before it opens, to prevent accidental triggers. Once one is open, neighbors open with no delay and no animation; the toolbar feels faster.
 - **Modal.** The one popover that stays centered. Animate the backdrop with it so both read as one surface.
 - **Drawer.** An offset relative to the element's own height works whatever the content. Add drag and it becomes the drag-to-dismiss recipe.
-- **Toast.** `ease` and a slightly longer time than typical UI make it read as elegant; this matches Sonner's personality, not the generic budget. When stacked toasts reflow, tune opacity against height by eye, then check again the next day. Use a retargetable animation: toasts arrive faster than a restarting animation can finish.
+- **Toast.** A toast travels its own height, so it may take up to 400 ms on an Operate surface. When stacked toasts reflow, tune opacity against height by eye, then check again the next day. Use a retargetable animation: toasts arrive faster than a restarting animation can finish.
 - **Accordion.** One of the few tolerated layout animations; keep it short. Measure the content height; do not animate to an unknown size.
-- **Group entrance.** Only for a screen seen occasionally, never for a list the person scrolls past all day. The stagger never blocks interaction. Vary the gaps by importance, never one equal gap ([animate.md](animate.md) → Choreography).
+- **Group entrance.** Only for a screen seen occasionally, not for a list that the person scrolls past all day. The whole group is done in about 300 ms. The stagger never blocks interaction. Vary the gaps by importance, never one equal gap ([animate.md](animate.md) → Choreography).
 - **Hold to confirm.** For destructive actions where a plain tap is too easy. The fill is linear because it is a progress indicator. The release snaps back fast: slow where the person decides, fast where the system responds.
 - **Tab indicator with color.** Duplicate the tab list, style the copy as active, and clip the copy so only the active tab shows. Text and background change in sync, because one element is revealed instead of two colors interpolating.
 - **Scroll reveal.** Persuade and Experience surfaces only, and only once per element. Re-animating on every scroll-by fights the reader.
@@ -59,7 +61,7 @@ Use the imperative form only when several elements coordinate across several eve
 
 ## Web snippets
 
-Curve tokens as CSS custom properties:
+Curve tokens as CSS custom properties. These are the defaults of [animate.md](animate.md); a project with motion tokens uses its own:
 
 ```css
 --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -74,7 +76,7 @@ Press feedback:
 .button:active { transform: scale(0.97); }
 ```
 
-Popover (Base UI supplies `--transform-origin` and the starting/ending attributes):
+Popover (a positioning library supplies `--transform-origin` and the starting and ending attributes; the ending state holds the shorter exit):
 
 ```css
 .popover {
@@ -83,6 +85,7 @@ Popover (Base UI supplies `--transform-origin` and the starting/ending attribute
 }
 .popover[data-starting-style],
 .popover[data-ending-style] { opacity: 0; transform: scale(0.95); }
+.popover[data-ending-style] { transition-duration: 100ms; }
 .tooltip[data-instant] { transition-duration: 0ms; }
 ```
 
@@ -91,7 +94,7 @@ Toast, with entry and no mount flag:
 ```css
 .toast {
   opacity: 1; transform: translateY(0);
-  transition: opacity 400ms ease, transform 400ms ease;
+  transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
   @starting-style { opacity: 0; transform: translateY(100%); }
 }
 ```
@@ -116,6 +119,7 @@ Reduced motion and the hover pointer:
 ```css
 @media (prefers-reduced-motion: reduce) {
   .popover { transition: opacity 200ms var(--ease-out); transform: none; }
+  .button:active { transform: none; opacity: 0.8; }
 }
 @media (hover: hover) and (pointer: fine) {
   .card:hover { transform: translateY(-2px); }

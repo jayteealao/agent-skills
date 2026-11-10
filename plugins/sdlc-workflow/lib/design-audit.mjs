@@ -85,36 +85,17 @@ export function auditPlatforms(root, { workflow = null, screens = [] } = {}) {
   return found.length === 1 ? found : [];
 }
 
-/** Split a table row into its cells; a `\|` inside a cell is not a split. */
-const cellsOf = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => c.trim());
+/** The platforms of the platform map, each with the file of its forms. */
+export const PLATFORM_FILES = Object.freeze({ web: '_platforms-web.md', ios: '_platforms-ios.md', android: '_platforms-android.md', desktop: '_platforms-desktop.md' });
 
 /**
- * The platform map with only the first column of each table and the columns of `platforms`.
- * A table whose rows are the platforms keeps the rows of `platforms`. With no platform, the
- * whole map.
+ * The platform map for the prompt: the index of the map, and the file of the forms of each
+ * platform of `platforms`. With no platform, the file of every platform.
  */
-export function platformMap(text, platforms) {
-  const names = (platforms ?? []).map((p) => PLATFORM_COLUMNS[p]).filter(Boolean);
-  if (!names.length) return text;
-  const lines = String(text).split(/\r?\n/);
-  const out = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const head = /^\|/.test(lines[i]) && /^\|[\s|:-]+\|\s*$/.test(lines[i + 1] ?? '') ? cellsOf(lines[i]) : null;
-    if (!head) { out.push(lines[i]); continue; }
-    let j = i + 2;
-    const rows = [];
-    while (j < lines.length && /^\|/.test(lines[j])) rows.push(cellsOf(lines[j++]));
-    const keep = head.map((h, n) => (n === 0 || names.includes(h) ? n : -1)).filter((n) => n >= 0);
-    if (keep.length > 1) {
-      const row = (cells) => `| ${keep.map((n) => cells[n] ?? '').join(' | ')} |`;
-      out.push(row(head), `|${keep.map(() => '---').join('|')}|`, ...rows.map(row));
-    } else {
-      // The rows are the platforms (`| Platform | Tools |`): keep the rows of the chosen ones.
-      out.push(lines[i], lines[i + 1], ...lines.slice(i + 2, j).filter((l) => names.includes(cellsOf(l)[0])));
-    }
-    i = j - 1;
-  }
-  return out.join('\n');
+export function platformMap(platforms, read = (name) => readText(join(DESIGN_REF, name))) {
+  const keys = (platforms ?? []).filter((p) => PLATFORM_FILES[p]);
+  const files = (keys.length ? keys : Object.keys(PLATFORM_FILES)).map((p) => PLATFORM_FILES[p]);
+  return ['_platforms.md', ...files].map(read).filter(Boolean).join('\n\n');
 }
 
 /** The instructions of the agent: the rules, the platform map, the screens and the contract. */
@@ -134,8 +115,8 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '',
     '1. Read `DESIGN.md`, `.ai/design/tokens.css` and `.ai/design/components.css`. They hold the design system, its tokens and its component styles.',
     platforms.length
-      ? `2. The platform of the built UI is ${columns}. The platform map below keeps only ${platforms.length > 1 ? 'the columns of those platforms' : 'the column of that platform'}.`
-      : '2. Find the platform of the built UI from the repo: web, Android with Jetpack Compose, iOS, or desktop. Use the column of that platform in the platform map below.',
+      ? `2. The platform of the built UI is ${columns}. The platform map below holds only the file of ${platforms.length > 1 ? 'each of those platforms' : 'that platform'}.`
+      : '2. Find the platform of the built UI from the repo: web, Android with Jetpack Compose, iOS, or desktop. The platform map below holds the file of each platform: use the file of the platform that you find.',
     '3. Read each screen page below. Each screen is an HTML mock with the states default, empty, loading, error and worst, each an element with `data-state`.',
     '4. Find the built UI code of each screen in the repo with Glob and Grep, and read it. When no built code exists, audit the screens only.',
     '5. Run the Diagnostic Scan of the audit rules below, sections 1 to 5, over the screens and the built code. Weigh most: a value that does not use a token, a target under the minimum of the platform, and drift from `DESIGN.md`.',
@@ -164,9 +145,15 @@ export function auditPrompt(root, { workflow = null } = {}) {
     '',
     readText(join(DESIGN_REF, 'audit.md')),
     '',
-    '## The platform map (`design/_platforms.md`)',
+    '## The craft floor (`design/_craft-floor.md`)',
     '',
-    platformMap(readText(join(DESIGN_REF, '_platforms.md')), platforms),
+    'The audit rules cite these rules by number.',
+    '',
+    readText(join(DESIGN_REF, '_craft-floor.md')),
+    '',
+    '## The platform map (`design/_platforms.md` and the file of each platform)',
+    '',
+    platformMap(platforms),
     '',
     '## Return',
     '',

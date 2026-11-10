@@ -9,10 +9,14 @@
 //
 // Screens: when `02c-craft.md` names the approved screens in `screens:`, the design is
 // settled only when a script recorded the approval from the answer event
-// (`direction-confirmed-by: answer-event` and `approval-commit`), and every screen page
-// exists on the surface. A contract from before the surface names its frozen boards in
-// `boards:` instead, and every listed board file must exist. The caller reads the disk
-// (lib/design-surface.mjs missingDesignFiles) and passes the missing list in.
+// (`direction-confirmed-by: answer-event` and `approval-commit`), and the disk holds that
+// approval: the approved version in the records, the approval in the manifest, the page of
+// every screen of the version, and no page that differs from its approved copy. The fields of
+// the contract alone never settle such a design. A contract from before the surface names its
+// frozen boards in `boards:` instead, and every listed board file must exist. A contract that
+// names neither keeps the rule from before the surface, and only where the repo has no surface.
+// The caller reads the disk (lib/design-surface.mjs missingDesignFiles) and passes the list of
+// what is wrong in; an empty list means that nothing is.
 
 import { needsPictures } from './design-boards.mjs';
 
@@ -56,9 +60,12 @@ export function designReopened(index) {
  * Is the design settled?
  * @param {object} index    - `00-index.md` frontmatter
  * @param {object|null} contract - `02c-craft.md` frontmatter, or null when absent
- * @param {string[]|null} [missingBoards] - the board files that `boards:` lists but
- *   that are not on disk; null when the caller did not read the disk. A contract
- *   without `boards:` (written before the boards release) keeps the old rule.
+ * @param {string[]|null} [missingBoards] - what the disk lacks for this contract
+ *   (lib/design-surface.mjs missingDesignFiles): the missing screen pages and the missing
+ *   parts of the approval, or the missing board files. Null when the caller did not read
+ *   the disk: a contract that names screens is then not settled, because its fields alone
+ *   prove no approval. A contract without `screens:` and `boards:` keeps the rule from
+ *   before the surface, with one of the confirmations of that time.
  */
 export function designSettled(index, contract, missingBoards = null) {
   if (designReopened(index)) return false;
@@ -69,10 +76,13 @@ export function designSettled(index, contract, missingBoards = null) {
   }
   if (!contract) return false;
   if (!imageGateResolved(contract['image-gate'])) return false;
-  if (String(contract['direction-confirmed-by'] ?? '').trim() === '') return false;
-  if (namesScreens(contract) && !approvedByAnswer(contract)) return false;
+  if (!CONFIRMED_BY.has(String(contract['direction-confirmed-by'] ?? '').trim())) return false;
+  if (namesScreens(contract)) return approvedByAnswer(contract) && Array.isArray(missingBoards) && missingBoards.length === 0;
   return !boardsMissing(index, contract, missingBoards);
 }
+
+/** The values of `direction-confirmed-by` (schemas/frontmatter.schema.json). Any other text confirms nothing. */
+export const CONFIRMED_BY = new Set(['answer-event', 'migrated', 'in-session', 'product-md', 'teach']);
 
 /** Does the contract name approved screens (`screens:`)? */
 export function namesScreens(contract) {
@@ -92,7 +102,8 @@ export function approvedByAnswer(contract) {
 /** True when a screen page or a board file that the contract names is missing. */
 export function boardsMissing(index, contract, missingBoards) {
   if (namesScreens(contract)) return Array.isArray(missingBoards) && missingBoards.length > 0;
-  if (!String(contract?.boards ?? '').trim()) return false;
+  // A contract that names neither screens nor boards: the list says when the repo has a surface.
+  if (!String(contract?.boards ?? '').trim()) return Array.isArray(missingBoards) && missingBoards.length > 0;
   if (!needsPictures(index)) return false;
   return Array.isArray(missingBoards) && missingBoards.length > 0;
 }
@@ -134,13 +145,17 @@ export function designGateRefusal({ index, hasBrief, contract, slug, slice = nul
     ? 'the design is reopened (progress.design: in-progress)'
     : !contract
       ? '02c-craft.md is missing'
-      : boardsMissing(index, contract, missingBoards)
-        ? namesScreens(contract)
-          ? `the approved screens are not on the design surface: ${shown}${more}`
-          : `the confirmed boards of this older contract are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug}), or wf.mjs design migrate`
-        : namesScreens(contract) && !approvedByAnswer(contract)
-          ? '02c-craft.md names screens, but no approval is recorded from the answer of the person (wf.mjs design approve)'
-          : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by';
+      : namesScreens(contract) && !approvedByAnswer(contract)
+        ? '02c-craft.md names screens, but no approval is recorded from the answer of the person (wf.mjs design approve)'
+        : boardsMissing(index, contract, missingBoards)
+          ? namesScreens(contract)
+            ? `the approval of the screens does not stand: ${shown}${more}`
+            : String(contract?.boards ?? '').trim()
+              ? `the confirmed boards of this older contract are not on disk: ${shown}${more}. Run wf.mjs design migrate <root> ${slug} --check to see what a migration does`
+              : shown
+          : namesScreens(contract) && !Array.isArray(missingBoards)
+            ? '02c-craft.md names screens, and the approval was not checked against the records'
+            : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by of the schema';
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
   const sliceHint = sliceSlug
     ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.`

@@ -141,7 +141,7 @@ test('the approval names the components to build, and the code must make and use
 
     writeFileSync(join(root, 'src', 'Basket.tsx'), 'import { OrderRow } from "./OrderRow";\n');
     execFileSync('git', ['-C', root, 'add', 'src']);
-    assert.deepEqual(verifyComponents(root, 'w1'), { ok: true, used: ['order-row'], problems: [] });
+    assert.deepEqual(verifyComponents(root, 'w1'), { ok: true, screens: ['basket', 'pay'], used: ['order-row'], problems: [] });
     assert.equal(wf(root, 'components', 'verify', root, 'w1').status, 0);
 
     writeFileSync(screenFile(root, 'basket'), page('<div data-component="ghost">One</div>'));
@@ -197,7 +197,9 @@ test('the scan finds the components of the code: shadcn, Storybook, React, Compo
     put('app/src/main/kotlin/Parts.kt', '@Composable\nfun UsageRow(x: Int) {}\n@Composable\nfun HomeScreen() {}\n@Preview @Composable\nfun UsageRowPreview() {}\n');
     put('ios/Views/Badge.swift', 'struct Badge: View { var body: some View { Text("") } }\n');
     addComponent(root, 'card', { code: 'src/components/Card.tsx', name: 'Card' });
-    const found = scanComponents(root);
+    const scan = scanComponents(root);
+    assert.deepEqual([scan.ok, scan.truncated, scan.total], [true, false, scan.components.length]);
+    const found = scan.components;
     const by = (name) => found.find((c) => c.name === name);
     assert.equal(by('Button').source, 'shadcn');
     assert.equal(by('Button').key, 'button');
@@ -250,6 +252,6 @@ test('the check flags a page that restyles a component, and the hover, press and
     assert.ok(states.some((f) => f.interaction === 'hover' && /^On hover, the text #ffffff on #9ec5f8/.test(f.message)), states.map((f) => f.message).join('; '));
     assert.ok(states.some((f) => f.interaction === 'press'));
     assert.ok(!of('contrast').some((f) => /#bbbbbb/.test(f.message)), 'a disabled control is exempt from contrast');
-    assert.ok(r.failures.every((f) => !f.interaction || (f.state === 'default' && f.viewport === 'phone')), 'the states run once, in the default state of the first viewport');
+    assert.ok(r.failures.every((f) => !f.interaction || f.state === 'default'), 'a control that the default state shows is measured there and not again in the next state');
   } finally { done(); }
 });

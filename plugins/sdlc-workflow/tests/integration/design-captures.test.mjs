@@ -78,6 +78,13 @@ test('an unlinked project keeps its captures with no commit; a slice with no cap
     assert.ok(file.startsWith(join(w.root, '.ai', 'workflows', '_design')));
     assert.deepEqual((await design('captures', w.root, 'w1', 's2')).out.files, []);
     assert.equal(git(w.clone, 'log', '--oneline', '--all'), before);
-    await assert.rejects(design('captures', w.root, '..', 's1'), /design captures <root> <slug> <slice> is required/);
+    const bad = await design('captures', w.root, '..', 's1');
+    assert.equal(bad.code, 2, 'a path in place of a name is a usage error');
+    assert.equal(bad.out.ok, false);
+    assert.match(bad.out.error, /design captures <root> <slug> <slice> is required/);
+    assert.ok(bad.out.fix && bad.out.fix.do, 'the refusal carries a fix');
+    const none = await design('captures', w.root, 'nope', 's1');
+    assert.equal(none.code, 1);
+    assert.match(JSON.stringify(none.out.fix), /w1/, 'the fix lists the workflows that exist');
   } finally { w.done(); }
 });

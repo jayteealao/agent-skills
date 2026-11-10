@@ -1,4 +1,6 @@
-Extract the design system from an existing UI — pulling out design tokens, component patterns, and design decisions implicit in the current code.
+# Extract (`design/extract.md`)
+
+`/wf design [slug] extract` reads the design system out of an existing UI: the design tokens, the component patterns, and the design decisions that the code holds. It writes the result into the design record ([record.md](record.md)). It needs no design record to start.
 
 ## Purpose
 
@@ -10,7 +12,9 @@ Use `extract` to:
 
 ## Step 1: Scan for design values
 
-Choose the search roots first. Use the source directories that the framework detector in [_preflight.md](_preflight.md) → Codebase inspection sub-agents found. If the detector found none, search the repo root. Always exclude `node_modules/`, `dist/`, `build/`, and `.ai/`. In the commands below, `<roots>` is the chosen roots and `<excludes>` is `--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.ai`.
+Choose the search roots first: the UI source directories that the `stack:` block of a workflow names, or the directories that hold the page and component files of the repo. When you find none, search the repo root. Always exclude `node_modules/`, `dist/`, `build/` and `.ai/`.
+
+Search with the search tool of the host. The patterns below are written as `grep` lines to show what to match: `<roots>` is the chosen roots and `<excludes>` is the four excluded folders.
 
 Search the codebase for:
 
@@ -126,16 +130,15 @@ Document each with its implicit design decisions. When these patterns will be sy
 
 ## Output in SDLC context
 
-When invoked as `/wf design <slug> extract`:
-- Write extraction report to `<wf-dir>/design-notes/extract-<timestamp>.md`. Get `<timestamp>` from [../_timestamp.md](../_timestamp.md) in the compact run-id form.
-- Write suggested token file to `<wf-dir>/design-notes/tokens-extracted.css`
+With a slug (`/wf design <slug> extract`), the report belongs to the workflow:
+- Write the extraction report to `<wf-dir>/design-notes/extract-<timestamp>.md`. Get `<timestamp>` from [../_timestamp.md](../_timestamp.md) in the compact run-id form.
+- Write the suggested token block into the report, under `### Recommended token file`.
 
-When invoked as `/wf design extract` with no slug:
-- Write the extraction report to `.ai/design/extract-<timestamp>.md`.
-- Write the suggested token file to `.ai/design/tokens-extracted.css`.
+With no slug (`/wf design extract`), write no report file: the design record below holds the result, and the chat return holds the report.
 
 In both cases, update the design record:
-- Summarize the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`.
-- For each component that the code has, run `node "<skill-dir>/scripts/wf.mjs" design component add "<root>" <key> --title "<title>" --code <file> --name <its name in the code>`, so the library lists it ([_surface.md](_surface.md) → The foundation).
-- Follow the format in [record.md](record.md).
-- Do not record a floor refusal as a system pattern. Record it under `## Design debt` per [_craft-floor.md](_craft-floor.md) → Record guard.
+1. Write the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`, in the format of [record.md](record.md).
+2. Run `node "<skill-dir>/scripts/wf.mjs" design components scan "<root>"` to list the components of the code. For each one that the library does not have, run `node "<skill-dir>/scripts/wf.mjs" design component add "<root>" <key> --title "<title>" --code <file> --name <its name in the code>`, so the library lists it ([_surface.md](_surface.md) → The foundation).
+3. Do not record a floor refusal as a system pattern. Record it under `## Design debt` per [_craft-floor.md](_craft-floor.md) → Record guard.
+
+Chat return: the palette, the spacing scale and the type scale in a few lines each, the count of components added to the library, the inconsistencies, and `Done`. The person does not open the report.

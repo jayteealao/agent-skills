@@ -220,8 +220,10 @@ test('design server url with a root prints the canvas URL of that repo', async (
   const { root, done } = project();
   try {
     const lines = [];
-    assert.equal(await runDesign(['server', 'url', root], {}, (t) => lines.push(t)), 0);
-    assert.match(lines.join('\n'), /^http:\/\/127\.0\.0\.1:\d+\/r\/shop\/$/m);
+    // --no-start: the test reads the address and starts no server.
+    assert.equal(await runDesign(['server', 'url', root], { 'no-start': true, workflow: 'w1' }, (t) => lines.push(t)), 0);
+    assert.match(lines.join('\n'), /^computer: http:\/\/127\.0\.0\.1:\d+\/r\/shop\/\?workflow=w1$/m);
+    assert.match(lines.join('\n'), /^phone: (http\S+\/r\/shop\/\?workflow=w1|none \(no tailnet address\))$/m);
   } finally { done(); }
 });
 

@@ -77,11 +77,6 @@ An observation with no effect on the person is a `nit`. When you are not sure be
 
 Cognitive load is the mental effort that an interface asks for. An overloaded person makes mistakes and leaves.
 
-Three kinds of load:
-- **Intrinsic load** comes from the task. Structure it: split a complex task into steps, give defaults and examples, and show only what the step needs.
-- **Extraneous load** comes from the design. Remove it: unclear labels, clutter, inconsistent patterns, and steps between the intent and the result.
-- **Germane load** is the effort of learning. Support it: consistent patterns, feedback that confirms understanding, and teaching through action.
-
 ### The 5-second test
 
 Look at the view for five seconds. Ask:
@@ -103,29 +98,7 @@ Check the view against these eight items:
 7. **Working memory.** The person does not need information from an earlier screen to act on this one.
 8. **Progressive disclosure.** Complexity appears only when the person needs it.
 
-Count the failed items: 0–1 is low load, 2–3 is moderate, 4 or more is critical. Flag each decision point that shows more than four options.
-
-### The working-memory rule
-
-A person holds about four items in working memory. At each decision point, count the options, actions, and facts that the person must hold at once:
-- four or fewer: within the limit;
-- five to seven: group them, or disclose them in steps;
-- eight or more: overloaded. The person skips, misclicks, or leaves.
-
-Applications: one primary action, one or two secondary actions, the rest in a menu; five top-level navigation items or fewer; one reading path in a long article; one decision per screen on a gallery index.
-
-### Common faults
-
-| Fault | Fix |
-|---|---|
-| A wall of options: ten or more choices with no hierarchy | Group them, mark the recommended one, and disclose the rest in steps |
-| A memory bridge: step 3 needs a fact from step 1 | Keep the fact visible where it is needed |
-| Hidden navigation: the person builds a mental map | Show the current place: an active state, a breadcrumb, a progress signal |
-| A jargon barrier | Plain words; define a domain term in place |
-| A flat noise floor: every element has the same weight | One primary element, two or three secondary elements, the rest quiet |
-| An inconsistent pattern | One kind of action, one kind of control |
-| A multi-task demand: read, decide, and navigate at once | Put the steps in sequence |
-| A context switch: one decision needs several screens | Put the information for each decision in one place |
+Count the failed items: 0–1 is low load, 2–3 is moderate, 4 or more is critical. A person holds about four items in working memory: flag each decision point that shows more than four options.
 
 ## Personas
 
@@ -159,17 +132,17 @@ Has never used this kind of product. Reads every instruction, hesitates, and tak
 ### Sam, who uses assistive technology
 
 Uses a screen reader and the keyboard only. May have low vision, a motor impairment, or a cognitive difference. Cannot see hover states.
-- Ask: can Sam finish the primary flow with the keyboard only? Is focus always visible? Does the screen reader announce loading, success, and error? Does the view hold at the largest text size ([_platforms.md](_platforms.md))?
+- Ask: can Sam finish the primary flow with the keyboard only? Is focus always visible? Does the screen reader announce loading, success, and error? Does the view hold at the largest text size of the platform ([_platforms.md](_platforms.md) → largest text size)?
 - Red flags: a pointer-only interaction; a missing focus ring; color as the only signal; an unlabelled field or button; a time limit with no extension; a custom control that breaks the reading order.
 
 ### Riley, the stress tester
 
-Pushes the interface past the happy path on purpose. Riley's inputs are the worst-case content of [harden.md](harden.md) → Worst-case content. Do not invent a new list.
+Pushes the interface past the happy path on purpose. Riley's inputs are the catalog of [_worst-case.md](_worst-case.md). Do not invent a new list.
 - Ask: does the `worst` state of each screen hold in the build? What happens on reload in the middle of a flow, or in two tabs? Does an error leave the view usable?
 - Red flags: a feature that seems to work but gives a wrong result; an error that shows internal details or breaks the view; an empty state with no guidance; data lost on reload or navigation.
 
 ### Casey, the distracted phone user
 
 Uses a phone with one hand, on a slow connection, and is interrupted often.
-- Ask: are the primary actions in reach of the thumb? Is the state kept when Casey leaves and comes back? Does the view work on a slow connection? Are touch targets large enough ([_platforms.md](_platforms.md))?
+- Ask: are the primary actions in reach of the thumb? Is the state kept when Casey leaves and comes back? Does the view work on a slow connection? Do the controls meet the touch target of [_craft-floor.md](_craft-floor.md) rule 5?
 - Red flags: primary actions at the top of the screen; progress lost on an interruption; free text where a choice would do; heavy assets on every view; small or crowded targets.

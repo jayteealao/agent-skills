@@ -2,16 +2,17 @@
 // legacy frame, the contract fields, the captures, the map file, and the run that waits for an
 // export.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { migrateDesign, readMigrated } from '../../lib/design-migrate.mjs';
 import { capturePicture } from '../../lib/design-records.mjs';
-import { missingDesignFiles, readManifest, screenFile, surfaceDir } from '../../lib/design-surface.mjs';
+import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile, surfaceDir } from '../../lib/design-surface.mjs';
 import { designSettled } from '../../lib/design-lane.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 
@@ -177,5 +178,86 @@ test('a screen that the newest revision dropped leaves the surface, in one more 
     const tracked = execFileSync('git', ['-C', root, 'ls-files', '.ai/design/screens'], { encoding: 'utf8' });
     assert.doesNotMatch(tracked, /cart\.html/, 'the page is gone from git too');
     assert.match(tracked, /home\.html/);
+  } finally { done(); }
+});
+
+test('a board never overwrites a screen of the surface: the plan reports the conflict, and the run refuses that workflow', () => {
+  const { root, done } = project();
+  try {
+    // A screen that the design stage drew under the key that the board home--default maps to.
+    initSurface(root);
+    addScreen(root, 'home', { workflow: 'w1' });
+    const drawn = '<html><head><meta name="wf:screen" content="home"></head><body>drawn by hand</body></html>';
+    writeFileSync(screenFile(root, 'home'), drawn);
+    const commitsBefore = log(root).length;
+    const plan = migrateDesign(root, { write: false });
+    assert.equal(plan.ok, false);
+    const p = plan.results[0];
+    assert.equal(p.blocked, true);
+    assert.deepEqual(p.conflicts, [{ key: 'home', screen: '.ai/design/screens/home.html', uncommitted: true, board: 'w1/design/r2/boards/home--default.html' }]);
+    assert.equal(p.fix.who, 'agent');
+    assert.match(p.fix.do, /\.ai\/design\/screens\/home\.html \(the board w1\/design\/r2\/boards\/home--default\.html\)/, 'the fix names both files');
+    assert.match(p.fix.do, /changes that no commit holds/);
+    assert.match(p.fix.command, /wf\.mjs design screen rename .* home home-current$/);
+    assert.match(p.fix.then, /wf\.mjs design migrate .* w1$/);
+
+    const run = migrateDesign(root);
+    assert.deepEqual([run.ok, run.results[0].blocked, run.results[0].migrated], [false, true, undefined]);
+    assert.equal(readFileSync(screenFile(root, 'home'), 'utf8'), drawn, 'the screen page is as it was');
+    assert.equal(log(root).length, commitsBefore, 'no commit');
+    assert.equal(readMigrated(root).workflows.w1, undefined);
+  } finally { done(); }
+});
+
+test('a revision whose manifest does not read is named, and the workflow waits', () => {
+  const { root, design, done } = project();
+  try {
+    writeFileSync(join(design, 'r1', 'boards.json'), '{ not json');
+    const r = migrateDesign(root, { write: false });
+    assert.equal(r.ok, false);
+    assert.equal(r.results[0].blocked, true);
+    assert.equal(r.results[0].invalid.length, 1);
+    assert.equal(r.results[0].invalid[0].file, 'w1/design/r1/boards.json');
+    assert.match(r.results[0].fix.do, /A board manifest does not read: w1\/design\/r1\/boards\.json/);
+    assert.deepEqual(migrateDesign(root).results[0].migrated, undefined, 'the real run leaves the workflow as it is');
+    assert.equal(existsSync(screenFile(root, 'home')), false);
+    assert.throws(() => migrateDesign(root, { slugs: ['nope'] }), (e) => /no workflow nope/.test(e.message) && /w1/.test(e.fix.do));
+  } finally { done(); }
+});
+
+test('a run that stopped after a revision goes on from there, with no second commit of that revision', () => {
+  const { root, done } = project();
+  try {
+    const first = migrateDesign(root, { now: new Date('2026-10-25T00:00:00Z') }).results[0];
+    // The state of a run that stopped after the commit of revision 1.
+    const file = join(surfaceDir(root), 'migrated.json');
+    const state = JSON.parse(readFileSync(file, 'utf8'));
+    delete state.workflows.w1;
+    state.progress = { w1: { commits: { r1: first.commits.r1 } } };
+    writeFileSync(file, `${JSON.stringify(state, null, 2)}\n`);
+    const again = migrateDesign(root, { now: new Date('2026-10-26T00:00:00Z') });
+    assert.equal(again.ok, true);
+    const r = again.results[0];
+    assert.deepEqual([r.migrated, r.resumed], [true, true]);
+    assert.equal(r.commits.r1, first.commits.r1, 'revision 1 keeps its commit');
+    const subjects = log(root).map((l) => l.slice(41));
+    assert.equal(subjects.filter((s) => s === 'design: revision 1 of w1, from its boards').length, 1);
+    assert.equal(readMigrated(root).progress, undefined, 'the progress is gone when the workflow is done');
+    assert.equal(readManifest(root).screens.home.approvals.filter((a) => a.migrated).length, 1, 'the approval is recorded once');
+  } finally { done(); }
+});
+
+test('design migrate --check plans and changes nothing', () => {
+  const { root, done } = project();
+  try {
+    const WF = fileURLToPath(new URL('../../scripts/wf.mjs', import.meta.url));
+    const r = spawnSync(process.execPath, [WF, 'design', 'migrate', root, '--check', '--json'], { encoding: 'utf8', env: process.env });
+    assert.equal(r.status, 0, r.stderr);
+    const out = JSON.parse(r.stdout);
+    assert.deepEqual([out.ok, out.results[0].slug, out.results[0].revisions], [true, 'w1', [1, 2]]);
+    assert.equal(existsSync(surfaceDir(root)), false, 'no design surface');
+    assert.equal(log(root).length, 1, 'no commit');
+    assert.equal(execFileSync('git', ['-C', root, 'status', '--porcelain'], { encoding: 'utf8' }).trim(), '', 'no file of the repo changed');
+    assert.equal(existsSync(join(root, '.ai', 'workflows', 'INDEX.md')), false, 'the plan refreshes no index');
   } finally { done(); }
 });

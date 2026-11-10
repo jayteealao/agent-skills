@@ -10,6 +10,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from '
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { stringify } from '../lib/yaml.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
+import { agentFix, fixLines, refuse } from '../lib/fix.mjs';
 import { workflowsRoot } from '../lib/records-root.mjs';
 
 const LEGACY_CONTRACT_TYPES = new Set(['craft', 'design-brief', 'design-contract']);
@@ -26,7 +27,7 @@ function parseArgs(argv) {
       console.log('Usage: node scripts/migrate-design-types.mjs [--root <project-root-or-workflows-dir>] [--dry-run]');
       process.exit(0);
     } else {
-      throw new Error(`Unknown argument: ${arg}`);
+      throw refuse(`Unknown argument: ${arg}`, agentFix('Run the command again with --root and --dry-run only.', 'node scripts/migrate-design-types.mjs --root <project-root> --dry-run'));
     }
   }
   return args;
@@ -232,5 +233,6 @@ try {
   main();
 } catch (err) {
   console.error(`[migrate-design-types] ${err.message}`);
-  process.exit(1);
+  for (const line of fixLines(err.fix)) console.error(line);
+  process.exit(err.fix ? 2 : 1);
 }
