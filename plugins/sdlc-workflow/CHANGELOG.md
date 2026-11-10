@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.20] - 2026-11-10
+
+- docs(sdlc-workflow): the stage files are rewritten as plain steps, and five rules now match the code
+- feat(sdlc-workflow): the scripts say what to do next, and the person gets one inbox
+- fix(sdlc-workflow): a full review of the plugin, and five changes to how it works
+
 ## [10.0.0-next.19] - 2026-11-08
 
 - fix(sdlc-workflow): the campaign walk keeps going while questions wait, and the wf.mjs shim only moves forward
