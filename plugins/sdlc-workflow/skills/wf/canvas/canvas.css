@@ -340,6 +340,9 @@ textarea { display: block; width: 100%; min-height: 56px; padding: 6px 8px; bord
 
 /* The design audit: its own colour, so an agent's finding never reads as a measured check. */
 .mark.audit { color: var(--audit); background: var(--audit-tint); }
+/* A thread that a reviewer agent opened: a small mark beside its place, and a dashed pin. */
+.mark.review { color: var(--pencil); border: 1px solid currentColor; }
+.pin.review span { outline: 1.5px dashed var(--pencil); outline-offset: 1px; }
 .box.audit { border-color: var(--audit); border-style: dashed; background: var(--audit-tint); }
 .box.audit .tag span { background: var(--audit); }
 .check.audit { background: var(--audit-tint); }

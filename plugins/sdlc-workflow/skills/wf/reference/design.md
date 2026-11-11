@@ -40,6 +40,7 @@ A run with no slug has no workflow to check: read the procedure rows of its mode
 | `design/_preflight.md` | procedure | mode:stage | |
 | `design/_craft-floor.md` | procedure | mode:stage | |
 | `design/contract.md` | procedure | mode:stage | |
+| `design/review-team.md` | procedure | mode:stage | |
 | `design/_carried.md` | procedure | mode:carried | |
 | `design/directions.md` | procedure | mode:directions | |
 | `design/foundation.md` | procedure | mode:foundation | |
@@ -55,6 +56,9 @@ A run with no slug has no workflow to check: read the procedure rows of its mode
 | `design/record.md` | procedure | mode:upkeep | |
 | `design/_craft-floor.md` | procedure | mode:upkeep | Record guard |
 | `design/setup.md` | procedure | mode:record | |
+| `design/system-migrate.md` | procedure | mode:system | |
+| `design/_surface.md` | procedure | mode:system | The foundation |
+| `design/setup.md` | procedure | mode:system | The DESIGN.md template |
 | `design/extract.md` | procedure | mode:extract | |
 | `design/_craft-floor.md` | procedure | mode:audit | |
 | `design/audit.md` | procedure | mode:audit | |
@@ -67,7 +71,7 @@ A run with no slug has no workflow to check: read the procedure rows of its mode
 | `07-design-audit.md` | writes | | |
 | `07-design-critique.md` | writes | | |
 
-The stage loads `design/_craft-floor.md` at its Step 4 and `design/contract.md` at its Step 6, not before. The modes `carried`, `directions` and `foundation` join a run when the stage reaches that branch. List every mode that ran in `modes:` of `02c-craft.md`.
+The stage loads `design/_craft-floor.md` at its Step 4, `design/review-team.md` when `design next` names the step `review`, and `design/contract.md` at its Step 6, not before. The modes `carried`, `directions` and `foundation` join a run when the stage reaches that branch. List every mode that ran in `modes:` of `02c-craft.md`.
 
 # Step 0 — Parse the invocation
 
@@ -94,6 +98,7 @@ Resolve the first token by an exact existence check. Do not match a near name: a
    | `record`, `setup` or `teach` | upkeep: the record interview | `upkeep`, `record` |
    | `extract` | upkeep | `upkeep`, `extract` |
    | `direction` or `sync` | upkeep | `upkeep` |
+   | `system` | upkeep: migrate the design system of the repo, with no workflow | `upkeep`, `system` |
    | `audit` or `critique` | review, freestanding against the target code | that word |
    | a move, and `token1` is a slug | the same as `<slug> <move>` in table 1 | `stage`, or `move-pass` |
    | a move, and `token1` is not a slug | new workflow | none |
@@ -112,6 +117,7 @@ More:
   /wf design <slug> <move>                  Focus the stage on a move; on an approved design, run its checks.
   /wf design [slug] audit|critique|extract  Run a design review now; read the design system out of the code.
   /wf design record|direction|sync          Complete the design record; change the direction; sync DESIGN.md.
+  /wf design system                         Migrate the design system of the repo: typed tokens, layout, component specs.
   /wf design <move> <instructions>          Start a new workflow that records the move.
 ```
 
@@ -123,7 +129,7 @@ More:
 | explore | [design/explore.md](design/explore.md). The run writes only explore sketches and, when it links to a workflow, decisions. It writes no screen and no contract. |
 | import | [design/import.md](design/import.md). It continues at Step 5 of the stage, where the person approves the imported screens. |
 | new workflow | Run `/wf intake <instructions>` in default mode. Before intake writes `00-index.md`, preset `ux-impact: visual` (or higher when the instructions add a surface) and `design-move: <move>`. The person confirms `ux-impact` in the stack confirmation of intake. The design stage of that workflow focuses on the recorded move. |
-| upkeep | The section of the command in [design/record.md](design/record.md). `record`, `setup` and `teach` run the interview of [design/setup.md](design/setup.md). `extract` follows [design/extract.md](design/extract.md). Upkeep writes the design record only, and `extract` with a slug also writes its report under `design-notes/` of that slug. Before a write to the record, load [design/_craft-floor.md](design/_craft-floor.md) → Record guard. |
+| upkeep | The section of the command in [design/record.md](design/record.md). `record`, `setup` and `teach` run the interview of [design/setup.md](design/setup.md). `extract` follows [design/extract.md](design/extract.md). `system` follows [design/system-migrate.md](design/system-migrate.md) for the whole surface of the repo, with no workflow: it writes `DESIGN.md`, the sheets, the component pages and the screens, runs the check on every screen, and commits them by path in the product repo. The other upkeep commands write the design record only, and `extract` with a slug also writes its report under `design-notes/` of that slug. Before a write to the record, load [design/_craft-floor.md](design/_craft-floor.md) → Record guard. |
 | review | Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). With a slug, write the draft `<wf-dir>/.draft/07-design-audit.md` or `<wf-dir>/.draft/07-design-critique.md`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md), and register the augmentation per [design/_output.md](design/_output.md). `audit` uses the accessibility, performance and web-vitals results in `06-verify-*.md`, and measures them itself only when no verify ran. Without a slug, write no workflow artifact, and report in chat. |
 
 # Step 2 — Final summary

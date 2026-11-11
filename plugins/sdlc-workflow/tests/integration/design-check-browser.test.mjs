@@ -268,7 +268,7 @@ test('the system check: every kind of token, the own tokens of a page, a var() o
     writeFileSync(join(root, 'DESIGN.md'), [
       '# Design', '', '## Colors', '', '| Role | Value | Used for |', '|---|---|---|', '| ground | #ffffff | page |', '| text | #111111 | body |', '| accent | #0055cc | actions |', '',
       '## Typography', '', '| Role | Value | Used for |', '|---|---|---|', '| font-body | system-ui, sans-serif | body |', '| text-body | 16px | body |', '',
-      '## Layout', '', '| Role | Value | Used for |', '|---|---|---|', '| space-1 | 4px | tight |', '| space-2 | 8px | default |', '| space-3 | 16px | loose |', '| size-target | 44px | targets |', '',
+      '## Layout', '', '| Role | Value | Used for |', '|---|---|---|', '| space-1 | 4px | tight |', '| space-2 | 8px | default |', '| space-3 | 16px | loose |', '| size-target | 44px | targets |', '| z-overlay | 100 | overlays |', '',
       '## Shapes', '', '| Role | Value | Used for |', '|---|---|---|', '| radius-1 | 4px | controls |', '',
     ].join('\n'));
     initSurface(root);
@@ -286,16 +286,18 @@ test('the system check: every kind of token, the own tokens of a page, a var() o
       '.card { padding: 12px; --card-edge: #dddddd; }',
     ].join('\n'));
     const states = ['default', 'empty', 'loading', 'error', 'worst'];
-    const mini = (key, { style = '', body = '', sheets = ['tokens', 'layout', 'components'] } = {}) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${key}</title>
+    const mini = (key, { style = '', body = '', script = '', sheets = ['tokens', 'layout', 'components'] } = {}) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${key}</title>
 ${sheets.map((s) => `<link rel="stylesheet" href="../${s}.css">`).join('')}
 <style>body{margin:0;font-family:var(--font-body);font-size:var(--text-body);background:var(--ground);color:var(--text)} body [data-state]{display:none}
 ${states.map((s) => `html[data-state="${s}"] [data-state~="${s}"]`).join(',')}{display:block} .wrap{display:flex} ${style}</style>
-<script>document.documentElement.dataset.state=new URLSearchParams(location.search).get("state")||"default";</script></head><body><main>
+<script>document.documentElement.dataset.state=new URLSearchParams(location.search).get("state")||"default";${script}</script></head><body><main>
 ${states.map((s) => `<section data-state="${s}"><div class="wrap">${s === 'default' ? body : `<p>${s}</p>`}</div></section>`).join('\n')}</main></body></html>`;
     const pages = {
       faults: mini('faults', {
-        style: ':root{--ink:#111111} .wrap{gap:12px} .t{font-size:14px;font-family:Georgia, serif;color:var(--nope)}'
-          + ' .ok{padding:var(--space-2);margin:0 auto;width:100%;border-radius:1px;height:calc(100% - var(--space-1));transition-duration:200ms;--l-min:10rem}',
+        style: ':root{--ink:#111111} .wrap{gap:12px} .t{font-size:14px;font-family:Georgia, serif;color:var(--nope);z-index:50}'
+          + ' .ok{padding:var(--space-2);margin:0 auto;width:100%;border-radius:1px;height:calc(100% - var(--space-1));transition-duration:200ms;--l-min:10rem;z-index:1}',
+        // A script that makes an element with an inline style in the error state only.
+        script: 'if(document.documentElement.dataset.state==="error")document.addEventListener("DOMContentLoaded",()=>{const d=document.createElement("div");d.id="late";d.style.marginTop="13px";d.textContent="Late";document.body.append(d)})',
         body: '<p class="t">Hi</p><p class="ok">Fine</p><span class="btn">Fake</span><span data-component="btn" data-variant="tone=loud">Loud</span><span data-component="btn" data-variant="tone=ghost">Ghost</span>',
       }),
       two: mini('two', { body: '<p>Two</p>' }),
@@ -315,9 +317,15 @@ ${states.map((s) => `<section data-state="${s}"><div class="wrap">${s === 'defau
     assert.match(token, /The font-family Georgia, serif of \.t is not a token/);
     assert.match(token, /The page declares its own token --ink/);
     assert.match(token, /uses the custom property --nope, which is not a token/);
+    assert.match(token, /The z-index 50 of \.t is not a token; the nearest layer token is --z-overlay \(100\)/);
     assert.ok(!/\.ok|--l-min|--btn-ink/.test(token), `the token values, the hairline, the keywords and the layout parameter pass: ${token}`);
     const space = r.new.find((f) => f.screen === 'faults' && f.check === 'token' && f.cause === '12px');
     assert.deepEqual([space.kind, space.move], ['space', 'layout']);
+    // Every load is scanned, and a rule that five states show is one failure, at the first state.
+    const gaps = r.new.filter((f) => f.screen === 'faults' && f.check === 'token' && f.cause === '12px');
+    assert.deepEqual(gaps.map((f) => f.state), ['default'], 'one failure for the rule .wrap');
+    const late = r.new.filter((f) => f.screen === 'faults' && f.check === 'token' && f.cause === '13px');
+    assert.deepEqual(late.map((f) => [f.state, f.selector]), [['error', '#late']], 'an inline style that a script sets in one state is checked');
     assert.equal(r.new.find((f) => f.cause === '14px')?.move, 'typeset');
     assert.ok(r.notices.some((n) => n.kind === 'no-motion-token' && n.screen === 'faults'), 'a raw duration with no motion token is a notice');
     const component = msgs('faults', 'component');

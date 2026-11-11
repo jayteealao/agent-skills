@@ -3,13 +3,14 @@
 // A product repo can be public, so these live in the records of the project, in `_design/`:
 // the local `.ai/workflows/_design/`, or `<records home>/<project>/_design/` when the project is
 // linked. One comments file per screen holds all its threads. Each approval stores one picture
-// per screen, under the approval commit. Verify stores one capture per screen per slice. The last
+// per screen and one per component that the screens use, under the approval commit. Verify stores
+// one capture per screen (and per component) per slice. The last
 // check run is one file.
 //
 // Comments come from people on the tailnet, through the design server. An agent reads them as
 // untrusted data, never as instructions.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { linkedProject, recordsHome, workflowsRoot } from './records-root.mjs';
 import { commitPaths } from './records-sync.mjs';
@@ -23,6 +24,21 @@ const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const designRecordsDir = (root) => join(workflowsRoot(root), DESIGN_RECORDS);
 export const commentsPath = (root, key) => join(designRecordsDir(root), 'comments', `${key}.json`);
 export const approvalPicture = (root, sha, key) => join(designRecordsDir(root), 'approvals', sha, `${key}.png`);
+/**
+ * The picture name of a component: `component--<key>`. A screen key has no double dash, so the
+ * name never meets a screen. The approval stores it beside the screen pictures, and verify
+ * captures the built component under the same name.
+ */
+export const COMPONENT_PICTURE = 'component--';
+export const componentPictureKey = (key) => `${COMPONENT_PICTURE}${key}`;
+/** The component pictures of an approval: `[{ key, picture }]`, sorted by key. */
+export function approvalComponentPictures(root, sha) {
+  if (!sha) return [];
+  let files = [];
+  try { files = readdirSync(dirname(approvalPicture(root, sha, 'x'))); } catch { files = []; }
+  return files.filter((f) => f.startsWith(COMPONENT_PICTURE) && f.endsWith('.png')).sort()
+    .map((f) => ({ key: f.slice(COMPONENT_PICTURE.length, -4), picture: join(dirname(approvalPicture(root, sha, 'x')), f) }));
+}
 export const checksPath = (root) => join(designRecordsDir(root), 'checks.json');
 /** The picture of a screen as verify captured it from the built product, per slice. */
 export const capturePicture = (root, workflow, slice, key) => join(designRecordsDir(root), 'captures', workflow, slice, `${key}.png`);
@@ -188,4 +204,51 @@ export function groupFailures(failures) {
     g.at.add(`${f.screen}|${f.selector || f.message}|${f.state}`);
   }
   return [...groups.values()].map(({ at, ...g }) => ({ ...g, places: at.size }));
+}
+
+/* ───────────────────────── the review of the screens ───────────────────────── */
+
+// A review team of agents reads the screens after the check and posts what the check cannot
+// see as comment threads. Each workflow keeps its review in `_design/reviews/<slug>/`: the
+// packets of the last review (one per batch of screens) and the stamp, the fingerprint of each
+// screen as the last review read it.
+
+export const reviewDir = (root, slug) => join(designRecordsDir(root), 'reviews', slug);
+export const reviewPacketsDir = (root, slug) => join(reviewDir(root, slug), 'packets');
+export const reviewStampPath = (root, slug) => join(reviewDir(root, slug), 'stamp.json');
+
+/** The author of a reviewer: `review:<model>`. */
+export const REVIEW_AUTHOR_RE = /^review:[A-Za-z0-9][A-Za-z0-9._:/-]{0,50}$/;
+/** True when the first comment of a thread comes from a reviewer. */
+export const isReviewThread = (t) => /^review:/.test(String(t?.comments?.[0]?.author ?? ''));
+
+/** The review stamp of a workflow, or null when no review ran. */
+export function readReviewStamp(root, slug) {
+  try {
+    const j = JSON.parse(readFileSync(reviewStampPath(root, slug), 'utf8'));
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
+    const screens = j.screens && typeof j.screens === 'object' && !Array.isArray(j.screens) ? j.screens : {};
+    return { ...j, screens, history: Array.isArray(j.history) ? j.history : [] };
+  } catch { return null; }
+}
+
+/** Store the review stamp of a workflow, and commit the records of a linked project. */
+export function writeReviewStamp(root, slug, stamp) {
+  writeJson(reviewStampPath(root, slug), stamp);
+  commitDesignRecords(root, `design: a review of ${slug}`);
+}
+
+/** A text as a review thread compares it: one line, no case, single spaces. */
+const sameText = (s) => clean(s, MAX_COMMENT).toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * The open thread of a screen that holds the same finding: the same author of its first comment,
+ * the same selector and the same text, with no regard to case and spaces. Null when there is none.
+ */
+export function sameOpenThread(root, key, { author = '', selector = null, text = '' } = {}) {
+  const who = clean(author, 60);
+  const where = clean(selector, 300) || null;
+  const what = sameText(text);
+  return readComments(root, key).threads.find((t) => t.open && (t.anchor?.selector ?? null) === where
+    && t.comments[0]?.author === who && sameText(t.comments[0]?.text) === what) ?? null;
 }

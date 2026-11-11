@@ -188,6 +188,8 @@ var WF_CANVAS_LOGIC = (() => {
     const names = (themes || []).map((x) => x.name).filter((n) => n in values);
     return names.length ? names.map((n) => ({ theme: n, value: values[n] })) : [{ theme: null, value: t?.value ?? '' }];
   }
+  /** The mark of a thread that a reviewer agent opened (its first author is `review:<model>`): 'Review', else null. */
+  const reviewMark = (t) => (/^review:/.test(String(t?.comments?.[0]?.author ?? '')) ? 'Review' : null);
   /** The mark of a component spec: null when it lacks nothing, else 'No spec' or the count of its gaps. */
   function specMark(c) {
     const problems = c?.problems || [];
@@ -228,7 +230,7 @@ var WF_CANVAS_LOGIC = (() => {
   /** The next wait before the event stream opens again: 5 s, then twice as long each time, at most a minute. */
   const reopenDelay = (tries) => Math.min(60000, 5000 * 2 ** Math.max(0, Math.min(tries, 10)));
 
-  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, needsDecision, failText, fitScale, hashOf, parseHash, parseSize };
+  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, fitScale, hashOf, parseHash, parseSize };
 })();
 
 (() => {
@@ -1795,7 +1797,7 @@ var WF_CANVAS_LOGIC = (() => {
         if (el) { const r = el.getBoundingClientRect(); rect = { left: r.left + (win?.scrollX || 0), top: r.top + (win?.scrollY || 0), width: r.width, height: r.height }; }
         const p = L.pinPlace(a, f.viewport, size, rect);
         if (!p) return;
-        layer.append(h('button', { type: 'button', class: `pin${t.open ? '' : ' closed'}`, fk: `pin:${t.id}`, style: `left:${p.x * scale}px;top:${p.y * scale}px`,
+        layer.append(h('button', { type: 'button', class: `pin${t.open ? '' : ' closed'}${L.reviewMark(t) ? ' review' : ''}`, fk: `pin:${t.id}`, style: `left:${p.x * scale}px;top:${p.y * scale}px`,
           'aria-label': `Comment ${i + 1}: ${t.comments[0]?.text || ''}`, onclick: (e) => { e.stopPropagation(); showRow(f, 'comments', `[data-row="thread:${t.id}"]`); } }, h('span', {}, String(i + 1))));
       });
       // Comment mode: the pointer outlines the element under it, and a click or a tap selects it.
@@ -2005,7 +2007,7 @@ var WF_CANVAS_LOGIC = (() => {
       };
       const flip = () => post(`flip:${dk}`, { thread: t.id, text: drafts.get(dk), resolve: t.open, reopen: !t.open }, () => { drafts.clear(dk); delete f.reply[t.id]; });
       return h('div', { class: `thread${t.open ? '' : ' closed'}`, 'data-row': `thread:${t.id}`, tabindex: '-1' },
-        h('div', { class: 'thread-head' }, h('span', { class: `pin still${t.open ? '' : ' closed'}` }, h('span', {}, String(n))), h('small', {}, L.whereText(a, label), t.open ? '' : ' · Resolved')),
+        h('div', { class: 'thread-head' }, h('span', { class: `pin still${t.open ? '' : ' closed'}${L.reviewMark(t) ? ' review' : ''}` }, h('span', {}, String(n))), L.reviewMark(t) ? h('span', { class: 'mark review', title: 'A reviewer agent opened this thread' }, L.reviewMark(t)) : null, h('small', {}, L.whereText(a, label), t.open ? '' : ' · Resolved')),
         ...t.comments.map((c) => h('p', { class: 'c' }, h('b', {}, c.author), h('span', {}, c.text))),
         data.writable ? h('div', {}, writingReply ? draftField(dk, 'Reply') : null,
           failLine(`reply:${dk}`, reply), failLine(`flip:${dk}`, flip),

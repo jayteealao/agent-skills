@@ -91,4 +91,10 @@ For each component of `<wf> design components <root>`:
 
 1. Run `<wf> design foundation <root>`. It must exit 0.
 2. Run `<wf> design check <root>`. Repair each `token`, `layout`, `component` and `library` failure. A failure that cannot be repaired in this pass, such as a value that the product must keep for a reason that the person gave, is waived with `<wf> design waive <root> <slug> --cause "<cause>" --reason "<why>"`. Waive a cause only for a reason that the person gave or that the code forces. Approval refuses each failure of these four checks that is not repaired or waived.
-3. Save the migration as a round: `<wf> design round <root> <slug>`.
+3. With a workflow, save the migration as a round: `<wf> design round <root> <slug>`.
+4. With no workflow (`/wf design system`), run the check with no `--workflow`, so it checks every screen. A waiver needs a workflow: leave a failure that you cannot repair, and name it in the summary; the next design pass of a workflow repairs or waives it. Commit `DESIGN.md`, `.ai/design/` and the token file of the code by path, in one commit of the product repo, with the message `design: migrate the design system`.
+
+## Run it in a repo
+
+- With no open design workflow: `/wf design system`.
+- In a design workflow: `/wf design <slug>`. Step 1 of the stage migrates first.

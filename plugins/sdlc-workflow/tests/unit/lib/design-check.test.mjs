@@ -144,7 +144,7 @@ test('a raw length: tokens, 0, units of the viewport, %, fr, hairlines and keywo
 });
 
 test('the kind of a property, and the raw part of a value of each kind', () => {
-  const kinds = { 'padding-top': 'space', margin: 'space', gap: 'space', 'row-gap': 'space', inset: 'space', top: 'space', width: 'size', 'max-height': 'size', 'flex-basis': 'size', 'border-radius': 'radius', 'border-top-left-radius': 'radius', 'font-size': 'type', 'font-family': 'font', 'box-shadow': 'shadow', 'transition-duration': 'motion', 'animation-duration': 'motion', color: null, 'line-height': null, 'border-width': null };
+  const kinds = { 'padding-top': 'space', margin: 'space', gap: 'space', 'row-gap': 'space', inset: 'space', top: 'space', width: 'size', 'max-height': 'size', 'flex-basis': 'size', 'border-radius': 'radius', 'border-top-left-radius': 'radius', 'font-size': 'type', 'font-family': 'font', 'box-shadow': 'shadow', 'transition-duration': 'motion', 'animation-duration': 'motion', 'z-index': 'layer', color: null, 'line-height': null, 'border-width': null };
   for (const [prop, kind] of Object.entries(kinds)) assert.equal(lengthKindOf(prop), kind, prop);
   assert.equal(rawValue('font', 'system-ui, sans-serif'), 'system-ui, sans-serif');
   assert.equal(rawValue('font', 'var(--font-body)'), null);
@@ -155,6 +155,8 @@ test('the kind of a property, and the raw part of a value of each kind', () => {
   assert.equal(rawValue('motion', 'background 200ms ease 0s'), '200ms');
   assert.equal(rawValue('motion', 'background var(--duration-1) ease 0s'), null);
   assert.equal(rawValue('space', 'var(--space-2) 12px'), '12px');
+  assert.deepEqual(['0', '1', '-1', 'auto', 'var(--z-modal)', 'calc(var(--z-modal) + 1)'].map((v) => rawValue('layer', v)), [null, null, null, null, null, null], 'the small layers, auto and a token pass');
+  assert.deepEqual(['10', '9999', '-2', '100 !important'].map((v) => rawValue('layer', v)), ['10', '9999', '-2', '100']);
   assert.deepEqual([measure('16px'), measure('1rem'), measure('0.2s'), measure('14px/20px'), measure('calc(1px)')], [16, 16, 200, 14, null]);
 });
 
@@ -188,7 +190,7 @@ test('the library lint: raw values of components.css, custom properties that are
     const root = join(top, 'Shop');
     mkdirSync(root, { recursive: true });
     writeFileSync(join(root, 'DESIGN.md'), ['# Design', '', '## Colors', '', '| Role | Value |', '|---|---|', '| ground | #ffffff |', '| text | #111111 |', '',
-      '## Layout', '', '| Role | Value |', '|---|---|', '| space-1 | 4px |', '| space-2 | 8px |', ''].join('\n'));
+      '## Layout', '', '| Role | Value |', '|---|---|', '| space-1 | 4px |', '| space-2 | 8px |', '| z-raised | 10 |', '| z-modal | 100 |', ''].join('\n'));
     initSurface(root);
     writeTokens(root);
     addComponent(root, 'btn');
@@ -197,15 +199,17 @@ test('the library lint: raw values of components.css, custom properties that are
     writeFileSync(join(surfaceDir(root), 'components', 'btn.html'), '<meta name="wf:variants" content="tone=solid|ghost"><meta name="wf:states" content="default"><section data-theme="default" data-theme-source><div data-spec="tone=solid"><span data-component="btn"></span></div></section>');
     writeFileSync(join(surfaceDir(root), 'components.css'), [
       '/* .btn { color: #000000 } */',
-      '.btn { color: var(--ground); background: #1a5fb4; padding: var(--space-2) 12px; border: 1px solid var(--text); --btn-ink: var(--text); --btn-pad: 6px; }',
+      '.btn { color: var(--ground); background: #1a5fb4; padding: var(--space-2) 12px; border: 1px solid var(--text); --btn-ink: var(--text); --btn-pad: 6px; z-index: 1; }',
+      '.btn:focus { z-index: var(--z-raised); } .btn .menu { z-index: 90; }',
       '@media (min-width: 40rem) { [data-component="card"] { margin: var(--space-1); color: var(--btn-ink); border-color: var(--gone); width: 300px; } }',
     ].join('\n'));
     const items = lintLibrary(root);
     const lines = items.map((i) => `${i.component}|${i.cause}`);
-    assert.deepEqual(lines.sort(), ['btn|#1a5fb4', 'btn|12px', 'btn|btn/state:default:tone=ghost', 'btn|btn/variant:tone=ghost', 'btn|custom:--btn-pad', 'card|--gone', 'card|no-page:card'].sort(),
+    assert.deepEqual(lines.sort(), ['btn|#1a5fb4', 'btn|12px', 'btn|btn/state:default:tone=ghost', 'btn|btn/variant:tone=ghost', 'btn|custom:--btn-pad', 'btn|90', 'card|--gone', 'card|no-page:card'].sort(),
       'a width with no size token is left alone; an alias of tokens passes');
     assert.ok(items.every((i) => i.check === 'library' && i.do), 'each item names its repair');
     assert.match(items.find((i) => i.cause === '12px').message, /nearest space token is --space-2 \(8px\)/);
+    assert.match(items.find((i) => i.cause === '90').message, /The z-index 90 of \.btn \.menu in components\.css is not a token; the nearest layer token is --z-modal \(100\)/);
     assert.match(libraryLines(items)[0], /^library \(btn\): /);
     assert.deepEqual(cssDeclarations('a{b:c} @media x { d { e: f; } }').map((d) => `${d.selector}|${d.prop}|${d.value}`), ['a|b|c', 'd|e|f']);
     assert.deepEqual([...componentAliases('.x{--a:var(--t);--b:#fff;--c:calc(var(--t) * 2)}').keys()], ['--a', '--c']);

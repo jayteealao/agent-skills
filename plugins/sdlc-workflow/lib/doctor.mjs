@@ -247,7 +247,7 @@ export async function runDoctor({
     hosts: { claude, codex, codexConfig: codexRead.config, pi, piReplaced },
     cleanup: cleanupStatus(sdlcHome),
     designTask: designTask(),
-    shim: { current: readShimCurrent(), problems: shimProblems() },
+    shim: { current: readShimCurrent(), problems: shimProblems({ version: shipped }) },
     verdicts: hostVerdicts,
     ok,
   };

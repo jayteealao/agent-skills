@@ -25,6 +25,7 @@ Three rules hold in every step:
    | `ux-impact` is `none` | Ask one gate question per [_gate-question.md](../_gate-question.md): design this change, or skip the design. Run the command of the action for the answer. On skip, stop with its next step. |
    | the design record, the brief, the foundation or the screens are missing | Start at Step 1 and go on in order. |
    | the screens are drawn: not checked, a check fails, or a comment thread is open | Run Step 1 when this session has not read the design record. Then continue at Step 4b. |
+   | `review`: changed screens wait for the review team | Follow [review-team.md](review-team.md), then run `design next` again. |
    | the screens are ready for the approval question | Continue at Step 5. |
    | the contract is written and the approval is not recorded | Continue at Step 6, item 2. |
    | the design is approved | With a move in the invocation, follow [move-pass.md](move-pass.md). With none, tell the person what is approved, in the stop message form, with the next step that the action prints. |
@@ -134,7 +135,7 @@ Take the person through the design in rounds, until the person says that nothing
 
 1. Run `<wf> design check <root> --workflow <slug>`. It checks each screen in each viewport and state, and prints one line for each cause, with its screens and the move that fixes it. Its last lines are the approval question (`ask:`) and the one next action.
 2. When the first line is `not checked:`, no screen was measured. Send the stop message with the reason, and ask one gate question: "I will install a browser, check again" (Chrome, Edge or Chromium, or `SDLC_BROWSER`), or "Ask me to approve without the check". This question is not the approval. On the second answer, go on to item 3, and say "not checked" in the Check line and in the description of `Approve`.
-3. When a `token`, `layout`, `component` or `library` failure stays that is not waived, do not ask the approval question: repair it per item 5, and run the check again. Then send the stop message, and ask the approval question:
+3. When a `token`, `layout`, `component` or `library` failure stays that is not waived, do not ask the approval question: repair it per item 5, and run the check again. Then run `<wf> design next <root> <slug>`: when it names the step `review`, run the review team of [review-team.md](review-team.md) and act on its threads first. Then send the stop message, and ask the approval question:
    - When a screen shows a stand-in face (`typeset.md` → Get the face onto a screen), say so in the question.
    - Ask it with the question tool of the host, never as a chat message: the script reads the answer event of that tool. When this session has no question tool, run `<wf> record set "<root>" <slug> index status=awaiting-input`, tell the person that the approval needs a session with the question tool and that `/wf design <slug>` resumes at this step, and stop.
    - Use the exact text of the `ask:` line.

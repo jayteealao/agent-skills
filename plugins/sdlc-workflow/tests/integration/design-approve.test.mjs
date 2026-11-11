@@ -14,6 +14,7 @@ import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
 import { runDesign } from '../../lib/design-cli.mjs';
 import { CHECK_MOVES, checkBrowser, failureLines, runChecks } from '../../lib/design-check.mjs';
 import { approvalPicture, readChecks } from '../../lib/design-records.mjs';
+import { addComponent } from '../../lib/design-components.mjs';
 import { addScreen, initSurface, missingDesignFiles, readManifest, screenFile, writeTokens } from '../../lib/design-surface.mjs';
 import { designGateRefusal, designSettled } from '../../lib/design-lane.mjs';
 import { listVersions } from '../../lib/design-versions.mjs';
@@ -260,5 +261,68 @@ test('in a browser: a named color, a gradient and a custom property of the page 
     assert.ok(token.some((m) => /\.fade/.test(m) && /background-image/.test(m)), token.join('\n'));
     assert.ok(token.some((m) => /custom property --mine, which is not a token/.test(m)), token.join('\n'));
     assert.ok(!token.some((m) => /\.fine/.test(m)), 'a token is fine');
+  } finally { done(); }
+});
+
+// A screen of the project that uses the component `button`, which has a page; `badge` has none.
+function withButton(root) {
+  addComponent(root, 'button', { title: 'Button', workflow: 'w1' });
+  const page = readFileSync(screenFile(root, 'basket'), 'utf8')
+    .replace('<h1>Basket</h1><p', '<h1>Basket</h1><button class="button" data-component="button">Pay</button><span data-component="badge">2</span><p');
+  writeFileSync(screenFile(root, 'basket'), page);
+}
+
+async function approved(root) {
+  const lines = [];
+  const code = await runDesign(['approved', root, 'w1'], { json: true }, (v) => lines.push(v));
+  const text = [];
+  await runDesign(['approved', root, 'w1'], {}, (v) => text.push(v));
+  return { code, out: lines.at(-1), text: text.join('\n') };
+}
+
+test('without a browser, the approval goes on and notes each component that it could not picture', async () => {
+  const { root, done } = project();
+  try {
+    withButton(root);
+    writeContract(root);
+    answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    const r = await approveDesign(root, 'w1', { browser: null, now: new Date('2026-10-25T10:06:00Z') });
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.componentPictures, 0);
+    assert.deepEqual(r.componentsSkipped.map((c) => c.key), ['badge', 'button']);
+    assert.ok(r.componentsSkipped.every((c) => /no browser/.test(c.why)));
+    // A picture that a run with a browser left lists with its page.
+    const file = approvalPicture(root, r.commit, 'component--button');
+    mkdirSync(join(file, '..'), { recursive: true });
+    writeFileSync(file, Buffer.from('89504e470d0a1a0a', 'hex'));
+    const a = await approved(root);
+    assert.equal(a.code, 0);
+    assert.deepEqual(a.out.components.map((c) => [c.key, c.picture]), [['button', file]]);
+    assert.ok(a.out.components[0].page.replace(/\\/g, '/').endsWith('.ai/design/components/button.html'));
+    assert.ok(a.text.split('\n').includes(`component button: ${a.out.components[0].page} picture ${file}`), a.text);
+  } finally { done(); }
+});
+
+test('in a browser: the approval stores one full-page picture of each component page that the screens use, and design approved lists it', { skip: browser ? false : 'no Chromium on this machine' }, async () => {
+  const { root, done } = project();
+  try {
+    withButton(root);
+    // A page taller than the viewport: the picture holds all of it.
+    const page = join(root, '.ai', 'design', 'components', 'button.html');
+    writeFileSync(page, readFileSync(page, 'utf8').replace('</body>', '<div style="height:3000px"></div>\n</body>'));
+    writeContract(root);
+    answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    const r = await approveDesign(root, 'w1', { now: new Date('2026-10-25T10:06:00Z') });
+    assert.equal(r.ok, true, r.reason);
+    assert.deepEqual([r.pictures, r.componentPictures], [1, 1]);
+    assert.deepEqual(r.componentsSkipped, [{ key: 'badge', why: 'the component has no page' }]);
+    const png = readFileSync(approvalPicture(root, r.commit, 'component--button'));
+    assert.equal(png.readUInt32BE(0), 0x89504e47);
+    const width = png.readUInt32BE(16);
+    assert.equal(width, Number(readManifest(root).viewports[Object.keys(readManifest(root).viewports)[0]].split('x')[0]), 'the width of the first viewport');
+    assert.ok(png.readUInt32BE(20) >= 3000, `the full height of the page, not the viewport: ${png.readUInt32BE(20)}`);
+    const a = await approved(root);
+    assert.deepEqual(a.out.components.map((c) => c.key), ['button']);
+    assert.match(a.text, /^component button: .*button\.html picture .*component--button\.png$/m);
   } finally { done(); }
 });

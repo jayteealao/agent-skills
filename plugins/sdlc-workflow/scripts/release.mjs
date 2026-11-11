@@ -13,8 +13,9 @@
  *   publish    one commit of those paths only, an annotated tag, a push of master and the tag
  *   delivered  origin/master and the remote tags carry the release
  *   install    a reinstall on each host of this machine, then doctor must say OK and the
- *              smoke flow must pass on each host (scripts/smoke-hosts.mjs); a running
- *              design server starts again from the installed copy
+ *              smoke flow must pass on each host (scripts/smoke-hosts.mjs); the wf.mjs
+ *              shim points at the installed copy, and a running design server starts
+ *              again from it
  *   report     the artifact needs a republish when docs/commands.html changed
  *
  * `next` is the channel for daily work: 9.x.y → 10.0.0-next.0 → 10.0.0-next.1 … and
@@ -34,6 +35,7 @@ import { generate } from './generate.mjs';
 import { COMMAND_PAGE } from './verify-docs.mjs';
 import { HOSTS, smokeHost, smokeLine } from './smoke-hosts.mjs';
 import { fixLines, personFix } from '../lib/fix.mjs';
+import { compareVersions, readShimCurrent, shimFixCommand, writeShim } from '../lib/wf-shim.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -200,6 +202,7 @@ function context(opts = {}) {
     doctor: opts.doctor ?? ((c) => runDoctor({ pluginRoot: c.root })),
     smoke: opts.smoke ?? smokeHosts,
     restartDesign: opts.restartDesign ?? restartDesignServer,
+    pointShim: opts.pointShim ?? pointShimAtInstall,
     generate: opts.generate ?? ((c) => generate({ root: c.root, write: true })),
     remote: opts.remote ?? 'origin',
     branch: opts.branch ?? 'master',
@@ -431,6 +434,9 @@ export function installHosts(ctx) {
 
 async function install(ctx, state) {
   ctx.install(ctx, state);
+  // The shim moves before doctor runs, so the doctor row shows where it points after the release.
+  const shim = ctx.pointShim(ctx, state);
+  ctx.log(`[release]   wf.mjs shim: ${shim.ok ? `runs ${shim.version}` : `${shim.reason}: run ${shim.fix}`}${shim.ok ? '' : ' (NOT OK)'}`);
   const report = await ctx.doctor(ctx);
   ctx.log(formatDoctorTable(report).split('\n').map((l) => `[release]   ${l}`).join('\n'));
   if (!report.ok) stop('doctor: a host does not run the released version', personFix(`The release is pushed, and a host still runs an older copy: the person reads the doctor table above, repairs that install, then runs the release again; it resumes at the install.`));
@@ -442,6 +448,35 @@ async function install(ctx, state) {
 }
 
 /**
+ * The installed Claude Code copy of the plugin: the one of `version` when there is one, then the
+ * user-scope copy, then the first.
+ */
+function installedCopy(version = null, installs = readClaudeInstalls()) {
+  const all = installs.filter((i) => i.installPath);
+  const of = version ? all.filter((i) => i.version === version) : [];
+  return of.find((i) => i.scope === 'user') ?? of[0] ?? all.find((i) => i.scope === 'user') ?? all[0] ?? null;
+}
+
+/**
+ * A session start moves the shim pointer (~/.sdlc/bin/wf-current.json), so after a reinstall it
+ * still names the old version until a session of the new one starts. The release points it at
+ * the installed copy of the released version. The pointer only moves forward. The result is not
+ * ok when the pointer is still behind the released version; the release goes on, and `fix` is
+ * the command that moves it.
+ */
+export function pointShimAtInstall(ctx, state, { installs } = {}) {
+  const copy = installedCopy(state.version, installs ?? readClaudeInstalls());
+  const fix = shimFixCommand(copy?.installPath ?? '<installed copy>');
+  if (!copy || !existsSync(join(copy.installPath, 'scripts', 'wf.mjs'))) return { ok: false, reason: 'no installed copy of the plugin', fix };
+  let note = null;
+  try { writeShim(copy.installPath, { version: copy.version ?? null, host: 'claude' }); } catch (err) { note = err.message; }
+  const now = readShimCurrent();
+  if (now && compareVersions(now.version, state.version) >= 0) return { ok: true, version: now.version, cli: now.cli };
+  const reason = note ? `the shim was not written (${note})` : `the shim still runs ${now?.version ?? 'nothing'}, behind ${state.version}`;
+  return { ok: false, reason, fix };
+}
+
+/**
  * A running design server keeps the code that it started with, and a reinstall does not stop it.
  * The release stops it and starts it on the same port with the wf.mjs of the installed copy, so
  * each canvas gets the released code. A failed restart does not stop the release: the release
@@ -450,8 +485,7 @@ async function install(ctx, state) {
 export async function restartDesignServer(ctx) {
   const now = await serverStatus();
   if (!now.running) return { restarted: false, reason: 'not running' };
-  const installs = readClaudeInstalls().filter((i) => i.installPath);
-  const copy = installs.find((i) => i.scope === 'user') ?? installs[0];
+  const copy = installedCopy();
   const wf = copy ? join(copy.installPath, 'scripts', 'wf.mjs') : null;
   if (!wf || !existsSync(wf)) return { restarted: false, reason: 'no installed copy of the plugin: run wf.mjs design server start' };
   const step = (...args) => ctx.run(process.execPath, [wf, 'design', 'server', ...args], { cwd: ctx.root });

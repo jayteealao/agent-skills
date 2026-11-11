@@ -230,11 +230,16 @@ test('design next names the one next action at each step, and design status has 
     const later = new Date(Date.now() + 5000);
     const failure = { screen: 'basket', viewport: 'phone', state: 'default', check: 'contrast', cause: 'text/#999999/#ffffff/4.5', message: 'The text #999999 on #ffffff is 2.85:1; 4.5:1 is the minimum for body text', selector: 'p', move: 'colorize' };
     writeChecks(p.root, { at: later.toISOString(), ran: true, screens: ['basket'], passed: false, failures: [failure], truncated: {}, notices: [] });
+    // No token, component, layout or library cause: the reviewer agents read the screens first.
+    n = await step();
+    assert.deepEqual([n.step, n.screens], ['review', ['basket']]);
+    assert.match(n.command, /^wf\.mjs design review-pack .* w1$/);
+    assert.equal((await design(['review-done', p.root, 'w1'])).code, 0);
     n = await step();
     assert.equal(n.step, 'fix');
     assert.deepEqual([n.groups.length, n.groups[0].move, n.groups[0].check], [1, 'colorize', 'contrast']);
     const status = (await design(['status', p.root, 'w1'])).out;
-    assert.deepEqual(Object.keys(status).sort(), ['check', 'contract', 'drift', 'next', 'ok', 'question', 'round', 'screens', 'slug', 'threads', 'unsaved', 'version']);
+    assert.deepEqual(Object.keys(status).sort(), ['check', 'contract', 'drift', 'next', 'ok', 'question', 'review', 'round', 'screens', 'slug', 'threads', 'unsaved', 'version']);
     assert.deepEqual([status.check.passed, status.check.failures, status.check.stale, status.next.step], [false, 1, false, 'fix']);
     assert.deepEqual(status.contract, { exists: false, approved: false, reopened: false, restored: null, problems: [] });
     const text = (await design(['status', p.root, 'w1'], {})).out;
@@ -404,8 +409,52 @@ test('a token, component, layout or library failure blocks the approval: design 
     assert.match(list.out, /waived: #aa0000 \(.*\): The person keeps it as it is/);
     assert.ok(!/still blocking/.test(list.out));
     n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'review', 'with no blocking cause left, the reviewers read the screens');
+    assert.equal((await design(['review-done', p.root, 'w1'])).code, 0);
+    n = (await design(['next', p.root, 'w1'])).out;
     assert.equal(n.step, 'fix', 'the contrast failure stays, and the person may approve with it');
     assert.equal(n.question, approvalQuestion('w1'));
     assert.deepEqual(readManifest(p.root).waivers.map((w) => w.cause), ['#aa0000', 'button/no-spec']);
+  } finally { p.done(); }
+});
+
+test('design next asks for a review of the screens changed since the last one, and the review threads go as comments', async () => {
+  const p = await drawn();
+  try {
+    writeFileSync(join(p.dir, '02-shape.md'), '---\nschema: sdlc/v1\ntype: shape\nslug: w1\nstatus: complete\n---\n# Shape\n');
+    writeFileSync(join(p.root, 'PRODUCT.md'), '# Product\n');
+    writeFileSync(join(surfaceDir(p.root), 'current.md'), '# Current\n');
+    writeFileSync(join(surfaceDir(p.root), 'direction.md'), '# Direction\n');
+    const passed = (ms) => writeChecks(p.root, { at: new Date(Date.now() + ms).toISOString(), ran: true, screens: ['basket'], passed: true, failures: [], truncated: {}, notices: [] });
+    passed(5000);
+    let n = (await design(['next', p.root, 'w1'])).out;
+    assert.deepEqual(Object.keys(n).sort(), ['command', 'do', 'ok', 'screens', 'slug', 'step', 'why']);
+    assert.deepEqual([n.step, n.screens], ['review', ['basket']]);
+    assert.match(n.why, /^1 screen\(s\) changed since the last review: basket/);
+    assert.match(n.do, /review-done .* w1/);
+    let status = (await design(['status', p.root, 'w1'])).out;
+    assert.deepEqual(status.review, { at: null, added: 0, open: 0, changed: ['basket'] });
+
+    const pack = await design(['review-pack', p.root, 'w1']);
+    assert.equal(pack.out.packets.length, 1);
+    const post = await design(['comments', 'add', p.root, 'basket'], { json: true, author: 'review:sonnet', selector: 'p', state: 'default', viewport: 'phone', text: 'Library: the row is drawn by hand; use the list-row component.' });
+    assert.equal(post.code, 0, JSON.stringify(post.out));
+    const done = await design(['review-done', p.root, 'w1'], { json: true, packet: pack.out.packets[0] });
+    assert.deepEqual([done.code, done.out.added, done.out.next.step], [0, 1, 'comments']);
+    n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'comments', 'a review thread is an open comment');
+    status = (await design(['status', p.root, 'w1'])).out;
+    assert.deepEqual([status.review.added, status.review.open, status.review.changed], [1, 1, []]);
+    assert.match((await design(['status', p.root, 'w1'], {})).out, /review: .*: 1 thread\(s\) added; 1 open review thread\(s\)/);
+
+    // The thread is answered, and the page changes: the changed screen is reviewed again, before the round.
+    await design(['comments', 'reply', p.root, 'basket', post.out.thread.id], { json: true, text: 'Now a list-row', resolve: true });
+    writeFileSync(screenFile(p.root, 'basket'), readFileSync(screenFile(p.root, 'basket'), 'utf8').replace('<p>Two items</p>', '<p>Three items</p>'));
+    passed(10000);
+    n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'review');
+    assert.equal((await design(['review-done', p.root, 'w1'])).code, 0);
+    n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'round');
   } finally { p.done(); }
 });

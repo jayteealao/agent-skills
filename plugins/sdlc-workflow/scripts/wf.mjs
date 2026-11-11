@@ -104,6 +104,12 @@
  *   design   check <root> [key...] [--workflow slug]
  *             the screen checks, in each viewport and state; the last line is the one next action
  *             Example: wf.mjs design check . --workflow demo
+ *   design   review-pack <root> <slug> [--size n]
+ *             one packet for each batch of screens changed since the last review, for a team of reviewer agents; prints each packet file
+ *             Example: wf.mjs design review-pack . demo
+ *   design   review-done <root> <slug> [--packet file...]
+ *             record the review: the fingerprints of the screens it read and the threads that the reviewers added
+ *             Example: wf.mjs design review-done . demo
  *   design   round <root> <slug> [--reason r]
  *             save the pages as a draft, with the decisions since the last draft
  *             Example: wf.mjs design round . demo
@@ -143,6 +149,9 @@
  *   design   comments reply <root> <key> <thread> --text t [--resolve]
  *             answer a thread, and close it with --resolve
  *             Example: wf.mjs design comments reply . basket 1a2b3c4d --text "Moved the total up" --resolve
+ *   design   comments add <root> <key> --text t --author a [--selector s] [--state st] [--viewport v] [--label l]
+ *             open a thread as an agent (author agent or review:<model>); the same open finding is not added twice
+ *             Example: wf.mjs design comments add . basket --author review:sonnet --selector ".total" --state default --viewport phone --text "Token role: the total uses --text as its background; use --surface"
  *   design   capture-path <root> <slug> <slice> <key>
  *             where verify writes the capture of a built screen
  *             Example: wf.mjs design capture-path . demo api basket

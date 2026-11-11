@@ -96,7 +96,7 @@ function fixture() {
   return { root, work, remote, cleanup };
 }
 
-const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, smoke: () => [], restartDesign: () => ({ restarted: false, reason: 'not running' }), generate: () => [] };
+const quiet = { log: () => {}, checkCi: () => ({ ok: true, reason: 'not checked' }), install: () => {}, smoke: () => [], restartDesign: () => ({ restarted: false, reason: 'not running' }), pointShim: () => ({ ok: true, version: 'x' }), generate: () => [] };
 const doctorOk = () => ({ ok: true, shipped: 'x', buildId: null, hosts: { claude: [], codex: [], codexConfig: null }, cleanup: { done: true, left: [] }, verdicts: { claude: 'absent', codex: 'absent' } });
 
 test('release next: end to end, with a stop at a gate and a stop at doctor, each resumed', async () => {
@@ -127,8 +127,13 @@ test('release next: end to end, with a stop at a gate and a stop at doctor, each
 
     // The next resume reinstalls and finishes; it makes no second commit.
     // The install step starts a running design server again from the installed copy.
+    // The install step points the shim at the installed copy and says when it is still behind.
     const lines = [];
-    const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk, log: (l) => lines.push(l), restartDesign: () => ({ restarted: true, from: '10.0.0-next.0' }) });
+    const shimFor = [];
+    const pointShim = (_ctx, st) => { shimFor.push(st.version); return { ok: false, reason: `the shim still runs 9.201.0, behind ${st.version}`, fix: 'node "<copy>/lib/wf-shim.mjs"' }; };
+    const state = await release('next', { ...quiet, root, gates: [], doctor: doctorOk, log: (l) => lines.push(l), pointShim, restartDesign: () => ({ restarted: true, from: '10.0.0-next.0' }) });
+    assert.deepEqual(shimFor, ['10.0.0-next.0']);
+    assert.ok(lines.includes('[release]   wf.mjs shim: the shim still runs 9.201.0, behind 10.0.0-next.0: run node "<copy>/lib/wf-shim.mjs" (NOT OK)'), lines.join('\n'));
     assert.ok(lines.includes('[release]   design server: restarted from 10.0.0-next.0'));
     assert.equal(state.version, '10.0.0-next.0');
     assert.equal(git(work, 'rev-parse', 'HEAD'), commit);

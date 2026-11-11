@@ -55,7 +55,7 @@
       "name": "design",
       "group": "stages",
       "stage": true,
-      "args": ["<slug> [amend|import] [text]", "explore [<slug>] [text]", "[<slug>] [audit|critique|extract|record|direction|sync] [text]"],
+      "args": ["<slug> [amend|import] [text]", "explore [<slug>] [text]", "[<slug>] [audit|critique|extract|record|direction|sync] [text]", "system"],
       "needs": "slug",
       "does": "Human-only: the person approves the screens before drivers run.",
       "summary": "Human-only design stage between intake and slice: the person approves the screens on the design surface before any driver runs. `amend` reopens an approved design, and `import` turns outside design work into screens. `explore` sketches ideas and settles nothing. More forms: a move after the slug focuses the stage, `audit` and `critique` run a design review, and `record`, `extract`, `direction` and `sync` keep the design record of the project.",

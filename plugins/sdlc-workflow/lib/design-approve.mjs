@@ -4,15 +4,16 @@
 // The design stage asks the approval question with the host question tool, and the question
 // hook writes the answer event to answers.jsonl (lib/answers.mjs). `approveDesign` reads that
 // event. On an approve, it commits the screens in the product repo, adds the approval to the
-// manifest, saves the approved version and one picture per screen in the records, writes the
-// confirmation fields into `02c-craft.md`, and sets the next step of the workflow in its index.
+// manifest, saves the approved version, one picture per screen and one per component that the
+// screens use in the records, writes the confirmation fields into `02c-craft.md`, and sets the
+// next step of the workflow in its index.
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { findAnswer, norm, readAnswerEvents } from './answers.mjs';
 import { writeFileAtomic } from './atomic-write.mjs';
-import { SYSTEM_CHECKS, captureScreens, systemFailures } from './design-check.mjs';
-import { approvalPicture, commitDesignRecords, readChecks } from './design-records.mjs';
+import { SYSTEM_CHECKS, captureComponents, captureScreens, systemFailures } from './design-check.mjs';
+import { approvalPicture, commitDesignRecords, componentPictureKey, readChecks } from './design-records.mjs';
 import { componentFile, componentRel, workflowComponents } from './design-components.mjs';
 import { isWorkflowSlug, listVersions, saveApproved } from './design-versions.mjs';
 import { COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, TOKENS_JSON, listScreens, readManifest, screenRel, surfaceDir, updateManifest } from './design-surface.mjs';
@@ -298,6 +299,28 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
         writeFileAtomic(file, png);
       }
     }
+    // One picture of each component that the approved screens use, beside the screen pictures, so
+    // verify can hold the built component against it. A component that cannot be pictured is a
+    // note, never a failed approval.
+    let componentPictures = 0;
+    const componentsSkipped = [];
+    if (library.used.length) {
+      let shots = null;
+      let why = pictures ? null : captureError ? `the approval pictures failed (${captureError})` : 'no browser for the approval pictures';
+      if (!why) {
+        try { shots = await captureComponents(root, library.used, { browser }); } catch (e) { why = `the component pictures failed (${e.message})`; }
+        if (!shots && !why) why = 'no browser for the component pictures';
+      }
+      if (shots) {
+        for (const [key, png] of Object.entries(shots.pictures)) {
+          const file = approvalPicture(root, commit, componentPictureKey(key));
+          mkdirSync(dirname(file), { recursive: true });
+          writeFileAtomic(file, png);
+          componentPictures += 1;
+        }
+        componentsSkipped.push(...shots.skipped);
+      } else componentsSkipped.push(...library.used.map((key) => ({ key, why })));
+    }
     commitDesignRecords(root, `design: ${version} of ${slug}`);
     const imageGate = pictures ? 'pass' : captureError
       ? `skipped:the approval pictures failed (${captureError}); the screens are committed`
@@ -305,7 +328,7 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
     setFields(dir, '02c-craft.md', { 'image-gate': imageGate });
     return {
       ok: true, slug, screens: approved, approvedScreens: screens, remaining, commit, version, committed: changed,
-      pictures: pictures ? Object.keys(pictures).length : 0, checkFailures: fields['check-failures'], answer: answer.answer,
+      pictures: pictures ? Object.keys(pictures).length : 0, componentPictures, componentsSkipped, checkFailures: fields['check-failures'], answer: answer.answer,
       index, next, ...(resume ? { resumed: true } : {}),
     };
   } catch (e) {

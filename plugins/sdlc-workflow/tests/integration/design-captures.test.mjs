@@ -88,3 +88,19 @@ test('an unlinked project keeps its captures with no commit; a slice with no cap
     assert.match(JSON.stringify(none.out.fix), /w1/, 'the fix lists the workflows that exist');
   } finally { w.done(); }
 });
+
+test('verify captures a built component under its approval picture name, and design captures commits it with the screens', async () => {
+  const w = world();
+  try {
+    assert.equal(linkProject(w.root, 'notes').ok, true);
+    const c = await design('capture-path', w.root, 'w1', 's1', 'component--list-row');
+    assert.equal(c.code, 0, JSON.stringify(c.out));
+    assert.equal(c.out.file, capturePicture(w.root, 'w1', 's1', 'component--list-row'));
+    writeFileSync(c.out.file, PNG);
+    writeFileSync((await design('capture-path', w.root, 'w1', 's1', 'basket')).out.file, PNG);
+    const r = await design('captures', w.root, 'w1', 's1');
+    assert.deepEqual(r.out.files, ['basket.png', 'component--list-row.png']);
+    assert.deepEqual(git(w.clone, 'ls-files', 'notes/_design/captures/w1/s1').split('\n'), ['notes/_design/captures/w1/s1/basket.png', 'notes/_design/captures/w1/s1/component--list-row.png']);
+    assert.equal((await design('capture-path', w.root, 'w1', 's1', 'component--../x')).code, 2, 'a path in the key is a usage error');
+  } finally { w.done(); }
+});

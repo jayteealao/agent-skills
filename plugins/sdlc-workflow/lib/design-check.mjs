@@ -64,6 +64,8 @@ const CONNECT_MS = 10000;
 /** The places that one load keeps for one cause, and the causes that one screen keeps for one check. */
 export const MAX_PLACES = 5;
 export const MAX_CAUSES = 15;
+/** The checks of the token, component and restyle scan: each load runs them, and a screen keeps one failure per rule. */
+const SCAN_CHECKS = new Set(['token', 'component']);
 /** The pages that load screen pages at the same time, in one browser. */
 const PAGES = 3;
 
@@ -72,7 +74,7 @@ const PAGES = 3;
 // These helpers hold no outer name: the page script carries their source, so the browser and Node
 // apply one rule.
 
-/** The token kind that a CSS property takes its values from, or null: a space, a size, a radius, a font size, a family, a shadow or a duration. */
+/** The token kind that a CSS property takes its values from, or null: a space, a size, a radius, a font size, a family, a shadow, a duration or a layer. */
 export function lengthKindOf(prop) {
   const p = String(prop ?? '').trim().toLowerCase();
   if (/^(?:padding|margin|scroll-padding|scroll-margin|inset)(?:-[a-z-]+)?$/.test(p) || /^(?:grid-)?(?:row-|column-)?gap$/.test(p) || /^(?:top|right|bottom|left)$/.test(p)) return 'space';
@@ -82,6 +84,7 @@ export function lengthKindOf(prop) {
   if (p === 'font-family') return 'font';
   if (p === 'box-shadow') return 'shadow';
   if (/^(?:transition|animation)(?:-duration)?$/.test(p)) return 'motion';
+  if (p === 'z-index') return 'layer';
   return null;
 }
 
@@ -114,7 +117,10 @@ export function rawLength(value) {
   return null;
 }
 
-/** The raw part of the value of a property of token kind `kind`, or null when tokens give it: the length, the family, the shadow or the duration. */
+/**
+ * The raw part of the value of a property of token kind `kind`, or null when tokens give it: the
+ * length, the family, the shadow, the duration, or the z-index (a whole number other than 0, 1 and -1).
+ */
 export function rawValue(kind, value) {
   const v = String(value ?? '').trim();
   if (!v || /^(?:inherit|initial|unset|revert|revert-layer|none|auto|normal|fit-content|min-content|max-content)$/i.test(v)) return null;
@@ -131,6 +137,7 @@ export function rawValue(kind, value) {
   }
   rest = rest.replace(/!important/gi, '').trim();
   if (kind === 'font' || kind === 'shadow') return /^[\s,]*$/.test(rest) || /^(?:inherit|initial|unset|revert|none)$/i.test(rest) ? null : rest.replace(/\s+/g, ' ').slice(0, 60);
+  if (kind === 'layer') return /^-?\d+$/.test(rest) && Math.abs(Number(rest)) > 1 ? rest : null;
   if (kind === 'motion') {
     for (const m of rest.matchAll(/(?<![\w.-])(\d*\.?\d+)(m?s)(?![\w-])/gi)) if (Number(m[1]) !== 0) return m[0];
     return null;
@@ -550,7 +557,7 @@ function pageChecks(minTarget, { worst = false, scanTokens = false, tokens = [],
 
     // The other kinds, in the page's own style only. Each declaration as it is written: a shorthand
     // reads back whole in cssText, also when it holds a var().
-    const KIND_WORD = { space: 'space', size: 'size', radius: 'radius', type: 'font size', font: 'font family', shadow: 'shadow', motion: 'duration' };
+    const KIND_WORD = { space: 'space', size: 'size', radius: 'radius', type: 'font size', font: 'font family', shadow: 'shadow', motion: 'duration', layer: 'layer' };
     const ofKind = {};
     for (const t of tokens) if (t.kind !== 'color') (ofKind[t.kind] ??= []).push(t);
     const untokened = {};
@@ -1308,9 +1315,9 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
     const reason = noBrowserReason(root, process.env, browser === undefined ? checkBrowsers(root) : []);
     return { ok: false, at: now.toISOString(), ran: false, reason, fix: personFix('Install Chrome, Edge or Chromium on this computer, or set SDLC_BROWSER to the path of one. Then run the check again.'), passed: false, screens: screens.map((s) => s.key), failures, library, checked: [], new: failures, kept: 0, truncated: library.truncated ? { library: library.truncated } : {}, notices: [] };
   }
-  // The color tokens of the token sheet. The token check runs once for each screen, in the
-  // default state of the first viewport: it reads every rule of the page's sheets, also a rule
-  // whose elements show only in another state or viewport.
+  // The tokens, the library and its specs. The token, component and restyle checks run in every
+  // load: a page script can make elements and set inline styles in one state or viewport only.
+  // A fault that several loads show is one failure of the screen, at the first load that shows it.
   let componentsCss = '';
   try { componentsCss = readFileSync(join(surfaceDir(root), COMPONENTS_FILE), 'utf8'); } catch { componentsCss = ''; }
   const { tokens, names: tokenNames } = systemTokens(root, componentsCss);
@@ -1327,12 +1334,13 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
     const vps = surfaceViewports(root);
     // One job is one screen in one viewport: its states load one after the other on one page, so
     // a later state knows the controls that the default state measured.
-    const jobs = screens.filter((x) => x.exists).flatMap((s) => vps.map((vp, n) => ({ s, vp, first: n === 0 })));
-    const results = await overPool(b.pages ?? [b], jobs, async (page, { s, vp, first }) => {
+    const jobs = screens.filter((x) => x.exists).flatMap((s) => vps.map((vp) => ({ s, vp })));
+    // The system goes to each load as one JSON text, made once.
+    const system = JSON.stringify({ scanTokens: true, restyle: true, tokens, tokenNames, componentsCss, components: keysOfLibrary, specs }).slice(1, -1);
+    const results = await overPool(b.pages ?? [b], jobs, async (page, { s, vp }) => {
       const loads = [];
       let seen = [];
       for (const state of s.states) {
-        const scan = first && state === 'default';
         const load = { state, found: [], notices: [], errors: [], resources: [], dialogs: [], cut: 0 };
         loads.push(load);
         try {
@@ -1342,7 +1350,7 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
             load.found.push({ check: 'load', cause: 'load', message: `The page did not finish loading in ${loadMs / 1000} s${opened.waiting?.length ? `: it waits for ${opened.waiting.map((u) => shortUrl(root, u)).join(', ')}` : ''}`, rect: null, selector: null });
             break;
           }
-          const r = await page.evaluate(`${script}(${MIN_TARGET}, ${JSON.stringify({ worst: state === 'worst', scanTokens: scan, tokens: scan ? tokens : [], tokenNames: scan ? tokenNames : [], componentsCss: scan ? componentsCss : '', components: first ? keysOfLibrary : [], specs: first ? specs : {}, restyle: scan })})`) ?? {};
+          const r = await page.evaluate(`${script}(${MIN_TARGET}, {"worst":${state === 'worst'},${system}})`) ?? {};
           load.found.push(...(r.found ?? []));
           load.notices = r.notices ?? [];
           const broken = new Set(r.brokenImages ?? []);
@@ -1365,13 +1373,26 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
       return loads;
     });
     // By screen: the failures of its loads under the caps. A script error, a file that does not
-    // load and a dialog are one failure of the screen, at the first viewport and state that shows it.
+    // load, a dialog, and a token or component fault of one rule are one failure of the screen,
+    // at the first viewport and state that shows it.
     const byScreen = new Map();
     const once = new Map();
+    const scanned = new Map();
     jobs.forEach(({ s, vp }, i) => {
-      if (!byScreen.has(s.key)) { byScreen.set(s.key, []); once.set(s.key, new Set()); }
+      if (!byScreen.has(s.key)) { byScreen.set(s.key, []); once.set(s.key, new Set()); scanned.set(s.key, new Set()); }
       const list = byScreen.get(s.key);
       const seen = once.get(s.key);
+      const known = scanned.get(s.key);
+      // A fault of a rule or a style names it in its message, and the element that shows it can
+      // differ by state; a fault of an element is that element.
+      const fresh = (f) => {
+        if (!SCAN_CHECKS.has(f.check)) return true;
+        const cause = f.cause ?? f.message;
+        const id = `${f.check}|${cause}|${f.check === 'token' || /^restyle:/.test(cause) ? f.message : f.selector}`;
+        if (known.has(id)) return false;
+        known.add(id);
+        return true;
+      };
       const one = (check, message) => {
         if (seen.has(`${check}|${message}`)) return null;
         seen.add(`${check}|${message}`);
@@ -1383,7 +1404,7 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
           ...load.dialogs.map((m) => one('script', `The page opens a dialog at load: "${m}". The check closed it`)),
           ...load.resources.map((r) => one('resource', `The file ${shortUrl(root, r.url)} does not load (${r.why})`)),
         ].filter(Boolean);
-        for (const f of [...load.found, ...extra]) list.push({ screen: s.key, viewport: vp.name, state: load.state, ...f, ...routed(f) });
+        for (const f of [...load.found.filter(fresh), ...extra]) list.push({ screen: s.key, viewport: vp.name, state: load.state, ...f, ...routed(f) });
         cut('interaction', load.cut);
         for (const n of load.notices) {
           const had = notices.find((x) => x.kind === n.kind && x.screen === s.key);
@@ -1434,6 +1455,37 @@ export async function captureScreens(root, keys, { viewport = null, browser = un
     }
   } finally { await b.close(); }
   return out;
+}
+
+/**
+ * One picture of each component page, in the default theme of the tokens (`?theme=<t>`, none for
+ * the theme `default`), at the width of the first viewport and the full height of the page.
+ * Returns `{ pictures: { key: png }, skipped: [{ key, why }] }`, or null when no browser starts.
+ * A component with no page, or a page that does not load, is skipped with a note.
+ */
+export async function captureComponents(root, keys, { browser = undefined } = {}) {
+  const vp = surfaceViewports(root)[0] ?? { name: 'desktop', width: 1280, height: 800 };
+  const model = readTokenModel(root);
+  const theme = model?.default ?? model?.themes?.[0]?.name ?? 'default';
+  const query = theme && theme !== 'default' ? `?theme=${encodeURIComponent(theme)}` : '';
+  const pictures = {};
+  const skipped = [];
+  const wanted = keys.filter((key) => existsSync(componentFile(root, key)));
+  for (const key of keys) if (!wanted.includes(key)) skipped.push({ key, why: 'the component has no page' });
+  if (!wanted.length) return { pictures, skipped };
+  const b = await openBrowser(root, { browser });
+  if (!b && browser) throw refuse(`the browser ${browser.path} did not start`, personFix('The browser of this computer did not start. Install Chrome or Edge, or set SDLC_BROWSER to the path of a Chromium browser.'));
+  if (!b) return null;
+  try {
+    for (const key of wanted) {
+      const opened = await b.open(`${pathToFileURL(componentFile(root, key)).href}${query}`, vp);
+      if (!opened.ok) { skipped.push({ key, why: 'the component page did not load in time' }); continue; }
+      const height = Math.max(vp.height, Math.ceil(Number(await b.evaluate('Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)')) || 0));
+      const { data } = await b.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: vp.width, height, scale: 1 } });
+      pictures[key] = Buffer.from(data, 'base64');
+    }
+  } finally { await b.close(); }
+  return { pictures, skipped };
 }
 
 /** The failures grouped by cause, each with its move, or the `do` sentence when it has no move. */

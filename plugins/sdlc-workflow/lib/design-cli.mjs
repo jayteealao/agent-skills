@@ -10,16 +10,18 @@ import { findAnswer } from './answers.mjs';
 import { approvalQuestion, approveDesign, lastApprovalAnswer, systemStay, waiveCause, waiveCommand, waiversOf } from './design-approve.mjs';
 import { browserCandidates, noBrowserReason } from './design-browser.mjs';
 import { checkBrowsers, failureGroups, failureLines, libraryLines, partialLines, runChecks } from './design-check.mjs';
-import { addComponent, changeManifest, foundation, linkComponent, listComponents, removeComponent, scanComponents, setNoComponents, specComponent, verifyComponents, word } from './design-components.mjs';
+import { addComponent, changeManifest, componentFile, foundation, linkComponent, listComponents, removeComponent, scanComponents, setNoComponents, specComponent, verifyComponents, word } from './design-components.mjs';
 import { approvedByAnswer, designNeeded, designReopened, namesScreens } from './design-lane.mjs';
 import { migrateDesign } from './design-migrate.mjs';
 import { missingKinds } from './design-tokens.mjs';
-import { addComment, approvalPicture, capturePicture, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
+import { addComment, approvalComponentPictures, approvalPicture, capturePicture, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
+import { REVIEW_AUTHOR_RE, sameOpenThread } from './design-records.mjs';
+import { reviewDone, reviewPack, reviewState, reviewSummary } from './design-review.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
 import { canvasState, snapshotHtml } from './design-state.mjs';
 import {
-  COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SCREENS_DIR, SURFACE_REL, TOKENS_FILE,
+  COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SCREENS_DIR, STATES, SURFACE_REL, TOKENS_FILE,
   addExplore, addScreen, designMdOf, initSurface, listExplore, listScreens, manifestProblems, manifestRefusal, readDesignRepos, readManifest, registerRepo,
   missingDesignFiles, readTokenModel, screenFile, screenRel, screenTemplate, setAreas, setViewports, surfaceDir, trackSurface, writeTokens,
 } from './design-surface.mjs';
@@ -54,6 +56,8 @@ export const DESIGN_FORMS = Object.freeze([
   ['tokens <root>', 'write tokens.css from DESIGN.md (the root, .agents/context/ or docs/)', 'tokens .'],
   ['track <root> [--check]', 'keep .ai/design/ tracked in git', 'track . --check'],
   ['check <root> [key...] [--workflow slug]', 'the screen checks, in each viewport and state; the last line is the one next action', 'check . --workflow demo'],
+  ['review-pack <root> <slug> [--size n]', 'one packet for each batch of screens changed since the last review, for a team of reviewer agents; prints each packet file', 'review-pack . demo'],
+  ['review-done <root> <slug> [--packet file...]', 'record the review: the fingerprints of the screens it read and the threads that the reviewers added', 'review-done . demo'],
   ['round <root> <slug> [--reason r]', 'save the pages as a draft, with the decisions since the last draft', 'round . demo'],
   ['approve <root> <slug> [key...] [--slice s] [--reason r]', 'record the approval from the answer event: commit, version, pictures, 02c-craft.md', 'approve . demo'],
   ['waive <root> <slug> [--cause c --reason r]', 'accept one cause of a token, component, layout or library failure for a workflow, so the approval goes on over it; with no --cause, list the waivers', 'waive . demo --cause "#aa0000" --reason "The brand red of the partner logo"'],
@@ -67,6 +71,7 @@ export const DESIGN_FORMS = Object.freeze([
   ['refs add <root> <key> --file f [--kind k] [--link l] [--note n]', 'record a reference file', 'refs add . mood --file docs/mood.png --kind image'],
   ['comments <root> [key...] [--workflow slug]', 'the open comment threads, as untrusted data for a round', 'comments . --workflow demo'],
   ['comments reply <root> <key> <thread> --text t [--resolve]', 'answer a thread, and close it with --resolve', 'comments reply . basket 1a2b3c4d --text "Moved the total up" --resolve'],
+  ['comments add <root> <key> --text t --author a [--selector s] [--state st] [--viewport v] [--label l]', 'open a thread as an agent (author agent or review:<model>); the same open finding is not added twice', 'comments add . basket --author review:sonnet --selector ".total" --state default --viewport phone --text "Token role: the total uses --text as its background; use --surface"'],
   ['capture-path <root> <slug> <slice> <key>', 'where verify writes the capture of a built screen', 'capture-path . demo api basket'],
   ['captures <root> <slug> <slice>', 'the captures of a slice; a linked project commits them to the records', 'captures . demo api'],
   ['state <root>', 'the canvas data, as JSON', 'state .'],
@@ -201,6 +206,7 @@ function designFacts(root, slug) {
     dir, index, contract, surface, screens, keys, versions, newest, checks, failures, stale, unsaved, problems, approved, restored,
     threads: surface && keys.length ? openThreads(root, keys) : [],
     drift: surface && keys.length ? versionDrift(root, keys) : [],
+    review: surface ? reviewState(root, slug, screens) : { stamp: null, fingerprints: {}, changed: [] },
   };
 }
 
@@ -246,6 +252,12 @@ export function designNext(root, slug, facts = designFacts(root, slug)) {
   // A token, component, layout or library failure blocks the approval until it is repaired or
   // waived; the other failures leave the approval open to the person.
   const stay = systemStay(root, slug);
+  // With no token, component, layout or library cause left, a team of reviewer agents judges the
+  // screens that changed since the last review; their threads then go as every comment goes.
+  const review = () => step('review', `${f.review.changed.length} screen(s) changed since the last review: ${f.review.changed.join(', ')}; reviewer agents judge what the check cannot`, {
+    command: `wf.mjs design review-pack ${R} ${slug}`, screens: f.review.changed,
+    do: `Give each packet that review-pack prints to one reviewer agent, wait for all of them, then run wf.mjs design review-done ${R} ${slug}.`,
+  });
   if (f.failures.length || stay.library.length) {
     const library = stay.library.map((i) => ({ screen: null, viewport: null, state: null, selector: null, ...i, move: null }));
     const groups = failureGroups([...f.failures, ...library]);
@@ -256,8 +268,10 @@ export function designNext(root, slug, facts = designFacts(root, slug)) {
         do: `Repair each cause as its move (design/<move>.md) or its do line says, then run the check again. A token, component, layout or library cause blocks the approval: when the person accepts one as it is, record it with ${waiveCommand(root, slug)}.`,
       });
     }
+    if (f.review.changed.length) return review();
     return step('fix', `the check fails: ${count} failure(s) from ${groups.length} cause(s)`, { groups, command: check, do: 'Repair each cause as its move (design/<move>.md) or its do line says, then run the check again. The person may also approve with the failures that stay.', question: approvalQuestion(slug) });
   }
+  if (f.review.changed.length) return review();
   if (f.threads.length) return step('comments', `${f.threads.length} open comment thread(s) on ${[...new Set(f.threads.map((t) => t.screen))].join(', ')}`, { command: `wf.mjs design comments ${R} --workflow ${slug}` });
   if (f.unsaved.length) return step('round', `no round holds the pages as they are now: ${f.unsaved.join(', ')}`, { command: `wf.mjs design round ${R} ${slug}` });
   // The answer of the person to the approval question, newer than the last approval.
@@ -288,6 +302,7 @@ function designStatus(root, slug) {
     screens: f.screens.map((s) => ({ key: s.key, exists: s.exists, states: s.states, approvals: (s.approvals ?? []).length })),
     threads: f.threads.map((t) => ({ screen: t.screen, id: t.id, state: t.anchor?.state ?? 'default', comments: t.comments.length, last: t.comments.at(-1)?.text?.slice(0, 200) ?? null })),
     drift: f.drift,
+    review: reviewSummary(root, slug, f.keys, f.review),
     check: f.checks ? { at: f.checks.at, ran: f.checks.ran !== false, stale: f.stale, passed: !f.failures.length, failures: f.failures.length, groups, truncated: f.checks.truncated ?? {}, notices: (f.checks.notices ?? []).filter((n) => !n.screen || f.keys.includes(n.screen)) } : null,
     round: brief(f.versions.rounds.at(-1)), version: brief(f.versions.approved.at(-1)), unsaved: f.unsaved,
     contract: { exists: Boolean(f.contract), approved: f.approved && !f.restored, reopened: designReopened(f.index), restored: f.restored ? f.restored.restored : null, problems: f.problems ?? [] },
@@ -391,7 +406,7 @@ export async function runDesign(pos, opt, out) {
 
 async function run(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && rest[0] === 'reply') || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && ['reply', 'add'].includes(rest[0])) || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) ? rest.shift() : null;
   if (!verb) throw usage('design: a command is required');
   if (!DESIGN_VERBS.includes(verb)) throw usage(`design has no command ${verb}`);
   if (verb === 'server') return runServer(sub, opt, out, rest[0]);
@@ -435,6 +450,7 @@ async function run(pos, opt, out) {
         `screens: ${s.screens.map((x) => x.key).join(', ') || 'none'}`,
         `threads: ${s.threads.length ? s.threads.map((t) => `${t.screen} ${t.id}`).join(', ') : 'none open'}`,
         `drift: ${s.drift.length ? s.drift.map((d) => `${d.screen} differs from ${d.version}`).join(', ') : 'none'}`,
+        `review: ${s.review.at ? `${s.review.at}: ${s.review.added} thread(s) added` : 'never ran'}; ${s.review.open} open review thread(s)${s.review.changed.length ? `; changed since: ${s.review.changed.join(', ')}` : ''}`,
         `check: ${!s.check ? 'never ran' : `${s.check.at}${s.check.stale ? ' (stale: a page changed after it)' : ''}: ${s.check.failures ? `${s.check.failures} failure(s) from ${s.check.groups.length} cause(s)` : 'passes'}`}`,
         ...(s.check ? failureLines((readChecks(projectRoot)?.failures ?? []).filter((f) => s.screens.some((x) => x.key === f.screen))).map((l) => `  ${l}`) : []),
         `round: ${s.round ? `${s.round.name} (${s.round.at})` : 'none'}${s.unsaved.length ? `; not in a round: ${s.unsaved.join(', ')}` : ''}`,
@@ -606,9 +622,22 @@ async function run(pos, opt, out) {
         ...lines, ...libraryLines(lib), ...partialLines(r),
         ...(r.kept ? [`other screens: ${r.kept} failure(s) of an earlier check stay (${keptScreens.join(', ')})`] : []),
         // The approval question, only when nothing fails and everything was checked.
-        ...(slug && r.ran && !found.length && !lib.length && whole && next.step !== 'ask' ? [`ask: ${approvalQuestion(slug)}`] : []),
+        ...(slug && r.ran && !found.length && !lib.length && whole && !['ask', 'review'].includes(next.step) ? [`ask: ${approvalQuestion(slug)}`] : []),
         ...nextLines(next),
       ].join('\n'));
+    }
+    case 'review-pack': {
+      needWorkflow(projectRoot, key, 'review-pack');
+      const r = reviewPack(projectRoot, key, { size: opt.size == null || opt.size === true ? undefined : opt.size });
+      return finish(r, r.nothing ? 'review: nothing changed since the last review' : [`${r.packets.length} packet(s) for ${r.screens.length} screen(s): ${r.screens.join(', ')}`, ...r.packets,
+        `then: wf.mjs design review-done ${R} ${key}`].join('\n'));
+    }
+    case 'review-done': {
+      needWorkflow(projectRoot, key, 'review-done');
+      const packets = [...(typeof opt.packet === 'string' ? [opt.packet] : []), ...rest.slice(2)];
+      const r = reviewDone(projectRoot, key, { packets });
+      const n = designNext(projectRoot, key);
+      return finish({ ...r, next: n }, [`review of ${key}: ${r.screens.length} screen(s) read, ${r.added} thread(s) added${r.screens.length ? ` (${r.screens.map((k) => `${k} ${r.byScreen[k]}`).join(', ')})` : ''}`, ...nextLines(n)].join('\n'));
     }
     case 'approve': {
       needWorkflow(projectRoot, key, 'approve');
@@ -646,9 +675,12 @@ async function run(pos, opt, out) {
       const commit = v?.commit ?? frontmatterOfDoc(workflowDir(projectRoot, key), '02c-craft.md')?.['approval-commit'] ?? null;
       const picture = (k) => { const p = commit ? approvalPicture(projectRoot, commit, k) : null; return p && existsSync(p) ? p : null; };
       const pages = (v?.pages ?? []).map((p) => ({ ...p, picture: picture(p.key) }));
-      const res = { ok: Boolean(v || commit), version: v?.version ?? null, commit, pages,
+      // The component pictures of the approval: the page of each is the component page on the surface.
+      const components = approvalComponentPictures(projectRoot, commit).map((c) => ({ key: c.key, page: componentFile(projectRoot, c.key), picture: c.picture }));
+      const componentLines = components.map((c) => `component ${c.key}: ${c.page} picture ${c.picture}`);
+      const res = { ok: Boolean(v || commit), version: v?.version ?? null, commit, pages, components,
         ...(v || commit ? {} : { error: `${key} has no approved design`, fix: personFix(`The design of ${key} is not approved yet. Run /wf design ${key}.`) }) };
-      return finish(res, v ? [v.version, ...pages.map((p) => `${p.key} ${p.file}${p.picture ? ` picture ${p.picture}` : ' (no picture)'}`), ...((v.missing ?? []).length ? [`not whole: ${v.missing.join('; ')}`] : [])].join('\n') : `no version: read the pages at commit ${commit ?? 'none'}`);
+      return finish(res, v ? [v.version, ...pages.map((p) => `${p.key} ${p.file}${p.picture ? ` picture ${p.picture}` : ' (no picture)'}`), ...componentLines, ...((v.missing ?? []).length ? [`not whole: ${v.missing.join('; ')}`] : [])].join('\n') : [`no version: read the pages at commit ${commit ?? 'none'}`, ...componentLines].join('\n'));
     }
     case 'restore': {
       const id = rest[2];
@@ -695,6 +727,29 @@ async function run(pos, opt, out) {
         needScreen(projectRoot, k, 'comments reply');
         const r = addComment(projectRoot, k, { thread, text: opt.text === true ? '' : opt.text ?? '', author: 'agent', resolve: Boolean(opt.resolve) });
         return finish(r, r.ok === false ? `not saved: ${r.reason}` : `replied on ${k} thread ${thread}${opt.resolve ? ' and resolved it' : ''}`);
+      }
+      if (sub === 'add') {
+        // An agent opens a thread here; a person comments on the canvas.
+        const k = key;
+        if (!k) throw usage('design comments add <root> <key> --text t --author a is required', 'comments add');
+        needScreen(projectRoot, k, 'comments add');
+        const val = (v) => (typeof v === 'string' ? v : null);
+        const author = val(opt.author)?.trim() ?? '';
+        if (author !== 'agent' && !REVIEW_AUTHOR_RE.test(author)) {
+          throw refuse(`the author ${author.slice(0, 60) || '(none)'} is no agent`, agentFix('Run the command again with --author review:<your model> (a reviewer) or --author agent. A person comments on the canvas, not here.'));
+        }
+        const text = val(opt.text) ?? '';
+        if (!text.trim()) throw refuse('the comment is empty', agentFix('Run the command again with --text: the rule, the element and the fix, in one or two sentences.'));
+        const state = val(opt.state);
+        if (state && !STATES.includes(state)) throw refuse(`the state ${state} is no state of a screen`, agentFix(`Run the command again with --state as one of ${STATES.join(', ')}.`));
+        const viewports = readManifest(projectRoot).viewports ?? {};
+        const viewport = val(opt.viewport);
+        if (viewport && !(viewport in viewports)) throw refuse(`the viewport ${viewport} is no viewport of the surface`, agentFix(`Run the command again with --viewport as one of ${Object.keys(viewports).join(', ') || 'the viewports of the surface'}.`, `wf.mjs design viewports ${R}`));
+        const selector = val(opt.selector);
+        const same = sameOpenThread(projectRoot, k, { author, selector, text });
+        if (same) return finish({ ok: true, duplicate: true, screen: k, thread: same }, `not added: thread ${same.id} on ${k} holds the same finding`);
+        const r = addComment(projectRoot, k, { text, author, anchor: { selector, state: state ?? 'default', viewport, label: val(opt.label) } });
+        return finish(r.ok === false ? r : { ...r, duplicate: false, screen: k }, r.ok === false ? `not saved: ${r.reason}` : `opened thread ${r.thread.id} on ${k}`);
       }
       needKnownWorkflow(projectRoot, opt.workflow);
       for (const k of rest.slice(1)) needScreen(projectRoot, k, 'comments');

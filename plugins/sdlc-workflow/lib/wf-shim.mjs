@@ -5,8 +5,10 @@
 // session start writes `bin/wf-current.json`, which names the wf.mjs of the plugin that started
 // the session; the shim loads that wf.mjs at each call. The shim itself never changes.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { sdlcHomeDir } from './home.mjs';
+import { isMainModule } from './proc.mjs';
 
 export const SHIM_VERSION = 1;
 
@@ -95,13 +97,33 @@ export function readShimCurrent() {
   try { return JSON.parse(readFileSync(join(shimDir(), 'wf-current.json'), 'utf8')); } catch { return null; }
 }
 
-/** The problems of the shim on this machine, for the doctor: an empty list when it works. */
-export function shimProblems() {
+/** The command that points the shim at the plugin copy in `pluginRoot`, with that copy's version. */
+export const shimFixCommand = (pluginRoot) => `node "${join(pluginRoot, 'lib', 'wf-shim.mjs')}"`;
+
+/**
+ * The problems of the shim on this machine, for the doctor: an empty list when it works. With
+ * `version` (the version the doctor checks), a pointer that names an older version is a problem.
+ */
+export function shimProblems({ version = null } = {}) {
   const problems = [];
   if (!existsSync(shimPath())) return [`no shim at ${shimPath()}: a session start writes it`];
   if (readFileSync(shimPath(), 'utf8') !== SHIM) problems.push(`${shimPath()} is not shim ${SHIM_VERSION}: the next session start rewrites it`);
   const current = readShimCurrent();
   if (!current) problems.push(`${join(shimDir(), 'wf-current.json')} is missing or unreadable`);
   else if (!existsSync(current.cli)) problems.push(`wf-current.json names ${current.cli}, which is gone: start a session to point it at the installed plugin`);
+  else if (version && compareVersions(current.version, version) < 0) problems.push(`wf-current.json names ${current.version ?? 'no version'}, behind ${version}: start a session of ${version}, or run ${shimFixCommand('<installed copy>')}`);
   return problems;
+}
+
+// `node <plugin>/lib/wf-shim.mjs [host]` points the shim at the plugin copy that holds this file.
+if (isMainModule(import.meta.url)) {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  try {
+    const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version ?? null;
+    const r = writeShim(root, { version, host: process.argv[2] || 'claude' });
+    process.stdout.write(r.kept ? `the shim stays on ${r.kept}, which is newer than ${version}\n` : `the shim runs ${version} from ${r.cli}\n`);
+  } catch (err) {
+    process.stderr.write(`wf-shim: ${err.message}\n`);
+    process.exitCode = 1;
+  }
 }
