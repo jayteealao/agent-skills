@@ -1,0 +1,471 @@
+// The inspector and the mode switch of the design canvas.
+//
+// Inspect: in the screen view, the element under the pointer (or the finger) shows the component it
+// belongs to, its variants and whether the spec declares them, and for each design property the
+// token that gives its value, through the custom properties of components.css, with the rule and
+// the sheet that set it. A value that no token gives shows as raw, with the nearest token.
+//
+// The mode switch: one theme of the token model on every frame of the board, or the system's.
+//
+// The file has two parts, like canvas.js. `WF_CANVAS_INSPECT_LOGIC` holds the rules that need no
+// browser; the tests load it alone. The second part gives `WF_CANVAS_INSPECT.create()`, which
+// canvas.js calls, and returns at once where there is no document.
+
+// eslint-disable-next-line no-var, no-unused-vars
+var WF_CANVAS_INSPECT_LOGIC = (() => {
+  'use strict';
+
+  /** The design properties the inspector shows, each with the token kind it takes and the shorthands that can set it. */
+  const PROPS = [
+    ['color', 'color', []],
+    ['background-color', 'color', ['background']],
+    ['border-color', 'color', ['border-top-color', 'border', 'border-top']],
+    ['padding-top', 'space', ['padding']], ['padding-right', 'space', ['padding']], ['padding-bottom', 'space', ['padding']], ['padding-left', 'space', ['padding']],
+    ['margin-top', 'space', ['margin']], ['margin-right', 'space', ['margin']], ['margin-bottom', 'space', ['margin']], ['margin-left', 'space', ['margin']],
+    ['gap', 'space', ['row-gap', 'column-gap']],
+    ['width', 'size', []], ['height', 'size', []],
+    ['border-radius', 'radius', ['border-top-left-radius']],
+    ['font-family', 'font', ['font']], ['font-size', 'type', ['font']], ['font-weight', 'weight', ['font']], ['line-height', 'leading', ['font']],
+    ['box-shadow', 'shadow', []], ['z-index', 'layer', []],
+    ['transition-duration', 'motion', ['transition']],
+  ];
+  /** The properties that an element takes from its parent when no rule of its own sets them. */
+  const INHERITED = new Set(['color', 'font-family', 'font-size', 'font-weight', 'line-height']);
+
+  /** A selector list split at its top-level commas. */
+  function splitList(text) {
+    const out = [];
+    let depth = 0;
+    let from = 0;
+    const s = String(text ?? '');
+    for (let i = 0; i < s.length; i += 1) {
+      const c = s[i];
+      if (c === '(' || c === '[') depth += 1;
+      else if (c === ')' || c === ']') depth -= 1;
+      else if (c === ',' && depth === 0) { out.push(s.slice(from, i).trim()); from = i + 1; }
+    }
+    out.push(s.slice(from).trim());
+    return out.filter(Boolean);
+  }
+  /** The specificity of one selector as [ids, classes, types]: close enough to order two rules. */
+  function specificity(sel) {
+    const s = String(sel ?? '').replace(/:where\([^)]*\)/g, '').replace(/"[^"]*"|'[^']*'/g, '');
+    const ids = (s.match(/#[\w-]+/g) || []).length;
+    const classes = (s.match(/\.[\w-]+|\[[^\]]*\]|(?<!:):(?!not\b|is\b)[\w-]+/g) || []).length;
+    const types = (s.replace(/\[[^\]]*\]/g, '').match(/(?:^|[\s>+~(])[a-z][\w-]*/gi) || []).length + (s.match(/::[\w-]+/g) || []).length;
+    return [ids, classes, types];
+  }
+  const cmpSpec = (a, b) => (a[0] - b[0]) || (a[1] - b[1]) || (a[2] - b[2]);
+  /**
+   * The declaration that wins among `decls` (`{ value, important, spec, order }`): an important one
+   * first, then the higher specificity, then the later in source order. Null when there is none.
+   */
+  function cascade(decls) {
+    let best = null;
+    for (const d of decls || []) {
+      if (!d || d.value === '' || d.value === null || d.value === undefined) continue;
+      if (!best) { best = d; continue; }
+      const imp = Number(Boolean(d.important)) - Number(Boolean(best.important));
+      const spec = imp || cmpSpec(d.spec || [0, 0, 0], best.spec || [0, 0, 0]);
+      if (spec > 0 || (spec === 0 && (d.order ?? 0) >= (best.order ?? 0))) best = d;
+    }
+    return best;
+  }
+
+  /** The custom properties that a value reads, in order: `var(--a, var(--b))` gives both. */
+  const varNames = (value) => [...String(value ?? '').matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]);
+  /** The value with its var() calls taken out, fallbacks and all. */
+  function withoutVars(value) {
+    let text = String(value ?? '');
+    for (let at = text.search(/var\(/i); at >= 0; at = text.search(/var\(/i)) {
+      let depth = 0;
+      let end = at + 3;
+      for (; end < text.length; end += 1) {
+        if (text[end] === '(') depth += 1;
+        else if (text[end] === ')') { depth -= 1; if (depth === 0) break; }
+      }
+      text = `${text.slice(0, at)} ${text.slice(end + 1)}`;
+    }
+    return text.replace(/!important/gi, '').replace(/\s+/g, ' ').trim();
+  }
+  /**
+   * Follow a custom property to the token that it stands for. `lookup(name)` gives the value that
+   * the element sees for a custom property that is not a token (an alias of components.css), or
+   * undefined. Gives `{ token, chain, value }`: `chain` the aliases passed, `token` null when the
+   * chain ends in a value of its own (`value`) or in nothing.
+   */
+  function follow(name, lookup, tokenNames, seen = new Set()) {
+    const chain = [];
+    let n = name;
+    while (n && !seen.has(n)) {
+      if (tokenNames.has(n)) return { token: n, chain, value: null };
+      seen.add(n);
+      chain.push(n);
+      const v = lookup(n);
+      if (v === undefined || v === null || v === '') return { token: null, chain, value: null };
+      const next = varNames(v)[0];
+      if (!next) return { token: null, chain, value: String(v).trim() };
+      n = next;
+    }
+    return { token: null, chain, value: null };
+  }
+
+  // ---- raw values: the rules of the design check (lib/design-check.mjs rawValue, rawLength)
+
+  const KEYWORDS = /^(?:inherit|initial|unset|revert|revert-layer|none|auto|normal|fit-content|min-content|max-content|transparent|currentcolor)$/i;
+  /** The first raw length of a value, or null: 0, a bare number, %, fr, viewport units and 2 px or less pass. */
+  function rawLength(text) {
+    for (const m of String(text ?? '').replace(/url\([^)]*\)/gi, ' ').matchAll(/(?<![\w#.-])(-?(?:\d+\.?\d*|\.\d+))([a-z%]*)/gi)) {
+      const n = Number(m[1]);
+      const unit = m[2].toLowerCase();
+      if (!unit || n === 0 || /^(?:%|fr|vw|vh|vi|vb|vmin|vmax|dvh|svh|lvh|dvw|svw|lvw)$/.test(unit)) continue;
+      const px = unit === 'px' ? n : unit === 'rem' || unit === 'em' ? n * 16 : null;
+      if (px !== null && Math.abs(px) <= 2) continue;
+      return m[0];
+    }
+    return null;
+  }
+  const NOT_RAW_WORD = /^(?:transparent|currentcolor|inherit|initial|unset|revert|revert-layer|none|solid|dashed|dotted|double|groove|ridge|inset|outset|hidden|auto)$/i;
+  /** The raw colour of a value, or null. `isColorWord(w)` says whether a word is a colour name (the browser knows). */
+  function rawColor(text, isColorWord = null) {
+    const s = String(text ?? '');
+    const m = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)/i.exec(s);
+    if (m) return m[0];
+    if (!isColorWord) return null;
+    return s.split(/[\s,()/]+/).find((w) => /^[a-z]+$/i.test(w) && !NOT_RAW_WORD.test(w) && isColorWord(w)) ?? null;
+  }
+  /** The raw part of a value of token kind `kind`, or null when tokens give it all. */
+  function rawOf(kind, value, isColorWord = null) {
+    const rest = withoutVars(value);
+    if (!rest || KEYWORDS.test(rest)) return null;
+    if (kind === 'color') return rawColor(rest, isColorWord);
+    if (kind === 'font' || kind === 'shadow') return /^[\s,]*$/.test(rest) ? null : rest.slice(0, 60);
+    if (kind === 'layer') return /^-?\d+$/.test(rest) && Math.abs(Number(rest)) > 1 ? rest : null;
+    if (kind === 'motion') { const t = /(?<![\w.-])(\d*\.?\d+)(m?s)(?![\w-])/i.exec(rest); return t && Number(t[1]) !== 0 ? t[0] : null; }
+    if (kind === 'space' || kind === 'size' || kind === 'radius' || kind === 'type') return rawLength(rest);
+    return null;
+  }
+
+  /** A length as CSS pixels (rem and em at 16 px), a duration as milliseconds, a bare number as itself, or null. */
+  function measure(value) {
+    const m = /^\s*(-?(?:\d+\.?\d*|\.\d+))(px|rem|em|ms|s)?\s*$/i.exec(String(value ?? ''));
+    if (!m) return null;
+    const unit = (m[2] ?? '').toLowerCase();
+    return Number(m[1]) * (unit === 'rem' || unit === 'em' ? 16 : unit === 's' ? 1000 : 1);
+  }
+  /** A colour of hex or rgb() form as [r, g, b], or null. */
+  function rgbOf(value) {
+    const s = String(value ?? '').trim();
+    let m = /^#([0-9a-f]{3,8})$/i.exec(s);
+    if (m) {
+      let x = m[1];
+      if (x.length <= 4) x = [...x].map((c) => c + c).join('');
+      return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16));
+    }
+    m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(s);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  }
+  /** The token kinds that may stand in for a raw value of a kind. */
+  const NEAR_KINDS = { space: ['space'], size: ['size', 'space'], radius: ['radius'], type: ['type'], motion: ['motion'], layer: ['layer'], color: ['color'] };
+  /**
+   * The token nearest to a raw value, or null: `tokens` are `{ name, kind, value }` with the value
+   * of the mode that shows. Lengths and durations by their number, colours by their distance in RGB.
+   */
+  function nearest(kind, raw, tokens) {
+    const kinds = NEAR_KINDS[kind];
+    if (!kinds) return null;
+    const color = kind === 'color';
+    const want = color ? rgbOf(raw) : measure(raw);
+    if (want === null) return null;
+    let best = null;
+    for (const k of kinds) {
+      for (const t of tokens || []) {
+        if (t.kind !== k) continue;
+        const have = color ? rgbOf(t.value) : measure(t.value);
+        if (have === null) continue;
+        const d = color ? Math.hypot(have[0] - want[0], have[1] - want[1], have[2] - want[2]) : Math.abs(have - want);
+        if (!best || d < best.d) best = { name: t.name, value: t.value, d };
+      }
+      if (best) break;
+    }
+    return best ? { name: best.name, value: best.value } : null;
+  }
+  /** The words for a raw value: `raw 13px — not a token; nearest --space-3 (12px)`. */
+  const rawText = (raw, near) => `raw ${raw} — not a token${near ? `; nearest ${near.name} (${near.value})` : ''}`;
+
+  /**
+   * What gives one property its value. `decl` is the winning declaration `{ prop, value, source,
+   * selector }`; `lookup` and `tokenNames` as for `follow`; `tokenValue(token)` the value of a token in
+   * the mode that shows; `tokens` the model `{ name, kind, value }` for the nearest token.
+   * Gives `{ prop, value, source, selector, kind, tokens: [{ token, chain, value }], raw, nearest }`.
+   */
+  function resolveProperty(prop, kind, decl, { lookup = () => undefined, tokenNames = new Set(), tokenValue = () => '', tokens = [], isColorWord = null } = {}) {
+    if (!decl) return null;
+    const refs = varNames(decl.value).filter((n, i, a) => a.indexOf(n) === i).slice(0, 4).map((n) => {
+      const f = follow(n, lookup, tokenNames);
+      return { name: n, token: f.token, chain: f.chain, value: f.token ? tokenValue(f.token) : f.value };
+    });
+    // A raw part of the value itself, else of an alias that ends in a value of its own.
+    let raw = rawOf(kind, decl.value, isColorWord);
+    for (const r of refs) if (!raw && !r.token && r.value) raw = rawOf(kind, r.value, isColorWord);
+    const kindTokens = (tokens || []).map((t) => ({ ...t, value: tokenValue(t.name) || t.value }));
+    return { prop: decl.prop || prop, value: decl.value, source: decl.source || '', selector: decl.selector || '', kind, tokens: refs, raw, nearest: raw ? nearest(kind, raw, kindTokens) : null };
+  }
+
+  /** The pairs of a `data-variant` (`size=lg tone=quiet`); a bare word is a value of no named dimension. */
+  function variantPairs(text) {
+    return String(text ?? '').split(/[\s;]+/).filter(Boolean).map((p) => {
+      const at = p.indexOf('=');
+      return at < 0 ? { dim: null, value: p } : { dim: p.slice(0, at), value: p.slice(at + 1) };
+    });
+  }
+  /**
+   * The variants of an instance against the spec of its component: `[{ dim, value, declared }]`.
+   * `variants` is the spec's `{ dim: [values] }`, or null when the component has no spec.
+   */
+  function variantCheck(text, variants) {
+    return variantPairs(text).map(({ dim, value }) => {
+      const v = variants || {};
+      const declared = dim ? (v[dim] || []).includes(value) : Object.values(v).some((list) => (list || []).includes(value));
+      return { dim, value, declared: variants ? declared : null };
+    });
+  }
+  /** The name of a sheet by its address: tokens.css, layout.css, components.css, or `the page`. */
+  function sheetName(href) {
+    if (!href) return 'the page';
+    const file = String(href).split(/[?#]/)[0].split('/').pop();
+    return file || 'the page';
+  }
+  /** The modes of the switch: each theme of the model and System, or none when the model has one theme or none. */
+  const modeChoices = (themes) => ((themes || []).length > 1 ? [...themes.map((t) => t.name), ''] : []);
+
+  return { PROPS, INHERITED, splitList, specificity, cmpSpec, cascade, varNames, withoutVars, follow, rawLength, rawColor, rawOf, measure, rgbOf, nearest, rawText, resolveProperty, variantPairs, variantCheck, sheetName, modeChoices };
+})();
+
+// eslint-disable-next-line no-var, no-unused-vars
+var WF_CANVAS_INSPECT = (() => {
+  'use strict';
+  if (typeof document === 'undefined') return null;
+  const I = WF_CANVAS_INSPECT_LOGIC;
+  const MODE_KEY = 'wf-canvas-mode';
+  const h = (tag, attrs = {}, ...kids) => {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    return el;
+  };
+
+  // ---- the rules of a page, flattened
+
+  const sheetsOf = new WeakMap();
+  /** Every style rule of a document that applies now, in source order: @media and @supports opened, a closed one left out. */
+  function rulesOf(doc) {
+    if (sheetsOf.has(doc)) return sheetsOf.get(doc);
+    const out = [];
+    const win = doc.defaultView;
+    const walk = (list, source) => {
+      for (const r of list) {
+        if (r.type === 1 && r.selectorText) out.push({ parts: I.splitList(r.selectorText), selector: r.selectorText, style: r.style, source, order: out.length });
+        else if (r.cssRules) {
+          if (r.media && r.type === 4 && !win.matchMedia(r.media.mediaText).matches) continue;
+          if (r.type === 12 && !CSS.supports(r.conditionText)) continue;
+          walk(r.cssRules, source);
+        }
+      }
+    };
+    for (const s of doc.styleSheets) {
+      let list = null;
+      try { list = s.cssRules; } catch { list = null; }
+      if (list) walk(list, I.sheetName(s.href));
+    }
+    // The page loads its sheets before its load event; a draw before that reads them again.
+    if (doc.readyState === 'complete') sheetsOf.set(doc, out);
+    return out;
+  }
+  /** The declarations of `props` on one element, from its matched rules and its style attribute. */
+  function declsOf(el, props) {
+    const out = [];
+    const safe = (sel) => { try { return el.matches(sel); } catch { return false; } };
+    for (const r of rulesOf(el.ownerDocument)) {
+      let spec = null;
+      for (const p of r.parts) if (safe(p)) { const s = I.specificity(p); if (!spec || I.cmpSpec(s, spec) > 0) spec = s; }
+      if (!spec) continue;
+      // Within one rule a shorthand that holds the authored text comes first.
+      for (const prop of props) {
+        const value = r.style.getPropertyValue(prop);
+        if (value) { out.push({ prop, value: value.trim(), important: r.style.getPropertyPriority(prop) === 'important', spec, order: r.order, source: r.source, selector: r.selector }); break; }
+      }
+    }
+    for (const prop of props) {
+      const value = el.style?.getPropertyValue(prop);
+      if (value) { out.push({ prop, value: value.trim(), important: el.style.getPropertyPriority(prop) === 'important', spec: [1000, 0, 0], order: Infinity, source: 'the style attribute', selector: '' }); break; }
+    }
+    return out;
+  }
+  /** The declared value of a custom property that the element sees: its own rules, then its parents'. */
+  function customValue(el, name) {
+    for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+      const d = I.cascade(declsOf(n, [name]));
+      if (d) return d.value;
+    }
+    return undefined;
+  }
+  const isColorWord = (w) => { try { return CSS.supports('color', w); } catch { return false; } };
+
+  /** Every design property of an element with what gives it, one row each; the sides of a shorthand share a row. */
+  function propertiesOf(el, model) {
+    const tokenNames = new Set((model.tokens || []).map((t) => t.name));
+    const style = el.ownerDocument.defaultView.getComputedStyle(el);
+    const valueOf = (name) => style.getPropertyValue(name).trim();
+    const rows = [];
+    const seen = new Set();
+    for (const [prop, kind, shorthands] of I.PROPS) {
+      let decl = null;
+      let from = null;
+      for (let n = el; n && n.nodeType === 1; n = I.INHERITED.has(prop) ? n.parentElement : null) {
+        // A longhand and its shorthand in one cascade: the later one or the stronger one wins.
+        decl = I.cascade([...declsOf(n, [...shorthands, prop])]);
+        if (decl) { from = n === el ? null : n; break; }
+        if (!I.INHERITED.has(prop)) break;
+      }
+      if (!decl) continue;
+      const row = I.resolveProperty(prop, kind, decl, { lookup: (name) => customValue(from || el, name), tokenNames, tokenValue: valueOf, tokens: model.tokens, isColorWord });
+      const id = `${row.prop}|${row.value}|${row.selector}|${row.source}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      row.inherited = from ? nameOf(from) : null;
+      rows.push(row);
+    }
+    return rows;
+  }
+  /** A short name of an element: its tag and its first classes. */
+  const nameOf = (el) => `${el.tagName.toLowerCase()}${[...el.classList].slice(0, 2).map((c) => `.${c}`).join('')}`;
+
+  // ---- the panel
+
+  function panelBody(el, model, openComponent) {
+    const comp = el.closest('[data-component]');
+    const kids = [];
+    if (comp) {
+      const key = comp.getAttribute('data-component');
+      const c = (model.components || []).find((x) => x.key === key);
+      const checks = I.variantCheck(comp.getAttribute('data-variant'), c?.spec ? c.spec.variants || {} : null);
+      kids.push(h('div', { class: 'ins-comp' },
+        h('span', { class: 'sub' }, comp === el ? 'Component' : 'Part of'), ' ',
+        c ? h('button', { type: 'button', class: 'linkish', title: `Open the component ${c.title || key}`, onclick: () => openComponent(key) }, c.title || key) : h('b', {}, key),
+        c ? null : h('span', { class: 'mark issue' }, 'Not in the library'),
+        checks.length ? h('ul', { class: 'ins-vars' }, ...checks.map((v) => h('li', { class: v.declared === false ? 'warn' : null },
+          h('code', {}, v.dim ? `${v.dim}=${v.value}` : v.value), ' ',
+          v.declared === null ? 'the component has no spec' : v.declared ? 'declared in the spec' : 'not declared in the spec'))) : h('p', { class: 'sub' }, 'No variant.')));
+    } else kids.push(h('p', { class: 'sub' }, 'Not inside a component.'));
+    const layout = [...el.classList].filter((x) => x.startsWith('l-'));
+    const gap = el.getAttribute('data-gap');
+    const pad = el.getAttribute('data-pad');
+    if (layout.length || gap || pad) kids.push(h('p', { class: 'ins-layout' }, 'Layout ', ...layout.map((x) => h('code', {}, `.${x}`)), gap ? h('code', {}, `gap ${gap}`) : null, pad ? h('code', {}, `pad ${pad}`) : null));
+    const rows = propertiesOf(el, model);
+    kids.push(rows.length ? h('ul', { class: 'ins-props' }, ...rows.map((r) => h('li', { class: r.raw ? 'warn' : null },
+      h('code', { class: 'p' }, r.prop), ' → ',
+      r.tokens.filter((t) => t.token).length
+        ? r.tokens.filter((t) => t.token).map((t) => h('span', { class: 'tok' }, h('code', {}, t.token), ` (${t.value || '?'})`, t.chain.length ? h('small', {}, ` via ${t.chain.join(' → ')}`) : null))
+        : h('code', {}, r.value),
+      r.raw ? h('div', { class: 'raw' }, I.rawText(r.raw, r.nearest)) : null,
+      h('small', { class: 'src' }, r.inherited ? `inherited from ${r.inherited}, ` : '', r.selector ? `${r.selector} in ${r.source}` : r.source))))
+      : h('p', { class: 'sub' }, 'No rule sets a design property of this element.'));
+    return kids;
+  }
+
+  // ---- the mode switch
+
+  let mode = '';
+  try { mode = localStorage.getItem(MODE_KEY) || ''; } catch { mode = ''; }
+  /** Put the chosen theme on one frame's page, or take it off for the system's. */
+  function applyMode(frame) {
+    let root = null;
+    try { root = frame.contentDocument?.documentElement; } catch { root = null; }
+    if (!root) return;
+    // The theme that the page names itself comes back with System.
+    if (mode) {
+      if (!root.hasAttribute('data-wf-mode')) root.setAttribute('data-wf-mode', root.getAttribute('data-theme') ?? '');
+      root.setAttribute('data-theme', mode);
+    } else if (root.hasAttribute('data-wf-mode')) {
+      const was = root.getAttribute('data-wf-mode');
+      if (was) root.setAttribute('data-theme', was); else root.removeAttribute('data-theme');
+      root.removeAttribute('data-wf-mode');
+    }
+  }
+  const applyAll = () => { for (const f of document.querySelectorAll('iframe')) applyMode(f); };
+  // A frame's load does not bubble, but the document sees it on the way down: every frame that
+  // loads later, on the board, in the screen view or in a panel, takes the mode too.
+  document.addEventListener('load', (e) => { if (e.target?.tagName === 'IFRAME') applyMode(e.target); }, true);
+
+  function create({ data, openComponent }) {
+    // The inspected element: kept by the screen it is on, so a redraw finds it again.
+    const st = { key: null, hover: null, pick: null, doc: null, ctx: null };
+    let bar = null;
+    const outlineIn = (layer, el, scale, held) => {
+      if (!el?.isConnected) return;
+      const r = el.getBoundingClientRect();
+      const win = el.ownerDocument.defaultView;
+      layer.append(h('div', { class: `ins-box${held ? ' held' : ''}`, style: `left:${(r.left + win.scrollX) * scale}px;top:${(r.top + win.scrollY) * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }));
+    };
+    function drawPanel(focus = false) {
+      const c = st.ctx;
+      if (!c) return;
+      c.root.querySelector(':scope > #inspect')?.remove();
+      c.layer.querySelectorAll('.ins-box').forEach((b) => b.remove());
+      if (!c.on) return;
+      const el = st.hover?.isConnected ? st.hover : st.pick?.isConnected ? st.pick : null;
+      if (st.pick?.isConnected) outlineIn(c.layer, st.pick, c.scale, true);
+      if (st.hover?.isConnected && st.hover !== st.pick) outlineIn(c.layer, st.hover, c.scale, false);
+      const name = el ? nameOf(el) : null;
+      const body = el ? panelBody(el, data(), openComponent) : [h('p', { class: 'sub' }, 'Point at an element of the screen, or tap it, to see its component and its tokens.')];
+      const box = h('aside', { id: 'inspect', tabindex: '-1', 'aria-label': name ? `Inspect ${name}` : 'Inspect', 'aria-live': 'polite' },
+        h('h3', {}, name ? h('code', {}, name) : 'Inspect'), ...body);
+      c.root.append(box);
+      if (focus) box.focus({ preventScroll: true });
+    }
+    return {
+      /** Draw the outlines and the panel after the screen view drew its marks. */
+      draw(ctx) {
+        if (st.key !== ctx.key || st.doc !== ctx.doc || !ctx.on) { st.hover = null; if (st.key !== ctx.key || st.doc !== ctx.doc) st.pick = null; }
+        st.key = ctx.key;
+        st.doc = ctx.doc;
+        st.ctx = ctx;
+        drawPanel();
+      },
+      hover(el) { if (st.hover === el) return; st.hover = el; drawPanel(); },
+      pick(el) { st.pick = el; st.hover = null; drawPanel(Boolean(el)); },
+      /** The mode switch in the bar: the themes of the model and System, hidden with one theme or none. */
+      bar(state) {
+        const choices = I.modeChoices(state?.themes);
+        if (!bar) {
+          const select = h('select', { id: 'mode', 'aria-label': 'Mode of every screen', onchange: (e) => {
+            mode = e.target.value;
+            try { if (mode) localStorage.setItem(MODE_KEY, mode); else localStorage.removeItem(MODE_KEY); } catch { /* the choice lasts for this visit */ }
+            applyAll();
+          } });
+          bar = h('label', { class: 'pick', id: 'mode-pick', title: 'Show every screen in one theme of the tokens, or as the system asks' }, h('span', { class: 'sr' }, 'Mode'), select);
+          const at = document.querySelector('.bar #health');
+          if (at) at.before(bar); else document.querySelector('.bar')?.append(bar);
+        }
+        const select = bar.querySelector('select');
+        if (mode && !choices.includes(mode)) mode = '';
+        const want = choices.join('|');
+        if (select.dataset.choices !== want) {
+          select.dataset.choices = want;
+          select.replaceChildren(...choices.map((n) => h('option', { value: n }, n ? `${n[0].toUpperCase()}${n.slice(1)} mode` : 'System mode')));
+        }
+        select.value = mode;
+        bar.hidden = !choices.length;
+        applyAll();
+      },
+      mode: () => mode,
+    };
+  }
+  return { create };
+})();

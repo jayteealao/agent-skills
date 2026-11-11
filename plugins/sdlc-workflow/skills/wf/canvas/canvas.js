@@ -240,6 +240,8 @@ var WF_CANVAS_LOGIC = (() => {
   const { plural } = L;
   const SNAP = window.WF_SNAPSHOT || null;
   const BASE = SNAP ? '' : location.pathname.replace(/[^/]*$/, '');
+  // The inspector and the mode switch (canvas-inspect.js); a snapshot cannot reach its pages.
+  const inspect = !SNAP && window.WF_CANVAS_INSPECT ? window.WF_CANVAS_INSPECT.create({ data: () => data, openComponent: (k) => { closeFocus(); panel(`component:${k}`); } }) : null;
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   // `fk` is the focus key of a control: a redraw gives the focus back to the control with the same key.
@@ -851,7 +853,9 @@ var WF_CANVAS_LOGIC = (() => {
   function render() {
     // A resize can come before the data does.
     if (!data) return;
+    inspect?.bar(data);
     measure();
+    if (libraryView()) return;
     const board = $('#board');
     $('#edges').replaceChildren();
     for (const el of $$(':scope > .area-label, :scope > .empty:not(.nomatch)', board)) el.remove();
@@ -912,6 +916,24 @@ var WF_CANVAS_LOGIC = (() => {
     if (!ui.fitted && !M.phone) { ui.fitted = true; firstFit(); } else place();
     applyFilter();
     fillWaiting();
+  }
+  /**
+   * The Library and Tokens views (canvas-library.js) draw in place of the board. True while one
+   * of them shows; a draw of another view tells the library that it is off.
+   */
+  function libraryView() {
+    const lib = window.WF_CANVAS_LIBRARY;
+    const on = Boolean(lib?.views?.includes(ui.view));
+    document.body.classList.toggle('library-on', on);
+    lib?.draw(on);
+    return on;
+  }
+  /** Show one view of the canvas: the board by areas, flows or slices, the library or the tokens. */
+  function setView(view) {
+    ui.view = view;
+    ui.fitted = false;
+    for (const x of $$('[data-view]')) { const on = x.dataset.view === view; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }
+    render();
   }
   /** A new card: its frame makes the page of the screen when the frame comes near the view. */
   function newCard(s, slot) {
@@ -1111,19 +1133,22 @@ var WF_CANVAS_LOGIC = (() => {
       h('h3', { class: 'tokgroup' }, TOKEN_KIND_WORDS[g.kind] || cap(g.kind), h('span', { class: 'count' }, String(g.tokens.length))),
       ...g.tokens.map((t) => tokenItem(t, g.kind)),
     ])), h('p', { class: 'none' }, 'From DESIGN.md. Change them there.')] : [];
-    const lane = (title, sub, items, n) => (items.length ? { title, sub, items, n } : null);
+    const lane = (title, sub, items, n, open = null) => (items.length ? { title, sub, items, n, open } : null);
     return {
       left: [lane('Sketches', 'before any screen', sketches, sketches.length), lane('References', 'what the screens draw on', references, references.length)].filter(Boolean),
-      right: [lane('Components', data.components.length ? plural(data.components.length, 'component') : '', components, data.components.length), lane('Tokens', 'select one to show its screens', tokens, data.tokens.length)].filter(Boolean),
+      right: [lane('Components', data.components.length ? plural(data.components.length, 'component') : '', components, data.components.length, data.components.length ? { text: 'Open the library', view: 'library' } : null),
+        lane('Tokens', 'select one to show its screens', tokens, data.tokens.length, { text: 'Open the token table', view: 'tokens' })].filter(Boolean),
     };
   }
   // On a phone a lane is one closed row of the list: the screens come first.
   function laneView(l, side) {
+    // A lane of the design system links to its own view, where it shows whole.
+    const open = l.open ? h('button', { type: 'button', class: 'linkish lane-open', onclick: () => setView(l.open.view) }, l.open.text) : null;
     if (M.phone) {
-      return h('details', { class: 'lane', 'data-side': side }, h('summary', { class: 'lane-label' }, l.title, l.n ? h('span', { class: 'count' }, String(l.n)) : null), ...l.items);
+      return h('details', { class: 'lane', 'data-side': side }, h('summary', { class: 'lane-label' }, l.title, l.n ? h('span', { class: 'count' }, String(l.n)) : null), open, ...l.items);
     }
     return h('section', { class: 'lane', 'aria-label': l.title, 'data-side': side, style: `top:0;width:${M.laneW}px` },
-      h('h2', { class: 'lane-label' }, l.title, l.sub ? h('small', {}, l.sub) : null), ...l.items);
+      h('h2', { class: 'lane-label' }, l.title, l.sub ? h('small', {}, l.sub) : null), open, ...l.items);
   }
   /**
    * The lane elements of the board, left and right of the screens. They stay while their data is
@@ -1461,7 +1486,7 @@ var WF_CANVAS_LOGIC = (() => {
   let focusFrom = null;
   /** While the screen view is open, the board behind it takes no focus and no pointer. */
   function setInert(on) {
-    for (const el of $$('.bar, #stage, .dock, #panel')) { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); }
+    for (const el of $$('.bar, #stage, #library, .dock, #panel')) { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); }
     document.body.classList.toggle('viewing', on);
   }
   /** Open the screen view on one screen. It adds a step to the history, so Back closes the view. */
@@ -1512,6 +1537,8 @@ var WF_CANVAS_LOGIC = (() => {
   }
   /** The address names the open screen: after Back, Forward, or a link. */
   function fromHash() {
+    // `#component=<key>` and `#token=<name>` open the library.
+    if (data && window.WF_CANVAS_LIBRARY?.fromHash()) { if (focusState) closeNow(); return; }
     const want = SNAP ? null : L.parseHash(location.hash);
     if (want && data && boardScreens().some((s) => s.key === want.key)) {
       if (focusState?.key !== want.key) openScreen(want.key, want, { push: false });
@@ -1728,7 +1755,7 @@ var WF_CANVAS_LOGIC = (() => {
     const loaded = () => { const d = screenDoc(); return d && d.readyState !== 'loading' && d.body ? d : null; };
     // The layer moves with the page of the screen, so the pins and the boxes stay on their elements.
     const layer = h('div', { class: 'layer' });
-    const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}` }, layer);
+    const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}${f.inspecting ? ' inspecting' : ''}` }, layer);
     live.layer = layer;
     if (kept) {
       live.querySelector(':scope > .cap').textContent = caption;
@@ -1803,6 +1830,8 @@ var WF_CANVAS_LOGIC = (() => {
       // Comment mode: the pointer outlines the element under it, and a click or a tap selects it.
       layer.append(hovered, selected);
       outline(selected, f.pick?.selector ? find(d, f.pick.selector) : null);
+      // Inspect mode: the outline of the inspected element and its panel.
+      inspect?.draw({ on: Boolean(f.inspecting && !f.play && d), key: s.key, doc: d, layer, scale, root });
     };
     const findings = auditOf(s.key);
     const hovered = h('div', { class: 'el-box', hidden: true }, h('span'));
@@ -1824,6 +1853,7 @@ var WF_CANVAS_LOGIC = (() => {
     /** The selected element of the comment: kept as its selector and its name, so a redraw finds it again. */
     const pickOf = (el, x, y) => ({ selector: el ? selectorOf(el) : null, label: el ? L.targetName(describe(el)) : null, x, y, whole: false, canWiden: Boolean(el?.parentElement && el.parentElement.tagName !== 'BODY') });
     overlay.addEventListener('click', (e) => {
+      if (f.inspecting && inspect) { inspect.pick(elementAt(e)); return; }
       if (!f.commenting) {
         // On a phone the bounded screen opens at full size.
         if (ph && !f.full) { f.full = true; drawFocus(); }
@@ -1843,10 +1873,11 @@ var WF_CANVAS_LOGIC = (() => {
       win.scrollBy({ top: e.deltaY / live.scale, behavior: 'instant' });
       if (win.scrollY !== from) e.preventDefault();
       if (f.commenting) outline(hovered, elementAt(e));
+      else if (f.inspecting) inspect?.hover(elementAt(e));
     }, { passive: false });
     // A finger on the screen scrolls in comment mode, because a tap is what selects.
     let finger = null;
-    overlay.addEventListener('pointerdown', (e) => { finger = f.commenting && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY } : null; });
+    overlay.addEventListener('pointerdown', (e) => { finger = (f.commenting || f.inspecting) && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY } : null; });
     overlay.addEventListener('pointerup', () => { finger = null; });
     overlay.addEventListener('pointercancel', () => { finger = null; });
     overlay.addEventListener('pointermove', (e) => {
@@ -1859,8 +1890,9 @@ var WF_CANVAS_LOGIC = (() => {
         if (sc && f.full) sc.scrollLeft += finger.x - e.clientX;
         finger = { x: e.clientX, y: e.clientY };
       } else if (f.commenting && e.pointerType === 'mouse') outline(hovered, elementAt(e));
+      else if (f.inspecting && e.pointerType === 'mouse') inspect?.hover(elementAt(e));
     });
-    overlay.addEventListener('pointerleave', () => { hovered.hidden = true; });
+    overlay.addEventListener('pointerleave', () => { hovered.hidden = true; if (f.inspecting) inspect?.hover(null); });
     // A kept page stays where it is: a page that moves in the document loads again.
     if (!kept) {
       view.append(live);
@@ -1925,7 +1957,8 @@ var WF_CANVAS_LOGIC = (() => {
       h('button', { type: 'button', fk: 'z:in', 'aria-label': 'Zoom in', onclick: () => zoomTo2(scaleNow * 1.25) }, '+'),
       h('button', { type: 'button', fk: 'z:fit', 'aria-pressed': String(f.zoom === 'fit'), onclick: () => zoomTo2('fit') }, 'Fit'),
       h('button', { type: 'button', fk: 'z:100', 'aria-pressed': String(f.zoom === 1), onclick: () => zoomTo2(1) }, '100%')) : null;
-    const commentBtn = data.writable && !past ? toggle('comment', f.commenting ? 'Select an element' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; if (!f.commenting) f.pick = null; f.play = false; drawFocus(); }) : null;
+    const commentBtn = data.writable && !past ? toggle('comment', f.commenting ? 'Select an element' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; if (!f.commenting) f.pick = null; f.play = false; f.inspecting = false; drawFocus(); }) : null;
+    const inspectBtn = inspect ? toggle('inspect', 'Inspect', f.inspecting, () => { f.inspecting = !f.inspecting; f.commenting = false; f.pick = null; f.play = false; drawFocus(); }, 'Show the component and the tokens of the element you point at (Escape leaves)') : null;
     const extra = [
       past ? null : toggle('checks', 'Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }, 'Show the failing checks on the screen'),
       findings.length && !past ? toggle('audit', 'Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }, 'Show the findings of the audit on the screen') : null,
@@ -1940,6 +1973,7 @@ var WF_CANVAS_LOGIC = (() => {
       ph ? sel('state', data.states, f.state, setFState, Object.fromEntries(data.states.map((n) => [n, `${cap(n)} state`])), 'State') : segOf('st', data.states, f.state, setFState, 'State'),
       h('span', { class: 'gap' }),
       commentBtn,
+      inspectBtn,
       ph && !f.full ? h('button', { type: 'button', class: 'btn', fk: 'full:on', onclick: () => { f.full = true; drawFocus(); } }, 'Full size') : null,
       // A phone keeps the tools that are used less behind one control.
       ph ? moreTools(f, extra) : extra,
@@ -2435,6 +2469,7 @@ var WF_CANVAS_LOGIC = (() => {
       return [h('h2', { tabindex: '-1' }, c.title, ' ', componentMarks(c)),
         h('p', { class: 'lede' }, c.kind === 'layout' ? 'A page shell that the screens lay out their parts in. The code must use it.' : 'A component that the screens reuse. The code must use it.'),
         switches, frame, out ? h('p', {}, out) : null,
+        h('p', {}, h('a', { href: `#component=${encodeURIComponent(c.key)}`, class: 'out', fk: 'library' }, 'Open in the library')),
         c.code ? h('p', {}, h('code', {}, c.name), ' in ', h('code', {}, c.code)) : h('p', {}, 'New. The build makes it, and the code must use it.'),
         h('h3', {}, 'Variants', dims.length ? h('span', { class: 'count' }, String(dims.length)) : null),
         dims.length ? h('table', { class: 'spec' }, h('tbody', {}, ...dims.map(([dim, values]) => h('tr', {}, h('th', { scope: 'row' }, dim), h('td', {}, values.join(', '))))))
@@ -2463,14 +2498,7 @@ var WF_CANVAS_LOGIC = (() => {
     return Boolean(focusState && el?.closest?.('#focus') && el.matches('textarea, input[type="text"]'));
   }
   function wire() {
-    for (const b of $$('[data-view]')) {
-      b.addEventListener('click', () => {
-        ui.view = b.dataset.view;
-        ui.fitted = false;
-        for (const x of $$('[data-view]')) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }
-        render();
-      });
-    }
+    for (const b of $$('[data-view]')) b.addEventListener('click', () => setView(b.dataset.view));
     for (const b of $$('[data-panel]')) b.addEventListener('click', () => panel(b.dataset.panel));
     const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'health') panel('health', true); });
     $('#trace').addEventListener('click', () => traceTo(null));
@@ -2499,7 +2527,8 @@ var WF_CANVAS_LOGIC = (() => {
       if (focusState) {
         // Escape never loses what was typed: it leaves the field and the comment mode, and the draft stays.
         const field = typing() ? document.activeElement : null;
-        if (focusState.commenting || focusState.pick) { focusState.commenting = false; focusState.pick = null; $('#focus h2')?.focus({ preventScroll: true }); drawFocus(); }
+        if (focusState.inspecting && !field) { focusState.inspecting = false; drawFocus(); $('#focus [data-fk="t:inspect"]')?.focus({ preventScroll: true }); }
+        else if (focusState.commenting || focusState.pick) { focusState.commenting = false; focusState.pick = null; $('#focus h2')?.focus({ preventScroll: true }); drawFocus(); }
         else if (field && field.value.trim()) { $('#focus h2')?.focus({ preventScroll: true }); held(); }
         else if (focusState.full) { focusState.full = false; focusState.zoom = 'fit'; drawFocus(); }
         else closeFocus();
@@ -2651,6 +2680,12 @@ var WF_CANVAS_LOGIC = (() => {
     }, 1000);
   }
 
+  // What the views of the other canvas files use: the state, the controls and the drawing helpers.
+  window.WF_CANVAS = Object.assign(window.WF_CANVAS || {}, {
+    L, h, ui, BASE, SNAP, phone, cap, titleOf, TOKEN_KIND_WORDS,
+    data: () => data,
+    setView, render, openScreen, traceFrom, closePanel, tokenSpecimen, tokenValue, componentMarks, componentSrc, say,
+  });
   wire();
   listen();
   load().then(fromHash, loadFailed);

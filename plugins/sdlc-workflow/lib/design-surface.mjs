@@ -23,6 +23,7 @@ import { sdlcHomeDir } from './home.mjs';
 import { boardsRef, missingBoardFiles } from './design-boards.mjs';
 import { approvalProblems } from './design-versions.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
+import { dtcgFiles } from './design-dtcg.mjs';
 import { GENERATED_MARK, TOKENS_SCHEMA, layoutCss, modelFromCss, parseTokenTables, platformFileOf, platformTokens, tokensCss, tokensJson } from './design-tokens.mjs';
 
 export const SURFACE_REL = '.ai/design';
@@ -36,6 +37,8 @@ export const TOKENS_FILE = 'tokens.css';
 export const TOKENS_JSON = 'tokens.json';
 /** The layout primitives that `design tokens` writes from the space scale. */
 export const LAYOUT_SHEET = 'layout.css';
+/** The W3C design token files that `design tokens` writes, one per theme. */
+export const DTCG_DIR = 'dtcg';
 export const COMPONENTS_DIR = 'components';
 export const COMPONENTS_FILE = 'components.css';
 export const SCREENS_SCHEMA = 'sdlc/design-screens/v1';
@@ -209,6 +212,8 @@ export function writeTokens(root, { keep = false } = {}) {
   writeFileAtomic(sheet, tokensCss(rows));
   writeJson(join(dir, TOKENS_JSON), tokensJson(rows, rel));
   writeFileAtomic(join(dir, LAYOUT_SHEET), layoutCss(rows));
+  // The W3C token files, one per theme, for Figma variables, Penpot and Tokens Studio.
+  for (const [name, doc] of Object.entries(dtcgFiles(readTokenModel(root)))) writeJson(join(dir, DTCG_DIR, name), doc);
   Object.defineProperty(rows, 'platform', { value: writePlatformTokens(root, text, readTokenModel(root)) });
   return rows;
 }

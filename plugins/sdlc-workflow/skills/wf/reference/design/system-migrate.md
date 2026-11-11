@@ -43,6 +43,7 @@ Migrate the whole surface once, before the screens of the workflow. Do not migra
    - Put the theme values into the table. Do not keep a theme as `-dark` names, as a `.dark` block, or as a `[data-theme]` block written by hand.
    - When two places of `DESIGN.md` give two values for one role, keep the value that the built product uses, and delete the other place.
 4. When the product code has a token file, or must have one, name it in the Overview: `Token file: <path>`, for example `app/src/main/java/com/example/ui/theme/DesignTokens.kt`. `<wf> design tokens` writes it for Kotlin, Swift, TypeScript, JavaScript and CSS when the file is missing or was written by the command. A file that a person wrote stays as it is: move its values into `DESIGN.md`, delete it, and run the command again.
+   - When the tokens live in Figma, Penpot or Tokens Studio, export them as W3C design token files (`.tokens.json`, one per mode), run `<wf> design tokens import <root> <default>.tokens.json <other>.tokens.json ...`, and put the tables that it prints into `DESIGN.md`.
 5. Run `<wf> design tokens <root>`. It must exit 0: no refused row, no missing kind. It writes `tokens.css`, `tokens.json`, `layout.css` and the token file of the code.
 6. Delete each colour or theme block that `components.css` declared by hand. `components.css` may declare a custom property only as a name for tokens, for example `--button-bg: var(--accent)`.
 

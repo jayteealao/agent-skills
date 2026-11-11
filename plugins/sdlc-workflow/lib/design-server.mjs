@@ -51,7 +51,8 @@ export const serverInfoPath = () => join(sdlcHomeDir(), 'design-server.json');
 const MAX_BODY = 64 * 1024;
 const MAX_STREAMS = 64;
 const SHA_RE = /^[0-9a-f]{7,40}$/;
-const CANVAS_FILES = new Set(['index.html', 'canvas.css', 'canvas.js']);
+// The files of the canvas: any page, sheet or script of its folder, by a plain name. A name of another form is not served.
+export const CANVAS_FILE_RE = /^[a-z][a-z0-9-]*\.(?:html|css|js)$/;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -545,7 +546,7 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
       if (parts.length === 0) return send(res, 200, indexPage(repos()), { 'content-type': TYPES['.html'] });
       // The pid tells a caller that this server, and no other program on the port, answered.
       if (parts[0] === 'health') return json(res, 200, { ok: true, repos: repos().length, pid: process.pid });
-      if (parts[0] === 'canvas' && parts.length === 2 && CANVAS_FILES.has(parts[1])) return file(res, join(CANVAS_DIR, parts[1]));
+      if (parts[0] === 'canvas' && parts.length === 2 && CANVAS_FILE_RE.test(parts[1])) return file(res, join(CANVAS_DIR, parts[1]));
       if (parts[0] !== 'r' && parts[0] !== 'b') return fail(res, 404, 'not found');
       const repo = repos().find((r) => r.name === parts[1]);
       if (!repo || !existsSync(repo.root)) return fail(res, 404, 'no such repo on the list');

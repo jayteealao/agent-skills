@@ -44,9 +44,9 @@ export function sectionKind(heading) {
 /** The kind of a token from its role (or custom property) name, or null when the name does not say. */
 export function kindOfName(name) {
   const n = String(name).replace(/^--/, '').toLowerCase();
-  if (/^(?:space|gap|inset|pad|padding|margin|gutter)(?:-|$)/.test(n)) return 'space';
-  if (/^(?:radius|rounded|corner|round)(?:-|$)/.test(n)) return 'radius';
-  if (/^(?:size|width|height|w|h|icon|control|target|avatar|row|header|sidebar|rail|tab|toolbar|bar|dot|max|min)(?:-|$)/.test(n)) return 'size';
+  if (/^(?:space|spacing|gap|inset|pad|padding|margin|gutter)(?:-|$)/.test(n)) return 'space';
+  if (/^(?:radius|radii|rounded|corner|corners|round)(?:-|$)/.test(n)) return 'radius';
+  if (/^(?:size|sizes|sizing|width|height|w|h|icon|control|target|avatar|row|header|sidebar|rail|tab|toolbar|bar|dot|max|min)(?:-|$)/.test(n)) return 'size';
   if (/^(?:font|family|face)(?:-|$)/.test(n)) return 'font';
   if (/^(?:text|type|fs|font-size)(?:-(?:xs|sm|md|lg|xl|\d*xl|base|body|caption|label|title|headline|display|\d+)|$)/.test(n)) return 'type';
   if (/^(?:weight|fw)(?:-|$)/.test(n)) return 'weight';
@@ -187,7 +187,11 @@ export function parseTokenTables(text) {
     const token = cols.token >= 0 && /^`?--[a-z0-9-]+`?$/i.test(cells[cols.token] ?? '') ? cells[cols.token].replace(/`/g, '') : null;
     const existing = out.findIndex((r) => r.role === name);
     const row = { role: name, token, kind, value, values, usedFor: cols.desc >= 0 ? cells[cols.desc] || null : null };
-    if (existing >= 0) { problems.push({ role: name, kind, value, theme: null, problem: `a second row for ${name}: the later row wins` }); out[existing] = row; } else out.push(row);
+    if (existing >= 0) {
+      // A second row wins for the themes it names; a theme that only the first row names keeps its value.
+      problems.push({ role: name, kind, value, theme: null, problem: `a second row for ${name}: the later row wins for the themes it names` });
+      out[existing] = { ...row, values: { ...out[existing].values, ...row.values } };
+    } else out.push(row);
   }
   // A table with one `Value` column gives the default theme. When other tables name the themes,
   // that default is the first named theme, never a theme of its own.

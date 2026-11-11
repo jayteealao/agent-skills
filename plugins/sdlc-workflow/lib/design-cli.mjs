@@ -14,6 +14,7 @@ import { addComponent, changeManifest, componentFile, foundation, linkComponent,
 import { approvedByAnswer, designNeeded, designReopened, namesScreens } from './design-lane.mjs';
 import { migrateDesign } from './design-migrate.mjs';
 import { missingKinds } from './design-tokens.mjs';
+import { dtcgToTables } from './design-dtcg.mjs';
 import { addComment, approvalComponentPictures, approvalPicture, capturePicture, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { REVIEW_AUTHOR_RE, sameOpenThread } from './design-records.mjs';
@@ -54,6 +55,7 @@ export const DESIGN_FORMS = Object.freeze([
   ['list <root> [--workflow slug]', 'the screens (one workflow with --workflow), their states and links', 'list .'],
   ['explore add <root> <key> [--title t] [--link slug]', 'record an explore sketch', 'explore add . nav-ideas --link demo'],
   ['tokens <root>', 'write tokens.css from DESIGN.md (the root, .agents/context/ or docs/)', 'tokens .'],
+  ['tokens import <root> <file.tokens.json...>', 'read W3C design token files (from Figma, Penpot or Tokens Studio; one file per theme, the default first) and print them as the token tables of DESIGN.md', 'tokens import . light.tokens.json dark.tokens.json'],
   ['track <root> [--check]', 'keep .ai/design/ tracked in git', 'track . --check'],
   ['check <root> [key...] [--workflow slug]', 'the screen checks, in each viewport and state; the last line is the one next action', 'check . --workflow demo'],
   ['review-pack <root> <slug> [--size n]', 'one packet for each batch of screens changed since the last review, for a team of reviewer agents; prints each packet file', 'review-pack . demo'],
@@ -406,7 +408,7 @@ export async function runDesign(pos, opt, out) {
 
 async function run(pos, opt, out) {
   const [verb, ...rest] = pos;
-  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && ['reply', 'add'].includes(rest[0])) || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) ? rest.shift() : null;
+  const sub = ['screen', 'explore', 'server', 'refs', 'rounds', 'component'].includes(verb) || (verb === 'comments' && ['reply', 'add'].includes(rest[0])) || (verb === 'components' && ['none', 'verify', 'scan'].includes(rest[0])) || (verb === 'tokens' && rest[0] === 'import') ? rest.shift() : null;
   if (!verb) throw usage('design: a command is required');
   if (!DESIGN_VERBS.includes(verb)) throw usage(`design has no command ${verb}`);
   if (verb === 'server') return runServer(sub, opt, out, rest[0]);
@@ -564,6 +566,18 @@ async function run(pos, opt, out) {
         ...problems.map((p) => `problem: ${p}`)].join('\n') || 'no screens');
     }
     case 'tokens': {
+      if (sub === 'import') {
+        const files = rest.slice(1);
+        if (!files.length) throw usage('design tokens import <root> <file.tokens.json...> is required', 'tokens import');
+        const docs = files.map((f) => {
+          const abs = resolve(process.cwd(), f);
+          let doc;
+          try { doc = JSON.parse(readFileSync(abs, 'utf8')); } catch (e) { throw refuse(`${f} is no JSON token file: ${String(e?.message ?? e).split('\n')[0]}`, agentFix('Name a W3C design token file (.tokens.json), as Figma, Penpot or Tokens Studio export it.')); }
+          return { theme: basename(abs).replace(/\.tokens\.json$|\.json$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '-'), doc };
+        });
+        const r = dtcgToTables(docs);
+        return finish({ ok: true, themes: docs.map((d) => d.theme), ...r }, [r.markdown, ...r.problems.map((p) => `problem: ${p}`), `${r.tokens} tokens in ${docs.length} theme(s). Put these tables into DESIGN.md (replace the token tables they cover), then run wf.mjs design tokens ${R}.`].join('\n'));
+      }
       const rows = writeTokens(projectRoot);
       const from = rows.file ? posix(relative(projectRoot, rows.file)) : null;
       const model = readTokenModel(projectRoot);
@@ -577,7 +591,7 @@ async function run(pos, opt, out) {
       return finish(res, [
         `tokens.css: ${rows.length} tokens${!from ? ' (no DESIGN.md found: the root, .agents/context/ and docs/ hold none)' : ` from ${from}`}${kinds ? ` (${kinds})` : ''}`,
         `themes: ${(rows.themes ?? []).map((t) => `${t.name}${t.scheme ? ` (${t.scheme})` : ''}`).join(', ') || 'one'}`,
-        'also written: tokens.json, layout.css',
+        'also written: tokens.json, layout.css, and the W3C token files dtcg/<theme>.tokens.json (import them into Figma variables, Penpot or Tokens Studio)',
         rows.platform ? `token file of the code: ${rows.platform.file} ${rows.platform.written ? 'written' : `not written: ${rows.platform.reason}`}` : 'token file of the code: none (name one with "Token file: <path>" in the Overview of DESIGN.md)',
         ...missing.map((k) => `missing kind: ${k} (add a token table for it)`),
         ...problems.map((p) => `refused: ${p.role} = ${p.value}${p.theme && p.theme !== 'default' ? ` (${p.theme})` : ''}: ${p.problem}`),

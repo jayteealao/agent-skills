@@ -98,6 +98,9 @@
  *   design   tokens <root>
  *             write tokens.css from DESIGN.md (the root, .agents/context/ or docs/)
  *             Example: wf.mjs design tokens .
+ *   design   tokens import <root> <file.tokens.json...>
+ *             read W3C design token files (from Figma, Penpot or Tokens Studio; one file per theme, the default first) and print them as the token tables of DESIGN.md
+ *             Example: wf.mjs design tokens import . light.tokens.json dark.tokens.json
  *   design   track <root> [--check]
  *             keep .ai/design/ tracked in git
  *             Example: wf.mjs design track . --check

@@ -425,9 +425,13 @@ export function snapshotHtml(root, { repo = null } = {}) {
   const screens = Object.fromEntries(state.screens.filter((s) => existsSync(screenFile(root, s.key))).map((s) => [s.key, readFileSync(screenFile(root, s.key), 'utf8')]));
   const tokens = [TOKENS_FILE, LAYOUT_SHEET, COMPONENTS_FILE].map((f) => join(surfaceDir(root), f)).filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
   const page = readFileSync(join(CANVAS_DIR, 'index.html'), 'utf8');
-  const css = readFileSync(join(CANVAS_DIR, 'canvas.css'), 'utf8');
-  const js = readFileSync(join(CANVAS_DIR, 'canvas.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
+  // Each sheet and script of the canvas goes inline; the state goes before the main script.
+  const own = (name) => readFileSync(join(CANVAS_DIR, name), 'utf8');
   return page
-    .replace('<link rel="stylesheet" href="/canvas/canvas.css">', () => `<style>\n${css}</style>`)
-    .replace('<script src="/canvas/canvas.js"></script>', () => `<script>window.WF_STATE = ${scriptJson(state)};\nwindow.WF_SNAPSHOT = ${scriptJson({ screens, tokens })};</script>\n<script>\n${js}</script>`);
+    .replace(/<link rel="stylesheet" href="\/canvas\/([a-z][a-z0-9-]*\.css)">/g, (all, name) => `<style>\n${own(name)}</style>`)
+    .replace(/<script src="\/canvas\/([a-z][a-z0-9-]*\.js)"><\/script>/g, (all, name) => {
+      const js = own(name).replace(/<\/script/gi, '<\\/script');
+      const first = name === 'canvas.js' ? `<script>window.WF_STATE = ${scriptJson(state)};\nwindow.WF_SNAPSHOT = ${scriptJson({ screens, tokens })};</script>\n` : '';
+      return `${first}<script>\n${js}</script>`;
+    });
 }

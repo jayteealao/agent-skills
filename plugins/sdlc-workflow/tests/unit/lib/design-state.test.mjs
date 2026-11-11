@@ -2,7 +2,7 @@
 // and the self-contained snapshot page.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -83,7 +83,7 @@ test('the snapshot page inlines the state, the screens and the assets, and canno
     initSurface(root);
     addScreen(root, 'basket', { title: 'Basket </script> & co', workflow: 'w1' });
     const html = snapshotHtml(root, { repo: 'shop' });
-    assert.doesNotMatch(html, /href="\/canvas\/canvas\.css"|src="\/canvas\/canvas\.js"/);
+    assert.doesNotMatch(html, /href="\/canvas\/|src="\/canvas\//, 'every sheet and script of the canvas is inline');
     assert.match(html, /window\.WF_STATE = /);
     const json = /window\.WF_STATE = (.*);\nwindow\.WF_SNAPSHOT = (.*);<\/script>/.exec(html);
     assert.ok(json, 'the two values are on their own lines');
@@ -91,7 +91,9 @@ test('the snapshot page inlines the state, the screens and the assets, and canno
     const snap = JSON.parse(json[2]);
     assert.equal(state.writable, false);
     assert.match(snap.screens.basket, /wf:screen/);
-    assert.equal((html.match(/<\/script/gi) ?? []).length, 2, 'no screen text closes a script element early');
+    // One script element for the state and one for each script of the canvas page.
+    const scripts = (readFileSync(new URL('../../../skills/wf/canvas/index.html', import.meta.url), 'utf8').match(/<script src=/g) ?? []).length;
+    assert.equal((html.match(/<\/script/gi) ?? []).length, scripts + 1, 'no screen text closes a script element early');
   } finally { done(); }
 });
 

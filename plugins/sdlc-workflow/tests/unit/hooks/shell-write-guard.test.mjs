@@ -24,7 +24,8 @@ const SYNCED = {
   '.old': 'the old record files that a migration kept',
 };
 // Dot files of the plugin that live outside the workflow folders.
-const ELSEWHERE = new Set(['.release.json', '.v10-cleanup.json', '.meta.json', '.campaign-journal.jsonl']);
+// `.tokens.json` is the end of the W3C token files of the design surface (.ai/design/dtcg/<theme>.tokens.json).
+const ELSEWHERE = new Set(['.release.json', '.v10-cleanup.json', '.meta.json', '.campaign-journal.jsonl', '.tokens.json']);
 // Dot files of the repo that the plugin reads and never writes: the hook configs (lib/repo-hooks.mjs).
 const READ_ONLY = new Set(['.lefthook.yaml', '.pre-commit-config.yaml']);
 

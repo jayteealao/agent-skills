@@ -1,0 +1,95 @@
+/* The Library and Tokens views: they take the place of the board, and the dock and the search of
+   the screens go while they show. The component pages show at 1:1 on the light table. */
+body.library-on #stage, body.library-on .dock, body.library-on .bar > .search, body.library-on #shown, body.library-on #filters, body.library-on #trace { display: none !important; }
+#library { flex: 1; min-height: 0; overflow: hidden; }
+.lib { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); height: 100%; }
+.lib.tokens { display: flex; flex-direction: column; overflow: auto; padding: 16px 20px 32px; }
+.lane-open { margin: -4px 0 8px; font-size: 13px; }
+
+/* The list of components */
+.lib-list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--surface); }
+.lib-list > .search { flex: none; max-width: none; padding: 12px; border-bottom: 1px solid var(--line); }
+.lib-list-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px 24px; }
+.lib-group h3, .tok-group h3 { display: flex; align-items: center; gap: 8px; margin: 14px 6px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.lib-group ul { margin: 0; padding: 0; list-style: none; }
+.lib-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
+.lib-item:hover { background: var(--sunk); }
+.lib-item.on { background: color-mix(in srgb, var(--focus) 14%, transparent); }
+.lib-item-name { display: flex; flex-direction: column; min-width: 0; }
+.lib-item-name b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-item-name small { color: var(--pencil); font-size: 12px; }
+
+/* The detail of one component */
+.lib-detail { min-width: 0; min-height: 0; overflow: auto; padding: 18px 24px 40px; }
+.lib-detail > .none { margin: 24px 0; color: var(--pencil); }
+.lib-head h2, .tok-top h2 { margin: 0 0 4px; font-size: 20px; font-weight: 650; letter-spacing: -.01em; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lib-head p { margin: 2px 0; }
+.lib-back { display: none; margin: 0 0 8px -8px; }
+.lib-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; margin: 12px 0 4px; }
+.lib-facts h4, .lib-control-name { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--pencil); }
+.lib-facts .none { margin: 0; color: var(--pencil); }
+.lib-detail .chips button, .lib-detail .chips a { display: inline-flex; align-items: center; min-height: 28px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunk); color: var(--ink); font-size: 12px; text-decoration: none; }
+.lib-detail .chips button:hover, .lib-detail .chips a:hover { border-color: var(--pencil); }
+.lib-section { margin-top: 22px; }
+.lib-section > h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.lib-section .none { color: var(--pencil); margin: 0; }
+.lib-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 10px; }
+.lib-control .seg { flex-wrap: wrap; }
+.lib-note:empty { display: none; }
+.lib-note { margin: 0 0 10px; }
+.lib-note p { margin: 2px 0; }
+.lib-note.gap { padding: 10px 12px; border-radius: 8px; background: var(--issue-tint); color: var(--issue); }
+.lib-note.gap p { color: var(--ink); }
+.lib-stage { overflow: auto; border-radius: var(--r); background: var(--surface); box-shadow: var(--lift); }
+.lib-frame { display: block; width: 100%; height: 160px; border: 0; background: transparent; }
+.lib-banner { margin: 16px 0 0; padding: 12px 14px; border-radius: 8px; background: var(--issue-tint); }
+.lib-banner b { color: var(--issue); }
+.lib-banner p { margin: 4px 0; }
+.lib-banner pre { margin: 6px 0 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
+.lib-banner + .lib-stage { margin-top: 12px; }
+.lib-gaps { margin: 4px 0; padding-left: 18px; }
+.lib-gaps li { margin: 3px 0; color: var(--issue); }
+
+/* The token table */
+.tok-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.tok-top .search { flex: 0 1 320px; }
+.tok-top .sub { flex-basis: 100%; margin: 0; }
+.tok-group { margin-top: 12px; }
+.tok-group h3 { margin-left: 0; }
+.tok-scroll { overflow-x: auto; border-radius: var(--r); background: var(--surface); box-shadow: var(--lift); }
+.tok-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tok-table th, .tok-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.tok-table thead th { color: var(--pencil); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tok-table tbody tr:last-child > * { border-bottom: 0; }
+.tok-table tbody th { font-weight: 500; white-space: nowrap; }
+.tok-table tr.on { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+.tok-table code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tok-table td.sample { min-width: 72px; max-width: 160px; }
+.tok-table td.sample > * { max-width: 140px; }
+.tok-table td.sample .spec-tile, .tok-table td.sample .spec-box { display: inline-flex; }
+.tok-table td.tv { white-space: nowrap; }
+.tok-table td.tv .swatch { display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; border-radius: 4px; }
+.tok-table td.tv.same { opacity: .45; }
+.tok-table td.chain a { color: var(--focus); }
+.tok-table td.chain .missing { color: var(--issue); text-decoration: line-through; }
+.tok-table td.for { min-width: 160px; color: var(--pencil); }
+.tok-table td.by { white-space: nowrap; }
+.tok-table .none { color: var(--pencil); }
+
+/* A phone: the list, then the detail of one component over it, with a way back. */
+@media (max-width: 720px) {
+  .bar > .seg button { padding: 4px 6px; }
+  #library { overflow: visible; }
+  .lib { display: block; height: auto; }
+  .lib-list { border-right: 0; background: transparent; }
+  .lib-list > .search { padding: 12px 16px; border-bottom: 0; }
+  .lib-list-body { overflow: visible; padding: 0 16px 32px; }
+  .lib-detail { display: none; overflow: visible; padding: 12px 16px 40px; }
+  .lib.open .lib-list { display: none; }
+  .lib.open .lib-detail { display: block; }
+  .lib-back { display: inline-flex; align-items: center; }
+  .lib-detail .chips button, .lib-detail .chips a { min-height: 44px; padding: 4px 12px; }
+  .lib.tokens { overflow: visible; padding: 12px 16px 32px; }
+  .tok-top .search { flex: 1 1 100%; }
+  .lane-open { min-height: 44px; }
+}

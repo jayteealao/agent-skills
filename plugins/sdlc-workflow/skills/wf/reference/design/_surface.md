@@ -14,6 +14,7 @@ The surface is `.ai/design/` in the product repo, and git tracks it.
 | `explore/<key>.html` | A free sketch of an explore run; it is not a screen | the design agent |
 | `tokens.css` | The token sheet, from the token tables of `DESIGN.md`: every kind (color, font, type, space, size, radius, shadow, motion), with a block for each theme | `<wf> design tokens` |
 | `tokens.json` | The token model: each token with its kind, its value in each theme and its use. The check, the canvas and the code token file read it | `<wf> design tokens` |
+| `dtcg/<theme>.tokens.json` | The tokens in the W3C design token format, one file per theme, for Figma variables, Penpot and Tokens Studio | `<wf> design tokens` |
 | `layout.css` | The layout primitives (`l-stack`, `l-row`, `l-grid`, `l-split` ...), made from the space scale | `<wf> design tokens` |
 | `components/<key>.html` | One component of the library: its spec (kind, variants, states) and a specimen cell for each case, in each theme | the design agent, from `<wf> design component spec` |
 | `components.css` | The style of the components, with tokens only. Its custom properties only name tokens | the design agent |
@@ -111,6 +112,10 @@ The canvas is one page per repo that shows every screen of the repo on one board
 
 - **The board** shows the screens by area, by flow, or by slice. A slice row names its approval, its checks and its open comments. With the areas, lanes stand around the screens: the sketches and the references before them, the components and the tokens after them. A component or a token shows the screens that use it.
 - **The screen view** shows why a screen looks as it does: the design decisions of its workflows and the rules of the visual contract for its slices. It also lists the components and the tokens of the screen.
+- **The Library tab** shows each component as its spec says: a controls panel (each variant dimension, the state, the theme) drives one live instance at full size, and the variant grid shows every case. `#component=<key>` opens it on one component.
+- **The Tokens tab** shows the tokens as a table per kind, with a sample, a column per theme, the alias chain and the screens and components that use each. `#token=<name>` opens it on one token.
+- **Inspect** (beside Comment in the screen view): tap an element to see its component and variant, and the token behind each of its properties, with each raw value flagged and the nearest token named.
+- **The mode control** of the bar shows every screen and component in one theme of the tokens, or as the system sets it.
 - **The health control** of the bar names the failing screens, the open comments and the findings of the last audit. It opens the review, which also runs the design audit.
 
 The design server serves the canvas of every repo on the list `~/.sdlc/design-repos.json`, and the brainstorm pages of those repos. It is one server for the computer. It listens on `127.0.0.1` and on the tailnet address, so the person can review from the phone. It writes three things only: a comment on a screen that exists, the layout positions, and the restore of a version as a new round.

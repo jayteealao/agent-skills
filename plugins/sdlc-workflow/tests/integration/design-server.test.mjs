@@ -57,6 +57,10 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
     assert.match((await raw(port, '/r/shop/')).text, /canvas\.js/);
     assert.equal((await raw(port, '/canvas/canvas.js')).status, 200);
     assert.equal((await raw(port, '/canvas/other.js')).status, 404);
+    // Any page, sheet or script of the canvas folder is served by a plain name; no other name is.
+    assert.equal((await raw(port, '/canvas/canvas-library.js')).status, 200);
+    assert.equal((await raw(port, '/canvas/canvas-library.css')).status, 200);
+    for (const bad of ['/canvas/Canvas.js', '/canvas/.canvas.js', '/canvas/canvas.mjs', '/canvas/canvas.js.map', '/canvas/%2e%2e%2fpackage.json']) assert.notEqual((await raw(port, bad)).status, 200, bad);
     const state = JSON.parse((await raw(port, '/r/shop/state.json')).text);
     assert.deepEqual([state.repo, state.writable, state.screens.map((s) => s.key)], ['shop', true, ['basket']]);
     assert.match((await raw(port, '/r/shop/s/screens/basket.html')).text, /wf:screen/);

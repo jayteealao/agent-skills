@@ -7,7 +7,7 @@
 // manifest, saves the approved version, one picture per screen and one per component that the
 // screens use in the records, writes the confirmation fields into `02c-craft.md`, and sets the
 // next step of the workflow in its index.
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { findAnswer, norm, readAnswerEvents } from './answers.mjs';
@@ -16,7 +16,7 @@ import { SYSTEM_CHECKS, captureComponents, captureScreens, systemFailures } from
 import { approvalPicture, commitDesignRecords, componentPictureKey, readChecks } from './design-records.mjs';
 import { componentFile, componentRel, workflowComponents } from './design-components.mjs';
 import { isWorkflowSlug, listVersions, saveApproved } from './design-versions.mjs';
-import { COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, TOKENS_JSON, listScreens, readManifest, screenRel, surfaceDir, updateManifest } from './design-surface.mjs';
+import { COMPONENTS_FILE, KEY_RE, DTCG_DIR, LAYOUT_SHEET, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, TOKENS_JSON, listScreens, readManifest, screenRel, surfaceDir, updateManifest } from './design-surface.mjs';
 import { Refusal, agentFix, personFix, refuse } from './fix.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -231,7 +231,9 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
     keep();
 
     const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...[TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE].filter((f) => existsSync(join(surfaceDir(root), f))).map((f) => `${SURFACE_REL}/${f}`),
-      ...Object.keys(readManifest(root).components).filter((k) => existsSync(componentFile(root, k))).map(componentRel)];
+      ...Object.keys(readManifest(root).components).filter((k) => existsSync(componentFile(root, k))).map(componentRel),
+      // The W3C token files that design tokens writes beside the sheet.
+      ...(existsSync(join(surfaceDir(root), DTCG_DIR)) ? readdirSync(join(surfaceDir(root), DTCG_DIR)).filter((f) => f.endsWith('.tokens.json')).map((f) => `${SURFACE_REL}/${DTCG_DIR}/${f}`) : [])];
     let changed = false;
     if (!step.commit) {
       const c = commitSurface(root, surface, `design: approve ${approved.join(', ')} for ${slug}`);
