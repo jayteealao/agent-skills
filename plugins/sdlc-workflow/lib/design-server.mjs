@@ -40,7 +40,7 @@ import { CANVAS_DIR, screenFailures, stateFiles, stateStamp } from './design-sta
 import { addComment, approvalPicture, capturePicture, designRecordsLinked, readComments } from './design-records.mjs';
 import { readAudit, startAudit } from './design-audit.mjs';
 import { isWorkflowSlug, restoreVersion, versionDir, versionName } from './design-versions.mjs';
-import { COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, manifestFault, readDesignRepos, readManifest, surfaceDir, withDesignLock } from './design-surface.mjs';
+import { COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, LAYOUT_SHEET, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, TOKENS_JSON, manifestFault, readDesignRepos, readManifest, surfaceDir, withDesignLock } from './design-surface.mjs';
 import { checkReferences } from './design-references.mjs';
 import { PAGE_REL } from './brainstorm-page.mjs';
 import { recordsHome, workflowsRoot } from './records-root.mjs';
@@ -355,8 +355,9 @@ export function changeOf(root, paths) {
     if (!rel || rel.startsWith('..') || isAbsolute(rel)) continue;
     const page = /^screens\/([a-z0-9-]+)(?:\.html$|\/)/.exec(rel);
     if (page) pages.add(page[1]);
-    // A page links the token sheet, the component sheet and the shared sources: each page shows them.
-    else if (rel === TOKENS_FILE || rel === COMPONENTS_FILE || rel.startsWith('source/')) all = true;
+    // A page links the token sheet, the layout sheet, the component sheet and the shared sources:
+    // each page shows them. The token model goes with the token sheet.
+    else if ([TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE].includes(rel) || rel.startsWith('source/')) all = true;
     else if (/^(explore|components)\//.test(rel)) parts.add(rel);
   }
   return { pages: [...pages].sort(), parts: [...parts].sort(), all };

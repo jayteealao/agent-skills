@@ -7,12 +7,13 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { findAnswer } from './answers.mjs';
-import { approvalQuestion, approveDesign, lastApprovalAnswer } from './design-approve.mjs';
+import { approvalQuestion, approveDesign, lastApprovalAnswer, systemStay, waiveCause, waiveCommand, waiversOf } from './design-approve.mjs';
 import { browserCandidates, noBrowserReason } from './design-browser.mjs';
-import { checkBrowsers, failureGroups, failureLines, partialLines, runChecks } from './design-check.mjs';
-import { addComponent, changeManifest, foundation, linkComponent, listComponents, removeComponent, scanComponents, setNoComponents, verifyComponents, word } from './design-components.mjs';
+import { checkBrowsers, failureGroups, failureLines, libraryLines, partialLines, runChecks } from './design-check.mjs';
+import { addComponent, changeManifest, foundation, linkComponent, listComponents, removeComponent, scanComponents, setNoComponents, specComponent, verifyComponents, word } from './design-components.mjs';
 import { approvedByAnswer, designNeeded, designReopened, namesScreens } from './design-lane.mjs';
 import { migrateDesign } from './design-migrate.mjs';
+import { missingKinds } from './design-tokens.mjs';
 import { addComment, approvalPicture, capturePicture, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { installTask, serverPort, serverStatus, startServer, stopServer, tailnetAddresses, taskStatus, uninstallTask } from './design-server.mjs';
@@ -20,7 +21,7 @@ import { canvasState, snapshotHtml } from './design-state.mjs';
 import {
   COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SCREENS_DIR, SURFACE_REL, TOKENS_FILE,
   addExplore, addScreen, designMdOf, initSurface, listExplore, listScreens, manifestProblems, manifestRefusal, readDesignRepos, readManifest, registerRepo,
-  missingDesignFiles, screenFile, screenRel, screenTemplate, setAreas, setViewports, surfaceDir, trackSurface, writeTokens,
+  missingDesignFiles, readTokenModel, screenFile, screenRel, screenTemplate, setAreas, setViewports, surfaceDir, trackSurface, writeTokens,
 } from './design-surface.mjs';
 import { approvedPages, dropRounds, listVersions, restoreVersion, saveRound, versionDir, versionDrift, versionName } from './design-versions.mjs';
 import { Refusal, agentFix, asFix, failureOf, fixLines, personFix, refuse } from './fix.mjs';
@@ -40,10 +41,11 @@ export const DESIGN_FORMS = Object.freeze([
   ['component add <root> <key> [--title t] [--code file --name n] [--workflow slug]', 'add a component: --code names the code that has it; with no --code it is new', 'component add . button --code src/components/ui/button.tsx --name Button'],
   ['component link <root> <key> --code file --name n', 'record the code of a new component, after the build makes it', 'component link . order-row --code src/components/OrderRow.tsx --name OrderRow'],
   ['component remove <root> <key> [--force]', 'take a component out of the library; --force when a screen still uses it', 'component remove . order-row'],
+  ['component spec <root> <key> [--variants "dim=a|b; dim2=x|y"] [--states "default hover ..."] [--kind component|layout]', 'declare the variants and states of a component and add an empty cell for each case it lacks; with no option, print its spec and problems', 'component spec . button --variants "tone=solid|ghost" --states "default hover pressed focus disabled"'],
   ['components <root> [--workflow slug]', 'the component library, each with its code and its screens', 'components .'],
   ['components scan <root>', 'the components of the product code, each with the command that adds it', 'components scan .'],
   ['components none <root> --reason r', 'record that the product has no reusable parts', 'components none . --reason "A terminal surface"'],
-  ['components verify <root> <slug> [--slice s]', 'exit 1 when the code does not have or use a component of the screens', 'components verify . demo'],
+  ['components verify <root> <slug> [--slice s]', 'exit 1 when the code does not have or use a component of the screens, or the UI code of the branch writes a design value as a literal', 'components verify . demo'],
   ['screen add <root> <key> [--title t] [--area a] [--flow f] [--order n] [--workflow slug] [--slice s]', 'add a screen, or change its fields', 'screen add . basket --area checkout --workflow demo'],
   ['screen remove <root> <key> [--force]', 'take a screen off the surface; --force when an approval or a contract names it', 'screen remove . basket-old'],
   ['screen rename <root> <old> <new> [--force]', 'give a screen a new key, in the manifest, its page, the links and the layout', 'screen rename . basket cart'],
@@ -54,6 +56,7 @@ export const DESIGN_FORMS = Object.freeze([
   ['check <root> [key...] [--workflow slug]', 'the screen checks, in each viewport and state; the last line is the one next action', 'check . --workflow demo'],
   ['round <root> <slug> [--reason r]', 'save the pages as a draft, with the decisions since the last draft', 'round . demo'],
   ['approve <root> <slug> [key...] [--slice s] [--reason r]', 'record the approval from the answer event: commit, version, pictures, 02c-craft.md', 'approve . demo'],
+  ['waive <root> <slug> [--cause c --reason r]', 'accept one cause of a token, component, layout or library failure for a workflow, so the approval goes on over it; with no --cause, list the waivers', 'waive . demo --cause "#aa0000" --reason "The brand red of the partner logo"'],
   ['versions <root> <slug>', 'the approved versions and the rounds of a workflow', 'versions . demo'],
   ['approved <root> <slug>', 'the pages of the newest approved version, each with its approval picture, for the build', 'approved . demo'],
   ['restore <root> <slug> <version>', 'put the pages of a version back, as a new round that needs a new approval', 'restore . demo v1'],
@@ -240,9 +243,20 @@ export function designNext(root, slug, facts = designFacts(root, slug)) {
   }
   const check = `wf.mjs design check ${R} --workflow ${slug}`;
   if (f.stale) return step('check', f.checks ? 'a page or a sheet changed after the last check, or the check did not read every screen' : 'the screens are drawn and no check ran', { command: check });
-  if (f.failures.length) {
-    const groups = failureGroups(f.failures);
-    return step('fix', `the check fails: ${f.failures.length} failure(s) from ${groups.length} cause(s)`, { groups, command: check, do: 'Repair each cause as its move (design/<move>.md) or its do line says, then run the check again. The person may also approve with the failures that stay.', question: approvalQuestion(slug) });
+  // A token, component, layout or library failure blocks the approval until it is repaired or
+  // waived; the other failures leave the approval open to the person.
+  const stay = systemStay(root, slug);
+  if (f.failures.length || stay.library.length) {
+    const library = stay.library.map((i) => ({ screen: null, viewport: null, state: null, selector: null, ...i, move: null }));
+    const groups = failureGroups([...f.failures, ...library]);
+    const count = f.failures.length + library.length;
+    if (stay.causes.length) {
+      return step('fix', `the check fails: ${count} failure(s) from ${groups.length} cause(s); ${stay.causes.length} cause(s) of the token, component, layout and library checks block the approval`, {
+        groups, blocking: stay.causes, command: check,
+        do: `Repair each cause as its move (design/<move>.md) or its do line says, then run the check again. A token, component, layout or library cause blocks the approval: when the person accepts one as it is, record it with ${waiveCommand(root, slug)}.`,
+      });
+    }
+    return step('fix', `the check fails: ${count} failure(s) from ${groups.length} cause(s)`, { groups, command: check, do: 'Repair each cause as its move (design/<move>.md) or its do line says, then run the check again. The person may also approve with the failures that stay.', question: approvalQuestion(slug) });
   }
   if (f.threads.length) return step('comments', `${f.threads.length} open comment thread(s) on ${[...new Set(f.threads.map((t) => t.screen))].join(', ')}`, { command: `wf.mjs design comments ${R} --workflow ${slug}` });
   if (f.unsaved.length) return step('round', `no round holds the pages as they are now: ${f.unsaved.join(', ')}`, { command: `wf.mjs design round ${R} ${slug}` });
@@ -477,10 +491,18 @@ async function run(pos, opt, out) {
     case 'foundation': {
       const f = foundation(projectRoot);
       const res = f.ok ? f : { ...f, error: 'the foundation is not ready: a new screen cannot be drawn yet', fix: agentFix(f.next[0].do, f.next[0].command, `wf.mjs design foundation ${R}`) };
-      return finish(res, [`tokens: ${f.tokens}`, `components: ${f.none ? `none (${f.none})` : f.components}`, ...(f.ok ? ['ready'] : f.missing.flatMap((m, i) => [m, `  run: ${f.next[i].command}`]))].join('\n'));
+      const kinds = Object.entries(f.kinds).map(([k, n]) => `${k} ${n}`).join(', ');
+      return finish(res, [`tokens: ${f.tokens}${kinds ? ` (${kinds})` : ''}`, `themes: ${f.themes.join(', ')}`, `components: ${f.none ? `none (${f.none})` : f.components}`, ...(f.ok ? ['ready'] : f.missing.flatMap((m, i) => [m, `  run: ${f.next[i].command}`]))].join('\n'));
     }
     case 'component': {
-      if (!key || !['add', 'link', 'remove'].includes(sub)) throw usage('design component add|link|remove <root> <key> is required', 'component');
+      if (!key || !['add', 'link', 'remove', 'spec'].includes(sub)) throw usage('design component add|link|remove|spec <root> <key> is required', 'component');
+      if (sub === 'spec') {
+        const r = specComponent(projectRoot, key, { variants: opt.variants, states: opt.states, kind: opt.kind });
+        const dims = Object.entries(r.spec.variants).map(([d, v]) => `${d}=${v.join('|')}`).join('; ');
+        return finish(r, [`component ${key} (${r.spec.kind}): variants ${dims || 'none'}; states ${r.spec.states.join(' ') || 'none'}; themes ${r.spec.themes.join(', ') || 'none'}; ${r.spec.cells.length} cell(s)`,
+          ...(r.added ? [`added ${r.added} empty cell(s) to ${r.file}: draw the instance in each`] : []),
+          ...(r.problems.length ? r.problems.map((p) => `  ${p.message}`) : ['the spec is whole'])].join('\n'));
+      }
       if (sub === 'remove') {
         const r = removeComponent(projectRoot, key, { force: opt.force === true });
         return finish(r, `removed the component ${key}${r.screens.length ? `; still used on ${r.screens.join(', ')}` : ''}`);
@@ -503,8 +525,8 @@ async function run(pos, opt, out) {
       if (sub === 'verify') {
         needWorkflow(projectRoot, key, 'components verify');
         const r = verifyComponents(projectRoot, key, { slice: opt.slice ?? null });
-        const res = r.ok ? r : { ...r, error: `${r.problems.length} component(s) of the screens are not built or not used`, fix: agentFix('Repair each problem: build the component and record it with design component link, or use it in the code of the screen. Then run the command again.', `wf.mjs design components verify ${R} ${key}`) };
-        return finish(res, [`${r.used.length} component(s) on ${r.screens.length} screen(s)${r.ok ? ': the code has and uses each' : ''}`, ...r.problems].join('\n'));
+        const res = r.ok ? r : { ...r, error: `${r.problems.length} problem(s): a component of the screens is not built or not used, or the code writes a design value as a literal`, fix: agentFix('Repair each problem: build the component and record it with design component link, or use it in the code of the screen; take each literal value from the token file. Then run the command again.', `wf.mjs design components verify ${R} ${key}`) };
+        return finish(res, [`${r.used.length} component(s) on ${r.screens.length} screen(s); ${r.lint.files.length} changed UI file(s) linted${r.ok ? ': the code has and uses each component and takes its values from the tokens' : ''}`, ...r.problems, ...r.notices.map((n) => `note: ${n}`)].join('\n'));
       }
       needKnownWorkflow(projectRoot, opt.workflow);
       const list = listComponents(projectRoot, { workflow: opt.workflow ?? null });
@@ -528,8 +550,22 @@ async function run(pos, opt, out) {
     case 'tokens': {
       const rows = writeTokens(projectRoot);
       const from = rows.file ? posix(relative(projectRoot, rows.file)) : null;
-      return finish({ ok: true, rows: [...rows], file: from, skipped: rows.skipped }, [
-        `tokens.css: ${rows.length} token roles${!from ? ' (no DESIGN.md found: the root, .agents/context/ and docs/ hold none)' : rows.length ? ` from ${from}` : ` (${from} has no ## Colors table)`}`,
+      const model = readTokenModel(projectRoot);
+      const missing = missingKinds(model);
+      const kinds = Object.entries(model.tokens.reduce((a, t) => ({ ...a, [t.kind]: (a[t.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ');
+      const problems = rows.problems ?? [];
+      const ok = !problems.length && !missing.length;
+      const res = { ok, rows: [...rows], file: from, skipped: rows.skipped, problems, ignored: rows.ignored ?? [], themes: rows.themes ?? [], missingKinds: missing, platform: rows.platform ?? null,
+        ...(ok ? {} : { error: [problems.length ? `${problems.length} token row(s) hold no value of their kind` : null, missing.length ? `the tokens have no ${missing.join(', ')}` : null].filter(Boolean).join('; '),
+          fix: agentFix(`Repair each row that the output names in ${from ?? 'DESIGN.md'}, and add a token table for each missing kind (${missing.join(', ') || 'none'}). Then run the command again. design/system-migrate.md holds the format.`, `wf.mjs design tokens ${R}`) }) };
+      return finish(res, [
+        `tokens.css: ${rows.length} tokens${!from ? ' (no DESIGN.md found: the root, .agents/context/ and docs/ hold none)' : ` from ${from}`}${kinds ? ` (${kinds})` : ''}`,
+        `themes: ${(rows.themes ?? []).map((t) => `${t.name}${t.scheme ? ` (${t.scheme})` : ''}`).join(', ') || 'one'}`,
+        'also written: tokens.json, layout.css',
+        rows.platform ? `token file of the code: ${rows.platform.file} ${rows.platform.written ? 'written' : `not written: ${rows.platform.reason}`}` : 'token file of the code: none (name one with "Token file: <path>" in the Overview of DESIGN.md)',
+        ...missing.map((k) => `missing kind: ${k} (add a token table for it)`),
+        ...problems.map((p) => `refused: ${p.role} = ${p.value}${p.theme && p.theme !== 'default' ? ` (${p.theme})` : ''}: ${p.problem}`),
+        ...(rows.ignored ?? []).map((h) => `ignored: the Role table under "${h}" has no value column`),
         ...rows.skipped.map((c) => `skipped: ${c} (one role name in each Role cell)`),
       ].join('\n'));
     }
@@ -544,29 +580,33 @@ async function run(pos, opt, out) {
       const slug = typeof opt.workflow === 'string' ? opt.workflow : null;
       const r = await runChecks(projectRoot, { keys: rest.slice(1), workflow: slug });
       const found = r.new ?? [];
+      const lib = r.library ?? [];
       const groups = failureGroups(found);
+      // A token, component, layout or library failure blocks the approval: no question while one stays.
+      // With a workflow, its waivers count.
+      const blocking = slug && r.ran ? systemStay(projectRoot, slug).causes.length > 0 : found.some((f) => ['token', 'component', 'layout'].includes(f.check)) || lib.length > 0;
       const again = `wf.mjs design check ${R}${rest.slice(1).map((k) => ` ${k}`).join('')}${slug ? ` --workflow ${slug}` : ''}`;
       const whole = r.ran && !Object.keys(r.truncated ?? {}).length;
       // The one next action: the stage of the workflow, or what this run asks for.
       const next = !r.ran ? { ok: true, step: 'browser', why: r.reason, ask: 'No browser can run the screen checks. Install Chrome, Edge or Chromium (or set SDLC_BROWSER) and check again, or go on without the check?' }
-        : found.length ? { ok: true, step: 'fix', why: `the check fails: ${found.length} failure(s) from ${groups.length} cause(s)`, do: 'Repair each cause as its move (design/<move>.md) or its do line says, then run the check again.', command: again }
+        : found.length || lib.length ? { ok: true, step: 'fix', why: `the check fails: ${found.length + lib.length} failure(s) from ${groups.length + lib.length} cause(s)`, do: `Repair each cause as its move (design/<move>.md) or its do line says, then run the check again.${blocking ? ' A token, component, layout or library cause blocks the approval until it is repaired or the person waives it with design waive.' : ''}`, command: again }
           : slug && frontmatterOfDoc(workflowDir(projectRoot, slug), INDEX_NAME) ? designNext(projectRoot, slug)
             : { ok: true, step: 'done', why: 'the screens pass the check' };
       const keptScreens = [...new Set((r.failures ?? []).filter((f) => !(r.checked ?? []).includes(f.screen)).map((f) => f.screen))];
       const res = {
-        ok: r.ran && !found.length, ran: r.ran, ...(r.ran ? {} : { reason: r.reason, error: r.reason, fix: r.fix }), at: r.at, browser: r.browser ?? null,
-        checked: r.checked ?? [], failures: found, groups, truncated: r.truncated ?? {}, notices: r.notices ?? [],
+        ok: r.ran && !found.length && !lib.length, ran: r.ran, ...(r.ran ? {} : { reason: r.reason, error: r.reason, fix: r.fix }), at: r.at, browser: r.browser ?? null,
+        checked: r.checked ?? [], failures: found, library: lib, groups, truncated: r.truncated ?? {}, notices: r.notices ?? [],
         kept: { failures: r.kept ?? 0, screens: keptScreens }, passed: r.passed,
-        ...(slug ? { question: approvalQuestion(slug) } : {}), next,
-        ...(r.ran && found.length ? { error: next.why, fix: agentFix(next.do, again) } : {}),
+        ...(slug && !blocking ? { question: approvalQuestion(slug) } : {}), next,
+        ...(r.ran && (found.length || lib.length) ? { error: next.why, fix: agentFix(next.do, again) } : {}),
       };
       const lines = failureLines(found);
       return finish(res, [
-        r.ran ? `checked ${r.checked.length} screen(s): ${lines.length ? `${found.length} failure(s) from ${lines.length} cause(s)` : 'all pass'}` : `not checked: ${r.reason}`,
-        ...lines, ...partialLines(r),
+        r.ran ? `checked ${r.checked.length} screen(s): ${lines.length || lib.length ? `${found.length + lib.length} failure(s) from ${lines.length + lib.length} cause(s)` : 'all pass'}` : `not checked: ${r.reason}`,
+        ...lines, ...libraryLines(lib), ...partialLines(r),
         ...(r.kept ? [`other screens: ${r.kept} failure(s) of an earlier check stay (${keptScreens.join(', ')})`] : []),
         // The approval question, only when nothing fails and everything was checked.
-        ...(slug && r.ran && !found.length && whole && next.step !== 'ask' ? [`ask: ${approvalQuestion(slug)}`] : []),
+        ...(slug && r.ran && !found.length && !lib.length && whole && next.step !== 'ask' ? [`ask: ${approvalQuestion(slug)}`] : []),
         ...nextLines(next),
       ].join('\n'));
     }
@@ -576,6 +616,18 @@ async function run(pos, opt, out) {
       return finish(r, r.ok
         ? [`approved ${r.screens.join(', ')} for ${r.slug} as ${r.version} in ${String(r.commit).slice(0, 8)}${r.committed ? '' : ' (no change since the last commit)'}; ${r.pictures} picture(s); ${r.checkFailures ?? 'no'} check failure(s)`, ...((r.remaining ?? []).length ? [`still to approve: ${r.remaining.join(', ')} (progress.design stays in-progress)`] : []), ...(r.next ? [`next: ${typeof r.next === 'string' ? r.next : r.next.route ?? r.next.command ?? ''}`] : [])].join('\n')
         : [`not approved: ${r.reason}`, ...(r.question ? [`ask: ${r.question}`] : [])].join('\n'));
+    }
+    case 'waive': {
+      needWorkflow(projectRoot, key, 'waive');
+      if (opt.cause == null && opt.reason == null) {
+        const list = waiversOf(projectRoot, key);
+        const stay = systemStay(projectRoot, key);
+        return finish({ ok: true, slug: key, waivers: list, blocking: stay.causes },
+          [...(list.length ? list.map((w) => `waived: ${w.cause} (${w.at}): ${w.reason}`) : [`${key} has no waiver`]),
+            ...(stay.causes.length ? [`still blocking: ${stay.causes.join(', ')}`] : [])].join('\n'));
+      }
+      const r = waiveCause(projectRoot, key, { cause: opt.cause === true ? '' : opt.cause, reason: opt.reason === true ? '' : opt.reason });
+      return finish(r, `waived ${r.waiver.cause} for ${key}: ${r.waiver.reason}`);
     }
     case 'round': {
       needWorkflow(projectRoot, key, 'round');

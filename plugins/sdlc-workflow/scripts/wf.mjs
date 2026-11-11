@@ -65,6 +65,9 @@
  *   design   component remove <root> <key> [--force]
  *             take a component out of the library; --force when a screen still uses it
  *             Example: wf.mjs design component remove . order-row
+ *   design   component spec <root> <key> [--variants "dim=a|b; dim2=x|y"] [--states "default hover ..."] [--kind component|layout]
+ *             declare the variants and states of a component and add an empty cell for each case it lacks; with no option, print its spec and problems
+ *             Example: wf.mjs design component spec . button --variants "tone=solid|ghost" --states "default hover pressed focus disabled"
  *   design   components <root> [--workflow slug]
  *             the component library, each with its code and its screens
  *             Example: wf.mjs design components .
@@ -107,6 +110,9 @@
  *   design   approve <root> <slug> [key...] [--slice s] [--reason r]
  *             record the approval from the answer event: commit, version, pictures, 02c-craft.md
  *             Example: wf.mjs design approve . demo
+ *   design   waive <root> <slug> [--cause c --reason r]
+ *             accept one cause of a token, component, layout or library failure for a workflow, so the approval goes on over it; with no --cause, list the waivers
+ *             Example: wf.mjs design waive . demo --cause "#aa0000" --reason "The brand red of the partner logo"
  *   design   versions <root> <slug>
  *             the approved versions and the rounds of a workflow
  *             Example: wf.mjs design versions . demo

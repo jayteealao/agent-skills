@@ -3,7 +3,7 @@
 //
 // It holds the screens with their states, links, approvals, history, open comments and check
 // failures; the versions of each workflow; the positions of the layout; the explore sketches; the references with their check;
-// the token sheet; the design decisions of the workflows; and one design card per slice.
+// the token model with its themes; the components with their specs and tokens; the design decisions of the workflows; and one design card per slice.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,8 +12,8 @@ import { createHash } from 'node:crypto';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { approvalPicture, capturesIndex, designRecordsDir, groupFailures, readComments, readChecks } from './design-records.mjs';
 import { versionsOf } from './design-versions.mjs';
-import { componentsUsed, listComponents } from './design-components.mjs';
-import { COMPONENTS_FILE, LAYOUT_FILE, SCREENS_DIR, STATES, SURFACE_REL, TOKENS_FILE, listExplore, listScreens, readManifest, screenFile, screenRel, surfaceDir, tokensOf } from './design-surface.mjs';
+import { componentFile, componentSpec, componentsUsed, listComponents, specProblems } from './design-components.mjs';
+import { COMPONENTS_FILE, LAYOUT_FILE, LAYOUT_SHEET, SCREENS_DIR, STATES, SURFACE_REL, TOKENS_FILE, listExplore, listScreens, readManifest, readTokenModel, screenFile, screenRel, surfaceDir, tokensOf } from './design-surface.mjs';
 
 export { tokensOf };
 import { checkReferences } from './design-references.mjs';
@@ -29,6 +29,62 @@ function readJson(file, fallback) {
 /** The tokens that a screen page uses: each `var(--name)`. */
 export function tokensUsed(html) {
   return [...new Set([...String(html ?? '').matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1]))].sort();
+}
+
+const varsOf = (text) => [...String(text ?? '').matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1]);
+const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const noComments = (css) => String(css ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+/**
+ * The custom properties that a component sheet sets, each with the custom properties that its
+ * value reads: a Map from `--name` to the names of its `var()`s.
+ */
+function sheetAliases(css) {
+  const out = new Map();
+  for (const m of noComments(css).matchAll(/(--[a-z0-9-]+)\s*:\s*([^;{}]+)/gi)) {
+    if (!out.has(m[1])) out.set(m[1], new Set());
+    for (const v of varsOf(m[2])) out.get(m[1]).add(v);
+  }
+  return out;
+}
+
+/**
+ * The names that `names` read, through the custom properties of the component sheet: a name that
+ * the sheet sets stands for the names its value reads, at any depth. `known` keeps the names of
+ * the token model; without it the names that the sheet sets drop out.
+ */
+function resolveNames(names, aliases, known) {
+  const out = new Set();
+  const seen = new Set();
+  const walk = (n) => {
+    if (seen.has(n)) return;
+    seen.add(n);
+    if (known ? known.has(n) : !aliases.has(n)) out.add(n);
+    for (const v of aliases.get(n) ?? []) walk(v);
+  };
+  for (const n of names) walk(n);
+  return [...out].sort();
+}
+
+/**
+ * The tokens that each component reads in the component sheet: `{ key: ['--name'] }`. A rule
+ * belongs to a component when its selector names the class `.<key>` or `[data-component="<key>"]`.
+ * A custom property of the sheet whose value reads a token stands for that token. `known` (a Set of
+ * the token names of the model) keeps only those names.
+ */
+export function componentTokens(componentsCss, keys, known = null) {
+  const css = noComments(componentsCss);
+  const aliases = sheetAliases(css);
+  // The innermost rules: the selector of a rule inside @media is the text after the brace of the @media.
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1], body: m[2] }));
+  const out = {};
+  for (const key of keys) {
+    const k = escapeRe(key);
+    const mine = new RegExp(`\\.${k}(?![A-Za-z0-9_-])|\\[data-component\\s*=\\s*["']?${k}["']?\\s*\\]`);
+    const names = rules.filter((r) => mine.test(r.selector)).flatMap((r) => varsOf(r.body));
+    out[key] = resolveNames(names, aliases, known);
+  }
+  return out;
 }
 
 /**
@@ -234,16 +290,41 @@ export function pageFingerprint(root, key, html) {
   return hash.digest('hex').slice(0, 16);
 }
 
-/** The fingerprint of the token sheet and the component sheet together. A sheet that is missing counts as empty. */
+/** The fingerprint of the token, layout and component sheets together. A sheet that is missing counts as empty. */
 export function sheetsFingerprint(root) {
   const hash = createHash('sha1');
-  for (const f of [TOKENS_FILE, COMPONENTS_FILE]) {
+  for (const f of [TOKENS_FILE, LAYOUT_SHEET, COMPONENTS_FILE]) {
     let text = '';
     // A checkout can change the line ends, and a change of line ends is no design change.
     try { text = readFileSync(join(surfaceDir(root), f), 'utf8').replace(/\r\n/g, '\n'); } catch { text = ''; }
+    // A surface from before the layout sheet keeps the fingerprint it had.
+    if (f === LAYOUT_SHEET && !text) continue;
     hash.update(`${f}:${text.length}:`).update(text);
   }
   return hash.digest('hex').slice(0, 16);
+}
+
+/** The tokens of a screen page: its own, those its custom properties of the component sheet read, and those of its components. */
+function screenTokens(html, components, aliases, known, tokensOfComponent) {
+  const own = tokensUsed(html);
+  return [...new Set([...own, ...resolveNames(own, aliases, known), ...(components ?? []).flatMap((k) => tokensOfComponent[k] ?? [])])].sort();
+}
+
+/**
+ * A component of the library as the canvas shows it: its kind, its spec without the cells (the
+ * count of the cells stands for them), what the spec lacks, and the tokens it reads.
+ */
+function componentEntry(root, c, themes, tokens) {
+  let spec = null;
+  try { spec = componentSpec(readFileSync(componentFile(root, c.key), 'utf8')); } catch { spec = null; }
+  const problems = spec ? specProblems(spec, { themes }) : [{ cause: 'no-page', message: 'The component has no page' }];
+  return {
+    ...c,
+    kind: spec?.kind ?? 'component',
+    spec: spec ? { declared: spec.declared, variants: spec.variants, states: spec.states, themes: spec.themes, interactive: spec.interactive, cells: spec.cells.length } : null,
+    problems,
+    tokens,
+  };
 }
 
 /**
@@ -256,7 +337,14 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
   const m = readManifest(root);
   const checks = readChecks(root);
   const layout = readJson(join(surfaceDir(root), LAYOUT_FILE), {});
-  const tokensCss = existsSync(join(surfaceDir(root), TOKENS_FILE)) ? readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8') : '';
+  const model = readTokenModel(root);
+  const known = model.tokens.length ? new Set(model.tokens.map((t) => t.name)) : null;
+  const themeNames = (model.themes ?? []).map((t) => t.name);
+  // A sheet that is there but does not read fails the build: the server sends the change once it reads.
+  const componentsCss = existsSync(join(surfaceDir(root), COMPONENTS_FILE)) ? readFileSync(join(surfaceDir(root), COMPONENTS_FILE), 'utf8') : '';
+  const aliases = sheetAliases(noComments(componentsCss));
+  const componentKeys = Object.keys(m.components ?? {});
+  const tokensOfComponent = componentTokens(componentsCss, componentKeys, known);
   const history = historyAll(root);
   const dirty = dirtyPages(root);
   const captures = capturesIndex(root);
@@ -275,7 +363,9 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
     return {
       ...s,
       fingerprint: pageFingerprint(root, s.key, html),
-      tokens: tokensUsed(html),
+      // The tokens of the page, the tokens that its custom properties of the component sheet read,
+      // and the tokens of each component that it uses.
+      tokens: screenTokens(html, used.get(s.key), aliases, known, tokensOfComponent),
       components: used.get(s.key),
       history: changes,
       picture: currentPicture(root, s, changes, dirty),
@@ -306,8 +396,13 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
     references: checkReferences(root).references,
     // The sheets that every page links: when this changes, every page shows another design.
     sheets: { fingerprint: sheetsFingerprint(root) },
-    tokens: tokensOf(tokensCss),
-    components: listComponents(root, { uses: listed.map((s) => ({ key: s.key, components: used.get(s.key) })) }),
+    // The token model: each token with its kind, its value in each theme and what it is for.
+    tokens: model.tokens.map((t) => ({ name: t.name, role: t.role ?? t.name.slice(2), kind: t.kind ?? 'other', value: t.value, values: t.values ?? {}, usedFor: t.usedFor ?? null, alias: t.alias ?? null })),
+    themes: model.themes ?? [],
+    defaultTheme: model.default ?? themeNames[0] ?? null,
+    tokensLegacy: Boolean(model.legacy),
+    components: listComponents(root, { uses: listed.map((s) => ({ key: s.key, components: used.get(s.key) })) })
+      .map((c) => componentEntry(root, c, themeNames, tokensOfComponent[c.key] ?? [])),
     noComponents: m['no-components'] ?? null,
     decisions: designDecisions(root, workflows),
     cards: designCards(root, screens, checks),
@@ -328,7 +423,7 @@ const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u
 export function snapshotHtml(root, { repo = null } = {}) {
   const state = canvasState(root, { repo, writable: false });
   const screens = Object.fromEntries(state.screens.filter((s) => existsSync(screenFile(root, s.key))).map((s) => [s.key, readFileSync(screenFile(root, s.key), 'utf8')]));
-  const tokens = [TOKENS_FILE, COMPONENTS_FILE].map((f) => join(surfaceDir(root), f)).filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
+  const tokens = [TOKENS_FILE, LAYOUT_SHEET, COMPONENTS_FILE].map((f) => join(surfaceDir(root), f)).filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
   const page = readFileSync(join(CANVAS_DIR, 'index.html'), 'utf8');
   const css = readFileSync(join(CANVAS_DIR, 'canvas.css'), 'utf8');
   const js = readFileSync(join(CANVAS_DIR, 'canvas.js'), 'utf8').replace(/<\/script/gi, '<\\/script');

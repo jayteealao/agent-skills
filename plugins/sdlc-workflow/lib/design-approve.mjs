@@ -11,11 +11,11 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { findAnswer, norm, readAnswerEvents } from './answers.mjs';
 import { writeFileAtomic } from './atomic-write.mjs';
-import { captureScreens } from './design-check.mjs';
+import { SYSTEM_CHECKS, captureScreens, systemFailures } from './design-check.mjs';
 import { approvalPicture, commitDesignRecords, readChecks } from './design-records.mjs';
 import { componentFile, componentRel, workflowComponents } from './design-components.mjs';
 import { isWorkflowSlug, listVersions, saveApproved } from './design-versions.mjs';
-import { COMPONENTS_FILE, KEY_RE, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, listScreens, readManifest, screenRel, surfaceDir, updateManifest } from './design-surface.mjs';
+import { COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, MANIFEST_FILE, SURFACE_REL, TOKENS_FILE, TOKENS_JSON, listScreens, readManifest, screenRel, surfaceDir, updateManifest } from './design-surface.mjs';
 import { Refusal, agentFix, personFix, refuse } from './fix.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -127,6 +127,52 @@ export function nextAfterDesign(slug, index) {
 
 const fail = (reason, fix, more = {}) => ({ ok: false, reason, ...more, fix });
 
+/* ───────────────────────── waivers ───────────────────────── */
+
+// A failure of the design system (a token, component, layout or library check) blocks the
+// approval. The person may accept one cause as it is for one workflow: the waiver records the
+// cause and why, in the manifest, so the approval goes on over it.
+
+/** The waivers of the manifest, `[{ workflow, cause, reason, at }]`; `slug` keeps those of one workflow. */
+export function waiversOf(root, slug = null) {
+  const list = Array.isArray(readManifest(root).waivers) ? readManifest(root).waivers : [];
+  return list.filter((w) => w && typeof w === 'object' && typeof w.workflow === 'string' && typeof w.cause === 'string' && (!slug || w.workflow === slug));
+}
+
+/** The keys of the screens that the gate reads for a workflow: its screens, and any screen that the approval names. */
+const gateKeys = (root, slug, keys = []) => [...new Set([...listScreens(root, { workflow: slug }).map((s) => s.key), ...keys])];
+
+/** The system failures of the stored check that stay for a workflow, after its waivers: `{ screens, library, causes }`. */
+export function systemStay(root, slug, keys = []) {
+  return systemFailures(readChecks(root), gateKeys(root, slug, keys), { workflow: slug, waivers: waiversOf(root, slug) });
+}
+
+/** The waive command of a workflow, for a fix. */
+export const waiveCommand = (root, slug) => `wf.mjs design waive ${String(root).replace(/\\/g, '/')} ${slug} --cause "<cause>" --reason "<why the person accepts it>"`;
+
+/**
+ * Waive one cause of a system failure for a workflow: the person accepts it as it is. The cause is
+ * one that the stored check names for the screens of the workflow or the library. A second waiver
+ * of the same cause replaces the reason. Returns `{ ok, waiver, waivers }`.
+ */
+export function waiveCause(root, slug, { cause, reason, now = new Date() } = {}) {
+  const c = typeof cause === 'string' ? cause.trim() : '';
+  const why = typeof reason === 'string' ? reason.trim() : '';
+  if (!c) throw refuse('design waive needs --cause', agentFix('Run the command again with --cause and the cause of a token, component, layout or library failure, as design check or design next prints it.', waiveCommand(root, slug)));
+  if (!why) throw refuse('design waive needs --reason', agentFix('Run the command again with --reason and one sentence that says why the person accepts this cause as it is.', waiveCommand(root, slug)));
+  const checks = readChecks(root);
+  const all = systemFailures(checks, gateKeys(root, slug), { workflow: slug, waivers: [] });
+  if (!all.causes.includes(c)) {
+    throw refuse(`no ${SYSTEM_CHECKS.join(', ')} failure of ${slug} has the cause ${c}`, agentFix(all.causes.length ? `Run the command again with one of these causes: ${all.causes.slice(0, 20).join(', ')}.` : 'The stored check has no system failure for this workflow: run the check, then waive a cause that it names.', `wf.mjs design check ${String(root).replace(/\\/g, '/')} --workflow ${slug}`));
+  }
+  const waiver = { workflow: slug, cause: c, reason: why, at: nowIso(now) };
+  const m = updateManifest(root, (x) => {
+    const list = (Array.isArray(x.waivers) ? x.waivers : []).filter((w) => !(w?.workflow === slug && w?.cause === c));
+    x.waivers = [...list, waiver];
+  });
+  return { ok: true, slug, waiver, waivers: (m.waivers ?? []).filter((w) => w?.workflow === slug) };
+}
+
 /**
  * Record the approval. It fails, and writes nothing, when the contract is missing, when no
  * answer event to the approval question is newer than the last approval, or when the answer is
@@ -171,12 +217,19 @@ export async function approveDesign(root, slug, { keys = null, slice = null, sin
       }
       approved = approvalKeys(root, slug, { keys, slice });
       if (!approved.length) return fail(`no screen of ${slug}${slice ? ` slice ${slice}` : ''} is on the surface`, agentFix('Add the screens of the workflow first, then show them to the person and record the approval.', `wf.mjs design screen add <root> <key> --workflow ${slug}`));
+      // The design system gate: a token, component, layout or library failure blocks the approval
+      // until it is repaired or the person waives its cause. The answer stays unused for the next run.
+      const stay = systemStay(root, slug, approved);
+      if (stay.causes.length) {
+        throw refuse(`System check failures stay: ${stay.causes.length} cause(s) of the ${SYSTEM_CHECKS.join(', ')} checks are neither repaired nor waived: ${stay.causes.slice(0, 10).join(', ')}${stay.causes.length > 10 ? `, and ${stay.causes.length - 10} more` : ''}`,
+          agentFix(`Repair each cause as its move or its do line says, run the check again, then run design approve again. When the person accepts a cause as it is, record that with design waive, once for each cause.`, waiveCommand(root, slug)));
+      }
     }
     step = { ...(resume ?? { answeredAt: answer.at, answer: answer.answer, screens: approved, at: nowIso(now), slice, reason }) };
     const keep = () => writeFileAtomic(pendingFile, `${JSON.stringify(step, null, 2)}\n`);
     keep();
 
-    const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...[TOKENS_FILE, COMPONENTS_FILE].filter((f) => existsSync(join(surfaceDir(root), f))).map((f) => `${SURFACE_REL}/${f}`),
+    const surface = [...approved.map(screenRel), `${SURFACE_REL}/${MANIFEST_FILE}`, ...[TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE].filter((f) => existsSync(join(surfaceDir(root), f))).map((f) => `${SURFACE_REL}/${f}`),
       ...Object.keys(readManifest(root).components).filter((k) => existsSync(componentFile(root, k))).map(componentRel)];
     let changed = false;
     if (!step.commit) {

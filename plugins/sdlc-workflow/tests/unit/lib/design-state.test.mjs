@@ -12,7 +12,8 @@ import { addScreen, initSurface, readManifest, screenFile, setViewports } from '
 import { addComment, openThreads, writeChecks } from '../../../lib/design-records.mjs';
 import { addReference, checkReferences, readReferences } from '../../../lib/design-references.mjs';
 import { runDesign } from '../../../lib/design-cli.mjs';
-import { canvasState, screenFailures, snapshotHtml, stateStamp, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
+import { addComponent } from '../../../lib/design-components.mjs';
+import { canvasState, componentTokens, screenFailures, snapshotHtml, stateStamp, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
 
 function repo() {
   const top = mkdtempSync(join(tmpdir(), 'design-state-'));
@@ -174,5 +175,72 @@ test('the fingerprint of a screen changes with its page and the files of its fol
     mkdirSync(join(root, '.ai', 'design', 'screens', 'cart'), { recursive: true });
     writeFileSync(join(root, '.ai', 'design', 'screens', 'cart', 'step.html'), '<p>step</p>');
     assert.notEqual(prints().cart, paged.cart, 'a file of the folder of the screen');
+  } finally { done(); }
+});
+
+test('the tokens of a component: the rules of its class or data-component, through the custom properties of the sheet', () => {
+  const css = [
+    '/* .button { color: var(--commented) } */',
+    ':root { --deep: var(--btn-bg); }',
+    '.button, .chip { --btn-bg: var(--accent); background: var(--btn-bg); color: var(--text); }',
+    '@media (hover: hover) { .button:hover { border-color: var(--line, red); } }',
+    '.button-group { gap: var(--space-2); }',
+    '.x-button { color: var(--other); }',
+    '[data-component="list-row"] > span { padding: var(--space-3); }',
+    '.card { color: var(--deep); background: var(--plain); }',
+  ].join('\n');
+  assert.deepEqual(componentTokens(css, ['button', 'list-row', 'chip', 'card', 'none']), {
+    button: ['--accent', '--line', '--text'], 'list-row': ['--space-3'], chip: ['--accent', '--text'], card: ['--accent', '--plain'], none: [],
+  });
+  // The names of the model keep only its tokens.
+  assert.deepEqual(componentTokens(css, ['button', 'card'], new Set(['--accent', '--text'])), { button: ['--accent', '--text'], card: ['--accent'] });
+});
+
+test('the canvas state holds the token model with its themes, and each component with its spec, gaps and tokens', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    const dir = join(root, '.ai', 'design');
+    writeFileSync(join(dir, 'tokens.json'), JSON.stringify({
+      schema: 'sdlc/design-tokens/v1', source: 'DESIGN.md', themes: [{ name: 'light', scheme: 'light' }, { name: 'dark', scheme: 'dark' }], default: 'light',
+      tokens: [
+        { name: '--accent', role: 'accent', kind: 'color', value: '#2459b5', values: { light: '#2459b5', dark: '#8fb2ff' }, usedFor: 'Links and the main action', alias: null },
+        { name: '--space-2', role: 'space-2', kind: 'space', value: '8px', values: { light: '8px', dark: '8px' }, usedFor: null, alias: null },
+        { name: '--radius-md', role: 'radius-md', kind: 'radius', value: '8px', values: { light: '8px', dark: '8px' }, usedFor: null, alias: null },
+      ],
+    }));
+    writeFileSync(join(dir, 'components.css'), '.button { --btn-bg: var(--accent); background: var(--btn-bg); border-radius: var(--radius-md); color: var(--unknown); }\n.shell { gap: var(--space-2); }');
+    addComponent(root, 'button', { title: 'Button' });
+    addComponent(root, 'shell', { title: 'Shell' });
+    // A page from before specs.
+    writeFileSync(join(dir, 'components', 'button.html'), '<html><head><meta name="wf:component" content="button"></head><body><button data-component="button">Go</button></body></html>');
+    writeFileSync(join(dir, 'components', 'shell.html'), [
+      '<html><head><meta name="wf:component" content="shell"><meta name="wf:kind" content="layout"><meta name="wf:variants" content=""><meta name="wf:states" content="default"></head><body>',
+      '<section data-theme="light" data-theme-source><div data-spec="state=default"><div data-component="shell"></div></div></section>',
+      '<section data-theme="dark" data-theme-copy></section></body></html>',
+    ].join(''));
+    addScreen(root, 'home', { title: 'Home', workflow: 'w1' });
+    writeFileSync(screenFile(root, 'home'), '<html><body style="color: var(--ink)"><button data-component="button">Go</button><section data-state="default"></section></body></html>');
+    const s = canvasState(root, { repo: 'shop' });
+    assert.deepEqual([s.themes.map((t) => t.name), s.defaultTheme, s.tokensLegacy], [['light', 'dark'], 'light', false]);
+    assert.deepEqual(s.tokens[0], { name: '--accent', role: 'accent', kind: 'color', value: '#2459b5', values: { light: '#2459b5', dark: '#8fb2ff' }, usedFor: 'Links and the main action', alias: null });
+    const button = s.components.find((c) => c.key === 'button');
+    const shell = s.components.find((c) => c.key === 'shell');
+    assert.deepEqual([button.kind, button.spec.declared, button.problems.map((p) => p.cause), button.tokens], ['component', false, ['no-spec'], ['--accent', '--radius-md']]);
+    assert.deepEqual([shell.kind, shell.spec.declared, shell.spec.themes, shell.spec.cells, shell.problems, shell.tokens], ['layout', true, ['light', 'dark'], 1, [], ['--space-2']]);
+    // The screen reads --ink itself and the tokens of the button that it uses.
+    assert.deepEqual(s.screens.find((x) => x.key === 'home').tokens, ['--accent', '--ink', '--radius-md']);
+  } finally { done(); }
+});
+
+test('a surface with only a token sheet gives a legacy model of one theme', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    writeFileSync(join(root, '.ai', 'design', 'tokens.css'), ':root {\n  --ground: #fff;\n  --space-2: 8px;\n}');
+    const s = canvasState(root, { repo: 'shop' });
+    assert.equal(s.tokensLegacy, true);
+    assert.deepEqual(s.tokens.map((t) => [t.name, t.kind]), [['--ground', 'color'], ['--space-2', 'space']]);
+    assert.deepEqual([s.themes.map((t) => t.name), s.defaultTheme], [['default'], 'default']);
   } finally { done(); }
 });

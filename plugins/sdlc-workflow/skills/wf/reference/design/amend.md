@@ -4,7 +4,7 @@
 
 The approval rules of the stage hold: only the answer of the person to the approval question approves the amended screens.
 
-1. Run Step 1, items 1–4: load the design context, read the design record, list the screens, and check the references.
+1. Run Step 1, items 1–5: load the design context, read the design record, list the screens, migrate an old design system ([system-migrate.md](system-migrate.md)), and check the references.
 2. Find the reason:
 
    | Source | The reason |

@@ -22,7 +22,7 @@ const COLORS = (table) => `# Design\n\n## Colors\n\n${table}\n`;
 
 test('a color table with another header gives no token of its header row', () => {
   const rows = tokensFromDesign(COLORS('| Name | Token | Value |\n|---|---|---|\n| ground | --paper | #fff |'));
-  assert.deepEqual(rows, [{ role: 'ground', token: '--paper', value: '#fff' }]);
+  assert.deepEqual(rows.map(({ role, token, kind, value }) => ({ role, token, kind, value })), [{ role: 'ground', token: '--paper', kind: 'color', value: '#fff' }]);
 });
 
 test('a Role cell with several names is skipped, and the skip is named', () => {

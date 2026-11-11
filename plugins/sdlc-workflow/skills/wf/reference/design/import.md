@@ -26,7 +26,7 @@ When the account of the session can read only a summary of a link (the account c
 
 1. Run `<wf> design next <root> <slug>`. When it says that the workflow is closed or that the shape is not complete, stop as stage Step 0 says. The driver rule of the stage holds: a driver never runs an import.
 2. When the action says that the design is approved or reopened, the import is an amend: the screens change in place, the approval runs again, and Step 4 below ends with items 5 and 6 of [amend.md](amend.md).
-3. Run stage Step 1, items 1–4: the design context, the design record, the screens of the repo, and the reference check.
+3. Run stage Step 1, items 1–5: the design context, the design record, the screens of the repo, the migration of an old design system ([system-migrate.md](system-migrate.md)), and the reference check.
 4. Load [_craft-floor.md](_craft-floor.md) now, because an import skips stage Step 4. Its load table says how an import uses it.
 5. Run stage Step 3c, the foundation. `<wf> design foundation <root>` must exit 0 before Step 3: `design screen add` refuses a new screen until then.
 

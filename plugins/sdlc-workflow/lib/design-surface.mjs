@@ -12,7 +12,7 @@
 // The comments and the approval pictures do not live here: a product repo can be public. They
 // live in the records (lib/design-records.mjs).
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -23,6 +23,7 @@ import { sdlcHomeDir } from './home.mjs';
 import { boardsRef, missingBoardFiles } from './design-boards.mjs';
 import { approvalProblems } from './design-versions.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
+import { GENERATED_MARK, TOKENS_SCHEMA, layoutCss, modelFromCss, parseTokenTables, platformFileOf, platformTokens, tokensCss, tokensJson } from './design-tokens.mjs';
 
 export const SURFACE_REL = '.ai/design';
 export const SCREENS_DIR = 'screens';
@@ -31,6 +32,10 @@ export const MANIFEST_FILE = 'screens.json';
 export const LAYOUT_FILE = 'layout.json';
 export const REFERENCES_FILE = 'references.json';
 export const TOKENS_FILE = 'tokens.css';
+/** The machine-readable token model that `design tokens` writes beside the sheet. */
+export const TOKENS_JSON = 'tokens.json';
+/** The layout primitives that `design tokens` writes from the space scale. */
+export const LAYOUT_SHEET = 'layout.css';
 export const COMPONENTS_DIR = 'components';
 export const COMPONENTS_FILE = 'components.css';
 export const SCREENS_SCHEMA = 'sdlc/design-screens/v1';
@@ -155,46 +160,12 @@ export function tokensOf(css) {
 }
 
 /**
- * The token stylesheet from DESIGN.md: each row of a `| Role | Token | Value |` table gives
- * `--<role>: <value>`, and the token name, when it is one, an alias. Under `## Colors` every table
- * row counts. In a section of type, space, depth, shape or motion, only a table with that header
- * counts, because those sections can hold other tables.
+ * The token tables of DESIGN.md as typed rows (lib/design-tokens.mjs → parseTokenTables): each row
+ * has its role, kind, default value and a value for each theme. The rows carry `themes`,
+ * `skipped`, `problems` and `ignored`.
  */
 export function tokensFromDesign(text) {
-  const out = [];
-  // The Role cells of the rows that hold a value but no single role name, for the tokens command.
-  const skipped = [];
-  let section = null;
-  let table = false;
-  // What the line before made: a row of the header is the row right above the |---| line.
-  let last = null;
-  for (const l of String(text ?? '').split(/\r?\n/)) {
-    const made = last;
-    last = null;
-    if (/^##\s/.test(l)) {
-      section = /^##\s+Colou?rs\b/i.test(l) ? 'colors' : /^##\s+(Typography|Layout|Elevation|Shapes|Motion)\b/i.test(l) ? 'other' : null;
-      table = false;
-      continue;
-    }
-    if (!section) continue;
-    const cells = l.split('|').map((c) => c.trim());
-    if (cells.length < 4) { table = false; continue; }
-    if (/^role$/i.test(cells[1])) { table = /^token$/i.test(cells[2]) && /^value$/i.test(cells[3]); continue; }
-    if (/^:?-+:?$/.test(cells[1])) {
-      // The row above was the header of the table, not a token.
-      if (made === 'token') out.pop();
-      if (made === 'skipped') skipped.pop();
-      continue;
-    }
-    if (section === 'other' && !table) continue;
-    const [, role, token, value] = cells;
-    if (!role || !value) continue;
-    if (!/^[a-z][a-z0-9-]*$/i.test(role)) { skipped.push(role); last = 'skipped'; continue; }
-    out.push({ role: role.toLowerCase(), token: /^--[a-z0-9-]+$/i.test(token) ? token : null, value });
-    last = 'token';
-  }
-  // Not a row: the list stays a plain list of rows for its readers.
-  return Object.defineProperty(out, 'skipped', { value: skipped });
+  return parseTokenTables(text);
 }
 
 /** The places of DESIGN.md, in the order they are read: the root, `.agents/context/`, `docs/`. */
@@ -212,25 +183,76 @@ export function designMdOf(root) {
  */
 export function writeTokens(root, { keep = false } = {}) {
   const design = designMdOf(root);
-  const rows = design ? tokensFromDesign(readFileSync(design, 'utf8')) : Object.defineProperty([], 'skipped', { value: [] });
+  const text = design ? readFileSync(design, 'utf8') : '';
+  const rows = design ? tokensFromDesign(text) : Object.defineProperties([], { skipped: { value: [] }, problems: { value: [] }, ignored: { value: [] }, themes: { value: [] } });
   Object.defineProperty(rows, 'file', { value: design });
-  const sheet = join(surfaceDir(root), TOKENS_FILE);
+  const dir = surfaceDir(root);
+  const sheet = join(dir, TOKENS_FILE);
   if (!rows.length) {
     // A sheet with no role would take the colors from every screen. `keep` (init) leaves the
     // sheet as it is, and makes an empty one only when there is none.
     if (keep) {
-      if (!existsSync(sheet)) writeFileAtomic(sheet, '/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n}\n');
+      if (!existsSync(sheet)) writeFileAtomic(sheet, `/* From the token tables of DESIGN.md. ${GENERATED_MARK}; do not edit it. */
+:root {
+}
+`);
+      if (!existsSync(join(dir, LAYOUT_SHEET))) writeFileAtomic(join(dir, LAYOUT_SHEET), layoutCss(rows));
       return rows;
     }
     const place = DESIGN_MD_PLACES.find((p) => join(root, p) === design);
     throw refuse(design ? `${place} has no token role: tokens.css stays as it is` : `no DESIGN.md at ${DESIGN_MD_PLACES.join(', ')}: tokens.css stays as it is`,
       agentFix(design
-        ? `Add a "| Role | Token | Value |" table with one row for each role under "## Colors" of ${place}, then run the command again.`
-        : 'Write DESIGN.md with a "| Role | Token | Value |" table under "## Colors", then run the command again.'));
+        ? `Add a "| Role | Value | Used for |" table with one row for each role under "## Colors" of ${place} (a column per theme, such as "| Role | Light | Dark |", for themes), then run the command again.`
+        : 'Write DESIGN.md with a "| Role | Value | Used for |" table under "## Colors", then run the command again.'));
   }
-  const body = rows.flatMap((r) => [`  --${r.role}: ${r.value};`, ...(r.token && r.token !== `--${r.role}` ? [`  ${r.token}: var(--${r.role});`] : [])]);
-  writeFileAtomic(sheet, `/* From the token roles of DESIGN.md. wf.mjs design tokens writes this file; do not edit it. */\n:root {\n${body.join('\n')}\n}\n`);
+  const rel = design ? relative(root, design).split(sep).join('/') : null;
+  writeFileAtomic(sheet, tokensCss(rows));
+  writeJson(join(dir, TOKENS_JSON), tokensJson(rows, rel));
+  writeFileAtomic(join(dir, LAYOUT_SHEET), layoutCss(rows));
+  Object.defineProperty(rows, 'platform', { value: writePlatformTokens(root, text, readTokenModel(root)) });
   return rows;
+}
+
+/**
+ * The token file of the product code that DESIGN.md names (`Token file: <path>` in its Overview).
+ * The file is written when it is missing or when this command wrote it; a file that a person wrote
+ * stays, and the result says so. Returns null when DESIGN.md names no file.
+ */
+export function writePlatformTokens(root, designText, model) {
+  const file = platformFileOf(designText);
+  if (!file) return null;
+  const abs = resolve(root, file);
+  if (!abs.startsWith(resolve(root))) return { file, written: false, reason: 'the path leaves the repo' };
+  // The sheets of the surface are written above; the token file is the one of the product code.
+  if (resolve(abs).startsWith(resolve(surfaceDir(root)))) return { file, written: false, reason: 'it names a file of .ai/design/; name the token file of the product code (for example src/theme/tokens.ts or a DesignTokens.kt)' };
+  if (file.endsWith('.css')) {
+    if (existsSync(abs) && !readFileSync(abs, 'utf8').includes(GENERATED_MARK)) return { file, written: false, reason: 'a person wrote this file: it stays. Import the tokens from it, or remove it so the command writes it' };
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileAtomic(abs, readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8'));
+    return { file, written: true };
+  }
+  const text = platformTokens(model, file);
+  if (text == null) return { file, written: false, reason: 'the generator writes Kotlin, Swift, TypeScript, JavaScript and CSS token files only' };
+  if (existsSync(abs) && !readFileSync(abs, 'utf8').includes(GENERATED_MARK)) return { file, written: false, reason: 'a person wrote this file: it stays. Remove it, or name another file in "Token file:", so the command writes it' };
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileAtomic(abs, text);
+  return { file, written: true };
+}
+
+/**
+ * The token model of the surface: tokens.json when `design tokens` wrote it, else a model read from
+ * tokens.css with the kinds from the names (`legacy: true`). Each token: `{ name, role, kind, value,
+ * values, usedFor, alias }`.
+ */
+export function readTokenModel(root) {
+  const dir = surfaceDir(root);
+  try {
+    const j = JSON.parse(readFileSync(join(dir, TOKENS_JSON), 'utf8'));
+    if (j?.schema === TOKENS_SCHEMA && Array.isArray(j.tokens)) return j;
+  } catch { /* no model yet */ }
+  let css = '';
+  try { css = readFileSync(join(dir, TOKENS_FILE), 'utf8'); } catch { css = ''; }
+  return modelFromCss(css);
 }
 
 // ---------------------------------------------------------------- screens
@@ -245,9 +267,11 @@ export function screenTemplate(key, title) {
 <meta name="wf:screen" content="${key}">
 <title>${title}</title>
 <link rel="stylesheet" href="../${TOKENS_FILE}">
+<link rel="stylesheet" href="../${LAYOUT_SHEET}">
 <link rel="stylesheet" href="../${COMPONENTS_FILE}">
 <style>
-  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--ground, #fff); color: var(--text, #111); }
+  /* Placement only: arrange with the l-* primitives of layout.css and the components; every value is a token. */
+  body { margin: 0; font-family: var(--font-body); background: var(--ground); color: var(--text); }
   body [data-state] { display: none; }
   html[data-state="default"] [data-state~="default"], html[data-state="empty"] [data-state~="empty"],
   html[data-state="loading"] [data-state~="loading"], html[data-state="error"] [data-state~="error"],

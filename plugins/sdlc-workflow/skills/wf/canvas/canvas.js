@@ -151,6 +151,51 @@ var WF_CANVAS_LOGIC = (() => {
     };
   }
 
+  // ---- the design system
+
+  /** The kinds of tokens in the order the Tokens lane shows them. */
+  const TOKEN_KIND_ORDER = ['color', 'font', 'type', 'weight', 'leading', 'space', 'size', 'radius', 'shadow', 'motion', 'layer', 'other'];
+  /** The kind of a token named alone, for a token sheet from before the token model. */
+  function kindOfToken(name) {
+    const n = String(name ?? '').replace(/^--/, '').toLowerCase();
+    if (/^(?:space|gap|inset|pad|padding|margin|gutter)(?:-|$)/.test(n)) return 'space';
+    if (/^(?:radius|rounded|corner|round)(?:-|$)/.test(n)) return 'radius';
+    if (/^(?:font|family|face)(?:-|$)/.test(n)) return 'font';
+    if (/^(?:type|fs|font-size)(?:-|$)/.test(n)) return 'type';
+    if (/^(?:weight|fw)(?:-|$)/.test(n)) return 'weight';
+    if (/^(?:leading|line|lh)(?:-|$)/.test(n)) return 'leading';
+    if (/^(?:shadow|elevation)(?:-|$)/.test(n)) return 'shadow';
+    if (/^(?:duration|ease|easing|motion|delay)(?:-|$)/.test(n)) return 'motion';
+    if (/^(?:z|layer)(?:-|$)/.test(n)) return 'layer';
+    if (/^(?:size|width|height|icon|control|target|avatar)(?:-|$)/.test(n)) return 'size';
+    return 'other';
+  }
+  /**
+   * The tokens in groups by kind, in TOKEN_KIND_ORDER, each group in the order of the model: `[{ kind,
+   * tokens }]`. A token with no known kind goes to `other`; a group with no token does not show.
+   */
+  function tokenGroups(tokens) {
+    const by = new Map(TOKEN_KIND_ORDER.map((k) => [k, []]));
+    for (const t of tokens || []) {
+      const k = TOKEN_KIND_ORDER.includes(t?.kind) ? t.kind : (t?.kind ? 'other' : kindOfToken(t?.name));
+      by.get(k).push(t);
+    }
+    return [...by].filter(([, list]) => list.length).map(([kind, list]) => ({ kind, tokens: list }));
+  }
+  /** The value of a token in each theme, in the order of the themes: `[{ theme, value }]`. */
+  function themeValues(t, themes) {
+    const values = t?.values || {};
+    const names = (themes || []).map((x) => x.name).filter((n) => n in values);
+    return names.length ? names.map((n) => ({ theme: n, value: values[n] })) : [{ theme: null, value: t?.value ?? '' }];
+  }
+  /** The mark of a component spec: null when it lacks nothing, else 'No spec' or the count of its gaps. */
+  function specMark(c) {
+    const problems = c?.problems || [];
+    if (!problems.length) return null;
+    if (problems.some((p) => p.cause === 'no-spec' || p.cause === 'no-page')) return 'No spec';
+    return plural(problems.length, 'gap');
+  }
+
   // ---- what needs the person
 
   /** True when a screen waits for a decision: it has a draft round after its last approval, or no approval. */
@@ -183,7 +228,7 @@ var WF_CANVAS_LOGIC = (() => {
   /** The next wait before the event stream opens again: 5 s, then twice as long each time, at most a minute. */
   const reopenDelay = (tries) => Math.min(60000, 5000 * 2 ** Math.max(0, Math.min(tries, 10)));
 
-  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, needsDecision, failText, fitScale, hashOf, parseHash, parseSize };
+  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, needsDecision, failText, fitScale, hashOf, parseHash, parseSize };
 })();
 
 (() => {
@@ -946,6 +991,90 @@ var WF_CANVAS_LOGIC = (() => {
     watch(box);
     return box;
   }
+  const TOKEN_KIND_WORDS = { color: 'Color', font: 'Font', type: 'Type size', weight: 'Weight', leading: 'Line height', space: 'Space', size: 'Size', radius: 'Radius', shadow: 'Shadow', motion: 'Motion', layer: 'Layer', other: 'Other' };
+  // The CSS property that reads a value of each kind, to ask the browser whether the value is one.
+  const KIND_PROPERTY = { color: 'color', font: 'font-family', type: 'font-size', space: 'width', size: 'width', radius: 'border-radius', shadow: 'box-shadow' };
+  /**
+   * The value of a token in a theme with each `var(--x)` of the token model put in, a few levels
+   * deep: the canvas page has its own custom properties, so a value of the design must never read them.
+   * Null when a name is not in the model.
+   */
+  function tokenValue(value, theme, depth = 0) {
+    const text = String(value ?? '');
+    if (!text.includes('var(')) return text;
+    if (depth > 4) return null;
+    let missing = false;
+    const out = text.replace(/var\(\s*(--[a-z0-9-]+)\s*(?:,([^)]*))?\)/gi, (all, name, fallback) => {
+      const t = data.tokens.find((x) => x.name === name);
+      const v = t ? (theme && t.values?.[theme] != null ? t.values[theme] : t.value) : fallback?.trim();
+      const r = v == null ? null : tokenValue(v, theme, depth + 1);
+      if (r == null) { missing = true; return all; }
+      return r;
+    });
+    return missing ? null : out;
+  }
+  /** A value the browser reads for the property of its kind, else null. */
+  const usable = (kind, value) => (value != null && (!KIND_PROPERTY[kind] || window.CSS?.supports?.(KIND_PROPERTY[kind], value)) ? value : null);
+  /** The specimen of one token: what its value looks like, drawn by its kind. */
+  function tokenSpecimen(t, kind) {
+    const themes = data.themes || [];
+    if (kind === 'color') {
+      return h('span', { class: 'swatches' }, ...L.themeValues(t, themes).map(({ theme, value }) => {
+        const v = usable('color', tokenValue(value, theme));
+        const el = h('span', { class: `swatch${v ? '' : ' alias'}`, title: `${theme ? `${theme}: ` : ''}${value}`, 'aria-label': `${theme ? `${theme}: ` : ''}${value}`, role: 'img' });
+        if (v) el.style.background = v;
+        return el;
+      }));
+    }
+    const v = usable(kind, tokenValue(t.value, data.defaultTheme));
+    if (kind === 'font' || kind === 'type') {
+      const el = h('span', { class: 'glyph', 'aria-hidden': 'true' }, 'Ag');
+      if (v) el.style.setProperty(kind === 'font' ? 'font-family' : 'font-size', v);
+      return el;
+    }
+    if (kind === 'space') {
+      const el = h('span', { class: 'spec-bar', 'aria-hidden': 'true' });
+      if (v) el.style.width = `min(${v}, 100%)`;
+      return el;
+    }
+    if (kind === 'size') {
+      const el = h('span', { class: 'spec-box', 'aria-hidden': 'true' }, h('small', {}, String(t.value ?? '')));
+      if (v) { el.style.width = `min(${v}, 100%)`; el.style.height = `min(${v}, 96px)`; }
+      return el;
+    }
+    if (kind === 'radius' || kind === 'shadow') {
+      const el = h('span', { class: `spec-tile ${kind}`, 'aria-hidden': 'true' });
+      if (v) el.style.setProperty(kind === 'radius' ? 'border-radius' : 'box-shadow', v);
+      return el;
+    }
+    return h('span', { class: 'tval', 'aria-hidden': 'true' }, String(t.value ?? ''));
+  }
+  /** One token of the Tokens lane: its specimen, its name and what it is for. A click shows only the screens that use it. */
+  function tokenItem(t, kind) {
+    const tr = { kind: 'token', key: t.name };
+    const n = data.screens.filter((s) => (s.tokens || []).includes(t.name)).length;
+    const value = String(t.value ?? '');
+    const themed = kind === 'color' ? L.themeValues(t, data.themes || []).filter((x) => x.theme) : [];
+    const valueText = themed.length > 1 ? themed.map((x) => `${x.theme} ${x.value}`).join(', ') : value;
+    // The value kinds show the value as their specimen: the line below then says what the token is for, or nothing.
+    const textKind = !['color', 'font', 'type', 'space', 'size', 'radius', 'shadow'].includes(kind);
+    const sub = t.usedFor || (textKind ? '' : valueText);
+    const wide = kind === 'space' || kind === 'size';
+    return h('button', { type: 'button', class: `tok k-${kind}${wide ? ' wide' : ''}`, 'data-trace': traceId(tr),
+      'aria-label': `${t.name}, ${valueText}${t.usedFor ? `, ${t.usedFor}` : ''}. ${n ? `Used by ${plural(n, 'screen')}` : 'No screen uses it'}. Show only those screens.`,
+      onclick: () => traceTo(tr), ...traceHover(tr) },
+    tokenSpecimen(t, kind), h('span', { class: 'tname' }, t.name, sub ? h('small', { title: sub }, sub) : null));
+  }
+  /** The address of a component page, with the one theme it shows. */
+  const componentSrc = (key, theme) => `${BASE}s/components/${key}.html${theme && theme !== 'default' ? `?theme=${encodeURIComponent(theme)}` : ''}`;
+  /** The marks of a component: in code or to build, a layout, and what its spec lacks. */
+  function componentMarks(c) {
+    const gaps = L.specMark(c);
+    return h('span', { class: 'marks' },
+      c.kind === 'layout' ? h('span', { class: 'mark kind', title: 'A page shell: it lays out the other components' }, 'Layout') : null,
+      gaps ? h('span', { class: 'mark issue', title: (c.problems || []).map((x) => x.message).join('. ') }, gaps) : null,
+      h('span', { class: `mark ${c.code ? 'ok' : 'draft'}` }, c.code ? 'In code' : 'To build'));
+  }
   const itemCap = (title, mark, meta) => h('div', { class: 'cap' }, h('div', { class: 'cap-row' }, h('b', { title }, title), mark), meta ? h('div', { class: 'meta', title: meta }, meta) : null);
   /**
    * The lanes of the board. Before the screens: the sketches of brainstorms and intakes, and the
@@ -971,21 +1100,15 @@ var WF_CANVAS_LOGIC = (() => {
     const components = data.components.map((c) => {
       const t = { kind: 'component', key: c.key };
       return h('article', { class: 'item', 'data-trace': traceId(t), ...traceHover(t) },
-        thumb(SNAP ? null : `${BASE}s/components/${c.key}.html`, 400, 200, `Open the component ${c.title}`, () => panel(`component:${c.key}`)),
-        itemCap(c.title, h('span', { class: `mark ${c.code ? 'ok' : 'draft'}` }, c.code ? 'In code' : 'To build'), c.screens.length ? `Used by ${plural(c.screens.length, 'screen')}` : 'No screen uses it yet'));
+        // The page shows one theme panel at a time: the default theme, at the top of the frame.
+        thumb(SNAP ? null : componentSrc(c.key, data.defaultTheme), 400, 300, `Open the component ${c.title}`, () => panel(`component:${c.key}`)),
+        itemCap(c.title, componentMarks(c), c.screens.length ? `Used by ${plural(c.screens.length, 'screen')}` : 'No screen uses it yet'));
     });
     if (!components.length && data.noComponents) components.push(h('p', { class: 'none' }, `No components: ${data.noComponents}`));
-    const tokens = data.tokens.length ? [h('div', { class: 'toklist' }, ...data.tokens.map((t) => {
-      const tr = { kind: 'token', key: t.name };
-      const n = data.screens.filter((s) => (s.tokens || []).includes(t.name)).length;
-      const value = String(t.value ?? '');
-      const alias = value.startsWith('var(');
-      const swatch = h('span', { class: `swatch${alias ? ' alias' : ''}` });
-      // Only a value that the browser reads as a color paints the swatch.
-      if (!alias && window.CSS?.supports?.('color', value)) swatch.style.background = value;
-      return h('button', { type: 'button', class: 'tok', 'data-trace': traceId(tr), 'aria-label': `${t.name}, ${value}. ${n ? `Used by ${plural(n, 'screen')}` : 'No screen uses it'}. Show only those screens.`,
-        onclick: () => traceTo(tr), ...traceHover(tr) }, swatch, h('span', { class: 'tname' }, t.name, h('small', {}, value)));
-    })), h('p', { class: 'none' }, 'From DESIGN.md. Change them there.')] : [];
+    const tokens = data.tokens.length ? [h('div', { class: 'toklist' }, ...L.tokenGroups(data.tokens).flatMap((g) => [
+      h('h3', { class: 'tokgroup' }, TOKEN_KIND_WORDS[g.kind] || cap(g.kind), h('span', { class: 'count' }, String(g.tokens.length))),
+      ...g.tokens.map((t) => tokenItem(t, g.kind)),
+    ])), h('p', { class: 'none' }, 'From DESIGN.md. Change them there.')] : [];
     const lane = (title, sub, items, n) => (items.length ? { title, sub, items, n } : null);
     return {
       left: [lane('Sketches', 'before any screen', sketches, sketches.length), lane('References', 'what the screens draw on', references, references.length)].filter(Boolean),
@@ -2290,10 +2413,38 @@ var WF_CANVAS_LOGIC = (() => {
       if (!c) return null;
       const t = { kind: 'component', key };
       const on = traceId(ui.trace) === traceId(t);
-      return [h('h2', { tabindex: '-1' }, c.title, ' ', h('span', { class: `mark ${c.code ? 'ok' : 'draft'}` }, c.code ? 'In code' : 'To build')),
-        h('p', { class: 'lede' }, 'A component that the screens reuse. The code must use it.'),
-        SNAP ? null : h('iframe', { class: 'part', title: c.title, loading: 'lazy', sandbox: 'allow-scripts allow-same-origin', src: `${BASE}s/components/${c.key}.html` }),
+      const spec = c.spec;
+      const themes = (spec?.themes?.length ? spec.themes : (data.themes || []).map((x) => x.name)).filter((x) => x && x !== 'default');
+      let theme = ui.componentTheme && themes.includes(ui.componentTheme) ? ui.componentTheme : (themes.includes(data.defaultTheme) ? data.defaultTheme : themes[0] || null);
+      const frame = SNAP ? null : h('iframe', { class: 'part tall', title: c.title, loading: 'lazy', sandbox: 'allow-scripts allow-same-origin', src: componentSrc(c.key, theme) });
+      const out = SNAP ? null : h('a', { href: componentSrc(c.key, theme), target: '_blank', rel: 'noopener', class: 'out' }, 'Open the component in a new tab');
+      const switches = !SNAP && themes.length > 1 ? h('div', { class: 'seg themes', role: 'group', 'aria-label': 'Theme' }, ...themes.map((name) => h('button', {
+        type: 'button', fk: `theme:${name}`, 'aria-pressed': String(name === theme),
+        onclick: (e) => {
+          theme = name;
+          ui.componentTheme = name;
+          frame.src = componentSrc(c.key, name);
+          out.href = componentSrc(c.key, name);
+          for (const b of e.currentTarget.parentElement.children) b.setAttribute('aria-pressed', String(b === e.currentTarget));
+        },
+      }, name))) : null;
+      const dims = Object.entries(spec?.variants || {});
+      const tokensOf = c.tokens || [];
+      return [h('h2', { tabindex: '-1' }, c.title, ' ', componentMarks(c)),
+        h('p', { class: 'lede' }, c.kind === 'layout' ? 'A page shell that the screens lay out their parts in. The code must use it.' : 'A component that the screens reuse. The code must use it.'),
+        switches, frame, out ? h('p', {}, out) : null,
         c.code ? h('p', {}, h('code', {}, c.name), ' in ', h('code', {}, c.code)) : h('p', {}, 'New. The build makes it, and the code must use it.'),
+        h('h3', {}, 'Variants', dims.length ? h('span', { class: 'count' }, String(dims.length)) : null),
+        dims.length ? h('table', { class: 'spec' }, h('tbody', {}, ...dims.map(([dim, values]) => h('tr', {}, h('th', { scope: 'row' }, dim), h('td', {}, values.join(', '))))))
+          : h('p', { class: 'none' }, spec?.declared ? 'One look: the spec declares no variant.' : 'The page declares no variants.'),
+        h('h3', {}, 'States', spec?.states?.length ? h('span', { class: 'count' }, String(spec.states.length)) : null),
+        spec?.states?.length ? h('div', { class: 'chips' }, ...spec.states.map((x) => h('span', { class: 'tag' }, x))) : h('p', { class: 'none' }, 'The page declares no states.'),
+        (c.problems || []).length ? [h('h3', {}, 'What the spec lacks', h('span', { class: 'count' }, String(c.problems.length))),
+          h('ul', { class: 'changes gaps' }, ...c.problems.map((x) => h('li', {}, x.message)))] : null,
+        h('h3', {}, 'Tokens it uses', tokensOf.length ? h('span', { class: 'count' }, String(tokensOf.length)) : null),
+        tokensOf.length ? h('div', { class: 'chips' }, ...tokensOf.map((name) => h('button', { type: 'button', fk: `tok:${name}`,
+          title: `${data.tokens.find((x) => x.name === name)?.value ?? 'Not in the token model'}. Show the screens that use it.`, onclick: () => traceTo({ kind: 'token', key: name }) }, name)))
+          : h('p', { class: 'none' }, 'The component sheet gives it no token.'),
         h('h3', {}, 'Used by', c.screens.length ? h('span', { class: 'count' }, String(c.screens.length)) : null),
         c.screens.length ? [h('ul', { class: 'changes' }, ...c.screens.map((k) => h('li', {}, h('button', { type: 'button', class: 'linkish', fk: `open:${k}`, onclick: () => openScreen(k) }, titleOf(data.screens.find((x) => x.key === k) || { key: k }))))),
           h('button', { type: 'button', class: 'btn', fk: 'trace', 'aria-pressed': String(on), onclick: () => { traceTo(t); panel(name, true); } }, on ? 'Show every screen' : 'Show only these screens')]

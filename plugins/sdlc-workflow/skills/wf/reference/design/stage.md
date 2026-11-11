@@ -59,8 +59,9 @@ Each stop of this stage sends one message in this form. The person reads the cha
    - A `[TODO]` marker does not start the interview. Put each `[TODO]` item that the surfaces of this workflow need into the round of Step 2, and leave the others.
    - When a `.ai/design/` record file is missing, write it from the [record.md](record.md) template with `[TODO]` sections, and say so in the first stop message.
 3. Run `<wf> design init <root>` when `.ai/design/screens.json` is missing. Run `<wf> design list <root>`: a screen that the brief touches may exist already, and this stage changes it in place.
-4. Run `<wf> design refs check <root>`. When it exits 1, stop, and show the person each unreadable reference. A reference is a file in the repo that an agent can read: export a canvas or a page to a file, then run `<wf> design refs add <root> <key> --file <path>`.
-5. When the invocation names a move, or `00-index.md` records `design-move`, read `design/<move>.md`. The move focuses the contract. It does not widen the scope of `02-shape.md`.
+4. **Migrate an old design system first.** Run `<wf> design foundation <root>`. When it names a missing token kind, a token sheet from before typed tokens, or a component with no spec, follow [system-migrate.md](system-migrate.md) for the whole surface now, before any other work of this pass. Every design pass does this: the stage, a move, an amend, an import and an audit fix.
+5. Run `<wf> design refs check <root>`. When it exits 1, stop, and show the person each unreadable reference. A reference is a file in the repo that an agent can read: export a canvas or a page to a file, then run `<wf> design refs add <root> <key> --file <path>`.
+6. When the invocation names a move, or `00-index.md` records `design-move`, read `design/<move>.md`. The move focuses the contract. It does not widen the scope of `02-shape.md`.
 
 ## Step 1b — Present the carried design thoughts
 
@@ -133,7 +134,7 @@ Take the person through the design in rounds, until the person says that nothing
 
 1. Run `<wf> design check <root> --workflow <slug>`. It checks each screen in each viewport and state, and prints one line for each cause, with its screens and the move that fixes it. Its last lines are the approval question (`ask:`) and the one next action.
 2. When the first line is `not checked:`, no screen was measured. Send the stop message with the reason, and ask one gate question: "I will install a browser, check again" (Chrome, Edge or Chromium, or `SDLC_BROWSER`), or "Ask me to approve without the check". This question is not the approval. On the second answer, go on to item 3, and say "not checked" in the Check line and in the description of `Approve`.
-3. Send the stop message. Then ask the approval question:
+3. When a `token`, `layout`, `component` or `library` failure stays that is not waived, do not ask the approval question: repair it per item 5, and run the check again. Then send the stop message, and ask the approval question:
    - When a screen shows a stand-in face (`typeset.md` → Get the face onto a screen), say so in the question.
    - Ask it with the question tool of the host, never as a chat message: the script reads the answer event of that tool. When this session has no question tool, run `<wf> record set "<root>" <slug> index status=awaiting-input`, tell the person that the approval needs a session with the question tool and that `/wf design <slug>` resumes at this step, and stop.
    - Use the exact text of the `ask:` line.
@@ -147,7 +148,7 @@ Take the person through the design in rounds, until the person says that nothing
    | `Stop` | Leave `02c-craft.md` unwritten. Run `<wf> record set "<root>" <slug> index status=awaiting-input`. Send the stop message: the rounds are saved, nothing is approved, and "Type `/wf design <slug>`." resumes at the rounds. End the stage. |
    | any other text, for example "Approve, but make the header smaller" | It is an `Adjust`, and its text is the change request. The script refuses it as an approval. |
 
-5. To fix a check failure, follow the next action that the check prints. A failure with a move names the file of the move: follow the move that the check prints ([_lane.md](_lane.md) → Moves holds the routing table). A `component` failure means: use the component of the library, or add the part at Step 3c. A `version` failure means that a page changed outside a round: when the person wants the change, run `<wf> design round <root> <slug>`; when not, run `<wf> design restore <root> <slug> <version>`. A restore is never an approval.
+5. To fix a check failure, follow the next action that the check prints. A failure with a move names the file of the move: follow the move that the check prints ([_lane.md](_lane.md) → Moves holds the routing table). A `component` failure means: use the component of the library with a declared variant, or add the part or the variant at Step 3c. A `token` failure means: use the token that the failure names, or add a token to `DESIGN.md` and run `<wf> design tokens`. A `layout` failure means: arrange with the primitives of `layout.css`, or move the shared rule into a component. A `library` failure means: repair `components.css` or the component page ([system-migrate.md](system-migrate.md)). These four checks are repaired or waived (`<wf> design waive`) before approval; the person cannot approve over them. A `version` failure means that a page changed outside a round: when the person wants the change, run `<wf> design round <root> <slug>`; when not, run `<wf> design restore <root> <slug> <version>`. A restore is never an approval.
 
 ## Step 6 — Write the contract and record the approval
 
@@ -155,6 +156,7 @@ Take the person through the design in rounds, until the person says that nothing
 2. Run `<wf> design approve <root> <slug>`. It reads the answer event of the approval question. On an approval, it commits the screens in the product repo, saves the approved version and one picture of each screen in the records, writes the approval fields into `02c-craft.md`, and sets the index: `progress.design`, `status`, `next-command` and `next-invocation`. It prints the next step.
 3. When the command refuses, read its reason:
    - A half-done approval ends when you run the same command again.
+   - "System check failures stay": a `token`, `layout`, `component` or `library` failure is not repaired or waived. Repair it per Step 5, item 5, run the check, and ask the approval question again.
    - "No new answer event", or an answer that is not the `Approve` label: go back to Step 5, item 3, one time. When the command refuses again, run `<wf> record set "<root>" <slug> index status=awaiting-input`, tell the person the reason in the stop message, and stop.
 4. Commit the design record files that this run changed and that the approval commit does not hold (`DESIGN.md`, `PRODUCT.md`, `.ai/design/current.md`, `.ai/design/direction.md`, `.ai/design/references/`), by path, in one commit of the product repo.
 5. Record a new open design question under `## Open decisions` of `.ai/design/direction.md` only when the person asked to keep it in a round.

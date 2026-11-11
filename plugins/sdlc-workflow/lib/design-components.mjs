@@ -10,7 +10,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { COMPONENTS_DIR, COMPONENTS_FILE, KEY_RE, SURFACE_REL, TOKENS_FILE, listScreens, readManifest, screenFile, surfaceDir, tokensOf, updateManifest } from './design-surface.mjs';
+import { COMPONENTS_DIR, COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, SURFACE_REL, TOKENS_FILE, designMdOf, listScreens, readManifest, readTokenModel, screenFile, surfaceDir, updateManifest } from './design-surface.mjs';
+import { GENERATED_MARK, missingKinds, platformFileOf } from './design-tokens.mjs';
 import { agentFix, refuse } from './fix.mjs';
 
 /** One read-modify-write of the manifest, under its lock. */
@@ -27,28 +28,279 @@ const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const componentFile = (root, key) => join(surfaceDir(root), COMPONENTS_DIR, `${key}.html`);
 export const componentRel = (key) => `${SURFACE_REL}/${COMPONENTS_DIR}/${key}.html`;
 
-/** The page of a new component: one block for each variant and state. */
-export function componentTemplate(key, title) {
+/** The script of a component page: each copy panel shows the cells of the source panel; `?theme=<name>` shows one panel. */
+const THEME_SCRIPT = `<script data-wf-themes>
+  (() => {
+    const panels = [...document.querySelectorAll('section.wf-theme')];
+    const source = panels.find((p) => p.dataset.themeSource !== undefined);
+    for (const p of panels) if (source && p !== source) p.innerHTML = source.innerHTML;
+    const only = new URLSearchParams(location.search).get('theme');
+    if (only && panels.some((p) => p.dataset.theme === only)) for (const p of panels) p.hidden = p.dataset.theme !== only;
+  })();
+</script>`;
+const panelOpen = (theme, role) => `<section class="wf-theme l-cluster" data-theme="${theme}" data-theme-${role}>`;
+const pairsText = (variant) => Object.entries(variant).map(([d, x]) => `${d}=${x}`).join(' ');
+/** The cell of one case: one instance with its variant, for the agent to fill. */
+function cellHtml(key, variant, state) {
+  const v = pairsText(variant);
+  return `<div data-spec="${[v, `state=${state}`].filter(Boolean).join(' ')}"><div data-component="${key}" class="${key}"${v ? ` data-variant="${v}"` : ''}></div></div>`;
+}
+/** The panels of a page: the source panel with its cells, and an empty copy for each other theme. */
+function panelsHtml(themes, source, inner) {
+  return [`${panelOpen(source, 'source')}${inner}</section>`, ...themes.filter((t) => t !== source).map((t) => `${panelOpen(t, 'copy')}</section>`)].join('\n');
+}
+/** The middle step of the space scale, for the padding of a panel; null when the tokens have none. */
+function panelSpace(model) {
+  const space = (model?.tokens ?? []).filter((t) => t.kind === 'space');
+  return space.length ? space[Math.floor(space.length / 2)].name : null;
+}
+/** The names of the themes of the tokens, the default first. */
+const themeNames = (model) => {
+  const t = [...new Set((model?.themes ?? []).map((x) => x.name).filter(Boolean))];
+  // A table of one Value column reads as the theme `default`; beside named themes it is the first of them.
+  const named = t.filter((x) => x !== 'default');
+  return named.length ? named : ['default'];
+};
+
+/**
+ * The page of a new component: the spec metas (no variant, the default state), the token, layout
+ * and component sheets, and a panel for each theme of the tokens. The source panel holds one cell,
+ * the default case; each copy shows it in another theme. Every value of its style is a token.
+ */
+export function componentTemplate(key, title, { themes = ['default'], kind = 'component', space = null } = {}) {
+  const names = themes?.length ? themes : ['default'];
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="wf:component" content="${key}">
+<meta name="wf:kind" content="${kind === 'layout' ? 'layout' : 'component'}">
+<meta name="wf:variants" content="">
+<meta name="wf:states" content="default">
 <title>${title}</title>
 <link rel="stylesheet" href="../${TOKENS_FILE}">
+<link rel="stylesheet" href="../${LAYOUT_SHEET}">
 <link rel="stylesheet" href="../${COMPONENTS_FILE}">
 <style>
-  body { margin: 0; padding: 16px; font: 16px/1.5 system-ui, sans-serif; background: var(--ground, #fff); color: var(--text, #111); }
-  section { margin-bottom: 16px; }
-  h2 { margin: 0 0 8px; font: inherit; font-weight: 600; }
+  /* Every value is a token. Each panel shows the cells in one theme. */
+  body { margin: 0; font-family: var(--font-body); background: var(--ground); color: var(--text); }
+  .wf-theme { background: var(--ground); color: var(--text);${space ? ` padding: var(${space});` : ''} }
+  .wf-theme::before { content: attr(data-theme); flex-basis: 100%; }
+  .wf-theme[hidden] { display: none; }
 </style>
 </head>
 <body>
-<section><h2>Default</h2><div data-component="${key}"></div></section>
+${panelsHtml(names, names[0], `\n${cellHtml(key, {}, 'default')}\n`)}
+${THEME_SCRIPT}
 </body>
 </html>
 `;
+}
+
+/* ───────────────────────── the spec of a component ───────────────────────── */
+
+// A component page declares what the component is, in its head:
+//   <meta name="wf:kind" content="component">            component, or layout for a page shell (app frame, split view)
+//   <meta name="wf:variants" content="tone=solid|ghost; size=sm|md">   the dimensions and their values; empty for none
+//   <meta name="wf:states" content="default hover pressed focus disabled">
+// Its body draws one specimen cell for each case: `<div data-spec="tone=solid size=sm state=hover">`
+// holding one instance, `<... data-component="<key>" data-variant="tone=solid size=sm">`. A screen
+// marks each use the same way, with `data-variant` naming its values. The page shows the cells once
+// for each theme of the tokens: the `data-theme-source` panel, copied into each `data-theme-copy` panel.
+
+/** The states of an interactive component, at the least. */
+export const INTERACTIVE_STATES = Object.freeze(['default', 'hover', 'pressed', 'focus', 'disabled']);
+const metaOf = (html, name) => new RegExp(`<meta\\s+name=["']wf:${name}["']\\s+content=["']([^"']*)["']`, 'i').exec(String(html ?? ''))?.[1] ?? null;
+/** `tone=solid size=sm` as `{ tone: 'solid', size: 'sm' }`. */
+export const parsePairs = (text) => Object.fromEntries(String(text ?? '').trim().split(/\s+/).filter((w) => w.includes('=')).map((w) => w.split('=').map((x) => x.trim())));
+
+/**
+ * The spec of a component page: `{ kind, declared, variants: { dim: [values] }, states, cells:
+ * [{ variant, state }], themes, interactive }`. `declared` is false for a page from before specs.
+ */
+export function componentSpec(html) {
+  const text = String(html ?? '');
+  const variantsMeta = metaOf(text, 'variants');
+  const statesMeta = metaOf(text, 'states');
+  const variants = {};
+  for (const part of String(variantsMeta ?? '').split(';')) {
+    const [dim, values] = part.split('=').map((x) => x?.trim());
+    if (dim && values) variants[dim] = values.split('|').map((v) => v.trim()).filter(Boolean);
+  }
+  const states = String(statesMeta ?? '').split(/[\s,]+/).filter(Boolean);
+  // The source panel only: the copies repeat it.
+  const source = /data-theme-source[^>]*>([\s\S]*?)<\/section>/i.exec(text)?.[1] ?? text;
+  const cells = [...source.matchAll(/data-spec=["']([^"']*)["']/gi)].map((m) => { const p = parsePairs(m[1]); const { state = 'default', ...variant } = p; return { variant, state }; });
+  const themes = [...text.matchAll(/<section[^>]*\bdata-theme=["']([^"']+)["'][^>]*\bdata-theme-(?:source|copy)/gi)].map((m) => m[1]);
+  const interactive = /<(?:button|input|select|textarea)\b|role=["'](?:button|tab|switch|checkbox|radio|menuitem|option|slider)["']/i.test(source);
+  return { kind: metaOf(text, 'kind') === 'layout' ? 'layout' : 'component', declared: variantsMeta !== null && statesMeta !== null, variants, states, cells, themes, interactive };
+}
+
+/**
+ * What a component page lacks: the spec metas, a cell for each value of each dimension, a cell
+ * for each state with each value of the first dimension, the states of an interactive component,
+ * and a panel for each theme. Each problem: `{ cause, message }`.
+ */
+export function specProblems(spec, { themes = [] } = {}) {
+  const out = [];
+  if (!spec.declared) {
+    out.push({ cause: 'no-spec', message: 'The page declares no spec: add <meta name="wf:variants"> and <meta name="wf:states"> and a data-spec cell for each case' });
+    return out;
+  }
+  const dims = Object.entries(spec.variants);
+  const has = (pred) => spec.cells.some(pred);
+  for (const [dim, values] of dims) for (const v of values) if (!has((c) => c.variant[dim] === v)) out.push({ cause: `variant:${dim}=${v}`, message: `No specimen cell shows ${dim}=${v}` });
+  const states = spec.states.length ? spec.states : ['default'];
+  const [first] = dims;
+  for (const st of states) {
+    if (!first) { if (!has((c) => c.state === st)) out.push({ cause: `state:${st}`, message: `No specimen cell shows the state ${st}` }); continue; }
+    for (const v of first[1]) if (!has((c) => c.state === st && c.variant[first[0]] === v)) out.push({ cause: `state:${st}:${first[0]}=${v}`, message: `No specimen cell shows ${first[0]}=${v} in the state ${st}` });
+  }
+  if (spec.kind === 'component' && spec.interactive) {
+    const lack = INTERACTIVE_STATES.filter((s) => !spec.states.includes(s));
+    if (lack.length) out.push({ cause: 'interactive-states', message: `An interactive component declares the states ${INTERACTIVE_STATES.join(', ')}; this one lacks ${lack.join(', ')}` });
+  }
+  for (const c of spec.cells) {
+    for (const [dim, v] of Object.entries(c.variant)) if (!spec.variants[dim]?.includes(v)) out.push({ cause: `undeclared:${dim}=${v}`, message: `A specimen cell shows ${dim}=${v}, which wf:variants does not declare` });
+    if (!states.includes(c.state)) out.push({ cause: `undeclared-state:${c.state}`, message: `A specimen cell shows the state ${c.state}, which wf:states does not declare` });
+  }
+  const named = themes.filter((t) => t !== 'default');
+  if (named.length > 1) for (const t of named) if (!spec.themes.includes(t)) out.push({ cause: `theme:${t}`, message: `The page has no panel for the theme ${t}` });
+  return [...new Map(out.map((p) => [p.cause, p])).values()];
+}
+
+/** The spec of each component page of the library: `{ key: spec }`. */
+export function componentSpecs(root) {
+  const out = {};
+  for (const key of Object.keys(readManifest(root).components)) {
+    try { out[key] = componentSpec(readFileSync(componentFile(root, key), 'utf8')); } catch { out[key] = null; }
+  }
+  return out;
+}
+
+const VALUE_WORD = /^[a-z0-9][a-z0-9-]*$/i;
+const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+
+/** `tone=solid|ghost; size=sm|md` as `{ tone: [solid, ghost], size: [sm, md] }`; a malformed part refuses. */
+function parseVariantsOption(text, fix) {
+  const out = {};
+  for (const part of String(text).split(';').map((p) => p.trim()).filter(Boolean)) {
+    const m = /^([^=\s]+)\s*=\s*(.+)$/.exec(part);
+    const values = m ? m[2].split('|').map((v) => v.trim()).filter(Boolean) : [];
+    if (!m || !VALUE_WORD.test(m[1]) || !values.length || !values.every((v) => VALUE_WORD.test(v))) {
+      throw refuse(`--variants: ${part} is not dim=value|value`, fix('Run the command again with --variants as dimensions separated by ";", each a name, "=" and its values separated by "|", for example "tone=solid|ghost; size=sm|md". Names and values are letters, digits and dashes.'));
+    }
+    if (m[1] === 'state') throw refuse('--variants: state is no dimension', fix('Name the states with --states, not as a dimension of --variants.'));
+    out[m[1]] = [...new Set(values)];
+  }
+  return out;
+}
+
+/** Set one `wf:<name>` meta of a page head, or add it after the `wf:component` meta (or before `</head>`). */
+function setMeta(html, name, value) {
+  const tag = `<meta name="wf:${name}" content="${escapeAttr(value)}">`;
+  const re = new RegExp(`<meta\\s+name=["']wf:${name}["'][^>]*>`, 'i');
+  if (re.test(html)) return html.replace(re, () => tag);
+  const anchor = /<meta\s+name=["']wf:(?:states|variants|kind|component)["'][^>]*>/i.exec(html);
+  if (anchor) return `${html.slice(0, anchor.index + anchor[0].length)}\n${tag}${html.slice(anchor.index + anchor[0].length)}`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, () => `${tag}\n</head>`) : `${tag}\n${html}`;
+}
+
+const PANEL_RE = /<section\b[^>]*\bdata-theme-(?:source|copy)\b[^>]*>[\s\S]*?<\/section>\s*/gi;
+const SCRIPT_RE = /<script\s+data-wf-themes\b[^>]*>[\s\S]*?<\/script>\s*/gi;
+
+/** A page with a panel for each theme: the source panel keeps its cells, the copies are written anew. */
+function withPanels(html, key, themes) {
+  const source = /<section\b([^>]*\bdata-theme-source\b[^>]*)>([\s\S]*?)<\/section>/i.exec(html);
+  const was = source ? /\bdata-theme=["']([^"']+)["']/i.exec(source[1])?.[1] ?? null : null;
+  const sourceTheme = was && themes.includes(was) ? was : themes[0];
+  const inner = source ? source[2] : `\n${cellHtml(key, {}, 'default')}\n`;
+  const at = html.search(PANEL_RE);
+  const stripped = html.replace(PANEL_RE, '').replace(SCRIPT_RE, '');
+  const block = `${panelsHtml(themes, sourceTheme, inner)}\n${THEME_SCRIPT}\n`;
+  // The panels go where the first one was, else at the end of the body.
+  if (at >= 0) {
+    const before = html.slice(0, at).replace(PANEL_RE, '').replace(SCRIPT_RE, '');
+    return `${before}${block}${stripped.slice(before.length)}`;
+  }
+  return /<\/body>/i.test(stripped) ? stripped.replace(/<\/body>/i, () => `${block}</body>`) : `${stripped}\n${block}`;
+}
+
+/** The cell that covers the first case a spec problem names, or null when the problem is no missing case. */
+function missingCell(spec, problem) {
+  const dims = Object.entries(spec.variants);
+  const base = Object.fromEntries(dims.map(([d, v]) => [d, v[0]]));
+  let m = /^variant:([^=]+)=(.+)$/.exec(problem.cause);
+  if (m) return { variant: { ...base, [m[1]]: m[2] }, state: 'default' };
+  m = /^state:([^:]+):([^=]+)=(.+)$/.exec(problem.cause);
+  if (m) return { variant: { ...base, [m[2]]: m[3] }, state: m[1] };
+  m = /^state:([^:]+)$/.exec(problem.cause);
+  if (m) return { variant: base, state: m[1] };
+  return null;
+}
+
+/**
+ * Declare the spec of a component, or read it. `variants` (`tone=solid|ghost; size=sm|md`, empty
+ * for none), `states` (a space list) and `kind` (component or layout) set the metas of the page
+ * head; an option left out keeps what the page declares. The page gets a panel for each theme of
+ * the tokens, and the source panel gets an empty cell for each case that it lacks: the agent fills
+ * each cell with the instance in that case. Running it again adds nothing. With no option, the
+ * page stays as it is. Returns `{ ok, key, added, spec, problems, file }`.
+ */
+export function specComponent(root, key, { variants, states, kind } = {}) {
+  const m = readManifest(root);
+  const fix = (text) => agentFix(text, `wf.mjs design component spec ${word(root)} ${key ?? '<key>'} --variants "tone=solid|ghost" --states "${INTERACTIVE_STATES.join(' ')}"`);
+  if (!m.components[key]) throw refuse(`no component ${key}`, agentFix(`Run the command again with the key of a component of the library. ${libraryKeys(m)}`));
+  if (kind != null && kind !== 'component' && kind !== 'layout') throw refuse(`--kind ${kind} is not component or layout`, fix('Run the command again with --kind component, or --kind layout for a page shell such as an app frame or a split view.'));
+  const model = readTokenModel(root);
+  const themes = themeNames(model);
+  const file = componentFile(root, key);
+  const had = existsSync(file) ? readFileSync(file, 'utf8') : componentTemplate(key, m.components[key].title ?? key, { themes, space: panelSpace(model) });
+  const change = variants != null || states != null || kind != null;
+  let html = had;
+  if (change) {
+    const spec0 = componentSpec(had);
+    const dims = variants != null ? parseVariantsOption(variants === true ? '' : variants, fix) : spec0.variants;
+    const list = states != null ? String(states === true ? '' : states).split(/[\s,]+/).filter(Boolean) : spec0.states;
+    for (const st of list) if (!VALUE_WORD.test(st)) throw refuse(`--states: ${st} is not a state name`, fix('Run the command again with --states as names of letters, digits and dashes separated by spaces.'));
+    const stateList = [...new Set(list.length ? list : ['default'])];
+    html = setMeta(html, 'component', key);
+    html = setMeta(html, 'kind', kind ?? spec0.kind);
+    html = setMeta(html, 'variants', Object.entries(dims).map(([d, v]) => `${d}=${v.join('|')}`).join('; '));
+    html = setMeta(html, 'states', stateList.join(' '));
+    const themed = componentSpec(html).themes;
+    if (!/data-theme-source/i.test(html) || themes.some((t) => !themed.includes(t)) || themed.some((t) => !themes.includes(t))) html = withPanels(html, key, themes);
+    // The empty default cell of the template has no variant: with dimensions, the cells that name them replace it.
+    if (Object.keys(dims).length) html = html.replace(`
+${cellHtml(key, {}, 'default')}`, '');
+  }
+  let added = 0;
+  if (change) {
+    // One cell at a time: a cell for one case can cover another.
+    const seen = new Set();
+    for (;;) {
+      const spec = componentSpec(html);
+      const cell = specProblems(spec, { themes }).map((p) => missingCell(spec, p)).find(Boolean);
+      const id = cell ? `${pairsText(cell.variant)} ${cell.state}` : null;
+      if (!cell || seen.has(id)) break;
+      seen.add(id);
+      const source = /(<section\b[^>]*\bdata-theme-source\b[^>]*>)([\s\S]*?)(<\/section>)/i.exec(html);
+      const inner = source[2].replace(/\s*$/, '');
+      html = `${html.slice(0, source.index)}${source[1]}${inner}\n${cellHtml(key, cell.variant, cell.state)}\n${source[3]}${html.slice(source.index + source[0].length)}`;
+      added += 1;
+    }
+    if (html !== had || !existsSync(file)) { mkdirSync(join(surfaceDir(root), COMPONENTS_DIR), { recursive: true }); writeFileSync(file, html); }
+  }
+  const spec = componentSpec(html);
+  return { ok: true, key, added, spec, problems: specProblems(spec, { themes }), file: componentRel(key) };
+}
+
+/** The variants that a screen element names (`data-variant="tone=solid size=sm"`) and the spec does not declare. */
+export function undeclaredVariant(spec, variantText) {
+  if (!spec?.declared) return null;
+  for (const [dim, v] of Object.entries(parsePairs(variantText))) if (!spec.variants[dim]?.includes(v)) return `${dim}=${v}`;
+  return null;
 }
 
 /** The keys of the components that a page uses. */
@@ -100,7 +352,7 @@ export function addComponent(root, key, { title = null, code = null, name = null
   const file = componentFile(root, key);
   mkdirSync(join(surfaceDir(root), COMPONENTS_DIR), { recursive: true });
   const created = !existsSync(file);
-  if (created) writeFileSync(file, componentTemplate(key, entry.title));
+  if (created) { const model = readTokenModel(root); writeFileSync(file, componentTemplate(key, entry.title, { themes: themeNames(model), space: panelSpace(model) })); }
   return { ok: true, key, created, component: entry, file };
 }
 
@@ -169,15 +421,24 @@ export function listComponents(root, { workflow = null, uses = null } = {}) {
  */
 export function foundation(root) {
   const m = readManifest(root);
-  let tokens = 0;
-  try { tokens = tokensOf(readFileSync(join(surfaceDir(root), TOKENS_FILE), 'utf8')).length; } catch { tokens = 0; }
+  const model = readTokenModel(root);
+  const tokens = model.tokens.length;
+  const kinds = {};
+  for (const t of model.tokens) kinds[t.kind] = (kinds[t.kind] ?? 0) + 1;
+  const themes = themeNames(model);
   const components = Object.keys(m.components).length;
   const none = m['no-components'] ?? null;
-  const steps = [
-    ...(tokens ? [] : [{ missing: 'no tokens: write the token roles in DESIGN.md, then run design tokens', do: 'Write the token roles in the "| Role | Token | Value |" table under "## Colors" of DESIGN.md, then write the token sheet.', command: `wf.mjs design tokens ${word(root)}` }]),
-    ...(components || none ? [] : [{ missing: 'no components: run design component add for each part that the screens need', do: 'Find the parts that the code has, then add each part that the screens need. A product with no reusable part records that with design components none.', command: `wf.mjs design components scan ${word(root)}` }]),
-  ];
-  return { ok: !steps.length, tokens, components, none, missing: steps.map((s) => s.missing), next: steps.map(({ do: d, command }) => ({ do: d, command })) };
+  const unspecified = Object.entries(componentSpecs(root)).filter(([, s]) => !s?.declared).map(([k]) => k).sort();
+  const tokensCmd = `wf.mjs design tokens ${word(root)}`;
+  const steps = [];
+  if (!tokens) steps.push({ missing: 'no tokens: write the token tables in DESIGN.md, then run design tokens', do: 'Write the token tables of DESIGN.md: a "| Role | Value | Used for |" table (a column per theme for themes) under "## Colors", "## Typography", "## Layout" and "## Shapes", then write the token sheet.', command: tokensCmd });
+  else if (model.legacy) steps.push({ missing: 'the token sheet is from before typed tokens: migrate (design/system-migrate.md), then run design tokens', do: 'tokens.css has no tokens.json beside it. Move the tokens into the token tables of DESIGN.md as design/system-migrate.md says, then write the tokens again.', command: tokensCmd });
+  else {
+    for (const kind of missingKinds(model)) steps.push({ missing: `the tokens have no ${kind}: add a token table`, do: `Add the ${kind} tokens to a token table of DESIGN.md (a Kind column, a role prefix or the section names the kind), then write the tokens again.`, command: tokensCmd });
+  }
+  if (!components && !none) steps.push({ missing: 'no components: run design component add for each part that the screens need', do: 'Find the parts that the code has, then add each part that the screens need. A product with no reusable part records that with design components none.', command: `wf.mjs design components scan ${word(root)}` });
+  if (unspecified.length) steps.push({ missing: `${unspecified.length} component${unspecified.length > 1 ? 's have' : ' has'} no spec: run design component spec for each (design/system-migrate.md): ${unspecified.join(', ')}`, do: `Declare the variants and states of each component and fill the cells, as design/system-migrate.md says: ${unspecified.join(', ')}.`, command: `wf.mjs design component spec ${word(root)} ${unspecified[0]} --variants "<dim=a|b>" --states "default"` });
+  return { ok: !steps.length, tokens, components, none, missing: steps.map((s) => s.missing), next: steps.map(({ do: d, command }) => ({ do: d, command })), kinds, themes, unspecified };
 }
 
 /** The approved screens of a workflow name these components; the contract lists those to build. */
@@ -198,9 +459,130 @@ function usedInCode(root, c) {
   return r.stdout.split(/\r?\n/).some((f) => f && f !== c.code);
 }
 
+/* ───────────────────────── the literals of the product code ───────────────────────── */
+
+// A value of the design that the code writes as a literal, where it should take a token. Each
+// language has its patterns; a pattern earlier in the list masks its match, so `w-[12px]` is one
+// hit and not also `12px`. A hairline (0, 1 or 2 units) is no design value.
+const KT = /\.kt$/i;
+const SWIFT = /\.swift$/i;
+const WEB = /\.(?:[cm]?[jt]sx?|vue|svelte|css|scss)$/i;
+const small = (n) => Number(n) <= 2;
+const LITERALS = {
+  kt: [
+    [/Color\(\s*0x[0-9a-f]+\s*\)/gi],
+    [/Color\(\s*red\b[^)]*\)?/g],
+    [/RoundedCornerShape\(\s*\d[^)]*\)?/g],
+    [/\b(\d+(?:\.\d+)?)\.dp\b/g, small],
+    [/\b(\d+(?:\.\d+)?)\.sp\b/g, small],
+  ],
+  swift: [
+    [/Color\(\s*red:[^)]*\)?/g],
+    [/Color\(\s*#[^)]*\)?/g],
+    [/\.padding\(\s*\d[^)]*\)?/g],
+    [/cornerRadius:\s*\d+(?:\.\d+)?/g],
+    [/\.font\(\s*\.system\(\s*size:\s*\d+(?:\.\d+)?/g],
+  ],
+  web: [
+    [/(?:[\w:-]*\w)?-\[#[0-9a-f]{3,8}\]/gi],
+    [/(?:[\w:-]*\w)?-\[\d+(?:\.\d+)?px\]/g],
+    [/\b(?:rgba?|hsla?)\(\s*\d[^)]*\)/gi],
+    // Not the fragment of a link or an id: href="#add".
+    [/(?<![\w&/#-]|(?:href|to|id)=["'])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b/gi],
+    [/\b(\d+(?:\.\d+)?)px\b/g, small],
+  ],
+};
+const langOf = (file) => (KT.test(file) ? 'kt' : SWIFT.test(file) ? 'swift' : WEB.test(file) ? 'web' : null);
+
+/** The literal design values of one file of the product code: `[{ line, column, literal }]`, in the order of the text. A comment line is skipped. */
+export function literalHits(file, text) {
+  const patterns = LITERALS[langOf(String(file))];
+  if (!patterns) return [];
+  const out = [];
+  String(text ?? '').split(/\r?\n/).forEach((raw, n) => {
+    if (/^\s*(?:\/\/|\/\*|\*|#!|import\b)/.test(raw)) return;
+    let line = raw;
+    const hits = [];
+    for (const [re, exempt] of patterns) {
+      line = line.replace(re, (hit, ...rest) => {
+        const num = typeof rest[0] === 'string' ? rest[0] : null;
+        if (exempt && exempt(num)) return hit;
+        hits.push({ line: n + 1, column: rest.at(-2) + 1, literal: hit.trim() });
+        return ' '.repeat(hit.length);
+      });
+    }
+    out.push(...hits.sort((a, b) => a.column - b.column));
+  });
+  return out;
+}
+
+const git = (root, args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+/** The merge base of HEAD with origin/HEAD, else main, else master; null when none resolves. */
+function branchBase(root) {
+  for (const ref of ['origin/HEAD', 'main', 'master']) {
+    const r = git(root, ['merge-base', 'HEAD', ref]);
+    if (r.status === 0 && r.stdout.trim()) return { ref, sha: r.stdout.trim() };
+  }
+  return null;
+}
+const NOT_PRODUCT = /(^|\/)(?:\.ai|node_modules|dist|build|out|\.next|coverage|vendor|Pods|DerivedData)\/|\.stories\.|\.(?:test|spec)\.|(^|\/)(?:__tests__|tests?|androidTest|testFixtures)\//;
+
 /**
- * The code must use the library: each component of the screens of a workflow, or of one slice,
- * has its file, and another code file of the repo names it. `problems` is empty when the code does.
+ * The literal lint of the code that this branch changes: each changed or new UI file holds no
+ * design value as a literal, and the token file that DESIGN.md names exists and is used.
+ * Returns `{ problems, notices, base, files }`.
+ */
+function lintLiterals(root) {
+  const problems = [];
+  const notices = [];
+  const model = readTokenModel(root);
+  if (!model.tokens.length) return { problems, notices: ['the tokens are empty: the literal lint did not run'], base: null, files: [] };
+  const design = designMdOf(root);
+  const tokenFile = design ? platformFileOf(readFileSync(design, 'utf8')) : null;
+  const base = branchBase(root);
+  if (!base) return { problems, notices: ['no base branch (origin/HEAD, main or master) resolves: the literal lint did not run'], base: null, files: [] };
+  const names = new Set();
+  for (const args of [['diff', '--name-only', `${base.sha}...HEAD`], ['diff', '--name-only', 'HEAD'], ['ls-files', '--others', '--exclude-standard']]) {
+    const r = git(root, args);
+    if (r.status === 0) for (const f of r.stdout.split(/\r?\n/)) if (f.trim()) names.add(f.trim().replace(/\\/g, '/'));
+  }
+  const files = [...names].filter((f) => langOf(f) && !NOT_PRODUCT.test(f) && f !== tokenFile && existsSync(join(root, f))).sort();
+  const use = tokenFile ? `use the generated token file ${tokenFile}` : 'name a Token file in DESIGN.md';
+  const hits = [];
+  const linted = [];
+  for (const f of files) {
+    let text = '';
+    try { text = readFileSync(join(root, f), 'utf8'); } catch { continue; }
+    if (text.includes(GENERATED_MARK)) continue;
+    linted.push(f);
+    for (const h of literalHits(f, text)) hits.push(`${f}:${h.line}: ${h.literal} is not a token: ${use}`);
+  }
+  const CAP = 50;
+  problems.push(...hits.slice(0, CAP));
+  if (hits.length > CAP) problems.push(`and ${hits.length - CAP} more literal${hits.length - CAP > 1 ? 's' : ''} in the changed files`);
+  if (tokenFile) {
+    const regen = `run wf.mjs design tokens ${word(root)}`;
+    if (!existsSync(join(root, tokenFile))) problems.push(`the token file ${tokenFile} that DESIGN.md names does not exist: ${regen}`);
+    else if (tokenFileUsed(root, tokenFile) === false) problems.push(`no UI file uses the token file ${tokenFile}: take the values of the code from it`);
+  }
+  return { problems, notices, base: base.ref, files: linted };
+}
+
+/** True when a UI file of the repo, other than the token file, takes its tokens: `DesignTokens` in Kotlin and Swift, an import of the module in TypeScript and JavaScript. */
+function tokenFileUsed(root, tokenFile) {
+  const stem = tokenFile.split('/').pop().replace(/\.[^.]+$/, '');
+  const ext = tokenFile.slice(tokenFile.lastIndexOf('.') + 1).toLowerCase();
+  const pattern = ['kt', 'swift'].includes(ext) ? ['-w', '-F', '-e', 'DesignTokens'] : ['-E', '-e', `["'][^"']*\\b${escapeRe(stem)}(\\.[cm]?[jt]s|\\.css)?["']`];
+  const r = git(root, ['grep', '-l', '--untracked', ...pattern, '--', '.', ...NOT_A_USE]);
+  if (r.status === null || r.status > 1) return null;
+  return r.stdout.split(/\r?\n/).some((f) => f && f !== tokenFile && langOf(f) && !NOT_PRODUCT.test(f));
+}
+
+/**
+ * The code must use the library and the tokens: each component of the screens of a workflow, or
+ * of one slice, has its file, and another code file of the repo names it; and the UI code that
+ * this branch changes writes no design value as a literal (see lintLiterals). `problems` is empty
+ * when the code does; `notices` say what the lint could not read.
  */
 export function verifyComponents(root, slug, { slice = null } = {}) {
   const m = readManifest(root);
@@ -215,7 +597,9 @@ export function verifyComponents(root, slug, { slice = null } = {}) {
     else if (!existsSync(join(root, c.code))) problems.push(`${key}: the file ${c.code} does not exist (${on})`);
     else if (usedInCode(root, c) === false) problems.push(`${key}: no file uses ${c.name} from ${c.code} (${on})`);
   }
-  return { ok: !problems.length, screens: screens.map((s) => s.key), used, problems };
+  const lint = lintLiterals(root);
+  problems.push(...lint.problems);
+  return { ok: !problems.length, screens: screens.map((s) => s.key), used, problems, notices: lint.notices, lint: { base: lint.base, files: lint.files } };
 }
 
 /* ───────────────────────── the scan of the code ───────────────────────── */

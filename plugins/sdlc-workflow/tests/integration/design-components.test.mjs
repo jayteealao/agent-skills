@@ -12,14 +12,15 @@ import assert from 'node:assert/strict';
 import { appendAnswerEvent } from '../../lib/answers.mjs';
 import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
 import { checkBrowser, runChecks } from '../../lib/design-check.mjs';
-import { addComponent, componentFile, componentNames, componentsUsed, foundation, linkComponent, listComponents, scanComponents, setNoComponents, verifyComponents } from '../../lib/design-components.mjs';
+import { addComponent, componentFile, componentNames, componentSpec, componentsUsed, foundation, linkComponent, listComponents, literalHits, scanComponents, setNoComponents, specComponent, verifyComponents } from '../../lib/design-components.mjs';
 import { canvasState } from '../../lib/design-state.mjs';
 import { addScreen, initSurface, screenFile, surfaceDir, tokensFromDesign, writeTokens } from '../../lib/design-surface.mjs';
 import { restoreVersion, saveRound, versionDir } from '../../lib/design-versions.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 
 const WF = fileURLToPath(new URL('../../scripts/wf.mjs', import.meta.url));
-const DESIGN = '# Design\n\n## Colors\n\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | | #ffffff | page |\n| text | | #111111 | body |\n\n## Layout\n\n| Breakpoint | Width |\n|---|---|\n| phone | 375 |\n\n### Token roles\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| space-2 | | 8px | gaps |\n';
+const DESIGN = '# Design\n\n## Colors\n\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | | #ffffff | page |\n| text | | #111111 | body |\n\n## Typography\n\n| Role | Value |\n|---|---|\n| font-body | Inter, sans-serif |\n| text-md | 16px |\n\n## Layout\n\n| Breakpoint | Width |\n|---|---|\n| phone | 375 |\n\n### Token roles\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| space-2 | | 8px | gaps |\n| size-control | | 44px | targets |\n\n## Shapes\n\n| Role | Value |\n|---|---|\n| radius-md | 8px |\n';
+const THEMED = DESIGN.replace('| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | | #ffffff | page |\n| text | | #111111 | body |', '| Role | Light | Dark | Used for |\n|---|---|---|---|\n| ground | #ffffff | #111111 | page |\n| text | #111111 | #eeeeee | body |');
 
 function project({ tokens = true } = {}) {
   const top = mkdtempSync(join(tmpdir(), 'design-components-'));
@@ -43,7 +44,7 @@ const wf = (root, ...args) => spawnSync(process.execPath, [WF, 'design', ...args
 const page = (body) => `<!doctype html><html><head><link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../components.css"></head><body>${['default', 'empty', 'loading', 'error', 'worst'].map((s) => `<section data-state="${s}"${s === 'default' ? '' : ' hidden'}>${body}</section>`).join('')}</body></html>`;
 
 test('the token sheet reads the roles of each section, and only a token table outside the colors', () => {
-  assert.deepEqual(tokensFromDesign(DESIGN).map((r) => r.role), ['ground', 'text', 'space-2']);
+  assert.deepEqual(tokensFromDesign(DESIGN).map((r) => r.role), ['ground', 'text', 'font-body', 'text-md', 'space-2', 'size-control', 'radius-md']);
   const { root, done } = project();
   try {
     writeTokens(root);
@@ -141,7 +142,9 @@ test('the approval names the components to build, and the code must make and use
 
     writeFileSync(join(root, 'src', 'Basket.tsx'), 'import { OrderRow } from "./OrderRow";\n');
     execFileSync('git', ['-C', root, 'add', 'src']);
-    assert.deepEqual(verifyComponents(root, 'w1'), { ok: true, screens: ['basket', 'pay'], used: ['order-row'], problems: [] });
+    const v = verifyComponents(root, 'w1');
+    assert.deepEqual([v.ok, v.screens, v.used, v.problems], [true, ['basket', 'pay'], ['order-row'], []]);
+    assert.deepEqual(v.lint.files, ['src/Basket.tsx', 'src/OrderRow.tsx'], 'the new files of the branch are linted');
     assert.equal(wf(root, 'components', 'verify', root, 'w1').status, 0);
 
     writeFileSync(screenFile(root, 'basket'), page('<div data-component="ghost">One</div>'));
@@ -253,5 +256,148 @@ test('the check flags a page that restyles a component, and the hover, press and
     assert.ok(states.some((f) => f.interaction === 'press'));
     assert.ok(!of('contrast').some((f) => /#bbbbbb/.test(f.message)), 'a disabled control is exempt from contrast');
     assert.ok(r.failures.every((f) => !f.interaction || f.state === 'default'), 'a control that the default state shows is measured there and not again in the next state');
+  } finally { done(); }
+});
+
+test('a new component page has a panel for each theme, and its spec adds an empty cell for each case it lacks', () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), THEMED);
+    writeTokens(root);
+    addComponent(root, 'button');
+    const html = readFileSync(componentFile(root, 'button'), 'utf8');
+    assert.match(html, /<meta name="wf:kind" content="component">\n<meta name="wf:variants" content="">\n<meta name="wf:states" content="default">/);
+    assert.match(html, /href="\.\.\/tokens\.css"[\s\S]*href="\.\.\/layout\.css"[\s\S]*href="\.\.\/components\.css"/);
+    assert.match(html, /<section class="wf-theme l-cluster" data-theme="light" data-theme-source>\n<div data-spec="state=default"><div data-component="button" class="button"><\/div><\/div>\n<\/section>\n<section class="wf-theme l-cluster" data-theme="dark" data-theme-copy><\/section>/);
+    const style = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+    assert.doesNotMatch(style, /#[0-9a-f]{3,6}\b|\d+px/i, 'the page style holds tokens only');
+    assert.doesNotMatch(style, /var\(--[a-z0-9-]+,/, 'no fallback');
+    assert.deepEqual(componentSpec(html).themes, ['light', 'dark']);
+
+    const r = specComponent(root, 'button', { variants: 'tone=solid|ghost; size=sm|md', states: 'default hover pressed focus disabled' });
+    assert.deepEqual([r.ok, r.problems], [true, []]);
+    assert.equal(r.added, 11, 'size=md once, and each state with each tone');
+    const page = readFileSync(componentFile(root, 'button'), 'utf8');
+    assert.match(page, /<meta name="wf:variants" content="tone=solid\|ghost; size=sm\|md">/);
+    assert.match(page, /<div data-spec="tone=ghost size=sm state=hover"><div data-component="button" class="button" data-variant="tone=ghost size=sm"><\/div><\/div>/);
+    assert.doesNotMatch(page, /data-spec="state=default"/, 'the empty cell with no variant goes');
+    assert.equal(specComponent(root, 'button', { states: 'default hover pressed focus disabled' }).added, 0, 'a second run adds nothing');
+    assert.equal(readFileSync(componentFile(root, 'button'), 'utf8'), page);
+
+    // A drawn cell stays; a new value adds its cells.
+    writeFileSync(componentFile(root, 'button'), page.replace('<div data-component="button" class="button" data-variant="tone=solid size=md"></div>', '<button data-component="button" class="button" data-variant="tone=solid size=md">Pay</button>'));
+    const more = specComponent(root, 'button', { variants: 'tone=solid|ghost|link; size=sm|md' });
+    assert.equal(more.added, 5, 'tone=link in each state');
+    assert.match(readFileSync(componentFile(root, 'button'), 'utf8'), />Pay<\/button>/);
+
+    // With no option the page stays, and the spec and its problems print.
+    const read = wf(root, 'component', 'spec', root, 'button');
+    assert.equal(read.status, 0, read.stderr);
+    assert.match(read.stdout, /component button \(component\): variants tone=solid\|ghost\|link; size=sm\|md; states default hover pressed focus disabled; themes light, dark/);
+    assert.match(read.stdout, /the spec is whole/);
+    const cli = wf(root, 'component', 'spec', root, 'button', '--variants', 'tone=solid|ghost|link; size=sm|md|lg', '--json');
+    assert.equal(JSON.parse(cli.stdout).added, 1);
+    assert.equal(wf(root, 'component', 'spec', root, 'nope').status, 1);
+    assert.match(wf(root, 'component', 'spec', root, 'button', '--variants', 'tone').stderr, /is not dim=value\|value/);
+    assert.match(wf(root, 'component', 'spec', root, 'button', '--kind', 'page').stderr, /is not component or layout/);
+  } finally { done(); }
+});
+
+test('the spec gives an old page its theme panels and keeps its old content', () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), THEMED);
+    writeTokens(root);
+    addComponent(root, 'card');
+    const old = '<!doctype html><html><head><meta name="wf:component" content="card"><title>Card</title></head><body><section><h2>Default</h2><div data-component="card"></div></section></body></html>';
+    writeFileSync(componentFile(root, 'card'), old);
+    assert.deepEqual(foundation(root).unspecified, ['card']);
+    assert.match(foundation(root).missing.join('\n'), /1 component has no spec: run design component spec for each \(design\/system-migrate\.md\): card/);
+    const r = specComponent(root, 'card', { kind: 'layout' });
+    assert.deepEqual([r.spec.kind, r.spec.declared, r.spec.themes, r.problems], ['layout', true, ['light', 'dark'], []]);
+    const page = readFileSync(componentFile(root, 'card'), 'utf8');
+    assert.match(page, /<h2>Default<\/h2>/);
+    assert.match(page, /<script data-wf-themes>/);
+    assert.equal(foundation(root).ok, true);
+  } finally { done(); }
+});
+
+test('the foundation needs each kind of token, typed tokens and a spec for each component', () => {
+  const { root, done } = project({ tokens: false });
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), '# Design\n\n## Colors\n\n| Role | Value |\n|---|---|\n| ground | #ffffff |\n');
+    writeTokens(root);
+    addComponent(root, 'button');
+    const f = foundation(root);
+    assert.equal(f.ok, false);
+    assert.deepEqual(f.kinds, { color: 1 });
+    assert.deepEqual(f.themes, ['default']);
+    assert.deepEqual(f.missing, ['font', 'type', 'space', 'size', 'radius'].map((k) => `the tokens have no ${k}: add a token table`));
+    assert.match(f.next[0].command, /wf\.mjs design tokens /);
+    const text = wf(root, 'foundation', root);
+    assert.equal(text.status, 1);
+    assert.match(text.stdout, /tokens: 1 \(color 1\)\nthemes: default\ncomponents: 1/);
+
+    writeFileSync(join(root, 'DESIGN.md'), DESIGN);
+    writeTokens(root);
+    assert.equal(foundation(root).ok, true);
+    rmSync(join(surfaceDir(root), 'tokens.json'));
+    assert.deepEqual(foundation(root).missing, ['the token sheet is from before typed tokens: migrate (design/system-migrate.md), then run design tokens']);
+  } finally { done(); }
+});
+
+test('the literal lint: the patterns of each language', () => {
+  const lit = (file, text) => literalHits(file, text).map((h) => h.literal);
+  assert.deepEqual(lit('a.tsx', '<div className="w-[12px] bg-[#123456] p-4" style={{ color: "#fff", margin: "16px", border: "1px solid" }}><a href="#add">x</a></div>'), ['w-[12px]', 'bg-[#123456]', '#fff', '16px']);
+  assert.deepEqual(lit('a.css', '.x { color: rgb(1, 2, 3); box-shadow: 0 2px 4px hsl(0 0% 0%); }\n// 24px in a comment'), ['rgb(1, 2, 3)', '4px', 'hsl(0 0% 0%)']);
+  assert.deepEqual(lit('A.kt', 'Modifier.padding(16.dp).border(1.dp)\nval c = Color(0xFF112233)\nText(fontSize = 14.sp)\nRoundedCornerShape(8.dp)\nColor(red = 1f, green = 0f, blue = 0f)'), ['16.dp', 'Color(0xFF112233)', '14.sp', 'RoundedCornerShape(8.dp)', 'Color(red = 1f, green = 0f, blue = 0f)']);
+  assert.deepEqual(lit('A.swift', '.padding(12)\n.cornerRadius: 8\nColor(red: 1, green: 0, blue: 0)\n.font(.system(size: 14))'), ['.padding(12)', 'cornerRadius: 8', 'Color(red: 1, green: 0, blue: 0)', '.font(.system(size: 14']);
+  assert.deepEqual(lit('README.md', 'color: #fff; 16px'), [], 'not a UI file');
+  assert.deepEqual(literalHits('a.tsx', 'x\nconst gap = "24px";').map((h) => h.line), [2]);
+});
+
+test('verify flags each literal of the UI code that the branch changes, and a token file that no file uses', () => {
+  const { root, done } = project();
+  try {
+    writeFileSync(join(root, 'DESIGN.md'), `Token file: src/theme/tokens.ts\n\n${DESIGN}`);
+    writeTokens(root);
+    execFileSync('git', ['-C', root, 'add', '-A']);
+    execFileSync('git', ['-C', root, 'commit', '-qm', 'base']);
+    execFileSync('git', ['-C', root, 'branch', '-M', 'main']);
+    execFileSync('git', ['-C', root, 'checkout', '-qb', 'feature']);
+    mkdirSync(join(root, 'src', 'components'), { recursive: true });
+    writeFileSync(join(root, 'src', 'components', 'Total.tsx'), 'export const Total = () => <p style={{ padding: "12px", color: "#ff0000" }}>x</p>;\n');
+    writeFileSync(join(root, 'src', 'components', 'Total.test.tsx'), 'const x = "99px";\n');
+    writeFileSync(join(root, 'src', 'components', 'old.ts'), 'export const a = 1;\n');
+    const r = verifyComponents(root, 'w1');
+    assert.equal(r.ok, false);
+    assert.equal(r.lint.base, 'main');
+    assert.deepEqual(r.lint.files, ['src/components/Total.tsx', 'src/components/old.ts'], 'tests and the token file are not linted');
+    assert.deepEqual(r.problems, [
+      'src/components/Total.tsx:1: 12px is not a token: use the generated token file src/theme/tokens.ts',
+      'src/components/Total.tsx:1: #ff0000 is not a token: use the generated token file src/theme/tokens.ts',
+      'no UI file uses the token file src/theme/tokens.ts: take the values of the code from it',
+    ]);
+    writeFileSync(join(root, 'src', 'components', 'Total.tsx'), 'import { tokens } from "../theme/tokens";\nexport const Total = () => <p style={{ padding: tokens.space.space2 }}>x</p>;\n');
+    execFileSync('git', ['-C', root, 'add', '-A']);
+    execFileSync('git', ['-C', root, 'commit', '-qm', 'total']);
+    assert.deepEqual(verifyComponents(root, 'w1').problems, []);
+    rmSync(join(root, 'src', 'theme', 'tokens.ts'));
+    assert.match(verifyComponents(root, 'w1').problems.join('\n'), /the token file src\/theme\/tokens\.ts that DESIGN\.md names does not exist/);
+    const cli = wf(root, 'components', 'verify', root, 'w1');
+    assert.equal(cli.status, 1);
+    assert.match(cli.stdout, /changed UI file\(s\) linted/);
+  } finally { done(); }
+});
+
+test('verify with no base branch lints nothing and says so', () => {
+  const { root, done } = project();
+  try {
+    writeTokens(root);
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'src', 'A.tsx'), 'const a = "40px";\n');
+    const r = verifyComponents(root, 'w1');
+    assert.deepEqual([r.ok, r.lint.files], [true, []]);
+    assert.match(r.notices[0], /no base branch/);
   } finally { done(); }
 });

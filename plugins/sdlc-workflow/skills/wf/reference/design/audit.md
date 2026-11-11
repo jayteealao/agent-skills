@@ -38,6 +38,7 @@ Score: 0 = severe issues, 1 = major problems, 2 = partial optimization, 3 = good
 
 - **Hard-coded colors**: a value that does not use a design token (floor rule 11). Name the nearest token.
 - **Hard-coded scale values**: a spacing, radius, depth or type value that fits no token.
+- In built code, take these two from the literal lint of `wf.mjs design components verify <root> <slug>`: each line it prints is a value that the code wrote instead of the generated token file. A surface that `wf.mjs design foundation` reports as old (missing token kinds, no component specs) scores at most 2, and the report names [system-migrate.md](system-migrate.md) as the fix.
 - **Broken dark mode**: a missing dark value, or poor contrast in one theme.
 - **Inconsistent tokens**: the wrong token for the role.
 - **Theme switching**: a value that does not update on a theme change.

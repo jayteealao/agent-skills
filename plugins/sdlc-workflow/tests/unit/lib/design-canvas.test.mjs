@@ -244,3 +244,28 @@ test('the canvas sends the write token, retries a refused write once, and never 
 test('the canvas holds no message listener: the pages share its origin and it reads them directly', () => {
   assert.doesNotMatch(source, /postMessage|addEventListener\(\s*['"]message['"]/);
 });
+
+test('the Tokens lane groups the tokens by kind in a fixed order, and a legacy sheet gets its kind from the name', () => {
+  const groups = plain(L.tokenGroups([
+    { name: '--space-2', kind: 'space' }, { name: '--accent', kind: 'color' }, { name: '--ink', kind: 'color' },
+    { name: '--font-body', kind: 'font' }, { name: '--odd', kind: 'mystery' }, { name: '--radius-md' }, { name: '--plain' },
+  ]));
+  assert.deepEqual(groups.map((g) => [g.kind, g.tokens.map((t) => t.name)]), [
+    ['color', ['--accent', '--ink']], ['font', ['--font-body']], ['space', ['--space-2']], ['radius', ['--radius-md']], ['other', ['--odd', '--plain']],
+  ]);
+  assert.deepEqual(plain(L.TOKEN_KIND_ORDER), ['color', 'font', 'type', 'weight', 'leading', 'space', 'size', 'radius', 'shadow', 'motion', 'layer', 'other']);
+  assert.deepEqual(plain(L.tokenGroups([])), []);
+});
+
+test('a colour shows its value in each theme of the model, in the order of the themes', () => {
+  const themes = [{ name: 'light' }, { name: 'dark' }];
+  assert.deepEqual(plain(L.themeValues({ value: '#fff', values: { dark: '#000', light: '#fff' } }, themes)), [{ theme: 'light', value: '#fff' }, { theme: 'dark', value: '#000' }]);
+  assert.deepEqual(plain(L.themeValues({ value: '#fff', values: {} }, themes)), [{ theme: null, value: '#fff' }]);
+});
+
+test('a component is marked by what its spec lacks', () => {
+  assert.equal(L.specMark({ problems: [] }), null);
+  assert.equal(L.specMark({}), null);
+  assert.equal(L.specMark({ problems: [{ cause: 'no-spec' }] }), 'No spec');
+  assert.equal(L.specMark({ problems: [{ cause: 'variant:tone=ghost' }, { cause: 'theme:dark' }] }), '2 gaps');
+});

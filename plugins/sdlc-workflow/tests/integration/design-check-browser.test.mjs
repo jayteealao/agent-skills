@@ -35,7 +35,7 @@ const STATES = ['default', 'empty', 'loading', 'error', 'worst'];
 /** A screen page: the two sheets, the state switch, `head` and one section for each state. */
 function page(key, { head = '', sections = {}, only = STATES } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="wf:screen" content="${key}"><title>${key}</title>
-<link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../components.css">
+<link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../layout.css"><link rel="stylesheet" href="../components.css">
 <style>body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--ground);color:var(--text)} body [data-state]{display:none}
 ${STATES.map((s) => `html[data-state="${s}"] [data-state~="${s}"]`).join(',')}{display:block}</style>
 <script>document.documentElement.dataset.state=new URLSearchParams(location.search).get("state")||"default";</script>
@@ -254,4 +254,88 @@ test('the record drops the failures of a screen that left the manifest', { skip 
   assert.ok(!stored.failures.some((f) => f.screen === 'bare'), 'no failure of a screen that is gone');
   assert.ok(!(stored.screens ?? []).includes('bare'));
   assert.ok(!r.failures.some((f) => f.screen === 'bare'));
+});
+
+test('the system check: every kind of token, the own tokens of a page, a var() of no token, look-alikes, undeclared variants, repeated rules and the library lint', { skip }, async () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-check-system-'));
+  const root = join(top, 'Shop');
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = join(top, 'home');
+  try {
+    mkdirSync(join(root, '.ai', 'workflows', 'w1'), { recursive: true });
+    execFileSync('git', ['init', '-q', root]);
+    writeFileSync(join(root, '.gitignore'), '.ai/\n');
+    writeFileSync(join(root, 'DESIGN.md'), [
+      '# Design', '', '## Colors', '', '| Role | Value | Used for |', '|---|---|---|', '| ground | #ffffff | page |', '| text | #111111 | body |', '| accent | #0055cc | actions |', '',
+      '## Typography', '', '| Role | Value | Used for |', '|---|---|---|', '| font-body | system-ui, sans-serif | body |', '| text-body | 16px | body |', '',
+      '## Layout', '', '| Role | Value | Used for |', '|---|---|---|', '| space-1 | 4px | tight |', '| space-2 | 8px | default |', '| space-3 | 16px | loose |', '| size-target | 44px | targets |', '',
+      '## Shapes', '', '| Role | Value | Used for |', '|---|---|---|', '| radius-1 | 4px | controls |', '',
+    ].join('\n'));
+    initSurface(root);
+    writeTokens(root);
+    setViewports(root, { phone: '375x812' });
+    addComponent(root, 'btn');
+    addComponent(root, 'card');
+    rmSync(join(surfaceDir(root), 'components', 'card.html'));
+    writeFileSync(join(surfaceDir(root), 'components', 'btn.html'), '<!doctype html><html><head><meta name="wf:component" content="btn"><meta name="wf:kind" content="component">'
+      + '<meta name="wf:variants" content="tone=solid|ghost"><meta name="wf:states" content="default"></head><body><section data-theme="default" data-theme-source>'
+      + '<div data-spec="tone=solid"><span data-component="btn" data-variant="tone=solid">A</span></div><div data-spec="tone=ghost"><span data-component="btn" data-variant="tone=ghost">B</span></div></section></body></html>');
+    writeFileSync(join(surfaceDir(root), 'components.css'), [
+      '.btn { color: var(--ground); background: var(--accent); padding: var(--space-2) var(--space-3); border-radius: var(--radius-1); --btn-ink: var(--ground); }',
+      '/* a card with a raw padding and a raw custom property */',
+      '.card { padding: 12px; --card-edge: #dddddd; }',
+    ].join('\n'));
+    const states = ['default', 'empty', 'loading', 'error', 'worst'];
+    const mini = (key, { style = '', body = '', sheets = ['tokens', 'layout', 'components'] } = {}) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${key}</title>
+${sheets.map((s) => `<link rel="stylesheet" href="../${s}.css">`).join('')}
+<style>body{margin:0;font-family:var(--font-body);font-size:var(--text-body);background:var(--ground);color:var(--text)} body [data-state]{display:none}
+${states.map((s) => `html[data-state="${s}"] [data-state~="${s}"]`).join(',')}{display:block} .wrap{display:flex} ${style}</style>
+<script>document.documentElement.dataset.state=new URLSearchParams(location.search).get("state")||"default";</script></head><body><main>
+${states.map((s) => `<section data-state="${s}"><div class="wrap">${s === 'default' ? body : `<p>${s}</p>`}</div></section>`).join('\n')}</main></body></html>`;
+    const pages = {
+      faults: mini('faults', {
+        style: ':root{--ink:#111111} .wrap{gap:12px} .t{font-size:14px;font-family:Georgia, serif;color:var(--nope)}'
+          + ' .ok{padding:var(--space-2);margin:0 auto;width:100%;border-radius:1px;height:calc(100% - var(--space-1));transition-duration:200ms;--l-min:10rem}',
+        body: '<p class="t">Hi</p><p class="ok">Fine</p><span class="btn">Fake</span><span data-component="btn" data-variant="tone=loud">Loud</span><span data-component="btn" data-variant="tone=ghost">Ghost</span>',
+      }),
+      two: mini('two', { body: '<p>Two</p>' }),
+      three: mini('three', { body: '<p>Three</p>' }),
+      unlinked: mini('unlinked', { body: '<p>No layout sheet</p>', sheets: ['tokens', 'components'] }),
+    };
+    for (const [key, html] of Object.entries(pages)) {
+      addScreen(root, key, { workflow: 'w1' });
+      writeFileSync(screenFile(root, key), html);
+    }
+    const r = await runChecks(root, { workflow: 'w1', loadMs: 2500 });
+    assert.equal(r.ran, true, r.reason);
+    const msgs = (screen, check) => r.new.filter((f) => f.screen === screen && f.check === check).map((f) => f.message).join(' | ');
+    const token = msgs('faults', 'token');
+    assert.match(token, /The gap 12px of \.wrap is not a token; the nearest space token is --space-[23]/);
+    assert.match(token, /The font-size 14px of \.t is not a token; the nearest font size token is --text-body \(16px\)/);
+    assert.match(token, /The font-family Georgia, serif of \.t is not a token/);
+    assert.match(token, /The page declares its own token --ink/);
+    assert.match(token, /uses the custom property --nope, which is not a token/);
+    assert.ok(!/\.ok|--l-min|--btn-ink/.test(token), `the token values, the hairline, the keywords and the layout parameter pass: ${token}`);
+    const space = r.new.find((f) => f.screen === 'faults' && f.check === 'token' && f.cause === '12px');
+    assert.deepEqual([space.kind, space.move], ['space', 'layout']);
+    assert.equal(r.new.find((f) => f.cause === '14px')?.move, 'typeset');
+    assert.ok(r.notices.some((n) => n.kind === 'no-motion-token' && n.screen === 'faults'), 'a raw duration with no motion token is a notice');
+    const component = msgs('faults', 'component');
+    assert.match(component, /A hand-built look-alike of btn: mark it data-component="btn"/);
+    assert.match(component, /The btn names the variant tone=loud, which its spec \(wf:variants\) does not declare/);
+    assert.ok(!/tone=ghost/.test(component), 'a declared variant passes');
+    for (const key of ['faults', 'two', 'three', 'unlinked']) assert.match(msgs(key, 'layout'), /The rule \.wrap is repeated in 4 screens/);
+    assert.match(msgs('unlinked', 'layout'), /The page does not link layout\.css/);
+    assert.equal(msgs('two', 'token'), '', 'a page of tokens only has no token failure');
+    const lib = r.library.map((i) => `${i.component}|${i.cause}|${i.message}`).join('\n');
+    assert.match(lib, /card\|12px\|The padding 12px of \.card in components\.css is not a token/);
+    assert.match(lib, /card\|custom:--card-edge\|/);
+    assert.match(lib, /card\|no-page:card\|/);
+    assert.ok(!/btn\|/.test(lib), `the button with its spec and its token values passes: ${lib}`);
+    assert.equal(r.passed, false);
+    assert.equal(readChecks(root).library.length, r.library.length, 'the record keeps the library lint');
+  } finally {
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
 });

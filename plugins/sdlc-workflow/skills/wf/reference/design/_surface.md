@@ -12,9 +12,11 @@ The surface is `.ai/design/` in the product repo, and git tracks it.
 |---|---|---|
 | `screens/<key>.html` | One screen: an interactive page with mock data and the five states | the design agent |
 | `explore/<key>.html` | A free sketch of an explore run; it is not a screen | the design agent |
-| `tokens.css` | The token sheet, from the token roles of `DESIGN.md`, for colors, type, space, depth and shape | `<wf> design tokens` |
-| `components/<key>.html` | One component of the library: each variant and state of the component | the design agent |
-| `components.css` | The style of the components, with tokens only | the design agent |
+| `tokens.css` | The token sheet, from the token tables of `DESIGN.md`: every kind (color, font, type, space, size, radius, shadow, motion), with a block for each theme | `<wf> design tokens` |
+| `tokens.json` | The token model: each token with its kind, its value in each theme and its use. The check, the canvas and the code token file read it | `<wf> design tokens` |
+| `layout.css` | The layout primitives (`l-stack`, `l-row`, `l-grid`, `l-split` ...), made from the space scale | `<wf> design tokens` |
+| `components/<key>.html` | One component of the library: its spec (kind, variants, states) and a specimen cell for each case, in each theme | the design agent, from `<wf> design component spec` |
+| `components.css` | The style of the components, with tokens only. Its custom properties only name tokens | the design agent |
 | `screens.json` | The manifest: the viewports, each screen with its area, flow and order, its workflows and slices, and its approvals, and each component with its code | `<wf> design` only |
 | `layout.json` | The positions that the person dragged on the canvas | the canvas only |
 | `references.json` | The references of the design. Each names a file in the repo that an agent can read; a link also names its exported file | `<wf> design refs add` |
@@ -28,8 +30,8 @@ Each design fact lives in one place, and every other record cites it by key: the
 
 - A **screen key** is kebab-case and names the screen, for example `basket` or `order-detail`. It is unique in the repo. Records cite screen keys.
 - A screen page has the five states: `default`, `empty`, `loading`, `error` and `worst`. Each state is an element with `data-state="<name>"`. The page shows the state that `?state=<name>` names. The `worst` state holds the worst-case content of [_worst-case.md](_worst-case.md).
-- A screen uses the tokens of `tokens.css` (`var(--<role>)`) and the components of `components.css`. It holds its own layout and its own scripts in the page. It loads nothing from the network. A font is a file in the repo, declared with a local `@font-face` in `components.css`, or a named stand-in ([typeset.md](typeset.md) → Get the face onto a screen). It uses real copy and realistic mock data. A script that sends a message to another frame sends it to `location.origin`, never to `*`, and a `message` listener acts only when `event.origin === location.origin`.
-- A style that two or more screens share goes in `components.css` as a component, for example the app frame or the navigation. Do not copy it into each page: each copy loads again in every page of the canvas, and the copies drift apart.
+- A screen uses the tokens of `tokens.css` (`var(--<role>)`), the layout primitives of `layout.css` and the components of `components.css`, and links the three sheets in that order. Every value is a token: a raw color, a raw length (more than 2px), a raw radius and a token that the page declares itself fail the check. It arranges its parts with the layout primitives, and its own `<style>` only places: a grid area, an order. It holds its own scripts in the page. It loads nothing from the network. A font is a file in the repo, declared with a local `@font-face` in `components.css`, or a named stand-in ([typeset.md](typeset.md) → Get the face onto a screen). It uses real copy and realistic mock data. A script that sends a message to another frame sends it to `location.origin`, never to `*`, and a `message` listener acts only when `event.origin === location.origin`.
+- A style that two or more screens share goes in `components.css` as a component, for example the navigation, or as a layout component (`wf:kind` `layout`) for a page shell such as the app frame. Do not copy it into each page: the check fails a rule that three or more screens repeat.
 - A link to `<key>.html` in a screen is an edge of a flow. Make every step of a flow a link, so the person can click through it.
 - A screen is a design, not product code. Do not import product code into it, and do not build a working feature in it.
 - **A terminal surface.** Capture the real output, or write it as text with its ANSI codes. Render it into the screen page with `node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>`, and copy the result into each state of the screen. `campbell` is a dark scheme; `solarized-light` is a light scheme. Draw the screen in each scheme that `_platforms-terminal.md` names, as two screens when the schemes differ.
@@ -47,10 +49,17 @@ The tokens and the component library come before the first screen of a repo. [st
 | Added by | `<wf> design component add <root> <key> --code <file> --name <name>` | `<wf> design component add <root> <key>` |
 | Build | Imports it, and does not rebuild it | Makes it once, then runs `<wf> design component link <root> <key> --code <file> --name <name>` |
 
-- The page of a component is a mock, like a screen. It shows each variant and state, for example primary, disabled and loading. Do not import product code into it. For a component that the code has, it matches the look of that code.
-- A screen marks the outer element of each use with `data-component="<key>"`. Write the markup and the class of the component page. Do not restyle a component in a screen: add a variant to the library.
-- `<wf> design foundation <root>` exits 1 until the surface has tokens and either components or `<wf> design components none`. Until then, `<wf> design screen add` refuses a new screen.
-- `<wf> design check` reads the library. It flags a `data-component` that the library does not have, a control that stands outside a component, a raw color in `components.css`, and a screen style that changes the look of a component. A screen may place a component (its margin, size and grid place), never restyle it.
+- A component has a **spec** in the head of its page: `wf:kind` (`component`, or `layout` for a page shell), `wf:variants` (each dimension with its values, for example `tone=solid|ghost; size=sm|md`) and `wf:states`. An interactive component has at least `default hover pressed focus disabled`. `<wf> design component spec <root> <key> --variants "..." --states "..."` writes the spec and an empty specimen cell for each case that the page lacks.
+- The page of a component is a mock, like a screen. Each specimen cell (`data-spec="tone=solid size=sm state=hover"`) holds one instance, and the page shows the cells once in each theme of the tokens. Do not import product code into it. For a component that the code has, it matches the look of that code. The class of the outer element of a component is its key.
+- A screen marks the outer element of each use with `data-component="<key>"` and `data-variant="<dim>=<value> ..."`. Write the markup and the class of the component page. Do not restyle a component in a screen: add a variant to its spec.
+- `<wf> design foundation <root>` exits 1 until the surface has tokens of every required kind (color, font, type, space, size, radius) from `tokens.json`, and either components with specs or `<wf> design components none`. Until then, `<wf> design screen add` refuses a new screen. A surface from before typed tokens and specs is migrated by [system-migrate.md](system-migrate.md), first, in any design pass.
+- `<wf> design check` enforces the system, in four checks that approval does not pass over:
+  - `token`: a raw color, a raw length of a space, size, radius or type property, a raw shadow, a token that the page declares, and a `var()` of a name that is no token.
+  - `layout`: a screen that does not link `layout.css`, and a `<style>` rule that three or more screens repeat.
+  - `component`: a `data-component` that the library does not have, a `data-variant` that its spec does not declare, a control outside a component, an element with the class of a component outside `data-component`, and a screen style that changes the look of a component.
+  - `library`: a raw value in `components.css`, a custom property of `components.css` with a raw value, and a component page that lacks its spec, a specimen cell of a case, or a panel of a theme.
+- A failure of these four checks is repaired, or waived with `<wf> design waive <root> <slug> --cause "<cause>" --reason "<why>"`. Waive only for a reason that the person gave or that the code forces. `<wf> design approve` refuses while one stays.
+- **The code uses the tokens.** Name the token file of the product code in the Overview of `DESIGN.md`: `Token file: <path>`. `<wf> design tokens` writes it (Kotlin, Swift, TypeScript, JavaScript or CSS). `<wf> design components verify` fails a raw color, a raw size and a raw radius in the code that the branch changed, and a token file that no code imports.
 
 ## Arranging the screens
 

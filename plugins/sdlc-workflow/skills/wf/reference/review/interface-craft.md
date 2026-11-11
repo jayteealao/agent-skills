@@ -14,7 +14,7 @@ The values come from the tokens of `DESIGN.md`. A value that the tokens hold is 
 - **Interactive target below the minimum hit area with no extended hit area is HIGH** (`design/_craft-floor.md` rule 4; technique in `design/harden.md` → Touch targets). **A touch surface under the touch target of rule 5 is MED.**
 - **Two interactive elements whose extended hit areas overlap is MED.**
 - **`transition: all` is MED**: the browser watches every property and animates ones that the author did not intend. In Tailwind, only `transition-all` is this finding; the bare `transition` class sets a fixed list of properties and is not.
-- **A spacing, radius or depth value that fits no token is LOW**; the same value repeated across a surface is MED.
+- **A color, spacing, size, radius, type or depth value written in the code instead of taken from the token file is MED** (`wf.mjs design components verify` lists them); the same value repeated across a surface is HIGH.
 - **What is the styling system?** (Utility classes, CSS modules, styled components, plain CSS: it affects how radii, spacing and outlines are written.)
 - **Is there a design-token system?** (Spacing, radius and depth tokens: a one-off value that breaks the scale is the symptom to hunt.)
 - **Light, dark, or both?** (Image outlines and depth tokens differ by theme.)

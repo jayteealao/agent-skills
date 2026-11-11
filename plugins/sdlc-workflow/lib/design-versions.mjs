@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { commitDesignRecords, designRecordsDir } from './design-records.mjs';
-import { COMPONENTS_FILE, KEY_RE, SCREENS_DIR, TOKENS_FILE, addScreen, listScreens, readManifest, screenRel, surfaceDir, updateManifest, withDesignLock, writeJson } from './design-surface.mjs';
+import { COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, SCREENS_DIR, TOKENS_FILE, TOKENS_JSON, addScreen, listScreens, readManifest, screenRel, surfaceDir, updateManifest, withDesignLock, writeJson } from './design-surface.mjs';
 import { agentFix, refuse } from './fix.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -175,7 +175,8 @@ function writeFolder(root, dir, meta, surface, carried = [], carriedFrom = null)
     mkdirSync(to, { recursive: true });
     for (const key of surface) copyPage(surfaceScreens(root), to, key);
     for (const key of carried) copyPage(carriedFrom, to, key);
-    for (const sheet of [TOKENS_FILE, COMPONENTS_FILE]) {
+    // The pages of a version link its own sheets; the token model goes with the token sheet.
+    for (const sheet of [TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE]) {
       const from = join(surfaceDir(root), sheet);
       if (existsSync(from)) cpSync(from, join(tmp, sheet));
     }
@@ -321,7 +322,8 @@ export function restoreVersion(root, slug, id, { now = new Date(), commit = true
   const after = saveRound(root, slug, { reason: `Restored from ${versionName(id)}`, now, restored: v.id, commit: false });
   if (!after.ok) return after;
   if (commit && (before.saved || after.saved)) commitDesignRecords(root, `design: restore ${versionName(v.id)} of ${slug}`);
-  const tokens = (dir) => { try { return readFileSync(join(dir, TOKENS_FILE), 'utf8').replace(/\r\n/g, '\n'); } catch { return null; } };
+  // The layout sheet comes from the tokens: either sheet that differs is a token difference.
+  const tokens = (dir) => [TOKENS_FILE, LAYOUT_SHEET].map((f) => { try { return readFileSync(join(dir, f), 'utf8').replace(/\r\n/g, '\n'); } catch { return '\u0001'; } }).join('\u0000');
   return { ok: true, id: after.id, restored: v.id, saved: after.saved, componentsDiffer: sheetText(versionDir(root, slug, v.id)) !== sheetText(surfaceDir(root)), tokensDiffer: tokens(versionDir(root, slug, v.id)) !== tokens(surfaceDir(root)) };
 }
 

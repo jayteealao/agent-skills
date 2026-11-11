@@ -24,8 +24,13 @@ function repo() {
 
 const DESIGN = '# Design\n\n## Colors\nCalm.\n\n### Token roles\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | --color-paper | #faf9f6 | page |\n| text | | #1c1d1f | body |\n| accent | | | primary |\n\n## Typography\n';
 
-test('the token roles of DESIGN.md become the token sheet', () => {
-  assert.deepEqual(tokensFromDesign(DESIGN), [{ role: 'ground', token: '--color-paper', value: '#faf9f6' }, { role: 'text', token: null, value: '#1c1d1f' }]);
+test('the token roles of DESIGN.md become typed rows; a row with no value and a table of another header are left out', () => {
+  assert.deepEqual(tokensFromDesign(DESIGN).map(({ role, token, kind, value, values, usedFor }) => ({ role, token, kind, value, values, usedFor })), [
+    { role: 'ground', token: '--color-paper', kind: 'color', value: '#faf9f6', values: { default: '#faf9f6' }, usedFor: 'page' },
+    { role: 'text', token: null, kind: 'color', value: '#1c1d1f', values: { default: '#1c1d1f' }, usedFor: 'body' },
+  ]);
+  // Before typed tokens any row under Colors counted; now the header starts with Role, Name or Token.
+  assert.equal(tokensFromDesign('## Colors\n\n| Swatch | Hex |\n|---|---|\n| ground | #fff |\n').length, 0);
 });
 
 test('init tracks .ai/design/ in a repo that ignores .ai/, and registers the repo', () => {
@@ -36,7 +41,8 @@ test('init tracks .ai/design/ in a repo that ignores .ai/, and registers the rep
     const r = initSurface(root);
     assert.deepEqual([r.created, r.tokens, r.track.tracked, r.track.changed, r.repo.name], [true, 2, true, true, 'shop']);
     assert.equal(readFileSync(join(root, '.gitignore'), 'utf8'), 'node_modules/\n.ai/*\n!.ai/design/\n');
-    assert.match(readFileSync(join(root, '.ai', 'design', 'tokens.css'), 'utf8'), /--ground: #faf9f6;\n {2}--color-paper: var\(--ground\);/);
+    assert.match(readFileSync(join(root, '.ai', 'design', 'tokens.css'), 'utf8'), /--ground: #faf9f6;\n {2}--text: #1c1d1f;\n {2}--color-paper: var\(--ground\);/);
+    for (const f of ['tokens.json', 'layout.css']) assert.ok(existsSync(join(root, '.ai', 'design', f)), `init writes ${f}`);
     assert.equal(spawnSync('git', ['-C', root, 'check-ignore', '-q', '--no-index', '.ai/workflows/x/state.yaml']).status, 0, 'the records stay ignored');
     assert.equal(trackSurface(root).changed, false, 'a second run changes nothing');
     assert.deepEqual(readDesignRepos().map((x) => x.name), ['shop']);

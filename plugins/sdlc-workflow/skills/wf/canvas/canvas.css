@@ -159,6 +159,32 @@ body.viewing #notice { top: max(6px, env(safe-area-inset-top)); max-width: calc(
 .swatch { flex: none; width: 28px; height: 28px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
 .swatch.alias { background: repeating-linear-gradient(45deg, var(--sunk) 0 4px, var(--line) 4px 5px); }
 .tok .swatch { width: 22px; height: 22px; }
+/* The tokens by kind: a heading for each kind, and a specimen that draws each value. */
+.tokgroup { display: flex; align-items: center; gap: 6px; margin: 8px 6px 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.tokgroup:first-child { margin-top: 2px; }
+.tokgroup .count { margin-left: auto; font-weight: 500; letter-spacing: 0; }
+.tok.wide { flex-wrap: wrap; row-gap: 4px; }
+.tok.wide > .tname { order: -1; flex: 1 1 100%; }
+.swatches { flex: none; display: inline-flex; gap: 2px; }
+.glyph { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; max-width: 96px; overflow: hidden; line-height: 1.1; color: var(--ink); white-space: nowrap; }
+.k-type .glyph { font-family: inherit; }
+.spec-bar { display: block; flex: 1 1 100%; height: 8px; width: 0; min-width: 1px; max-width: 100%; border-radius: 2px; background: color-mix(in srgb, var(--focus) 55%, transparent); }
+.spec-box { display: flex; align-items: flex-end; justify-content: flex-start; flex: none; box-sizing: border-box; width: 24px; height: 24px; max-width: 100%; min-width: 8px; min-height: 8px; overflow: hidden; border: 1px solid var(--pencil); border-radius: 2px; background: var(--sunk); }
+.spec-box small { padding: 0 2px; font-size: 10px; color: var(--pencil); white-space: nowrap; }
+.spec-tile { flex: none; width: 28px; height: 28px; border: 1px solid var(--line); background: var(--sunk); }
+.spec-tile.shadow { margin: 4px; border-color: transparent; background: var(--surface); border-radius: 6px; }
+.tval { flex: none; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border-radius: 4px; background: var(--sunk); font: 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+.marks { flex: none; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.mark.kind { color: var(--pencil); background: var(--sunk); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 8%); font-weight: 600; }
+#panel .seg.themes { margin: 8px 0 0; }
+#panel table.spec { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+#panel table.spec th, #panel table.spec td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+#panel table.spec th { width: 30%; color: var(--pencil); font-weight: 600; }
+#panel .chips .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunk); font-size: 12px; }
+#panel .chips button { padding: 1px 8px; min-height: 24px; border-radius: 6px; background: var(--sunk); border: 1px solid var(--line); font-size: 12px; }
+#panel .chips button:hover { border-color: var(--pencil); }
+#panel ul.gaps li { display: list-item; margin-left: 18px; list-style: disc; color: var(--issue); }
 .empty { position: absolute; left: 0; top: 0; width: max-content; max-width: 420px; color: var(--pencil); }
 .empty b { display: block; margin-bottom: 4px; font-size: 18px; color: var(--ink); }
 .empty .btn { margin-top: 8px; color: var(--ink); }
@@ -381,6 +407,9 @@ textarea { display: block; width: 100%; min-height: 56px; padding: 6px 8px; bord
   .lane > summary .count { margin-left: auto; }
   .lane > .item, .lane > .toklist, .lane > .none { margin: 0 0 16px; }
   .lane .toklist { padding: 0; box-shadow: none; }
+  .tokgroup { margin: 12px 0 4px; }
+  .glyph, .tval { max-width: 40vw; }
+  #panel .chips button { min-height: 44px; padding: 4px 12px; }
   .empty { position: static; width: auto; max-width: none; }
   .dock { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); transform: none; max-width: none; gap: 6px; }
   .dock .pick { flex: 1 1 0; }

@@ -42,15 +42,17 @@ function project() {
 const answer = (root, slug, text, at) => appendAnswerEvent(root, { tool: 'AskUserQuestion', questions: [{ question: approvalQuestion(slug), header: 'Design', answer: text }] }, { now: new Date(at) });
 const contractOf = (root) => frontmatterOfDoc(join(root, '.ai', 'workflows', 'w1'), '02c-craft.md');
 
-test('without a browser, the checks report the missing states and say why they did not run', async () => {
+test('without a browser, the checks report the missing states and the sheets that the page does not link, and say why they did not run', async () => {
   const { root, done } = project();
   try {
     writeFileSync(screenFile(root, 'basket'), '<html><body><section data-state="default">x</section></body></html>');
     const r = await runChecks(root, { browser: null });
     assert.equal(r.ran, false);
     assert.match(r.reason, /no browser/);
-    assert.deepEqual(r.failures.map((f) => [f.check, f.move]), [['states', 'harden']]);
+    assert.deepEqual(r.failures.map((f) => [f.check, f.move]), [['states', 'harden'], ['token', 'colorize'], ['layout', 'layout'], ['component', null]]);
     assert.match(r.failures[0].message, /empty, loading, error, worst/);
+    assert.deepEqual(r.failures.slice(1).map((f) => f.message), ['The page does not link tokens.css', 'The page does not link layout.css', 'The page does not link components.css']);
+    assert.ok(r.failures[3].do, 'a failure with no move says what to do');
   } finally { done(); }
 });
 
@@ -75,7 +77,7 @@ test('the approval needs the contract and a new approve in the answer log; then 
     const log = execFileSync('git', ['-C', root, 'log', '--format=%s'], { encoding: 'utf8' }).trim().split('\n');
     assert.deepEqual(log, ['design: record the approval of w1', 'design: approve basket for w1']);
     const files = execFileSync('git', ['-C', root, 'show', '--name-only', '--format=', r.commit], { encoding: 'utf8' }).trim().split('\n').sort();
-    assert.deepEqual(files, ['.ai/design/components.css', '.ai/design/screens.json', '.ai/design/screens/basket.html', '.ai/design/tokens.css'], 'only the surface, never the ignored records');
+    assert.deepEqual(files, ['.ai/design/components.css', '.ai/design/layout.css', '.ai/design/screens.json', '.ai/design/screens/basket.html', '.ai/design/tokens.css'], 'only the surface, never the ignored records');
     assert.equal(readManifest(root).screens.basket.approvals[0].commit, r.commit);
     const c = contractOf(root);
     assert.deepEqual([c['direction-confirmed-by'], c['approval-commit'], c['answered-at'], c['screens']], ['answer-event', r.commit, '2026-10-25T10:05:00.000Z', ['basket']]);
@@ -90,9 +92,14 @@ test('the approval needs the contract and a new approve in the answer log; then 
 });
 
 const browser = checkBrowser(process.cwd());
-test('in a browser: each check finds its fault with a box and a move, and the approval stores pictures', { skip: browser ? false : 'no Chromium on this machine' }, async () => {
+test('in a browser: each check finds its fault with a box and a move; a token failure blocks the approval until it is waived; the approval stores pictures', { skip: browser ? false : 'no Chromium on this machine' }, async () => {
   const { root, done } = project();
   try {
+    writeFileSync(join(root, 'DESIGN.md'), [
+      '# Design', '', '## Colors', '', '| Role | Value | Used for |', '|---|---|---|', '| ground | #ffffff | page |', '| text | #111111 | body |', '',
+      '## Typography', '', '| Role | Value | Used for |', '|---|---|---|', '| font-body | system-ui, sans-serif | body |', '',
+    ].join('\n'));
+    writeTokens(root);
     const r = await runChecks(root, { now: new Date('2026-10-25T09:00:00Z') });
     assert.equal(r.ran, true);
     const kinds = new Set(r.failures.map((f) => f.check));
@@ -106,6 +113,17 @@ test('in a browser: each check finds its fault with a box and a move, and the ap
 
     writeFileSync(join(root, '.ai', 'workflows', 'w1', '02c-craft.md'), '---\nschema: sdlc/v1\ntype: design-contract\nslug: w1\n---\n# Contract\n');
     answer(root, 'w1', 'Approve', '2026-10-25T10:05:00Z');
+    // The raw colour of the page is a token failure: the approval is refused, and the answer stays unused.
+    const token = r.failures.find((f) => f.check === 'token');
+    assert.equal(token?.cause, '#cccccc', JSON.stringify(r.failures.filter((f) => f.check === 'token')));
+    const refused = await approveDesign(root, 'w1');
+    assert.equal(refused.ok, false);
+    assert.match(refused.reason, /^System check failures stay: 1 cause\(s\)/);
+    assert.match(refused.reason, /#cccccc/);
+    assert.match(refused.fix.command, /wf\.mjs design waive .* w1 --cause/);
+    const lines = [];
+    assert.equal(await runDesign(['waive', root, 'w1'], { json: true, cause: '#cccccc', reason: 'The grey of the old print style, kept on purpose' }, (v) => lines.push(v)), 0, JSON.stringify(lines.at(-1)));
+    assert.deepEqual(readManifest(root).waivers.map((w) => [w.workflow, w.cause]), [['w1', '#cccccc']]);
     const a = await approveDesign(root, 'w1');
     assert.equal(a.ok, true, a.reason);
     assert.equal(a.pictures, 1);

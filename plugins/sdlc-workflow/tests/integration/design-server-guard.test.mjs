@@ -136,9 +136,9 @@ test('a change whose state build failed is sent with the next change', async () 
       stream.on('error', no);
       stream.end();
     });
-    // A token sheet that the state build cannot read (a folder in its place), with a page change at the same time.
-    const sheet = join(s.root, '.ai', 'design', 'tokens.css');
-    rmSync(sheet);
+    // A component sheet that the state build cannot read (a folder in its place), with a page change at the same time.
+    const sheet = join(s.root, '.ai', 'design', 'components.css');
+    rmSync(sheet, { force: true });
     mkdirSync(sheet);
     writeFileSync(join(s.root, '.ai', 'design', 'screens', 'basket.html'), '<html><body><section data-state="default">new</section></body></html>');
     await new Promise((ok) => setTimeout(ok, 1500));

@@ -125,6 +125,7 @@ test('a component names code that holds it, and only product code counts as a us
     assert.equal(unused.ok, false);
     assert.match(unused.problems[0], /no file uses OrderRow/);
     put('src/Basket.tsx', 'import { OrderRow } from "./components/OrderRow";\n');
-    assert.deepEqual(verifyComponents(root, 'w1'), { ok: true, screens: ['basket'], used: ['order-row'], problems: [] }, 'a new file that git does not ignore counts');
+    const v = verifyComponents(root, 'w1');
+    assert.deepEqual([v.ok, v.screens, v.used, v.problems], [true, ['basket'], ['order-row'], []], 'a new file that git does not ignore counts');
   } finally { done(); }
 });

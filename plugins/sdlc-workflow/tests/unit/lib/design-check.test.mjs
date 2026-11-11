@@ -6,11 +6,14 @@ import { runInNewContext } from 'node:vm';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CHECK_DO, CHECK_MOVES, MAX_CAUSES, MAX_PLACES, capFailures, failureGroups, failureLines, groupFailures, moveOf, overPool, partialLines, selectorRect } from '../../../lib/design-check.mjs';
+import { CHECK_DO, CHECK_MOVES, MAX_CAUSES, MAX_PLACES, SYSTEM_CHECKS, capFailures, componentAliases, cssDeclarations, failureGroups, failureLines, groupFailures, lengthKindOf, libraryLines, lintLibrary, measure, moveOf, overPool, partialLines, rawColor, rawLength, rawValue, selectorRect, staticScreenChecks, styleSelectors, systemFailures } from '../../../lib/design-check.mjs';
+import { addComponent } from '../../../lib/design-components.mjs';
+import { initSurface, surfaceDir, writeTokens } from '../../../lib/design-surface.mjs';
 
 const f = (screen, viewport, selector, cause, extra = {}) => ({ screen, viewport, state: 'default', check: 'token', selector, cause, message: `The color ${cause} of ${selector} is not a token`, move: 'colorize', ...extra });
 
@@ -126,4 +129,109 @@ test('a failure with no move prints what to do; the cut and the notices print on
   assert.match(partial[1], /^not shown: 12 control\(s\) over the cap of \d+ for a load/);
   assert.equal(partial[2], 'not measured: text over an image (5 element(s)) — pay, basket');
   assert.deepEqual(partialLines(), []);
+});
+
+test('a raw length: tokens, 0, units of the viewport, %, fr, hairlines and keywords pass; calc() passes when each length inside it does', () => {
+  for (const v of ['0', '0px', 'auto', '100%', '1fr', '50vw', '100dvh', '1px', '2px', '0.125rem', 'var(--space-2)', 'var(--space-2) var(--space-3)', 'var(--x, 16px)', 'calc(100% - var(--space-1))', 'min(100%, 40vw)', 'fit-content', 'inherit', 'calc(100% / 3)']) {
+    assert.equal(rawLength(v), null, v);
+  }
+  assert.equal(rawLength('10px 16px'), '10px');
+  assert.equal(rawLength('0 -4px'), '-4px');
+  assert.equal(rawLength('calc(100% - 24px)'), '24px');
+  assert.equal(rawLength('clamp(1rem, 2vw, 3rem)'), '1rem');
+  assert.equal(rawLength('3px'), '3px', 'more than a hairline');
+  assert.equal(rawLength('url(a-12px.png) 0'), null, 'a URL is no length');
+});
+
+test('the kind of a property, and the raw part of a value of each kind', () => {
+  const kinds = { 'padding-top': 'space', margin: 'space', gap: 'space', 'row-gap': 'space', inset: 'space', top: 'space', width: 'size', 'max-height': 'size', 'flex-basis': 'size', 'border-radius': 'radius', 'border-top-left-radius': 'radius', 'font-size': 'type', 'font-family': 'font', 'box-shadow': 'shadow', 'transition-duration': 'motion', 'animation-duration': 'motion', color: null, 'line-height': null, 'border-width': null };
+  for (const [prop, kind] of Object.entries(kinds)) assert.equal(lengthKindOf(prop), kind, prop);
+  assert.equal(rawValue('font', 'system-ui, sans-serif'), 'system-ui, sans-serif');
+  assert.equal(rawValue('font', 'var(--font-body)'), null);
+  assert.equal(rawValue('font', 'inherit'), null);
+  assert.equal(rawValue('shadow', 'none'), null);
+  assert.equal(rawValue('shadow', 'var(--shadow-1), var(--shadow-2)'), null);
+  assert.equal(rawValue('shadow', '0 0 0 3px var(--accent)'), '0 0 0 3px', 'a shadow is a token as a whole');
+  assert.equal(rawValue('motion', 'background 200ms ease 0s'), '200ms');
+  assert.equal(rawValue('motion', 'background var(--duration-1) ease 0s'), null);
+  assert.equal(rawValue('space', 'var(--space-2) 12px'), '12px');
+  assert.deepEqual([measure('16px'), measure('1rem'), measure('0.2s'), measure('14px/20px'), measure('calc(1px)')], [16, 16, 200, 14, null]);
+});
+
+test('the static screen checks: the three sheets, and a rule that three screens repeat', () => {
+  const sheets = '<link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../layout.css"><link rel="stylesheet" href="../components.css">';
+  const switchRule = 'html[data-state="default"] [data-state~="default"], html[data-state="empty"] [data-state~="empty"] { display: block; }';
+  const page = (style, links = sheets) => `<html><head>${links}<style>body { margin: 0 } body [data-state] { display: none } ${switchRule} :root { color: red } ${style}</style></head><body></body></html>`;
+  const screens = [
+    { key: 'a', exists: true, html: page('.stack   { display: flex }\n@media (min-width: 40rem) { .pad { padding: 0 } }') },
+    { key: 'b', exists: true, html: page('.stack{display:flex} .pad{padding:0}') },
+    { key: 'c', exists: true, html: page('/* .stack {} */ .pad { padding: 0 }', '<link rel="stylesheet" href="../tokens.css">') },
+    { key: 'd', exists: true, legacy: true, html: page('.stack{} .pad{}', '') },
+    { key: 'e', exists: false, html: '' },
+  ];
+  const out = staticScreenChecks(screens).map((f) => `${f.screen}|${f.check}|${f.message}`);
+  assert.deepEqual(out.sort(), [
+    'a|layout|The rule .pad is repeated in 3 screens: use the layout primitives of layout.css, or move it to components.css',
+    'b|layout|The rule .pad is repeated in 3 screens: use the layout primitives of layout.css, or move it to components.css',
+    'c|component|The page does not link components.css',
+    'c|layout|The page does not link layout.css',
+    'c|layout|The rule .pad is repeated in 3 screens: use the layout primitives of layout.css, or move it to components.css',
+  ]);
+  assert.deepEqual(styleSelectors(page('.a > .b,.c{x:y}')).sort(), ['.a > .b', '.c'], 'the base and the state switch are no repeat');
+});
+
+test('the library lint: raw values of components.css, custom properties that are no alias of tokens, and the spec of each page', () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-lint-'));
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = join(top, 'home');
+  try {
+    const root = join(top, 'Shop');
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, 'DESIGN.md'), ['# Design', '', '## Colors', '', '| Role | Value |', '|---|---|', '| ground | #ffffff |', '| text | #111111 |', '',
+      '## Layout', '', '| Role | Value |', '|---|---|', '| space-1 | 4px |', '| space-2 | 8px |', ''].join('\n'));
+    initSurface(root);
+    writeTokens(root);
+    addComponent(root, 'btn');
+    addComponent(root, 'card');
+    rmSync(join(surfaceDir(root), 'components', 'card.html'));
+    writeFileSync(join(surfaceDir(root), 'components', 'btn.html'), '<meta name="wf:variants" content="tone=solid|ghost"><meta name="wf:states" content="default"><section data-theme="default" data-theme-source><div data-spec="tone=solid"><span data-component="btn"></span></div></section>');
+    writeFileSync(join(surfaceDir(root), 'components.css'), [
+      '/* .btn { color: #000000 } */',
+      '.btn { color: var(--ground); background: #1a5fb4; padding: var(--space-2) 12px; border: 1px solid var(--text); --btn-ink: var(--text); --btn-pad: 6px; }',
+      '@media (min-width: 40rem) { [data-component="card"] { margin: var(--space-1); color: var(--btn-ink); border-color: var(--gone); width: 300px; } }',
+    ].join('\n'));
+    const items = lintLibrary(root);
+    const lines = items.map((i) => `${i.component}|${i.cause}`);
+    assert.deepEqual(lines.sort(), ['btn|#1a5fb4', 'btn|12px', 'btn|btn/state:default:tone=ghost', 'btn|btn/variant:tone=ghost', 'btn|custom:--btn-pad', 'card|--gone', 'card|no-page:card'].sort(),
+      'a width with no size token is left alone; an alias of tokens passes');
+    assert.ok(items.every((i) => i.check === 'library' && i.do), 'each item names its repair');
+    assert.match(items.find((i) => i.cause === '12px').message, /nearest space token is --space-2 \(8px\)/);
+    assert.match(libraryLines(items)[0], /^library \(btn\): /);
+    assert.deepEqual(cssDeclarations('a{b:c} @media x { d { e: f; } }').map((d) => `${d.selector}|${d.prop}|${d.value}`), ['a|b|c', 'd|e|f']);
+    assert.deepEqual([...componentAliases('.x{--a:var(--t);--b:#fff;--c:calc(var(--t) * 2)}').keys()], ['--a', '--c']);
+    assert.equal(rawColor('1px solid var(--line, red)'), null, 'the fallback of a token is no colour of the sheet');
+    assert.equal(rawColor('0 1px 2px rgb(0 0 0 / 0.2)'), 'rgb(0 0 0 / 0.2)');
+    assert.equal(rawColor('solid Tomato'), 'Tomato');
+  } finally {
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});
+
+test('the system failures: token, component, layout and library failures of the workflow, without the waived causes', () => {
+  const checks = {
+    failures: [
+      { screen: 'a', check: 'token', cause: '#ff0000' }, { screen: 'a', check: 'contrast', cause: 'text/#999/#fff/4.5' },
+      { screen: 'b', check: 'layout', cause: 'repeated:.x' }, { screen: 'other', check: 'component', cause: 'button' },
+    ],
+    library: [{ component: 'btn', check: 'library', cause: '12px' }],
+  };
+  const all = systemFailures(checks, ['a', 'b']);
+  assert.deepEqual(all.causes, ['#ff0000', 'repeated:.x', '12px'], 'a contrast failure and a screen of another workflow are no system failure here');
+  const waived = systemFailures(checks, ['a', 'b'], { workflow: 'w1', waivers: [{ workflow: 'w1', cause: '#ff0000' }, { workflow: 'w2', cause: '12px' }] });
+  assert.deepEqual(waived.causes, ['repeated:.x', '12px'], 'a waiver counts for its own workflow only');
+  assert.deepEqual(systemFailures(null, ['a']).causes, []);
+  assert.deepEqual(SYSTEM_CHECKS, ['token', 'component', 'layout', 'library']);
+  assert.deepEqual([moveOf({ check: 'token', kind: 'space' }), moveOf({ check: 'token', kind: 'type' }), moveOf({ check: 'token', kind: 'color' }), moveOf({ check: 'token' }), moveOf({ check: 'layout' }), moveOf({ check: 'library' })],
+    ['layout', 'typeset', 'colorize', 'colorize', 'layout', null]);
 });

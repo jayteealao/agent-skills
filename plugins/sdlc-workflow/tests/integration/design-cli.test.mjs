@@ -21,7 +21,11 @@ import { restoreVersion } from '../../lib/design-versions.mjs';
 import { readDesignRepos, readManifest, screenFile, surfaceDir } from '../../lib/design-surface.mjs';
 
 const WF = fileURLToPath(new URL('../../scripts/wf.mjs', import.meta.url));
-const DESIGN = '# Design\n\n## Colors\n\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | | #ffffff | page |\n| text | | #111111 | body |\n';
+// Every kind that a surface needs: colours, a family, a font size, the space steps, a size and a radius.
+const DESIGN = '# Design\n\n## Colors\n\n| Role | Token | Value | Used for |\n|---|---|---|---|\n| ground | | #ffffff | page |\n| text | | #111111 | body |\n'
+  + '\n## Typography\n\n| Role | Value | Used for |\n|---|---|---|\n| font-body | system-ui, sans-serif | body |\n| text-body | 16px | body |\n'
+  + '\n## Layout\n\n| Role | Value | Used for |\n|---|---|---|\n| space-1 | 4px | tight |\n| space-2 | 8px | default |\n| size-target | 44px | targets |\n'
+  + '\n## Shapes\n\n| Role | Value | Used for |\n|---|---|---|\n| radius-1 | 4px | controls |\n';
 const INDEX = (more = '') => `---\nschema: sdlc/v1\ntype: index\nslug: w1\nstatus: in-progress\n${more}---\n`;
 
 /** A project in a git repo with the workflow w1, and a temp SDLC_HOME. `surface: false` makes no design surface. */
@@ -366,4 +370,42 @@ test('server url starts the server when it is stopped, and prints the address fo
     await stopServer();
     p.done();
   }
+});
+
+test('a token, component, layout or library failure blocks the approval: design next asks no question until each cause is repaired or waived', async () => {
+  const p = await drawn();
+  try {
+    writeFileSync(join(p.dir, '02-shape.md'), '---\nschema: sdlc/v1\ntype: shape\nslug: w1\nstatus: complete\n---\n# Shape\n');
+    writeFileSync(join(p.root, 'PRODUCT.md'), '# Product\n');
+    writeFileSync(join(surfaceDir(p.root), 'current.md'), '# Current\n');
+    writeFileSync(join(surfaceDir(p.root), 'direction.md'), '# Direction\n');
+    const later = new Date(Date.now() + 5000).toISOString();
+    const token = { screen: 'basket', viewport: 'phone', state: 'default', check: 'token', kind: 'color', cause: '#aa0000', message: 'The color #aa0000 of .raw is not a token', selector: 'p', move: 'colorize' };
+    const contrast = { screen: 'basket', viewport: 'phone', state: 'default', check: 'contrast', cause: 'text/#999999/#ffffff/4.5', message: 'The text #999999 on #ffffff is 2.85:1', selector: 'p', move: 'colorize' };
+    const library = [{ component: 'button', check: 'library', cause: 'button/no-spec', message: 'button: The page declares no spec', do: 'Repair the library.' }];
+    writeChecks(p.root, { at: later, ran: true, screens: ['basket'], passed: false, failures: [token, contrast], library, truncated: {}, notices: [] });
+    let n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'fix', JSON.stringify(n));
+    assert.equal(n.question, undefined, 'no approval question while a system failure stays');
+    assert.deepEqual(n.blocking, ['#aa0000', 'button/no-spec']);
+    assert.match(n.do, /design waive .* w1 --cause/);
+    assert.ok(n.groups.some((g) => g.check === 'library'), 'the library items are among the groups');
+
+    const unknown = await design(['waive', p.root, 'w1'], { json: true, cause: '#123456', reason: 'r' });
+    assert.equal(unknown.code, 1);
+    assert.match(unknown.out.error, /has the cause #123456/);
+    assert.match(unknown.out.fix.do, /#aa0000, button\/no-spec/);
+    assert.equal((await design(['waive', p.root, 'w1'], { json: true, cause: '#aa0000' })).code, 1, 'a waiver needs its reason');
+    for (const cause of ['#aa0000', 'button/no-spec']) {
+      const r = await design(['waive', p.root, 'w1'], { json: true, cause, reason: 'The person keeps it as it is' });
+      assert.equal(r.code, 0, JSON.stringify(r.out));
+    }
+    const list = await design(['waive', p.root, 'w1'], {});
+    assert.match(list.out, /waived: #aa0000 \(.*\): The person keeps it as it is/);
+    assert.ok(!/still blocking/.test(list.out));
+    n = (await design(['next', p.root, 'w1'])).out;
+    assert.equal(n.step, 'fix', 'the contrast failure stays, and the person may approve with it');
+    assert.equal(n.question, approvalQuestion('w1'));
+    assert.deepEqual(readManifest(p.root).waivers.map((w) => w.cause), ['#aa0000', 'button/no-spec']);
+  } finally { p.done(); }
 });

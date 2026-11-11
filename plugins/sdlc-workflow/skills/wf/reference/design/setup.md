@@ -69,7 +69,7 @@ Do not write a `## Register` section: the design mode is chosen per surface ([_d
 
 Write `DESIGN.md` in the project root, with no frontmatter. When the file exists, change only the sections of this run. Fill the token roles that a source gives. The design stage fills the rest at its foundation step ([stage.md](stage.md) Step 3c). With no design information yet, write the headings and one line that says the design stage fills them.
 
-Give each role its own row, with one name in the Role cell: `wf.mjs design tokens` skips a row that holds several names, and says so.
+Give each role its own row, with one name in the Role cell: `wf.mjs design tokens` skips a row that holds several names, and says so. A value is a value, never a sentence: the command refuses a row whose value is no value of its kind (a color, a length with its unit, a weight, a duration). For themes, replace the `Value` column with one column per theme, the default first, each with its color scheme in brackets: `| Role | Token | Light (light) | Dark (dark) | Used for |`. Leave a cell empty when a theme keeps the default value. Name the token file of the product code in the Overview (`Token file: <path>`): the command writes it for Kotlin, Swift, TypeScript, JavaScript and CSS.
 
 ```markdown
 # Design
@@ -103,9 +103,12 @@ Give each role its own row, with one name in the Role cell: `wf.mjs design token
 |---|---|---|---|
 | font-body | | | body text |
 | font-display | | | headings |
+| font-mono | | | code and numbers |
+| text-xs | | | captions |
 | text-sm | | | small text |
 | text-md | | | body size |
 | text-lg | | | large text |
+| text-xl | | | headings |
 
 ## Layout
 [The grid or spatial model, container behavior, density, responsive changes, and the spacing rhythm.]
@@ -117,6 +120,11 @@ Give each role its own row, with one name in the Role cell: `wf.mjs design token
 | space-2 | | | the second step |
 | space-3 | | | the third step |
 | space-4 | | | the fourth step |
+| space-5 | | | the fifth step |
+| space-6 | | | the sixth step |
+| size-target | | | the smallest touch or click target |
+| size-control | | | the height of a control |
+| size-icon | | | an icon |
 
 ## Elevation & Depth
 [Shadows, tonal layers, or both. With no shadows, say how depth shows.]
@@ -125,6 +133,7 @@ Give each role its own row, with one name in the Role cell: `wf.mjs design token
 | Role | Token | Value | Used for |
 |---|---|---|---|
 | shadow-raised | | | raised panels |
+| shadow-overlay | | | menus, sheets and dialogs |
 
 ## Shapes
 [The radius strategy, borders, clipping, and recurring geometry.]
@@ -134,9 +143,21 @@ Give each role its own row, with one name in the Role cell: `wf.mjs design token
 |---|---|---|---|
 | radius-sm | | | controls |
 | radius-md | | | panels |
+| radius-lg | | | sheets and dialogs |
+| radius-full | | | pills and avatars |
+
+## Motion
+[Durations and easings, and what moves. With no motion, say so and leave the table out.]
+
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| duration-fast | | | hover and press feedback |
+| duration-base | | | panels and sheets |
+| ease-standard | | | most movement |
 
 ## Components
-[The component library, if any, and the icon library. For each main component (buttons, inputs, cards, navigation): its shape, color roles and states.]
+[The component library, if any, and the icon library. For each main component (buttons, inputs, cards, navigation): its job, its variant dimensions, its states and the token roles it uses. The machine spec of each component is in its page (`wf:variants`, `wf:states`): keep this section in words.]
 
 ## Do's and Don'ts
 [Concrete guardrails from the existing system or the choices of the person. Start each with "Do" or "Don't".]

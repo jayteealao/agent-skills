@@ -481,8 +481,9 @@ test('the server keeps serving after a bad manifest, serves no file through a li
     assert.equal((await raw(port, '/r/shop/state.json')).status, 200);
 
     // A state that cannot build is a failed answer with no path in it, and the server lives on.
-    const sheet = join(p.root, '.ai', 'design', 'tokens.css');
-    rmSync(sheet);
+    // The token model is read from tokens.json first, so the component sheet breaks the build.
+    const sheet = join(p.root, '.ai', 'design', 'components.css');
+    rmSync(sheet, { force: true });
     mkdirSync(sheet);
     const broken = await raw(port, '/r/shop/state.json');
     assert.equal(broken.status, 500);
