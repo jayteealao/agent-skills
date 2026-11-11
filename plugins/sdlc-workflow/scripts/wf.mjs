@@ -362,6 +362,12 @@
  *             where the driver run stands, a dead run as stopped, with the ETA of the slice. Only
  *             the run: status --brief gives where the whole workflow stands
  *             Example: wf.mjs progress show . demo
+ *   progress watch <root> <slug> [--once] [--json]
+ *             the live view of a driver run, for a second terminal: where the run stands, each
+ *             running agent of a Codex run with its minutes and the command it is in, and the
+ *             last lines of the commentary. It prints again every 5 seconds until the run ends;
+ *             --once prints one time
+ *             Example: wf.mjs progress watch . demo
  *   defer    check <root> <slug> [--next <slice>] [--json]
  *             run the clearing-probe of each open deferral; exit 1 when the next slice needs
  *             an open deferral now (a person task)
@@ -461,11 +467,15 @@
  *             on the remote (unless --keep-branch), and mark the workflow shipped
  *             Example: wf.mjs ship finish . demo --keep-branch
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
- *            [--review-findings] [--time-box <minutes>] [--json]
+ *            [--review-findings] [--time-box <minutes>] [--detach] [--no-watch] [--json]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/. --review-findings:
- *             the slug-wide review fixes only the findings that the campaign walk put in the ledger
- *             Example: wf.mjs drive . demo api --time-box 90
+ *             the slug-wide review fixes only the findings that the campaign walk put in the ledger.
+ *             --detach: start the driver and its watch as their own processes and return at once;
+ *             the watch sends the news of the run to the Codex session that ran the command
+ *             (--no-watch starts none). The command runs outside the sandbox of Codex: inside
+ *             it, it refuses before any agent starts
+ *             Example: wf.mjs drive . demo api --detach
  *   inbox    <root> [--json]
  *             everything that waits on the person, across every workflow, oldest first: the slug,
  *             the kind, what is asked, since when, and what the person types to answer it. It
@@ -504,6 +514,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildBrief } from '../lib/brief.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
+import { runView, runViewLines, sandboxProblem, sessionThread, startDetached } from '../lib/drive-detach.mjs';
+import { appendRunEnd } from './yolo-watch.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
@@ -586,7 +598,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -611,16 +623,30 @@ async function runDrive(pos, opt) {
   const staged = stageYoloDriver(projectRoot, { slug });
   const answered = opt.answered ? JSON.parse(readFileSync(resolve(opt.answered), 'utf8')) : null;
   if (answered && !Array.isArray(answered)) throw redo('drive: --answered must name a JSON array of answers', 'Write the answers file as a JSON array of answers, then run drive again.');
-  const run = opt.resume || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
+  const run = opt.resume || opt.run || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
   const runDir = join(projectRoot, '.scratch', 'wf', 'drive', run);
+  // Inside the sandbox of a Codex shell command no agent can start: say so now, not after the first stage fails.
+  const sandboxed = process.env.SDLC_CODEX_ENTRY ? null : sandboxProblem();
+  if (sandboxed) throw ask(`drive: ${sandboxed}`, 'The person approves this same command to run outside the sandbox of Codex (the approval prompt of the command, or a session with full access). Then run it again.');
+  if (opt.detach) return detachDrive({ pos, opt, projectRoot, slug, run, runDir });
   if (opt.resume && !existsSync(runDir)) throw redo(`drive: no earlier run ${run} in .scratch/wf/drive/`, 'Run drive again with no --resume to start a new run, or with the name of a run folder in .scratch/wf/drive/.');
   const args = driveArgs({ projectRoot, referenceRoot: REFERENCE_ROOT, slug, run, staged, slice, answered, delegate: Boolean(opt.delegate), reviewFindings: Boolean(opt['review-findings']) });
-  const r = await driveScript({
-    source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,
-    resume: opt.resume ? readRun(runDir) : undefined,
-    timeoutMs: opt['time-box'] ? Number(opt['time-box']) * 60_000 : undefined,
-    say: (line) => process.stderr.write(`[drive ${run}] ${line}\n`),
-  });
+  // The journal gets the end of this run whatever happens, so a watch of the run ends with it.
+  // The last step of the driver writes the same line; a second end of one run appends nothing.
+  const endRun = (stoppedAt, reason) => { try { appendRunEnd(projectRoot, slug, stoppedAt, Date.now(), { run, reason, agent: 'drive' }); } catch { /* the watch then ends by its own rules */ } };
+  let r;
+  try {
+    r = await driveScript({
+      source: readFileSync(staged.scriptPath, 'utf8'), args, cwd: projectRoot, runDir,
+      resume: opt.resume ? readRun(runDir) : undefined,
+      timeoutMs: opt['time-box'] ? Number(opt['time-box']) * 60_000 : undefined,
+      say: (line) => process.stderr.write(`[drive ${run}] ${line}\n`),
+    });
+  } catch (e) {
+    endRun('driver', `the driver stopped with an error: ${e.message}`);
+    throw e;
+  }
+  endRun(r.result?.ok ? null : (r.result?.stoppedAt ?? 'driver'), r.result?.ok ? null : (r.result?.reason ?? 'the driver gave no outcome'));
   // The outcome stays on this machine for `status --brief`.
   try {
     const o = r.result ?? {};
@@ -628,6 +654,28 @@ async function runDrive(pos, opt) {
   } catch { /* status --brief then shows the progress record only */ }
   out(opt.json ? { run, runDir, ...r } : { run, outcome: r.result, agents: r.totals.agents, failed: r.totals.failed, usage: r.totals.usage });
   return r.result && r.result.ok ? 0 : 3;
+}
+
+/** `drive --detach`: the driver and its watch run as their own processes, and this command returns. */
+function detachDrive({ pos, opt, projectRoot, slug, run, runDir }) {
+  if (opt.resume && !existsSync(runDir)) throw redo(`drive: no earlier run ${run} in .scratch/wf/drive/`, 'Run drive again with no --resume to start a new run, or with the name of a run folder in .scratch/wf/drive/.');
+  const self = fileURLToPath(import.meta.url);
+  const pass = ['answered', 'time-box'].filter((k) => opt[k] != null).flatMap((k) => [`--${k}`, k === 'answered' ? resolve(String(opt[k])) : String(opt[k])]);
+  const bools = ['delegate', 'review-findings'].filter((k) => opt[k]).map((k) => `--${k}`);
+  const driveArgv = [self, 'drive', projectRoot, ...pos.slice(1), ...pass, ...bools, ...(opt.resume ? ['--resume', run] : ['--run', run]), '--json'];
+  const thread = opt['no-watch'] ? null : (opt.thread ?? sessionThread());
+  const watchArgv = opt['no-watch'] ? null : [join(PLUGIN_ROOT, 'scripts', 'yolo-watch.mjs'), projectRoot, slug, ...(thread ? ['--queue', thread] : ['--max-minutes', '1440'])];
+  const r = startDetached({ projectRoot, slug, run, driveArgv, watchArgv, thread });
+  const view = `wf.mjs progress watch ${word(projectRoot)} ${slug}`;
+  if (opt.json) out({ ok: true, ...r, view });
+  else {
+    out(`drive: run ${r.run} started (pid ${r.pid}). Its records are in ${r.runDir}`);
+    out(thread ? `watch: started (pid ${r.watchPid}). It sends the news of the run to this session (${thread}): end your turn, and handle each watch message as yolo/_commentary.md says.`
+      : r.watchPid ? `watch: started (pid ${r.watchPid}), but this command names no Codex session (CODEX_THREAD_ID is not set), so no news is sent. Look at the run with the view below.`
+        : 'watch: none (--no-watch)');
+    out(`view: ${view}`);
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------- dispatch
@@ -2019,12 +2067,26 @@ async function runMain(cmd, pos, opt) {
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {
         const [verb, root, slug] = pos;
-        if (!['set', 'show'].includes(verb) || !root || !slug) throw usage('progress: <set|show> <root> <slug> are required');
+        if (!['set', 'show', 'watch'].includes(verb) || !root || !slug) throw usage('progress: <set|show|watch> <root> <slug> are required');
         const dir = join(wfRoot(resolve(root)), slug);
         if (!existsSync(dir)) throw noFolder(`progress: no workflow folder ${dir}`, root);
         if (verb === 'set') {
           const change = Object.fromEntries(['stage', 'slice', 'status', 'run', 'driver', 'reason', 'resume'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
           writeProgress(dir, change);
+        }
+        if (verb === 'watch') {
+          const frame = () => {
+            const p = progressOf(dir, slug);
+            const v = runView(resolve(root), slug, { commentaryFile: join(dir, 'commentary.md') });
+            return { p, v, over: !p || p.state !== 'running' || v.ended || Boolean(v.driver && !v.driver.alive) };
+          };
+          for (;;) {
+            const { p, v, over } = frame();
+            if (opt.json) out({ progress: p, ...v });
+            else out(`${opt.once ? '' : `--- ${nowIso()}\n`}${runViewLines(v, progressLine(p)).join('\n')}`);
+            if (opt.once || opt.json || over) return 0;
+            await new Promise((r) => setTimeout(r, 5000));
+          }
         }
         const p = progressOf(dir, slug);
         out(opt.json ? p : progressLine(p));

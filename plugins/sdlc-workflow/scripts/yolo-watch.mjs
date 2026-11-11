@@ -7,7 +7,7 @@
  * becomes a chat notification, so the script writes nothing else to stdout.
  * Diagnostics go to stderr.
  *
- *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>] [--look-in <n>]
+ *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>] [--look-in <n>] [--queue <session>] [--driver-pid <pid>]
  *       Watch the runs. Exit after the run-end event of every slug, or after the
  *       lifetime (31 minutes; 110 with --once). --once: exit after the first poll
  *       that gives news, for a background shell task when the Monitor tool gives
@@ -15,6 +15,11 @@
  *       a watch-timeout line. --look-in: the minutes a stage runs before a look-in
  *       event, for every stage (default: the stage's time box from the test profile,
  *       else 30; 0 turns it off). In a delegated run, a look-in goes to commentary.md only.
+ *       --queue: on Codex, send the news to that session with `codex queue`, one message
+ *       for each poll that has news. The watch then lives until the run ends (24 hours at
+ *       most), because no tool stops it. `wf.mjs drive --detach` starts it this way, with
+ *       --driver-pid <pid>: when that process is gone and the journal has no run end, the
+ *       watch gives one inferred run-end and exits.
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
@@ -53,6 +58,8 @@
  *   watch-replaced and exits.
  * - A running agent is stale when its own transcript is silent for 15 minutes
  *   (AGENT_SILENT_MS); the journal rule applies only when no transcript is found.
+ *   The transcript of an agent that `wf.mjs drive` runs on Codex is its events file
+ *   in .scratch/wf/drive/<run>/.
  *
  * Self-contained (node: built-ins only), so it runs from the plugin cache and
  * from the dev tree without a bundle, like stage-yolo-driver.mjs.
@@ -80,6 +87,7 @@ import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
 import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
+import { createDriveActivity, driveRunsDir, newestRun, queueMessage, watchMessage } from '../lib/drive-detach.mjs';
 
 /** The sub-commands of this script (the watch itself takes <projectRoot> <slug>): a fix names only these. */
 export const COMMANDS = Object.freeze(['note', 'control', 'end', 'line', 'stop-check', 'help']);
@@ -475,10 +483,15 @@ export function createWatcher({
   let profile = {};
   try { profile = readProfile(root); } catch { /* an unreadable config gives every stage 30 minutes */ }
   const states = new Map();
-  const activity = createActivityFinder({
+  const transcripts = createActivityFinder({
     projectsDir: projectsDir || process.env.SDLC_CLAUDE_PROJECTS_DIR || path.join(os.homedir(), '.claude', 'projects'),
     roots: [root, process.cwd()], now,
   });
+  // An agent of `wf.mjs drive` has no transcript of Claude Code: its events file says what it does.
+  const driven = createDriveActivity({ runsDir: driveRunsDir(root), now });
+  const activity = (label, startMs) => transcripts(label, startMs) ?? driven(label, startMs);
+  activity.fileOf = (label, startMs) => transcripts.fileOf(label, startMs) ?? driven.fileOf(label, startMs);
+  activity.pendingOf = (label, startMs) => (transcripts.fileOf(label, startMs) ? transcripts.pendingOf(label, startMs) : driven.pendingOf(label, startMs));
   const locks = lockDir || process.env.SDLC_WATCH_LOCK_DIR || null;
   const me = { id: lockId || `${process.pid}-${watchStartMs}`, pid: process.pid, kind: 'slug', at: iso(watchStartMs) };
   const held = new Set();
@@ -897,9 +910,11 @@ const out = (ev) => process.stdout.write(`${JSON.stringify(ev)}\n`);
  */
 export const DEFAULT_MAX_MINUTES = 31;
 export const ONCE_MAX_MINUTES = 110;
+/** A watch that queues its news has no tool that stops it: it lives until the run ends, or a day. */
+export const QUEUE_MAX_MINUTES = 24 * 60;
 export function lifetimeMs(flags, env = process.env) {
   const given = Number(flags['max-minutes'] ?? env.SDLC_WATCH_MAX_MINUTES);
-  const minutes = Number.isFinite(given) && given > 0 ? given : (flags.once ? ONCE_MAX_MINUTES : DEFAULT_MAX_MINUTES);
+  const minutes = Number.isFinite(given) && given > 0 ? given : (flags.queue ? QUEUE_MAX_MINUTES : flags.once ? ONCE_MAX_MINUTES : DEFAULT_MAX_MINUTES);
   return minutes * 60 * 1000;
 }
 
@@ -916,6 +931,34 @@ export function lookInMsOf(flags, env = process.env) {
   return Number.isFinite(given) && given >= 0 ? given * 60 * 1000 : null;
 }
 
+/**
+ * The sender of a watch that queues its news for a Codex session. One message holds the
+ * events of one poll. A commit or a stage start is no news: it waits and goes out with the
+ * next news, so the session takes no turn for it. A send that fails keeps its events for
+ * the next poll, at most `keep` of them.
+ */
+export function createQueueSender({ thread, slugs, root, send = queueMessage, keep = 200, log = (m) => process.stderr.write(`yolo-watch: ${m}
+`) }) {
+  const pluginRoot = path.join(path.dirname(SELF), '..');
+  let held = [];
+  return {
+    push(events) {
+      held.push(...events.filter((ev) => !ev.quiet));
+      if (held.length > keep) held = held.slice(-keep);
+      if (!held.some(isNews)) return { sent: 0 };
+      const slug = held.find((ev) => ev.slug)?.slug ?? slugs[0];
+      const run = newestRun(root, slug);
+      const resultFile = run ? path.join(driveRunsDir(root), run, 'result.json') : null;
+      const r = send(thread, watchMessage(held, { slug, pluginRoot, projectRoot: root, resultFile }));
+      if (!r.ok) { log(`the news was not queued for session ${thread}: ${r.reason}`); return { sent: 0, reason: r.reason }; }
+      const sent = held.length;
+      held = [];
+      return { sent };
+    },
+    held: () => held.length,
+  };
+}
+
 async function watch(root, slugs, flags) {
   const ms = (name, dflt) => Math.max(10, Number(process.env[name]) || dflt);
   const startedAt = Date.now();
@@ -926,6 +969,9 @@ async function watch(root, slugs, flags) {
   const gitMs = ms('SDLC_WATCH_GIT_MS', 20000);
   const since = flags.since !== undefined ? Number(flags.since) : null;
   const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, lookInMs: lookInMsOf(flags) });
+  const queue = flags.queue ? createQueueSender({ thread: flags.queue, slugs, root }) : null;
+  const driverPid = Number(flags['driver-pid']) || null;
+  let goneAt = null;
   let lastGit = 0;
   let stopping = false;
   const stop = () => { stopping = true; };
@@ -945,8 +991,20 @@ async function watch(root, slugs, flags) {
       w.recordFacts(events);
       // A quiet look-in (a delegated run) is in commentary.md: on stdout it would wake the session.
       for (const ev of events) if (!ev.quiet) out(ev);
+      if (queue) queue.push(events);
       w.save();
       if (w.allEnded()) break;
+      // The driver process is gone and its journal has no run end: after two more polls
+      // (a last line may still land), say that the run ended, and stop.
+      if (driverPid && !pidAlive(driverPid)) {
+        goneAt ??= Date.now();
+        if (Date.now() - goneAt >= 2 * journalMs) {
+          const ev = { event: 'run-end', slug: slugs[0], stoppedAt: 'driver', inferred: true, reason: 'the driver process is gone, and it wrote no end of the run', at: new Date().toISOString() };
+          out(ev);
+          if (queue) queue.push([ev]);
+          break;
+        }
+      }
       // --once: the first poll with news ends the watch. The session reads the
       // lines, acts, and starts the watch again; the offsets keep every later event.
       // A commit or a stage start is not news: it is printed, and the watch polls on.

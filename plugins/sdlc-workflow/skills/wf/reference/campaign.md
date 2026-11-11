@@ -106,7 +106,7 @@ When the action has `command`, run it first: it records the run-decisions answer
 
 ### `wait`
 
-A driver runs in this checkout. Wait for the run to end, and hand back per yolo.md Step 2. Then run `then.next`.
+A driver runs in this checkout. Wait for the run to end, and hand back per yolo.md Step 2. Then run `then.next`. When the launch started the watch itself (`drive --detach`), do not wait in a shell command: end your turn, and the watch message of the run end starts the next one ([yolo/_commentary.md](yolo/_commentary.md) → A watch that the launch started).
 
 ### `driver-stop`
 
