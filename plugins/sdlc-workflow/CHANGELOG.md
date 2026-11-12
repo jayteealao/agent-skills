@@ -5,6 +5,10 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.29] - 2026-11-12
+
+- feat(sdlc-workflow): a stage waits for the answer to its question, and the run goes on
+
 ## [10.0.0-next.28] - 2026-11-12
 
 - fix(sdlc-workflow): a stage agent no longer stops for context, and suite logs stay out of it
