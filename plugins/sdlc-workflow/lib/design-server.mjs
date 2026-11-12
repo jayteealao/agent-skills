@@ -255,15 +255,60 @@ function publicText(text, root = null) {
 }
 const SERVER_FAILED = 'the design server failed on this request; the error is in its log';
 
+// A file that was written a moment ago can be written again with the same size and the same time:
+// the clock of a file system has steps. The size and the time then say "no change". So while a
+// canvas watches a repo, the server keeps a mark of the text of each file that is that new, and
+// reads the file once more when it is old enough that a later write must have a later time. A
+// mark stays while the file keeps its size and time: the stamp of the state and the ETag of the
+// file carry it.
+const textMarks = new Map(); // path -> { v, hash, done }
+const RACY_MS = 3000;
+const hashOfFile = (p) => { try { return createHash('sha1').update(readFileSync(p)).digest('hex').slice(0, 12); } catch { return 'gone'; } };
+/** The mark of the text of a file with the size and time `v`, or '' when the server keeps none. */
+function textMark(path, v) {
+  const m = textMarks.get(resolve(path));
+  return m?.v === v ? m.hash : '';
+}
 /**
- * A file, with an ETag of its size and time. The browser keeps it and asks again each time
- * (`no-cache`), so a changed page shows at once and an unchanged one costs a 304.
+ * Read the files that are new enough to change with no new size or time. `files` is `stateFiles`
+ * of a root, read at the time `at`. Returns the paths whose text changed under the same size and time.
+ */
+export function sameStatChanges(files, at) {
+  const out = [];
+  for (const [p, v] of files) {
+    const key = resolve(p);
+    const m = textMarks.get(key);
+    if (v === 'missing') { textMarks.delete(key); continue; }
+    const racy = Number(v.slice(v.indexOf('\t') + 1)) > at - RACY_MS;
+    if (m?.v === v) {
+      if (m.done) continue;
+      const hash = hashOfFile(p);
+      if (hash !== m.hash) out.push(p);
+      textMarks.set(key, { v, hash, done: !racy });
+    } else if (racy) textMarks.set(key, { v, hash: hashOfFile(p), done: false });
+    else textMarks.delete(key);
+  }
+  return out;
+}
+/** The stamp of the files of a state, with the marks of the text that the server keeps. */
+function stampOf(root, files) {
+  const base = stateStamp(root, files);
+  let marks = '';
+  for (const [p, v] of files) { const h = textMark(p, v); if (h) marks += `${p}\t${h}\n`; }
+  return marks ? createHash('sha1').update(`${base}\n${marks}`).digest('hex').slice(0, 20) : base;
+}
+
+/**
+ * A file, with an ETag of its size and time, and of its text when the server keeps a mark of it.
+ * The browser keeps it and asks again each time (`no-cache`), so a changed page shows at once and
+ * an unchanged one costs a 304.
  */
 function file(res, abs, headers = {}) {
   let st = null;
   try { st = abs ? statSync(abs) : null; } catch { st = null; }
   if (!st?.isFile()) return fail(res, 404, 'not found');
-  const etag = `W/"${st.size}-${Math.round(st.mtimeMs)}"`;
+  const text = textMark(abs, `${st.size}\t${st.mtimeMs}`);
+  const etag = `W/"${st.size}-${Math.round(st.mtimeMs)}${text ? `-${text}` : ''}"`;
   if (fresh(res, etag, headers)) return undefined;
   return send(res, 200, readFileSync(abs), { 'content-type': TYPES[extname(abs).toLowerCase()] ?? 'application/octet-stream', 'cache-control': 'no-cache', etag, ...headers });
 }
@@ -402,7 +447,7 @@ export async function stateOf(root, repo, files = undefined, repos = readDesignR
     at = Date.now();
     files = stateFiles(root);
   }
-  const stamp = stateStamp(root, files);
+  const stamp = stampOf(root, files);
   const facts = JSON.stringify({ repos: repoList(repos), phone: phoneAddress() });
   const mark = createHash('sha1').update(facts).digest('hex').slice(0, 8);
   // The mark of these facts joins the stamp, so the ETag keeps its form: `<files>-<commits>-<boot>`.
@@ -439,12 +484,16 @@ const POLL_MS = 5000;
 const PING_MS = 25000;
 let streams = 0;
 
-/** The pages and the parts of the surface that the changed files touch. */
+/**
+ * The pages and the parts of the surface that the changed files touch. `all` is a file that every
+ * page shows; `assets` is such a file that is no sheet.
+ */
 export function changeOf(root, paths) {
   const surface = surfaceDir(root);
   const pages = new Set();
   const parts = new Set();
   let all = false;
+  let assets = false;
   for (const p of paths) {
     const rel = relative(surface, p).split(sep).join('/');
     if (!rel || rel.startsWith('..') || isAbsolute(rel)) continue;
@@ -452,10 +501,14 @@ export function changeOf(root, paths) {
     if (page) pages.add(page[1]);
     // A page links the token sheet, the layout sheet, the component sheet and the shared sources:
     // each page shows them. The token model goes with the token sheet.
-    else if ([TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE].includes(rel) || rel.startsWith('source/')) all = true;
+    else if ([TOKENS_FILE, TOKENS_JSON, LAYOUT_SHEET, COMPONENTS_FILE].includes(rel) || rel.startsWith('source/')) {
+      all = true;
+      // A picture or a font is no sheet: a page that shows it must be read again.
+      if (rel.startsWith('source/') && !/\.css$/i.test(rel)) assets = true;
+    }
     else if (/^(explore|components)\//.test(rel)) parts.add(rel);
   }
-  return { pages: [...pages].sort(), parts: [...parts].sort(), all };
+  return { pages: [...pages].sort(), parts: [...parts].sort(), all, assets };
 }
 
 const tell = (f, message) => { for (const c of f.clients) { try { c.write(message); } catch { /* the stream closed */ } } };
@@ -470,8 +523,10 @@ async function check(root) {
     const at = Date.now();
     const files = stateFiles(root);
     const changed = [...new Set([...files.keys(), ...f.files.keys()])].filter((p) => files.get(p) !== f.files.get(p));
+    // A file with the size and the time it had can hold another text.
+    for (const p of sameStatChanges(files, at)) if (!changed.includes(p)) changed.push(p);
     if (!changed.length) { f.files = files; return; }
-    stamp = stateStamp(root, files);
+    stamp = stampOf(root, files);
     // The same files failed to build a moment ago: they will fail again. The next change is tried.
     if (f.failed === stamp) return;
     const state = await stateOf(root, f.repo, files, undefined, at);
@@ -490,7 +545,7 @@ async function announce(root) {
   const f = feeds.get(root);
   if (!f) return;
   const state = await stateOf(root, f.repo);
-  tell(f, `event: change\ndata: ${JSON.stringify({ etag: state.etag, pages: [], parts: [], all: false })}\n\n`);
+  tell(f, `event: change\ndata: ${JSON.stringify({ etag: state.etag, pages: [], parts: [], all: false, assets: false })}\n\n`);
 }
 
 function stopFeed(root) {
@@ -507,7 +562,9 @@ function stopFeed(root) {
 function subscribe(root, repo, res) {
   let f = feeds.get(root);
   if (!f) {
+    const at = Date.now();
     f = { repo, clients: new Set(), files: stateFiles(root), watchers: [], timer: null, busy: false, again: false, failed: null };
+    sameStatChanges(f.files, at);
     const nudge = () => { clearTimeout(f.timer); f.timer = setTimeout(() => check(root), SETTLE_MS); };
     for (const dir of [surfaceDir(root), workflowsRoot(root)]) {
       if (!existsSync(dir)) continue;

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface, screenFile } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { WRITE_HEADER, changeOf, designHandler, gzipKeptNow, gzipOf, listenDesignServer, phoneBase, repoList, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, changeOf, sameStatChanges, designHandler, gzipKeptNow, gzipOf, listenDesignServer, phoneBase, repoList, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -178,6 +178,29 @@ test('an open canvas gets each change of its repo, with the pages that changed',
     assert.ok(events.length, 'a change came');
     assert.deepEqual([events[0].pages, events[0].all], [['basket'], false]);
     assert.match(events[0].etag, /^"[0-9a-f]+-\d+-[0-9a-z]+"$/);
+    // Another text with the same size and the same time is a change too: the canvas hears of it,
+    // the state has another ETag, and the page has another ETag, so no browser keeps the old text.
+    const page = join(root, '.ai', 'design', 'screens', 'basket.html');
+    // A time of whole seconds, which a later write can be given again.
+    const when = new Date(Math.floor(Date.now() / 1000) * 1000);
+    let seen = events.length;
+    utimesSync(page, when, when);
+    for (let i = 0; i < 80 && events.length === seen; i += 1) await new Promise((ok) => setTimeout(ok, 100));
+    const first = await raw(live.port, '/r/shop/s/screens/basket.html');
+    const stateTag = events.at(-1).etag;
+    const was = statSync(page);
+    seen = events.length;
+    writeFileSync(page, '<html><body><section data-state="default">old</section></body></html>');
+    utimesSync(page, when, when);
+    assert.deepEqual([statSync(page).size, statSync(page).mtimeMs], [was.size, was.mtimeMs]);
+    for (let i = 0; i < 80 && events.length === seen; i += 1) await new Promise((ok) => setTimeout(ok, 100));
+    assert.ok(events.length > seen, 'the change of the text came');
+    assert.deepEqual(events.at(-1).pages, ['basket']);
+    assert.notEqual(events.at(-1).etag, stateTag);
+    const second = await raw(live.port, '/r/shop/s/screens/basket.html', { headers: { 'if-none-match': first.headers.etag } });
+    assert.equal(second.status, 200);
+    assert.match(second.text, />old</);
+    assert.notEqual(second.headers.etag, first.headers.etag);
   } finally {
     stream?.destroy();
     for (const s of servers) s.close();
@@ -190,9 +213,12 @@ test('the changed files name the pages, the parts, and a change of every page', 
   const root = join(tmpdir(), 'Shop');
   const at = (rel) => join(root, '.ai', 'design', ...rel.split('/'));
   assert.deepEqual(changeOf(root, [at('screens/pay.html'), at('screens/basket/part.html'), at('explore/nav.html'), at('layout.json')]),
-    { pages: ['basket', 'pay'], parts: ['explore/nav.html'], all: false });
-  assert.equal(changeOf(root, [at('tokens.css')]).all, true);
-  assert.deepEqual(changeOf(root, [join(root, 'elsewhere.txt')]), { pages: [], parts: [], all: false });
+    { pages: ['basket', 'pay'], parts: ['explore/nav.html'], all: false, assets: false });
+  assert.deepEqual(changeOf(root, [at('tokens.css')]), { pages: [], parts: [], all: true, assets: false });
+  // A sheet of the sources is a sheet. A picture or a font is not: the canvas reads every page again.
+  assert.equal(changeOf(root, [at('source/sketch.css')]).assets, false);
+  assert.deepEqual(changeOf(root, [at('tokens.css'), at('source/logo.svg')]), { pages: [], parts: [], all: true, assets: true });
+  assert.deepEqual(changeOf(root, [join(root, 'elsewhere.txt')]), { pages: [], parts: [], all: false, assets: false });
 });
 
 test('the audit routes start one run per repo and serve its report', async () => {
@@ -330,4 +356,25 @@ test('the kept compressed forms stay under the limit, and the oldest go first', 
   assert.ok(now.count <= 6);
   assert.notEqual(gzipOf(body('a')), a, 'the oldest form went, and the body is compressed again');
   assert.deepEqual(gunzipSync(gzipOf(body('a'))), body('a'));
+});
+
+test('a new file is read again while a write can keep its size and time', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'design-marks-'));
+  try {
+    const file = join(dir, 'a.css');
+    const when = new Date(Math.floor(Date.now() / 1000) * 1000);
+    const write = (text) => { writeFileSync(file, text); utimesSync(file, when, when); };
+    write('a{color:red}');
+    const stat = () => { const st = statSync(file); return new Map([[file, `${st.size}\t${st.mtimeMs}`]]); };
+    const t = when.getTime();
+    assert.deepEqual(sameStatChanges(stat(), t + 100), [], 'the first read keeps a mark');
+    assert.deepEqual(sameStatChanges(stat(), t + 200), [], 'the same text');
+    write('a{color:tan}');
+    assert.deepEqual(sameStatChanges(stat(), t + 300), [file], 'another text under the same size and time');
+    // The file is old now: one last read, then the size and the time are enough.
+    write('a{color:blu}');
+    assert.deepEqual(sameStatChanges(stat(), t + 5000), [file]);
+    write('a{color:sky}');
+    assert.deepEqual(sameStatChanges(stat(), t + 9000), [], 'an old file is not read again');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

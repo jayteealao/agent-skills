@@ -149,7 +149,8 @@ test('the drafts work with no storage, with a storage that throws, and with a br
 test('two changes that wait name every page and part of both', () => {
   const one = { all: false, pages: ['a'], parts: ['explore/x.html'] };
   assert.deepEqual(plain(L.mergeChange(null, one)), one);
-  assert.deepEqual(plain(L.mergeChange(one, { all: false, pages: ['b', 'a'], parts: [] })), { all: false, catchUp: false, pages: ['a', 'b'], parts: ['explore/x.html'] });
+  assert.deepEqual(plain(L.mergeChange(one, { all: false, pages: ['b', 'a'], parts: [] })), { all: false, assets: false, catchUp: false, pages: ['a', 'b'], parts: ['explore/x.html'] });
+  assert.equal(L.mergeChange(one, { all: true, assets: true, pages: [], parts: [] }).assets, true);
   assert.equal(L.mergeChange(one, { all: true, pages: [], parts: [] }).all, true);
   assert.equal(L.mergeChange({ catchUp: true, pages: [], parts: [] }, one).catchUp, true);
 });

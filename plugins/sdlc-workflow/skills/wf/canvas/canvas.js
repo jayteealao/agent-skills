@@ -130,7 +130,7 @@ var WF_CANVAS_LOGIC = (() => {
   function mergeChange(a, b) {
     if (!a) return b;
     if (!b) return a;
-    return { all: Boolean(a.all || b.all), catchUp: Boolean(a.catchUp || b.catchUp), pages: [...new Set([...(a.pages || []), ...(b.pages || [])])], parts: [...new Set([...(a.parts || []), ...(b.parts || [])])] };
+    return { all: Boolean(a.all || b.all), assets: Boolean(a.assets || b.assets), catchUp: Boolean(a.catchUp || b.catchUp), pages: [...new Set([...(a.pages || []), ...(b.pages || [])])], parts: [...new Set([...(a.parts || []), ...(b.parts || [])])] };
   }
   /**
    * What differs between the state that the canvas holds and a newer one, for a canvas that was
@@ -3260,7 +3260,7 @@ var WF_CANVAS_LOGIC = (() => {
     es.addEventListener('change', (e) => {
       let change = null;
       try { change = JSON.parse(e.data); } catch { return; }
-      applyChange(L.mergeChange(pending, { all: Boolean(change.all), pages: change.pages || [], parts: change.parts || [] }));
+      applyChange(L.mergeChange(pending, { all: Boolean(change.all), assets: Boolean(change.assets), pages: change.pages || [], parts: change.parts || [] }));
     });
     es.addEventListener('error', () => {
       // A short gap is a phone that woke up: the line shows only when the gap lasts.
@@ -3326,13 +3326,14 @@ var WF_CANVAS_LOGIC = (() => {
       // A mounted page shares its sheets with the other pages: the mount gives the sheets their
       // new rules in place, and the pages keep their elements. `stale` are the pages that cannot
       // have it so; they are read again whole, like a page in a frame and like every page before.
-      // The server says `all` for each file that the pages share. When no sheet has new rules and
-      // the sheets have the fingerprint they had, the file is no sheet (a picture, a font): every
-      // page is read again.
+      // The server says `all` for each file that the pages share, and `assets` when one of them is
+      // no sheet (a picture, a font): then every page is read again. An older server does not say
+      // `assets`: when no sheet has new rules and the sheets have the fingerprint they had, the
+      // file is no sheet.
       let stale = [];
       if (all || sheets) {
         const r = MOUNT?.refreshSheets ? await MOUNT.refreshSheets() : null;
-        if (r && !r.again && (r.renewed || r.stale.length || sheetsNew || !all)) { sheets = true; all = false; stale = r.stale; } else all = true;
+        if (r && !change.assets && !r.again && (r.renewed || r.stale.length || sheetsNew || !all)) { sheets = true; all = false; stale = r.stale; } else all = true;
       }
       const touched = (key, page) => all || pages.includes(key) || (sheets && (page.tagName === 'IFRAME' || stale.includes(page)));
       // The mount keeps what it read: a page changed, or a sheet that could not change in place, so

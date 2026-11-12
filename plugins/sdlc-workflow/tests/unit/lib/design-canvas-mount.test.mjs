@@ -272,7 +272,7 @@ test('a changed sheet is renewed in place only with no media query that has no c
   const inspect = readFileSync(join(canvasDir, 'canvas-inspect.js'), 'utf8');
   assert.match(inspect, /const size = `\$\{view\.el\.offsetWidth\}x\$\{view\.el\.offsetHeight\}\|\$\{view\.sheetStamp \|\| 0\}`;/, 'the inspector reads the rules again');
   const canvas = readFileSync(join(canvasDir, 'canvas.js'), 'utf8');
-  assert.match(canvas, /if \(r && !r\.again && \(r\.renewed \|\| r\.stale\.length \|\| sheetsNew \|\| !all\)\) \{ sheets = true; all = false; stale = r\.stale; \} else all = true;/, 'a shared file that is no sheet still reads every page again');
+  assert.match(canvas, /if \(r && !change\.assets && !r\.again && \(r\.renewed \|\| r\.stale\.length \|\| sheetsNew \|\| !all\)\) \{ sheets = true; all = false; stale = r\.stale; \} else all = true;/, 'a shared file that is no sheet still reads every page again');
   assert.match(refresh, /const again = wasLost\.some\(\(id\) => !lost\.has\(id\)\);/, 'a sheet that is back reads every page again: a page that was read without it has no mark');
   assert.match(canvas, /\(sheets && \(page\.tagName === 'IFRAME' \|\| stale\.includes\(page\)\)\)/, 'a page in a frame and a stale page are read again whole');
   assert.match(canvas, /if \(focusState && box\.matches\('#focus \.view > \.shot\.now'\)\) drawFocus\(\);/, 'the pins and the inspector of the open screen are drawn again');
