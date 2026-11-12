@@ -326,6 +326,14 @@
  *             into open-questions of the index, so a look-in can ask it by its exact key; a
  *             second hold of the key replaces it, and decide add with the key settles it
  *             Example: wf.mjs decide hold . demo --key db --question "Which database?" --stage implement
+ *   decide   wait <root> <slug> --key k[,k2] [--stage s] [--slice s] [--packet p] [--files f,g]
+ *                [--seconds n] [--json]
+ *             block until each held question of the keys has an answer. One call blocks for
+ *             4 minutes at most (--seconds sets that time): give the shell call a timeout of
+ *             5 minutes. It prints each answer, or "still waiting" (run the command again at
+ *             once; the wait has no limit). It writes a waiting line to the driver journal, so
+ *             the watch sends the question to the session
+ *             Example: wf.mjs decide wait . demo --key db --stage implement
  *   decide   drop <root> <slug> <questions.json> [--packet p] [--slice s] [--json]
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
  *             Example: wf.mjs decide drop . demo .ai/workflows/demo/.draft/questions.json
@@ -533,7 +541,9 @@ import { buildBrief } from '../lib/brief.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
 import { runView, runViewLines, sandboxProblem, sessionThread, startDetached } from '../lib/drive-detach.mjs';
-import { appendRunEnd } from './yolo-watch.mjs';
+import { appendJournalLine, appendRunEnd, journalPath } from './yolo-watch.mjs';
+import { WAIT_CALL_MS, waitForAnswers } from '../lib/decide-wait.mjs';
+import { parseJsonLines, stageOf } from '../lib/live-events.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
@@ -931,9 +941,25 @@ export function stampOf(type, { slug = '<slug>', slice = null, now = nowIso() } 
 const scopeOf = (opt) => ({ packet: opt.packet, slice: opt.slice && opt.slice !== 'slug-wide' ? opt.slice : undefined, files: opt.files });
 
 
+// The running agent that waits: the newest agent-start of the journal for the stage and the
+// slice. The waiting line takes its run and its seq, so a watch that emits from a seq sends it.
+function waitingAgent(journal, stage, slice) {
+  let lines = [];
+  try { lines = parseJsonLines(readFileSync(journal, 'utf8')).lines; } catch { /* no journal: the line names the stage only */ }
+  const start = lines.findLast((l) => {
+    if (!l || l.event !== 'agent-start') return false;
+    const at = stageOf(l);
+    return (!stage || at.stage === stage) && (!slice || at.slice === slice);
+  });
+  const pick = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+  return start
+    ? pick({ run: start.run, seq: start.seq, agent: start.agent, phase: start.phase, stage: stageOf(start).stage, slice: stageOf(start).slice })
+    : pick({ stage, slice });
+}
+
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
-  if (!verb || !root || !slug) throw usage('decide: <add|list|answered|hold|drop|import> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('decide: <add|list|answered|hold|wait|drop|import> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw noFolder(`decide: no workflow folder ${dir}`, root);
   switch (verb) {
@@ -977,6 +1003,26 @@ export function runDecide(pos, opt) {
         recommended: opt.recommended,
       });
       out(opt.json ? r : `${r.replaced ? 'held again' : 'held'} ${r.entry.key}: ${r.entry.question}`);
+      return 0;
+    }
+    case 'wait': {
+      const journal = journalPath(resolve(root), slug);
+      const who = waitingAgent(journal, opt.stage, opt.slice && opt.slice !== 'slug-wide' ? opt.slice : null);
+      // The journal line is news for the watch, never a gate: a failed append does not end the wait.
+      const line = (event, fields) => {
+        try { appendJournalLine(journal, null, { ...who, event, fields: JSON.stringify(fields) }); } catch { /* the wait goes on */ }
+      };
+      const seconds = Number(opt.seconds);
+      const r = waitForAnswers(dir, {
+        keys: String(opt.key ?? '').split(','), scope: scopeOf(opt),
+        callMs: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : WAIT_CALL_MS,
+        onStart: ({ until, questions }) => line('waiting', { keys: questions.map((q) => q.key), until: new Date(until).toISOString() }),
+        onEnd: ({ state }) => line('wait-end', { state }),
+      });
+      out(opt.json ? r : [
+        ...r.answered.map((a) => `answered: ${decisionLine(a.entry)}`),
+        ...(r.state === 'waiting' ? [`still waiting for: ${r.open.join(', ')}. Run this command again now.`] : []),
+      ].join('\n'));
       return 0;
     }
     case 'drop': {

@@ -21,9 +21,12 @@ export const meta = {
 // records. The script is pure orchestration: orient → select stage → run it as a
 // subagent → gate on its structured return → loop.
 //
-// QUESTIONS. No call continues a parked agent, so a question ends the run: the
-// stage finishes its artifact as awaiting-input and returns the question with a
-// key, the options and a recommended option. The main session asks the person,
+// QUESTIONS. A stage holds a question and waits for the answer in `decide wait`:
+// the watch sends the question to the main session, the session asks the person
+// (or answers for a person who is away), and the stage goes on in its own context.
+// The wait has no limit. No call continues a parked agent, so a stage that cannot
+// wait ends the run: it finishes its artifact as awaiting-input and returns the
+// question with a key, the options and a recommended option. The main session asks the person,
 // records the answer with `wf.mjs decide add`, and launches the next run with
 // args.answered. The stage that asked runs again with the answer.
 //
@@ -1064,12 +1067,24 @@ function questionContract(stage) {
     sameQuestionClause() +
     (DELEGATE
       ? `Otherwise follow DELEGATE MODE below.`
-      : `Otherwise do not settle it yet. When other work of this stage does not depend on the decision, hold ` +
-        `the question and continue with that work. To hold it, run \`${WF_CMD} decide hold "${projectRoot}" ` +
+      : `Otherwise do not settle it yet. Hold the question: run \`${WF_CMD} decide hold "${projectRoot}" ` +
         `${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended ` +
         `"<a>"\`, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
-        `the person can answer it while you work. Before you return status 'questions', look again for each ` +
-        `question that you held: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
+        `the person can answer it while you work. When other work of this stage does not depend on the decision, ` +
+        `continue with that work. When no such work is left, wait for the answer: run \`${WF_CMD} decide wait ` +
+        `"${projectRoot}" ${slug} --key <each key that you hold, with commas between the keys> --stage ${stage}\`, ` +
+        `with --slice <your slice> when you run on a slice. Give that shell call a timeout of 5 minutes ` +
+        `(300000 ms): the command blocks for 4 minutes at most, and it sends the question to the person. It ` +
+        `prints one of two results. "answered": the line gives the answer. "still waiting": run the same ` +
+        `command again at once, and do nothing else between the calls. The wait has no limit: run the command ` +
+        `again each time it prints "still waiting", for as long as it takes. A long wait is not a failure, and it ` +
+        `is never a reason to return, to hard-stop or to settle the decision yourself. Never wait in another way, ` +
+        `and never end your turn while a question that you hold has no answer. When the command prints ` +
+        `"answered", settle the question by that answer in this run, record it as a decision with class ` +
+        `'intent-bearing' and the id that the line gives, and go on with the stage. When the answer changes the ` +
+        `plan, use the route-back rules of this stage. Return status 'questions' only ` +
+        `when the command itself fails twice in a row. In that case, look again for each ` +
+        `question that still has no answer: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
         `run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, with --slice <your slice> ` +
         `when you run on a slice, and find an entry made after the held-at time of the question that answers the ` +
         `same question under another key. Settle the question by that entry, and cite its id in the decision ` +

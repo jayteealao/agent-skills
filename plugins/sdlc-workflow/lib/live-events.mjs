@@ -20,6 +20,8 @@ export const STALE_FLOOR_MS = 20 * 60 * 1000;
  * ran 52 minutes at the median and 211 at the 95th percentile.
  */
 export const AGENT_SILENT_MS = 15 * 60 * 1000;
+/** The time after the end of a `decide wait` call in which its wait-end line can still come. */
+export const WAIT_END_GRACE_MS = 60 * 1000;
 
 const iso = (ms) => new Date(ms).toISOString();
 
@@ -132,7 +134,7 @@ export function intentRecordsOf(text, yaml = '') {
 
 /** The state of one run's journal that the event rules keep between polls. */
 export function freshRunState() {
-  return { run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0, newest: null, ended: false, staleFor: null, decisionsSeen: [], openStages: {} };
+  return { run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0, newest: null, ended: false, staleFor: null, decisionsSeen: [], openStages: {}, questionsSeen: [], waitingFrom: null };
 }
 
 /** The liveness limit: the run's own longest gap, never under the 20-minute floor. */
@@ -148,8 +150,10 @@ export const liveLimitMs = (st) => Math.max(STALE_FLOOR_MS, st.longestGapMs || 0
  * @param {{ run: string, seq: number } | null} [options.emitFrom] emit only lines after this one
  * @param {(stage: string, slice: string | null) => ({ rel: string, status: string | null, signal: { reasons: string[], intentBearing: number } | null, mtime: number } | null)} [options.artifactOf]
  *   what the stage's artifact says now; absent, a stage end carries no artifact
+ * @param {(keys: string[]) => Array<Record<string, unknown>>} [options.questionsOf]
+ *   the held questions of the keys, from `open-questions` of the index; absent, a waiting line sends no question
  */
-export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () => null } = {}) {
+export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () => null, questionsOf = () => [] } = {}) {
   const events = [];
   for (const line of lines) {
     if (!line || typeof line !== 'object') continue;
@@ -162,6 +166,7 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       if (st.prevLineAt !== null) st.longestGapMs = Math.max(st.longestGapMs, at - st.prevLineAt);
       st.prevLineAt = at; st.lastLineAt = at;
     }
+    const before = st.newest;
     st.newest = { event: line.event || null, agent: line.agent || null, status: line.status || null, at: line.at || null };
     if (line.driver) st.driver = line.driver;
     if (line.campaign) st.campaign = line.campaign;
@@ -174,6 +179,28 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       continue;
     }
     const { stage, slice } = stageOf(line);
+    // A stage agent blocks in `decide wait` for the person's answer. The line gives one
+    // `question` event with each held question that no earlier line sent. The agent calls the
+    // command again every few minutes, and those lines send nothing new.
+    if (line.event === 'waiting') {
+      if (before && before.event !== 'waiting') st.waitingFrom = before;
+      const until = Date.parse(line.until || '');
+      if (Number.isFinite(until)) st.newest.until = until;
+      const seen = st.questionsSeen || [];
+      const fresh = questionsOf(Array.isArray(line.keys) ? line.keys.map(String) : [])
+        .filter((q) => q && q.key && !seen.includes(`${q.key}@${q['held-at'] || ''}`));
+      if (fresh.length) {
+        st.questionsSeen = [...seen, ...fresh.map((q) => `${q.key}@${q['held-at'] || ''}`)].slice(-200);
+        if (emit) events.push({ event: 'question', slug, run: line.run || st.run, stage, slice, agent: line.agent || null, questions: fresh, until: line.until || null, at: line.at || null });
+      }
+      continue;
+    }
+    // The wait ended: the agent works again, so its silence is judged as that of a running agent.
+    if (line.event === 'wait-end') {
+      if (st.waitingFrom) st.newest = st.waitingFrom;
+      st.waitingFrom = null;
+      continue;
+    }
     if (!stage) continue;
     if (line.event === 'agent-start') {
       st.openStages[line.agent] = line.at || null;
@@ -229,8 +256,9 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   if (st.ended || st.lastLineAt === null) return [];
   // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
   if (st.newest && st.newest.event === 'run-end') return [];
-  // A parked unit of the wave driver waits for an answer; its silence is by design too.
-  if (st.newest && st.newest.event === 'waiting') return [];
+  // A stage agent that waits for an answer in `decide wait` is silent by design, until the end
+  // of that call. Past the end, with no wait-end line, the command died: the silence counts.
+  if (st.newest && st.newest.event === 'waiting' && !(Number.isFinite(st.newest.until) && nowMs > st.newest.until + WAIT_END_GRACE_MS)) return [];
   const byTranscript = Number.isFinite(activityMs) && st.newest && st.newest.event === 'agent-start';
   const since = byTranscript ? Math.max(st.lastLineAt, activityMs) : Math.max(st.lastLineAt, watchStartMs);
   const silentMs = nowMs - since;

@@ -79,6 +79,7 @@ import {
 } from '../lib/live-events.mjs';
 import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
+import { heldQuestions } from '../lib/decide-wait.mjs';
 import { pidAlive, isMainModule } from '../lib/proc.mjs';
 import { clearStopRequest, lastRunEndAt, madeAfterLastRun } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
@@ -106,7 +107,7 @@ export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 const STATE_FILE = '.watch-state.json';
 const CONTROL_FILE = '.control.json';
 // The events that are not news: they go to commentary.md, and a --once watch keeps polling
-// after them. Every other event (stage-end, decision, stop, stale, protected-change,
+// after them. Every other event (stage-end, decision, question, stop, stale, protected-change,
 // run-end, look-in) ends a --once watch.
 export const NOT_NEWS_EVENTS = Object.freeze(['stage-start', 'commit']);
 /** True when an event wakes the session: news, and not a look-in that goes to commentary.md only. */
@@ -424,6 +425,7 @@ function freshSlugState() {
   return {
     version: STATE_VERSION, offset: 0, run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0,
     newest: null, ended: false, endedRun: null, staleFor: null, decisionsSeen: [], openStages: {}, lookIns: {},
+    questionsSeen: [], waitingFrom: null,
   };
 }
 
@@ -446,7 +448,11 @@ export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {
     const rel = path.relative(root, doc.path).split(path.sep).join('/') + (doc.section ? `#${doc.section}` : '');
     return { rel, status: doc.frontmatter.status ?? null, signal: decisionSignal(doc), mtime };
   };
-  return applyLines(slug, st, lines, { emitFrom, artifactOf });
+  // The held questions of a waiting line, as `decide hold` wrote them into the index.
+  const questionsOf = (keys) => {
+    try { return heldQuestions(workflowDir(root, slug)).filter((q) => keys.includes(q.key)); } catch { return []; }
+  };
+  return applyLines(slug, st, lines, { emitFrom, artifactOf, questionsOf });
 }
 
 /**

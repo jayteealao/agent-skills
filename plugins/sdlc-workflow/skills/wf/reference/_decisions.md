@@ -48,6 +48,7 @@ The kind of a common word:
 | Whether a key has a live answer | `<wf> decide answered "<projectRoot>" <slug> --key k [--slice s]` (exit 0 and the entry, or exit 1) |
 | The questions that are still open | `<wf> decide drop "<projectRoot>" <slug> <questions.json> [--slice s]` |
 | Publish a question that a running stage holds | `<wf> decide hold "<projectRoot>" <slug> --key k --question "<q>" --stage <stage> [--slice s] [--options "a\|b"] [--recommended a]`: the question goes into `open-questions` of the index under its exact key |
+| Wait for the answer to a held question | `<wf> decide wait "<projectRoot>" <slug> --key k[,k2] --stage <stage> [--slice s]`: one call blocks for 4 minutes at most, so give the shell call a timeout of 5 minutes. It prints the answer, or `still waiting` (run it again at once). The wait has no limit |
 | Record an answer | `<wf> decide add "<projectRoot>" <slug> --key k --question "<q>" --answer "<a>" --stage <stage> [--slice s] [--files f,g] [--rewrote f,g]` |
 | Record several answers in one call | `<wf> decide add "<projectRoot>" <slug> --file <answers.json>`: a JSON list of `{ key, question, answer, by, stage, slice }` |
 | Record standing steer | `<wf> decide add "<projectRoot>" <slug> --kind steer --answer "<exact words>"` |

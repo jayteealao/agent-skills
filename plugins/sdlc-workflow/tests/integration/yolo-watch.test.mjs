@@ -166,6 +166,50 @@ test('a silent journal emits stale once; a silent journal that ended emits run-e
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a stage that waits for an answer gives one question event, and its wait is not a stale agent', () => {
+  const root = makeRepo();
+  try {
+    writeFileSync(path.join(root, '.ai', 'workflows', SLUG, 'state.yaml'), [
+      'schema: sdlc/v1', 'type: index', `slug: ${SLUG}`, 'status: active', 'open-questions:',
+      '  - key: db', '    question: Which database?', '    stage: plan', '    slice: auth', '    options: [sqlite, postgres]', '    recommended: sqlite', '    held-at: "2026-10-03T10:05:00Z"',
+      '',
+    ].join('\n'));
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' });
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now });
+    w.pollJournals();
+    const waiting = (min) => ({ at: at(min), seq: 1, event: 'waiting', agent: 'plan:auth', stage: 'plan', slice: 'auth', keys: ['db'], until: at(min + 4) });
+    journal(root, waiting(6));
+    now = T0 + 6 * 60000;
+    const ev = w.pollJournals();
+    assert.deepEqual(ev.map((e) => e.event), ['question']);
+    assert.equal(ev[0].stage, 'plan');
+    assert.equal(ev[0].slice, 'auth');
+    assert.deepEqual(ev[0].questions.map((q) => [q.key, q.question, q.recommended]), [['db', 'Which database?', 'sqlite']]);
+    assert.equal(W.isNews(ev[0]), true, 'a question wakes the session');
+    // The agent calls the command again: the same question is not sent again.
+    journal(root, { at: at(10), seq: 1, event: 'wait-end', agent: 'plan:auth', state: 'waiting' }, waiting(10));
+    now = T0 + 10 * 60000;
+    assert.deepEqual(w.pollJournals(), []);
+    // A restarted watch keeps what it sent.
+    w.save();
+    const b = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now });
+    journal(root, { at: at(14), seq: 1, event: 'wait-end', agent: 'plan:auth', state: 'waiting' }, waiting(14));
+    now = T0 + 14 * 60000;
+    assert.deepEqual(b.pollJournals(), []);
+    // The call ended 30 minutes ago and wrote no wait-end line: the command died, so the silence counts.
+    now = T0 + 48 * 60000;
+    assert.deepEqual(b.pollJournals().map((e) => e.event), ['stale']);
+    // After a wait-end line the agent runs again: the newest line is its agent-start.
+    journal(root, { at: at(49), seq: 1, event: 'wait-end', agent: 'plan:auth', state: 'answered' });
+    now = T0 + 49 * 60000;
+    assert.deepEqual(b.pollJournals(), []);
+    journal(root, { at: at(50), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' });
+    now = T0 + 50 * 60000;
+    assert.deepEqual(b.pollJournals().map((e) => e.event), ['stage-end']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('the liveness limit is the run\'s own longest gap when that exceeds the floor', () => {
   const root = makeRepo();
   try {

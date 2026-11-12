@@ -91,7 +91,12 @@ test('a stage agent records its progress, reads its brief, and returns an intent
   assert.match(plan, /decide answered "\/repo" demo --key <key>/);
   assert.match(plan, /return status 'questions'/);
   assert.match(plan, /decide hold "\/repo" demo --key <key> --question "<the question>" --stage plan/);
-  assert.match(plan, /Before you return status 'questions', look again for each question that you held: \(1\) run `decide answered` with its key again/);
+  // The stage waits for the answer in its own context, with no limit, and returns the question only when the wait fails.
+  assert.match(plan, /decide wait "\/repo" demo --key <each key that you hold, with commas between the keys> --stage plan`/);
+  assert.match(plan, /timeout of 5 minutes \(300000 ms\)/);
+  assert.match(plan, /The wait has no limit: run the command again each time it prints "still waiting"/);
+  assert.match(plan, /never end your turn while a question that you hold has no answer/);
+  assert.match(plan, /Return status 'questions' only when the command itself fails twice in a row\. In that case, look again for each question that still has no answer: \(1\) run `decide answered` with its key again/);
   assert.match(plan, /decide list "\/repo" demo --kind answer --json/);
   assert.match(plan, /made after the held-at time/);
   assert.match(plan, /cite its id/);

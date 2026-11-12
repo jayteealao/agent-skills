@@ -285,3 +285,78 @@ test('four processes that add decisions at once lose none and mint no id twice',
     assert.equal(new Set(ids).size, 40);
   } finally { f.done(); }
 });
+
+test('decide wait blocks until each held question has an answer; a call that ends early says to call again', async () => {
+  const { waitForAnswers } = await import('../../lib/decide-wait.mjs');
+  const f = fixture();
+  const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });
+  try {
+    writeFileSync(path.join(f.dir, 'state.yaml'), 'schema: sdlc/v1\ntype: index\nslug: demo\nstatus: active\nupdated-at: "2026-10-25T10:00:00Z"\n');
+    assert.throws(() => waitForAnswers(f.dir, { keys: [] }), /--key is required/);
+    assert.throws(() => waitForAnswers(f.dir, { keys: ['db'] }), /no held question has the key db/, 'a key must be held first');
+    cli('hold', f.root, 'demo', '--key', 'db', '--question', 'Which database?', '--stage', 'plan', '--options', 'sqlite|postgres', '--recommended', 'sqlite');
+    cli('hold', f.root, 'demo', '--key', 'cache', '--question', 'Add a cache?', '--stage', 'plan');
+
+    // A clock that the sleep moves: each call blocks for 4 minutes.
+    let t = Date.parse('2026-11-12T10:00:00Z');
+    const marks = [];
+    const wait = (extra = {}) => waitForAnswers(f.dir, {
+      keys: ['db', 'cache'], now: () => t, sleep: (ms) => { t += ms; },
+      onStart: (i) => marks.push(['start', i.questions.map((q) => q.key).join(','), i.until - t]), onEnd: (i) => marks.push(['end', i.state]), ...extra,
+    });
+    let r = wait();
+    assert.equal(r.state, 'waiting', 'the call ends after 4 minutes with the questions open');
+    assert.deepEqual(r.open, ['db', 'cache']);
+    assert.equal(r.waitedMs, 4 * 60000);
+    assert.deepEqual(marks, [['start', 'db,cache', 4 * 60000], ['end', 'waiting']]);
+
+    // The wait has no limit: the tenth call an hour later blocks as the first did.
+    t += 60 * 60000;
+    assert.equal(wait().state, 'waiting');
+
+    // The person answers one question during a call: the call goes on for the other.
+    let polls = 0;
+    marks.length = 0;
+    r = wait({ sleep: (ms) => { t += ms; if (++polls === 3) addDecision(f.dir, { key: 'db', question: 'Which database?', answer: 'sqlite', by: 'person', stage: 'plan' }); } });
+    assert.equal(r.state, 'waiting');
+    assert.deepEqual(r.answered.map((a) => [a.key, a.entry.answer]), [['db', 'sqlite']]);
+    assert.deepEqual(r.open, ['cache']);
+    assert.deepEqual(marks, [['start', 'db,cache', 4 * 60000], ['end', 'waiting']]);
+
+    // The last answer ends the call at the next read of the store. An answer by delegate counts.
+    polls = 0;
+    r = wait({ sleep: (ms) => { t += ms; if (++polls === 2) addDecision(f.dir, { key: 'cache', question: 'Add a cache?', answer: 'no', by: 'delegate', stage: 'plan' }); } });
+    assert.equal(r.state, 'answered');
+    assert.deepEqual(r.open, []);
+    assert.equal(r.waitedMs, 4000);
+    marks.length = 0;
+    r = wait();
+    assert.equal(r.state, 'answered', 'answered keys need no wait');
+    assert.deepEqual(marks, [], 'and the call writes no line');
+  } finally { f.done(); }
+});
+
+test('wf.mjs decide wait prints the answer, or says to call again, and writes the journal lines of the wait', () => {
+  const f = fixture();
+  const cli = (...args) => spawnSync(process.execPath, [wf, 'decide', ...args], { encoding: 'utf8' });
+  try {
+    writeFileSync(path.join(f.dir, 'state.yaml'), 'schema: sdlc/v1\ntype: index\nslug: demo\nstatus: active\nupdated-at: "2026-10-25T10:00:00Z"\n');
+    const journalFile = path.join(f.dir, '.driver-journal.jsonl');
+    writeFileSync(journalFile, `${JSON.stringify({ at: '2026-11-12T10:00:00Z', run: 'r1', seq: 4, event: 'agent-start', agent: 'plan:api', phase: 'Plan', stage: 'plan', slice: 'api' })}\n`);
+    assert.match(cli('wait', f.root, 'demo', '--key', 'db').stderr, /no held question has the key db/);
+    cli('hold', f.root, 'demo', '--key', 'db', '--question', 'Which database?', '--stage', 'plan', '--slice', 'api');
+    let r = cli('wait', f.root, 'demo', '--key', 'db', '--stage', 'plan', '--slice', 'api', '--seconds', '0.05');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /^still waiting for: db\. Run this command again now\./);
+    const lines = readFileSync(journalFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(lines.slice(1).map((l) => [l.event, l.run, l.seq, l.agent, l.stage, l.slice]),
+      [['waiting', 'r1', 4, 'plan:api', 'plan', 'api'], ['wait-end', 'r1', 4, 'plan:api', 'plan', 'api']], 'the lines carry the run and the seq of the waiting agent');
+    assert.deepEqual(lines[1].keys, ['db']);
+    assert.match(lines[1].until, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(lines[2].state, 'waiting');
+    cli('add', f.root, 'demo', '--key', 'db', '--question', 'Which database?', '--answer', 'sqlite', '--stage', 'plan', '--slice', 'api');
+    r = cli('wait', f.root, 'demo', '--key', 'db', '--stage', 'plan', '--slice', 'api');
+    assert.match(r.stdout, /^answered: D-\d{3} \[db\] Which database\? → sqlite/);
+    assert.equal(JSON.parse(cli('wait', f.root, 'demo', '--key', 'db', '--slice', 'api', '--json').stdout).state, 'answered');
+  } finally { f.done(); }
+});

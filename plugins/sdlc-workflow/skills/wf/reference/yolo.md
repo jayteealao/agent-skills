@@ -187,7 +187,7 @@ node "<pluginRoot>/scripts/wf.mjs" drive "<projectRoot>" <slug> [<slice>] --deta
 
 # Questions — the stop that waits for the person
 
-A stage agent never asks the person. It returns each intent-bearing decision as a question: `{ key, question, options, recommended, why }`. The run stops, and `outcome.questions` holds each question with its `stage` and `slice`. The main session asks them and relaunches:
+A stage agent never asks the person. It holds each intent-bearing decision as a question, and waits for the answer for as long as it takes ([A held question during a run](#a-held-question-during-a-run)). Only a stage that cannot wait returns each open decision as a question: `{ key, question, options, recommended, why }`. The run stops, and `outcome.questions` holds each question with its `stage` and `slice`. The main session asks them and relaunches:
 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
 2. Drop the questions that the store already answers:
@@ -207,11 +207,17 @@ An answer reaches only the stage and the slice that asked it. A stage that stopp
 
 ## A held question during a run
 
-A stage that reaches an intent-bearing decision can hold it and go on with the work that does not depend on it. The stage publishes the held question in `open-questions` of the index with `decide hold`, under its exact key. A look-in names each held question with its key ([yolo/_commentary.md](yolo/_commentary.md) C7). Before the stage returns, it looks for an answer again.
+A stage that reaches an intent-bearing decision holds it and goes on with the work that does not depend on it. The stage publishes the held question in `open-questions` of the index with `decide hold`, under its exact key. When no such work is left, the stage waits for the answer in `decide wait`. The stage agent stays in that command and keeps its context, so an answer in time needs no new run of the stage.
 
-1. When a look-in names a held question, ask it with the host question tool ([_gate-question.md](_gate-question.md)).
-2. Record the answer with `decide add` and the held key, exactly as `open-questions` shows it. Add `--stage` and `--slice` as the held entry shows them.
-3. Tell the person that the stage reads the answer before it returns.
+- One call of `decide wait` blocks for 4 minutes at most, and the stage calls it again until each question has an answer. The wait has no limit.
+- The first call makes the watch send a `question` event with each held question: its key, its question, its options and its recommended option ([yolo/_commentary.md](yolo/_commentary.md) C8).
+- The stage returns the question only when the command itself fails. The run then stops as the list above says.
+
+A look-in also names each held question with its key ([yolo/_commentary.md](yolo/_commentary.md) C7).
+
+1. When a `question` event or a look-in names a held question, ask it at once with the host question tool ([_gate-question.md](_gate-question.md)). The stage does no work until the answer is in the store.
+2. Record the answer with `decide add` and the held key, exactly as the event or `open-questions` shows it. Add `--stage` and `--slice` as the held entry shows them. When the person is away and the host answers for them, settle the question by the rules of that mode of the host, and record the answer with `--by delegate`. Say in one chat line what you chose and the words that reverse it.
+3. Tell the person that the stage goes on with the answer.
 4. Do not stop or relaunch the driver. When the stage still returns the question, step 2 of the list above moves it to `answered`.
 
 ## Delegate mode
