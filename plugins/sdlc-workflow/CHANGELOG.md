@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.26] - 2026-11-12
+
+- perf(sdlc-workflow): a changed sheet takes its new rules in place on the canvas
+- fix(sdlc-workflow): a mounted page reads rem from its own root, and a save reaches the canvas sooner
+- feat(sdlc-workflow): more pages leave the frame, and the canvas does less work
+- feat(sdlc-workflow): the canvas draws screens and components with no frame
+- feat(sdlc-workflow): the canvas gets a new shell, a phone list, and a three-pane screen view
+
 ## [10.0.0-next.25] - 2026-11-11
 
 - feat(sdlc-workflow): the canvas inspects, switches modes, and shows the library and the tokens
