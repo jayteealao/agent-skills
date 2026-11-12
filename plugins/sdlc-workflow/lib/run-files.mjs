@@ -14,8 +14,9 @@
 // keeps the name. The record lists each evidence file in `local-evidence.jsonl` (path, size,
 // sha256, machine), so another computer sees that the file exists and where it was made.
 import { createHash } from 'node:crypto';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { hostname, tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { readMachineConfig } from './home.mjs';
 import { resolveProjectRoot } from './project-root.mjs';
@@ -57,6 +58,45 @@ export const ensureRunDir = (root, slug) => ensureLocalFolder(runRoot(root), run
 
 /** Make <root>/.ai/evidence/<slug>/ and return it. */
 export const ensureEvidenceDir = (root, slug) => ensureLocalFolder(join(root, AI_DIR, EVIDENCE_DIR), evidenceDir(root, slug));
+
+/** The folder of the suite logs of this machine: <root>/.ai/run/logs/. */
+export const SUITE_LOG_DIR = 'logs';
+/** The logs of one suite that a run keeps: the newest ones. */
+export const SUITE_LOGS_KEPT = 5;
+/** The lines from the end of a failed log that a run prints. */
+export const SUITE_LOG_TAIL = 40;
+
+/**
+ * Run the command of a test suite with its output in a log file of this machine,
+ * <root>/.ai/run/logs/<suite>-<time>.log, never on the terminal. An agent that ran a suite reads
+ * the result line and, on a failure, the end of the log; it opens the log only to look for more.
+ * Returns { status, error, log, tail }: tail is the end of the log when the suite failed, else ''.
+ */
+export function runSuiteLogged(projectRoot, suite, command, { now = new Date(), tailLines = SUITE_LOG_TAIL } = {}) {
+  // A project whose .ai/ cannot be written keeps its logs in the temp folder of the machine.
+  let dir;
+  try { dir = ensureLocalFolder(runRoot(projectRoot), join(runRoot(projectRoot), SUITE_LOG_DIR)); } catch {
+    dir = join(tmpdir(), 'sdlc-suite-logs');
+    mkdirSync(dir, { recursive: true });
+  }
+  const safe = String(suite).replace(/[^A-Za-z0-9._-]/g, '_');
+  const log = join(dir, `${safe}-${now.toISOString().replace(/[:.]/g, '')}-${process.pid}.log`);
+  const fd = openSync(log, 'w');
+  let r;
+  try {
+    r = spawnSync(command, { cwd: projectRoot, shell: true, stdio: ['ignore', fd, fd], windowsHide: true });
+  } finally { closeSync(fd); }
+  // Keep the newest logs of the suite; a log that cannot be removed stays.
+  const mine = readdirSync(dir).filter((n) => n.startsWith(`${safe}-`) && n.endsWith('.log')).sort();
+  for (const old of mine.slice(0, Math.max(0, mine.length - SUITE_LOGS_KEPT))) {
+    try { rmSync(join(dir, old), { force: true }); } catch { /* kept */ }
+  }
+  let tail = '';
+  if (r.status !== 0) {
+    try { tail = readFileSync(log, 'utf8').trimEnd().split(/\r?\n/).slice(-tailLines).join('\n'); } catch { tail = ''; }
+  }
+  return { status: r.status, error: r.error ?? null, log, tail };
+}
 
 /** The path that a writer writes a run file of the workflow to; the folder exists. */
 export const runFileFor = (root, slug, name) => join(ensureRunDir(root, slug), name);

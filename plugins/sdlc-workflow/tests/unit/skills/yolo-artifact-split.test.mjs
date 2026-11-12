@@ -114,6 +114,19 @@ test('a verify agent with no sub-agent tool fixes inline instead of stopping', a
   assert.doesNotMatch(plan, /FIX ROUND \(verify\)/);
 });
 
+test('a stage agent never stops for context and keeps build and test logs in files', async () => {
+  const { calls } = await run({}, (label) => (label === 'orient'
+    ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'done', review: 'n-a' })] })
+    : stageAnswer(label) || common(label)));
+  const impl = calls.find((c) => c.label === 'implement:a').prompt;
+  assert.match(impl, /CONTEXT\. Never stop, hard-stop or hand work back because you think your context is filling up/);
+  assert.match(impl, /The host compacts your conversation when it is full/);
+  assert.match(impl, /COMMAND OUTPUT\. Keep build and test logs out of your context/);
+  assert.ok(impl.includes('wf.mjs" profile run "/repo" <suite>'), 'it names the logged suite run');
+  assert.ok(impl.includes('a file of /repo/.ai/run/logs'), 'other commands write to the log folder');
+  assert.match(impl, /Read the stage files \(the brief, the records, the plan\) and the source files you change in full/);
+});
+
 test('an implement agent records each step with the step commands', async () => {
   const { calls } = await run({}, (label) => (label === 'orient'
     ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'done', review: 'n-a' })] })

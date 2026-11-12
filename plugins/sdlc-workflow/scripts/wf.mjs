@@ -566,6 +566,7 @@ import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
 import { STAGE_SUITES, SUITES, BUDGET_PRESETS, budgetLine, noCommand, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
+import { runSuiteLogged } from '../lib/run-files.mjs';
 import { NO_SUITE, implementSuites, noSuiteReceipt, receiptState, treeChanges } from '../lib/test-receipt.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
@@ -1084,6 +1085,9 @@ export function runStep(pos, opt) {
 
 // ---------------------------------------------------------------- profile
 
+// The lines that name the log of a suite run, and the end of the log when the suite failed.
+const suiteLogLines = (r) => [`log: ${r.log}`, ...(r.tail ? ['the end of the log:', r.tail] : [])];
+
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
   if (!verb || !root) throw usage('profile: <show|set|record|run|timebox|budget|hooks> <root> are required');
@@ -1114,7 +1118,8 @@ export function runProfile(pos, opt) {
     const suite = profile[a];
     if (!suite?.command) throw noCommand(a, 'profile run: ');
     const t0 = Date.now();
-    const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
+    // The output of the suite goes to a log file, not to the terminal of the agent.
+    const r = runSuiteLogged(projectRoot, a, suite.command);
     const seconds = Math.round((Date.now() - t0) / 100) / 10;
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
@@ -1126,7 +1131,9 @@ export function runProfile(pos, opt) {
     if (overLongBudget(profile, seconds)) {
       process.stderr.write(`WARNING: the ${a} suite took ${seconds}s, over the long-run budget of ${budget.long}s. Before the next run, offer the faster paths of _long-runs.md: run the touched part, a pilot, a sample, a split, or the packet end.\n`);
     }
-    out(opt.json ? { suite: a, command: suite.command, seconds, pass, exit: r.status, ...(head ? { passedAt: head } : {}) } : `${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`);
+    out(opt.json
+      ? { suite: a, command: suite.command, seconds, pass, exit: r.status, log: r.log, ...(r.tail ? { tail: r.tail } : {}), ...(head ? { passedAt: head } : {}) }
+      : [`${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`, ...suiteLogLines(r)].join('\n'));
     return pass ? 0 : 1;
   }
   if (verb === 'timebox') {
@@ -2200,12 +2207,13 @@ async function runMain(cmd, pos, opt) {
         for (const name of names) {
           const suite = profile[name];
           const t0 = Date.now();
-          const r = spawnSync(suite.command, { cwd: projectRoot, shell: true, stdio: opt.json ? 'pipe' : 'inherit', encoding: 'utf8', windowsHide: true });
+          // The output of the suite goes to a log file, not to the terminal of the agent.
+          const r = runSuiteLogged(projectRoot, name, suite.command);
           const seconds = Math.round((Date.now() - t0) / 100) / 10;
           if (!r.error) {
             try { recordRun(projectRoot, name, seconds); } catch (e) { process.stderr.write(`wf.mjs: the time of the ${name} suite was not recorded: ${e.message}\n`); }
           }
-          runs.push({ suite: name, command: suite.command, pass: r.status === 0, seconds });
+          runs.push({ suite: name, command: suite.command, pass: r.status === 0, seconds, log: r.log, ...(r.tail ? { tail: r.tail } : {}) });
           if (r.status !== 0) break;
         }
         const pass = runs.length === names.length && runs.every((r) => r.pass);
@@ -2213,7 +2221,8 @@ async function runMain(cmd, pos, opt) {
         if (pass) writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
         // A change that HEAD lacks is in no commit of the slice: the receipt records it in dirty.
         const named = dirty.length ? `; recorded ${dirty.length} change(s) that are in no commit of the slice: ${dirty.map((d) => d.path).join(', ')}` : '';
-        out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : `no receipt: ${runs.find((r) => !r.pass)?.suite} failed`);
+        const failed = runs.find((r) => !r.pass);
+        out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : [`no receipt: ${failed?.suite} failed`, ...(failed ? suiteLogLines(failed) : [])].join('\n'));
         return pass ? 0 : 1;
       }
       case 'slice': {

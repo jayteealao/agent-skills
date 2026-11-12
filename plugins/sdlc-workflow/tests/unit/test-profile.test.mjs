@@ -1,7 +1,7 @@
 // lib/test-profile.mjs and `wf.mjs profile`: the suites of a project and their times.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -178,6 +178,32 @@ test('profile run warns when a run is over the long-run budget', () => {
     const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'run', f.root, 'heavy', '--json'], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stderr, /^WARNING: the heavy suite took [\d.]+s, over the long-run budget of 0s/m);
+  } finally { f.done(); }
+});
+
+test('profile run keeps the suite output in a log file and prints only the end of a failed log', () => {
+  const noisy = (code) => `node -e "for (let i = 0; i < 200; i++) console.log('line ' + i); process.exit(${code})"`;
+  const f = fixture({ testProfile: { fast: { command: noisy(0), estimateSeconds: 1 }, full: { command: noisy(3), estimateSeconds: 1 } } });
+  try {
+    const run = (suite, ...more) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', 'run', f.root, suite, ...more], { encoding: 'utf8' });
+    const pass = run('fast');
+    assert.equal(pass.status, 0, pass.stderr);
+    assert.doesNotMatch(pass.stdout, /line 0/, 'a passing suite prints none of its output');
+    const log = /^log: (.+)$/m.exec(pass.stdout)?.[1];
+    assert.ok(log && log.startsWith(path.join(f.root, '.ai', 'run', 'logs')), pass.stdout);
+    assert.match(readFileSync(log, 'utf8'), /line 0\r?\n[^]*line 199/, 'the log holds the whole output');
+    assert.match(readFileSync(path.join(f.root, '.ai', 'run', '.gitignore'), 'utf8'), /^\*$/m, 'git ignores the logs');
+
+    const fail = run('full', '--json');
+    assert.equal(fail.status, 1);
+    const j = JSON.parse(fail.stdout);
+    assert.equal(j.exit, 3);
+    assert.equal(j.tail.split(/\r?\n/).length, 40);
+    assert.match(j.tail, /line 199$/);
+    assert.doesNotMatch(j.tail, /line 159\b/);
+
+    for (let i = 0; i < 6; i++) run('fast');
+    assert.equal(readdirSync(path.join(f.root, '.ai', 'run', 'logs')).filter((n) => n.startsWith('fast-')).length, 5, 'the newest five logs of a suite stay');
   } finally { f.done(); }
 });
 

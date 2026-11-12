@@ -969,6 +969,23 @@ const CONTROL_FILE_RULE =
 
 
 
+// CONTEXT AND COMMAND OUTPUT. A stage agent cannot see its own token count. Implement agents
+// stopped with steps left because they guessed that the rest would not fit, and test and build
+// logs filled most of their context. The host compacts a full conversation, and each step is
+// already committed, so the agent never stops for context; logs go to files.
+const LOG_DIR = `${projectRoot}/.ai/run/logs`
+const WORK_RULES =
+  `\n\nCONTEXT. Never stop, hard-stop or hand work back because you think your context is filling up. ` +
+  `The host compacts your conversation when it is full, and you continue after it; each step you commit is ` +
+  `kept. Stop only for the reasons that the stage reference gives.\n\n` +
+  `COMMAND OUTPUT. Keep build and test logs out of your context. Run a suite of the test profile with ` +
+  `\`${WF_CMD} profile run "${projectRoot}" <suite>\` or \`${WF_CMD} receipt\`: each writes the output to a log ` +
+  `file and prints the result, the log path and, when the suite fails, the end of the log. Run any other ` +
+  `build, test or check command with its output in a file of ${LOG_DIR} (\`<command> > <file> 2>&1\`), read ` +
+  `its exit status, and search the file for the failures. Never print a whole log, and never let a long ` +
+  `command write to your terminal. Read the stage files (the brief, the records, the plan) and the source ` +
+  `files you change in full whenever you need them.`
+
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
 // The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file.
 const steer = steeringClause
@@ -1775,7 +1792,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
   const briefCmd = `${WF_CMD} brief "${projectRoot}" ${slug} ${stage}${sliceArg ? ` ${sliceArg}` : ''}`
   return await agent(
     `Execute the SDLC '${stage}' stage for slug '${slug}'${sliceClause}, FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
-    `${EOB}\n\n` +
+    `${EOB}${WORK_RULES}\n\n` +
     `1. Run \`${WF_CMD} progress set "${projectRoot}" ${slug} --run ${RUN_ID} --driver yolo ` +
     `--stage ${stage}${sliceArg ? ` --slice ${sliceArg}` : ''} --status running\`. It records where the run stands.\n` +
     `2. Run \`${briefCmd}\` and read its output in full. It is your brief, built by code from the records: the ` +
@@ -2317,7 +2334,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
 async function runUpdateDepsExec(idx) {
   return await agent(
     `Execute the SELF-MANAGED update-deps execution for slug '${slug}', FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
-    `${EOB}\n\n` +
+    `${EOB}${WORK_RULES}\n\n` +
     `Read ${referenceRoot}/intake/update-deps.md IN FULL and follow Steps 6–9 VERBATIM. Its scan/research/` +
     `prioritize/slice/plan (Steps 1–5) are ALREADY DONE on disk — 01-update-deps.md, 02-shape.md, 03-slice.md and ` +
     `04-plan.md are complete; you START at Step 6. Wherever the reference asks the user or pauses for a human, ` +

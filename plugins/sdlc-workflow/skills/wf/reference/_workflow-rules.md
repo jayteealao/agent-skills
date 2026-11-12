@@ -12,6 +12,8 @@
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - Use sub-agents for multi-domain research per [_subagents.md](_subagents.md).
+- Never stop a stage, or hand work back, because you think your context is filling up. The host compacts a full conversation, and you continue after it. Each step that you commit is kept.
+- Keep build and test logs out of your context. Run a suite of the test profile with `wf.mjs profile run` or `wf.mjs receipt`: each writes the output to a log file in `<root>/.ai/run/logs/` and prints the result, the log path and, when the suite fails, the end of the log. Run any other build, test or check command with its output in a file of that folder (`<command> > <file> 2>&1`), read its exit status, and search the file for the failures. Never print a whole log. Read the stage files and the source files that you change in full whenever you need them.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Before you cut a branch, run the base check: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`. It fetches the base and fast-forwards a base that is only behind its remote. When it exits 1, the base has diverged from its remote: Stop, and ask the person to reconcile it. Do not cut the branch from it.
 - **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.
