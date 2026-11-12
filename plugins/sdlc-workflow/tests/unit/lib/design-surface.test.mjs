@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addScreen, initSurface, linksOf, listScreens, manifestFault, readDesignRepos, readManifest, screenTemplate, setAreas, statesOf, tokensFromDesign, trackSurface } from '../../../lib/design-surface.mjs';
+import { addScreen, initSurface, linksOf, listScreens, manifestFault, readDesignRepos, readManifest, screenTemplate, setAreas, statesOf, tokensFromDesign, trackSurface, undrawnScreen } from '../../../lib/design-surface.mjs';
 import { addComment, commentsBrief, openThreads } from '../../../lib/design-records.mjs';
 
 const PLUGIN_ROOT = join(import.meta.dirname, '..', '..', '..');
@@ -127,4 +127,16 @@ test('the pre-write check refuses an agent write of the manifest and of the desi
     assert.equal(hook('.ai/workflows/_design/comments/basket.json').status, 2);
     assert.equal(hook('.ai/design/screens/basket.html').status, 0, 'an agent writes the screen pages');
   } finally { done(); }
+});
+
+test('a page that no one drew is undrawn, whatever comments its template had', () => {
+  const page = screenTemplate('home', 'Home');
+  assert.equal(undrawnScreen(page, 'home', 'Home'), true);
+  // A page from a template of another version: the comments differ, the page does not.
+  const older = page.replace(/<!--[\s\S]*?-->\n?/g, '').replace(/^\s*\/\/.*\n/gm, '');
+  assert.notEqual(older, page);
+  assert.equal(undrawnScreen(older, 'home', 'Home'), true);
+  assert.equal(undrawnScreen(page.replace(/\n/g, '\r\n'), 'home', 'Home'), true);
+  assert.equal(undrawnScreen(page.replace('<h1>Home</h1>', '<h1>Welcome</h1>'), 'home', 'Home'), false);
+  assert.equal(undrawnScreen('', 'home', 'Home'), false);
 });

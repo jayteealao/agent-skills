@@ -15,7 +15,7 @@ import {
   isReviewThread, readChecks, readComments, readReviewStamp, reviewPacketsDir, writeReviewStamp,
 } from './design-records.mjs';
 import { pageFingerprint } from './design-state.mjs';
-import { COMPONENTS_FILE, LAYOUT_SHEET, TOKENS_JSON, listScreens, readManifest, screenFile, screenTemplate, surfaceDir, writeJson } from './design-surface.mjs';
+import { COMPONENTS_FILE, LAYOUT_SHEET, TOKENS_JSON, listScreens, readManifest, screenFile, surfaceDir, undrawnScreen, writeJson } from './design-surface.mjs';
 import { agentFix, refuse } from './fix.mjs';
 
 export const REVIEW_SCHEMA = 'sdlc/design-review/v1';
@@ -48,7 +48,7 @@ At most ${MAX_REVIEW_THREADS} threads per screen, the most important first. Post
 export function screenFingerprints(root, slug, screens = listScreens(root, { workflow: slug, withHtml: true })) {
   const out = {};
   for (const s of screens) {
-    if (!s.exists || !s.html || s.html === screenTemplate(s.key, s.title ?? s.key)) continue;
+    if (!s.exists || !s.html || undrawnScreen(s.html, s.key, s.title ?? s.key)) continue;
     out[s.key] = pageFingerprint(root, s.key, s.html);
   }
   return out;

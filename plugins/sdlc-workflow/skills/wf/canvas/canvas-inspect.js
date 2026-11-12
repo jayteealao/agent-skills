@@ -74,6 +74,21 @@ var WF_CANVAS_INSPECT_LOGIC = (() => {
     return best;
   }
 
+  /**
+   * The rules that match one element, in source order: `[{ rule, spec }]`, where `spec` is the
+   * highest specificity among the selectors of the rule that match. `matches(selector)` asks the
+   * element. The cascade of each property reads this list, so the element is asked once for each rule.
+   */
+  function matchedRules(rules, matches) {
+    const out = [];
+    for (const rule of rules || []) {
+      let spec = null;
+      for (const p of rule.parts) if (matches(p)) { const s = specificity(p); if (!spec || cmpSpec(s, spec) > 0) spec = s; }
+      if (spec) out.push({ rule, spec });
+    }
+    return out;
+  }
+
   /** The custom properties that a value reads, in order: `var(--a, var(--b))` gives both. */
   const varNames = (value) => [...String(value ?? '').matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]);
   /** The value with its var() calls taken out, fallbacks and all. */
@@ -275,7 +290,7 @@ var WF_CANVAS_INSPECT_LOGIC = (() => {
   /** The modes of the switch: each theme of the model and System, or none when the model has one theme or none. */
   const modeChoices = (themes) => ((themes || []).length > 1 ? [...themes.map((t) => t.name), ''] : []);
 
-  return { PROPS, INHERITED, splitList, specificity, cmpSpec, cascade, varNames, withoutVars, follow, rawLength, rawColor, rawOf, measure, rgbOf, nearest, rawText, resolveProperty, variantPairs, variantCheck, sheetName, modeChoices, propLabel, tokenRows, rawComment, variantComment };
+  return { PROPS, INHERITED, splitList, specificity, cmpSpec, cascade, matchedRules, varNames, withoutVars, follow, rawLength, rawColor, rawOf, measure, rgbOf, nearest, rawText, resolveProperty, variantPairs, variantCheck, sheetName, modeChoices, propLabel, tokenRows, rawComment, variantComment };
 })();
 
 // eslint-disable-next-line no-var, no-unused-vars
@@ -328,14 +343,22 @@ var WF_CANVAS_INSPECT = (() => {
   }
   /** The page that holds an element: set while the panel draws. */
   let page = null;
+  // The rules that match each element, for one draw of the panel. A draw asks for the declarations
+  // of an element once for each property and each custom property, and of its parents too: without
+  // this list each of those asks the element about every rule of the page again.
+  let matched = new WeakMap();
+  function matchedOf(el) {
+    let list = matched.get(el);
+    if (!list) {
+      list = I.matchedRules(rulesOf(page), (sel) => { try { return el.matches(sel); } catch { return false; } });
+      matched.set(el, list);
+    }
+    return list;
+  }
   /** The declarations of `props` on one element, from its matched rules and its style attribute. */
   function declsOf(el, props) {
     const out = [];
-    const safe = (sel) => { try { return el.matches(sel); } catch { return false; } };
-    for (const r of rulesOf(page)) {
-      let spec = null;
-      for (const p of r.parts) if (safe(p)) { const s = I.specificity(p); if (!spec || I.cmpSpec(s, spec) > 0) spec = s; }
-      if (!spec) continue;
+    for (const { rule: r, spec } of matchedOf(el)) {
       // Within one rule a shorthand that holds the authored text comes first.
       for (const prop of props) {
         const value = r.style.getPropertyValue(prop);
@@ -401,6 +424,8 @@ var WF_CANVAS_INSPECT = (() => {
    */
   function panelBody(el, model, { view, openComponent, comment, tab, setTab }) {
     page = view;
+    // The page can change between two draws (a state, a class): each draw matches the rules anew.
+    matched = new WeakMap();
     const comp = el.closest('[data-component]');
     const key = comp?.getAttribute('data-component');
     const c = comp ? (model.components || []).find((x) => x.key === key) : null;

@@ -4,8 +4,9 @@
 // when it cannot (skills/wf/canvas/canvas-mount.js). The rules are in that script, in
 // `WF_CANVAS_MOUNT_LOGIC`: this module loads them from the file, so the canvas and the CLI decide
 // with the same code. It reads the pages and the sheets of the surface and names each page that
-// stays in a frame, with the reasons. A page in a frame still works; the list is a note for the
-// agent, and it fails no check.
+// stays in a frame, with the reasons. A page in a frame still works. `design doctor` prints the
+// list as a note, and `design check` reports each framed screen as a `frame` failure, which
+// does not block an approval.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import vm from 'node:vm';
@@ -81,6 +82,31 @@ export function framedPages(root, { keys = null } = {}) {
   return out;
 }
 
+/** Where the agent reads the forms and the cases. */
+const FRAME_RULES = 'design/_surface.md ("Pages that the canvas draws with no frame")';
+const FRAME_FIXES = [
+  [/^it has a script of its own/, `Move each click that the script wires to an inline handler of the forms of ${FRAME_RULES}, write what the script draws into the page, and delete the script.`],
+  [/^it loads a script file/, 'Draw the page from the components with no script file.'],
+  [/^it has an inline event handler/, `Write the handler in the forms of ${FRAME_RULES}: each statement changes a class, a data value or a state attribute of this, its parent or its closest ancestor.`],
+  [/^it has a javascript: address/, 'Make the link a link to <key>.html, or make the control a button with an inline handler.'],
+  [/^it has a base element/, 'Remove the base element, and write each address relative to the page.'],
+  [/^a media query/, 'Write the query on the width or the height alone, with no `not` and no comma list that mixes the viewport with another feature.'],
+];
+/** What to change so that the canvas draws a page with no frame, for one reason of `pageReasons`. */
+export function frameFix(reason) {
+  const fix = FRAME_FIXES.find(([re]) => re.test(String(reason)))?.[1] ?? `Keep to the rules of ${FRAME_RULES}.`;
+  return `${fix} design/system-migrate.md ("Pages off the frame") has each case. A page that needs its code stays in a frame: this failure does not block the approval.`;
+}
+
+/**
+ * The `frame` failures of the screens `keys`: one for each reason that keeps a screen in a frame,
+ * with what to change. The check of the screens reports them; they block no approval.
+ */
+export function frameFailures(root, keys) {
+  if (!keys?.length) return [];
+  return framedPages(root, { keys }).flatMap((p) => p.reasons.map((reason) => ({ screen: p.key, check: 'frame', message: `The canvas draws the page in a frame: ${reason}`, do: frameFix(reason) })));
+}
+
 const MAX_NAMED = 8;
 /**
  * The note of the framed pages, as lines for the output of a command: empty when every page is
@@ -94,6 +120,6 @@ export function framedLines(pages) {
   const more = pages.length - MAX_NAMED;
   return [
     `note: ${[count('screen', 'screen'), count('component', 'component page')].filter(Boolean).join(' and ')} ${pages.length === 1 ? 'is' : 'are'} drawn in a frame on the canvas: ${named}${more > 0 ? `, and ${more} more` : ''}`,
-    '  a page in a frame still works, and no check fails for it; a frame for each page makes a large board slow. To draw the page with no frame, keep to the rules of _surface.md ("Pages that the canvas draws with no frame"): the state script only, class changes as inline handlers, no `not` or mixed media query.',
+    '  a page in a frame still works, and a frame blocks no approval; a frame for each page makes a large board slow. To draw the page with no frame, keep to the rules of _surface.md ("Pages that the canvas draws with no frame"): the state script only, each change of a class, a data value or a state attribute as an inline handler, no `not` or mixed media query. design/system-migrate.md ("Pages off the frame") has each case.',
   ];
 }

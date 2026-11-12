@@ -48,12 +48,42 @@ test('a script that only sets the state and the theme from the address is the sw
 });
 
 test('a handler that only changes a class is work for the mount; any other handler is not', () => {
-  assert.deepEqual(plain(M.parseHandler("this.closest('.app-frame').classList.add('drawer-open')")), [{ closest: '.app-frame', op: 'add', name: 'drawer-open' }]);
-  assert.deepEqual(plain(M.parseHandler('this.classList.toggle("on"); this.closest("nav").classList.remove("open");')), [{ closest: null, op: 'toggle', name: 'on' }, { closest: 'nav', op: 'remove', name: 'open' }]);
+  const on = { base: 'this', closest: null, query: null, all: false };
+  assert.deepEqual(plain(M.parseHandler("this.closest('.app-frame').classList.add('drawer-open')")), [{ ...on, base: 'closest', closest: '.app-frame', act: 'class', op: 'add', name: 'drawer-open' }]);
+  assert.deepEqual(plain(M.parseHandler('this.classList.toggle("on"); this.closest("nav").classList.remove("open");')),
+    [{ ...on, act: 'class', op: 'toggle', name: 'on' }, { ...on, base: 'closest', closest: 'nav', act: 'class', op: 'remove', name: 'open' }]);
   assert.equal(M.parseHandler('alert(1)'), null);
   assert.equal(M.parseHandler("this.classList.add('a'); fetch('/x')"), null);
   assert.equal(M.parseHandler(''), null);
   assert.deepEqual(plain(M.mountProblems(`<button onclick="this.closest('.app').classList.add('open')">Menu</button>`)), []);
+});
+
+test('a handler may set a data value or a state attribute, and pick one of a group', () => {
+  const on = { base: 'this', closest: null, query: null, all: false };
+  // A view of a group: the pressed element gives the value.
+  assert.deepEqual(plain(M.parseHandler("this.closest('[data-fam]').dataset.view = this.dataset.v")), [{ ...on, base: 'closest', closest: '[data-fam]', act: 'data', name: 'view', from: 'v' }]);
+  assert.deepEqual(plain(M.parseHandler('this.parentElement.dataset.mode = "list"')), [{ ...on, base: 'parent', act: 'data', name: 'mode', value: 'list' }]);
+  // One of a group: the mark comes off the others, then goes on this one.
+  assert.deepEqual(plain(M.parseHandler("this.parentElement.querySelectorAll('.on').forEach(e => e.classList.remove('on')); this.classList.add('on')")),
+    [{ ...on, base: 'parent', query: '.on', all: true, act: 'class', op: 'remove', name: 'on' }, { ...on, act: 'class', op: 'add', name: 'on' }]);
+  assert.deepEqual(plain(M.parseHandler("this.parentElement.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); }); this.setAttribute('aria-pressed', 'true')")),
+    [{ ...on, base: 'parent', query: 'button', all: true, act: 'attr', op: 'setAttribute', name: 'aria-pressed', value: 'false' }, { ...on, act: 'attr', op: 'setAttribute', name: 'aria-pressed', value: 'true' }]);
+  assert.deepEqual(plain(M.parseHandler("this.closest('.dd').querySelector('.menu').toggleAttribute('hidden')")), [{ ...on, base: 'closest', closest: '.dd', query: '.menu', act: 'attr', op: 'toggleAttribute', name: 'hidden', value: null }]);
+});
+
+test('a handler that could run code or leave the page is not work for the mount', () => {
+  // An attribute that holds code or an address.
+  assert.equal(M.parseHandler("this.setAttribute('onclick', 'x')"), null);
+  assert.equal(M.parseHandler("this.setAttribute('href', 'javascript:1')"), null);
+  assert.equal(M.parseHandler("this.setAttribute('style', 'x')"), null);
+  // A call, and a value that is not a plain word of the page.
+  assert.equal(M.parseHandler("this.closest('a').click()"), null);
+  assert.equal(M.parseHandler("this.dataset.x = fetch('/')"), null);
+  assert.equal(M.parseHandler("this.dataset.x = this.dataset.y + location.href"), null);
+  assert.equal(M.parseHandler("this.parentElement.querySelectorAll('a').forEach(e => e.click())"), null);
+  assert.equal(M.parseHandler("document.body.classList.add('x')"), null);
+  // In a function, `this` is not the pressed element.
+  assert.equal(M.parseHandler("this.parentElement.querySelectorAll('a').forEach(function (b) { b.dataset.x = this.dataset.y })"), null);
 });
 
 test('the theme script of a component page is known, and data in a script tag is no script', () => {
@@ -66,7 +96,7 @@ test('the theme script of a component page is known, and data in a script tag is
 test('a page with a script of its own, a script file, a handler or a base element stays in a frame', () => {
   assert.deepEqual(plain(M.mountProblems('<script>document.querySelectorAll(".t").forEach(() => {})</script>')), ['it has a script of its own']);
   assert.deepEqual(plain(M.mountProblems('<script src="./support.js"></script>')), ['it loads a script file']);
-  assert.deepEqual(plain(M.mountProblems('<button onclick="go()">Go</button>')), ['it has an inline event handler that is more than a class change']);
+  assert.deepEqual(plain(M.mountProblems('<button onclick="go()">Go</button>')), ['it has an inline event handler that is more than a change of a class or an attribute']);
   assert.deepEqual(plain(M.mountProblems('<a href="javascript:go()">Go</a>')), ['it has a javascript: address']);
   assert.deepEqual(plain(M.mountProblems('<base href="/x/">')), ['it has a base element']);
   // The text of a page is not a tag.
@@ -188,6 +218,51 @@ test('a change of the files makes the mount forget once, and each page reads aga
   assert.match(mount, /async reload\(\{ fresh = true \} = \{\}\) \{\s+if \(fresh\) forget\(page\.url\);/);
 });
 
+test('a file that is read again and did not change keeps its sheet', () => {
+  const kept = M.keeper();
+  let made = 0;
+  const make = () => { made += 1; return { n: made }; };
+  const first = kept.take('a.css', 'a{color:red}', make);
+  assert.equal(kept.take('a.css', 'a{color:red}', make), first, 'the same text: the same sheet, and nothing is built');
+  assert.equal(made, 1);
+  const next = kept.take('a.css', 'a{color:blue}', make);
+  assert.notEqual(next, first, 'another text: a new sheet');
+  assert.equal(kept.take('a.css', 'a{color:blue}', make), next);
+  assert.notEqual(kept.take('b.css', 'a{color:blue}', make), next, 'another file has its own sheet');
+  assert.equal(made, 3);
+  const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
+  assert.match(mount, /return built\.take\(id, text, \(\) => build\(text, href, href, media\)\)/);
+});
+
+test('the store of read pages keeps the pages that were asked for last', () => {
+  const store = M.bounded(3);
+  for (const k of ['a', 'b', 'c']) store.set(k, k.toUpperCase());
+  assert.equal(store.get('a'), 'A', 'a read makes a page the newest');
+  store.set('d', 'D');
+  assert.equal(store.has('b'), false, 'the page that was asked for the longest time ago left');
+  assert.deepEqual(['a', 'c', 'd'].map((k) => store.has(k)), [true, true, true]);
+  assert.equal(store.get('b'), undefined);
+  store.set('c', 'C2');
+  assert.equal(store.size(), 3, 'a page that is set again takes no second place');
+  assert.equal(store.get('c'), 'C2');
+  store.delete('a');
+  assert.equal(store.has('a'), false);
+  store.clear();
+  assert.equal(store.size(), 0);
+  const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
+  assert.match(mount, /const pages = L\.bounded\(MAX_PAGES\)/);
+});
+
+test('each new set of hoisted rules has a style element of its own, and a page waits for its imports', () => {
+  const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
+  const hoist = mount.slice(mount.indexOf('function hoist(rules)'), mount.indexOf('function build('));
+  // One element that is written again would make the browser read every font again.
+  assert.doesNotMatch(hoist, /getElementById/);
+  assert.match(hoist, /const el = document\.createElement\('style'\)/);
+  assert.match(hoist, /el\.addEventListener\('load', ok\); el\.addEventListener\('error', ok\); setTimeout\(ok, HOIST_WAIT_MS\)/, 'a late import does not hold the page');
+  assert.match(mount, /if \(hoistBusy\) await hoistBusy;/);
+});
+
 test('the inspector reads the rules and the styles through the view, and the mode themes a mounted page', () => {
   const inspect = readFileSync(join(canvasDir, 'canvas-inspect.js'), 'utf8');
   assert.match(inspect, /for \(const s of view\.sheets\(\)\)/);
@@ -195,4 +270,8 @@ test('the inspector reads the rules and the styles through the view, and the mod
   assert.match(inspect, /else if \(r\.cssRules && view\.applies\(r\)\) walk\(r\.cssRules, source\)/);
   assert.match(inspect, /document\.addEventListener\('wf-load', \(e\) => applyMode\(e\.target\), true\)/);
   assert.doesNotMatch(inspect, /contentDocument|ownerDocument|styleSheets/);
+});
+
+test('a handler with no quotes is a handler too', () => {
+  assert.deepEqual(plain(M.mountProblems('<button onclick=alert(1)>Go</button>')), ['it has an inline event handler that is more than a change of a class or an attribute']);
 });

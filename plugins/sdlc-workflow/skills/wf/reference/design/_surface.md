@@ -42,13 +42,17 @@ Each design fact lives in one place, and every other record cites it by key: the
 The canvas draws each screen and each component page straight onto itself, with no frame. A page that keeps to these rules is drawn that way:
 
 - **Script.** The page has the state script of the template and no other script. Do not change that script. A component page has the theme script of its template, and no other.
-- **Interaction.** A control that opens, closes or switches a part changes a class, and the style of the page does the rest. Write it as an inline handler of one of these forms, with one or more steps and nothing else:
-  - `onclick="this.closest('<selector>').classList.add('<name>')"`, with `add`, `remove` or `toggle`.
-  - `onclick="this.classList.toggle('<name>')"`.
+- **Interaction.** A control that opens, closes or switches a part changes a class, a data value or a state attribute, and the style of the page does the rest. Write it as an inline handler (`onclick="..."`). The canvas does the handler itself, and runs no code of the page. The handler is one or more statements with `;` between them, and nothing else. Each statement is a target and one change:
+  - **Target.** `this`, `this.parentElement` or `this.closest('<selector>')`. After it, nothing, `.querySelector('<selector>')`, or `.querySelectorAll('<selector>').forEach((e) => e.<change>)`.
+  - **Change.** `classList.add('<name>')`, `classList.remove('<name>')` or `classList.toggle('<name>')`; `dataset.<name> = '<value>'` or `dataset.<name> = this.dataset.<name>`; `setAttribute('<attribute>', '<value>')`, `removeAttribute('<attribute>')` or `toggleAttribute('<attribute>')`, where the attribute is `aria-*`, `data-*`, `hidden` or `open`.
+  - A view of a group: `onclick="this.closest('[data-fam]').dataset.view = this.dataset.v"`, with the style `[data-fam][data-view="table"] .table { display: block }`.
+  - One of a group: `onclick="this.parentElement.querySelectorAll('.on').forEach((e) => e.classList.remove('on')); this.classList.add('on')"`.
+  - Open and close: `onclick="this.closest('.menu').classList.toggle('open')"`, or `onclick="this.parentElement.querySelector('.panel').toggleAttribute('hidden')"`.
+  - A statement of any other form keeps the page in a frame: a variable, a condition, a second argument of `toggle`, `document`, `event`, `return false`, a `style` or a text change. In a selector, use a class or an attribute of the page, and not `html` or `body`.
 - **Movement between screens** is a link to `<key>.html`, not a script.
 - **Media queries.** A query on the width or the height, and the units `vh` and `vw`, read the viewport of the screen: the canvas translates them. Do not write a `not` query, or a comma list that mixes the viewport with another feature (`print, (max-width: 600px)`).
 
-A page stays in a frame when it has any other script, a script file, an inline handler of another form, a `javascript:` address, a `<base>` element, or a media query of the two forms above, in its own styles or in a sheet that it links. A page in a frame still works, and no check fails for it. `<wf> design check` and `<wf> design doctor <root>` name each page that stays in a frame, with the reason. Repair the reason, unless the design needs the script.
+A page stays in a frame when it has any other script, a script file, an inline handler of another form, a `javascript:` address, a `<base>` element, or a media query of the two forms above, in its own styles or in a sheet that it links. A page in a frame still works, and a frame for each page makes a large board slow. `<wf> design check` fails the `frame` check for each screen that stays in a frame, with the reason and what to change; this failure does not block the approval. `<wf> design doctor <root>` names each screen and each component page that stays in a frame. Repair the reason as [system-migrate.md](system-migrate.md) → Pages off the frame says, unless the design needs the script.
 
 ## The foundation
 

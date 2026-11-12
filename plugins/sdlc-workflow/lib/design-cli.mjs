@@ -25,7 +25,7 @@ import { canvasState, snapshotHtml } from './design-state.mjs';
 import {
   COMPONENTS_FILE, KEY_RE, LAYOUT_FILE, MANIFEST_FILE, SCREENS_DIR, STATES, SURFACE_REL, TOKENS_FILE,
   addExplore, addScreen, designMdOf, initSurface, listExplore, listScreens, manifestProblems, manifestRefusal, readDesignRepos, readManifest, registerRepo,
-  missingDesignFiles, readTokenModel, screenFile, screenRel, screenTemplate, setAreas, setViewports, surfaceDir, trackSurface, writeTokens,
+  missingDesignFiles, readTokenModel, screenFile, screenRel, screenTemplate, setAreas, undrawnScreen, setViewports, surfaceDir, trackSurface, writeTokens,
 } from './design-surface.mjs';
 import { approvedPages, dropRounds, listVersions, restoreVersion, saveRound, versionDir, versionDrift, versionName } from './design-versions.mjs';
 import { Refusal, agentFix, asFix, failureOf, fixLines, personFix, refuse } from './fix.mjs';
@@ -241,7 +241,7 @@ export function designNext(root, slug, facts = designFacts(root, slug)) {
   if (!ready.ok) return step('foundation', ready.missing.join('; '), { command: ready.next[0].command, do: ready.next[0].do });
   const reopened = designReopened(f.index);
   const approved = f.approved && !f.restored;
-  const drawn = f.screens.filter((s) => s.exists && s.html !== screenTemplate(s.key, s.title ?? s.key));
+  const drawn = f.screens.filter((s) => s.exists && !undrawnScreen(s.html, s.key, s.title ?? s.key));
   if (!drawn.length) {
     return step('draw', f.keys.length ? `no screen of ${slug} is drawn yet: ${f.keys.join(', ')} still ${f.keys.length > 1 ? 'hold' : 'holds'} the template` : `no screen of ${slug} is on the surface`,
       f.keys.length ? {} : { command: `wf.mjs design screen add ${R} <key> --workflow ${slug}` });
@@ -627,12 +627,10 @@ async function run(pos, opt, out) {
           : slug && frontmatterOfDoc(workflowDir(projectRoot, slug), INDEX_NAME) ? designNext(projectRoot, slug)
             : { ok: true, step: 'done', why: 'the screens pass the check' };
       const keptScreens = [...new Set((r.failures ?? []).filter((f) => !(r.checked ?? []).includes(f.screen)).map((f) => f.screen))];
-      // A note, not a failure: the checked screens that the canvas draws in a frame. It blocks nothing.
-      const framed = r.ran && (r.checked ?? []).length ? framedPages(projectRoot, { keys: r.checked }) : [];
       const res = {
         ok: r.ran && !found.length && !lib.length, ran: r.ran, ...(r.ran ? {} : { reason: r.reason, error: r.reason, fix: r.fix }), at: r.at, browser: r.browser ?? null,
         checked: r.checked ?? [], failures: found, library: lib, groups, truncated: r.truncated ?? {}, notices: r.notices ?? [],
-        kept: { failures: r.kept ?? 0, screens: keptScreens }, passed: r.passed, framed,
+        kept: { failures: r.kept ?? 0, screens: keptScreens }, passed: r.passed,
         ...(slug && !blocking ? { question: approvalQuestion(slug) } : {}), next,
         ...(r.ran && (found.length || lib.length) ? { error: next.why, fix: agentFix(next.do, again) } : {}),
       };
@@ -641,7 +639,6 @@ async function run(pos, opt, out) {
         r.ran ? `checked ${r.checked.length} screen(s): ${lines.length || lib.length ? `${found.length + lib.length} failure(s) from ${lines.length + lib.length} cause(s)` : 'all pass'}` : `not checked: ${r.reason}`,
         ...lines, ...libraryLines(lib), ...partialLines(r),
         ...(r.kept ? [`other screens: ${r.kept} failure(s) of an earlier check stay (${keptScreens.join(', ')})`] : []),
-        ...framedLines(framed),
         // The approval question, only when nothing fails and everything was checked.
         ...(slug && r.ran && !found.length && !lib.length && whole && !['ask', 'review'].includes(next.step) ? [`ask: ${approvalQuestion(slug)}`] : []),
         ...nextLines(next),

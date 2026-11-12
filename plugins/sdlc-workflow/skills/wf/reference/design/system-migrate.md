@@ -12,7 +12,7 @@ Every design pass runs it first when the surface is old. A design pass is any ru
 - `<wf> design tokens <root>` refuses a row, or names a table that it ignored.
 - `<wf> design check <root>` reports a `library` failure, or a `token`, `layout` or `component` failure on a screen that this pass does not change.
 
-Migrate the whole surface once, before the screens of the workflow. Do not migrate a part and leave the rest: the check fails on every screen until the system holds. Ask the person no question during the migration. The stop message of the round names it as the first change: "Migrated the design system: N tokens in K kinds, T themes, C components with specs, S screens moved onto the primitives."
+Migrate the whole surface once, before the screens of the workflow. Do not migrate a part and leave the rest: the check fails on every screen until the system holds. Ask the person no question during the migration. The stop message of the round names it as the first change: "Migrated the design system: N tokens in K kinds, T themes, C components with specs, S screens moved onto the primitives, P pages off the frame, F pages left in a frame."
 
 ## Step 1 — The token tables
 
@@ -88,10 +88,48 @@ For each component of `<wf> design components <root>`:
 2. Replace each part that the screen draws by hand and that a component covers with that component.
 3. Take out each restyle of a component. When a screen needs a look that the component does not have, add a variant to its spec.
 
-## Step 5 — Check
+## Step 5 — Pages off the frame
+
+The canvas draws a page straight onto itself when the page has no code of its own, and in a frame when it has ([_surface.md](_surface.md) → Pages that the canvas draws with no frame). A frame for each page makes a large board slow. This step takes the code out of each page that does not need it. A frame alone does not make a surface old: in a workflow, do this step for the screens of the workflow only; `/wf design system` does it for every page.
+
+1. Run `<wf> design doctor <root> --json`. The field `framed` lists each page that stays in a frame: `{ kind, key, reasons }`, where `kind` is `screen` or `component`. `<wf> design check <root>` names the same screens as `frame` failures, one line for each reason.
+2. Before you change a page, keep what it looks like. Run `<wf> design check <root> <key>` and keep its failure lines. Open `screens/<key>.html?state=<name>` in each state and at each viewport of `<wf> design viewports <root>`, use each control once, and take a picture of each look, when the session has a browser tool.
+3. Repair each reason of the page:
+
+   | Reason | Do |
+   |---|---|
+   | `it has a script of its own`, and the script wires clicks | Write each click as an inline handler on its control, in the forms of [_surface.md](_surface.md). Drive the look from the style of the page: a rule on the class, the `data-*` value or the `aria-*` value that the handler sets. Then delete the script. |
+   | `it has a script of its own`, and the script draws content | Open the page, copy the markup that the script made, and write it into the file, once for each state that shows it. Then delete the script. Replace a script that scales the page to the window by CSS: a width in `%`, `vw` or `vh`, or a media query. Replace a script that cuts the end of a text to its box by `text-overflow: ellipsis`. |
+   | `it has a script of its own`, and the script finds no element on the page | Many pages carry a script that a template gave them and that reads a class or an attribute that the page does not have. It does nothing: delete it. |
+   | `it loads a script file` | The page is a mock-up that a support file draws. Draw it again as a screen, from the components of the library and the state script of the template. When that is a new design and not a migration, leave the page in a frame. |
+   | `it has an inline event handler that is more than a change of a class or an attribute` | Write the handler again in the forms of [_surface.md](_surface.md). Use `removeAttribute('hidden')` for `.hidden = false`, a class for a `style` change, a `<button>` for a link with `return false`, and `this.parentElement.querySelector(...)` for a sibling. |
+   | `it has a javascript: address` | Make the link a link to `<key>.html`, or make the control a `<button>` with an inline handler. |
+   | `it has a base element` | Remove the `<base>` element, and write each address relative to the page. |
+   | `a media query has no container form` | Write the query on the width or the height alone. Give a `not` query as its positive form, and split a comma list that mixes the viewport with another feature into two rules. When the query is in `components.css` or another shared sheet, repair it there: it frames every page that links the sheet. |
+
+4. Write the common scripts in these forms:
+
+   | The script does | The handler |
+   |---|---|
+   | Shows one view of a group | `onclick="this.closest('[data-fam]').dataset.view = this.dataset.v"`, with `[data-fam][data-view="table"] .table { display: block }` |
+   | Marks one of a group | `onclick="this.parentElement.querySelectorAll('.on').forEach((e) => e.classList.remove('on')); this.classList.add('on')"` |
+   | Opens and closes a part | `onclick="this.closest('.menu').classList.toggle('open')"` |
+   | Filters a list by a kind | `onclick="this.closest('.list').dataset.show = this.dataset.k"`, with one rule for each kind: `.list[data-show="loan"] [data-kind]:not([data-kind="loan"]) { display: none }` |
+   | Opens one part and closes the others, and closes it on a second press | no handler: `<details name="<group>">` for each part |
+
+   - Set the first look in the markup: the class, the `data-*` value or the attribute that the script set at load.
+   - A script that sets `style.display` becomes a rule of the page: do not keep the inline style.
+5. Do not change these:
+   - **The state script.** It stays as the template has it, character for character. A component page keeps its theme script.
+   - **The look.** Each state at each viewport looks the same after the change, at load and after each control is used.
+   - **The links.** A link to `<key>.html` stays a link.
+6. Prove that the look did not change. Run `<wf> design check <root> <key>` again: the page has no `frame` failure, no `script` failure, and no failure that the run of item 2 did not have. Then open the page again in each state and at each viewport, use each control, and compare with the pictures of item 2. The check measures a page and takes no picture of it, so the comparison of the looks is yours. Run `<wf> design doctor <root>` again: the page is not in the note.
+7. Leave a page in a frame when the move loses something that the design needs: a list that the person sorts or filters by typing, a drag, a drawing made from data that changes, a text that the script computes. A page in a frame is allowed. The canvas shows why, the `frame` failure stays, and the approval goes on over it. Name each page that you left, with its reason, in the summary.
+
+## Step 6 — Check
 
 1. Run `<wf> design foundation <root>`. It must exit 0.
-2. Run `<wf> design check <root>`. Repair each `token`, `layout`, `component` and `library` failure. A failure that cannot be repaired in this pass, such as a value that the product must keep for a reason that the person gave, is waived with `<wf> design waive <root> <slug> --cause "<cause>" --reason "<why>"`. Waive a cause only for a reason that the person gave or that the code forces. Approval refuses each failure of these four checks that is not repaired or waived.
+2. Run `<wf> design check <root>`. Repair each `token`, `layout`, `component` and `library` failure. A `frame` failure of a page that Step 5 left in a frame stays, and blocks nothing: it has no waiver. A failure that cannot be repaired in this pass, such as a value that the product must keep for a reason that the person gave, is waived with `<wf> design waive <root> <slug> --cause "<cause>" --reason "<why>"`. Waive a cause only for a reason that the person gave or that the code forces. Approval refuses each failure of these four checks that is not repaired or waived.
 3. With a workflow, save the migration as a round: `<wf> design round <root> <slug>`.
 4. With no workflow (`/wf design system`), run the check with no `--workflow`, so it checks every screen. A waiver needs a workflow: leave a failure that you cannot repair, and name it in the summary; the next design pass of a workflow repairs or waives it. Commit `DESIGN.md`, `.ai/design/` and the token file of the code by path, in one commit of the product repo, with the message `design: migrate the design system`.
 

@@ -106,6 +106,9 @@ test('every check has a move file that exists, or a sentence that says what to d
   assert.equal(moveOf({ check: 'component', cause: 'restyle:card:.card h2' }), 'polish', 'a page that restyles a component');
   assert.equal(moveOf({ check: 'component', cause: 'missing:ghost' }), null);
   assert.equal(moveOf({ check: 'script' }), null);
+  assert.equal(moveOf({ check: 'frame' }), null);
+  assert.ok(!SYSTEM_CHECKS.includes('frame'), 'a page in a frame blocks no approval');
+  assert.deepEqual(systemFailures({ failures: [{ screen: 'pay', check: 'frame', message: 'The canvas draws the page in a frame: it has a script of its own' }], library: [] }, ['pay']).causes, []);
 });
 
 test('a failure with no move prints what to do; the cut and the notices print once', () => {

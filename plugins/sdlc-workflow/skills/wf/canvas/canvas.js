@@ -406,7 +406,7 @@ var WF_CANVAS_LOGIC = (() => {
   const cap = (s) => (s ? `${String(s)[0].toUpperCase()}${String(s).slice(1)}` : '');
   const CHECK_NAMES = {
     contrast: 'Contrast', 'target-size': 'Target size', 'viewport-fit': 'Viewport fit', 'worst-case': 'Worst-case content', states: 'Missing states',
-    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', component: 'Not a component', script: 'Script error', version: 'Not a saved version', focus: 'Focus',
+    display: 'Display bug', overlap: 'Overlapping text', token: 'Not a token', component: 'Not a component', script: 'Script error', version: 'Not a saved version', focus: 'Focus', frame: 'In a frame',
   };
   const DIMENSION_NAMES = { accessibility: 'Accessibility', performance: 'Performance', theming: 'Theming', responsive: 'Responsive', integrity: 'Integrity' };
   /** The audit findings of one screen, when the last audit is done. */
@@ -1197,9 +1197,15 @@ var WF_CANVAS_LOGIC = (() => {
     const st = statusFor(s, past);
     const detail = detailText(s, past);
     frame.setAttribute('aria-label', `Open ${titleOf(s)}: ${detail}`);
+    // The caption is made again only when its words changed: most draws change the caption of no
+    // card, and a new caption for each card costs half the time of a draw.
+    const line = lineOf(s, st);
+    const words = [titleOf(s), st.kind, st.text, detail, metaOf(s), line].join('\u0001');
+    if (card.capWords === words) return;
+    card.capWords = words;
     const head = h('header', { class: 'cap' },
       h('div', { class: 'cap-row' }, h('b', { title: titleOf(s) }, titleOf(s)), pill(st, detail)),
-      h('div', { class: 'meta', title: metaOf(s) }, lineOf(s, st)));
+      h('div', { class: 'meta', title: metaOf(s) }, line));
     card.lastChild.replaceWith(head);
   }
 

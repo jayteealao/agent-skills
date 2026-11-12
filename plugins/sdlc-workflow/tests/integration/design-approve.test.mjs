@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { appendAnswerEvent } from '../../lib/answers.mjs';
-import { approvalQuestion, approveDesign } from '../../lib/design-approve.mjs';
+import { approvalQuestion, approveDesign, systemStay, waiveCause } from '../../lib/design-approve.mjs';
 import { runDesign } from '../../lib/design-cli.mjs';
 import { CHECK_MOVES, checkBrowser, failureLines, runChecks } from '../../lib/design-check.mjs';
 import { approvalPicture, readChecks } from '../../lib/design-records.mjs';
@@ -89,6 +89,34 @@ test('the approval needs the contract and a new approve in the answer log; then 
     rmSync(screenFile(root, 'basket'));
     assert.deepEqual(missingDesignFiles(root, join(root, '.ai', 'workflows', 'w1'), c), ['.ai/design/screens/basket.html']);
     assert.equal(designSettled(index, c, missingDesignFiles(root, join(root, '.ai', 'workflows', 'w1'), c)), false, 'a missing approved screen unsettles the design');
+  } finally { done(); }
+});
+
+test('a screen with a script of its own fails the frame check; handlers that the canvas does itself pass; the approval goes on over the failure', async () => {
+  const { root, done } = project();
+  try {
+    addScreen(root, 'tabs', { title: 'Tabs', area: 'checkout', workflow: 'w1', slice: 's1' });
+    const add = (key, markup) => writeFileSync(screenFile(root, key), readFileSync(screenFile(root, key), 'utf8').replace('</body>', `${markup}</body>`));
+    add('basket', '<script>document.querySelectorAll("[data-v]").forEach((b) => { b.onclick = () => b.classList.toggle("on"); })</script>');
+    add('tabs', `<div data-fam data-view="list"><button data-v="table" onclick="this.closest('[data-fam]').dataset.view = this.dataset.v; this.parentElement.querySelectorAll('.on').forEach((e) => e.classList.remove('on')); this.classList.add('on')">Table</button></div>`);
+    const r = await runChecks(root, { browser: null, workflow: 'w1' });
+    const frames = r.failures.filter((x) => x.check === 'frame');
+    assert.deepEqual(frames.map((x) => [x.screen, x.message, x.move, x.viewport, x.state]), [['basket', 'The canvas draws the page in a frame: it has a script of its own', null, null, null]]);
+    assert.match(frames[0].do, /inline handler .*delete the script.*does not block the approval/);
+    assert.match(failureLines(frames)[0], /^basket: frame: The canvas draws the page in a frame: it has a script of its own — do: Move each click/);
+
+    // It is no system check: nothing stays for the approval, and it has no waiver.
+    assert.deepEqual(systemStay(root, 'w1').causes, []);
+    assert.throws(() => waiveCause(root, 'w1', { cause: frames[0].message, reason: 'The list sorts live' }), /no token, component, layout, library failure/);
+    writeFileSync(join(root, '.ai', 'workflows', 'w1', '02c-craft.md'), '---\nschema: sdlc/v1\ntype: design-contract\nslug: w1\nscreens: [basket, tabs]\ndirection-confirmed-by: in-session\nimage-gate: pass\n---\n# Contract\n');
+    answer(root, 'w1', 'Approve', new Date(Date.now() + 1000).toISOString());
+    const a = await approveDesign(root, 'w1', { browser: null, now: new Date(Date.now() + 2000) });
+    assert.equal(a.ok, true, a.reason);
+    assert.deepEqual(a.screens, ['basket', 'tabs']);
+
+    // A page that the migration made from an old board keeps its script, and no frame failure names it.
+    writeFileSync(screenFile(root, 'basket'), readFileSync(screenFile(root, 'basket'), 'utf8').replace('<head>', '<head><meta name="wf:migrated-from" content="w1/basket">'));
+    assert.deepEqual((await runChecks(root, { browser: null, keys: ['basket'] })).failures.filter((x) => x.check === 'frame'), []);
   } finally { done(); }
 });
 

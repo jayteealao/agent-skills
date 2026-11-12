@@ -262,6 +262,15 @@ export function readTokenModel(root) {
 
 // ---------------------------------------------------------------- screens
 
+/**
+ * True when a screen page is still the page that `design screen add` made: no one drew it yet.
+ * The comments of the template can change between versions, so they do not count.
+ */
+export function undrawnScreen(html, key, title) {
+  const bare = (text) => String(text ?? '').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->\n?/g, '').replace(/^\s*\/\/.*\n/gm, '').replace(/\/\*[\s\S]*?\*\/\n?/g, '');
+  return bare(html) === bare(screenTemplate(key, title));
+}
+
 /** The page of a new screen: the five states, the token and component sheets, and the state switch. */
 export function screenTemplate(key, title) {
   return `<!doctype html>
@@ -282,7 +291,7 @@ export function screenTemplate(key, title) {
   html[data-state="loading"] [data-state~="loading"], html[data-state="error"] [data-state~="error"],
   html[data-state="worst"] [data-state~="worst"] { display: block; }
 </style>
-<!-- The only script of the page: the canvas then draws the page with no frame. A control that opens or closes a part changes a class: onclick="this.closest('.shell').classList.toggle('open')". -->
+<!-- The only script of the page: the canvas then draws the page with no frame. A control that opens, closes or switches a part changes a class, a data value or a state attribute in an inline handler: onclick="this.closest('.shell').classList.toggle('open')". -->
 <script>
   // The canvas and the checks open a state with ?state=<name>.
   document.documentElement.dataset.state = new URLSearchParams(location.search).get('state') || 'default';

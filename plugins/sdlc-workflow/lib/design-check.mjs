@@ -19,6 +19,7 @@ import { browserCandidates, noBrowserReason, removeProfile, sweepProfiles } from
 import { groupFailures, readChecks, writeChecks } from './design-records.mjs';
 import { componentFile, componentSpec, componentSpecs, specProblems } from './design-components.mjs';
 import { COMPONENTS_FILE, LAYOUT_SHEET, STATES, TOKENS_FILE, listScreens, parseViewport, readManifest, readTokenModel, screenUrl, surfaceDir } from './design-surface.mjs';
+import { frameFailures } from './design-embed.mjs';
 import { versionDrift } from './design-versions.mjs';
 import { agentFix, personFix, refuse } from './fix.mjs';
 import { killTree } from './proc.mjs';
@@ -32,7 +33,7 @@ export { groupFailures };
 export const CHECK_MOVES = Object.freeze({
   contrast: 'colorize', 'target-size': 'harden', 'viewport-fit': 'layout', 'worst-case': 'harden', states: 'harden',
   display: 'harden', overlap: 'layout', token: 'colorize', focus: 'harden', component: null, script: null,
-  resource: null, load: null, version: null, layout: 'layout', library: null,
+  resource: null, load: null, version: null, layout: 'layout', library: null, frame: null,
 });
 /** The move of a token failure by the kind of its value: a raw space goes to layout, a raw font size to typeset. */
 export const TOKEN_KIND_MOVES = Object.freeze({
@@ -48,6 +49,7 @@ export const CHECK_DO = Object.freeze({
   load: 'Remove or repair what the page waits for at load: a screen page loads from its own files, with no network.',
   version: 'Save the change as a round with design round, or put the approved page back with design restore.',
   layout: 'Arrange the screen with the l-* primitives of layout.css (data-gap, data-pad), and keep a rule that several screens share in components.css.',
+  frame: 'Keep to the rules of design/_surface.md ("Pages that the canvas draws with no frame"), as design/system-migrate.md ("Pages off the frame") says. A page that needs its code stays in a frame: this failure does not block the approval.',
   library: 'Repair the library as design/system-migrate.md says: each value of components.css is a token or an alias of tokens, and each component page declares its spec and shows each case.',
 });
 /** A page that changes the look of a component: the fix is to bring the two back in line. */
@@ -1305,6 +1307,9 @@ export async function runChecks(root, { keys = null, workflow = null, now = new 
   }
   const chosen = new Set(screens.map((s) => s.key));
   for (const f of statics) if (chosen.has(f.screen)) fail(f);
+  // A screen that the canvas draws in a frame: one failure for each reason. It is no system check,
+  // so it blocks no approval. A page from an old board is left out, like in the static checks.
+  for (const f of frameFailures(root, screens.filter((s) => s.exists && !s.legacy).map((s) => s.key))) fail(f);
   for (const d of versionDrift(root, screens.map((s) => s.key))) {
     fail({ screen: d.screen, check: 'version', message: `The page differs from ${d.version} of ${d.workflow}, and no round holds the change`, do: `Save the change as a round: run design round <root> ${d.workflow}. To drop the change, run design restore <root> ${d.workflow} ${d.version}.` });
   }

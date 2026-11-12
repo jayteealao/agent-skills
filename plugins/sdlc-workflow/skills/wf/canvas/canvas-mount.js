@@ -42,16 +42,93 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
     const lines = String(body).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').split(/[;\n]/).map((l) => l.trim()).filter(Boolean);
     return lines.every((l) => SWITCH_RE.test(l));
   }
+  const QUOTED = String.raw`(?:'([^']*)'|"([^"]*)")`;
+  /** The attributes that a handler may set: the ones that carry a state and run nothing. */
+  const SAFE_ATTR_RE = /^(?:aria-[a-z-]+|data-[\w-]+|hidden|open)$/;
+  /** One statement of a handler as a step, or null. */
+  function parseStep(text) {
+    let rest = text;
+    const eat = (re) => { const m = re.exec(rest); if (m) rest = rest.slice(m[0].length); return m; };
+    const arg = () => { const m = eat(new RegExp(String.raw`^\(\s*${QUOTED}\s*\)`)); return m ? m[1] ?? m[2] : null; };
+    const step = { base: 'this', closest: null, query: null, all: false };
+    /** The change after the target: a class, a data value or a state attribute. */
+    const action = (arrow = true) => {
+      let m = eat(/^\.classList\.(add|remove|toggle)(?=\()/);
+      if (m) {
+        const name = arg();
+        if (name == null || !/^[\w-]+$/.test(name)) return false;
+        Object.assign(step, { act: 'class', op: m[1], name });
+        return true;
+      }
+      m = eat(/^\.dataset\.([A-Za-z_]\w*)\s*=\s*/);
+      if (m) {
+        const lit = eat(new RegExp(`^${QUOTED}`));
+        if (lit) { Object.assign(step, { act: 'data', name: m[1], value: lit[1] ?? lit[2] }); return true; }
+        // The value of the pressed element itself. In a function, `this` is not that element.
+        const own = arrow ? eat(/^this\.dataset\.([A-Za-z_]\w*)/) : null;
+        if (!own) return false;
+        Object.assign(step, { act: 'data', name: m[1], from: own[1] });
+        return true;
+      }
+      m = eat(new RegExp(String.raw`^\.(setAttribute|removeAttribute|toggleAttribute)\(\s*${QUOTED}\s*`));
+      if (!m) return false;
+      const name = (m[2] ?? m[3]).toLowerCase();
+      if (!SAFE_ATTR_RE.test(name)) return false;
+      let value = null;
+      if (m[1] === 'setAttribute') {
+        const v = eat(new RegExp(String.raw`^,\s*${QUOTED}\s*\)`));
+        if (!v) return false;
+        value = v[1] ?? v[2];
+      } else if (!eat(/^\)/)) return false;
+      Object.assign(step, { act: 'attr', op: m[1], name, value });
+      return true;
+    };
+    if (!eat(/^this(?![\w$])/)) return null;
+    if (eat(/^\.parentElement(?![\w$])/)) step.base = 'parent';
+    else if (eat(/^\.closest(?=\()/)) {
+      step.closest = arg();
+      if (step.closest == null) return null;
+      step.base = 'closest';
+    }
+    if (eat(/^\.querySelectorAll(?=\()/)) {
+      step.query = arg();
+      if (step.query == null) return null;
+      step.all = true;
+      const fn = eat(/^\.forEach\(\s*(?:function\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\{\s*|\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>\s*\{?\s*)/);
+      const each = fn && (fn[1] ?? fn[2]);
+      if (!each || !rest.startsWith(each)) return null;
+      rest = rest.slice(each.length);
+      return action(!fn[1]) && eat(/^\s*;?\s*\}?\s*\)$/) ? step : null;
+    }
+    if (eat(/^\.querySelector(?=\()/)) {
+      step.query = arg();
+      if (step.query == null) return null;
+    }
+    return action() && !rest.trim() ? step : null;
+  }
   /**
-   * An inline handler that the mount can do itself, with no code of the page: it changes a class
-   * of its element, or of the nearest ancestor that a selector names. Returns the steps
-   * `[{ closest, op, name }]`, or null for any other handler.
+   * An inline handler that the mount can do itself, with no code of the page. Each statement names
+   * a target and one change:
+   *
+   * - the target: `this`, `this.parentElement` or `this.closest('<selector>')`, then nothing,
+   *   `.querySelector('<selector>')`, or `.querySelectorAll('<selector>').forEach((e) => e.<change>)`;
+   * - the change: `classList.add|remove|toggle('<name>')`, `dataset.<name> = '<value>'` (or
+   *   `= this.dataset.<name>`), or `setAttribute|removeAttribute|toggleAttribute` of `aria-*`,
+   *   `data-*`, `hidden` or `open`.
+   *
+   * Returns the steps, or null for any other handler.
    */
   function parseHandler(text) {
-    const steps = String(text).split(';').map((p) => p.trim()).filter(Boolean).map((p) => {
-      const m = /^this(?:\.closest\((['"])([^'"]+)\1\))?\.classList\.(add|remove|toggle)\((['"])([\w-]+)\4\)$/.exec(p);
-      return m ? { closest: m[2] ?? null, op: m[3], name: m[5] } : null;
-    });
+    const parts = [];
+    const src = String(text);
+    let start = 0;
+    for (let i = 0; i < src.length; i += 1) {
+      const c = src[i];
+      if (c === '"' || c === "'" || c === '(' || c === '{') i = skip(src, i);
+      else if (c === ';') { parts.push(src.slice(start, i)); start = i + 1; }
+    }
+    parts.push(src.slice(start));
+    const steps = parts.map((p) => p.trim()).filter(Boolean).map(parseStep);
     return steps.length && steps.every(Boolean) ? steps : null;
   }
   const SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
@@ -79,8 +156,8 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
     // Comments and the text of scripts and styles can hold anything; tags cannot.
     const tags = text.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
     for (const tag of tags.matchAll(/<[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/gi)) {
-      for (const h of tag[0].matchAll(/\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
-        if (!parseHandler(h[1] ?? h[2])) out.add('it has an inline event handler that is more than a class change');
+      for (const h of tag[0].matchAll(/\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
+        if (!parseHandler(h[1] ?? h[2] ?? h[3])) out.add('it has an inline event handler that is more than a change of a class or an attribute');
       }
       if (/\s(?:href|src|action)\s*=\s*["']?\s*javascript:/i.test(tag[0])) out.add('it has a javascript: address');
     }
@@ -274,6 +351,51 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
     return { css: emit(parseItems(stripComments(String(text ?? '')))), hoist, problems };
   }
 
+  /**
+   * What was built from the text of each file, kept by the address of the file. `take(id, text,
+   * make)` answers what `make()` built from this text the last time, and builds again only when
+   * the text of `id` is another. So a file that was read again and did not change keeps its sheet,
+   * and every mounted page goes on sharing that one sheet.
+   */
+  function keeper() {
+    const kept = new Map();
+    return {
+      take(id, text, make) {
+        const was = kept.get(id);
+        if (was && was.text === text) return was.built;
+        const built = make();
+        kept.set(id, { text, built });
+        return built;
+      },
+    };
+  }
+
+  /**
+   * A store of at most `max` things, by key, with the parts of a Map that the mount uses. When it
+   * is full, a new thing takes the place of the thing that was asked for the longest time ago.
+   */
+  function bounded(max) {
+    const map = new Map();
+    return {
+      has: (key) => map.has(key),
+      get(key) {
+        if (!map.has(key)) return undefined;
+        const value = map.get(key);
+        map.delete(key);
+        map.set(key, value);
+        return value;
+      },
+      set(key, value) {
+        map.delete(key);
+        map.set(key, value);
+        while (map.size > max) map.delete(map.keys().next().value);
+      },
+      delete: (key) => map.delete(key),
+      clear: () => map.clear(),
+      size: () => map.size,
+    };
+  }
+
   /** The rules of the mount itself, under the sheets of the page. */
   const BASE_CSS = `:host{all:initial;display:block;position:relative;overflow:hidden;contain:layout paint style;transform-origin:0 0}
 wf-view{display:block;width:100%;height:100%;overflow:hidden;container:wf-screen / size}
@@ -285,7 +407,7 @@ wf-body{display:block;margin:8px}
 :host([data-wf-hug]) wf-view{height:auto;overflow:visible;container-type:inline-size}
 :host([data-wf-hug]) wf-scroll{height:auto;overflow:visible}`;
 
-  return { mountProblems, hasThemeScript, stripComments, parseItems, splitList, rewriteSelector, displaySelector, rewriteUnits, absoluteUrls, mediaQuery, rewriteSheet, BASE_CSS, switchScript, parseHandler };
+  return { mountProblems, hasThemeScript, stripComments, parseItems, splitList, rewriteSelector, displaySelector, rewriteUnits, absoluteUrls, mediaQuery, rewriteSheet, keeper, bounded, BASE_CSS, switchScript, parseHandler };
 })();
 
 // eslint-disable-next-line no-var, no-unused-vars
@@ -301,20 +423,40 @@ var WF_CANVAS_MOUNT = (() => {
   /** The name of each sheet of a page, for the inspector: the address of its file, or `''` for the styles of the page. */
   const sheetNames = new WeakMap();
   const linked = new Map(); // address -> Promise<{ sheet, problems }>
+  // `forget()` makes the next mount ask the server for each file again. Most of the files did not
+  // change: their sheets stay, with no new rewrite and no second copy of their rules.
+  const built = L.keeper();
   const inline = new Map(); // text -> { sheet, problems }
-  const pages = new Map(); // address -> Promise<page>
+  // A read page holds its whole document. A large surface has hundreds of pages, so the mount keeps
+  // the ones that were asked for last; a page that left is read again when it is asked for.
+  const MAX_PAGES = 96;
+  const pages = L.bounded(MAX_PAGES); // address -> Promise<page>
   const hoisted = new Set();
+  // An imported sheet that comes in after a page is drawn makes the browser lay out the whole canvas
+  // again, every mounted page with it. So a page waits a short time for the imports: it is laid out
+  // once. A sheet that is late does not hold the page; it comes in as before.
+  const HOIST_WAIT_MS = 400;
+  // A promise while a hoisted import is not in yet, else null.
+  let hoistBusy = null;
 
   /** Give the document the rules that a shadow root does not read: the font faces and the imports. */
   function hoist(rules) {
     const fresh = rules.filter((r) => !hoisted.has(r));
     if (!fresh.length) return;
     for (const r of fresh) hoisted.add(r);
-    let el = document.getElementById('wf-mount-fonts');
-    if (!el) { el = document.createElement('style'); el.id = 'wf-mount-fonts'; document.head.append(el); }
-    // An import must come before every other rule of its sheet.
-    const all = [...hoisted];
-    el.textContent = [...all.filter((r) => /^@import\b/i.test(r)), ...all.filter((r) => !/^@import\b/i.test(r))].join('\n');
+    // Each new set of rules has a style element of its own. One element for all would be written
+    // again with each new rule, and the browser would then read every font again and lay out every
+    // page again. An import must come before every other rule of its sheet.
+    const imports = fresh.filter((r) => /^@import\b/i.test(r));
+    const el = document.createElement('style');
+    el.setAttribute('data-wf-mount', 'hoisted');
+    el.textContent = [...imports, ...fresh.filter((r) => !imports.includes(r))].join('\n');
+    if (imports.length) {
+      const loaded = new Promise((ok) => { el.addEventListener('load', ok); el.addEventListener('error', ok); setTimeout(ok, HOIST_WAIT_MS); });
+      const mine = Promise.all([hoistBusy, loaded]).then(() => { if (hoistBusy === mine) hoistBusy = null; });
+      hoistBusy = mine;
+    }
+    document.head.append(el);
   }
   function build(text, base, name, media) {
     const wrapped = media && !/^(?:all|screen)?$/i.test(media.trim()) ? `@media ${media}{${text}}` : text;
@@ -329,7 +471,8 @@ var WF_CANVAS_MOUNT = (() => {
     if (!linked.has(id)) {
       linked.set(id, fetch(href, { cache: 'no-cache' }).then(async (res) => {
         if (!res.ok) return { sheet: null, problems: [], gone: true };
-        return build(await res.text(), href, href, media);
+        const text = await res.text();
+        return built.take(id, text, () => build(text, href, href, media));
       }).catch(() => ({ sheet: null, problems: [], failed: true })));
     }
     return linked.get(id);
@@ -375,6 +518,7 @@ var WF_CANVAS_MOUNT = (() => {
         const bad = made.flatMap((m) => m.problems);
         if (bad.length) return { ok: false, url: href, reasons: [...new Set(bad.map((b) => `a media query has no container form: ${b}`))] };
         if (made.some((m) => m.failed)) return { ok: false, url: href, reasons: ['a sheet of the page did not load'] };
+        if (hoistBusy) await hoistBusy;
         for (const el of doc.querySelectorAll('link, style, script, meta, title, base')) el.remove();
         absolute(doc.body, href);
         return { ok: true, url: href, doc, sheets: made.map((m) => m.sheet).filter(Boolean), themes: L.hasThemeScript(html) };
@@ -390,10 +534,29 @@ var WF_CANVAS_MOUNT = (() => {
     inline.clear();
   }
 
+  /** Do one step of a handler on the pressed element: the mount changes the page, and no code of the page runs. */
+  function runStep(el, s) {
+    let base = el;
+    if (s.base === 'parent') base = el.parentElement;
+    else if (s.base === 'closest') { try { base = el.closest(L.rewriteSelector(s.closest)); } catch { base = null; } }
+    if (!base) return;
+    let targets = [base];
+    if (s.query) {
+      const q = L.rewriteSelector(s.query);
+      try { targets = s.all ? [...base.querySelectorAll(q)] : [base.querySelector(q)].filter(Boolean); } catch { targets = []; }
+    }
+    for (const t of targets) {
+      if (s.act === 'class') t.classList[s.op](s.name);
+      else if (s.act === 'data') t.dataset[s.name] = s.from ? String(el.dataset[s.from]) : s.value;
+      else if (s.op === 'setAttribute') t.setAttribute(s.name, s.value);
+      else t[s.op](s.name);
+    }
+  }
+
   /**
    * Take the code out of the markup of a page. A mounted page is in the document of the canvas, with
    * the rights of the canvas, so no code of the page may run there: each inline handler is removed,
-   * and a handler that only changes a class becomes a listener of the mount.
+   * and a handler that only changes a class, a data value or a state attribute becomes a listener of the mount.
    */
   function disarm(rootEl) {
     for (const el of rootEl.querySelectorAll('object, embed, script')) el.remove();
@@ -403,15 +566,7 @@ var WF_CANVAS_MOUNT = (() => {
         if (name.startsWith('on')) {
           const steps = L.parseHandler(a.value);
           el.removeAttribute(a.name);
-          if (steps) {
-            el.addEventListener(name.slice(2), () => {
-              for (const s of steps) {
-                let target = el;
-                if (s.closest) { try { target = el.closest(s.closest); } catch { target = null; } }
-                target?.classList[s.op](s.name);
-              }
-            });
-          }
+          if (steps) el.addEventListener(name.slice(2), () => { for (const step of steps) runStep(el, step); });
         } else if (/^\s*javascript:/i.test(a.value) && ['href', 'src', 'action', 'formaction', 'xlink:href'].includes(name)) el.removeAttribute(a.name);
       }
     }

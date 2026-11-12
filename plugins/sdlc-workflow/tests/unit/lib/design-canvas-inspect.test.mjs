@@ -48,6 +48,22 @@ test('a selector list splits at its top-level commas, and specificity orders ids
   assert.deepEqual(plain(I.specificity(':where(.x) a')), [0, 0, 1]);
 });
 
+test('the rules that match an element: each once, in source order, with its strongest matching selector', () => {
+  const rules = [
+    { parts: ['.card', '#top .card'], order: 0 },
+    { parts: ['.other'], order: 1 },
+    { parts: ['p', '.card > p'], order: 2 },
+    { parts: ['.card'], order: 3 },
+  ];
+  const asked = [];
+  const is = new Set(['.card', '#top .card', 'p']);
+  const list = I.matchedRules(rules, (sel) => { asked.push(sel); return is.has(sel); });
+  assert.deepEqual(plain(list.map((m) => [m.rule.order, m.spec])), [[0, [1, 1, 0]], [2, [0, 0, 1]], [3, [0, 1, 0]]]);
+  assert.equal(asked.length, 6, 'the element is asked once for each selector');
+  assert.deepEqual(plain(I.matchedRules([], () => true)), []);
+  assert.deepEqual(plain(I.matchedRules(null, () => true)), []);
+});
+
 test('the winning declaration: important, then specificity, then the later one', () => {
   const d = (value, spec, order, important = false) => ({ value, spec, order, important });
   assert.equal(I.cascade([d('a', [0, 1, 0], 1), d('b', [0, 1, 0], 2)]).value, 'b', 'the later of two equal rules');

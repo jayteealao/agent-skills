@@ -472,5 +472,13 @@ test('the doctor names the pages that the canvas draws in a frame, as a note tha
     const text = (await design(['doctor', p.root], {})).out;
     assert.match(text, /note: 1 screen is drawn in a frame on the canvas: basket \(it has a script of its own\)/);
     assert.match(text, /_surface\.md/);
+    assert.match(text, /system-migrate\.md \("Pages off the frame"\)/);
+    // The check reports the same page as a failure of the frame check, once, and prints no note.
+    const c = await design(['check', p.root, 'basket']);
+    assert.deepEqual(c.out.failures.filter((f) => f.check === 'frame').map((f) => [f.screen, f.message]), [['basket', 'The canvas draws the page in a frame: it has a script of its own']]);
+    assert.equal('framed' in c.out, false);
+    const lines = (await design(['check', p.root, 'basket'], {})).out;
+    assert.match(lines, /^basket: frame: The canvas draws the page in a frame: it has a script of its own — do: Move each click/m);
+    assert.doesNotMatch(lines, /^note: /m);
   } finally { p.done(); }
 });
