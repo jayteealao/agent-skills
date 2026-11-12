@@ -124,3 +124,59 @@ test('a sheet goes by its file name, and the mode switch lists the themes and Sy
   assert.deepEqual(plain(I.modeChoices([{ name: 'light' }])), []);
   assert.deepEqual(plain(I.modeChoices(undefined)), []);
 });
+
+// ---- the rows of the panel
+
+test('a design property goes by a plain name of its token kind', () => {
+  assert.equal(I.propLabel('background-color', 'color'), 'Background');
+  assert.equal(I.propLabel('background', 'color'), 'Background');
+  assert.equal(I.propLabel('border-top-color', 'color'), 'Border');
+  assert.equal(I.propLabel('color', 'color'), 'Text');
+  assert.equal(I.propLabel('padding-left', 'space'), 'Padding');
+  assert.equal(I.propLabel('margin', 'space'), 'Margin');
+  assert.equal(I.propLabel('row-gap', 'space'), 'Gap');
+  assert.equal(I.propLabel('height', 'size'), 'Height');
+  assert.equal(I.propLabel('border-top-left-radius', 'radius'), 'Radius');
+  assert.equal(I.propLabel('font', 'type'), 'Type');
+  assert.equal(I.propLabel('line-height', 'leading'), 'Line height');
+});
+
+test('the Tokens tab has one row for each property with its tokens, the sides of a padding in one row, and the raw values last', () => {
+  const tok = (token, value) => ({ token, chain: [], value });
+  const rows = I.tokenRows([
+    { prop: 'background', kind: 'color', tokens: [tok('--raised', '#f6f6f6')], raw: null },
+    { prop: 'border-radius', kind: 'radius', tokens: [], raw: '5px', nearest: { name: '--radius-sm', value: '4px' }, selector: '.code-block .copy', source: 'components.css' },
+    { prop: 'padding-top', kind: 'space', tokens: [tok('--space-1', '4px')], raw: null },
+    { prop: 'padding-right', kind: 'space', tokens: [tok('--space-2', '8px')], raw: null },
+    { prop: 'padding-bottom', kind: 'space', tokens: [tok('--space-1', '4px')], raw: null },
+    { prop: 'width', kind: 'size', tokens: [{ token: null, chain: ['--w'], value: '100%' }], raw: null },
+  ]);
+  assert.deepEqual(plain(rows), [
+    { label: 'Background', kind: 'color', names: ['--raised'], values: ['#f6f6f6'] },
+    { label: 'Padding', kind: 'space', names: ['--space-1', '--space-2'], values: ['4px', '8px'] },
+    { label: 'Radius', kind: 'radius', raw: '5px', nearest: { name: '--radius-sm', value: '4px' }, selector: '.code-block .copy', source: 'components.css' },
+  ]);
+  assert.deepEqual(plain(I.tokenRows(null)), []);
+  // A value with a token and a raw part has both rows.
+  const both = I.tokenRows([{ prop: 'padding', kind: 'space', tokens: [tok('--space-3', '12px')], raw: '13px', nearest: null, selector: '.button', source: 'components.css' }]);
+  assert.deepEqual(plain(both).map((r) => (r.raw ? `raw ${r.raw}` : r.names.join())), ['--space-3', 'raw 13px']);
+});
+
+test('a raw value and a variant outside the spec start a comment for the agent', () => {
+  assert.equal(I.rawComment({ label: 'Radius', raw: '5px', selector: '.code-block .copy', nearest: { name: '--radius-sm', value: '4px' } }),
+    'Radius: raw 5px in .code-block .copy; use --radius-sm (4px).');
+  assert.equal(I.rawComment({ label: 'Shadow', raw: '0 1px 2px #000', selector: '', nearest: null }), 'Shadow: raw 0 1px 2px #000; use a token.');
+  assert.equal(I.variantComment({ dim: 'tone', value: 'loud' }, 'Button'), 'Variant tone=loud of Button is not declared in the spec; declare it or use a declared value.');
+});
+
+test('the panel draws into the dock of the screen view, with its tabs as pressed buttons, and the theme control of the view sets the mode', () => {
+  assert.match(source, /c\.host\.replaceChildren\(box\);/);
+  assert.doesNotMatch(source, /c\.root\.append\(box\)/);
+  assert.match(source, /\[\['tokens', 'Tokens'\], \['layout', 'Layout'\], \['checks', issues \? `Checks · \$\{issues\}` : 'Checks'\]\]/);
+  assert.match(source, /'aria-pressed': String\(tab === id\)/);
+  assert.match(source, /onclick: \(\) => comment\(el, text\) \}, 'Comment for the agent'\)/);
+  assert.match(source, /setMode\(next\) \{/);
+  const canvas = readFileSync(join(canvasDir, 'canvas.js'), 'utf8');
+  assert.match(canvas, /host: \$\('#focus \.sv-body\[data-tab="inspect"\]'\)/);
+  assert.match(canvas, /inspect\.setMode\(v\); drawFocus\(\);/);
+});

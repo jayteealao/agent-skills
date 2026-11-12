@@ -161,7 +161,7 @@ test('the canvas loads the library, gives it the board place, and hands it the a
   assert.match(page, /data-view="tokens"/);
   assert.match(page, /<section id="library" hidden/);
   assert.ok(page.indexOf('/canvas/canvas.js') < page.indexOf('/canvas/canvas-library.js'), 'the library loads after the canvas');
-  assert.match(canvas, /if \(libraryView\(\)\) return;/);
+  assert.match(canvas, /if \(libraryView\(\) \|\| side\) return;/);
   assert.match(canvas, /window\.WF_CANVAS_LIBRARY\?\.fromHash\(\)/);
   assert.match(canvas, /#component=\$\{encodeURIComponent\(c\.key\)\}/, 'the component panel links to the library');
 });

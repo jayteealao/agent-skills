@@ -4,6 +4,8 @@
 // belongs to, its variants and whether the spec declares them, and for each design property the
 // token that gives its value, through the custom properties of components.css, with the rule and
 // the sheet that set it. A value that no token gives shows as raw, with the nearest token.
+// The panel has the component block, then three tabs: the tokens, the layout with the rule of
+// each value, and the checks of the element. A raw value becomes a comment for the agent in one press.
 //
 // The mode switch: one theme of the token model on every frame of the board, or the system's.
 //
@@ -236,10 +238,44 @@ var WF_CANVAS_INSPECT_LOGIC = (() => {
     const file = String(href).split(/[?#]/)[0].split('/').pop();
     return file || 'the page';
   }
+  // ---- the rows of the panel
+
+  /** The plain name of a design property, by its token kind: Background, Text, Padding, Radius. */
+  function propLabel(prop, kind) {
+    const p = String(prop ?? '');
+    if (kind === 'color') return /^background/.test(p) ? 'Background' : /^border/.test(p) ? 'Border' : 'Text';
+    if (kind === 'space') return /^padding/.test(p) ? 'Padding' : /^margin/.test(p) ? 'Margin' : 'Gap';
+    if (kind === 'size') return /height/.test(p) ? 'Height' : 'Width';
+    return { radius: 'Radius', font: 'Font', type: 'Type', weight: 'Weight', leading: 'Line height', shadow: 'Shadow', layer: 'Layer', motion: 'Motion' }[kind] || p;
+  }
+  /**
+   * The rows of the Tokens tab from the resolved properties: one row for each label with its token
+   * names and their values (the four sides of a padding share a row), then one row for each raw value
+   * `{ label, kind, raw, nearest, selector, source }`. A property that no token and no raw value gives has no row.
+   */
+  function tokenRows(rows) {
+    const out = [];
+    const raws = [];
+    for (const r of rows || []) {
+      const label = propLabel(r.prop, r.kind);
+      if (r.raw) raws.push({ label, kind: r.kind, raw: r.raw, nearest: r.nearest || null, selector: r.selector || '', source: r.source || '' });
+      const toks = (r.tokens || []).filter((t) => t.token);
+      if (!toks.length) continue;
+      let row = out.find((x) => x.label === label);
+      if (!row) { row = { label, kind: r.kind, names: [], values: [] }; out.push(row); }
+      for (const t of toks) if (!row.names.includes(t.token)) { row.names.push(t.token); row.values.push(t.value || '?'); }
+    }
+    return [...out, ...raws];
+  }
+  /** The comment that a raw value starts: `Radius: raw 5px in .copy; use --radius-sm (4px).` */
+  const rawComment = (r) => `${r.label}: raw ${r.raw}${r.selector ? ` in ${r.selector}` : ''}; use ${r.nearest ? `${r.nearest.name} (${r.nearest.value})` : 'a token'}.`;
+  /** The comment that a variant outside the spec starts. */
+  const variantComment = (v, name) => `Variant ${v.dim ? `${v.dim}=${v.value}` : v.value} of ${name} is not declared in the spec; declare it or use a declared value.`;
+
   /** The modes of the switch: each theme of the model and System, or none when the model has one theme or none. */
   const modeChoices = (themes) => ((themes || []).length > 1 ? [...themes.map((t) => t.name), ''] : []);
 
-  return { PROPS, INHERITED, splitList, specificity, cmpSpec, cascade, varNames, withoutVars, follow, rawLength, rawColor, rawOf, measure, rgbOf, nearest, rawText, resolveProperty, variantPairs, variantCheck, sheetName, modeChoices };
+  return { PROPS, INHERITED, splitList, specificity, cmpSpec, cascade, varNames, withoutVars, follow, rawLength, rawColor, rawOf, measure, rgbOf, nearest, rawText, resolveProperty, variantPairs, variantCheck, sheetName, modeChoices, propLabel, tokenRows, rawComment, variantComment };
 })();
 
 // eslint-disable-next-line no-var, no-unused-vars
@@ -348,35 +384,71 @@ var WF_CANVAS_INSPECT = (() => {
 
   // ---- the panel
 
-  function panelBody(el, model, openComponent) {
+  /** The sample of a token row: the colour, a bar for a space or a size, letters for the type. */
+  function sample(r) {
+    const s = h('span', { class: `ins-sw ${r.kind}`, 'aria-hidden': 'true' }, ['font', 'type', 'weight', 'leading'].includes(r.kind) ? 'Ag' : null);
+    if (r.kind === 'color') s.style.backgroundColor = r.values[0] || '';
+    return s;
+  }
+  /**
+   * The panel of one element: the component block, the tabs Tokens, Layout and Checks, and the rows
+   * of the open tab. `comment(el, text)` starts a comment for the agent on the element, or is null.
+   */
+  function panelBody(el, model, { openComponent, comment, tab, setTab }) {
     const comp = el.closest('[data-component]');
-    const kids = [];
-    if (comp) {
-      const key = comp.getAttribute('data-component');
-      const c = (model.components || []).find((x) => x.key === key);
-      const checks = I.variantCheck(comp.getAttribute('data-variant'), c?.spec ? c.spec.variants || {} : null);
-      kids.push(h('div', { class: 'ins-comp' },
-        h('span', { class: 'sub' }, comp === el ? 'Component' : 'Part of'), ' ',
-        c ? h('button', { type: 'button', class: 'linkish', title: `Open the component ${c.title || key}`, onclick: () => openComponent(key) }, c.title || key) : h('b', {}, key),
-        c ? null : h('span', { class: 'mark issue' }, 'Not in the library'),
-        checks.length ? h('ul', { class: 'ins-vars' }, ...checks.map((v) => h('li', { class: v.declared === false ? 'warn' : null },
-          h('code', {}, v.dim ? `${v.dim}=${v.value}` : v.value), ' ',
-          v.declared === null ? 'the component has no spec' : v.declared ? 'declared in the spec' : 'not declared in the spec'))) : h('p', { class: 'sub' }, 'No variant.')));
-    } else kids.push(h('p', { class: 'sub' }, 'Not inside a component.'));
-    const layout = [...el.classList].filter((x) => x.startsWith('l-'));
-    const gap = el.getAttribute('data-gap');
-    const pad = el.getAttribute('data-pad');
-    if (layout.length || gap || pad) kids.push(h('p', { class: 'ins-layout' }, 'Layout ', ...layout.map((x) => h('code', {}, `.${x}`)), gap ? h('code', {}, `gap ${gap}`) : null, pad ? h('code', {}, `pad ${pad}`) : null));
+    const key = comp?.getAttribute('data-component');
+    const c = comp ? (model.components || []).find((x) => x.key === key) : null;
+    const title = comp ? c?.title || key : nameOf(el);
+    const variants = comp ? I.variantCheck(comp.getAttribute('data-variant'), c?.spec ? c.spec.variants || {} : null) : [];
     const rows = propertiesOf(el, model);
-    kids.push(rows.length ? h('ul', { class: 'ins-props' }, ...rows.map((r) => h('li', { class: r.raw ? 'warn' : null },
-      h('code', { class: 'p' }, r.prop), ' → ',
-      r.tokens.filter((t) => t.token).length
-        ? r.tokens.filter((t) => t.token).map((t) => h('span', { class: 'tok' }, h('code', {}, t.token), ` (${t.value || '?'})`, t.chain.length ? h('small', {}, ` via ${t.chain.join(' → ')}`) : null))
-        : h('code', {}, r.value),
-      r.raw ? h('div', { class: 'raw' }, I.rawText(r.raw, r.nearest)) : null,
-      h('small', { class: 'src' }, r.inherited ? `inherited from ${r.inherited}, ` : '', r.selector ? `${r.selector} in ${r.source}` : r.source))))
-      : h('p', { class: 'sub' }, 'No rule sets a design property of this element.'));
-    return kids;
+    const shown = I.tokenRows(rows);
+    const raws = shown.filter((r) => r.raw);
+    const undeclared = variants.filter((v) => v.declared === false);
+    const issues = raws.length + undeclared.length + (comp && !c ? 1 : 0);
+    const agent = (i, text) => (comment ? h('button', { type: 'button', class: 'ins-agent', 'data-fk': `ins:c:${i}`, onclick: () => comment(el, text) }, 'Comment for the agent') : null);
+    const warn = (head, body, button) => h('div', { class: 'ins-raw' }, h('span', { class: 'ins-warn', 'aria-hidden': 'true' }), h('div', {}, h('b', {}, head), h('p', {}, body), button));
+    const rawRow = (r, i) => warn(`${r.label} is not a token`,
+      [`raw ${r.raw}`, r.selector ? [' in ', h('code', {}, r.selector)] : null, r.source ? `, ${r.source}` : null, '. ', r.nearest ? ['Nearest: ', h('code', {}, r.nearest.name), ` (${r.nearest.value}).`] : 'No token of its kind is near.'],
+      agent(i, I.rawComment(r)));
+    const head = h('div', { class: 'ins-head' },
+      h('div', { class: 'ins-what' },
+        h('div', { class: 'ins-kicker' }, comp ? (comp === el ? 'Component' : `Part of a component · ${nameOf(el)}`) : 'Element, not inside a component'),
+        h('div', { class: 'ins-name' }, title),
+        variants.length ? h('div', { class: 'ins-chips' }, ...variants.map((v) => h('code', { class: v.declared === false ? 'warn' : null, title: v.declared === null ? 'The component has no spec' : v.declared ? 'Declared in the spec' : 'Not declared in the spec' }, v.dim ? `${v.dim}=${v.value}` : v.value))) : null,
+        comp ? h('div', { class: `ins-spec${undeclared.length ? ' warn' : variants.length && c?.spec ? ' ok' : ''}` },
+          !variants.length ? 'No variant.' : !c?.spec ? 'The component has no spec.' : undeclared.length ? `${undeclared.length} of ${variants.length} not declared in the spec` : variants.length > 1 ? 'All are declared in the spec' : 'Declared in the spec') : null),
+      c ? h('button', { type: 'button', class: 'ins-open', 'data-fk': 'ins:open', title: `Open the component ${title}`, onclick: () => openComponent(key) }, 'Open in library')
+        : comp ? h('span', { class: 'mark issue' }, 'Not in the library') : null);
+    const tabs = h('div', { class: 'ins-tabs', role: 'group', 'aria-label': 'What to show of the element' },
+      ...[['tokens', 'Tokens'], ['layout', 'Layout'], ['checks', issues ? `Checks · ${issues}` : 'Checks']].map(([id, text]) => h('button', { type: 'button', 'data-fk': `ins:${id}`, 'aria-pressed': String(tab === id), onclick: () => setTab(id) }, text)));
+    let list = null;
+    if (tab === 'layout') {
+      const layout = [...el.classList].filter((x) => x.startsWith('l-'));
+      const gap = el.getAttribute('data-gap');
+      const pad = el.getAttribute('data-pad');
+      const box = el.getBoundingClientRect();
+      list = [
+        h('p', { class: 'ins-layout' }, 'Size ', h('code', {}, `${Math.round(box.width)} × ${Math.round(box.height)}`)),
+        layout.length || gap || pad ? h('p', { class: 'ins-layout' }, 'Layout ', ...layout.map((x) => h('code', {}, `.${x}`)), gap ? h('code', {}, `gap ${gap}`) : null, pad ? h('code', {}, `pad ${pad}`) : null) : null,
+        rows.length ? h('ul', { class: 'ins-props' }, ...rows.map((r) => h('li', { class: r.raw ? 'warn' : null },
+          h('code', { class: 'p' }, r.prop), ' → ',
+          r.tokens.filter((t) => t.token).length
+            ? r.tokens.filter((t) => t.token).map((t) => h('span', { class: 'tok' }, h('code', {}, t.token), ` (${t.value || '?'})`, t.chain.length ? h('small', {}, ` via ${t.chain.join(' → ')}`) : null))
+            : h('code', {}, r.value),
+          r.raw ? h('div', { class: 'raw' }, I.rawText(r.raw, r.nearest)) : null,
+          h('small', { class: 'src' }, r.inherited ? `inherited from ${r.inherited}, ` : '', r.selector ? `${r.selector} in ${r.source}` : r.source))))
+          : h('p', { class: 'sub' }, 'No rule sets a design property of this element.')];
+    } else if (tab === 'checks') {
+      list = issues ? [
+        comp && !c ? warn('Not in the library', [h('code', {}, key), ' has no component in the library.'], agent('lib', `The component ${key} is not in the library; add it or use a component of the library.`)) : null,
+        ...undeclared.map((v, i) => warn('Variant not declared', [h('code', {}, v.dim ? `${v.dim}=${v.value}` : v.value), ` is not in the spec of ${title}.`], agent(`v${i}`, I.variantComment(v, title)))),
+        ...raws.map(rawRow)] : h('p', { class: 'sub' }, 'No check fails on this element.');
+    } else {
+      list = shown.length ? shown.map((r, i) => (r.raw ? rawRow(r, i) : h('div', { class: 'ins-row', title: r.names.join(', ') },
+        sample(r), h('div', { class: 'ins-prop' }, h('span', {}, r.label), h('code', {}, r.names.join(' · '))), h('code', { class: 'ins-val' }, [...new Set(r.values)].join(' · ')))))
+        : h('p', { class: 'sub' }, 'No token gives a design property of this element.');
+    }
+    return [head, tabs, h('div', { class: 'ins-list' }, list)];
   }
 
   // ---- the mode switch
@@ -405,7 +477,7 @@ var WF_CANVAS_INSPECT = (() => {
 
   function create({ data, openComponent }) {
     // The inspected element: kept by the screen it is on, so a redraw finds it again.
-    const st = { key: null, hover: null, pick: null, doc: null, ctx: null };
+    const st = { key: null, hover: null, pick: null, doc: null, ctx: null, tab: 'tokens' };
     let bar = null;
     const outlineIn = (layer, el, scale, held) => {
       if (!el?.isConnected) return;
@@ -413,20 +485,22 @@ var WF_CANVAS_INSPECT = (() => {
       const win = el.ownerDocument.defaultView;
       layer.append(h('div', { class: `ins-box${held ? ' held' : ''}`, style: `left:${(r.left + win.scrollX) * scale}px;top:${(r.top + win.scrollY) * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }));
     };
+    /** The outlines go on the layer of the screen; the panel goes into the host that the screen view gives. */
     function drawPanel(focus = false) {
       const c = st.ctx;
       if (!c) return;
-      c.root.querySelector(':scope > #inspect')?.remove();
       c.layer.querySelectorAll('.ins-box').forEach((b) => b.remove());
       if (!c.on) return;
       const el = st.hover?.isConnected ? st.hover : st.pick?.isConnected ? st.pick : null;
       if (st.pick?.isConnected) outlineIn(c.layer, st.pick, c.scale, true);
       if (st.hover?.isConnected && st.hover !== st.pick) outlineIn(c.layer, st.hover, c.scale, false);
+      if (!c.host?.isConnected) return;
       const name = el ? nameOf(el) : null;
-      const body = el ? panelBody(el, data(), openComponent) : [h('p', { class: 'sub' }, 'Point at an element of the screen, or tap it, to see its component and its tokens.')];
-      const box = h('aside', { id: 'inspect', tabindex: '-1', 'aria-label': name ? `Inspect ${name}` : 'Inspect', 'aria-live': 'polite' },
-        h('h3', {}, name ? h('code', {}, name) : 'Inspect'), ...body);
-      c.root.append(box);
+      const setTab = (id) => { st.tab = id; drawPanel(); c.host.querySelector(`[data-fk="ins:${id}"]`)?.focus({ preventScroll: true }); };
+      const body = el ? panelBody(el, data(), { openComponent, comment: c.comment || null, tab: st.tab, setTab })
+        : [h('p', { class: 'ins-hint' }, c.touch ? 'Tap an element of the screen to see its component and its tokens.' : 'Point at an element of the screen, or select it, to see its component and its tokens.')];
+      const box = h('div', { id: 'inspect', tabindex: '-1', role: 'region', 'aria-label': name ? `Inspect ${name}` : 'Inspect' }, ...body);
+      c.host.replaceChildren(box);
       if (focus) box.focus({ preventScroll: true });
     }
     return {
@@ -465,6 +539,16 @@ var WF_CANVAS_INSPECT = (() => {
         applyAll();
       },
       mode: () => mode,
+      /** The modes that the switch offers now: the themes of the model and '' for the system's. */
+      modes: () => I.modeChoices(data()?.themes),
+      /** Choose a mode from another control: the screen view has its own theme control. */
+      setMode(next) {
+        mode = I.modeChoices(data()?.themes).includes(next) ? next : '';
+        try { if (mode) localStorage.setItem(MODE_KEY, mode); else localStorage.removeItem(MODE_KEY); } catch { /* the choice lasts for this visit */ }
+        const select = bar?.querySelector('select');
+        if (select) select.value = mode;
+        applyAll();
+      },
     };
   }
   return { create };

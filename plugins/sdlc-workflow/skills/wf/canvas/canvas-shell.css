@@ -1,0 +1,239 @@
+/* The shell and the board of the design canvas: the navigation, the bar of the screens, the filter
+   chips, the cards, the list of a phone, the Review view and the two views before the screens.
+   It loads after canvas.css and gives the canvas its colours. The canvas loads no font: Inter
+   shows where the system has it. */
+:root {
+  --ground: #f3f4f6; --dot: transparent; --surface: #ffffff; --sunk: #eceef2; --field: #f8f9fb;
+  --ink: #14161a; --pencil: #4b5160; --line: #e3e5ea; --line-2: #d5d8df; --line-soft: #eef0f3;
+  --focus: #3b4fd8; --accent: #3b4fd8; --accent-fill: #3b4fd8; --on-accent: #ffffff; --accent-soft: #eceffd; --accent-ink: #2a3aa8;
+  --ok-bg: #e7f5ec; --ok-ink: #14532d; --new-bg: #e8efff; --new-ink: #1a3fb0; --fail-bg: #fff1e6; --fail-ink: #8f3600;
+  --note-bg: #fdf3c8; --note-fg: #5c4400; --alert: #b93a00; --live: #1f8a4c; --thumb: #fafaf9;
+  --card: 0 1px 2px rgb(20 22 26 / 6%), 0 0 0 1px var(--line);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px; line-height: 1.4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #111317; --dot: transparent; --surface: #1b1e24; --sunk: #262a32; --field: #15181d;
+    --ink: #eceef2; --pencil: #a9afbd; --line: #2c313a; --line-2: #3a404b; --line-soft: #252930;
+    --focus: #8ea0ff; --accent: #8ea0ff; --accent-fill: #4b5fe0; --on-accent: #ffffff; --accent-soft: #262c52; --accent-ink: #c3ccff;
+    --ok-bg: #173524; --ok-ink: #9be0b5; --new-bg: #1f2a52; --new-ink: #b6c4ff; --fail-bg: #45260f; --fail-ink: #ffc79e;
+    --note-bg: #453a12; --note-fg: #f5dd8a; --alert: #c2440a; --live: #4cc27d; --thumb: #2a2f38;
+    --card: 0 1px 2px rgb(0 0 0 / 40%), 0 0 0 1px var(--line);
+  }
+}
+
+html { height: 100%; }
+body { display: flex; flex-direction: row; height: 100%; min-height: 0; overflow: hidden; }
+.app { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* ------------------------------------------------------------ the navigation */
+
+.side { flex: none; width: 232px; display: flex; flex-direction: column; gap: 18px; padding: 14px 12px; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); }
+.side-head { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 8px; }
+.logo { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--ink); color: var(--surface); font-weight: 700; }
+.side-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.side-name b, .bar-name b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-sub { font-size: 12px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-pick select { width: 100%; height: 24px; min-height: 24px; padding: 0 20px 0 0; border: 0; border-radius: 4px; background-color: transparent; background-position: right 4px center; font-size: 12px; color: var(--pencil); }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.nav a:hover { background: var(--sunk); }
+.nav a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.nav a:focus-visible { outline-offset: -2px; }
+.nav .n { margin-left: auto; color: var(--pencil); font-weight: 400; }
+.nav a[aria-current] .n:not(.badge) { color: inherit; font-weight: 500; }
+.badge { display: grid; place-items: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--alert); color: #ffffff; font-size: 12px; font-weight: 700; }
+.nav .n.badge { color: #ffffff; font-weight: 700; }
+.nav.before h2 { margin: 0; padding: 0 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.nav.before a { height: 36px; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font-size: 12px; color: var(--pencil); }
+.live { display: flex; align-items: center; gap: 6px; color: var(--ok-ink); font-weight: 600; }
+.live::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--live); }
+.live.down { color: var(--pencil); }
+.live.down::before { background: var(--pencil); }
+.tabs { display: none; }
+
+/* ------------------------------------------------------------ the bar of the screens */
+
+.bar { flex: none; position: relative; top: auto; z-index: 7; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-name, #search-btn { display: none; }
+.bar .bar-title { flex: 1; margin: 0; min-height: 40px; display: flex; align-items: center; font-size: 18px; font-weight: 700; letter-spacing: 0; }
+body[data-view="screens"] .bar-title { display: none; }
+.icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--ink); }
+.icon:hover { background: var(--sunk); }
+.bar > .search { position: relative; flex: 1 1 260px; max-width: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--field); color: var(--pencil); }
+.bar > .search:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; background: var(--surface); }
+.bar > .search > svg { flex: none; }
+.bar > .search input { flex: 1; min-width: 0; width: auto; min-height: 0; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); outline: none; }
+.bar > .search kbd { flex: none; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface); font: inherit; font-size: 12px; white-space: nowrap; }
+.hits { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 9; display: grid; gap: 2px; padding: 8px; background: var(--surface); border-radius: 12px; box-shadow: var(--raise); }
+.hits h3 { margin: 4px 8px 2px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.hits a { display: flex; align-items: center; min-height: 36px; padding: 0 8px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.hits a:hover { background: var(--sunk); }
+.bar .seg, .list-group { gap: 2px; padding: 3px; border: 0; border-radius: 10px; background: var(--sunk); }
+.bar .seg button, .list-group button { height: 34px; min-height: 34px; padding: 0 12px; border-radius: 7px; color: var(--pencil); }
+.bar .seg button.on, .list-group button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgb(20 22 26 / 12%); }
+.bar .pick { display: flex; min-width: 0; }
+.bar .pick select { height: 40px; min-height: 40px; padding: 0 30px 0 12px; border-color: var(--line-2); border-radius: 10px; background-color: var(--surface); background-position: right 12px center; }
+.opts { position: relative; }
+.opts > summary { list-style: none; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink); cursor: pointer; user-select: none; }
+.opts > summary::-webkit-details-marker { display: none; }
+.opts[open] > summary { border-color: var(--ink); }
+/* A state, a version or an area that is not the usual one shows on the control that hides it. */
+.opts.set > summary { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.opts .pop { left: auto; right: 0; }
+.opts .pop .arrange { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* On a view that is not the screens, the bar keeps the name of the view and the mode switch. */
+body:not([data-view="screens"]) :is(#group, #viewport-pick, #opts, #chips, #zoom, #search-btn, .bar > .search) { display: none; }
+body:is([data-view="review"], [data-view="sketches"], [data-view="references"]) #mode-pick { display: none; }
+
+/* ------------------------------------------------------------ the filter chips */
+
+.chips { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px 0; }
+.chips [data-chip] { position: relative; flex: none; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); color: var(--ink); font-size: 13px; white-space: nowrap; }
+.chips [data-chip]:hover { border-color: var(--pencil); }
+.chips [data-chip][aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--surface); font-weight: 600; }
+.chips .chip { order: 0; flex: 0 1 auto; min-height: 32px; height: 32px; padding: 0 12px; border-radius: 16px; font-size: 13px; white-space: nowrap; }
+.chips .shown { order: 0; flex: none; font-size: 13px; }
+.checked { margin-left: auto; font-size: 13px; color: var(--pencil); white-space: nowrap; }
+
+/* ------------------------------------------------------------ the board */
+
+#stage { background-image: none; }
+#notice { left: calc(50% + 116px); max-width: calc(100% - 232px - 24px); }
+body.viewing #notice { left: 50%; }
+#status { bottom: calc(24px + var(--kb)); }
+.area-label { font-size: 20px; font-weight: 700; letter-spacing: 0; }
+.card { overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: var(--card); transition: opacity .15s, box-shadow .15s; }
+.card:hover { box-shadow: 0 0 0 1px var(--line-2), 0 8px 22px -8px rgb(20 22 26 / 28%); }
+.card .frame { border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); }
+.card .frame:hover { box-shadow: none; }
+.card .frame:focus-visible { outline-offset: -2px; }
+.card .cap { padding: 10px 12px 12px; }
+.card .cap-row b { font-size: 14px; }
+.card .meta { font-size: 13px; }
+.pill { flex: none; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--sunk); color: var(--pencil); }
+.pill.approved { background: var(--ok-bg); color: var(--ok-ink); }
+.pill.changed { background: var(--new-bg); color: var(--new-ink); }
+.pill.failing { background: var(--fail-bg); color: var(--fail-ink); }
+.pill.comments { background: var(--note-bg); color: var(--note-fg); }
+/* The zoom of the board: a small control at its bottom right corner. A pinch and Ctrl with the wheel zoom too. */
+#zoom { position: absolute; right: 16px; bottom: 16px; z-index: 5; gap: 2px; padding: 4px; border: 0; border-radius: 10px; background: var(--surface); box-shadow: var(--card); }
+
+/* ------------------------------------------------------------ rows: the list of a phone, the queue of a review */
+
+.rows { list-style: none; margin: 0; padding: 0; overflow: hidden; border-radius: 14px; background: var(--surface); box-shadow: 0 1px 2px rgb(20 22 26 / 6%); }
+.rows li { margin: 0; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; border-bottom: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; }
+.rows > .row:last-child, .rows > li:last-child > .row { border-bottom: 0; }
+.row:hover { background: var(--field); }
+.row:focus-visible { outline-offset: -2px; }
+.row.plain { min-height: 52px; }
+.row .n { color: var(--pencil); }
+.thumb { flex: none; width: 40px; height: 56px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--thumb); object-fit: cover; object-position: top; }
+.thumb.ph { display: flex; flex-direction: column; gap: 3px; padding: 5px 4px; }
+.thumb.ph i { display: block; height: 4px; border-radius: 2px; background: var(--line-2); }
+.thumb.ph i:nth-child(2) { width: 70%; background: var(--line); }
+.thumb.ph i:nth-child(3) { height: 12px; background: var(--sunk); }
+.row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.row-text b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-text small { font-size: 13px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .pill { height: 24px; border-radius: 12px; }
+
+#list { display: flex; flex-direction: column; gap: 12px; padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); }
+.waitcard { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: var(--accent-fill); color: var(--on-accent); text-decoration: none; }
+.wait-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wait-text b { font-size: 16px; font-weight: 700; }
+.wait-text small { font-size: 13px; color: #dfe4ff; }
+.wait-go { flex: none; display: flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 20px; background: #ffffff; color: #2a3aa8; font-size: 14px; font-weight: 700; }
+.waitcard:focus-visible { outline-offset: 2px; }
+.list-group { align-self: flex-start; display: inline-flex; }
+.list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 4px 0; }
+.list-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.list-head span { font-size: 13px; color: var(--pencil); }
+#list .empty { position: static; width: auto; max-width: none; padding: 12px 4px; }
+
+/* ------------------------------------------------------------ the Review view, the sketches, the references */
+
+#review, #before { flex: 1; min-height: 0; overflow: auto; }
+.review-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin: 0 auto; padding: 24px 20px 40px; }
+.before-wrap { display: flex; flex-direction: column; gap: 12px; padding: 24px 20px 40px; }
+.review-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 16px; }
+.review-title { flex: 1 1 300px; min-width: 0; }
+.review-wrap h2, .before-wrap h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: 0; }
+.review-wrap .lede, .before-wrap .lede { margin: 0; color: var(--pencil); }
+.review-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-acts .btn { height: 40px; min-height: 40px; padding: 0 16px; border-radius: 10px; }
+.review-acts .btn.primary { border-color: var(--accent-fill); background: var(--accent-fill); color: var(--on-accent); font-weight: 600; }
+.review-sec { padding: 16px; border-radius: 14px; background: var(--surface); box-shadow: 0 1px 2px rgb(20 22 26 / 6%); }
+.review-sec h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.review-sec h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--pencil); }
+.review-sec p { margin: 0 0 6px; }
+.review-sec .none, .before-wrap .none { color: var(--pencil); }
+.items { display: grid; grid-template-columns: repeat(auto-fill, 280px); gap: 20px; }
+.items .item .frame { border-radius: 10px; box-shadow: var(--card); cursor: pointer; }
+
+/* In a wide window the bar names the view: the heading of the view itself stays for a screen reader. */
+@media (min-width: 900px) {
+  .tok-top h2, .before-wrap h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* ------------------------------------------------------------ a narrow window */
+/* Under 900 px the navigation is a tab bar at the thumb, the bar holds the name, the search and the
+   mode, and the board is a list. Every control is at least 44 px high. */
+@media (max-width: 899px) {
+  html { height: 100%; }
+  body { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-size: 15px; }
+  .side { display: none; }
+  .tabs { flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: calc(68px + env(safe-area-inset-bottom)); padding: 0 4px calc(8px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); }
+  .tabs a { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 44px; color: var(--pencil); font-size: 12px; font-weight: 500; text-decoration: none; }
+  .tabs a[aria-current] { color: var(--accent); font-weight: 600; }
+  .tabs a:focus-visible { outline-offset: -4px; }
+  .tabs .badge { position: absolute; top: 8px; left: 52%; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 11px; }
+  body.viewing .tabs { display: none; }
+
+  .bar { position: relative; top: auto; gap: 0 8px; min-height: 56px; padding: max(0px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); border-bottom: 0; }
+  body:not([data-view="screens"]) .bar { border-bottom: 1px solid var(--line); }
+  .bar-name { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 56px; }
+  .bar-name b { font-size: 17px; }
+  .bar .bar-title, #group, #viewport-pick, #opts, .bar > .search kbd, .checked { display: none; }
+  #search-btn { display: grid; }
+  .bar > .search { display: none; order: 9; flex: 1 1 100%; height: 44px; margin: 0 10px 8px 0; }
+  .bar.searching > .search { display: flex; }
+  .bar > .search input { font-size: 16px; }
+  .hits a { min-height: 44px; }
+  /* The mode switch is a round control: the list of the modes opens from it. */
+  #mode-pick { position: relative; flex: none; display: block; width: 44px; height: 44px; border-radius: 10px; color: var(--ink); }
+  #mode-pick::before { content: ""; position: absolute; inset: 11px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 3v18'/%3E%3Cpath d='M12 7a5 5 0 0 1 0 10z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 3v18'/%3E%3Cpath d='M12 7a5 5 0 0 1 0 10z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat; }
+  #mode-pick select { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+  #mode-pick:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; }
+  /* With several workflows, the name of the repo is the switch: the list of the workflows opens from it. */
+  .bar-name { position: relative; }
+  #wf-pick-m { position: absolute; inset: 0; }
+  #wf-pick-m select { width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .bar-name:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 8px; }
+
+  .chips { flex-wrap: nowrap; overflow-x: auto; padding: 4px 16px 12px; background: var(--surface); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips [data-chip] { height: 36px; padding: 0 14px; border-radius: 18px; font-weight: 500; }
+  /* A chip of 36 px takes a finger over 44 px. */
+  .chips [data-chip]::after { content: ""; position: absolute; inset: -4px 0; }
+  .chips .chip { flex: none; height: 36px; border-radius: 18px; }
+  .chips .shown { flex-basis: auto; }
+
+  #stage { overflow: auto; overflow-x: hidden; touch-action: auto; cursor: default; user-select: auto; -webkit-user-select: auto; overscroll-behavior: contain; }
+  #zoom { display: none; }
+  #notice { left: 50%; max-width: calc(100% - 24px); top: calc(var(--bar-h, 56px) + 8px); }
+  #status { bottom: calc(84px + env(safe-area-inset-bottom) + var(--kb)); }
+  .list-group button, .review-acts .btn { height: 44px; min-height: 44px; }
+  .review-acts .btn { flex: 1 1 auto; }
+  .review-wrap { padding: 16px 12px 24px; }
+  .before-wrap { padding: 16px 12px 24px; }
+  .items { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); justify-items: start; }
+  .items .item { width: 280px; max-width: 100%; }
+  #library { overflow: auto; }
+}

@@ -205,6 +205,56 @@ var WF_CANVAS_LOGIC = (() => {
   /** The words of a count of failing checks: one number for one thing, on the card and in the view. */
   const failText = (n) => `${plural(n, 'check')} fail${n === 1 ? 's' : ''}`;
 
+  // ---- the one status of a screen, the filters and the review queue
+
+  // The facts of one screen that the board reads: `{ key, exists, failing, comments, fresh, draft,
+  // approved, waiting }`. `failing` and `comments` are counts, `fresh` is 'new', 'changed' or null.
+  /**
+   * The one status that a card shows: the most urgent thing of its screen. A failing check comes
+   * before an open comment, a comment before a change that the person did not see, a change before
+   * a missing approval. `kind` names the look of the pill.
+   */
+  function statusOf(f) {
+    const x = f || {};
+    if (x.exists === false) return { kind: 'failing', text: 'No file' };
+    if (x.failing) return { kind: 'failing', text: `${x.failing} failing` };
+    if (x.comments) return { kind: 'comments', text: plural(x.comments, 'comment') };
+    if (x.fresh) return { kind: 'changed', text: x.fresh === 'new' ? 'New' : 'Changed' };
+    if (x.draft) return { kind: 'draft', text: 'Draft' };
+    if (!x.approved) return { kind: 'draft', text: 'Not approved' };
+    return { kind: 'approved', text: 'Approved' };
+  }
+  /** True when a screen waits for a look: it changed or is new, a check fails on it, or a comment is open. */
+  const waitsForLook = (f) => Boolean(f && f.exists !== false && (f.fresh || f.failing || f.comments));
+  /** The keys of the screens that wait for a look, in the order given: the queue of a review. */
+  const reviewQueue = (rows) => (rows || []).filter(waitsForLook).map((r) => r.key);
+  /** Why a screen is in the queue, in one line: `Changed · 4 checks fail · 2 comments`. */
+  const waitReasons = (f) => [f.fresh ? (f.fresh === 'new' ? 'New' : 'Changed') : null, f.failing ? failText(f.failing) : null, f.comments ? plural(f.comments, 'open comment') : null].filter(Boolean).join(' · ');
+  /** The count of each filter chip: every screen, the changed or new ones, the failing ones, the commented ones, the ones with no approval. */
+  function filterCounts(rows) {
+    const n = (fn) => (rows || []).filter(fn).length;
+    return { all: (rows || []).length, fresh: n((r) => r.fresh), failing: n((r) => r.failing), open: n((r) => r.comments), waiting: n((r) => r.waiting) };
+  }
+  /** How long ago a time was, in words: `just now`, `4 min ago`, `3 h ago`, `2 d ago`. Empty for no time. */
+  function agoText(at, now = Date.now()) {
+    const t = typeof at === 'number' ? at : Date.parse(at);
+    if (!Number.isFinite(t)) return '';
+    const min = Math.floor(Math.max(0, now - t) / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min} min ago`;
+    if (min < 60 * 24) return `${Math.floor(min / 60)} h ago`;
+    return `${Math.floor(min / (60 * 24))} d ago`;
+  }
+  /** The place of a screen in its flow: `entry` for the first, else `2 of 5`. `i` counts from 0. */
+  const stepText = (i, n) => (n < 2 || i < 0 ? '' : i === 0 ? 'entry' : `${i + 1} of ${n}`);
+  /** The names of the views, as the navigation and the address name them. */
+  const VIEW_NAMES = ['screens', 'library', 'tokens', 'review', 'sketches', 'references'];
+  /** The view that an address names (`#view=review`), or null. */
+  function parseView(hash) {
+    const v = new URLSearchParams(String(hash || '').replace(/^#/, '')).get('view');
+    return VIEW_NAMES.includes(v) ? v : null;
+  }
+
   // ---- the screen view
 
   /** The scale that fits panes of `widths` and one of `height` into the room, never above 100 %. */
@@ -213,6 +263,52 @@ var WF_CANVAS_LOGIC = (() => {
     const byW = (availW - (widths.length - 1) * gap) / total;
     const s = Math.min(1, byW, availH / height);
     return Math.max(0.05, Number.isFinite(s) ? s : 1);
+  }
+  const capital = (t) => (t ? `${String(t)[0].toUpperCase()}${String(t).slice(1)}` : '');
+  /**
+   * The screens that Previous and Next walk from one screen. `order` is every screen in the order
+   * of the board; `queue` holds the keys of the review queue when the screen was opened from it.
+   * The list is the queue, else the screens of the flow in flow order, else the screens of the
+   * area. Past an end of a flow or an area the walk goes on to the nearest screen outside it; the
+   * queue stops at its ends.
+   */
+  function neighbours(order, key, queue = null) {
+    const all = order || [];
+    const cur = all.find((x) => x.key === key);
+    if (!cur) return { kind: 'none', name: '', list: [], at: -1, prev: null, next: null };
+    if (Array.isArray(queue) && queue.includes(key)) {
+      const list = [...new Set(queue)].map((k) => all.find((x) => x.key === k)).filter(Boolean);
+      const at = list.indexOf(cur);
+      return { kind: 'queue', name: 'Review queue', list, at, prev: list[at - 1] ?? null, next: list[at + 1] ?? null };
+    }
+    const kind = cur.flow ? 'flow' : cur.area ? 'area' : 'board';
+    const list = kind === 'board' ? all : all.filter((x) => (kind === 'flow' ? x.flow === cur.flow : x.area === cur.area));
+    if (kind === 'flow') list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    const at = list.indexOf(cur);
+    const i = all.indexOf(cur);
+    const outside = (by) => {
+      for (let n = 1; n < all.length; n += 1) { const x = all[(((i + by * n) % all.length) + all.length) % all.length]; if (!list.includes(x)) return x; }
+      return list.length > 1 ? list[(at + by + list.length) % list.length] : null;
+    };
+    return { kind, name: kind === 'flow' ? `${capital(cur.flow)} flow` : kind === 'area' ? capital(cur.area) : 'Screens', list, at, prev: list[at - 1] ?? outside(-1), next: list[at + 1] ?? outside(1) };
+  }
+  /**
+   * The line under the title of the screen view: `Agent · chat flow · 1 of 6`, or the area alone
+   * when the screen has no flow. While a sheet is open the line says what the mode does.
+   */
+  function subLine({ area = '', flow = '', at = -1, total = 0, queue = false, mode = 'view', touch = false, failing = 0, open = 0 } = {}) {
+    if (mode === 'inspect') return `Inspecting · ${touch ? 'tap' : 'select'} any element`;
+    if (mode === 'comment') return `Commenting · ${touch ? 'tap' : 'select'} an element`;
+    if (mode === 'comments') return open ? plural(open, 'open comment') : 'Comments';
+    if (mode === 'checks') return failing ? `Checks · ${failing} failing` : 'Checks · none fails';
+    if (mode === 'why') return 'Why it looks like this';
+    const place = total > 1 && at >= 0 ? `${at + 1} of ${total}` : null;
+    return (queue ? ['Review queue', place] : [capital(area), flow ? `${flow} flow` : null, place]).filter(Boolean).join(' · ');
+  }
+  /** The comment that a failing check starts: its name, its message as one sentence, and the repair to ask for. */
+  function findingComment(name, message, fix = '') {
+    const m = String(message ?? '').replace(/\s+/g, ' ').trim();
+    return `${name}: ${m}${/[.!?]$/.test(m) ? '' : '.'}${fix ? ` ${String(fix).trim()}` : ''}`;
   }
   /** The address of an open screen, so Back closes the view and a link opens one screen. */
   const hashOf = (f) => `#screen=${encodeURIComponent(f.key)}&viewport=${encodeURIComponent(f.viewport)}&state=${encodeURIComponent(f.state)}`;
@@ -230,7 +326,7 @@ var WF_CANVAS_LOGIC = (() => {
   /** The next wait before the event stream opens again: 5 s, then twice as long each time, at most a minute. */
   const reopenDelay = (tries) => Math.min(60000, 5000 * 2 ** Math.max(0, Math.min(tries, 10)));
 
-  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, fitScale, hashOf, parseHash, parseSize };
+  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, statusOf, waitsForLook, reviewQueue, waitReasons, filterCounts, agoText, stepText, VIEW_NAMES, parseView, fitScale, hashOf, parseHash, parseSize, neighbours, subLine, findingComment };
 })();
 
 (() => {
@@ -259,7 +355,7 @@ var WF_CANVAS_LOGIC = (() => {
     return el;
   };
   const params = new URLSearchParams(location.search);
-  const ui = { view: 'grid', viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', waiting: false, fresh: false, open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false, version: '', trace: null, hover: null, dragging: 0, confirm: '' };
+  const ui = { view: 'grid', group: 'grid', review: null, viewport: null, state: 'default', q: '', area: '', workflow: params.get('workflow') || '', waiting: false, fresh: false, open: false, failing: false, zoom: 1, x: 24, y: 24, panel: null, fitted: false, version: '', trace: null, hover: null, dragging: 0, confirm: '' };
   let data = null;
   // The ETag of the state that the canvas holds, the time it loaded, and the token that a write carries.
   let stateEtag = null;
@@ -268,6 +364,13 @@ var WF_CANVAS_LOGIC = (() => {
   // The last design audit of the repo (./audit.json): a read-only agent's report, not a check.
   let audit = null;
   const phone = () => matchMedia('(max-width: 720px)').matches;
+  // The shell and the board change at 900 px: under it the navigation is a tab bar and the board is a list.
+  const narrow = () => matchMedia('(max-width: 899px)').matches;
+  const GROUPS = ['grid', 'flow', 'slice'];
+  /** The grouping of the screens: the one that shows, or the last one while another view shows. */
+  const groupNow = () => (GROUPS.includes(ui.view) ? ui.view : ui.group);
+  /** The name of the view that shows, as the navigation names it. */
+  const viewName = () => (GROUPS.includes(ui.view) ? 'screens' : ui.view);
   const CARD_BASE = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 300;
   const GAP_X = 64;
   const GAP_Y = 32;
@@ -295,11 +398,26 @@ var WF_CANVAS_LOGIC = (() => {
   /** The second line of a screen: its key, its flow and its workflows. */
   const metaOf = (s) => [s.key, s.flow ? `${s.flow} flow` : null, (s.workflows || []).length ? `from ${s.workflows.join(', ')}` : null].filter(Boolean).join(', ');
   const titleOf = (s) => s?.title || s?.key || 'Screen';
+  /** The place of a screen in its flow, among the screens of the repo: `entry`, or `2 of 5`. */
+  let stepsHeld = null;
+  function stepOf(s) {
+    if (!s.flow) return '';
+    if (stepsHeld?.of !== data) {
+      const by = new Map();
+      for (const x of data.screens) if (x.flow) { if (!by.has(x.flow)) by.set(x.flow, []); by.get(x.flow).push(x); }
+      for (const list of by.values()) list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.key.localeCompare(b.key));
+      stepsHeld = { of: data, by: new Map([...by].map(([flow, list]) => [flow, list.map((x) => x.key)])) };
+    }
+    const keys = stepsHeld.by.get(s.flow) || [];
+    return L.stepText(keys.indexOf(s.key), keys.length);
+  }
+  /** The one line under the title of a screen: its flow, its step, and its open comments when the pill says something else. */
+  const lineOf = (s, st) => [s.flow ? `${cap(s.flow)} flow` : 'No flow', stepOf(s), st?.kind !== 'comments' && s.openComments && !versionAt(ui.version) ? plural(s.openComments, 'comment') : null].filter(Boolean).join(' · ');
   const day = (t) => String(t ?? '').slice(0, 10);
   const clock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 
   // The height of the window, read once for each width: the bar of a phone browser hides while the
-  // person scrolls, and the list must not change its sizes then.
+  // person scrolls, and the screen view must not change its sizes then.
   function roomH() {
     const w = document.documentElement.clientWidth;
     if (roomH.w !== w) { roomH.w = w; roomH.h = window.innerHeight; }
@@ -308,13 +426,12 @@ var WF_CANVAS_LOGIC = (() => {
   // The sizes of one draw: the width of a card, the height of its frame, the step between two rows.
   let M = null;
   function measure() {
-    const ph = phone();
+    const ph = narrow();
     const v = vp();
-    const cardW = ph ? Math.max(200, document.documentElement.clientWidth - 32) : CARD_BASE;
-    const full = Math.round(cardW * v.height / v.width);
-    // On a phone a card shows the top of a tall screen: the list stays a list.
-    const frameH = ph ? Math.min(full, Math.round(roomH() * 0.6)) : full;
-    M = { phone: ph, v, cardW, laneW: ph ? cardW : 220, frameH, cardH: frameH + CAPTION_H, pitch: frameH + CAPTION_H + GAP_Y, scale: cardW / v.width };
+    // The list of a narrow window holds no card: the sizes are of the cards of the board.
+    const cardW = CARD_BASE;
+    const frameH = Math.round(cardW * v.height / v.width);
+    M = { phone: ph, v, cardW, frameH, cardH: frameH + CAPTION_H, pitch: frameH + CAPTION_H + GAP_Y, scale: cardW / v.width };
     return M;
   }
 
@@ -531,7 +648,6 @@ var WF_CANVAS_LOGIC = (() => {
     // The list of screens does not read: the board is not empty, it is broken.
     if (data.manifestFault) notice('manifest', `The screens are not shown, because the list of screens cannot be read: ${data.manifestFault}. Tell the agent.`);
     else unnotice('manifest');
-    $('#repo').textContent = data.repo || 'Design canvas';
     document.title = `${data.repo || 'Design'} canvas`;
     const names = Object.keys(data.viewports);
     if (!names.includes(ui.viewport)) ui.viewport = phone() && names.includes('phone') ? 'phone' : names.includes('desktop') ? 'desktop' : names[0];
@@ -541,13 +657,11 @@ var WF_CANVAS_LOGIC = (() => {
     fill($('#area'), [['', 'All areas'], ...data.areas.map((a) => [a, cap(a)])], ui.area);
     // A workflow of the address that the repo does not have filters nothing.
     if (ui.workflow && !data.workflows.includes(ui.workflow)) { say(`No workflow ${ui.workflow} on this board`); ui.workflow = ''; }
-    fill($('#workflow'), [['', 'All workflows'], ...data.workflows.map((w) => [w, w])], ui.workflow);
+    for (const id of ['#workflow', '#workflow-m']) fill($(id), [['', 'All workflows'], ...data.workflows.map((w) => [w, w])], ui.workflow);
     drawVersions();
     drawStates();
-    drawHealth();
-    filterCount();
-    barHeight();
     render();
+    barHeight();
     if (ui.panel) panel(ui.panel, true);
     if (focusState) drawFocus();
     return true;
@@ -571,33 +685,20 @@ var WF_CANVAS_LOGIC = (() => {
     }
     sel.value = value ?? '';
   }
-  /** The states of the dock: a row of buttons, and one select on a phone. The buttons stay, so the focus stays. */
+  /** The state that every screen of the board shows: one select behind the options of the bar. */
   function drawStates() {
-    const box = $('#states');
-    if (box.dataset.sig !== data.states.join('|')) {
-      box.dataset.sig = data.states.join('|');
-      box.replaceChildren(...data.states.map((s) => h('button', { type: 'button', 'data-state': s, onclick: () => setState(s) }, cap(s))));
-    }
-    for (const b of box.children) { b.classList.toggle('on', b.dataset.state === ui.state); b.setAttribute('aria-pressed', String(b.dataset.state === ui.state)); }
-    fill($('#state'), data.states.map((s) => [s, `${cap(s)} state`]), ui.state);
+    fill($('#state'), data.states.map((s) => [s, cap(s)]), ui.state);
   }
   function setState(s) {
     ui.state = s;
     drawStates();
     render();
   }
-  function filterCount() {
-    const n = [ui.area, ui.workflow, ui.waiting, ui.fresh, ui.open, ui.failing].filter(Boolean).length;
-    const c = $('#fcount');
-    c.textContent = String(n);
-    c.hidden = n === 0;
-    $('#filters > summary').setAttribute('aria-label', n ? `Filter, ${plural(n, 'filter')} on` : 'Filter');
-  }
+  /** The top edge of the board, for the lines that stay under the bar and for the panel. */
   function barHeight() {
-    const bar = $('.bar');
-    document.documentElement.style.setProperty('--bar-h', `${bar.offsetHeight}px`);
-    // On a phone the bar sticks at the row of the review control: the rows above it scroll away.
-    document.documentElement.style.setProperty('--bar-stick', phone() ? `${-Math.max(0, $('#health').offsetTop - 8)}px` : '0px');
+    const chips = $('#chips');
+    const edge = (chips.offsetParent ? chips : $('.bar')).getBoundingClientRect().bottom;
+    document.documentElement.style.setProperty('--bar-h', `${Math.round(edge)}px`);
   }
   const screenUrl = (key, state, at = null) => (SNAP ? null : at ? `${BASE}${at.includes('/') ? 'versions' : 'at'}/${at}/screens/${key}.html?state=${state}` : `${BASE}s/screens/${key}.html?state=${state}`);
   // A snapshot screen has no query string, so the state is set after the page's own script.
@@ -713,17 +814,17 @@ var WF_CANVAS_LOGIC = (() => {
   }
   const traceId = (t) => (t ? `${t.kind}:${t.key}` : '');
   /**
-   * Leave out the cards that the search box, the filters and the trace do not match, with no new
-   * screen frame: dimmed on the board, hidden in the list of a phone. The bar says how many show.
+   * Leave out the screens that the search box, the filter chips and the trace do not match, with no
+   * new screen frame: dimmed on the board, left out of the list of a phone. The row of the chips
+   * says how many show.
    */
   function applyFilter() {
     if (!data) return;
     const list = boardScreens();
     const byKey = new Map(list.map((s) => [s.key, s]));
     const shown = new Set(list.filter(matches).map((s) => s.key));
-    for (const card of $$('#board > .card')) card.classList.toggle('dim', byKey.has(card.dataset.key) && !shown.has(card.dataset.key));
-    // On a phone a heading with no screen under it goes too.
-    for (const label of $$('#board > .area-label')) label.classList.toggle('dim', Boolean(label.keys) && !label.keys.some((k) => shown.has(k)));
+    if (M?.phone) drawList(list, shown);
+    else for (const card of $$('#board > .card')) card.classList.toggle('dim', byKey.has(card.dataset.key) && !shown.has(card.dataset.key));
     const on = traceId(ui.hover || ui.trace);
     for (const el of $$('[data-trace]')) el.classList.toggle('on', el.dataset.trace === on);
     const out = $('#shown');
@@ -732,19 +833,20 @@ var WF_CANVAS_LOGIC = (() => {
     out.textContent = filtered ? (shown.size ? `${shown.size} of ${plural(list.length, 'screen')}` : 'No screen matches') : '';
     $('#nomatch')?.remove();
     if (filtered && !shown.size && list.length) {
-      $('#board').append(h('div', { class: 'empty nomatch', id: 'nomatch' }, h('b', {}, 'No screen matches'), 'The search and the filters leave no screen. ',
+      $(M?.phone ? '#list' : '#board').append(h('div', { class: 'empty nomatch', id: 'nomatch' }, h('b', {}, 'No screen matches'), 'The search and the filters leave no screen. ',
         h('button', { type: 'button', class: 'btn', onclick: clearFilters }, 'Show every screen')));
     }
+    drawHits();
   }
   function clearFilters() {
     Object.assign(ui, { q: '', area: '', workflow: '', waiting: false, fresh: false, open: false, failing: false, trace: null, hover: null });
     $('#q').value = '';
     $('#area').value = '';
     $('#workflow').value = '';
-    for (const id of ['waiting', 'fresh', 'open', 'failing']) $(`#${id}`).checked = false;
+    $('#workflow-m').value = '';
     $('#trace').hidden = true;
-    filterCount();
     drawVersions();
+    drawShell();
     barHeight();
     applyFilter();
   }
@@ -763,12 +865,6 @@ var WF_CANVAS_LOGIC = (() => {
     barHeight();
     applyFilter();
   }
-  /** While the pointer is on a token or a component, show the screens that use it. */
-  const traceHover = (t) => ({
-    onpointerenter: (e) => { if (e.pointerType === 'mouse') { ui.hover = t; applyFilter(); } },
-    onpointerleave: () => { if (ui.hover) { ui.hover = null; applyFilter(); } },
-  });
-
   /** The second line of a slice row: its screens, its approval, its checks and its comments. */
   const sliceSummary = (c, n) => [plural(n, 'screen'),
     c.approval ? 'Approved' : 'Not approved',
@@ -781,11 +877,12 @@ var WF_CANVAS_LOGIC = (() => {
    * keys of its screens.
    */
   function autoLayout(list) {
+    const view = groupNow();
     const w = M.cardW + GAP_X;
     const pos = {};
     const places = [];
     const labels = [];
-    if (ui.view === 'slice') {
+    if (view === 'slice') {
       const shown = new Set(list.map((s) => s.key));
       let y = 0;
       const row = (text, sub, keys) => {
@@ -803,8 +900,8 @@ var WF_CANVAS_LOGIC = (() => {
     }
     // A screen with no area groups with the screens of its flow, so "No area" holds only what has neither.
     const NONE = '\u0000';
-    const groupKey = ui.view === 'flow' ? (s) => s.flow || NONE : (s) => s.area || (s.flow ? `\u0001${s.flow}` : NONE);
-    const nameOf = (g) => (g === NONE ? (ui.view === 'flow' ? 'No flow' : 'No area') : g.startsWith('\u0001') ? `${cap(g.slice(1))} flow` : cap(g));
+    const groupKey = view === 'flow' ? (s) => s.flow || NONE : (s) => s.area || (s.flow ? `\u0001${s.flow}` : NONE);
+    const nameOf = (g) => (g === NONE ? (view === 'flow' ? 'No flow' : 'No area') : g.startsWith('\u0001') ? `${cap(g.slice(1))} flow` : cap(g));
     // Areas follow the manifest's list, the order of the product's navigation. A flow follows
     // the area of its first screen. A screen with no area or no flow goes last.
     const areaRank = (a) => { const i = (data.areas || []).indexOf(a); return i < 0 ? (a ? 1e6 : 2e6) : i; };
@@ -814,7 +911,7 @@ var WF_CANVAS_LOGIC = (() => {
     const rank = (g) => {
       if (g === NONE) return 9e9;
       const first = byGroup.get(g)[0];
-      if (ui.view === 'flow') return areaRank(first.area) * 1000 + (first.order ?? 999);
+      if (view === 'flow') return areaRank(first.area) * 1000 + (first.order ?? 999);
       return g.startsWith('\u0001') ? 3e6 : areaRank(g);
     };
     const groups = [...byGroup.keys()].sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b)));
@@ -822,7 +919,7 @@ var WF_CANVAS_LOGIC = (() => {
     groups.forEach((g, gi) => {
       const members = byGroup.get(g);
       const keys = members.map((s) => s.key);
-      if (ui.view === 'flow') {
+      if (view === 'flow') {
         const y = gi * (M.cardH + LABEL_H + 48);
         labels.push({ text: nameOf(g), n: members.length, x: 0, y, keys, width: members.length * w - GAP_X });
         members.forEach((s, i) => { pos[s.key] = { x: i * w, y: y + LABEL_H }; });
@@ -843,7 +940,7 @@ var WF_CANVAS_LOGIC = (() => {
   const failCount = (s, viewport, state) => (s.failureCounts ? s.failureCounts[`${viewport}|${state}`] ?? 0 : (s.failures || []).filter((f) => f.viewport === viewport && f.state === state).length);
   const failTotal = (s) => s.failureTotal ?? (s.failures || []).length;
   /** The place of a dragged card in this draw, or null. The Areas layout alone keeps dragged places. */
-  const draggedPlace = (s) => (ui.view === 'grid' && s.position && !M.phone ? L.fromStored(s.position, M.pitch) : null);
+  const draggedPlace = (s) => (ui.view === 'grid' && s.position ? L.fromStored(s.position, M.pitch) : null);
 
   /**
    * Draw the board. A card keeps its element and its page from one draw to the next: a page moves
@@ -855,34 +952,36 @@ var WF_CANVAS_LOGIC = (() => {
     if (!data) return;
     inspect?.bar(data);
     measure();
-    if (libraryView()) return;
+    drawShell();
+    const side = sideView();
+    if (libraryView() || side) return;
     const board = $('#board');
     $('#edges').replaceChildren();
     for (const el of $$(':scope > .area-label, :scope > .empty:not(.nomatch)', board)) el.remove();
     const list = boardScreens();
     const past = versionAt(ui.version);
-    const { left, right } = laneEls(board, past);
-    const laneStep = M.laneW + GAP_X;
-    left.forEach((el, i) => { el.style.left = `${-(left.length - i) * laneStep}px`; });
+    board.hidden = M.phone;
+    $('#list').hidden = !M.phone;
+    if (M.phone) {
+      // The list of a phone holds no page: the cards of a wide window go.
+      for (const c of $$(':scope > .card', board)) { unwatch(c); c.remove(); }
+      drawArrange(false);
+      applyFilter();
+      return;
+    }
+    $('#list').replaceChildren();
     if (!list.length) {
       for (const c of $$(':scope > .card', board)) { unwatch(c); c.remove(); }
       board.append(h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Start it in the chat with /wf design.'));
-      right.forEach((el, i) => { if (M.phone) el.style.order = String(100000 + i); else el.style.left = `${420 + GAP_X + i * laneStep}px`; });
       drawArrange(false);
-      if (!ui.fitted && !M.phone) { ui.fitted = true; fit(); } else place();
+      if (!ui.fitted) { ui.fitted = true; fit(); } else place();
       applyFilter();
       return;
     }
     const { pos, places, labels } = autoLayout(list);
     const at = (s) => draggedPlace(s) || pos[s.key];
-    // On a phone the headings are in the list, each before its screens.
-    let order = 0;
-    const orderOf = new Map();
-    if (M.phone) {
-      for (const l of labels) { l.order = order; order += 1; for (const k of l.keys) { orderOf.set(`${k}@${l.y}`, order); order += 1; } }
-    }
     for (const l of labels) {
-      const el = h('h2', { class: `area-label${l.slug ? ' slug' : ''}`, style: M.phone ? `order:${l.order}` : `left:${l.x}px;top:${l.y}px;max-width:${Math.max(l.width, M.cardW)}px` },
+      const el = h('h2', { class: `area-label${l.slug ? ' slug' : ''}`, style: `left:${l.x}px;top:${l.y}px;max-width:${Math.max(l.width, M.cardW)}px` },
         h('span', {}, l.text), h('small', {}, l.sub ?? plural(l.n, 'screen')));
       el.keys = l.keys;
       board.append(el);
@@ -890,7 +989,6 @@ var WF_CANVAS_LOGIC = (() => {
     const byKey = new Map(list.map((s) => [s.key, s]));
     const old = new Map($$(':scope > .card', board).map((c) => [c.dataset.slot, c]));
     const count = new Map();
-    let edge = 0;
     places.forEach((place0) => {
       const s = byKey.get(place0.key);
       // A screen of two slices has two cards: the slot tells them apart.
@@ -898,7 +996,6 @@ var WF_CANVAS_LOGIC = (() => {
       count.set(s.key, n + 1);
       const slot = `${s.key}#${n}`;
       const p = draggedPlace(s) || place0;
-      edge = Math.max(edge, p.x + M.cardW);
       let card = old.get(slot);
       old.delete(slot);
       if (card && card.dataset.at !== (ui.version || '')) { unwatch(card); card.remove(); card = null; }
@@ -906,14 +1003,12 @@ var WF_CANVAS_LOGIC = (() => {
         card = newCard(s, slot);
         board.append(card);
       }
-      const labelY = ui.view === 'slice' ? place0.y - LABEL_H : labels.find((l) => l.keys.includes(s.key))?.y ?? 0;
-      updateCard(card, s, past, p, orderOf.get(`${s.key}@${labelY}`) ?? 0);
+      updateCard(card, s, past, p);
     });
     for (const c of old.values()) { unwatch(c); c.remove(); }
-    right.forEach((el, i) => { if (M.phone) el.style.order = String(100000 + i); else el.style.left = `${edge + GAP_X + i * laneStep}px`; });
-    if (ui.view === 'flow' && !M.phone) drawEdges(list, at);
-    drawArrange(Boolean(data.writable && ui.view === 'grid' && !M.phone && !past && list.some((s) => s.position)));
-    if (!ui.fitted && !M.phone) { ui.fitted = true; firstFit(); } else place();
+    if (ui.view === 'flow') drawEdges(list, at);
+    drawArrange(Boolean(data.writable && ui.view === 'grid' && !past && list.some((s) => s.position)));
+    if (!ui.fitted) { ui.fitted = true; firstFit(); } else place();
     applyFilter();
     fillWaiting();
   }
@@ -928,12 +1023,39 @@ var WF_CANVAS_LOGIC = (() => {
     lib?.draw(on);
     return on;
   }
-  /** Show one view of the canvas: the board by areas, flows or slices, the library or the tokens. */
+  /** The Review view and the two views before the screens draw in place of the board. True while one of them shows. */
+  function sideView() {
+    const review = ui.view === 'review';
+    const before = ui.view === 'sketches' || ui.view === 'references';
+    $('#review').hidden = !review;
+    $('#before').hidden = !before;
+    $('#stage').hidden = review || before;
+    if (review) drawReview(); else $('#review').replaceChildren();
+    if (before) drawBefore(ui.view); else { $('#before').replaceChildren(); delete $('#before').dataset.sig; }
+    return review || before;
+  }
+  /**
+   * Show one view of the canvas: the screens by areas, flows or slices, the library, the tokens,
+   * the review, the sketches or the references. `screens` is the grouping that showed last.
+   */
   function setView(view) {
+    if (view === 'screens') view = ui.group;
+    if (GROUPS.includes(view)) ui.group = view;
+    // A review ends when the person goes to another view.
+    if (view !== 'review') ui.review = null;
+    const other = viewName() !== (GROUPS.includes(view) ? 'screens' : view);
     ui.view = view;
     ui.fitted = false;
-    for (const x of $$('[data-view]')) { const on = x.dataset.view === view; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }
+    if (other && ui.panel) closePanel();
     render();
+    barHeight();
+  }
+  /** Go to a view from the navigation: the address names the views that have no address of their own. */
+  function go(view) {
+    if (!SNAP) {
+      try { history.replaceState(history.state, '', ['review', 'sketches', 'references'].includes(view) ? `#view=${view}` : location.pathname + location.search); } catch { /* no history */ }
+    }
+    setView(view);
   }
   /** A new card: its frame makes the page of the screen when the frame comes near the view. */
   function newCard(s, slot) {
@@ -958,14 +1080,29 @@ var WF_CANVAS_LOGIC = (() => {
     f.style.transform = `scale(${M.scale})`;
     return f;
   }
+  /** Everything that a screen has, in words: the title of its pill and the label of its card and its row. */
+  function detailText(s, past) {
+    const failures = past ? 0 : failTotal(s);
+    const approved = (s.approvals || []).at(-1);
+    const draft = past ? null : draftOf(s);
+    const fresh = past ? null : unseenOf(s);
+    const findings = past ? 0 : auditOf(s.key).length;
+    const state = past ? (past.draft ? 'a draft' : past.name) : s.exists === false ? 'its file is gone' : draft ? 'a draft that waits for your decision' : approved ? 'approved' : 'not approved yet';
+    return [state, fresh ? (fresh === 'new' ? 'new' : 'changed since you last opened it') : null, failures ? L.failText(failures) : null,
+      s.openComments && !past ? plural(s.openComments, 'open comment') : null, findings ? plural(findings, 'audit finding') : null].filter(Boolean).join(', ');
+  }
+  /** The facts of a screen that its status, the filter chips and the review read. */
+  const factsOf = (s) => ({ key: s.key, exists: s.exists, failing: failTotal(s), comments: s.openComments || 0, fresh: unseenOf(s), draft: Boolean(draftOf(s)), approved: Boolean((s.approvals || []).length), waiting: waits(s) });
+  /** The one status of a screen. A version of the past shows its name: the checks and the comments are of the screen as it is now. */
+  const statusFor = (s, past) => (past ? { kind: past.draft ? 'draft' : 'approved', text: past.draft ? 'Draft' : past.name } : L.statusOf(factsOf(s)));
+  const pill = (st, title = null) => h('span', { class: `pill ${st.kind}`, title }, st.text);
   /** Move, size and relabel a card for this draw, and give its page this state. */
-  function updateCard(card, s, past, p, order) {
+  function updateCard(card, s, past, p) {
     const frame = card.firstChild;
     card.screen = s;
     card.classList.toggle('dim', !matches(s));
-    if (M.phone) card.style.cssText = `order:${order}`;
-    else if (!card.dragging) card.style.cssText = `left:${p.x}px;top:${p.y}px`;
-    const canDrag = !M.phone && data.writable && ui.view === 'grid' && !past;
+    if (!card.dragging) card.style.cssText = `left:${p.x}px;top:${p.y}px`;
+    const canDrag = data.writable && ui.view === 'grid' && !past;
     if (canDrag) card.dataset.drag = '1'; else delete card.dataset.drag;
     frame.style.height = `${M.frameH}px`;
     frame.dataset.state = ui.state;
@@ -979,40 +1116,25 @@ var WF_CANVAS_LOGIC = (() => {
     const ph = frame.querySelector(':scope > .ph');
     if (ph) ph.textContent = frame.name;
     fillFrame(frame);
-    // The comments, the checks and the audit are of the screen as it is now, not of a past version.
-    const failures = past ? 0 : failTotal(s);
-    const here = past ? 0 : failCount(s, ui.viewport, ui.state);
-    const approved = (s.approvals || []).at(-1);
-    const draft = past ? null : draftOf(s);
-    const fresh = past ? null : unseenOf(s);
-    const findings = past ? 0 : auditOf(s.key).length;
-    const state = past ? (past.draft ? 'a draft' : past.name) : draft ? 'a draft that waits for your decision' : approved ? 'approved' : 'not approved yet';
-    frame.setAttribute('aria-label', `Open ${titleOf(s)}: ${[state, fresh ? (fresh === 'new' ? 'new' : 'changed since you last opened it') : null, failures ? L.failText(failures) : null, s.openComments && !past ? plural(s.openComments, 'open comment') : null].filter(Boolean).join(', ')}`);
+    // One status on the card: the most urgent thing of the screen. The label of the card and the title of the pill say all of it.
+    const st = statusFor(s, past);
+    const detail = detailText(s, past);
+    frame.setAttribute('aria-label', `Open ${titleOf(s)}: ${detail}`);
     const head = h('header', { class: 'cap' },
-      h('div', { class: 'cap-row' }, h('b', { title: titleOf(s) }, titleOf(s)),
-        fresh ? h('span', { class: 'mark changed', title: fresh === 'new' ? 'A new screen that you did not open yet' : 'The screen changed since you last opened it' }, fresh === 'new' ? 'New' : 'Changed') : null,
-        !past && s.openComments ? h('span', { class: 'mark note', title: 'Open comment threads' }, plural(s.openComments, 'comment')) : null,
-        failures ? h('span', { class: 'mark issue', title: `Checks that fail on this screen, in every viewport and state. ${here} in the ${ui.viewport} viewport and the ${ui.state} state.` }, L.failText(failures)) : null,
-        findings ? h('span', { class: 'mark audit', title: 'Findings of the last design audit' }, plural(findings, 'finding')) : null,
-        past ? h('span', { class: past.draft ? 'mark draft' : 'mark ok', title: past.reason }, past.draft ? 'Draft' : past.name)
-          : draft ? h('span', { class: 'mark draft', title: `${draft.name}: ${draft.reason}. It waits for your decision.` }, 'Draft')
-            : approved ? h('span', { class: 'mark ok', title: `Approved in ${String(approved.commit || '').slice(0, 8)}` }, 'Approved')
-              : s.exists === false ? h('span', { class: 'mark issue', title: 'The manifest names this screen, and its file is gone' }, 'No file')
-                : h('span', { class: 'mark draft', title: 'No approval yet. It waits for your decision.' }, 'Not approved')),
-      h('div', { class: 'meta', title: metaOf(s) }, metaOf(s)));
+      h('div', { class: 'cap-row' }, h('b', { title: titleOf(s) }, titleOf(s)), pill(st, detail)),
+      h('div', { class: 'meta', title: metaOf(s) }, lineOf(s, st)));
     card.lastChild.replaceWith(head);
   }
 
-  // ------------------------------------------------------------ the lanes
+  // ------------------------------------------------------------ before the screens
 
-  /** A page scaled down to the width of a lane, as a button that opens its detail. */
+  const ITEM_W = 280;
+  /** A page scaled down to the width of an item, as a button that opens its detail. The page loads when it comes near the view. */
   function thumb(src, width, height, label, onclick) {
-    const w = M.laneW;
-    const box = h('button', { type: 'button', class: 'frame', 'aria-label': label, style: `height:${Math.round(w * height / width)}px`, onclick });
+    const box = h('button', { type: 'button', class: 'frame', 'aria-label': label, style: `height:${Math.round(ITEM_W * height / width)}px`, onclick });
     if (!src) { box.classList.add('blank'); return box; }
-    box.make = () => h('iframe', { src, title: label, tabindex: '-1', scrolling: 'no', sandbox: 'allow-scripts allow-same-origin',
-      style: `width:${width}px;height:${height}px;transform:scale(${w / width})` });
-    watch(box);
+    box.append(h('iframe', { src, title: label, tabindex: '-1', scrolling: 'no', loading: 'lazy', sandbox: 'allow-scripts allow-same-origin',
+      style: `width:${width}px;height:${height}px;transform:scale(${ITEM_W / width})` }));
     return box;
   }
   const TOKEN_KIND_WORDS = { color: 'Color', font: 'Font', type: 'Type size', weight: 'Weight', leading: 'Line height', space: 'Space', size: 'Size', radius: 'Radius', shadow: 'Shadow', motion: 'Motion', layer: 'Layer', other: 'Other' };
@@ -1073,22 +1195,6 @@ var WF_CANVAS_LOGIC = (() => {
     }
     return h('span', { class: 'tval', 'aria-hidden': 'true' }, String(t.value ?? ''));
   }
-  /** One token of the Tokens lane: its specimen, its name and what it is for. A click shows only the screens that use it. */
-  function tokenItem(t, kind) {
-    const tr = { kind: 'token', key: t.name };
-    const n = data.screens.filter((s) => (s.tokens || []).includes(t.name)).length;
-    const value = String(t.value ?? '');
-    const themed = kind === 'color' ? L.themeValues(t, data.themes || []).filter((x) => x.theme) : [];
-    const valueText = themed.length > 1 ? themed.map((x) => `${x.theme} ${x.value}`).join(', ') : value;
-    // The value kinds show the value as their specimen: the line below then says what the token is for, or nothing.
-    const textKind = !['color', 'font', 'type', 'space', 'size', 'radius', 'shadow'].includes(kind);
-    const sub = t.usedFor || (textKind ? '' : valueText);
-    const wide = kind === 'space' || kind === 'size';
-    return h('button', { type: 'button', class: `tok k-${kind}${wide ? ' wide' : ''}`, 'data-trace': traceId(tr),
-      'aria-label': `${t.name}, ${valueText}${t.usedFor ? `, ${t.usedFor}` : ''}. ${n ? `Used by ${plural(n, 'screen')}` : 'No screen uses it'}. Show only those screens.`,
-      onclick: () => traceTo(tr), ...traceHover(tr) },
-    tokenSpecimen(t, kind), h('span', { class: 'tname' }, t.name, sub ? h('small', { title: sub }, sub) : null));
-  }
   /** The address of a component page, with the one theme it shows. */
   const componentSrc = (key, theme) => `${BASE}s/components/${key}.html${theme && theme !== 'default' ? `?theme=${encodeURIComponent(theme)}` : ''}`;
   /** The marks of a component: in code or to build, a layout, and what its spec lacks. */
@@ -1101,73 +1207,36 @@ var WF_CANVAS_LOGIC = (() => {
   }
   const itemCap = (title, mark, meta) => h('div', { class: 'cap' }, h('div', { class: 'cap-row' }, h('b', { title }, title), mark), meta ? h('div', { class: 'meta', title: meta }, meta) : null);
   /**
-   * The lanes of the board. Before the screens: the sketches of brainstorms and intakes, and the
-   * references that the screens draw on. After the screens: the components that the screens reuse,
-   * and the tokens. A lane with nothing in it does not show.
+   * The two views before the screens: the sketches of brainstorms and intakes, and the references
+   * that the screens draw on. An item opens its detail in the panel. The view stays while its data
+   * is the same, so its pages do not load again.
    */
-  function lanes() {
+  function drawBefore(kind) {
+    const box = $('#before');
+    const sig = `${kind}|${lanesSig}`;
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    const sketches = kind === 'sketches';
     const sketchOf = (x) => x.title || x.key;
-    const sketches = data.explore.map((x) => h('article', { class: 'item' },
+    const items = sketches ? data.explore.map((x) => h('article', { class: 'item' },
       thumb(SNAP ? null : `${BASE}s/explore/${x.key}.html`, 1280, 800, `Open the sketch ${sketchOf(x)}`, () => panel(`sketch:${x.key}`)),
-      itemCap(sketchOf(x), null, x.link ? `For ${x.link}` : null)));
-    const references = data.references.map((r) => {
-      const open = () => panel(`reference:${r.key}`);
-      const label = `Open the reference ${r.key}`;
-      const pic = !SNAP && r.readable && r.kind === 'image';
-      const page = !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind);
-      const frame = page ? thumb(`${BASE}ref/${encodeURIComponent(r.key)}`, 1280, 800, label, open)
-        : h('button', { type: 'button', class: `frame${pic ? '' : ' doc'}`, 'aria-label': label, style: `height:${Math.round(M.laneW * 0.625)}px`, onclick: open },
-          pic ? h('img', { src: `${BASE}ref/${encodeURIComponent(r.key)}`, alt: '', loading: 'lazy' }) : h('span', {}, cap(r.kind || 'other')));
-      return h('article', { class: 'item' }, frame,
-        itemCap(r.key, r.readable ? null : h('span', { class: 'mark issue', title: r.problem }, 'Unreadable'), r.note || null));
-    });
-    const components = data.components.map((c) => {
-      const t = { kind: 'component', key: c.key };
-      return h('article', { class: 'item', 'data-trace': traceId(t), ...traceHover(t) },
-        // The page shows one theme panel at a time: the default theme, at the top of the frame.
-        thumb(SNAP ? null : componentSrc(c.key, data.defaultTheme), 400, 300, `Open the component ${c.title}`, () => panel(`component:${c.key}`)),
-        itemCap(c.title, componentMarks(c), c.screens.length ? `Used by ${plural(c.screens.length, 'screen')}` : 'No screen uses it yet'));
-    });
-    if (!components.length && data.noComponents) components.push(h('p', { class: 'none' }, `No components: ${data.noComponents}`));
-    const tokens = data.tokens.length ? [h('div', { class: 'toklist' }, ...L.tokenGroups(data.tokens).flatMap((g) => [
-      h('h3', { class: 'tokgroup' }, TOKEN_KIND_WORDS[g.kind] || cap(g.kind), h('span', { class: 'count' }, String(g.tokens.length))),
-      ...g.tokens.map((t) => tokenItem(t, g.kind)),
-    ])), h('p', { class: 'none' }, 'From DESIGN.md. Change them there.')] : [];
-    const lane = (title, sub, items, n, open = null) => (items.length ? { title, sub, items, n, open } : null);
-    return {
-      left: [lane('Sketches', 'before any screen', sketches, sketches.length), lane('References', 'what the screens draw on', references, references.length)].filter(Boolean),
-      right: [lane('Components', data.components.length ? plural(data.components.length, 'component') : '', components, data.components.length, data.components.length ? { text: 'Open the library', view: 'library' } : null),
-        lane('Tokens', 'select one to show its screens', tokens, data.tokens.length, { text: 'Open the token table', view: 'tokens' })].filter(Boolean),
-    };
-  }
-  // On a phone a lane is one closed row of the list: the screens come first.
-  function laneView(l, side) {
-    // A lane of the design system links to its own view, where it shows whole.
-    const open = l.open ? h('button', { type: 'button', class: 'linkish lane-open', onclick: () => setView(l.open.view) }, l.open.text) : null;
-    if (M.phone) {
-      return h('details', { class: 'lane', 'data-side': side }, h('summary', { class: 'lane-label' }, l.title, l.n ? h('span', { class: 'count' }, String(l.n)) : null), open, ...l.items);
-    }
-    return h('section', { class: 'lane', 'aria-label': l.title, 'data-side': side, style: `top:0;width:${M.laneW}px` },
-      h('h2', { class: 'lane-label' }, l.title, l.sub ? h('small', {}, l.sub) : null), open, ...l.items);
-  }
-  /**
-   * The lane elements of the board, left and right of the screens. They stay while their data is
-   * the same, so their pages do not load again; `render` places them. On a phone the board is one
-   * list, and every lane comes after the screens.
-   */
-  function laneEls(board, past) {
-    const on = ui.view === 'grid' && !past;
-    const sig = on ? `${M.phone}|${M.laneW}|${lanesSig}` : '';
-    if (board.dataset.lanes !== sig) {
-      for (const el of $$(':scope > .lane', board)) { unwatch(el); el.remove(); }
-      board.dataset.lanes = sig;
-      if (on) {
-        const { left, right } = lanes();
-        board.append(...left.map((l) => laneView(l, 'left')), ...right.map((l) => laneView(l, 'right')));
-      }
-    }
-    const els = $$(':scope > .lane', board);
-    return M.phone ? { left: [], right: els } : { left: els.filter((e) => e.dataset.side === 'left'), right: els.filter((e) => e.dataset.side === 'right') };
+      itemCap(sketchOf(x), null, x.link ? `For ${x.link}` : null)))
+      : data.references.map((r) => {
+        const open = () => panel(`reference:${r.key}`);
+        const label = `Open the reference ${r.key}`;
+        const pic = !SNAP && r.readable && r.kind === 'image';
+        const page = !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind);
+        const frame = page ? thumb(`${BASE}ref/${encodeURIComponent(r.key)}`, 1280, 800, label, open)
+          : h('button', { type: 'button', class: `frame${pic ? '' : ' doc'}`, 'aria-label': label, style: `height:${Math.round(ITEM_W * 0.625)}px`, onclick: open },
+            pic ? h('img', { src: `${BASE}ref/${encodeURIComponent(r.key)}`, alt: '', loading: 'lazy' }) : h('span', {}, cap(r.kind || 'other')));
+        return h('article', { class: 'item' }, frame,
+          itemCap(r.key, r.readable ? null : h('span', { class: 'pill failing', title: r.problem }, 'Unreadable'), r.note || null));
+      });
+    box.setAttribute('aria-label', sketches ? 'Sketches' : 'References');
+    box.replaceChildren(h('div', { class: 'before-wrap' },
+      h('h2', { tabindex: '-1' }, sketches ? 'Sketches' : 'References'),
+      h('p', { class: 'lede' }, sketches ? 'The sketches of brainstorms and intakes, before any screen.' : 'What the screens draw on.'),
+      items.length ? h('div', { class: 'items' }, ...items) : h('p', { class: 'none' }, sketches ? 'No sketch yet.' : 'No reference yet.')));
   }
 
   function drawEdges(list, at) {
@@ -1203,7 +1272,7 @@ var WF_CANVAS_LOGIC = (() => {
   }
   function placeNow() {
     const stage = $('#stage');
-    if (phone()) {
+    if (narrow()) {
       $('#board').style.transform = 'none';
       stage.style.backgroundSize = '';
       stage.style.backgroundPosition = '';
@@ -1238,13 +1307,14 @@ var WF_CANVAS_LOGIC = (() => {
     }
     return { x0, y0, x1, y1 };
   }
-  /** Show every screen and lane, or the given cards: the zoom that fits the stage, never above 100 %. */
-  function fit(items = $$('#board > .card, #board > .area-label, #board > .lane, #board > .empty')) {
+  /** Show every screen, or the given cards: the zoom that fits the stage, never above 100 %. */
+  function fit(items = $$('#board > .card, #board > .area-label, #board > .empty')) {
     if (!items.length) { place(); return; }
     const { x0, y0, x1, y1 } = boundsOf(items);
     const r = $('#stage').getBoundingClientRect();
     const pad = 48;
-    const dock = 80;
+    // The zoom control sits at the bottom of the board.
+    const dock = 56;
     ui.zoom = Math.min(1, clampZoom(Math.min((r.width - pad * 2) / (x1 - x0), (r.height - pad - dock) / (y1 - y0))));
     ui.x = Math.max(pad, (r.width - (x1 - x0) * ui.zoom) / 2) - x0 * ui.zoom;
     ui.y = pad - y0 * ui.zoom;
@@ -1255,19 +1325,20 @@ var WF_CANVAS_LOGIC = (() => {
    * fits the ones that wait. A board too large to read when it all fits opens at a zoom that reads,
    * at its first screens; Fit still shows it all.
    */
-  const READABLE = 0.4;
+  const READABLE = 0.6;
+  /** The zoom that shows four columns of cards across the board, between 50 % and 100 %. */
+  const readZoom = () => Math.min(1, Math.max(0.5, ($('#stage').clientWidth - 96) / (4 * (M.cardW + GAP_X) - GAP_X)));
   function firstFit() {
     const cards = $$('#board > .card');
     const need = cards.filter((c) => c.screen && waits(c.screen));
     const some = need.length && need.length < cards.length && !versionAt(ui.version);
-    // The lanes are beside the screens, a pan away: the first view is of the screens.
     const screens = $$('#board > .card, #board > .area-label');
     fit(some ? need : screens);
     if (ui.zoom >= READABLE) return;
     const { x0, y0 } = boundsOf(some ? need : screens);
-    ui.zoom = 0.5;
-    ui.x = 48 - x0 * ui.zoom;
-    ui.y = 48 - (y0 - (some ? LABEL_H : 0)) * ui.zoom;
+    ui.zoom = readZoom();
+    ui.x = 24 - x0 * ui.zoom;
+    ui.y = 24 - (y0 - (some ? LABEL_H : 0)) * ui.zoom;
     place();
   }
   // A drag pans from anywhere on the board, a screen too: only the caption of a card that can move moves the card.
@@ -1279,7 +1350,7 @@ var WF_CANVAS_LOGIC = (() => {
     let panned = false;
     const mark = () => ({ x: ui.x, y: ui.y, zoom: ui.zoom, pts: [...pointers.values()].map((p) => ({ ...p })) });
     stage.addEventListener('pointerdown', (e) => {
-      if (phone() || e.target.closest('.card[data-drag] .cap') || (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1)) return;
+      if (narrow() || e.target.closest('.card[data-drag] .cap') || (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1)) return;
       // No text selection and no native drag: they show the not-allowed cursor and steal the move.
       if (e.pointerType === 'mouse') e.preventDefault();
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1327,7 +1398,7 @@ var WF_CANVAS_LOGIC = (() => {
     stage.addEventListener('dragstart', (e) => e.preventDefault());
     // The focus on a card away from the view scrolls the stage: the scroll becomes a move of the board.
     stage.addEventListener('scroll', () => {
-      if (phone() || (!stage.scrollLeft && !stage.scrollTop)) return;
+      if (narrow() || (!stage.scrollLeft && !stage.scrollTop)) return;
       ui.x -= stage.scrollLeft;
       ui.y -= stage.scrollTop;
       stage.scrollLeft = 0;
@@ -1336,7 +1407,7 @@ var WF_CANVAS_LOGIC = (() => {
     });
     // The wheel and a two-finger trackpad move pan; a pinch or Ctrl or Cmd with the wheel zooms.
     stage.addEventListener('wheel', (e) => {
-      if (phone()) return;
+      if (narrow()) return;
       e.preventDefault();
       const r = stage.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) {
@@ -1486,8 +1557,16 @@ var WF_CANVAS_LOGIC = (() => {
   let focusFrom = null;
   /** While the screen view is open, the board behind it takes no focus and no pointer. */
   function setInert(on) {
-    for (const el of $$('.bar, #stage, #library, .dock, #panel')) { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); }
+    for (const el of $$('#side, #tabs, .bar, #chips, #stage, #zoom, #library, #review, #before, #panel')) { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); }
     document.body.classList.toggle('viewing', on);
+  }
+  /** The keys of the review queue, for a screen that was opened from it: during a review, or with `queue: true` or the keys themselves. */
+  function queueOf(opts) {
+    const keys = (list) => (Array.isArray(list) ? list : []).map((x) => (typeof x === 'string' ? x : x?.key)).filter(Boolean);
+    if (Array.isArray(opts.queue)) return keys(opts.queue);
+    if (!opts.queue && !window.WF_CANVAS?.reviewing?.()) return null;
+    const q = window.WF_CANVAS?.reviewQueue?.();
+    return keys(Array.isArray(q) ? q : q?.keys);
   }
   /** Open the screen view on one screen. It adds a step to the history, so Back closes the view. */
   function openScreen(key, opts = {}, { push = true } = {}) {
@@ -1497,7 +1576,9 @@ var WF_CANVAS_LOGIC = (() => {
     if (!focusState) focusFrom = document.activeElement;
     const names = Object.keys(data.viewports);
     focusState = { key, viewport: names.includes(opts.viewport) ? opts.viewport : ui.viewport, state: data.states.includes(opts.state) ? opts.state : ui.state,
-      checks: true, audit: true, commenting: false, pick: null, compare: '', built: false, all: false, play: false, sizes: false, trail: [], restoring: '', rounds: [], scroll: 0, zoom: 'fit', full: false, open: {}, reply: {}, sel: null, naming: false };
+      checks: false, audit: false, commenting: false, pick: null, compare: '', built: false, all: false, play: false, sizes: false, trail: [], restoring: '', rounds: [], scroll: 0, zoom: 'fit', full: false, open: {}, reply: {}, sel: null, naming: false,
+      // The open tab of the dock, the sheet of a phone and its size, the control that opened it, and the review queue.
+      tab: '', sheet: false, size: 'half', from: null, queue: queueOf(opts) };
     focusDrawn = null;
     setInert(true);
     $('#focus').hidden = false;
@@ -1537,6 +1618,9 @@ var WF_CANVAS_LOGIC = (() => {
   }
   /** The address names the open screen: after Back, Forward, or a link. */
   function fromHash() {
+    // `#view=<name>` shows a view of the navigation.
+    const view = data ? L.parseView(location.hash) : null;
+    if (view) { if (focusState) closeNow(); if (viewName() !== view) setView(view); return; }
     // `#component=<key>` and `#token=<name>` open the library.
     if (data && window.WF_CANVAS_LIBRARY?.fromHash()) { if (focusState) closeNow(); return; }
     const want = SNAP ? null : L.parseHash(location.hash);
@@ -1557,15 +1641,31 @@ var WF_CANVAS_LOGIC = (() => {
     const shown = order.filter((s) => matches(s) || s.key === focusState?.key);
     return shown.length > 1 ? shown : order;
   }
-  /** Open the screen `step` places away in the walk, with the same viewport, state and toggles. */
-  function step(by) {
-    const list = walk();
-    if (list.length < 2) return;
-    const i = list.findIndex((s) => s.key === focusState.key);
-    const next = list[(i + by + list.length) % list.length];
-    focusState = { ...focusState, key: next.key, compare: '', restoring: '', commenting: false, pick: null, trail: [], scroll: 0, sel: null, open: {}, reply: {} };
+  /** The screens around the open one: its flow, its area, or the review queue it was opened from. */
+  const nearScreens = () => L.neighbours(walk(), focusState.key, focusState.queue);
+  /** Open another screen in the view, with the same viewport, state and toggles. */
+  function goScreen(key) {
+    focusState = { ...focusState, key, compare: '', restoring: '', commenting: false, pick: null, trail: [], scroll: 0, sel: null, open: {}, reply: {} };
     drawFocus();
     syncHash();
+  }
+  /** Open the previous (-1) or the next (1) screen of the walk. */
+  function step(by) {
+    const near = nearScreens();
+    const to = by < 0 ? near.prev : near.next;
+    if (to) goScreen(to.key);
+  }
+  /**
+   * Leave the comment or the inspect mode and close the sheet of a phone. The focus goes back to
+   * the control that opened it.
+   */
+  function leaveMode() {
+    const f = focusState;
+    if (!f) return;
+    const from = f.from;
+    Object.assign(f, { commenting: false, inspecting: false, pick: null, sheet: false, from: null, tab: f.tab === 'inspect' ? '' : f.tab });
+    drawFocus();
+    ((from && $(`#focus [data-fk="${CSS.escape(from)}"]`)) || $('#focus [data-fk="mode:view"]') || $('#focus h2'))?.focus({ preventScroll: true });
   }
   /**
    * Try the links: the screen's own links work. A link to another screen opens that screen in the view,
@@ -1660,9 +1760,6 @@ var WF_CANVAS_LOGIC = (() => {
     }
     sizeShot(box);
   }
-  const segOf = (name, values, value, on, label) => h('div', { class: 'seg', role: 'group', 'aria-label': label },
-    ...values.map((v) => h('button', { type: 'button', fk: `${name}:${v}`, class: v === value ? 'on' : null, 'aria-pressed': String(v === value), onclick: () => on(v) }, cap(v))));
-  const toggle = (name, text, on, fn, title = null) => h('button', { type: 'button', class: 'btn', fk: `t:${name}`, 'aria-pressed': String(Boolean(on)), title, onclick: fn }, text);
   function sel(name, values, value, on, labels = {}, label = null) {
     const s = h('select', { fk: `s:${name}`, 'aria-label': label, onchange: (e) => on(e.target.value) }, ...values.map((v) => h('option', { value: v }, labels[v] ?? v)));
     s.value = value;
@@ -1670,45 +1767,39 @@ var WF_CANVAS_LOGIC = (() => {
   }
 
   /** The other viewports that the screen view shows beside the screen. */
-  const otherSizes = (f) => (f.sizes && !phone() ? Object.keys(data.viewports).filter((n) => n !== f.viewport) : []);
+  const otherSizes = (f) => (f.sizes && !narrow() ? Object.keys(data.viewports).filter((n) => n !== f.viewport) : []);
   /** The room that the screens of the view have, in pixels. */
   function viewRoom(f) {
-    const ph = phone();
     const view = $('#focus .view');
     // On a phone the screen fits the width, and its length scrolls.
-    if (ph) return { w: document.documentElement.clientWidth - 32, h: Infinity };
-    const w = view ? view.clientWidth - 48 : window.innerWidth - 32 - 340 - 48;
-    const hgt = view ? view.clientHeight - 64 : window.innerHeight - 32 - 150 - 64;
+    if (narrow()) return { w: Math.max(200, (view?.clientWidth || document.documentElement.clientWidth) - 24), h: Infinity };
+    // Beside the list and the dock; above the floating toolbar, and under the caption when there are two screens.
+    const many = f.compare || f.built || otherSizes(f).length;
+    const w = view ? view.clientWidth - 32 : window.innerWidth - 208 - 340 - 32;
+    const hgt = (view ? view.clientHeight : window.innerHeight - 57) - 120 - (many ? 24 : 0);
     return { w: Math.max(200, w), h: Math.max(200, hgt) };
   }
   /** The scale of the screens in the screen view: the fit of the room, or the zoom that the person chose. */
   function focusScale(f) {
     if (typeof f.zoom === 'number') return f.zoom;
     const size = vp(f.viewport);
-    const ph = phone();
+    const ph = narrow();
     const room = viewRoom(f);
     const widths = ph ? [size.width] : [size.width, ...(f.compare || f.built ? [size.width] : []), ...otherSizes(f).map((n) => vp(n).width)];
-    return L.fitScale({ availW: room.w, availH: ph && !f.full ? Infinity : room.h, widths, height: size.height });
+    // The fit is of the width, so a screen that fits shows at its own size and its length scrolls; 'whole' fits the height too.
+    return L.fitScale({ availW: room.w, availH: f.zoom === 'whole' ? room.h : Infinity, widths, height: size.height });
   }
   // The layout of the last drawn screen view: a draw that keeps it keeps the page of the screen.
   let focusDrawn = null;
-  // What scrolls the artboards: the view, and on a phone the whole sheet until the screen is at full size.
-  const focusScroller = () => $(phone() && !focusState?.full ? '#focus .sheet' : '#focus .view');
+  // What scrolls the artboards: the stage of the view.
+  const focusScroller = () => $('#focus .view');
   /** One part of the side of the view: a heading with a count that opens and closes its content. */
   function section(f, id, title, count, body, { long = false, tone = '' } = {}) {
-    const open = f.open[id] ?? (phone() ? !long : true);
+    const open = f.open[id] ?? (narrow() ? !long : true);
     const d = h('details', { class: `sec${tone ? ` ${tone}` : ''}`, 'data-sec': id, open },
       h('summary', { fk: `sec:${id}` }, h('span', {}, title), count ? h('span', { class: 'count' }, String(count)) : null), h('div', { class: 'sec-body' }, body));
     // Only a press of the person is kept: the state before the press is the opposite of what it asks for.
     d.firstChild.addEventListener('click', () => { f.open[id] = !d.open; });
-    return d;
-  }
-  /** The tools that a phone keeps behind "More". */
-  function moreTools(f, tools) {
-    const on = tools.filter((t) => t.getAttribute('aria-pressed') === 'true').length;
-    const d = h('details', { class: 'moretools', open: Boolean(f.open.tools) },
-      h('summary', { class: 'btn', fk: 'sec:tools' }, 'More', on ? h('span', { class: 'count' }, String(on)) : null), h('div', { class: 'row' }, tools));
-    d.firstChild.addEventListener('click', () => { f.open.tools = !d.open; });
     return d;
   }
   /** Open a part of the side, and bring one of its rows into view. */
@@ -1728,7 +1819,7 @@ var WF_CANVAS_LOGIC = (() => {
     const s = boardScreens().find((x) => x.key === f.key);
     if (!s) { closeFocus(); return; }
     const root = $('#focus');
-    const ph = phone();
+    const ph = narrow();
     const past = versionAt(ui.version);
     const other = versionAt(f.compare);
     const draft = past ? null : draftOf(s);
@@ -1739,7 +1830,7 @@ var WF_CANVAS_LOGIC = (() => {
     const fkWas = active && root.contains(active) ? active.dataset.fk || '@' : null;
     const caret = fkWas && 'selectionStart' in active ? [active.selectionStart, active.selectionEnd] : null;
     const same = focusDrawn?.key === f.key;
-    const scrolls = same ? { side: $('#focus .side')?.scrollTop || 0, sheet: $('#focus .sheet')?.scrollTop || 0, viewX: $('#focus .view')?.scrollLeft || 0, viewY: $('#focus .view')?.scrollTop || 0 } : null;
+    const scrolls = same ? { side: $('#focus .sv-body')?.scrollTop || 0, tab: focusDrawn.tab, viewX: $('#focus .view')?.scrollLeft || 0, viewY: $('#focus .view')?.scrollTop || 0 } : null;
     // The page of the screen stays while the screen, the version, the viewport and the link mode
     // stay: a toggle, a zoom or a new state redraws the sheet around the page, and the page does not reload.
     const liveKey = [s.key, ui.version, f.viewport, f.play, ph].join('|');
@@ -1794,6 +1885,26 @@ var WF_CANVAS_LOGIC = (() => {
       style: `left:${r.x * live.scale}px;top:${r.y * live.scale}px;width:${r.width * live.scale}px;height:${r.height * live.scale}px` },
     h('button', { type: 'button', class: 'tag', fk, 'aria-label': `${label}: ${message}`, 'aria-pressed': String(Boolean(pressed)), onclick: (e) => { e.stopPropagation(); onclick(); } }, h('span', {}, label)),
     h('span', { class: 'msg' }, message));
+    /** Open a tab of the dock (on a phone, its sheet), and bring one of its rows into view. */
+    const showIn = (t, id, rowSel) => { f.tab = t; f.sheet = true; if (t !== 'inspect') f.inspecting = false; showRow(f, id, rowSel); };
+    /**
+     * Start a comment for the agent from a finding: the composer opens on the element (or on the
+     * place `at` when the page does not hold it now) with the text in it. It posts only when the person sends it.
+     */
+    const agentComment = (el, text, at = null) => {
+      const was = drafts.get(key).trim();
+      if (!was.includes(text)) drafts.set(key, was ? `${was}\n${text}` : text);
+      Object.assign(f, { inspecting: false, commenting: true, play: false, tab: 'comments', sheet: true, size: f.size === 'peek' ? 'half' : f.size });
+      f.from ||= document.activeElement?.dataset?.fk || null;
+      const box = vp(f.viewport);
+      const r = el?.getBoundingClientRect();
+      f.pick = el ? pickOf(el, Math.min(1, Math.max(0, (r.left + r.width / 2) / box.width)), (r.top + (el.ownerDocument.defaultView?.scrollY || 0) + r.height / 2) / box.height) : at || { whole: true };
+      drawFocus();
+      const field = $(`#focus [data-fk="draft:${CSS.escape(key)}"]`);
+      field?.focus({ preventScroll: ph });
+      field?.setSelectionRange?.(field.value.length, field.value.length);
+      keepPickInView();
+    };
     const drawMarks = () => {
       const scale = live.scale;
       layer.replaceChildren();
@@ -1804,19 +1915,20 @@ var WF_CANVAS_LOGIC = (() => {
           if (!x.rect) return;
           const g = (groups || []).findIndex((q) => groupKeyOf(q) === groupKeyOf(x));
           const id = `check:${g}`;
-          layer.append(boxAt(x.rect, CHECK_NAMES[x.check] || x.check, x.message, '', f.sel === id, () => { f.sel = id; showRow(f, 'checks', `[data-row="${id}"]`); }, `box:${i}`));
+          layer.append(boxAt(x.rect, CHECK_NAMES[x.check] || x.check, x.message, '', f.sel === id, () => { f.sel = id; showIn('checks', 'checks', `[data-row="${id}"]`); }, `box:${i}`));
         });
       }
       if (f.audit && !past) {
         findings.forEach((x, i) => {
           if (x.state !== f.state || !x.rects?.[f.viewport]) return;
           const id = `finding:${i}`;
-          layer.append(boxAt(x.rects[f.viewport], x.rule || 'Audit', x.message, 'audit', f.sel === id, () => { f.sel = id; showRow(f, 'audit', `[data-row="${id}"]`); }, `abox:${i}`));
+          layer.append(boxAt(x.rects[f.viewport], x.rule || 'Audit', x.message, 'audit', f.sel === id, () => { f.sel = id; showIn('checks', 'audit', `[data-row="${id}"]`); }, `abox:${i}`));
         });
       }
       const d = loaded();
+      // The pins show in comment mode and with the marks: nothing covers the screen while the person only looks.
       (s.threads || []).forEach((t, i) => {
-        if (past || (!f.all && !t.open)) return;
+        if (past || (!f.commenting && !f.checks) || (!f.all && !t.open)) return;
         const a = t.anchor || {};
         if ((a.state || 'default') !== f.state) return;
         const el = find(d, a.selector);
@@ -1825,13 +1937,14 @@ var WF_CANVAS_LOGIC = (() => {
         const p = L.pinPlace(a, f.viewport, size, rect);
         if (!p) return;
         layer.append(h('button', { type: 'button', class: `pin${t.open ? '' : ' closed'}${L.reviewMark(t) ? ' review' : ''}`, fk: `pin:${t.id}`, style: `left:${p.x * scale}px;top:${p.y * scale}px`,
-          'aria-label': `Comment ${i + 1}: ${t.comments[0]?.text || ''}`, onclick: (e) => { e.stopPropagation(); showRow(f, 'comments', `[data-row="thread:${t.id}"]`); } }, h('span', {}, String(i + 1))));
+          'aria-label': `Comment ${i + 1}: ${t.comments[0]?.text || ''}`, onclick: (e) => { e.stopPropagation(); showIn('comments', 'comments', `[data-row="thread:${t.id}"]`); } }, h('span', {}, String(i + 1))));
       });
       // Comment mode: the pointer outlines the element under it, and a click or a tap selects it.
       layer.append(hovered, selected);
       outline(selected, f.pick?.selector ? find(d, f.pick.selector) : null);
       // Inspect mode: the outline of the inspected element and its panel.
-      inspect?.draw({ on: Boolean(f.inspecting && !f.play && d), key: s.key, doc: d, layer, scale, root });
+      inspect?.draw({ on: Boolean(f.inspecting && !f.play && d), key: s.key, doc: d, layer, scale, root, host: $('#focus .sv-body[data-tab="inspect"]'), touch: ph,
+        comment: data.writable && !past ? agentComment : null });
     };
     const findings = auditOf(s.key);
     const hovered = h('div', { class: 'el-box', hidden: true }, h('span'));
@@ -1854,11 +1967,7 @@ var WF_CANVAS_LOGIC = (() => {
     const pickOf = (el, x, y) => ({ selector: el ? selectorOf(el) : null, label: el ? L.targetName(describe(el)) : null, x, y, whole: false, canWiden: Boolean(el?.parentElement && el.parentElement.tagName !== 'BODY') });
     overlay.addEventListener('click', (e) => {
       if (f.inspecting && inspect) { inspect.pick(elementAt(e)); return; }
-      if (!f.commenting) {
-        // On a phone the bounded screen opens at full size.
-        if (ph && !f.full) { f.full = true; drawFocus(); }
-        return;
-      }
+      if (!f.commenting) return;
       const r = overlay.getBoundingClientRect();
       const win = loaded()?.defaultView;
       f.pick = pickOf(elementAt(e), (e.clientX - r.left) / r.width, ((e.clientY - r.top) / live.scale + (win?.scrollY || 0)) / size.height);
@@ -1900,7 +2009,7 @@ var WF_CANVAS_LOGIC = (() => {
       // A zoomed page pans with that move, so the swipe is off while the page is zoomed.
       let swipe = null;
       const zoomed = () => (window.visualViewport?.scale || 1) > 1.01 || focusState?.full || typeof focusState?.zoom === 'number';
-      view.addEventListener('pointerdown', (e) => { swipe = e.pointerType !== 'mouse' && e.isPrimary && !focusState?.commenting && !focusState?.play && !zoomed() ? { x: e.clientX, y: e.clientY } : null; });
+      view.addEventListener('pointerdown', (e) => { swipe = e.pointerType !== 'mouse' && e.isPrimary && !focusState?.commenting && !focusState?.inspecting && !focusState?.play && !zoomed() ? { x: e.clientX, y: e.clientY } : null; });
       view.addEventListener('pointercancel', () => { swipe = null; });
       view.addEventListener('pointerup', (e) => {
         if (!swipe || zoomed()) { swipe = null; return; }
@@ -1922,62 +2031,42 @@ var WF_CANVAS_LOGIC = (() => {
     }
     for (const p of panes.slice(1)) view.append(p);
 
-    // ---- the header and the tools
+    // ---- the versions, the walk, and what the controls do
 
     // A saved version comes first. An approval from before the versions compares at its commit.
     const versions = [...allVersions().filter((v) => v.screens.some((e) => e.key === s.key)).map((v) => [v.ref, draftName(v)]),
       ...(s.approvals || []).filter((a) => !a.version).map((a) => [a.commit, `Approved ${day(a.at)}`]),
       ...(s.history || []).filter((c) => !(s.approvals || []).some((a) => a.commit === c.commit)).map((c) => [c.commit, `${day(c.at)}: ${c.subject}`])];
-    const order = walk();
-    const at = order.findIndex((x) => x.key === s.key);
-    const near = (by) => order[(at + by + order.length) % order.length];
-    const stepper = order.length > 1 ? h('div', { class: 'stepper', role: 'group', 'aria-label': 'Screens' },
-      h('button', { type: 'button', fk: 'step:-1', 'aria-label': `Previous screen: ${titleOf(near(-1))}`, title: `${titleOf(near(-1))} (←)`, onclick: () => step(-1) }, '‹'),
-      h('span', { class: 'pos' }, `${at + 1} of ${order.length}`),
-      h('button', { type: 'button', fk: 'step:1', 'aria-label': `Next screen: ${titleOf(near(1))}`, title: `${titleOf(near(1))} (→)`, onclick: () => step(1) }, '›')) : null;
+    const near = nearScreens();
     const back = f.play && f.trail.length ? f.trail.at(-1) : null;
     const backTitle = back ? titleOf(data.screens.find((x) => x.key === back.key) || { key: back.key }) : '';
     const approved = (s.approvals || []).at(-1);
-    const fresh = past ? null : unseenOf(s);
-    const stateMark = past ? h('span', { class: past.draft ? 'mark draft' : 'mark ok' }, past.draft ? 'Draft' : past.name)
-      : draft ? h('span', { class: 'mark draft' }, 'Draft') : approved ? h('span', { class: 'mark ok' }, 'Approved') : h('span', { class: 'mark draft' }, 'Not approved');
-    const header = h('header', {},
-      h('div', { class: 'title' }, h('h2', { tabindex: '-1', title: titleOf(s) }, titleOf(s)), h('div', { class: 'meta' }, stateMark, h('span', {}, metaOf(s)))),
-      back ? h('button', { type: 'button', class: 'btn', fk: 'trail', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, scroll: 0, trail: f.trail.slice(0, -1) }; drawFocus(); syncHash(); } }, `← ${backTitle}`) : null,
-      f.full && ph ? h('button', { type: 'button', class: 'btn', fk: 'full:off', onclick: () => { f.full = false; f.zoom = 'fit'; drawFocus(); } }, 'Done') : stepper,
-      h('button', { type: 'button', class: 'close', fk: 'close', onclick: closeFocus, 'aria-label': 'Close the screen' }, '×'));
+    // Opening a screen marks it as seen: the view keeps what it was, so the pill stays through the draws.
+    if (f.freshKey !== s.key) { f.freshKey = s.key; f.fresh = past ? null : unseenOf(s); }
+    const fresh = f.fresh;
     const names = Object.keys(data.viewports);
     const setViewport = (v) => { f.viewport = v; f.sel = null; f.zoom = 'fit'; drawFocus(); syncHash(); };
     const setFState = (v) => { f.state = v; f.sel = null; drawFocus(); syncHash(); };
     const scaleNow = focusScale(f);
-    const zoomTo2 = (z) => { f.zoom = z === 'fit' ? 'fit' : Math.min(3, Math.max(0.1, z)); drawFocus(); };
-    const zoomBox = !ph || f.full ? h('div', { class: 'zoom', role: 'group', 'aria-label': 'Zoom of the screen' },
-      h('button', { type: 'button', fk: 'z:out', 'aria-label': 'Zoom out', onclick: () => zoomTo2(scaleNow * 0.8) }, '−'),
-      h('output', { 'aria-label': 'Zoom' }, `${Math.round(scaleNow * 100)}%`),
-      h('button', { type: 'button', fk: 'z:in', 'aria-label': 'Zoom in', onclick: () => zoomTo2(scaleNow * 1.25) }, '+'),
-      h('button', { type: 'button', fk: 'z:fit', 'aria-pressed': String(f.zoom === 'fit'), onclick: () => zoomTo2('fit') }, 'Fit'),
-      h('button', { type: 'button', fk: 'z:100', 'aria-pressed': String(f.zoom === 1), onclick: () => zoomTo2(1) }, '100%')) : null;
-    const commentBtn = data.writable && !past ? toggle('comment', f.commenting ? 'Select an element' : 'Comment', f.commenting, () => { f.commenting = !f.commenting; if (!f.commenting) f.pick = null; f.play = false; f.inspecting = false; drawFocus(); }) : null;
-    const inspectBtn = inspect ? toggle('inspect', 'Inspect', f.inspecting, () => { f.inspecting = !f.inspecting; f.commenting = false; f.pick = null; f.play = false; drawFocus(); }, 'Show the component and the tokens of the element you point at (Escape leaves)') : null;
-    const extra = [
-      past ? null : toggle('checks', 'Checks', f.checks, () => { f.checks = !f.checks; drawFocus(); }, 'Show the failing checks on the screen'),
-      findings.length && !past ? toggle('audit', 'Audit', f.audit, () => { f.audit = !f.audit; drawFocus(); }, 'Show the findings of the audit on the screen') : null,
-      SNAP ? null : toggle('play', 'Try the links', f.play, () => { f.play = !f.play; f.commenting = false; f.pick = null; f.trail = []; drawFocus(); }, 'The links of the screen open the screens they lead to'),
-      toggle('built', 'Built screen', f.built, () => { f.built = !f.built; drawFocus(); }, 'Show the picture of the built screen beside the design'),
-      names.length > 1 && !ph ? toggle('sizes', 'All viewports', f.sizes, () => { f.sizes = !f.sizes; drawFocus(); }) : null,
-      SNAP || !versions.length ? null : h('label', {}, 'Compare with', sel('compare', ['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; drawFocus(); }, Object.fromEntries([['', 'No other version'], ...versions]))),
-    ].filter(Boolean);
-    const tools = h('div', { class: 'tools' },
-      names.length > 4 || ph ? sel('viewport', names, f.viewport, setViewport, Object.fromEntries(names.map((n) => [n, `${cap(n)} ${vp(n).width}×${vp(n).height}`])), 'Viewport')
-        : segOf('vp', names, f.viewport, setViewport, 'Viewport'),
-      ph ? sel('state', data.states, f.state, setFState, Object.fromEntries(data.states.map((n) => [n, `${cap(n)} state`])), 'State') : segOf('st', data.states, f.state, setFState, 'State'),
-      h('span', { class: 'gap' }),
-      commentBtn,
-      inspectBtn,
-      ph && !f.full ? h('button', { type: 'button', class: 'btn', fk: 'full:on', onclick: () => { f.full = true; drawFocus(); } }, 'Full size') : null,
-      // A phone keeps the tools that are used less behind one control.
-      ph ? moreTools(f, extra) : extra,
-      zoomBox);
+    const zoomTo2 = (z) => { f.zoom = typeof z === 'string' ? z : Math.min(3, Math.max(0.1, z)); drawFocus(); };
+    const opener = () => { f.from = document.activeElement?.dataset?.fk || f.from; };
+    /** View, Comment or Inspect. A mode opens its tab of the dock; on a phone the tab is a sheet, and the focus moves into it. */
+    const setMode = (m) => {
+      if (m === 'view') { leaveMode(); return; }
+      opener();
+      Object.assign(f, { commenting: m === 'comment' && data.writable && !past, inspecting: m === 'inspect', play: false, tab: m === 'comment' ? 'comments' : 'inspect', sheet: true, size: 'half' });
+      if (m !== 'comment') f.pick = null;
+      drawFocus();
+      if (ph) $('#focus .sv-dock')?.focus({ preventScroll: true });
+    };
+    /** Show one tab of the dock. The Inspect tab is the inspect mode; another tab leaves it. */
+    const setTab = (t) => {
+      Object.assign(f, { tab: t, sheet: true, inspecting: t === 'inspect' && Boolean(inspect) });
+      if (t === 'inspect') f.play = false;
+      if (t !== 'comments') { f.commenting = false; f.pick = null; }
+      drawFocus();
+    };
+    const openTab = (t) => { opener(); if (ph) f.size = 'half'; setTab(t); (ph ? $('#focus .sv-dock') : $(`#focus [data-fk="tab:${t}"]`))?.focus({ preventScroll: true }); };
 
     // ---- the side: what needs the person first
 
@@ -1996,7 +2085,6 @@ var WF_CANVAS_LOGIC = (() => {
         cur.threads = j.threads;
         cur.openComments = j.threads.filter((t) => t.open).length;
         for (const c of data.cards) if (c.screens.some((x) => x.key === s.key)) c.openComments = c.screens.reduce((n, x) => n + (data.screens.find((y) => y.key === x.key)?.openComments ?? 0), 0);
-        drawHealth();
         render();
       } else await load();
       say('Saved');
@@ -2027,7 +2115,6 @@ var WF_CANVAS_LOGIC = (() => {
             h('button', { type: 'button', class: 'btn', fk: 'new:whole', onclick: () => { f.pick = { whole: true }; drawFocus(); $(`#focus [data-fk="draft:${CSS.escape(key)}"]`)?.focus(); } }, 'Comment on the whole screen'),
             h('button', { type: 'button', class: 'btn quiet', fk: 'new:cancel', onclick: leaveComment }, 'Cancel')));
     }
-    if (composer && !ph) f.open.comments = true;
     const threadView = (t, n) => {
       const dk = `${s.key}|${t.id}`;
       const a = t.anchor || {};
@@ -2072,6 +2159,8 @@ var WF_CANVAS_LOGIC = (() => {
             const n = (fx.failures || []).filter((q) => groupKeyOf(q) === groupKeyOf(x)).length;
             const here = failuresHere.some((q) => groupKeyOf(q) === groupKeyOf(x));
             // What to tell the agent: the design step that repairs the check, or the repair that the check names.
+            // The same repair as the words of a comment for the agent.
+            const ask = x.move ? `Run the ${x.move} step of the design stage on ${s.key}.` : first?.do || '';
             const fixText = x.move ? `To fix it, tell the agent: "Run the ${x.move} step of the design stage on ${s.key}."` : first?.do ? `To fix it, tell the agent: "${first.do}"` : `To fix it, tell the agent which check fails on ${s.key}.`;
             return h('div', { class: `check${f.sel === id ? ' sel' : ''}`, 'data-row': id, tabindex: '-1' },
               h('b', {}, CHECK_NAMES[x.check] || x.check), n > 1 ? h('span', { class: 'sev' }, `${n} times`) : null,
@@ -2082,29 +2171,48 @@ var WF_CANVAS_LOGIC = (() => {
                 if (!here) { f.viewport = Object.keys(data.viewports).includes(first.viewport) ? first.viewport : f.viewport; f.state = data.states.includes(first.state) ? first.state : f.state; }
                 drawFocus(); syncHash();
                 $('#focus .box.sel')?.scrollIntoView({ block: 'center', inline: 'center' });
-              } }, here ? 'Show it on the screen' : `Show it in the ${first.viewport} viewport, ${first.state} state`) : null);
+              } }, here ? 'Show it on the screen' : `Show it in the ${first.viewport} viewport, ${first.state} state`) : null,
+              data.writable ? h('button', { type: 'button', class: 'sv-agent', fk: `agent:${gi}`, onclick: () => {
+                if (!here && first?.viewport && first?.state) { f.viewport = names.includes(first.viewport) ? first.viewport : f.viewport; f.state = data.states.includes(first.state) ? first.state : f.state; syncHash(); }
+                const r = first?.rect;
+                const box = vp(f.viewport);
+                agentComment(here ? find(loaded(), first?.selector) : null, L.findingComment(CHECK_NAMES[x.check] || x.check, x.message, ask),
+                  first?.selector || r ? { selector: first?.selector || null, label: null, x: r ? Math.min(1, (r.x + r.width / 2) / box.width) : 0.5, y: r ? (r.y + r.height / 2) / box.height : 0.5, whole: false, canWiden: false } : null);
+              } }, 'Comment for the agent') : null);
           })] : h('p', { class: 'none' }, data.checks ? 'No check fails.' : 'No check has run yet.');
-    // On a phone a part with nothing in it, or with much in it, is one line until the person opens it.
-    // A part with nothing in it is one plain line.
+    // ---- the four tabs of the dock: Inspect, Comments, Checks and Why
+
     const line = (text) => h('p', { class: 'decided' }, text);
-    const checks = past ? null : fx && !fx.error && !total ? line(data.checks ? 'No check fails.' : 'No check has run yet.')
-      : section(f, 'checks', total ? cap(L.failText(total)) : 'Checks', null, checkRows, { long: (groups?.length || 0) > 2, tone: total ? 'bad' : '' });
-    const comments = past ? null : !(s.threads || []).length && (ph || !data.writable) && !f.naming ? line('No comment yet.')
-      : section(f, 'comments', openThreads.length ? plural(openThreads.length, 'open comment') : 'Comments', null, [
+    const sheetOpen = ph && f.sheet;
+    const tab = ph ? (f.sheet ? f.tab || 'comments' : '') : f.tab || (f.inspecting ? 'inspect' : total && !past ? 'checks' : 'comments');
+    focusDrawn.tab = tab;
+    const commentOn = (whole) => {
+      opener();
+      Object.assign(f, { commenting: true, inspecting: false, play: false, tab: 'comments', sheet: true, pick: whole ? { whole: true } : null });
+      drawFocus();
+      if (whole) $(`#focus [data-fk="draft:${CSS.escape(key)}"]`)?.focus();
+    };
+    const commentsBody = past ? line('The comments are of the screens as they are now.') : [
+      decision,
       data.writable && (authorName() || author.now || f.naming) ? authorLine(f) : null,
       ph ? null : composer,
-      data.writable && !composer && !ph ? h('div', { class: 'row' },
-        h('button', { type: 'button', class: 'btn', fk: 'c:el', onclick: () => { f.commenting = true; f.play = false; drawFocus(); } }, 'Comment on an element'),
-        h('button', { type: 'button', class: 'btn', fk: 'c:whole', onclick: () => { f.commenting = true; f.play = false; f.pick = { whole: true }; drawFocus(); $(`#focus [data-fk="draft:${CSS.escape(key)}"]`)?.focus(); } }, 'Comment on the whole screen')) : null,
+      data.writable && !composer ? h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn', fk: 'c:el', onclick: () => commentOn(false) }, 'Comment on an element'),
+        h('button', { type: 'button', class: 'btn', fk: 'c:whole', onclick: () => commentOn(true) }, 'Comment on the whole screen')) : null,
       (s.threads || []).length > openThreads.length ? h('label', { class: 'chk' }, h('input', { type: 'checkbox', fk: 'c:all', checked: f.all, onchange: (e) => { f.all = e.target.checked; drawFocus(); } }), 'Show resolved comments') : null,
-      shown.length ? shown.map((t) => threadView(t, s.threads.indexOf(t) + 1)) : (s.threads || []).length ? h('p', { class: 'none' }, 'Every comment is resolved.') : null,
-    ], { long: shown.length !== 1 });
-    const material = [decision, checks, comments].filter(Boolean);
-
+      shown.length ? shown.map((t) => threadView(t, s.threads.indexOf(t) + 1)) : h('p', { class: 'none' }, (s.threads || []).length ? 'Every comment is resolved.' : 'No comment yet.'),
+    ];
+    // The marks of the checks and the audit cover parts of the screen: they show only when the person asks.
+    const checksBody = past ? line('The checks are of the screens as they are now.') : [
+      total || findings.length ? h('label', { class: 'chk sv-marks' }, h('input', { type: 'checkbox', fk: 'marks', checked: f.checks,
+        onchange: (e) => { f.checks = e.target.checked; f.audit = f.checks; drawFocus(); } }), 'Show marks on the screen') : null,
+      checkRows,
+      findings.length ? section(f, 'audit', 'Audit', findings.length, findings.map((x, i) => findingView(x, false, `finding:${i}`, f.sel === `finding:${i}`)), { long: true }) : null,
+    ];
     const vlist = versionList(s, f);
     const why = whyView(s);
-    const rest = [
-      vlist ? section(f, 'versions', 'Versions', allVersions().filter((v) => !v.draft && v.screens.some((e) => e.key === s.key)).length || null, vlist, { long: true }) : null,
+    const whyBody = [
+      h('p', { class: 'sub' }, metaOf(s)),
       !past && why ? section(f, 'why', 'Why it looks like this', null, why, { long: true }) : null,
       !past && s.components?.length ? section(f, 'components', 'Components', s.components.length, h('ul', { class: 'parts' }, ...s.components.map((k) => {
         const c = data.components.find((x) => x.key === k);
@@ -2113,29 +2221,126 @@ var WF_CANVAS_LOGIC = (() => {
           h('span', { class: `mark ${!c ? 'issue' : c.code ? 'ok' : 'draft'}` }, !c ? 'Not in the library' : c.code ? 'In code' : 'To build'));
       })), { long: true }) : null,
       !past && s.tokens?.length ? section(f, 'tokens', 'Tokens', s.tokens.length, h('div', { class: 'chips' }, ...s.tokens.map((t) => h('button', { type: 'button', fk: `tok:${t}`, title: `${data.tokens.find((x) => x.name === t)?.value ?? 'Not in the token sheet'}. Show the screens that use it.`, onclick: () => traceFrom({ kind: 'token', key: t }) }, t))), { long: true }) : null,
-      !past && findings.length ? section(f, 'audit', 'Audit', findings.length, findings.map((x, i) => findingView(x, false, `finding:${i}`, f.sel === `finding:${i}`)), { long: true }) : null,
-    ].filter(Boolean);
+      vlist ? section(f, 'versions', 'Versions', allVersions().filter((v) => !v.draft && v.screens.some((e) => e.key === s.key)).length || null, vlist, { long: true }) : null,
+      !past && !why && !s.components?.length && !s.tokens?.length && !vlist ? h('p', { class: 'none' }, 'No design decision names this screen yet.') : null,
+    ];
+
+    // ---- the bars and the tools
+
+    const ic = (name) => h('span', { class: `sv-ic sv-ic-${name}`, 'aria-hidden': 'true' });
+    const status = past ? { kind: past.draft ? 'info' : 'ok', text: past.draft ? 'Draft' : past.name } : fresh ? { kind: 'info', text: fresh === 'new' ? 'New' : 'Changed' }
+      : draft ? { kind: 'info', text: 'Draft' } : approved ? { kind: 'ok', text: 'Approved' } : { kind: 'plain', text: 'Not approved' };
+    const pill = h('span', { class: `sv-pill ${status.kind}` }, status.text);
+    const failPill = total && !past ? h('button', { type: 'button', class: 'sv-pill warn', fk: 'pill:fail', 'aria-label': `${plural(total, 'check failure')} on this screen`, title: 'Show the failing checks',
+      onclick: () => openTab('checks') }, ph ? [ic('warn'), String(total)] : `${total} failing`) : null;
+    const url = screenUrl(s.key, f.state, ui.version || null);
+    const latest = allVersions().find((v) => v.screens.some((e) => e.key === s.key));
+    const versionsText = `Versions${latest ? ` · ${latest.name}` : ''}`;
+    const showVersions = () => { opener(); if (ph) f.size = 'full'; showIn('why', 'versions', '[data-sec="versions"] > summary'); };
+    // The menu: what is used less. Each choice closes it.
+    const item = (name, text, fn, pressed = null) => h('button', { type: 'button', class: 'sv-item', fk: `m:${name}`, 'aria-pressed': pressed === null ? null : String(Boolean(pressed)),
+      onclick: () => { f.open.tools = false; fn(); } }, text);
+    const menu = h('details', { class: 'sv-more', open: Boolean(f.open.tools) },
+      h('summary', { class: 'sv-icon', fk: 'sec:tools', 'aria-label': 'More: versions, open in a new tab, captures', title: 'More' }, ic('more')),
+      h('div', { class: 'sv-menu-back', onclick: () => { f.open.tools = false; drawFocus(); } }),
+      h('div', { class: 'sv-menu' },
+        ph && vlist ? item('versions', versionsText, showVersions) : null,
+        ph ? item('why', 'Why it looks like this', () => openTab('why')) : null,
+        ph && url ? h('a', { class: 'sv-item', fk: 'm:tab', href: url, target: '_blank', rel: 'noopener' }, 'Open in a new tab') : null,
+        item('built', 'Built screen', () => { f.built = !f.built; drawFocus(); }, f.built),
+        SNAP ? null : item('play', 'Try the links', () => { Object.assign(f, { play: !f.play, commenting: false, inspecting: false, pick: null, trail: [] }); if (f.tab === 'inspect') f.tab = ''; drawFocus(); }, f.play),
+        names.length > 1 && !ph ? item('sizes', 'All viewports', () => { f.sizes = !f.sizes; drawFocus(); }, f.sizes) : null,
+        SNAP || !versions.length ? null : h('label', {}, 'Compare with', sel('compare', ['', ...versions.map((v) => v[0])], f.compare, (v) => { f.compare = v; f.open.tools = false; drawFocus(); }, Object.fromEntries([['', 'No other version'], ...versions])))));
+    menu.firstChild.addEventListener('click', () => { f.open.tools = !menu.open; });
+    const backBtn = h('button', { type: 'button', class: 'sv-icon', fk: 'close', onclick: closeFocus, 'aria-label': 'Back to the board', title: 'Back to the board' }, ic('back'));
+    const trailBtn = back ? h('button', { type: 'button', class: 'btn', fk: 'trail', 'aria-label': `Back to ${backTitle}`, onclick: () => { focusState = { ...focusState, key: back.key, state: back.state, scroll: 0, trail: f.trail.slice(0, -1) }; drawFocus(); syncHash(); } }, `← ${backTitle}`) : null;
+    const modeNow = f.inspecting ? 'inspect' : f.commenting || (sheetOpen && tab === 'comments') ? 'comment' : 'view';
+    const sub = L.subLine({ area: s.area, flow: s.flow, at: near.at, total: near.list.length, queue: near.kind === 'queue', touch: true, failing: total, open: openThreads.length,
+      mode: !sheetOpen ? 'view' : tab === 'inspect' ? 'inspect' : tab === 'comments' ? (f.commenting ? 'comment' : 'comments') : tab });
+    const slash = () => h('span', { 'aria-hidden': 'true' }, '/');
+    const top = ph
+      ? h('header', { class: 'sv-top' }, backBtn, h('div', { class: 'title' }, h('h2', { tabindex: '-1', title: titleOf(s) }, titleOf(s)), h('div', { class: 'sub' }, sub)), trailBtn,
+        sheetOpen ? h('button', { type: 'button', class: 'sv-done', fk: 'sheet:done', onclick: leaveMode }, 'Done') : [failPill, menu])
+      : h('header', { class: 'sv-top' }, backBtn,
+        h('div', { class: 'sv-crumbs' }, near.kind === 'queue' ? [h('span', {}, 'Review queue'), slash()] : null, s.area ? [h('span', {}, cap(s.area)), slash()] : null, s.flow ? [h('span', {}, `${cap(s.flow)} flow`), slash()] : null,
+          h('h2', { tabindex: '-1', title: metaOf(s) }, titleOf(s)), pill, failPill),
+        trailBtn,
+        h('div', { class: 'sv-acts' },
+          vlist ? h('button', { type: 'button', class: 'sv-btn', fk: 'versions', onclick: showVersions }, versionsText) : null,
+          url ? h('a', { class: 'sv-btn', fk: 'newtab', href: url, target: '_blank', rel: 'noopener' }, 'Open in a new tab') : null,
+          menu,
+          near.next ? h('button', { type: 'button', class: 'sv-next', fk: 'step:1', title: `${titleOf(near.next)} (→ or ])`, onclick: () => step(1) }, `Next: ${titleOf(near.next)}`) : null));
+    // A chip shows its value; the native list of its select opens over it.
+    const chip = (name, text, values, value, on, labels, label, dot = null) => h('label', { class: 'sv-chip', title: label }, dot, h('span', {}, text), ic('down'), sel(name, values, value, on, labels, label));
+    const modes = inspect?.modes() || [];
+    const themeNow = inspect?.mode() || '';
+    const chips = [
+      chip('viewport', `${cap(f.viewport)} ${size.width}`, names, f.viewport, setViewport, Object.fromEntries(names.map((n) => [n, `${cap(n)} ${vp(n).width}×${vp(n).height}`])), 'Viewport'),
+      chip('state', cap(f.state), data.states, f.state, setFState, Object.fromEntries(data.states.map((n) => [n, `${cap(n)} state`])), 'State'),
+      modes.length ? chip('theme', themeNow ? cap(themeNow) : 'System', modes, themeNow, (v) => { inspect.setMode(v); drawFocus(); }, Object.fromEntries(modes.map((n) => [n, n ? `${cap(n)} theme` : 'System theme'])), 'Theme',
+        h('span', { class: `sv-dot${/dark|night/i.test(themeNow) ? ' dark' : themeNow ? ' light' : ''}`, 'aria-hidden': 'true' })) : null];
+    const modeBtn = (m, text, n = 0) => h('button', { type: 'button', fk: `mode:${m}`, 'aria-pressed': String(modeNow === m), onclick: () => setMode(modeNow === m ? 'view' : m) },
+      text, n ? [h('span', { class: 'sv-badge', 'aria-hidden': 'true' }, String(n)), h('span', { class: 'sr' }, `, ${plural(n, 'open comment')}`)] : null);
+    const modeSeg = h('div', { class: 'sv-seg', role: 'group', 'aria-label': 'Mode' }, modeBtn('view', 'View'), past ? null : modeBtn('comment', 'Comment', openThreads.length), inspect ? modeBtn('inspect', 'Inspect') : null);
+    const stepBtn = (by) => {
+      const to = by < 0 ? near.prev : near.next;
+      return h('button', { type: 'button', class: 'sv-step', fk: `step:${by}`, disabled: !to, 'aria-label': to ? `${by < 0 ? 'Previous' : 'Next'} screen: ${titleOf(to)}` : `No ${by < 0 ? 'previous' : 'next'} screen`, onclick: () => step(by) }, ic(by < 0 ? 'back' : 'fwd'));
+    };
+    const zoomBox = h('div', { class: 'sv-zoom', role: 'group', 'aria-label': 'Zoom of the screen' },
+      h('button', { type: 'button', fk: 'z:out', 'aria-label': 'Zoom out', onclick: () => zoomTo2(scaleNow * 0.8) }, '−'),
+      h('button', { type: 'button', fk: 'z:fit', 'aria-label': f.zoom === 'fit' ? 'Zoom. Fit the whole screen in the window' : 'Zoom. Show the screen at its size, fitted to the width', title: f.zoom === 'fit' ? 'Fit the whole screen in the window' : 'Show the screen at its size, fitted to the width',
+        onclick: () => zoomTo2(f.zoom === 'fit' ? 'whole' : 'fit') }, h('output', {}, `${Math.round(scaleNow * 100)}%`)),
+      h('button', { type: 'button', fk: 'z:in', 'aria-label': 'Zoom in', onclick: () => zoomTo2(scaleNow * 1.25) }, '+'));
+    // The screens of the flow, the area or the queue, with one dot for what waits on each.
+    const dotOf = (x) => (failTotal(x) ? ['bad', L.failText(failTotal(x))] : unseenOf(x) ? ['new', unseenOf(x) === 'new' ? 'New' : 'Changed'] : x.openComments ? ['note', plural(x.openComments, 'open comment')] : null);
+    const listPane = ph ? null : h('nav', { class: 'sv-list', 'aria-label': near.kind === 'queue' ? 'Screens of the review queue' : `Screens of ${near.name}` },
+      h('div', { class: 'sv-list-head' }, `${near.name} · ${plural(near.list.length, near.kind === 'flow' ? 'step' : 'screen')}`),
+      ...near.list.map((x, i) => {
+        const d = x.key === s.key && !past ? (total ? ['bad', L.failText(total)] : null) : dotOf(x);
+        return h('button', { type: 'button', fk: `go:${x.key}`, 'aria-current': x.key === s.key ? 'page' : null, onclick: () => goScreen(x.key) },
+          h('span', { class: 'n' }, String(i + 1)), h('span', { class: 't' }, titleOf(x)), d ? h('span', { class: `dot ${d[0]}`, role: 'img', 'aria-label': d[1], title: d[1] }) : null);
+      }));
+
+    // ---- the dock: beside the stage in a wide window, a sheet from the bottom on a phone
+
+    const tabBtn = (t, text) => h('button', { type: 'button', fk: `tab:${t}`, 'aria-pressed': String(tab === t), onclick: () => setTab(t) }, text);
+    const tabs = ph ? null : h('div', { class: 'sv-tabs', role: 'group', 'aria-label': 'About this screen' },
+      inspect ? tabBtn('inspect', 'Inspect') : null, tabBtn('comments', openThreads.length ? `Comments · ${openThreads.length}` : 'Comments'), tabBtn('checks', total && !past ? `Checks · ${total}` : 'Checks'), tabBtn('why', 'Why'));
+    // The handle of the sheet: a tap makes it larger or smaller, a drag up or down moves it one size, and a drag down from the smallest closes it.
+    const SIZES = ['peek', 'half', 'full'];
+    let grabY = null;
+    let dragged = false;
+    const resize = (by) => { const i = SIZES.indexOf(f.size) + by; if (i < 0) { leaveMode(); return; } f.size = SIZES[Math.min(SIZES.length - 1, i)]; drawFocus(); };
+    const grab = ph ? h('button', { type: 'button', class: 'sv-grab', fk: 'sheet:grab', 'aria-label': f.size === 'full' ? 'Make the sheet smaller' : 'Make the sheet larger', 'aria-expanded': String(f.size === 'full'),
+      onpointerdown: (e) => { grabY = e.clientY; dragged = false; e.currentTarget.setPointerCapture?.(e.pointerId); },
+      onpointerup: (e) => { const dy = grabY === null ? 0 : e.clientY - grabY; grabY = null; if (Math.abs(dy) > 24) { dragged = true; resize(dy < 0 ? 1 : -1); } },
+      onpointercancel: () => { grabY = null; },
+      onclick: () => { if (dragged) { dragged = false; return; } f.size = f.size === 'half' ? 'full' : 'half'; drawFocus(); } }, h('span')) : null;
+    const dock = !ph || sheetOpen ? h('aside', { class: `sv-dock${ph ? ` size-${f.size}` : ''}`, tabindex: '-1', 'aria-label': { inspect: 'Inspect', comments: 'Comments', checks: 'Checks', why: 'Why it looks like this' }[tab] },
+      grab, tabs,
+      h('div', { class: 'sv-body', 'data-tab': tab }, tab === 'comments' ? commentsBody : tab === 'checks' ? checksBody : tab === 'why' ? whyBody : null),
+      ph && tab === 'comments' && composer ? h('div', { class: 'sv-compose' }, composer) : null) : null;
 
     // ---- put the sheet together
 
     const sheet = kept && $('#focus .sheet');
-    const cls = `sheet${f.full ? ' full' : ''}${ph ? ' narrow' : ''}`;
-    // On a phone what needs the person comes before the screen; in a wide window it is the column beside it.
-    const before = ph ? [header, f.full ? null : h('div', { class: 'material' }, material), tools] : [header, tools];
-    const after = ph ? (f.full ? [] : [h('div', { class: 'rest' }, rest)]) : [h('section', { class: 'side', 'aria-label': 'About this screen' }, material, rest)];
+    const cls = `sheet ${ph ? 'narrow' : 'wide'}${panes.length > 1 ? ' multi' : ''}`;
+    // A phone: the top bar, the chips, the screen, then the sheet or the bottom bar. A wide window: the top bar, the list, the stage with its toolbar, the dock.
+    const before = ph ? [top, sheetOpen ? null : h('div', { class: 'sv-chips' }, chips, pill)] : [top, listPane];
+    const after = ph ? [dock, sheetOpen ? null : h('footer', { class: 'sv-bottom' }, stepBtn(-1), modeSeg, stepBtn(1))]
+      : [h('div', { class: 'sv-float', role: 'toolbar', 'aria-label': 'View' }, modeSeg, chips, zoomBox), dock];
     if (sheet) {
       sheet.className = cls;
       for (const c of [...sheet.children]) if (c !== view) c.remove();
       view.before(...before.filter(Boolean));
-      view.after(...after);
-    } else root.replaceChildren(h('div', { class: cls }, ...before.filter(Boolean), view, ...after));
-    $('#focus > .composer')?.remove();
-    if (ph && composer) root.append(composer);
-    root.classList.toggle('composing', Boolean(ph && composer));
+      view.after(...after.filter(Boolean));
+    } else root.replaceChildren(h('div', { class: cls }, ...before.filter(Boolean), view, ...after.filter(Boolean)));
+    root.dataset.mode = modeNow;
 
     // ---- sizes, marks, scrolls and focus, now that the sheet has its layout
 
-    const bound = ph && !f.full ? Math.round(roomH() * 0.5) : 0;
+    // An artboard is as tall as its page, and the stage scrolls.
+    const bound = 0;
     const scale = focusScale(f);
     for (const p of panes) {
       const wasBound = p.bound;
@@ -2143,13 +2348,11 @@ var WF_CANVAS_LOGIC = (() => {
       p.bound = bound;
       if (p === live && kept && Boolean(wasBound) !== Boolean(bound)) hug(p); else sizeShot(p);
     }
-    $('#focus .tools output')?.replaceChildren(`${Math.round(scale * 100)}%`);
+    $('#focus .sv-zoom output')?.replaceChildren(`${Math.round(scale * 100)}%`);
     drawMarks();
     if (scrolls) {
-      const side = $('#focus .side');
-      if (side) side.scrollTop = scrolls.side;
-      const sh = $('#focus .sheet');
-      if (sh) sh.scrollTop = scrolls.sheet;
+      const side = $('#focus .sv-body');
+      if (side && scrolls.tab === tab) side.scrollTop = scrolls.side;
       view.scrollLeft = scrolls.viewX;
       view.scrollTop = scrolls.viewY;
     }
@@ -2161,16 +2364,16 @@ var WF_CANVAS_LOGIC = (() => {
     }
     held();
   }
-  /** On a phone, keep the selected element above the composer and the keyboard. */
+  /** On a phone, keep the selected element in the part of the stage that the sheet and the keyboard leave. */
   function keepPickInView() {
-    if (!phone() || !focusState?.pick) return;
+    if (!narrow() || !focusState?.pick) return;
     const box = $('#focus .el-box.held:not([hidden])');
-    const comp = $('#focus > .composer');
     const sc = focusScroller();
-    if (!box || !comp || !sc) return;
+    if (!box || !sc) return;
     const r = box.getBoundingClientRect();
-    const top = ($('#focus .sheet > header')?.getBoundingClientRect().bottom || 0) + 8;
-    const bottom = comp.getBoundingClientRect().top - 8;
+    const room = sc.getBoundingClientRect();
+    const top = room.top + 8;
+    const bottom = room.bottom - 8;
     if (r.top >= top && r.bottom <= bottom) return;
     sc.scrollTop += r.top - Math.max(top, (top + bottom - Math.min(r.height, bottom - top)) / 2);
   }
@@ -2223,24 +2426,16 @@ var WF_CANVAS_LOGIC = (() => {
       await fetchAudit();
       if (audit?.status !== 'running') {
         say(audit?.status === 'done' ? 'The audit is done' : 'The audit failed');
-        drawHealth();
         render();
         if (focusState && !typing()) drawFocus();
-        if (ui.panel === 'health') panel('health', true);
       }
       pollAudit();
     }, 5000);
   }
   async function runAudit() {
     audit = await send('audit', { workflow: ui.workflow || null });
-    drawHealth();
+    drawShell();
     pollAudit();
-  }
-  /** The screens with a failing check, and the open comments of the board. */
-  function reviewCounts() {
-    const failing = data.screens.filter((s) => failTotal(s));
-    const commented = data.screens.filter((s) => s.openComments);
-    return { failing, commented, comments: commented.reduce((n, s) => n + s.openComments, 0), waiting: data.screens.filter(waits) };
   }
   // ------------------------------------------------------------ seen screens
 
@@ -2279,65 +2474,210 @@ var WF_CANVAS_LOGIC = (() => {
     }
     if (!changed) return;
     saveSeen();
-    drawHealth();
     render();
-    if (ui.panel === 'health') panel('health', true);
   }
 
-  // ------------------------------------------------------------ the review panel
+  // ------------------------------------------------------------ the shell
 
-  /** The control of the bar: its name, then what still needs a look on the board, in one line. */
-  function drawHealth() {
-    const { failing, comments, waiting } = reviewCounts();
-    const changed = unseen().length;
-    const parts = [
-      waiting.length ? `${waiting.length} wait for you` : null,
-      changed ? `${changed} changed` : null,
-      data.checks ? (failing.length ? `${plural(failing.length, 'screen')} with failing checks` : 'checks pass') : 'no check yet',
-      comments ? plural(comments, 'open comment') : null,
-      audit?.status === 'running' ? 'audit running' : audit?.status === 'done' ? plural((audit.findings || []).length, 'audit finding') : null,
-    ].filter(Boolean);
-    $('#hcounts').textContent = parts.join(' · ');
-    const b = $('#health');
-    b.classList.toggle('bad', failing.length > 0);
-    b.classList.toggle('fresh', changed > 0 || waiting.length > 0);
+  const VIEW_TITLES = { screens: 'Screens', library: 'Library', tokens: 'Tokens', review: 'Review', sketches: 'Sketches', references: 'References' };
+  /** The screens that the workflow and the area of the filters leave. */
+  const inScope = (s) => (!ui.workflow || (s.workflows || []).includes(ui.workflow)) && (!ui.area || s.area === ui.area);
+  /** The screens that wait for a look, as they are now, in the order of the board. */
+  function liveQueue() {
+    if (!data) return [];
+    if (!M) measure();
+    const list = data.screens.filter((s) => !ui.workflow || (s.workflows || []).includes(ui.workflow));
+    const by = new Map(list.map((s) => [s.key, s]));
+    const had = new Set();
+    const order = autoLayout(list).places.map((p) => p.key).filter((k) => !had.has(k) && had.add(k));
+    return L.reviewQueue(order.map((k) => factsOf(by.get(k))));
   }
-  /** A list of screens of the panel: the first ones, and the others behind one line. */
-  function screenList(list, markOf = () => null) {
-    const row = (s) => h('li', {}, h('button', { type: 'button', class: 'linkish', fk: `open:${s.key}`, onclick: () => { closePanel(); openScreen(s.key); } }, titleOf(s)), markOf(s) ? h('span', { class: 'sub' }, markOf(s)) : null);
-    const first = list.slice(0, 6);
-    const more = list.slice(6);
-    return [h('ul', { class: 'changes' }, ...first.map(row)),
-      more.length ? h('details', { class: 'more' }, h('summary', {}, `and ${more.length} more`), h('ul', { class: 'changes' }, ...more.map(row))) : null];
+  /**
+   * The queue of a review, for the screen view: the keys of the screens to walk. During a review it
+   * is the queue as it was at the start, so a screen that the person opened stays in the walk.
+   */
+  const reviewQueue = () => (ui.review ? ui.review.filter((k) => data.screens.some((s) => s.key === k)) : liveQueue());
+  /** Start a review at one screen of the queue: the screen view walks the queue from there. */
+  function startReview(key) {
+    ui.review = liveQueue();
+    if (!ui.review.includes(key)) ui.review.unshift(key);
+    openScreen(key);
   }
-  function healthPanel() {
-    const { failing, commented, comments, waiting } = reviewCounts();
-    const only = (key) => h('button', { type: 'button', class: 'btn', fk: `only:${key}`, onclick: () => {
-      Object.assign(ui, { waiting: false, fresh: false, open: false, failing: false, [key]: true });
-      for (const id of ['waiting', 'fresh', 'open', 'failing']) $(`#${id}`).checked = ui[id];
-      filterCount(); applyFilter(); closePanel();
-      if (!phone()) { const cards = $$('#board > .card:not(.dim)'); if (cards.length) { fit(cards); if (ui.zoom < READABLE) firstFitTo(cards); } }
-    } }, 'Show only these');
+  /** The shell around the views: the names, the counts and the marks of the navigation, the chips, and the time of the last check. */
+  function drawShell() {
+    const name = viewName();
+    document.body.dataset.view = name;
+    for (const x of $$('#side [data-view], #tabs [data-view], #group [data-view]')) {
+      const on = x.dataset.view === ui.view || (x.dataset.view === 'screens' && name === 'screens');
+      if (x.tagName === 'A') { if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); } else { x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }
+    }
+    const repo = data.repo || 'Design canvas';
+    $('#repo').textContent = repo;
+    $('#repo-m').textContent = repo;
+    $('#logo').textContent = repo[0].toUpperCase();
+    // A repo with one workflow names it; a repo with several has a switch.
+    const many = data.workflows.length > 1;
+    $('#wf-pick').hidden = !many;
+    $('#wf-pick-m').hidden = !many;
+    $('#wf-name').hidden = many;
+    $('#wf-name').textContent = data.workflows[0] || 'No workflow yet';
+    // On a phone the name is the switch: the line under it names the workflow that shows.
+    $('#sub-m').textContent = [many ? `${ui.workflow || 'All workflows'} ▾` : data.workflows[0], plural(data.screens.length, 'screen')].filter(Boolean).join(' · ');
+    $('#view-title').textContent = VIEW_TITLES[name] || 'Screens';
+    const queue = liveQueue();
+    const counts = { screens: data.screens.length, library: data.components.length, tokens: data.tokens.length, review: queue.length, sketches: data.explore.length, references: data.references.length };
+    for (const el of $$('[data-count]')) {
+      const n = counts[el.dataset.count];
+      el.textContent = String(n);
+      if (el.classList.contains('badge')) el.hidden = !n;
+    }
+    for (const a of $$('#side [data-view="review"], #tabs [data-view="review"]')) a.setAttribute('aria-label', queue.length ? `Review, ${plural(queue.length, 'screen')} wait${queue.length === 1 ? 's' : ''} for you` : 'Review');
+    $('#before-nav').hidden = !(data.explore.length || data.references.length);
+    $('#opts').classList.toggle('set', Boolean(ui.state !== 'default' || ui.version || ui.area));
+    // The mode switch of the inspector sits before the options of the bar.
+    const mode = $('#mode-pick');
+    if (mode && mode.nextElementSibling !== $('#opts')) $('#opts').before(mode);
+    drawChips();
+    drawChecked();
+  }
+  const CHIP_WORDS = { '': 'All', fresh: 'Changed', failing: 'Failing', open: 'Comments', waiting: 'Not approved' };
+  /** The filter chips: one is on at a time, and each carries the count of its screens. */
+  function drawChips() {
+    const counts = L.filterCounts(boardScreens().filter(inScope).map(factsOf));
+    const on = ['fresh', 'failing', 'open', 'waiting'].find((k) => ui[k]) || '';
+    for (const b of $$('#chips [data-chip]')) {
+      const k = b.dataset.chip;
+      b.textContent = `${CHIP_WORDS[k]} ${counts[k || 'all']}`;
+      b.setAttribute('aria-pressed', String(k === on));
+    }
+  }
+  function setChip(k) {
+    Object.assign(ui, { waiting: false, fresh: false, open: false, failing: false });
+    if (k) ui[k] = true;
+    drawChips();
+    applyFilter();
+  }
+  /** Leave only the screens of one chip, on the board. */
+  function showOnly(k) {
+    Object.assign(ui, { waiting: false, fresh: false, open: false, failing: false, [k]: true });
+    go('screens');
+    if (!M.phone) { const cards = $$('#board > .card:not(.dim)'); if (cards.length) { fit(cards); if (ui.zoom < READABLE) firstFitTo(cards); } }
+  }
+  /** When the checks ran last. */
+  function drawChecked() {
+    const el = $('#checked');
+    const at = data.checks?.at;
+    el.textContent = at ? `Checked ${L.agoText(at)}` : 'No check yet';
+    if (at) el.title = new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); else el.removeAttribute('title');
+  }
+  /** Under the search box: the components and the tokens that the words match, as links to the library and the token table. */
+  function drawHits() {
+    const box = $('#hits');
+    const q = ui.q.trim().toLowerCase();
+    const has = (v) => String(v || '').toLowerCase().includes(q);
+    const comps = q.length > 1 ? data.components.filter((c) => has(c.key) || has(c.title)).slice(0, 4) : [];
+    const toks = q.length > 1 ? data.tokens.filter((t) => has(t.name)).slice(0, 4) : [];
+    const done = () => { ui.q = ''; $('#q').value = ''; applyFilter(); };
+    box.hidden = !(comps.length || toks.length);
+    box.replaceChildren(
+      ...(comps.length ? [h('h3', {}, 'Components'), ...comps.map((c) => h('a', { href: `#component=${encodeURIComponent(c.key)}`, onclick: () => setTimeout(done, 0) }, c.title || c.key))] : []),
+      ...(toks.length ? [h('h3', {}, 'Tokens'), ...toks.map((t) => h('a', { href: `#token=${encodeURIComponent(t.name)}`, onclick: () => setTimeout(done, 0) }, t.name))] : []));
+  }
+  /** The small picture of a row: the approval picture of the screen, else a plain placeholder. A row loads no page. */
+  const rowThumb = (s, past = null) => (!SNAP && !past && s.picture ? h('img', { class: 'thumb', src: `${BASE}${s.picture}`, alt: '', loading: 'lazy' })
+    : h('span', { class: 'thumb ph', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')));
+  /**
+   * The board of a phone: a list. One section for each area, flow or slice, one row for each
+   * screen with its picture, its title, its line and its one status. A row opens the screen view.
+   * A card at the top says how many screens wait, and opens the review.
+   */
+  function drawList(list, shown) {
+    const box = $('#list');
+    const past = versionAt(ui.version);
+    const stage = $('#stage');
+    const top = stage.scrollTop;
+    const fkWas = box.contains(document.activeElement) ? document.activeElement.dataset.fk : null;
+    const byKey = new Map(list.map((s) => [s.key, s]));
+    const labels = list.length ? autoLayout(list).labels : [];
+    const queue = past ? [] : liveQueue();
+    const facts = queue.map((k) => factsOf(data.screens.find((s) => s.key === k)));
+    const why = [[facts.filter((f) => f.fresh).length, 'changed'], [facts.filter((f) => f.failing).length, 'failing'], [facts.filter((f) => f.comments).length, 'with comments']]
+      .filter(([n]) => n).map(([n, word]) => `${n} ${word}`).join(' · ');
+    const row = (s) => {
+      const st = statusFor(s, past);
+      return h('a', { class: 'row', href: L.hashOf({ key: s.key, viewport: ui.viewport, state: ui.state }), 'data-key': s.key, fk: `row:${s.key}`, title: detailText(s, past),
+        onclick: (e) => { e.preventDefault(); openScreen(s.key); } },
+      rowThumb(s, past), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, lineOf(s, st))), pill(st));
+    };
+    const group = groupNow();
+    box.replaceChildren(...[
+      queue.length ? h('a', { class: 'waitcard', href: '#view=review', 'data-view': 'review', fk: 'review' },
+        h('span', { class: 'wait-text' }, h('b', {}, `${plural(queue.length, 'screen')} wait${queue.length === 1 ? 's' : ''} for you`), h('small', {}, why)),
+        h('span', { class: 'wait-go' }, 'Review')) : null,
+      list.length ? h('div', { class: 'seg list-group', role: 'group', 'aria-label': 'Group the screens by' },
+        ...GROUPS.map((g) => h('button', { type: 'button', fk: `group:${g}`, class: g === group ? 'on' : null, 'aria-pressed': String(g === group), onclick: () => setView(g) }, { grid: 'Areas', flow: 'Flows', slice: 'Slices' }[g]))) : null,
+      ...labels.flatMap((l) => {
+        const keys = l.keys.filter((k) => shown.has(k));
+        if (!keys.length) return [];
+        return [h('div', { class: 'list-head' }, h('h2', {}, l.text), h('span', {}, l.sub ?? plural(keys.length, 'screen'))),
+          h('div', { class: 'rows' }, ...keys.map((k) => row(byKey.get(k))))];
+      }),
+      !list.length ? h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Start it in the chat with /wf design.') : null,
+      ...((data.explore.length || data.references.length) && !past ? [h('div', { class: 'list-head' }, h('h2', {}, 'Before the screens')),
+        h('div', { class: 'rows' },
+          data.explore.length ? h('a', { class: 'row plain', href: '#view=sketches', 'data-view': 'sketches', fk: 'sketches' }, h('span', { class: 'row-text' }, h('b', {}, 'Sketches')), h('span', { class: 'n' }, String(data.explore.length))) : null,
+          data.references.length ? h('a', { class: 'row plain', href: '#view=references', 'data-view': 'references', fk: 'references' }, h('span', { class: 'row-text' }, h('b', {}, 'References')), h('span', { class: 'n' }, String(data.references.length))) : null)] : [])].filter(Boolean));
+    stage.scrollTop = top;
+    if (fkWas) $(`[data-fk="${CSS.escape(fkWas)}"]`, box)?.focus({ preventScroll: true });
+  }
+  /**
+   * The Review view: the queue of the screens that wait for a look, then the screens that wait
+   * for a decision, then the design audit. A row opens its screen; Start review opens the first,
+   * and the screen view walks the queue.
+   */
+  function drawReview() {
+    const box = $('#review');
+    const active = document.activeElement;
+    const fkWas = box.contains(active) ? active.dataset.fk || '@' : null;
+    const top = box.scrollTop;
+    const queue = liveQueue();
+    const byKey = new Map(data.screens.map((s) => [s.key, s]));
     const fresh = unseen();
-    return [h('h2', { tabindex: '-1' }, 'Review'), h('p', { class: 'lede' }, 'What still needs you on this board.'),
-      h('h3', {}, waiting.length ? `Waiting for your decision: ${plural(waiting.length, 'screen')}` : 'Waiting for your decision'),
-      waiting.length ? [screenList(waiting, (s) => (draftOf(s) ? 'Draft' : 'Not approved')), only('waiting')] : h('p', { class: 'none' }, 'No screen waits for a decision.'),
-      h('p', { class: 'how' }, 'To decide: comment here on what must change, then answer the approval question of the agent in the chat.'),
-      SNAP ? null : [h('h3', {}, fresh.length ? `Changed since your last visit: ${plural(fresh.length, 'screen')}` : 'Changed since your last visit'),
-        fresh.length ? [screenList(fresh, (s) => (unseenOf(s) === 'new' ? 'New' : 'Changed')),
-          h('div', { class: 'row' }, only('fresh'), h('button', { type: 'button', class: 'btn quiet', fk: 'seen:all', onclick: () => markSeen(...fresh.map((s) => s.key)) }, 'Mark all as seen')),
-          h('p', { class: 'sub' }, 'Opening a screen clears its mark.')]
-          : h('p', { class: 'none' }, 'You saw every screen as it is now.')],
-      h('h3', {}, failing.length ? `Failing checks: ${plural(failing.length, 'screen')}` : 'Failing checks'),
-      !data.checks ? h('p', { class: 'none' }, 'No check has run yet.')
-        : failing.length ? [screenList(failing, (s) => L.failText(failTotal(s))), only('failing')] : h('p', { class: 'none' }, 'Every check passes.'),
-      h('h3', {}, comments ? `Open comments: ${comments} on ${plural(commented.length, 'screen')}` : 'Open comments'),
-      comments ? [screenList(commented, (s) => plural(s.openComments, 'comment')), only('open')] : h('p', { class: 'none' }, 'No open comment.'),
-      ...auditPanel()];
+    const waiting = data.screens.filter((s) => (!ui.workflow || (s.workflows || []).includes(ui.workflow)) && waits(s));
+    const row = (key) => {
+      const s = byKey.get(key);
+      const f = factsOf(s);
+      return h('li', {}, h('a', { class: 'row', href: L.hashOf({ key, viewport: ui.viewport, state: ui.state }), fk: `open:${key}`, onclick: (e) => { e.preventDefault(); startReview(key); } },
+        rowThumb(s), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, [L.waitReasons(f), s.area ? cap(s.area) : null].filter(Boolean).join(' · '))), pill(L.statusOf(f))));
+    };
+    box.replaceChildren(h('div', { class: 'review-wrap' },
+      h('header', { class: 'review-head' },
+        h('div', { class: 'review-title' },
+          h('h2', { tabindex: '-1' }, queue.length ? `${plural(queue.length, 'screen')} wait${queue.length === 1 ? 's' : ''} for you` : 'Nothing waits for you'),
+          h('p', { class: 'lede' }, queue.length ? 'New or changed since you last looked, with a failing check, or with an open comment. Opening a screen clears its Changed mark.'
+            : data.checks ? 'No screen changed since you last looked, no check fails, and no comment is open.' : 'No screen changed since you last looked, and no comment is open. No check has run yet.')),
+        h('div', { class: 'review-acts' },
+          queue.length ? h('button', { type: 'button', class: 'btn primary', fk: 'start', onclick: () => startReview(queue[0]) }, 'Start review') : null,
+          !SNAP && fresh.length ? h('button', { type: 'button', class: 'btn quiet', fk: 'seen:all', onclick: () => markSeen(...fresh.map((s) => s.key)) }, 'Mark all as seen') : null)),
+      queue.length ? h('ul', { class: 'rows queue' }, ...queue.map(row)) : null,
+      h('section', { class: 'review-sec' },
+        h('h3', {}, waiting.length ? `Waiting for your decision: ${plural(waiting.length, 'screen')}` : 'Waiting for your decision'),
+        waiting.length ? h('p', {}, 'These screens have a draft round, or no approval yet. ', h('button', { type: 'button', class: 'linkish', fk: 'only:waiting', onclick: () => showOnly('waiting') }, 'Show them on the board'))
+          : h('p', { class: 'none' }, 'No screen waits for a decision.'),
+        h('p', { class: 'how' }, 'To decide: comment on what must change, then answer the approval question of the agent in the chat.')),
+      h('section', { class: 'review-sec' }, auditPanel())));
+    box.scrollTop = top;
+    if (fkWas) ((fkWas !== '@' && $(`[data-fk="${CSS.escape(fkWas)}"]`, box)) || $('h2', box))?.focus({ preventScroll: true });
+  }
+  /** The line of the navigation that says whether the canvas hears the server. */
+  function setLive(on) {
+    const el = $('#live');
+    el.textContent = SNAP ? 'A snapshot · it does not update' : on ? 'Live · updates as agents draw' : 'Not connected';
+    el.classList.toggle('down', !on || Boolean(SNAP));
   }
   function firstFitTo(cards) {
     const { x0, y0 } = boundsOf(cards);
-    ui.zoom = 0.5;
+    ui.zoom = readZoom();
     ui.x = 48 - x0 * ui.zoom;
     ui.y = 48 - (y0 - LABEL_H) * ui.zoom;
     place();
@@ -2349,7 +2689,7 @@ var WF_CANVAS_LOGIC = (() => {
     const starting = busy.has('audit');
     const scope = ui.workflow ? `the screens of ${ui.workflow}` : 'every screen';
     const sure = ui.confirm === 'audit';
-    const redraw = () => { if (ui.panel === 'health') panel('health', true); };
+    const redraw = () => { if (ui.view === 'review') drawReview(); };
     const run = h('div', { class: 'audit-run' },
       h('button', { type: 'button', class: 'btn primary', fk: 'audit:run', disabled: runningNow || starting || !data.writable, onclick: () => {
         // An audit is a paid run of some minutes: it starts on the second press.
@@ -2358,7 +2698,7 @@ var WF_CANVAS_LOGIC = (() => {
         act('audit', runAudit, redraw);
       } }, runningNow || starting ? 'Running…' : sure ? 'Confirm: start the audit' : 'Run audit'),
       sure ? h('button', { type: 'button', class: 'btn quiet', fk: 'audit:no', onclick: () => { ui.confirm = ''; redraw(); } }, 'Cancel') : null,
-      h('span', { class: 'sub' }, sure ? `It audits ${scope}, takes a few minutes, and costs model use.` : `Audits ${scope}. The workflow filter sets the scope.`));
+      h('span', { class: 'sub' }, sure ? `It audits ${scope}, takes a few minutes, and costs model use.` : `Audits ${scope}. The workflow of the navigation sets the scope.`));
     const failed = failLine('audit', null, 'The audit did not start');
     const when = (t) => (t ? new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
     if (!audit || audit.status === 'none') return [...head, run, failed, h('p', { class: 'none' }, 'No audit has run.')];
@@ -2389,7 +2729,7 @@ var WF_CANVAS_LOGIC = (() => {
     ui.panel = null;
     if (ui.confirm === 'audit') ui.confirm = '';
     for (const b of $$('[data-panel]')) { b.classList.remove('on'); b.setAttribute('aria-expanded', 'false'); }
-    if (had) (panelFrom?.isConnected ? panelFrom : $('#health')).focus({ preventScroll: true });
+    if (had) (panelFrom?.isConnected ? panelFrom : $(narrow() ? '#tabs [aria-current]' : '#side [aria-current]'))?.focus({ preventScroll: true });
     panelFrom = null;
   }
   function panel(name, redraw = false) {
@@ -2415,11 +2755,10 @@ var WF_CANVAS_LOGIC = (() => {
     if (fkWas) ((fkWas !== '@' && $(`[data-fk="${CSS.escape(fkWas)}"]`, p)) || $('h2', p))?.focus({ preventScroll: true });
   }
   /**
-   * The content of the panel: the review of the board (`health`), or the detail of one item of a
-   * lane (`sketch:<key>`, `reference:<key>`, `component:<key>`). Null when the item is gone.
+   * The content of the panel: the detail of one sketch, one reference or one component
+   * (`sketch:<key>`, `reference:<key>`, `component:<key>`). Null when the item is gone.
    */
   function detailOf(name) {
-    if (name === 'health') return healthPanel();
     const at = name.indexOf(':');
     const kind = name.slice(0, at);
     const key = name.slice(at + 1);
@@ -2498,41 +2837,74 @@ var WF_CANVAS_LOGIC = (() => {
     return Boolean(focusState && el?.closest?.('#focus') && el.matches('textarea, input[type="text"]'));
   }
   function wire() {
-    for (const b of $$('[data-view]')) b.addEventListener('click', () => setView(b.dataset.view));
+    // A link of the navigation shows its view, with no load of the page.
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest?.('a[data-view]');
+      if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      go(a.dataset.view);
+    });
+    for (const b of $$('#group [data-view]')) b.addEventListener('click', () => setView(b.dataset.view));
+    for (const b of $$('#chips [data-chip]')) b.addEventListener('click', () => setChip(b.dataset.chip));
     for (const b of $$('[data-panel]')) b.addEventListener('click', () => panel(b.dataset.panel));
-    const filter = (id, key, value) => $(id).addEventListener('change', (e) => { ui[key] = value(e.target); filterCount(); applyFilter(); if (ui.panel === 'health') panel('health', true); });
     $('#trace').addEventListener('click', () => traceTo(null));
-    filter('#area', 'area', (t) => t.value);
-    filter('#workflow', 'workflow', (t) => t.value);
-    $('#workflow').addEventListener('change', () => { const was = ui.version; drawVersions(); if (was !== ui.version) render(); });
-    for (const id of ['waiting', 'fresh', 'open', 'failing']) filter(`#${id}`, id, (t) => t.checked);
+    $('#area').addEventListener('change', (e) => { ui.area = e.target.value; drawShell(); applyFilter(); });
+    for (const id of ['#workflow', '#workflow-m']) {
+      $(id).addEventListener('change', (e) => {
+        ui.workflow = e.target.value;
+        $('#workflow').value = ui.workflow;
+        $('#workflow-m').value = ui.workflow;
+        drawVersions();
+        render();
+      });
+    }
     $('#viewport').addEventListener('change', (e) => { ui.viewport = e.target.value; render(); });
     $('#state').addEventListener('change', (e) => setState(e.target.value));
     $('#version').addEventListener('change', (e) => { ui.version = e.target.value; drawPast(); render(); });
     $('#q').addEventListener('input', (e) => { ui.q = e.target.value; applyFilter(); });
+    // On a phone the search box opens under the bar.
+    $('#search-btn').addEventListener('click', () => {
+      const open = !$('.bar').classList.contains('searching');
+      $('.bar').classList.toggle('searching', open);
+      $('#search-btn').setAttribute('aria-expanded', String(open));
+      barHeight();
+      if (open) $('#q').focus();
+    });
     $('#zin').addEventListener('click', () => zoomBy(1.25));
     $('#zout').addEventListener('click', () => zoomBy(0.8));
     $('#zfit').addEventListener('click', () => fit());
-    document.addEventListener('click', (e) => { if (!e.target.closest('#filters')) $('#filters').open = false; });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#opts')) $('#opts').open = false; });
+    setInterval(() => { if (data) drawChecked(); }, 60000);
     document.addEventListener('keydown', (e) => {
-      // The arrow keys walk the screens in the screen view, unless a field or a control has the key.
-      if (focusState && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey && !e.ctrlKey && !e.metaKey
+      // Ctrl K or Cmd K goes to the search box of the screens.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k' && !focusState && data) {
+        e.preventDefault();
+        if (viewName() !== 'screens') go('screens');
+        if (narrow() && !$('.bar').classList.contains('searching')) $('#search-btn').click(); else $('#q').focus();
+        return;
+      }
+      // The arrow keys, and [ and ], walk the screens in the screen view, unless a field or a control has the key.
+      const by = e.key === 'ArrowLeft' || e.key === '[' ? -1 : e.key === 'ArrowRight' || e.key === ']' ? 1 : 0;
+      if (focusState && by && !e.altKey && !e.ctrlKey && !e.metaKey
         && !e.target.closest?.('input, textarea, select, [contenteditable]')) {
         e.preventDefault();
-        step(e.key === 'ArrowLeft' ? -1 : 1);
-        $(`#focus [data-fk="step:${e.key === 'ArrowLeft' ? -1 : 1}"]`)?.focus({ preventScroll: true });
+        step(by);
+        $(`#focus [data-fk="step:${by}"]`)?.focus({ preventScroll: true });
         return;
       }
       if (e.key !== 'Escape') return;
       if (focusState) {
         // Escape never loses what was typed: it leaves the field and the comment mode, and the draft stays.
         const field = typing() ? document.activeElement : null;
-        if (focusState.inspecting && !field) { focusState.inspecting = false; drawFocus(); $('#focus [data-fk="t:inspect"]')?.focus({ preventScroll: true }); }
-        else if (focusState.commenting || focusState.pick) { focusState.commenting = false; focusState.pick = null; $('#focus h2')?.focus({ preventScroll: true }); drawFocus(); }
+        // Escape closes the menu, then the mode and its sheet, then the view.
+        if (focusState.open.tools) { focusState.open.tools = false; drawFocus(); $('#focus [data-fk="sec:tools"]')?.focus({ preventScroll: true }); }
+        else if (focusState.inspecting && !field) leaveMode();
+        else if (focusState.commenting || focusState.pick) leaveMode();
         else if (field && field.value.trim()) { $('#focus h2')?.focus({ preventScroll: true }); held(); }
-        else if (focusState.full) { focusState.full = false; focusState.zoom = 'fit'; drawFocus(); }
+        else if (narrow() && focusState.sheet) leaveMode();
         else closeFocus();
-      } else if ($('#filters').open) { $('#filters').open = false; $('#filters > summary').focus(); }
+      } else if ($('#opts').open) { $('#opts').open = false; $('#opts > summary').focus(); }
+      else if (!$('#hits').hidden) { $('#hits').hidden = true; }
       else if (ui.panel) closePanel();
       else if (ui.trace) traceTo(null);
     });
@@ -2542,18 +2914,19 @@ var WF_CANVAS_LOGIC = (() => {
     addEventListener('hashchange', fromHash);
     // A resize comes many times a second, and on a phone also while the person scrolls. Once a
     // frame, the board redraws when its sizes change. The screen view redraws around its page.
-    let last = `${phone()}|${document.documentElement.clientWidth}`;
+    let last = `${phone()}|${narrow()}|${document.documentElement.clientWidth}`;
     let resizeFrame = 0;
     addEventListener('resize', () => {
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
         barHeight();
         const ph = phone();
-        const sig = `${ph}|${document.documentElement.clientWidth}`;
+        const nw = narrow();
+        const sig = `${ph}|${nw}|${document.documentElement.clientWidth}`;
         const wider = sig !== last;
         last = sig;
-        // The list of a phone follows its width; the board of a wide window has cards of one width.
-        if (data && wider && (ph || M?.phone !== ph)) { if (M?.phone !== ph) ui.fitted = false; render(); }
+        // The board is a list in a narrow window, and a canvas in a wide one.
+        if (data && wider && M?.phone !== nw) { ui.fitted = false; render(); }
         // The bar of a phone browser comes and goes while the person scrolls: that changes no layout.
         if (focusState && !typing() && (wider || !ph)) drawFocus();
       });
@@ -2596,6 +2969,7 @@ var WF_CANVAS_LOGIC = (() => {
       downTimer = null;
       listen.tries = 0;
       unnotice('down');
+      setLive(true);
       if (hello.writeToken || hello.token) token = hello.writeToken || hello.token;
       if (listen.boot === undefined) { listen.boot = hello.boot; return; }
       if (hello.boot !== listen.boot) {
@@ -2612,7 +2986,7 @@ var WF_CANVAS_LOGIC = (() => {
     });
     es.addEventListener('error', () => {
       // A short gap is a phone that woke up: the line shows only when the gap lasts.
-      if (!downTimer) downTimer = setTimeout(() => { downTimer = null; notice('down', `Not connected: the board shows the screens as of ${clock(loadedAt)}.`, { text: 'Retry', run: () => { listen(); load().catch(loadFailed); } }); }, 4000);
+      if (!downTimer) downTimer = setTimeout(() => { downTimer = null; setLive(false); notice('down', `Not connected: the board shows the screens as of ${clock(loadedAt)}.`, { text: 'Retry', run: () => { listen(); load().catch(loadFailed); } }); }, 4000);
       // A stream that the browser gave up on opens again.
       // The server refuses a stream when too many are open: each try waits longer than the last.
       if (es.readyState === 2) { clearTimeout(reopenTimer); reopenTimer = setTimeout(listen, L.reopenDelay(listen.tries)); listen.tries += 1; }
@@ -2655,7 +3029,7 @@ var WF_CANVAS_LOGIC = (() => {
         const ifr = card.firstChild.querySelector(':scope > iframe');
         if (ifr && touched(card.dataset.key)) reloadFrame(ifr);
       }
-      for (const ifr of $$('#board .lane iframe')) {
+      for (const ifr of $$('#before iframe')) {
         if (all || lanes || parts.some((p) => ifr.src.endsWith(`/s/${p}`))) reloadFrame(ifr);
       }
       if (focusState && touched(focusState.key)) {
@@ -2682,11 +3056,15 @@ var WF_CANVAS_LOGIC = (() => {
 
   // What the views of the other canvas files use: the state, the controls and the drawing helpers.
   window.WF_CANVAS = Object.assign(window.WF_CANVAS || {}, {
-    L, h, ui, BASE, SNAP, phone, cap, titleOf, TOKEN_KIND_WORDS,
+    L, h, ui, BASE, SNAP, phone, narrow, cap, titleOf, TOKEN_KIND_WORDS,
     data: () => data,
-    setView, render, openScreen, traceFrom, closePanel, tokenSpecimen, tokenValue, componentMarks, componentSrc, say,
+    // The review: the keys of the screens to walk, and whether a review runs.
+    reviewQueue: () => (data ? reviewQueue() : []),
+    reviewing: () => Boolean(ui.review),
+    go, setView, render, openScreen, traceFrom, closePanel, tokenSpecimen, tokenValue, componentMarks, componentSrc, say,
   });
   wire();
+  setLive(!SNAP);
   listen();
   load().then(fromHash, loadFailed);
 })();

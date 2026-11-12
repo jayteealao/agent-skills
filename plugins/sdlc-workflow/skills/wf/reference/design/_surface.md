@@ -116,7 +116,8 @@ The canvas is one page per repo that shows every screen of the repo on one board
 - **The Tokens tab** shows the tokens as a table per kind, with a sample, a column per theme, the alias chain and the screens and components that use each. `#token=<name>` opens it on one token.
 - **Inspect** (beside Comment in the screen view): tap an element to see its component and variant, and the token behind each of its properties, with each raw value flagged and the nearest token named.
 - **The mode control** of the bar shows every screen and component in one theme of the tokens, or as the system sets it.
-- **The health control** of the bar names the failing screens, the open comments and the findings of the last audit. It opens the review, which also runs the design audit.
+- **The Review view** lists the screens that wait for the person: new or changed, with a failing check, or with an open comment. Start review opens the first, and Next walks the list. It also runs the design audit.
+- **The navigation** is a sidebar on a computer and a tab bar at the bottom on a phone: Screens, Library, Tokens and Review. On a phone the screens are a list, and the screen view keeps its controls in one top bar, one row of chips and one bar at the bottom (View, Comment, Inspect, and the previous and next screen). On a computer the screen view has the screens of the flow on the left and an inspector on the right (Inspect, Comments, Checks, Why). A raw value and a check failure each have a Comment for the agent button, which starts a comment thread with the finding.
 
 The design server serves the canvas of every repo on the list `~/.sdlc/design-repos.json`, and the brainstorm pages of those repos. It is one server for the computer. It listens on `127.0.0.1` and on the tailnet address, so the person can review from the phone. It writes three things only: a comment on a screen that exists, the layout positions, and the restore of a version as a new round.
 

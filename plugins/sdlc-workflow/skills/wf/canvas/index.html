@@ -5,53 +5,98 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Design canvas</title>
 <link rel="stylesheet" href="/canvas/canvas.css">
+<link rel="stylesheet" href="/canvas/canvas-screen.css">
 <link rel="stylesheet" href="/canvas/canvas-library.css">
+<link rel="stylesheet" href="/canvas/canvas-shell.css">
 </head>
-<body>
+<body data-view="screens">
+<nav id="side" class="side" aria-label="Canvas">
+  <div class="side-head">
+    <span class="logo" id="logo" aria-hidden="true">D</span>
+    <span class="side-name">
+      <b id="repo">Design canvas</b>
+      <span class="side-sub" id="wf-name"></span>
+      <label class="wf-pick" id="wf-pick" hidden><span class="sr">Workflow</span><select id="workflow"><option value="">All workflows</option></select></label>
+    </span>
+  </div>
+  <div class="nav">
+    <a href="#view=screens" data-view="screens" aria-current="page"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="2"/><rect x="14" y="3" width="7" height="18" rx="2"/></svg>Screens<span class="n" data-count="screens"></span></a>
+    <a href="#view=library" data-view="library"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>Library<span class="n" data-count="library"></span></a>
+    <a href="#view=tokens" data-view="tokens"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5"/><circle cx="16" cy="16" r="5"/></svg>Tokens<span class="n" data-count="tokens"></span></a>
+    <a href="#view=review" data-view="review"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>Review<span class="n badge" data-count="review" hidden></span></a>
+  </div>
+  <div class="nav before" id="before-nav" hidden>
+    <h2>Before the screens</h2>
+    <a href="#view=sketches" data-view="sketches">Sketches<span class="n" data-count="sketches"></span></a>
+    <a href="#view=references" data-view="references">References<span class="n" data-count="references"></span></a>
+  </div>
+  <div class="side-foot">
+    <span class="live" id="live" role="status">Live · updates as agents draw</span>
+  </div>
+</nav>
+<div class="app">
 <header class="bar">
-  <h1 id="repo">Design canvas</h1>
-  <div class="seg" role="group" aria-label="Group the screens by">
+  <div class="bar-name">
+    <b id="repo-m">Design canvas</b>
+    <span class="side-sub" id="sub-m"></span>
+    <label class="wf-pick" id="wf-pick-m" hidden><span class="sr">Workflow</span><select id="workflow-m"><option value="">All workflows</option></select></label>
+  </div>
+  <h1 class="bar-title" id="view-title">Screens</h1>
+  <button type="button" class="icon" id="search-btn" aria-label="Search screens" aria-expanded="false" aria-controls="q"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+  <div class="search" id="search">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Search screens, components, tokens" aria-label="Search screens, components and tokens" aria-describedby="shown" autocomplete="off">
+    <kbd aria-hidden="true">Ctrl K</kbd>
+    <div class="hits" id="hits" hidden></div>
+  </div>
+  <div class="seg" id="group" role="group" aria-label="Group the screens by">
     <button type="button" data-view="grid" class="on" aria-pressed="true">Areas</button>
     <button type="button" data-view="flow" aria-pressed="false">Flows</button>
     <button type="button" data-view="slice" aria-pressed="false">Slices</button>
-    <button type="button" data-view="library" aria-pressed="false">Library</button>
-    <button type="button" data-view="tokens" aria-pressed="false">Tokens</button>
   </div>
-  <label class="search"><span class="sr">Search screens</span><input id="q" type="search" placeholder="Search screens" aria-describedby="shown"></label>
-  <span id="shown" class="shown" hidden></span>
-  <details class="filters" id="filters">
-    <summary>Filter <span id="fcount" class="count" hidden></span></summary>
+  <label class="pick" id="viewport-pick"><span class="sr">Viewport</span><select id="viewport"></select></label>
+  <details class="opts" id="opts">
+    <summary aria-label="More view options"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
     <div class="pop">
-      <label>Area <select id="area"><option value="">All</option></select></label>
-      <label>Workflow <select id="workflow"><option value="">All</option></select></label>
-      <label class="chk"><input type="checkbox" id="waiting" aria-label="Only screens that wait for your decision"> Only screens that wait for your decision</label>
-      <label class="chk"><input type="checkbox" id="fresh" aria-label="Only screens changed since your last visit"> Only screens changed since your last visit</label>
-      <label class="chk"><input type="checkbox" id="open" aria-label="Only screens with open comments"> Only screens with open comments</label>
-      <label class="chk"><input type="checkbox" id="failing" aria-label="Only screens with failing checks"> Only screens with failing checks</label>
+      <label>State of every screen <select id="state"></select></label>
+      <label id="version-pick" hidden>Version <select id="version"></select></label>
+      <label>Area <select id="area"><option value="">All areas</option></select></label>
+      <span id="arrange" class="arrange" hidden></span>
     </div>
   </details>
-  <button type="button" id="trace" class="chip" hidden></button>
-  <button type="button" id="health" class="health" data-panel="health" aria-expanded="false" aria-controls="panel"><b>Review</b><span id="hcounts"></span></button>
 </header>
+<div class="chips" id="chips" role="group" aria-label="Filter the screens">
+  <button type="button" data-chip="" aria-pressed="true">All</button>
+  <button type="button" data-chip="fresh" aria-pressed="false">Changed</button>
+  <button type="button" data-chip="failing" aria-pressed="false">Failing</button>
+  <button type="button" data-chip="open" aria-pressed="false">Comments</button>
+  <button type="button" data-chip="waiting" aria-pressed="false">Not approved</button>
+  <button type="button" id="trace" class="chip" hidden></button>
+  <span id="shown" class="shown" hidden></span>
+  <span id="checked" class="checked"></span>
+</div>
 <div id="notice" role="status"></div>
 <main id="stage" aria-label="Screens">
   <div id="board"><svg id="edges" aria-hidden="true"></svg><p class="empty" id="loading">Loading the screens…</p></div>
+  <div id="list" hidden></div>
 </main>
-<section id="library" hidden aria-label="Library"></section>
-<div class="dock" role="toolbar" aria-label="View">
-  <label class="pick"><span class="sr">Viewport</span><select id="viewport"></select></label>
-  <label class="pick" id="version-pick" hidden><span class="sr">Version</span><select id="version"></select></label>
-  <div class="seg states" id="states" role="group" aria-label="State"></div>
-  <label class="pick" id="state-pick"><span class="sr">State</span><select id="state"></select></label>
-  <span id="arrange" class="arrange" hidden></span>
-  <div class="zoom" role="group" aria-label="Zoom">
-    <button type="button" id="zout" aria-label="Zoom out">−</button>
-    <output id="zval" aria-label="Zoom">100%</output>
-    <button type="button" id="zin" aria-label="Zoom in">+</button>
-    <button type="button" id="zfit" aria-label="Fit every screen in the window">Fit</button>
-  </div>
+<div class="zoom" id="zoom" role="group" aria-label="Zoom">
+  <button type="button" id="zout" aria-label="Zoom out">−</button>
+  <output id="zval" aria-label="Zoom">100%</output>
+  <button type="button" id="zin" aria-label="Zoom in">+</button>
+  <button type="button" id="zfit" aria-label="Fit every screen in the window">Fit</button>
 </div>
-<aside id="panel" hidden aria-label="Review"></aside>
+<section id="library" hidden aria-label="Library"></section>
+<section id="review" hidden aria-label="Review"></section>
+<section id="before" hidden aria-label="Before the screens"></section>
+</div>
+<nav id="tabs" class="tabs" aria-label="Canvas">
+  <a href="#view=screens" data-view="screens" aria-current="page"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="2"/><rect x="14" y="3" width="7" height="18" rx="2"/></svg>Screens</a>
+  <a href="#view=library" data-view="library"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>Library</a>
+  <a href="#view=tokens" data-view="tokens"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5"/><circle cx="16" cy="16" r="5"/></svg>Tokens</a>
+  <a href="#view=review" data-view="review"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>Review<span class="badge" data-count="review" hidden></span></a>
+</nav>
+<aside id="panel" hidden aria-label="Detail"></aside>
 <div id="focus" hidden role="dialog" aria-modal="true" aria-label="Screen"></div>
 <div id="status" role="status"></div>
 <script src="/canvas/canvas-inspect.js"></script>

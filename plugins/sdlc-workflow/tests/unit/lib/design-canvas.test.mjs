@@ -269,3 +269,228 @@ test('a component is marked by what its spec lacks', () => {
   assert.equal(L.specMark({ problems: [{ cause: 'no-spec' }] }), 'No spec');
   assert.equal(L.specMark({ problems: [{ cause: 'variant:tone=ghost' }, { cause: 'theme:dark' }] }), '2 gaps');
 });
+
+// ---- the shell and the board
+
+test('a card shows one status: the most urgent thing of its screen', () => {
+  const all = { failing: 4, comments: 2, fresh: 'changed', draft: true, approved: true };
+  assert.deepEqual(plain(L.statusOf(all)), { kind: 'failing', text: '4 failing' });
+  assert.deepEqual(plain(L.statusOf({ ...all, failing: 0 })), { kind: 'comments', text: '2 comments' });
+  assert.deepEqual(plain(L.statusOf({ comments: 1, approved: true })), { kind: 'comments', text: '1 comment' });
+  assert.deepEqual(plain(L.statusOf({ ...all, failing: 0, comments: 0 })), { kind: 'changed', text: 'Changed' });
+  assert.deepEqual(plain(L.statusOf({ fresh: 'new' })), { kind: 'changed', text: 'New' });
+  assert.deepEqual(plain(L.statusOf({ draft: true, approved: true })), { kind: 'draft', text: 'Draft' });
+  assert.deepEqual(plain(L.statusOf({ approved: false })), { kind: 'draft', text: 'Not approved' });
+  assert.deepEqual(plain(L.statusOf({ approved: true })), { kind: 'approved', text: 'Approved' });
+  // A screen with no file says so before anything else.
+  assert.deepEqual(plain(L.statusOf({ ...all, exists: false })), { kind: 'failing', text: 'No file' });
+  assert.deepEqual(plain(L.statusOf(null)), { kind: 'draft', text: 'Not approved' });
+});
+
+test('the review queue holds the screens that changed, fail a check or have an open comment, in the order given', () => {
+  const rows = [
+    { key: 'a', approved: true },
+    { key: 'b', fresh: 'changed' },
+    { key: 'c', failing: 2 },
+    { key: 'd', waiting: true },
+    { key: 'e', comments: 1 },
+    { key: 'f', fresh: 'new', failing: 1, comments: 3 },
+    { key: 'gone', exists: false, failing: 1 },
+  ];
+  assert.deepEqual(plain(L.reviewQueue(rows)), ['b', 'c', 'e', 'f']);
+  assert.deepEqual(plain(L.reviewQueue([])), []);
+  assert.deepEqual(plain(L.reviewQueue(null)), []);
+  // A missing approval alone is a decision, not a look.
+  assert.equal(L.waitsForLook({ waiting: true, draft: true }), false);
+  assert.equal(L.waitReasons({ fresh: 'new', failing: 1, comments: 3 }), 'New · 1 check fails · 3 open comments');
+  assert.equal(L.waitReasons({ fresh: 'changed' }), 'Changed');
+});
+
+test('each filter chip counts its screens', () => {
+  const rows = [
+    { key: 'a', fresh: 'changed', failing: 2, waiting: true },
+    { key: 'b', comments: 1 },
+    { key: 'c', fresh: 'new', comments: 2, waiting: true },
+    { key: 'd' },
+  ];
+  assert.deepEqual(plain(L.filterCounts(rows)), { all: 4, fresh: 2, failing: 1, open: 2, waiting: 2 });
+  assert.deepEqual(plain(L.filterCounts([])), { all: 0, fresh: 0, failing: 0, open: 0, waiting: 0 });
+});
+
+test('the time of the last check reads in words, and a screen names its step of the flow', () => {
+  const now = Date.parse('2026-01-02T12:00:00Z');
+  assert.equal(L.agoText('2026-01-02T11:59:40Z', now), 'just now');
+  assert.equal(L.agoText('2026-01-02T11:56:00Z', now), '4 min ago');
+  assert.equal(L.agoText('2026-01-02T09:00:00Z', now), '3 h ago');
+  assert.equal(L.agoText('2025-12-31T12:00:00Z', now), '2 d ago');
+  assert.equal(L.agoText('2026-01-02T13:00:00Z', now), 'just now', 'a clock that is ahead');
+  assert.equal(L.agoText('not a time', now), '');
+  assert.equal(L.agoText(null, now), '');
+  assert.equal(L.stepText(0, 5), 'entry');
+  assert.equal(L.stepText(1, 5), '2 of 5');
+  assert.equal(L.stepText(0, 1), '');
+  assert.equal(L.stepText(-1, 5), '');
+});
+
+test('the address names a view of the navigation, and nothing else', () => {
+  assert.equal(L.parseView('#view=review'), 'review');
+  assert.equal(L.parseView('#view=sketches'), 'sketches');
+  assert.equal(L.parseView('view=library'), 'library');
+  assert.equal(L.parseView('#view=other'), null);
+  assert.equal(L.parseView('#screen=pay'), null);
+  assert.equal(L.parseView(''), null);
+});
+
+test('the page has the navigation of a wide and of a narrow window, the chips, and no floating strip', () => {
+  const dir = join(pluginRoot, 'skills', 'wf', 'canvas');
+  const page = readFileSync(join(dir, 'index.html'), 'utf8');
+  const shell = readFileSync(join(dir, 'canvas-shell.css'), 'utf8');
+  assert.match(page, /<link rel="stylesheet" href="\/canvas\/canvas-shell\.css">/);
+  assert.ok(page.indexOf('/canvas/canvas.css') < page.indexOf('/canvas/canvas-shell.css'), 'the shell sheet loads after the base sheet');
+  // The four views are real links in both navigations, and one of each is the current one.
+  for (const nav of ['<nav id="side"', '<nav id="tabs"']) {
+    const at = page.indexOf(nav);
+    assert.ok(at > 0, nav);
+    const part = page.slice(at, page.indexOf('</nav>', at));
+    for (const view of ['screens', 'library', 'tokens', 'review']) assert.match(part, new RegExp(`<a href="#view=${view}" data-view="${view}"`), `${nav} ${view}`);
+    assert.equal((part.match(/aria-current="page"/g) ?? []).length, 1);
+  }
+  assert.match(page, /<a href="#view=sketches" data-view="sketches">/);
+  assert.match(page, /<a href="#view=references" data-view="references">/);
+  for (const chip of ['', 'fresh', 'failing', 'open', 'waiting']) assert.match(page, new RegExp(`data-chip="${chip}"`));
+  for (const view of ['grid', 'flow', 'slice']) assert.match(page, new RegExp(`<button type="button" data-view="${view}"`));
+  for (const id of ['stage', 'library', 'review', 'before']) assert.match(page, new RegExp(`<(?:main|section) id="${id}"[^>]* aria-label="`), `${id} is a landmark`);
+  assert.doesNotMatch(page, /class="dock"|id="health"|id="filters"/);
+  // The canvas loads nothing from another server.
+  assert.doesNotMatch(page + shell, /https?:\/\/(?!www\.w3\.org\/2000\/svg)/);
+  assert.match(shell, /@media \(prefers-color-scheme: dark\)/);
+  assert.match(shell, /@media \(max-width: 899px\)/);
+  assert.match(shell, /font-family: Inter, system-ui/);
+});
+
+test('the canvas hands the queue of a review to the screen view, and a phone row loads no page', () => {
+  assert.match(source, /reviewQueue: \(\) => \(data \? reviewQueue\(\) : \[\]\),/);
+  assert.match(source, /reviewing: \(\) => Boolean\(ui\.review\),/);
+  assert.match(source, /const narrow = \(\) => matchMedia\('\(max-width: 899px\)'\)\.matches;/);
+  assert.match(source, /if \(M\?\.phone\) drawList\(list, shown\);/);
+  const list = source.slice(source.indexOf('function drawList('), source.indexOf('function drawReview('));
+  assert.doesNotMatch(list, /iframe|frameFor\(/);
+  assert.match(source, /const view = data \? L\.parseView\(location\.hash\) : null;/);
+});
+
+// ---- the screen view
+
+const SCREENS = [
+  { key: 'tree', area: 'workspace', flow: 'find', order: 10 }, { key: 'tabs', area: 'workspace', flow: 'find', order: 20 },
+  { key: 'chat', area: 'agent', flow: 'act', order: 10 }, { key: 'composer', area: 'agent', flow: 'act', order: 20 }, { key: 'cards', area: 'agent', flow: 'act', order: 30 },
+  { key: 'files', area: 'panels' }, { key: 'git', area: 'panels' }, { key: 'about' },
+];
+const keysOf = (list) => plain(list).map((s) => s.key);
+
+test('Previous and Next walk the flow of the open screen, and go on to the nearest screen past its ends', () => {
+  const mid = L.neighbours(SCREENS, 'composer');
+  assert.equal(mid.kind, 'flow');
+  assert.equal(mid.name, 'Act flow');
+  assert.deepEqual(keysOf(mid.list), ['chat', 'composer', 'cards']);
+  assert.equal(mid.at, 1);
+  assert.equal(mid.prev.key, 'chat');
+  assert.equal(mid.next.key, 'cards');
+  const last = L.neighbours(SCREENS, 'cards');
+  assert.equal(last.next.key, 'files');
+  assert.equal(L.neighbours(SCREENS, 'chat').prev.key, 'tabs');
+  // The flow order wins over the order of the board.
+  const shuffled = [SCREENS[4], SCREENS[2], SCREENS[3]];
+  assert.deepEqual(keysOf(L.neighbours(shuffled, 'chat').list), ['chat', 'composer', 'cards']);
+});
+
+test('a screen with no flow walks its area, a screen with neither walks the board, and one screen alone has no neighbour', () => {
+  const area = L.neighbours(SCREENS, 'git');
+  assert.equal(area.kind, 'area');
+  assert.equal(area.name, 'Panels');
+  assert.deepEqual(keysOf(area.list), ['files', 'git']);
+  assert.equal(area.prev.key, 'files');
+  assert.equal(area.next.key, 'about');
+  const none = L.neighbours(SCREENS, 'about');
+  assert.equal(none.kind, 'board');
+  assert.equal(none.list.length, SCREENS.length);
+  assert.equal(none.next.key, 'tree');
+  const alone = L.neighbours([{ key: 'one', flow: 'solo' }], 'one');
+  assert.equal(alone.prev, null);
+  assert.equal(alone.next, null);
+  assert.equal(L.neighbours(SCREENS, 'gone').kind, 'none');
+  // A flow that is the whole board turns around at its ends.
+  assert.equal(L.neighbours(SCREENS.slice(2, 5), 'cards').next.key, 'chat');
+});
+
+test('a screen opened from the review queue walks the queue, and the queue stops at its ends', () => {
+  const q = L.neighbours(SCREENS, 'git', ['cards', 'git', 'tree', 'gone']);
+  assert.equal(q.kind, 'queue');
+  assert.deepEqual(keysOf(q.list), ['cards', 'git', 'tree']);
+  assert.equal(q.prev.key, 'cards');
+  assert.equal(q.next.key, 'tree');
+  assert.equal(L.neighbours(SCREENS, 'tree', ['cards', 'git', 'tree']).next, null);
+  assert.equal(L.neighbours(SCREENS, 'cards', ['cards', 'git', 'tree']).prev, null);
+  // A screen that the queue does not hold walks its flow.
+  assert.equal(L.neighbours(SCREENS, 'chat', ['git']).kind, 'flow');
+  assert.equal(L.neighbours(SCREENS, 'chat', []).kind, 'flow');
+});
+
+test('the line under the title names the area, the flow and the place, and in a mode says what the mode does', () => {
+  assert.equal(L.subLine({ area: 'agent', flow: 'chat', at: 0, total: 6 }), 'Agent · chat flow · 1 of 6');
+  assert.equal(L.subLine({ area: 'panels', at: 1, total: 2 }), 'Panels · 2 of 2');
+  assert.equal(L.subLine({ area: 'panels', at: 0, total: 1 }), 'Panels');
+  assert.equal(L.subLine({ flow: 'pair', at: 0, total: 1 }), 'pair flow');
+  assert.equal(L.subLine({}), '');
+  assert.equal(L.subLine({ area: 'agent', flow: 'chat', at: 2, total: 5, queue: true }), 'Review queue · 3 of 5');
+  assert.equal(L.subLine({ area: 'agent', mode: 'inspect', touch: true }), 'Inspecting · tap any element');
+  assert.equal(L.subLine({ mode: 'inspect' }), 'Inspecting · select any element');
+  assert.equal(L.subLine({ mode: 'comment', touch: true }), 'Commenting · tap an element');
+  assert.equal(L.subLine({ mode: 'comments', open: 2 }), '2 open comments');
+  assert.equal(L.subLine({ mode: 'comments' }), 'Comments');
+  assert.equal(L.subLine({ mode: 'checks', failing: 28 }), 'Checks · 28 failing');
+  assert.equal(L.subLine({ mode: 'checks' }), 'Checks · none fails');
+});
+
+test('a failing check starts a comment for the agent: its name, its message as one sentence, and the repair', () => {
+  assert.equal(L.findingComment('Target size', 'The target is 32 px high', 'Give the control a height of --size-touch.'),
+    'Target size: The target is 32 px high. Give the control a height of --size-touch.');
+  assert.equal(L.findingComment('Contrast', ' The text has 3.9:1;\n it needs 4.5:1. '), 'Contrast: The text has 3.9:1; it needs 4.5:1.');
+});
+
+test('the screen view has one top bar, the modes in one control, a dock with four tabs, and no mark over the screen until the person asks', () => {
+  const view = source.slice(source.indexOf('function drawFocus()'), source.indexOf('function keepPickInView()'));
+  assert.match(view, /class: 'sv-top'/);
+  assert.match(view, /modeBtn\('view', 'View'\), past \? null : modeBtn\('comment', 'Comment', openThreads\.length\), inspect \? modeBtn\('inspect', 'Inspect'\) : null/);
+  for (const tab of ['inspect', 'comments', 'checks', 'why']) assert.match(view, new RegExp(`tabBtn\\('${tab}'`), tab);
+  assert.match(view, /h\('footer', \{ class: 'sv-bottom' \}, stepBtn\(-1\), modeSeg, stepBtn\(1\)\)/);
+  assert.match(view, /class: 'sv-float', role: 'toolbar'/);
+  // The old tools row, its zoom row and the full-size mode of a phone are gone.
+  assert.doesNotMatch(view, /class: 'tools'|class: 'stepper'|moreTools\(|f\.full = true|'Full size'/);
+  assert.match(source, /checks: false, audit: false, commenting: false,/);
+  assert.match(view, /if \(past \|\| \(!f\.commenting && !f\.checks\) \|\| \(!f\.all && !t\.open\)\) return;/);
+  assert.match(view, /'Show marks on the screen'/);
+  // A finding becomes a comment in one press, and nothing posts until the person sends it.
+  assert.match(view, /agentComment\(here \? find\(loaded\(\), first\?\.selector\) : null, L\.findingComment\(/);
+  assert.match(view, /comment: data\.writable && !past \? agentComment : null/);
+  const agent = view.slice(view.indexOf('const agentComment ='), view.indexOf('const drawMarks ='));
+  assert.doesNotMatch(agent, /post\(|send\(/);
+});
+
+test('the keys of the screen view: Escape leaves the menu, the mode, then the view, and the arrows and the brackets walk the screens', () => {
+  assert.match(source, /const by = e\.key === 'ArrowLeft' \|\| e\.key === '\[' \? -1 : e\.key === 'ArrowRight' \|\| e\.key === '\]' \? 1 : 0;/);
+  assert.match(source, /!e\.target\.closest\?\.\('input, textarea, select, \[contenteditable\]'\)/);
+  const esc = source.slice(source.indexOf('// Escape closes the menu, then the mode and its sheet, then the view.'));
+  assert.ok(esc.indexOf('focusState.open.tools') < esc.indexOf('leaveMode()') && esc.indexOf('leaveMode()') < esc.indexOf('else closeFocus();'));
+  assert.match(source, /if \(!opts\.queue && !window\.WF_CANVAS\?\.reviewing\?\.\(\)\) return null;/);
+});
+
+test('the page loads the sheet of the screen view after the sheet of the canvas, and the sheet has both themes and loads nothing', () => {
+  const page = readFileSync(join(pluginRoot, 'skills', 'wf', 'canvas', 'index.html'), 'utf8');
+  assert.ok(page.indexOf('/canvas/canvas.css') > 0 && page.indexOf('/canvas/canvas.css') < page.indexOf('/canvas/canvas-screen.css'));
+  const css = readFileSync(join(pluginRoot, 'skills', 'wf', 'canvas', 'canvas-screen.css'), 'utf8');
+  for (const name of ['--cv-ground', '--cv-surface', '--cv-ink', '--cv-ink2', '--cv-line', '--cv-accent', '--cv-accent-soft', '--cv-ok-bg', '--cv-ok', '--cv-info-bg', '--cv-info', '--cv-warn-bg', '--cv-warn', '--cv-alert']) {
+    assert.equal(css.split(`${name}:`).length - 1, 2, `${name} has a light and a dark value`);
+  }
+  assert.doesNotMatch(css, /@import|url\((?!"data:)/);
+  assert.match(css, /#focus :focus-visible \{ outline: 2px solid var\(--cv-accent\)/);
+});
