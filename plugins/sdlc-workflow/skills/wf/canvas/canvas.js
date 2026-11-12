@@ -1881,6 +1881,13 @@ var WF_CANVAS_LOGIC = (() => {
     const box = h('div', { class: 'shot' }, h('div', { class: 'cap' }, caption), content);
     Object.assign(box, { content, size, tall: size.height, scale: 1, bound: 0 });
     box.addEventListener('wf-ready', () => { if (box.isConnected) hug(box); });
+    // New rules can give the page another length, and its elements other places: the pins and
+    // the marks of the open screen are drawn again, and the panel of the inspector with them.
+    box.addEventListener('wf-restyle', () => {
+      if (!box.isConnected) return;
+      hug(box);
+      if (focusState && box.matches('#focus .view > .shot.now')) drawFocus();
+    });
     return box;
   }
   /** Give a box its scale, and the height that its page and its bound allow. */
@@ -3308,30 +3315,43 @@ var WF_CANVAS_LOGIC = (() => {
       if (!fresh) return;
       let lanes = false;
       // The sheets that every page links changed: every screen shows another design.
-      if (before && (before.sheets?.fingerprint ?? null) !== (data.sheets?.fingerprint ?? null)) all = true;
+      const sheetsNew = Boolean(before && (before.sheets?.fingerprint ?? null) !== (data.sheets?.fingerprint ?? null));
+      let sheets = sheetsNew;
       if (change.catchUp) {
         const d = L.diffStates(before, data);
-        all = all || d.all;
+        sheets = sheets || d.all;
         pages = [...new Set([...pages, ...d.pages])];
         lanes = d.lanes || (!d.pages.length && !d.all);
       }
-      const touched = (key) => all || pages.includes(key);
-      // The mount keeps what it read: a page or a sheet changed, so the next draw reads the files again.
-      if (all || pages.length) MOUNT?.forget();
+      // A mounted page shares its sheets with the other pages: the mount gives the sheets their
+      // new rules in place, and the pages keep their elements. `stale` are the pages that cannot
+      // have it so; they are read again whole, like a page in a frame and like every page before.
+      // The server says `all` for each file that the pages share. When no sheet has new rules and
+      // the sheets have the fingerprint they had, the file is no sheet (a picture, a font): every
+      // page is read again.
+      let stale = [];
+      if (all || sheets) {
+        const r = MOUNT?.refreshSheets ? await MOUNT.refreshSheets() : null;
+        if (r && !r.again && (r.renewed || r.stale.length || sheetsNew || !all)) { sheets = true; all = false; stale = r.stale; } else all = true;
+      }
+      const touched = (key, page) => all || pages.includes(key) || (sheets && (page.tagName === 'IFRAME' || stale.includes(page)));
+      // The mount keeps what it read: a page changed, or a sheet that could not change in place, so
+      // the next draw reads the files again.
+      if (all || pages.length || stale.length) MOUNT?.forget();
       for (const card of $$('#board > .card')) {
         const page = pageIn(card.firstChild);
-        if (page && touched(card.dataset.key)) reloadPage(page);
+        if (page && touched(card.dataset.key, page)) reloadPage(page);
       }
       for (const ifr of $$('#before iframe')) {
-        if (all || lanes || parts.some((p) => ifr.src.endsWith(`/s/${p}`))) reloadFrame(ifr);
+        if (all || sheets || lanes || parts.some((p) => ifr.src.endsWith(`/s/${p}`))) reloadFrame(ifr);
       }
       // The page of a component in the panel is drawn again from its files.
-      if (all || lanes || parts.length) for (const box of $$('#panel .part-box')) { MOUNT?.forget(); box.wfDraw(); }
-      if (focusState && touched(focusState.key)) {
+      if (all || sheets || lanes || parts.length) for (const box of $$('#panel .part-box')) { MOUNT?.forget(); box.wfDraw(); }
+      if (focusState) {
         // The page of the open screen is drawn again in its place; the sheet around it stays.
-        for (const page of $$('#focus .view .wf-page, #focus .view iframe')) reloadPage(page);
+        for (const page of $$('#focus .view .wf-page, #focus .view iframe')) if (touched(focusState.key, page)) reloadPage(page);
       }
-      const n = all ? 'every screen' : pages.length ? plural(pages.length, 'screen') : null;
+      const n = all || sheets ? 'every screen' : pages.length ? plural(pages.length, 'screen') : null;
       if (n) say(`Updated: ${n}`);
     } catch (e) { loadFailed(e); } finally {
       applying = false;

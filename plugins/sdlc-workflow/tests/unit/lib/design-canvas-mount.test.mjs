@@ -212,7 +212,7 @@ test('a comment names its element by the same path on a mounted page and in a fr
 
 test('a change of the files makes the mount forget once, and each page reads again in its place', () => {
   const canvas = readFileSync(join(canvasDir, 'canvas.js'), 'utf8');
-  assert.match(canvas, /if \(all \|\| pages\.length\) MOUNT\?\.forget\(\)/);
+  assert.match(canvas, /if \(all \|\| pages\.length \|\| stale\.length\) MOUNT\?\.forget\(\)/);
   assert.match(canvas, /el\.wfView\.reload\(\{ fresh: false \}\)\.then\(\(r\) => \{ if \(r\.fallback\) inFrame\(el, r\); \}\)/);
   const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
   assert.match(mount, /async reload\(\{ fresh = true \} = \{\}\) \{\s+if \(fresh\) forget\(page\.url\);/);
@@ -231,7 +231,51 @@ test('a file that is read again and did not change keeps its sheet', () => {
   assert.notEqual(kept.take('b.css', 'a{color:blue}', make), next, 'another file has its own sheet');
   assert.equal(made, 3);
   const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
-  assert.match(mount, /return built\.take\(id, text, \(\) => build\(text, href, href, media\)\)/);
+  assert.match(mount, /return built\.take\(id, text, \(\) => build\(text, href, href, media\), \(was\) => renew\(was, text, href, media\)\)/);
+});
+
+test('a sheet takes the new text of its file in place, when that can be done', () => {
+  const kept = M.keeper();
+  const make = () => ({ rules: 'made' });
+  const first = kept.take('a.css', 'a{color:red}', make);
+  let asked = 0;
+  const same = kept.take('a.css', 'a{color:red}', make, () => { asked += 1; return true; });
+  assert.equal(same, first);
+  assert.equal(asked, 0, 'the same text asks for nothing');
+  const renewed = kept.take('a.css', 'a{color:blue}', make, (was) => { asked += 1; was.rules = 'renewed'; return true; });
+  assert.equal(renewed, first, 'the same object: every page that holds it has the new rules');
+  assert.equal(first.rules, 'renewed');
+  assert.equal(kept.take('a.css', 'a{color:blue}', make, () => { asked += 1; return true; }), first, 'and the new text is the kept text now');
+  assert.equal(asked, 1);
+  const other = kept.take('a.css', '@media print{a{color:blue}}', make, () => false);
+  assert.notEqual(other, first, 'a text that cannot go in place gives a new object, and the old one keeps its rules');
+  assert.equal(first.rules, 'renewed');
+  assert.equal(kept.get('a.css'), other);
+  assert.deepEqual([...kept.ids()], ['a.css']);
+  assert.equal(kept.take('b.css', 'b{}', make, () => { throw new Error('a first read is made, not renewed'); }).rules, 'made');
+});
+
+test('a changed sheet is renewed in place only with no media query that has no container form, and its pages are told', () => {
+  const mount = readFileSync(join(canvasDir, 'canvas-mount.js'), 'utf8');
+  const renew = mount.slice(mount.indexOf('function renew('), mount.indexOf('async function tellRenewed('));
+  assert.match(renew, /if \(r\.problems\.length\) return false;/, 'such a sheet sends its pages to a frame, as a first read does');
+  assert.ok(renew.indexOf('if (r.problems.length) return false;') < renew.indexOf('was.sheet.replaceSync(r.css);'));
+  assert.match(renew, /hoist\(r\.hoist\);/, 'the font faces and the imports of the new text reach the document');
+  assert.match(renew, /sheetStamp \+= 1;/);
+  const refresh = mount.slice(mount.indexOf('async function refreshSheets('), mount.indexOf('const URL_ATTRS'));
+  assert.match(refresh, /const old = new Set\(before\.filter\(\(sheet, i\) => sheet && now\[i\]\.sheet !== sheet\)\);/, 'a sheet that is gone, failed or was made anew is stale');
+  assert.match(refresh, /if \(old\.size\) pages\.clear\(\);/, 'a later mount does not get a page with a stale sheet');
+  assert.match(refresh, /const stale = mounts\(\)\.filter\(\(host\) => host\.shadowRoot\?\.adoptedStyleSheets\.some\(\(s\) => old\.has\(s\)\)\);/);
+  assert.match(mount, /if \(hoistBusy\) await hoistBusy;\s+if \(!renewed\.size\) return \[\];/, 'the pages are told after a new import is in');
+  assert.match(mount, /for \(const host of hosts\) host\.wfView\.restyle\(\);/);
+  assert.match(mount, /const restyle = \(\) => \{\s+if \(!remIsLength\) \{[^}]+\}\s+ground\(\);/, 'the ground of the page is read again');
+  const inspect = readFileSync(join(canvasDir, 'canvas-inspect.js'), 'utf8');
+  assert.match(inspect, /const size = `\$\{view\.el\.offsetWidth\}x\$\{view\.el\.offsetHeight\}\|\$\{view\.sheetStamp \|\| 0\}`;/, 'the inspector reads the rules again');
+  const canvas = readFileSync(join(canvasDir, 'canvas.js'), 'utf8');
+  assert.match(canvas, /if \(r && !r\.again && \(r\.renewed \|\| r\.stale\.length \|\| sheetsNew \|\| !all\)\) \{ sheets = true; all = false; stale = r\.stale; \} else all = true;/, 'a shared file that is no sheet still reads every page again');
+  assert.match(refresh, /const again = wasLost\.some\(\(id\) => !lost\.has\(id\)\);/, 'a sheet that is back reads every page again: a page that was read without it has no mark');
+  assert.match(canvas, /\(sheets && \(page\.tagName === 'IFRAME' \|\| stale\.includes\(page\)\)\)/, 'a page in a frame and a stale page are read again whole');
+  assert.match(canvas, /if \(focusState && box\.matches\('#focus \.view > \.shot\.now'\)\) drawFocus\(\);/, 'the pins and the inspector of the open screen are drawn again');
 });
 
 test('the store of read pages keeps the pages that were asked for last', () => {

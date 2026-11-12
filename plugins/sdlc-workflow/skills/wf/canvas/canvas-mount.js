@@ -391,13 +391,18 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
   function keeper() {
     const kept = new Map();
     return {
-      take(id, text, make) {
+      take(id, text, make, renew = null) {
         const was = kept.get(id);
         if (was && was.text === text) return was.built;
+        // A new text: the thing that was made takes it itself when `renew` says that it could.
+        // Everything that holds the thing then has the new text, with nothing made again.
+        if (was && renew && renew(was.built)) { kept.set(id, { text, built: was.built }); return was.built; }
         const built = make();
         kept.set(id, { text, built });
         return built;
       },
+      ids: () => [...kept.keys()],
+      get: (id) => kept.get(id)?.built,
     };
   }
 
@@ -494,24 +499,93 @@ var WF_CANVAS_MOUNT = (() => {
     }
     document.head.append(el);
   }
+  const rewritten = (text, base, media) => L.rewriteSheet(media && !/^(?:all|screen)?$/i.test(media.trim()) ? `@media ${media}{${text}}` : text, base);
   function build(text, base, name, media) {
-    const wrapped = media && !/^(?:all|screen)?$/i.test(media.trim()) ? `@media ${media}{${text}}` : text;
-    const r = L.rewriteSheet(wrapped, base);
+    const r = rewritten(text, base, media);
     hoist(r.hoist);
     const sheet = sheetOf(r.css);
     sheetNames.set(sheet, name);
     return { sheet, problems: r.problems };
   }
+  // A linked sheet is one object that every page with that link adopts. When its file changes, the
+  // object takes the new rules in place: every mounted page then shows them, and no page is built
+  // again. `sheetStamp` counts those changes, for who keeps rules of a sheet. `renewed` holds the
+  // changed sheets until their pages are told.
+  let sheetStamp = 0;
+  const renewed = new Set();
+  /**
+   * Give a built sheet the new text of its file. False when it cannot be done in place: the new
+   * text has a media query with no container form, so the pages that link it must go to a frame,
+   * as a first read of them says.
+   */
+  function renew(was, text, base, media) {
+    if (!was.sheet) return false;
+    const r = rewritten(text, base, media);
+    if (r.problems.length) return false;
+    hoist(r.hoist);
+    was.sheet.replaceSync(r.css);
+    // The old text kept its pages in a frame: they are read again, and can leave the frame now.
+    if (was.problems.length) pages.clear();
+    was.problems = [];
+    sheetStamp += 1;
+    renewed.add(was.sheet);
+    setTimeout(tellRenewed, 0);
+    return true;
+  }
+  /**
+   * Tell each mounted page that one of its sheets has new rules: the page paints its ground again,
+   * and its host gets the event `wf-restyle`, which goes up to the canvas. Answers the hosts.
+   */
+  async function tellRenewed() {
+    // A new import of the sheet may not be in yet: the pages are measured after it.
+    if (hoistBusy) await hoistBusy;
+    if (!renewed.size) return [];
+    const hosts = mounts().filter((host) => host.shadowRoot?.adoptedStyleSheets.some((s) => renewed.has(s)));
+    renewed.clear();
+    for (const host of hosts) host.wfView.restyle();
+    for (const host of hosts) host.dispatchEvent(new CustomEvent('wf-restyle', { bubbles: true }));
+    return hosts;
+  }
+  const sources = new Map(); // id of a linked sheet -> { href, media }
+  // The linked sheets that the last read did not get: a page that was read then has no such sheet.
+  const lost = new Set();
   function linkedSheet(href, media) {
     const id = `${media || ''}|${href}`;
+    sources.set(id, { href, media });
     if (!linked.has(id)) {
       linked.set(id, fetch(href, { cache: 'no-cache' }).then(async (res) => {
         if (!res.ok) return { sheet: null, problems: [], gone: true };
         const text = await res.text();
-        return built.take(id, text, () => build(text, href, href, media));
-      }).catch(() => ({ sheet: null, problems: [], failed: true })));
+        return built.take(id, text, () => build(text, href, href, media), (was) => renew(was, text, href, media));
+      }).catch(() => ({ sheet: null, problems: [], failed: true })).then((r) => { if (r.sheet) lost.delete(id); else lost.add(id); return r; }));
     }
     return linked.get(id);
+  }
+  /**
+   * Read every linked sheet again, after a sheet changed and no page did. A sheet with new text
+   * takes it in place, and its mounted pages keep their elements. Answers `{ stale, restyled, renewed, again }`:
+   * `renewed` is the count of the sheets that took new rules, and `restyled` are the hosts whose
+   * page has new rules now. `stale` are the hosts whose page links a
+   * sheet that could not take its text in place (the file is gone or did not load, or it has a
+   * media query with no container form): the caller reads those pages again whole, as before.
+   * `again` is true when a sheet that was lost is back: the pages that were read without it cannot
+   * be told from the others, so the caller reads every page again.
+   */
+  async function refreshSheets() {
+    const ids = [...sources.keys()];
+    const before = ids.map((id) => built.get(id)?.sheet ?? null);
+    const wasLost = [...lost];
+    const stamp = sheetStamp;
+    linked.clear();
+    const now = await Promise.all(ids.map((id) => linkedSheet(sources.get(id).href, sources.get(id).media)));
+    const old = new Set(before.filter((sheet, i) => sheet && now[i].sheet !== sheet));
+    // A page that was read holds its sheets: with a stale sheet, the next mount must read it again.
+    if (old.size) pages.clear();
+    const restyled = await tellRenewed();
+    const stale = mounts().filter((host) => host.shadowRoot?.adoptedStyleSheets.some((s) => old.has(s)));
+    const again = wasLost.some((id) => !lost.has(id));
+    if (again) pages.clear();
+    return { stale, restyled: restyled.filter((host) => !stale.includes(host)), renewed: sheetStamp - stamp, again };
   }
   function inlineSheet(text, base, media) {
     const id = `${media || ''}|${base}|${text}`;
@@ -685,7 +759,13 @@ var WF_CANVAS_MOUNT = (() => {
       scroller.style.background = opts.hug ? '' : of(html) || of(body) || '';
     };
     ground();
-    const handle = shadowView(host, page, { root, html, body, scroller, ground });
+    // What the mount reads from the rules of the page, read again: the size of the root font where
+    // the browser registers no property, and the ground.
+    const restyle = () => {
+      if (!remIsLength) { html.style.removeProperty('--wf-rem'); html.style.setProperty('--wf-rem', getComputedStyle(html).fontSize); }
+      ground();
+    };
+    const handle = shadowView(host, page, { root, html, body, scroller, ground, restyle });
     host.wfView = handle;
     return handle;
   }
@@ -719,10 +799,14 @@ var WF_CANVAS_MOUNT = (() => {
    * The view of a mounted page. Lengths are in the pixels of the page, whatever scale the canvas
    * draws the mount at, and places are from the top left corner of the page.
    */
-  function shadowView(host, page, { root, html, body, scroller, ground }) {
+  function shadowView(host, page, { root, html, body, scroller, ground, restyle }) {
     const open = new Map();
     return {
       kind: 'shadow', el: host, root, html, body, scroller, url: page.url, baseURI: page.url, win: window,
+      /** Grows each time a sheet takes new rules in place: rules that were read before are old then. */
+      get sheetStamp() { return sheetStamp; },
+      /** A sheet of the page has new rules: read again what the mount takes from them. */
+      restyle,
       /** The scale that the canvas draws the page at. */
       get scale() { const w = host.offsetWidth; return w ? host.getBoundingClientRect().width / w || 1 : 1; },
       query: (sel) => { try { return root.querySelector(L.rewriteSelector(sel)); } catch { return null; } },
@@ -838,5 +922,5 @@ var WF_CANVAS_MOUNT = (() => {
   /** Every mounted host of the canvas. */
   const mounts = (scope = document) => [...scope.querySelectorAll('.wf-mount')].filter((el) => el.wfView);
 
-  return { load, mount, fill, forget, viewOf, mounts, LOGIC: L };
+  return { load, mount, fill, forget, refreshSheets, viewOf, mounts, LOGIC: L };
 })();

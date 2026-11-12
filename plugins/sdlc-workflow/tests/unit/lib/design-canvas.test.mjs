@@ -175,7 +175,8 @@ test('a new fingerprint of the sheets touches every screen, on a reconnect and o
   assert.equal(L.diffStates(old, { ...old, sheets: { fingerprint: 'bbbbbbbbbbbbbbbb' } }).all, true);
   assert.equal(L.diffStates(old, { ...old, sheets: { fingerprint: 'aaaaaaaaaaaaaaaa' } }).all, false);
   assert.equal(L.diffStates({ ...old, sheets: undefined }, { ...old, sheets: undefined }).all, false, 'a state with no sheets field changes nothing');
-  assert.match(source, /if \(before && \(before\.sheets\?\.fingerprint \?\? null\) !== \(data\.sheets\?\.fingerprint \?\? null\)\) all = true;/, 'a change event checks the sheets too');
+  assert.match(source, /const sheetsNew = Boolean\(before && \(before\.sheets\?\.fingerprint \?\? null\) !== \(data\.sheets\?\.fingerprint \?\? null\)\);/, 'a change event checks the sheets too');
+  assert.match(source, /const n = all \|\| sheets \? 'every screen' :/);
 });
 
 test('the event stream opens again with a longer wait each time, at most a minute', () => {

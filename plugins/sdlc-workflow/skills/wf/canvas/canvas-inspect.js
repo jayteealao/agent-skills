@@ -322,7 +322,8 @@ var WF_CANVAS_INSPECT = (() => {
    */
   function rulesOf(view) {
     // A container rule opens and closes with the size of the page.
-    const size = `${view.el.offsetWidth}x${view.el.offsetHeight}`;
+    // A sheet of a mounted page can take new rules in place: the rules that were read are old then.
+    const size = `${view.el.offsetWidth}x${view.el.offsetHeight}|${view.sheetStamp || 0}`;
     const kept = sheetsOf.get(view.root);
     if (kept?.size === size) return kept.out;
     const out = [];
