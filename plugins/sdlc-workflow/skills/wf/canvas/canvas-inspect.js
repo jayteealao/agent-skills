@@ -361,12 +361,12 @@ var WF_CANVAS_INSPECT = (() => {
     for (const { rule: r, spec } of matchedOf(el)) {
       // Within one rule a shorthand that holds the authored text comes first.
       for (const prop of props) {
-        const value = r.style.getPropertyValue(prop);
+        const value = page.valueText(r.style.getPropertyValue(prop));
         if (value) { out.push({ prop, value: value.trim(), important: r.style.getPropertyPriority(prop) === 'important', spec, order: r.order, source: r.source, selector: r.selector }); break; }
       }
     }
     for (const prop of props) {
-      const value = el.style?.getPropertyValue(prop);
+      const value = page.valueText(el.style?.getPropertyValue(prop));
       if (value) { out.push({ prop, value: value.trim(), important: el.style.getPropertyPriority(prop) === 'important', spec: [1000, 0, 0], order: Infinity, source: 'the style attribute', selector: '' }); break; }
     }
     return out;
@@ -385,7 +385,7 @@ var WF_CANVAS_INSPECT = (() => {
   function propertiesOf(el, model) {
     const tokenNames = new Set((model.tokens || []).map((t) => t.name));
     const style = page.style(el);
-    const valueOf = (name) => style.getPropertyValue(name).trim();
+    const valueOf = (name) => page.valueText(style.getPropertyValue(name)).trim();
     const rows = [];
     const seen = new Set();
     for (const [prop, kind, shorthands] of I.PROPS) {

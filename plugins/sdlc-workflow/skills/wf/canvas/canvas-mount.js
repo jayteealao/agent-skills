@@ -11,6 +11,8 @@
 // - `@media` on the width or the height reads the window of the canvas. It becomes `@container` on
 //   the box of the mount, which has the size of the viewport of the screen.
 // - `vh`, `vw` and their kin become the container units `cqh`, `cqw`.
+// - `rem` reads the font size of the root of the canvas. It becomes a product with `--wf-rem`,
+//   which holds the font size of `wf-html`: the root of the page.
 // - `position: fixed` holds to the box of the mount, and the page scrolls under it.
 //
 // A page that the mount cannot draw truly stays in a frame: a page with a script of its own, an
@@ -271,7 +273,26 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
   }
   /** The units of the window as the units of the container: `100vh` is `100cqh`, `50dvw` is `50cqw`. */
   function rewriteUnits(text) {
-    return outside(String(text), (s) => s.replace(/(?<![\w-])(-?(?:\d+\.?\d*|\.\d+))[dsl]?v(h|w|min|max|i|b)(?![\w-])/gi, (_, d, u) => `${d}cq${u.toLowerCase()}`));
+    return outside(String(text), (s) => s
+      .replace(/(?<![\w-])(-?(?:\d+\.?\d*|\.\d+))[dsl]?v(h|w|min|max|i|b)(?![\w-])/gi, (_, d, u) => `${d}cq${u.toLowerCase()}`)
+      .replace(REM_RE, (_, d) => `calc(${d}*var(--wf-rem)*1)`));
+  }
+  const REM_RE = /(?<![\w-])([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)rem(?![\w-])/gi;
+  /** The font size of a root before any rule: a rem of a query, and a rem of the font size of the root itself. */
+  const ROOT_PX = 16;
+  /** Each rem as pixels of the first font size. A query and the font size of the root read that size. */
+  const remAsPx = (text) => outside(String(text), (s) => s.replace(REM_RE, (_, d) => `${Number(d) * ROOT_PX}px`));
+  /** True for a selector that names the root of the page as its subject. */
+  const ROOT_SUBJECT_RE = /^\s*(?:html|:root)(?:[.[:#][^\s>+~]*)?\s*$/i;
+  const ROOT_FONT_RE = /^font(?:-size)?\s*:.*\drem(?![\w-])/is;
+  /**
+   * A value of the mount as the page wrote it, for the inspector: the product with `--wf-rem` is a
+   * rem again. A computed value has the pixels of the root in the place of the property: the `*1` at
+   * the end marks the product as one of the mount, so it is a rem again too.
+   */
+  function displayValue(value) {
+    return String(value ?? '')
+      .replace(/calc\(([^()*\s]+)\*(?:var\(--wf-rem\)|-?[\d.]+px)\*1\)/g, '$1rem');
   }
   /** The `url()` parts of a sheet as whole addresses, so a sheet reads its files from where its file is. */
   function absoluteUrls(text, base) {
@@ -291,7 +312,7 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
    * translation: `not` on the viewport, or a list that mixes the viewport with another feature.
    */
   function mediaQuery(condition) {
-    const cond = String(condition).trim();
+    const cond = remAsPx(String(condition).trim());
     if (!VIEWPORT_RE.test(cond)) return { open: `@media ${cond}{`, close: '}' };
     const alts = splitList(cond).map((alt) => {
       let a = alt.replace(/^only\s+/i, '');
@@ -329,9 +350,11 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
   function rewriteSheet(text, base = '') {
     const hoist = [];
     const problems = [];
-    const emit = (items) => items.map((item) => {
+    const emit = (items, root = false) => items.map((item) => {
       if (item.body === undefined) {
-        const t = absoluteUrls(item.text, base);
+        let t = absoluteUrls(item.text, base);
+        // The font size of the root cannot read `--wf-rem`, which reads that font size.
+        if (root && /^font(?:-size)?s*:/i.test(t)) t = remAsPx(t);
         if (/^@import\b/i.test(t)) { hoist.push(`${t};`); return ''; }
         if (/^@(?:charset|namespace)\b/i.test(t)) return '';
         return `${rewriteUnits(t)};`;
@@ -346,7 +369,15 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
         return `${q.open}${emit(parseItems(item.body))}${q.close}`;
       }
       if (p.startsWith('@')) return `${p}{${emit(parseItems(item.body))}}`;
-      return `${rewriteSelector(p)}{${emit(parseItems(item.body))}}`;
+      const items = parseItems(item.body);
+      const parts = splitList(p);
+      const roots = parts.filter((part) => ROOT_SUBJECT_RE.test(part));
+      // A rule for the root and for other elements too is two rules: only the root reads its font size another way.
+      if (roots.length && roots.length < parts.length && items.some((i) => i.body === undefined && ROOT_FONT_RE.test(i.text))) {
+        const rest = parts.filter((part) => !roots.includes(part));
+        return `${rewriteSelector(roots.join(','))}{${emit(items, true)}}${rewriteSelector(rest.join(','))}{${emit(items)}}`;
+      }
+      return `${rewriteSelector(p)}{${emit(items, roots.length > 0)}}`;
     }).join('');
     return { css: emit(parseItems(stripComments(String(text ?? '')))), hoist, problems };
   }
@@ -401,13 +432,13 @@ var WF_CANVAS_MOUNT_LOGIC = (() => {
 wf-view{display:block;width:100%;height:100%;overflow:hidden;container:wf-screen / size}
 wf-scroll{display:block;width:100%;height:100%;overflow:auto;scrollbar-width:none;overscroll-behavior:contain}
 wf-scroll::-webkit-scrollbar{display:none}
-wf-html{display:block}
+wf-html{display:block;--wf-rem:1em}
 wf-body{display:block;margin:8px}
 :host([data-wf-hug]){contain:layout style;overflow:visible}
 :host([data-wf-hug]) wf-view{height:auto;overflow:visible;container-type:inline-size}
 :host([data-wf-hug]) wf-scroll{height:auto;overflow:visible}`;
 
-  return { mountProblems, hasThemeScript, stripComments, parseItems, splitList, rewriteSelector, displaySelector, rewriteUnits, absoluteUrls, mediaQuery, rewriteSheet, keeper, bounded, BASE_CSS, switchScript, parseHandler };
+  return { mountProblems, hasThemeScript, stripComments, parseItems, splitList, rewriteSelector, displaySelector, displayValue, rewriteUnits, absoluteUrls, mediaQuery, rewriteSheet, keeper, bounded, BASE_CSS, switchScript, parseHandler };
 })();
 
 // eslint-disable-next-line no-var, no-unused-vars
@@ -419,6 +450,11 @@ var WF_CANVAS_MOUNT = (() => {
   const can = typeof CSSStyleSheet !== 'undefined' && 'adoptedStyleSheets' in Document.prototype;
 
   const sheetOf = (css) => { const s = new CSSStyleSheet(); s.replaceSync(css); return s; };
+  // `--wf-rem` is a length: so `1em` on `wf-html` is the font size of `wf-html` in pixels, and
+  // every element of the page inherits those pixels. Where the browser cannot register a property,
+  // the mount writes the pixels on `wf-html` itself.
+  let remIsLength = false;
+  if (can) try { CSS.registerProperty({ name: '--wf-rem', syntax: '<length>', inherits: true, initialValue: '16px' }); remIsLength = true; } catch { /* the mount writes the pixels */ }
   const BASE = can ? sheetOf(L.BASE_CSS) : null;
   /** The name of each sheet of a page, for the inspector: the address of its file, or `''` for the styles of the page. */
   const sheetNames = new WeakMap();
@@ -519,7 +555,7 @@ var WF_CANVAS_MOUNT = (() => {
         if (bad.length) return { ok: false, url: href, reasons: [...new Set(bad.map((b) => `a media query has no container form: ${b}`))] };
         if (made.some((m) => m.failed)) return { ok: false, url: href, reasons: ['a sheet of the page did not load'] };
         if (hoistBusy) await hoistBusy;
-        for (const el of doc.querySelectorAll('link, style, script, meta, title, base')) el.remove();
+        for (const el of doc.querySelectorAll('link, style, script, meta, head title, base')) el.remove();
         absolute(doc.body, href);
         return { ok: true, url: href, doc, sheets: made.map((m) => m.sheet).filter(Boolean), themes: L.hasThemeScript(html) };
       })());
@@ -613,6 +649,12 @@ var WF_CANVAS_MOUNT = (() => {
     const source = page.doc.body.cloneNode(true);
     if (page.themes) themePanels(source, opts.pick ? null : opts.panel);
     disarm(source);
+    // The style attribute of an element is text of the page too.
+    for (const el of source.querySelectorAll('[style]')) {
+      const was = el.getAttribute('style');
+      const now = L.rewriteUnits(was);
+      if (now !== was) el.setAttribute('style', now);
+    }
     const one = opts.pick ? opts.pick(source) : null;
     if (opts.pick) { if (one) body.append(document.adoptNode(one)); } else body.append(...[...source.childNodes].map((n) => document.adoptNode(n)));
     for (const a of [...html.attributes, ...body.attributes]) if (a.name.toLowerCase().startsWith('on')) a.ownerElement.removeAttribute(a.name);
@@ -624,6 +666,7 @@ var WF_CANVAS_MOUNT = (() => {
     scroller.append(html);
     view.append(scroller);
     root.replaceChildren(view);
+    if (!remIsLength) html.style.setProperty('--wf-rem', getComputedStyle(html).fontSize);
     if (!root.wfGuard) {
       root.wfGuard = true;
       // A link or a form of the page must not take the canvas away. The host hears `wf-link`.
@@ -705,6 +748,8 @@ var WF_CANVAS_MOUNT = (() => {
       sheets: () => root.adoptedStyleSheets.filter((s) => s !== BASE),
       nameOf: (sheet) => sheetNames.get(sheet) ?? '',
       selectorText: (rule) => L.displaySelector(rule.selectorText || ''),
+      /** A value of a rule or of a computed style as the page wrote it. */
+      valueText: (value) => L.displayValue(value),
       /** True when a group rule of the page is open now. A container rule is asked of the box of the mount. */
       applies(rule) {
         if (rule.type === 4) return matchMedia(rule.media.mediaText).matches;
@@ -775,6 +820,7 @@ var WF_CANVAS_MOUNT = (() => {
       sheets: () => [...doc.styleSheets],
       nameOf: (sheet) => sheet.href || '',
       selectorText: (rule) => rule.selectorText || '',
+      valueText: (value) => String(value ?? ''),
       applies: (rule) => (rule.type === 4 ? win.matchMedia(rule.media.mediaText).matches : rule.type === 12 ? CSS.supports(rule.conditionText) : true),
       get scrollTop() { return win.scrollY; },
       set scrollTop(v) { win.scrollTo({ top: v, behavior: 'instant' }); },

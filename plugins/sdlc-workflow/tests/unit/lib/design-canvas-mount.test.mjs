@@ -275,3 +275,29 @@ test('the inspector reads the rules and the styles through the view, and the mod
 test('a handler with no quotes is a handler too', () => {
   assert.deepEqual(plain(M.mountProblems('<button onclick=alert(1)>Go</button>')), ['it has an inline event handler that is more than a change of a class or an attribute']);
 });
+
+test('a rem reads the font size of the root of the page, not of the canvas', () => {
+  assert.equal(M.rewriteUnits('padding: 1.5rem -.5rem'), 'padding: calc(1.5*var(--wf-rem)*1) calc(-.5*var(--wf-rem)*1)');
+  assert.equal(M.rewriteUnits('width: calc(100% - 2rem)'), 'width: calc(100% - calc(2*var(--wf-rem)*1))');
+  // A name, an address and a string keep their letters.
+  assert.equal(M.rewriteUnits('margin: var(--s-1rem); background: url(a/1rem.png); content: "1rem"'), 'margin: var(--s-1rem); background: url(a/1rem.png); content: "1rem"');
+  assert.match(M.BASE_CSS, /wf-html\{[^}]*--wf-rem:1em/);
+});
+
+test('the font size of the root and a query read the first font size', () => {
+  // The root cannot read its own font size: its rem is 16 pixels, as in a document.
+  assert.equal(M.rewriteSheet('html{font-size:1.125rem;margin:1rem}').css, 'wf-html{font-size:18px;margin:calc(1*var(--wf-rem)*1);}');
+  assert.equal(M.rewriteSheet(':root.big{font:1rem/1.5 x}').css, '.wf-root.big{font:16px/1.5 x;}');
+  // A rule for the root and for the body is two rules.
+  assert.equal(M.rewriteSheet('html,body{font-size:1rem}').css, 'wf-html{font-size:16px;}wf-body{font-size:calc(1*var(--wf-rem)*1);}');
+  assert.equal(M.rewriteSheet('html,body{margin:1rem}').css, 'wf-html,wf-body{margin:calc(1*var(--wf-rem)*1);}');
+  assert.equal(M.rewriteSheet('.a html{font-size:2rem}').css, '.a wf-html{font-size:calc(2*var(--wf-rem)*1);}');
+  assert.equal(M.rewriteSheet('@media (min-width:40rem){.b{gap:1rem}}').css, '@container wf-screen (min-width:640px){.b{gap:calc(1*var(--wf-rem)*1);}}');
+});
+
+test('the inspector shows a rem as the page wrote it', () => {
+  for (const v of ['1.5rem', 'calc(100% - 2rem)', '-.5rem 1rem', '0 auto']) assert.equal(M.displayValue(M.rewriteUnits(v)), v);
+  // A computed value holds the pixels of the root.
+  assert.equal(M.displayValue('calc(1.5*10px*1)'), '1.5rem');
+  assert.equal(M.displayValue('calc(2*3px)'), 'calc(2*3px)');
+});

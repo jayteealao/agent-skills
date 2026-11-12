@@ -518,3 +518,26 @@ test('a reference that is a picture file shows as a picture, whatever its kind',
   assert.equal(L.refShape({ kind: 'other', file: 'notes.md' }), 'file');
   assert.equal(L.refShape(null), 'file');
 });
+
+test('the canvas asks the mount for no page that the data says must stay in a frame', () => {
+  assert.deepEqual([...L.framedKeys([{ key: 'a', framed: true }, { key: 'b' }, { key: 'c', framed: false }, { key: 'd', framed: 'yes' }])], ['a']);
+  assert.equal(L.framedKeys(undefined).size, 0, 'data with no such word frames nothing: the mount is tried');
+  assert.match(source, /if \(mustFrame\(key, at\)\) return iframeFor\(key, state, at, \{ play, why: FRAMED_WHY \}\);/);
+  assert.match(source, /if \(at \|\| !data\) return false;/, 'the word is about the page as it is now, not about an older version');
+  assert.match(source, /if \(!p \|\| !MOUNT \|\| SNAP \|\| mustFrame\(p\.key, p\.at\)\) \{ reloadFrame\(el\); return; \}/);
+  assert.match(source, /\.then\(\(r\) => \{ if \(r\.fallback\) inFrame\(host, r\); \}\);/, 'the mount still says when it cannot draw a page');
+});
+
+test('the list of a phone keeps its rows between draws, and a search hides rows', () => {
+  const list = source.slice(source.indexOf('function drawList('), source.indexOf('function drawReview('));
+  assert.match(list, /if \(kept\?\.words === words\) return kept\.el;/);
+  assert.match(list, /if \(el\.hidden !== hide\) el\.hidden = hide;/);
+  assert.doesNotMatch(list, /box\.replaceChildren\(/, 'the list is not built again for each letter');
+});
+
+test('the canvas reads the pages together and draws them one at a time', () => {
+  assert.match(source, /const drawInTurn = \(url, draw\) => MOUNT\.load\(url\)\.catch\(\(\) => null\)\.then\(\(\) => inTurn\(draw, Boolean\(focusState\)\)\);/, 'a page of the screen view goes first');
+  assert.match(source, /drawInTurn\(pageUrl\(key, at\), \(\) => MOUNT\.mount\(/);
+  assert.match(source, /drawInTurn\(pageUrl\(p\.key, p\.at\), \(\) => el\.wfView\.reload\(/, 'a change of a sheet draws the pages one at a time too');
+  assert.match(source, /if \(turns\.length && now - from \+ \(now - before\) >= TURN_MS\) \{ await breath\(\); from = performance\.now\(\); \}/, 'the browser gets a turn before the pages take too long');
+});

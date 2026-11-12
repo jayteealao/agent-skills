@@ -206,6 +206,11 @@ var WF_LIBRARY_LOGIC = (() => {
     const base = defaultTheme && names.includes(defaultTheme) ? defaultTheme : names[0] ?? null;
     const want = String(q || '').trim().toLowerCase();
     const hit = (t) => !want || [t.name, t.role, t.alias].some((v) => String(v || '').toLowerCase().includes(want));
+    // One pass over the screens and the components gives the users of every token.
+    const onScreens = new Map();
+    for (const sc of screens || []) for (const name of new Set(sc.tokens || [])) onScreens.set(name, (onScreens.get(name) || 0) + 1);
+    const inComponents = new Map();
+    for (const c of components || []) for (const name of new Set(c.tokens || [])) inComponents.set(name, [...(inComponents.get(name) || []), c.key]);
     const rowOf = (t) => {
       const valueIn = (theme) => (theme && t.values?.[theme] != null ? t.values[theme] : t.value ?? '');
       const def = valueIn(base);
@@ -213,8 +218,8 @@ var WF_LIBRARY_LOGIC = (() => {
         name: t.name, kind: t.kind || null, usedFor: t.usedFor || null, alias: t.alias || null,
         values: cols.map((theme) => { const value = String(valueIn(theme)); return { theme, value, same: Boolean(theme && theme !== base && value === String(def)) }; }),
         chain: aliasChain(t, tokens, base),
-        screens: (screens || []).filter((s) => (s.tokens || []).includes(t.name)).length,
-        components: (components || []).filter((c) => (c.tokens || []).includes(t.name)).map((c) => c.key),
+        screens: onScreens.get(t.name) || 0,
+        components: inComponents.get(t.name) || [],
       };
     };
     return {
@@ -234,7 +239,17 @@ var WF_LIBRARY_LOGIC = (() => {
   }
   const libraryHash = (x) => (x?.component ? `#component=${encodeURIComponent(x.component)}` : x?.token ? `#token=${encodeURIComponent(x.token)}` : '');
 
-  return { parsePairs, cellCase, cellScore, pickCell, firstCase, caseGaps, matrixOf, caseWords, caseOver, agentNote, EMPTY_CELL, FILL_WIDTH, fitWidth, shellViewport, COMPONENT_KINDS, componentGroups, varsOf, aliasChain, tokenTable, parseLibraryHash, libraryHash };
+  /**
+   * The parts that a long list is drawn in: `[from, to]` pairs that cover `n` things in order,
+   * `first` things in the first part and `size` in each part after it.
+   */
+  function drawParts(n, first, size) {
+    const out = [];
+    for (let from = 0; from < n; from = out[out.length - 1][1]) out.push([from, Math.min(n, from + (out.length ? size : first))]);
+    return out;
+  }
+
+  return { drawParts, parsePairs, cellCase, cellScore, pickCell, firstCase, caseGaps, matrixOf, caseWords, caseOver, agentNote, EMPTY_CELL, FILL_WIDTH, fitWidth, shellViewport, COMPONENT_KINDS, componentGroups, varsOf, aliasChain, tokenTable, parseLibraryHash, libraryHash };
 })();
 
 (() => {
@@ -583,7 +598,8 @@ html, body { overflow: hidden; }`;
   /** Read the page of a component and draw it: as objects of the canvas, or in a frame when the page cannot be mounted. */
   async function drawBody(body, c) {
     const M = mounter();
-    const page = M ? await M.load(pageUrl(c)) : { ok: false, reasons: ['this browser draws no page in the canvas'] };
+    // The data names a page that must stay in a frame: the mount is not asked to read it.
+    const page = !M ? { ok: false, reasons: ['this browser draws no page in the canvas'] } : c.framed === true ? { ok: false, reasons: [] } : await M.load(pageUrl(c));
     // Another component shows by now.
     if (!body.isConnected) return;
     try {
@@ -860,6 +876,11 @@ html, body { overflow: hidden; }`;
     }
     return h('td', { class: `tv${x.same ? ' same' : ''}`, title: x.same ? 'The same as in the default theme' : null }, swatch, h('code', {}, x.value));
   }
+  // The table of the tokens has hundreds of rows. It shows the first rows at once and adds the
+  // others a part at a time: all of them in one step holds a phone for a third of a second.
+  const TOKEN_ROWS_FIRST = 16;
+  const TOKEN_ROWS_NEXT = 24;
+  const TOKEN_ROWS_WAIT = 0;
   function drawTokens() {
     const { h, TOKEN_KIND_WORDS, cap } = api();
     const d = api().data();
@@ -879,31 +900,84 @@ html, body { overflow: hidden; }`;
     }
     const drawTable = (body) => {
       const table = LL.tokenTable(d, lib.tq);
+      // The same table shows already: a change of the screens draws no token again.
+      const words = JSON.stringify([table, lib.token, d.defaultTheme, d.tokens, lib.tq]);
+      const find = () => (lib.token ? $(`#token-${CSS.escape(lib.token.replace(/^--/, ''))}`, body) : null);
+      const toRow = () => { const row = find(); if (row && lib.scrollTo) { lib.scrollTo = false; row.scrollIntoView({ block: 'center' }); } };
+      if (body.wfWords === words) { toRow(); return; }
+      const run = (lib.tokRun = (lib.tokRun || 0) + 1);
       const byName = new Map(d.tokens.map((t) => [t.name, t]));
       const themeHead = () => table.themes.map((t) => h('th', { scope: 'col' }, t ? `${t}${t === d.defaultTheme ? ' (default)' : ''}` : 'Value'));
-      body.replaceChildren(...(table.groups.length ? table.groups.map((g) => h('section', { class: 'tok-group' },
-        h('h3', {}, TOKEN_KIND_WORDS[g.kind] || cap(g.kind), h('span', { class: 'count' }, String(g.rows.length))),
-        h('div', { class: 'tok-scroll' }, h('table', { class: 'tok-table' },
-          h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Token'), h('th', { scope: 'col' }, 'Sample'), ...themeHead(),
-            h('th', { scope: 'col' }, 'Alias'), h('th', { scope: 'col' }, 'Used for'), h('th', { scope: 'col' }, 'Used by'))),
-          h('tbody', {}, ...g.rows.map((r) => {
-            const t = byName.get(r.name);
-            const n = r.screens + r.components.length;
-            return h('tr', { id: `token-${r.name.replace(/^--/, '')}`, class: r.name === lib.token ? 'on' : null },
-              h('th', { scope: 'row' }, h('code', {}, r.name)),
-              h('td', { class: 'sample' }, api().tokenSpecimen(t, g.kind)),
-              ...r.values.map((x) => valueCell(t, g.kind, x)),
-              h('td', { class: 'chain' }, r.alias ? h('div', {}, 'also ', h('code', {}, r.alias)) : null,
-                r.chain.length ? h('div', {}, '→ ', ...r.chain.flatMap((x, i) => [i ? ' → ' : null, x.missing ? h('code', { class: 'missing', title: 'Not in the token model' }, x.name)
-                  : h('a', { href: LL.libraryHash({ token: x.name }) }, h('code', {}, x.name))])) : null),
-              h('td', { class: 'for' }, r.usedFor || ''),
-              h('td', { class: 'by' }, n ? h('button', { type: 'button', class: 'linkish', title: r.components.length ? `Components: ${r.components.join(', ')}` : null,
-                onclick: () => { api().setView('grid'); api().traceFrom({ kind: 'token', key: r.name }); } },
-              [r.screens ? plural(r.screens, 'screen') : null, r.components.length ? plural(r.components.length, 'component') : null].filter(Boolean).join(' · ')) : h('span', { class: 'none' }, 'Nothing')));
-          }))))))
-        : [h('p', { class: 'none' }, d.tokens.length ? 'No token matches the search.' : 'No tokens yet. DESIGN.md gives them.')]));
-      const row = lib.token && $(`#token-${CSS.escape(lib.token.replace(/^--/, ''))}`, body);
-      if (row && lib.scrollTo) { lib.scrollTo = false; row.scrollIntoView({ block: 'center' }); }
+      if (!table.groups.length) {
+        Object.assign(body, { wfWords: words, wfQuery: lib.tq, wfShape: null, wfFull: false });
+        body.replaceChildren(h('p', { class: 'none' }, d.tokens.length ? 'No token matches the search.' : 'No tokens yet. DESIGN.md gives them.'));
+        return;
+      }
+      const rowOf = (g, r) => {
+        const t = byName.get(r.name);
+        const n = r.screens + r.components.length;
+        return h('tr', { id: `token-${r.name.replace(/^--/, '')}`, class: r.name === lib.token ? 'on' : null },
+          h('th', { scope: 'row' }, h('code', {}, r.name)),
+          h('td', { class: 'sample' }, api().tokenSpecimen(t, g.kind)),
+          ...r.values.map((x) => valueCell(t, g.kind, x)),
+          h('td', { class: 'chain' }, r.alias ? h('div', {}, 'also ', h('code', {}, r.alias)) : null,
+            r.chain.length ? h('div', {}, '→ ', ...r.chain.flatMap((x, i) => [i ? ' → ' : null, x.missing ? h('code', { class: 'missing', title: 'Not in the token model' }, x.name)
+              : h('a', { href: LL.libraryHash({ token: x.name }) }, h('code', {}, x.name))])) : null),
+          h('td', { class: 'for' }, r.usedFor || ''),
+          h('td', { class: 'by' }, n ? h('button', { type: 'button', class: 'linkish', title: r.components.length ? `Components: ${r.components.join(', ')}` : null,
+            onclick: () => { api().setView('grid'); api().traceFrom({ kind: 'token', key: r.name }); } },
+          [r.screens ? plural(r.screens, 'screen') : null, r.components.length ? plural(r.components.length, 'component') : null].filter(Boolean).join(' · ')) : h('span', { class: 'none' }, 'Nothing')));
+      };
+      // What a row shows, as one text: a row with the same text is not made again.
+      const wordsOf = (g, r) => JSON.stringify([g.kind, r, r.name === lib.token, byName.get(r.name), r.values.map((x) => api().tokenValue(x.value, x.theme))]);
+      const made = (g, r) => Object.assign(rowOf(g, r), { wfWords: wordsOf(g, r) });
+      // The same tokens in the same order, and every row is in: only the rows that changed are made
+      // again, in their places. The page keeps its height and its scroll, and nothing else is laid out.
+      const shape = JSON.stringify([table.themes, d.defaultTheme, table.groups.map((g) => [g.kind, g.rows.map((r) => r.name)])]);
+      if (body.wfFull && body.wfShape === shape) {
+        const olds = [...body.querySelectorAll('tbody > tr')];
+        const changed = table.groups.flatMap((g) => g.rows.map((r) => [g, r])).map(([g, r], i) => [olds[i], g, r]).filter(([tr, g, r]) => tr.wfWords !== wordsOf(g, r));
+        const todo = LL.drawParts(changed.length, TOKEN_ROWS_FIRST, TOKEN_ROWS_NEXT);
+        const patch = (i) => {
+          if (lib.tokRun !== run || !body.isConnected) return;
+          for (const [tr, g, r] of changed.slice(...(todo[i] || [0, 0]))) tr.replaceWith(made(g, r));
+          if (i + 1 < todo.length) { setTimeout(() => patch(i + 1), TOKEN_ROWS_WAIT); return; }
+          body.wfWords = words;
+          toRow();
+        };
+        patch(0);
+        return;
+      }
+      // Each group has its table at once; the rows come in parts, so no part holds the page long.
+      const jobs = [];
+      const sections = table.groups.map((g) => {
+        const rows = h('tbody');
+        for (const r of g.rows) jobs.push([rows, g, r]);
+        return h('section', { class: 'tok-group' },
+          h('h3', {}, TOKEN_KIND_WORDS[g.kind] || cap(g.kind), h('span', { class: 'count' }, String(g.rows.length))),
+          h('div', { class: 'tok-scroll' }, h('table', { class: 'tok-table' },
+            h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Token'), h('th', { scope: 'col' }, 'Sample'), ...themeHead(),
+              h('th', { scope: 'col' }, 'Alias'), h('th', { scope: 'col' }, 'Used for'), h('th', { scope: 'col' }, 'Used by'))),
+            rows)));
+      });
+      // The first rows come at once, and the others a part at a time.
+      let at = 0;
+      const fill = (count) => { for (const to = Math.min(jobs.length, at + count); at < to; at += 1) { const [rows, g, r] = jobs[at]; rows.append(made(g, r)); } };
+      // Other tokens for the search that shows: the new table is made away from the page and takes
+      // the place of the old one in one step, so the page does not go short and the scroll stays.
+      const swap = body.wfWords != null && body.wfQuery === lib.tq && body.childElementCount > 0;
+      const show = () => { Object.assign(body, { wfWords: words, wfQuery: lib.tq, wfShape: shape, wfFull: false }); body.replaceChildren(...sections); };
+      fill(TOKEN_ROWS_FIRST);
+      if (!swap) { show(); toRow(); }
+      const next = () => {
+        if (lib.tokRun !== run || !body.isConnected) return;
+        fill(TOKEN_ROWS_NEXT);
+        if (at < jobs.length) { if (!swap) toRow(); setTimeout(next, TOKEN_ROWS_WAIT); return; }
+        if (swap) show();
+        body.wfFull = true;
+        toRow();
+      };
+      if (at < jobs.length || swap) setTimeout(next, TOKEN_ROWS_WAIT); else body.wfFull = true;
     };
     drawTable($('.tok-body', shell));
     syncHash();

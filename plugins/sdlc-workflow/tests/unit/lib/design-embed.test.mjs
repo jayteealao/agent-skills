@@ -4,10 +4,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { frameFailures, frameFix, framedLines, framedPages, mountLogic, pageReasons } from '../../../lib/design-embed.mjs';
+import { frameFailures, frameFix, framedLines, framedPages, mountLogic, pageFacts, pageReasons, sheetFileOf, sheetReasons } from '../../../lib/design-embed.mjs';
 import { addScreen, initSurface, screenFile, screenTemplate, surfaceDir } from '../../../lib/design-surface.mjs';
 import { addComponent, componentFile } from '../../../lib/design-components.mjs';
 
@@ -24,7 +24,7 @@ test('the rules come from the script of the canvas', () => {
   const L = mountLogic();
   assert.equal(typeof L.mountProblems, 'function');
   assert.equal(typeof L.rewriteSheet, 'function');
-  assert.equal(mountLogic(), L, 'the script is read once');
+  assert.equal(mountLogic(), L, 'the rules are made once for one text of the script');
 });
 
 test('a page of the template is drawn with no frame; a page with its own script is not', () => {
@@ -131,4 +131,32 @@ test('each handler that the references give as an example is one that the canvas
   const step = readFileSync(join(dir, 'system-migrate.md'), 'utf8').split('## Step 5 — Pages off the frame')[1].split('\n## ')[0];
   for (const r of M.mountProblems('<base href="/"><script src="a.js"></script><script>go()</script><a href="javascript:x()" onclick="go()">x</a>')) assert.ok(step.includes(`\`${r}\``), r);
   assert.ok(step.includes('`a media query has no container form`'));
+});
+
+test('the facts of a page and the reasons of a sheet give the reasons of the page, part by part', () => {
+  const L = mountLogic();
+  const bad = '@media not screen and (max-width: 500px) { .b { color: red } }';
+  const html = '<link rel="stylesheet" href="../shared.css"><link rel="stylesheet" media="print" href="../print.css"><link rel="icon" href="../icon.css"><style>@media not all and (min-width: 600px) { .a { color: red } }</style>';
+  const facts = pageFacts(html, L);
+  assert.deepEqual(facts.sheets, [{ href: '../shared.css', media: null }, { href: '../print.css', media: 'print' }], 'the sheets that the page links, with the media of each tag');
+  assert.equal(facts.reasons.length, 1, 'the inline style');
+  assert.deepEqual(sheetReasons('.b { color: red }', null, L), []);
+  assert.equal(sheetReasons(bad, null, L).length, 1);
+  const sheet = (href) => (href === '../shared.css' ? bad : null);
+  assert.deepEqual(pageReasons(html, { sheet }), [...facts.reasons, ...sheetReasons(bad, null, L)]);
+  // A caller that kept the reasons of each sheet gives them in place of the text.
+  const asked = [];
+  assert.deepEqual(pageReasons(html, { sheetWhy: (href, media) => { asked.push([href, media]); return href === '../shared.css' ? sheetReasons(bad, media, L) : null; } }), pageReasons(html, { sheet }));
+  assert.deepEqual(asked, [['../shared.css', null], ['../print.css', 'print']]);
+  // With `first`, a page that its own text frames is read no further.
+  assert.deepEqual(pageFacts(`<script>fetch("/x")</script>${html}`, L, { first: true }), { reasons: ['it has a script of its own'], sheets: [] });
+  assert.deepEqual(pageFacts(html, L, { first: true }), facts, 'a page with no reason of its own is read to its end');
+});
+
+test('a sheet of the surface is a file inside it; an address of the network or a path that leaves it is none', () => {
+  const dir = join('top', '.ai', 'design');
+  const page = join(dir, 'screens', 'pay.html');
+  assert.equal(sheetFileOf(dir, page, '../tokens.css?v=2#x'), resolve(dir, 'tokens.css'));
+  assert.equal(sheetFileOf(dir, page, 'pay/own.css'), resolve(dir, 'screens', 'pay', 'own.css'));
+  for (const href of ['https://cdn.example/x.css', '//cdn.example/x.css', '../../outside.css', 'data:text/css,a{}']) assert.equal(sheetFileOf(dir, page, href), null, href);
 });

@@ -2,16 +2,18 @@
 // and the refusals. The server listens on 127.0.0.1 with a free port.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addScreen, initSurface } from '../../lib/design-surface.mjs';
+import { addScreen, initSurface, screenFile } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { WRITE_HEADER, changeOf, designHandler, listenDesignServer, phoneBase, repoList, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, changeOf, designHandler, gzipKeptNow, gzipOf, listenDesignServer, phoneBase, repoList, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -22,6 +24,18 @@ function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
     });
     req.on('error', no);
     if (body !== null) req.write(body);
+    req.end();
+  });
+}
+// The bytes of an answer, as they came: a compressed body is not text.
+function rawBytes(port, path, headers = {}) {
+  return new Promise((ok, no) => {
+    const req = request({ host: '127.0.0.1', port, path, headers }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => ok({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', no);
     req.end();
   });
 }
@@ -242,4 +256,78 @@ test('the canvas gets the repos of the list and the address for a phone', () => 
     assert.equal(phoneBase(['http://127.0.0.1:4711/', 'http://100.101.102.103:4711/']), 'http://100.101.102.103:4711/');
     assert.equal(phoneBase([]), null);
   } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
+test('a saved page reaches the state at once, and the same bytes are compressed once', async () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-save-'));
+  const root = join(top, 'Shop');
+  mkdirSync(root);
+  execFileSync('git', ['init', '-q', root]);
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = join(top, 'home');
+  let servers = [];
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', { title: 'Basket', workflow: 'w1' });
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    const live = await listenDesignServer({ port: 0, hosts: ['127.0.0.1'] });
+    servers = live.servers;
+    const state = async (headers = {}) => { const r = await raw(live.port, '/r/shop/state.json', { headers }); return { ...r, json: r.status === 200 ? JSON.parse(r.text) : null }; };
+    const first = await state();
+    assert.deepEqual(first.json.screens.map((s) => [s.key, s.framed, s.links]), [['basket', undefined, []], ['pay', undefined, []]]);
+    assert.equal((await state({ 'if-none-match': first.headers.etag })).status, 304, 'nothing changed');
+
+    // Each save of a page is in the next state: the build reads the saved page again and keeps the others.
+    const page = screenFile(root, 'pay');
+    const template = readFileSync(page, 'utf8');
+    for (const [text, framed, links] of [
+      [template.replace('</main>', '<a href="basket.html">back</a></main>'), undefined, ['basket']],
+      [template.replace('</body>', '<script>document.title = "x"</script></body>'), true, []],
+      [template, undefined, []],
+    ]) {
+      writeFileSync(page, text);
+      const next = await state({ 'if-none-match': first.headers.etag });
+      assert.equal(next.status, 200);
+      const pay = next.json.screens.find((s) => s.key === 'pay');
+      assert.deepEqual([pay.framed, pay.links], [framed, links]);
+      assert.equal('framed' in next.json.screens.find((s) => s.key === 'basket'), false);
+    }
+    // A sheet is compressed once for its bytes, and other bytes get their own form.
+    const sheet = join(root, '.ai', 'design', 'components.css');
+    const css = (n) => `/* ${n} */\n${'.button { color: var(--text); }\n'.repeat(200)}`;
+    const get = async () => { const r = await rawBytes(live.port, '/r/shop/s/components.css', { 'accept-encoding': 'gzip' }); return { encoding: r.headers['content-encoding'], text: gunzipSync(r.body).toString('utf8') }; };
+    writeFileSync(sheet, css(1));
+    assert.deepEqual(await get(), { encoding: 'gzip', text: css(1) });
+    const kept = gzipKeptNow().count;
+    assert.deepEqual(await get(), { encoding: 'gzip', text: css(1) });
+    assert.equal(gzipKeptNow().count, kept, 'the same bytes: no new form');
+    // The same size and the same time, other bytes: the answer is the new text.
+    const at = statSync(sheet).mtime;
+    writeFileSync(sheet, css(2));
+    utimesSync(sheet, at, at);
+    assert.deepEqual(await get(), { encoding: 'gzip', text: css(2) });
+    assert.equal(gzipKeptNow().count, kept + 1);
+    assert.ok(gzipKeptNow().bytes <= gzipKeptNow().limit);
+  } finally {
+    for (const s of servers) s.close();
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});
+
+test('the kept compressed forms stay under the limit, and the oldest go first', () => {
+  const body = (n) => Buffer.from(`${n}:${'x'.repeat(4000)}`);
+  const a = gzipOf(body('a'));
+  assert.deepEqual(gunzipSync(a), body('a'));
+  assert.equal(gzipOf(body('a')), a, 'the same bytes give the kept form');
+  assert.notEqual(gzipOf(body('b')), a);
+  const { limit } = gzipKeptNow();
+  // Bodies that do not compress fill the store past its limit.
+  const chunk = Math.ceil(limit / 6);
+  for (let i = 0; i < 8; i += 1) gzipOf(randomBytes(chunk));
+  const now = gzipKeptNow();
+  assert.ok(now.bytes <= limit, 'the kept bytes stay under the limit');
+  assert.ok(now.count <= 6);
+  assert.notEqual(gzipOf(body('a')), a, 'the oldest form went, and the body is compressed again');
+  assert.deepEqual(gunzipSync(gzipOf(body('a'))), body('a'));
 });

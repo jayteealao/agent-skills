@@ -14,12 +14,19 @@ import { CANVAS_DIR } from './design-state.mjs';
 import { COMPONENTS_DIR, readManifest, screenFile, surfaceDir } from './design-surface.mjs';
 
 let logic = null;
-/** The rules of the canvas mount, read from the script of the canvas once. */
+let logicText = null;
+/**
+ * The rules of the canvas mount, read from the script of the canvas. The rules are made again
+ * only when the text of the script changed, so a caller that keeps a result of the rules can
+ * compare the rules it got: other rules are another object.
+ */
 export function mountLogic() {
-  if (!logic) {
+  const text = readFileSync(join(CANVAS_DIR, 'canvas-mount.js'), 'utf8');
+  if (!logic || text !== logicText) {
     const context = vm.createContext({ URL });
-    vm.runInContext(readFileSync(join(CANVAS_DIR, 'canvas-mount.js'), 'utf8'), context, { filename: 'canvas-mount.js' });
+    vm.runInContext(text, context, { filename: 'canvas-mount.js' });
     logic = context.WF_CANVAS_MOUNT_LOGIC;
+    logicText = text;
   }
   return logic;
 }
@@ -30,25 +37,58 @@ const mediaReason = (query) => `a media query has no container form: ${query}`;
 const wrapped = (css, media) => (media && !/^(?:all|screen)?$/i.test(media.trim()) ? `@media ${media}{${css}}` : css);
 
 /**
- * Why the canvas draws one page in a frame, as a list of plain reasons: empty when it draws the
- * page with no frame. The reasons are those of the page itself, then the media queries of its
- * inline styles and of its sheets that the canvas cannot translate. `sheet(href)` gives the text
- * of a linked sheet, or null for a sheet that is not a file of the surface.
+ * What one page says by itself: `reasons`, the reasons of its own text and of the media queries
+ * of its inline styles, and `sheets`, the sheets that it links, each `{ href, media }`. It reads
+ * the text of the page and nothing else, so a caller can keep it while the page does not change.
+ * With `first`, it stops at the reasons of the page text when there is one: a caller that asks
+ * only whether the page stays in a frame needs no more.
  */
-export function pageReasons(html, { sheet = () => null } = {}) {
-  const L = mountLogic();
+export function pageFacts(html, L = mountLogic(), { first = false } = {}) {
   const text = String(html ?? '');
-  const out = new Set(L.mountProblems(text));
+  const reasons = new Set(L.mountProblems(text));
+  if (first && reasons.size) return { reasons: [...reasons], sheets: [] };
   const body = text.replace(/<!--[\s\S]*?-->/g, '');
   for (const m of body.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style\s*>/gi)) {
-    for (const p of L.rewriteSheet(wrapped(m[2], attr(m[1], 'media'))).problems) out.add(mediaReason(p));
+    for (const p of L.rewriteSheet(wrapped(m[2], attr(m[1], 'media'))).problems) reasons.add(mediaReason(p));
   }
+  const sheets = [];
   for (const m of body.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '').matchAll(/<link\b[^>]*>/gi)) {
     const href = attr(m[0], 'href');
     if (!href || !/(?:^|\s)stylesheet(?:\s|$)/i.test(attr(m[0], 'rel') ?? '')) continue;
+    sheets.push({ href, media: attr(m[0], 'media') });
+  }
+  return { reasons: [...reasons], sheets };
+}
+
+/** The reasons of one linked sheet under the media of its tag: its media queries that the canvas cannot translate. */
+export function sheetReasons(css, media = null, L = mountLogic()) {
+  return Array.from(L.rewriteSheet(wrapped(css, media)).problems, mediaReason);
+}
+
+/** The file of a sheet that a page links, or null when the sheet is no file inside the surface `dir`. */
+export function sheetFileOf(dir, page, href) {
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return null;
+  const file = resolve(dirname(page), href.split(/[?#]/)[0]);
+  const rel = relative(dir, file);
+  if (!rel || rel.startsWith('..') || rel.includes(`..${sep}`)) return null;
+  return file;
+}
+
+/**
+ * Why the canvas draws one page in a frame, as a list of plain reasons: empty when it draws the
+ * page with no frame. The reasons are those of the page itself, then the media queries of its
+ * inline styles and of its sheets that the canvas cannot translate. `sheet(href)` gives the text
+ * of a linked sheet, or null for a sheet that is not a file of the surface. `sheetWhy(href, media)`
+ * gives the reasons of a linked sheet in its place, for a caller that keeps them.
+ */
+export function pageReasons(html, { sheet = () => null, sheetWhy = null, logic: L = mountLogic() } = {}) {
+  const facts = pageFacts(html, L);
+  const out = new Set(facts.reasons);
+  for (const { href, media } of facts.sheets) {
+    if (sheetWhy) { for (const r of sheetWhy(href, media) ?? []) out.add(r); continue; }
     const css = sheet(href);
     if (css == null) continue;
-    for (const p of L.rewriteSheet(wrapped(css, attr(m[0], 'media'))).problems) out.add(mediaReason(p));
+    for (const r of sheetReasons(css, media, L)) out.add(r);
   }
   return [...out];
 }
@@ -61,20 +101,26 @@ export function pageReasons(html, { sheet = () => null } = {}) {
 export function framedPages(root, { keys = null } = {}) {
   const dir = surfaceDir(root);
   const m = readManifest(root);
-  const sheets = new Map();
-  // A linked sheet is read once, and only when it is a file inside the surface.
-  const sheetFrom = (page) => (href) => {
-    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return null;
-    const file = resolve(dirname(page), href.split(/[?#]/)[0]);
-    const rel = relative(dir, file);
-    if (!rel || rel.startsWith('..') || rel.includes(`..${sep}`)) return null;
-    if (!sheets.has(file)) sheets.set(file, existsSync(file) ? readFileSync(file, 'utf8') : null);
-    return sheets.get(file);
+  const L = mountLogic();
+  // A linked sheet is read once and its media queries are translated once for each media: every
+  // page links the same few sheets.
+  const texts = new Map();
+  const whys = new Map();
+  const whyFrom = (page) => (href, media) => {
+    const file = sheetFileOf(dir, page, href);
+    if (!file) return null;
+    const id = `${file}
+${media ?? ''}`;
+    if (!whys.has(id)) {
+      if (!texts.has(file)) texts.set(file, existsSync(file) ? readFileSync(file, 'utf8') : null);
+      whys.set(id, texts.get(file) == null ? null : sheetReasons(texts.get(file), media, L));
+    }
+    return whys.get(id);
   };
   const out = [];
   const read = (kind, key, file) => {
     if (!existsSync(file)) return;
-    const reasons = pageReasons(readFileSync(file, 'utf8'), { sheet: sheetFrom(file) });
+    const reasons = pageReasons(readFileSync(file, 'utf8'), { sheetWhy: whyFrom(file), logic: L });
     if (reasons.length) out.push({ kind, key, reasons });
   };
   for (const key of Object.keys(m.screens).sort()) if (!keys || keys.includes(key)) read('screen', key, screenFile(root, key));

@@ -351,7 +351,13 @@ var WF_CANVAS_LOGIC = (() => {
   /** The next wait before the event stream opens again: 5 s, then twice as long each time, at most a minute. */
   const reopenDelay = (tries) => Math.min(60000, 5000 * 2 ** Math.max(0, Math.min(tries, 10)));
 
-  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, refShape, checkCounts, failCauses, statusOf, waitsForLook, reviewQueue, waitReasons, filterCounts, agoText, stepText, VIEW_NAMES, parseView, fitScale, hashOf, parseHash, parseSize, neighbours, subLine, findingComment };
+  /**
+   * The keys of the pages that the data says must stay in a frame. A page with no such word may
+   * still need one: the canvas tries to draw it, and the mount says when it cannot.
+   */
+  const framedKeys = (list) => new Set((list || []).filter((x) => x?.framed === true).map((x) => x.key));
+
+  return { framedKeys, plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, refShape, checkCounts, failCauses, statusOf, waitsForLook, reviewQueue, waitReasons, filterCounts, agoText, stepText, VIEW_NAMES, parseView, fitScale, hashOf, parseHash, parseSize, neighbours, subLine, findingComment };
 })();
 
 (() => {
@@ -770,6 +776,17 @@ var WF_CANVAS_LOGIC = (() => {
     });
     return f;
   }
+  // The data names the pages that must stay in a frame. The canvas asks the mount for no such page:
+  // the mount would read the whole page only to say no, and the frame would then read it again.
+  // The word is about the page as it is now, so a page of an older version is tried as before.
+  const FRAMED_WHY = ['the page cannot be drawn in the canvas'];
+  let framedOf = null;
+  let framedSet = new Set();
+  function mustFrame(key, at = null) {
+    if (at || !data) return false;
+    if (framedOf !== data) { framedOf = data; framedSet = L.framedKeys(data.screens); }
+    return framedSet.has(key);
+  }
   /**
    * The page of a screen, drawn in the canvas: a host that the mount fills. A page that the mount
    * cannot draw comes in a frame, in the place of the host. Both say `wf-ready` to the box around
@@ -777,6 +794,7 @@ var WF_CANVAS_LOGIC = (() => {
    */
   function frameFor(key, state, at = null, { play = false } = {}) {
     if (SNAP || !MOUNT) return iframeFor(key, state, at, { play });
+    if (mustFrame(key, at)) return iframeFor(key, state, at, { play, why: FRAMED_WHY });
     const host = h('div', { class: 'wf-page', tabindex: play ? null : '-1', 'data-state': state });
     host.wfPage = { key, at, play };
     host.addEventListener('wf-load', () => {
@@ -788,9 +806,39 @@ var WF_CANVAS_LOGIC = (() => {
     fillPage(host);
     return host;
   }
+  // The mount draws a page in one step. Pages that come together (the first load, a pan, a change
+  // of a sheet) would all be drawn in one long step that holds the browser. So the files of every
+  // page are read at once, but the pages are drawn one at a time, and the browser gets a turn
+  // when one more page like the last would take the turn past TURN_MS: small pages go several to
+  // a turn, a large page goes alone. A page of the screen view goes before the pages of the board.
+  const TURN_MS = 30;
+  const turns = [];
+  let turning = false;
+  const breath = () => new Promise((ok) => { if (window.scheduler?.postTask) window.scheduler.postTask(ok, { priority: 'user-blocking' }); else setTimeout(ok, 0); });
+  async function takeTurns() {
+    if (turning) return;
+    turning = true;
+    let from = performance.now();
+    while (turns.length) {
+      const before = performance.now();
+      await turns.shift()();
+      const now = performance.now();
+      if (turns.length && now - from + (now - before) >= TURN_MS) { await breath(); from = performance.now(); }
+    }
+    turning = false;
+  }
+  /** Run `job` when its turn comes; the promise gives what the job gives. */
+  function inTurn(job, first = false) {
+    return new Promise((ok, no) => {
+      turns[first ? 'unshift' : 'push'](() => Promise.resolve().then(job).then(ok, no));
+      takeTurns();
+    });
+  }
+  /** Read the files of a page now, then draw the page with `draw` in its turn. */
+  const drawInTurn = (url, draw) => MOUNT.load(url).catch(() => null).then(() => inTurn(draw, Boolean(focusState)));
   function fillPage(host) {
     const { key, at } = host.wfPage;
-    MOUNT.mount(host, pageUrl(key, at), { state: host.dataset.state })
+    drawInTurn(pageUrl(key, at), () => MOUNT.mount(host, pageUrl(key, at), { state: host.dataset.state }))
       .catch(() => ({ fallback: true, reasons: ['the canvas could not draw it'] }))
       .then((r) => { if (r.fallback) inFrame(host, r); });
   }
@@ -1291,6 +1339,7 @@ var WF_CANVAS_LOGIC = (() => {
     box.wfDraw = (name = box.wfTheme) => {
       box.wfTheme = name;
       if (!MOUNT) { box.replaceChildren(frame(name)); return; }
+      if (c.framed === true) { box.replaceChildren(frame(name), h('p', { class: 'sub part-why' }, `Drawn in a frame: ${FRAMED_WHY[0]}.`)); return; }
       const host = h('div', { class: 'part tall', role: 'group', 'aria-label': c.title });
       box.replaceChildren(host);
       MOUNT.mount(host, componentSrc(c.key, null), { panel: name })
@@ -2750,6 +2799,15 @@ var WF_CANVAS_LOGIC = (() => {
    * screen with its picture, its title, its line and its one status. A row opens the screen view.
    * A card at the top says how many screens wait, and opens the review.
    */
+  // The rows and the sections of the list stay between draws. A search then hides rows and
+  // builds none: to build 500 rows again for each letter is what made the search slow.
+  const listRows = new Map(); // section and key -> { words, el }
+  const listParts = new Map(); // section -> { head, count, rows }
+  /** Give `box` these children. Nothing moves when it has them in this order already. */
+  function setChildren(box, els) {
+    if (box.children.length === els.length && els.every((el, i) => box.children[i] === el)) return;
+    box.replaceChildren(...els);
+  }
   function drawList(list, shown) {
     const box = $('#list');
     const past = versionAt(ui.version);
@@ -2762,32 +2820,76 @@ var WF_CANVAS_LOGIC = (() => {
     const facts = queue.map((k) => factsOf(data.screens.find((s) => s.key === k)));
     const why = [[facts.filter((f) => f.fresh).length, 'changed'], [facts.filter((f) => f.failing).length, 'failing'], [facts.filter((f) => f.comments).length, 'with comments']]
       .filter(([n]) => n).map(([n, word]) => `${n} ${word}`).join(' · ');
-    const row = (s) => {
+    const used = new Set();
+    /** A row is made again only when its words change. */
+    const row = (id, s) => {
       const st = statusFor(s, past);
-      return h('a', { class: 'row', href: L.hashOf({ key: s.key, viewport: ui.viewport, state: ui.state }), 'data-key': s.key, fk: `row:${s.key}`, title: detailText(s, past),
+      const href = L.hashOf({ key: s.key, viewport: ui.viewport, state: ui.state });
+      const title = detailText(s, past);
+      const line = lineOf(s, st);
+      const words = [href, title, titleOf(s), line, st.kind, st.text, !SNAP && !past ? s.picture || '' : ''].join('\u0001');
+      used.add(id);
+      const kept = listRows.get(id);
+      if (kept?.words === words) return kept.el;
+      const el = h('a', { class: 'row', href, 'data-key': s.key, fk: `row:${s.key}`, title,
         onclick: (e) => { e.preventDefault(); openScreen(s.key); } },
-      rowThumb(s, past), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, lineOf(s, st))), pill(st));
+      rowThumb(s, past), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, line)), pill(st));
+      listRows.set(id, { words, el });
+      return el;
     };
     const group = groupNow();
-    box.replaceChildren(...[
-      queue.length ? h('a', { class: 'waitcard', href: '#view=review', 'data-view': 'review', fk: 'review' },
+    const sections = labels.flatMap((l, i) => {
+      const id = `${group}\u0001${i}\u0001${l.text}`;
+      const keys = l.keys.filter((k) => byKey.has(k));
+      if (!keys.length) return [];
+      let part = listParts.get(id);
+      if (!part) {
+        part = { count: h('span'), rows: h('div', { class: 'rows' }) };
+        part.head = h('div', { class: 'list-head' }, h('h2', {}, l.text), part.count);
+        listParts.set(id, part);
+      }
+      used.add(id);
+      const els = keys.map((k) => row(`${id}\u0001${k}`, byKey.get(k)));
+      setChildren(part.rows, els);
+      // A row that the search leaves out hides. The last row that shows has no line under it.
+      let on = 0;
+      let last = null;
+      els.forEach((el, n) => {
+        const hide = !shown.has(keys[n]);
+        if (el.hidden !== hide) el.hidden = hide;
+        if (!hide) { on += 1; last = el; }
+      });
+      if (part.last !== last) { part.last?.classList.remove('last'); last?.classList.add('last'); part.last = last; }
+      const count = l.sub ?? plural(on, 'screen');
+      if (part.count.textContent !== count) part.count.textContent = count;
+      if (part.head.hidden !== !on) { part.head.hidden = !on; part.rows.hidden = !on; }
+      return [part.head, part.rows];
+    });
+    // The card and the control at the top are made again only when their words change.
+    const keep = (id, words, make) => {
+      used.add(id);
+      const was = listRows.get(id);
+      if (was?.words === words) return was.el;
+      const el = make();
+      listRows.set(id, { words, el });
+      return el;
+    };
+    setChildren(box, [
+      queue.length ? keep('@wait', `${queue.length} ${why}`, () => h('a', { class: 'waitcard', href: '#view=review', 'data-view': 'review', fk: 'review' },
         h('span', { class: 'wait-text' }, h('b', {}, `${plural(queue.length, 'screen')} wait${queue.length === 1 ? 's' : ''} for you`), h('small', {}, why)),
-        h('span', { class: 'wait-go' }, 'Review')) : null,
-      list.length ? h('div', { class: 'seg list-group', role: 'group', 'aria-label': 'Group the screens by' },
-        ...GROUPS.map((g) => h('button', { type: 'button', fk: `group:${g}`, class: g === group ? 'on' : null, 'aria-pressed': String(g === group), onclick: () => setView(g) }, { grid: 'Areas', flow: 'Flows', slice: 'Slices' }[g]))) : null,
-      ...labels.flatMap((l) => {
-        const keys = l.keys.filter((k) => shown.has(k));
-        if (!keys.length) return [];
-        return [h('div', { class: 'list-head' }, h('h2', {}, l.text), h('span', {}, l.sub ?? plural(keys.length, 'screen'))),
-          h('div', { class: 'rows' }, ...keys.map((k) => row(byKey.get(k))))];
-      }),
-      !list.length ? h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Start it in the chat with /wf design.') : null,
-      ...((data.explore.length || data.references.length) && !past ? [h('div', { class: 'list-head' }, h('h2', {}, 'Before the screens')),
-        h('div', { class: 'rows' },
+        h('span', { class: 'wait-go' }, 'Review'))) : null,
+      list.length ? keep('@group', group, () => h('div', { class: 'seg list-group', role: 'group', 'aria-label': 'Group the screens by' },
+        ...GROUPS.map((g) => h('button', { type: 'button', fk: `group:${g}`, class: g === group ? 'on' : null, 'aria-pressed': String(g === group), onclick: () => setView(g) }, { grid: 'Areas', flow: 'Flows', slice: 'Slices' }[g])))) : null,
+      ...sections,
+      !list.length ? keep('@empty', '', () => h('div', { class: 'empty' }, h('b', {}, 'No screens yet'), 'The design stage draws the screens of this repo here. Start it in the chat with /wf design.')) : null,
+      ...((data.explore.length || data.references.length) && !past ? [keep('@before', '', () => h('div', { class: 'list-head' }, h('h2', {}, 'Before the screens'))),
+        keep('@before-rows', `${data.explore.length} ${data.references.length}`, () => h('div', { class: 'rows' },
           data.explore.length ? h('a', { class: 'row plain', href: '#view=sketches', 'data-view': 'sketches', fk: 'sketches' }, h('span', { class: 'row-text' }, h('b', {}, 'Sketches')), h('span', { class: 'n' }, String(data.explore.length))) : null,
-          data.references.length ? h('a', { class: 'row plain', href: '#view=references', 'data-view': 'references', fk: 'references' }, h('span', { class: 'row-text' }, h('b', {}, 'References')), h('span', { class: 'n' }, String(data.references.length))) : null)] : [])].filter(Boolean));
+          data.references.length ? h('a', { class: 'row plain', href: '#view=references', 'data-view': 'references', fk: 'references' }, h('span', { class: 'row-text' }, h('b', {}, 'References')), h('span', { class: 'n' }, String(data.references.length))) : null))] : [])].filter(Boolean));
+    // What this draw did not use is of a screen or a section that left.
+    for (const map of [listRows, listParts]) for (const id of map.keys()) if (!used.has(id)) map.delete(id);
     stage.scrollTop = top;
-    if (fkWas) $(`[data-fk="${CSS.escape(fkWas)}"]`, box)?.focus({ preventScroll: true });
+    if (fkWas && !box.contains(document.activeElement)) $(`[data-fk="${CSS.escape(fkWas)}"]`, box)?.focus({ preventScroll: true });
   }
   /**
    * The Review view: the queue of the screens that wait for a look, then the screens that wait
@@ -3173,11 +3275,11 @@ var WF_CANVAS_LOGIC = (() => {
   function reloadPage(el) {
     const p = el.wfPage;
     if (el.tagName !== 'IFRAME') {
-      if (el.wfView) el.wfView.reload({ fresh: false }).then((r) => { if (r.fallback) inFrame(el, r); });
+      if (el.wfView) drawInTurn(pageUrl(p.key, p.at), () => el.wfView.reload({ fresh: false }).then((r) => { if (r.fallback) inFrame(el, r); }));
       else fillPage(el);
       return;
     }
-    if (!p || !MOUNT || SNAP) { reloadFrame(el); return; }
+    if (!p || !MOUNT || SNAP || mustFrame(p.key, p.at)) { reloadFrame(el); return; }
     MOUNT.load(pageUrl(p.key, p.at)).then((page) => {
       if (!page.ok || !el.parentNode) { reloadFrame(el); return; }
       const host = frameFor(p.key, el.dataset.state, p.at, p);

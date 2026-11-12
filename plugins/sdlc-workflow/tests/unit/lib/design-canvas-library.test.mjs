@@ -201,3 +201,26 @@ test('the canvas loads the library, gives it the board place, and hands it the a
   assert.match(canvas, /MOUNT\.mount\(host, componentSrc\(c\.key, null\), \{ panel: name \}\)/, 'the component panel draws the page in the canvas');
   assert.ok(page.indexOf('/canvas/canvas-mount.js') < page.indexOf('/canvas/canvas.js'), 'the mount engine loads first');
 });
+
+test('a long list is drawn in parts that cover it once, a small part first', () => {
+  assert.deepEqual(plain(LL.drawParts(70, 16, 24)), [[0, 16], [16, 40], [40, 64], [64, 70]]);
+  assert.deepEqual(plain(LL.drawParts(10, 16, 24)), [[0, 10]]);
+  assert.deepEqual(plain(LL.drawParts(0, 16, 24)), []);
+  assert.match(source, /fill\(TOKEN_ROWS_FIRST\);/, 'the token table shows its first rows at once');
+  assert.match(source, /if \(at < jobs\.length\) \{ if \(!swap\) toRow\(\); setTimeout\(next, TOKEN_ROWS_WAIT\); return; \}/, 'and adds the others in parts');
+  assert.match(source, /if \(body\.wfWords === words\) \{ toRow\(\); return; \}/, 'the same table is not drawn again');
+});
+
+test('the token table counts the users of a token once for each screen and component', () => {
+  const t = plain(LL.tokenTable({
+    tokens: [{ name: '--ink', value: '#111' }, { name: '--gap', value: '4px' }],
+    screens: [{ key: 'a', tokens: ['--ink', '--ink'] }, { key: 'b', tokens: ['--ink', '--gap'] }, { key: 'c' }],
+    components: [{ key: 'button', tokens: ['--ink', '--ink'] }, { key: 'chip', tokens: ['--ink'] }],
+  }));
+  const rows = Object.fromEntries(t.groups.flatMap((g) => g.rows).map((r) => [r.name, [r.screens, r.components]]));
+  assert.deepEqual(rows, { '--ink': [2, ['button', 'chip']], '--gap': [1, []] });
+});
+
+test('a component that the data says must stay in a frame is not read by the mount', () => {
+  assert.match(source, /c\.framed === true \? \{ ok: false, reasons: \[\] \} : await M\.load\(pageUrl\(c\)\)/);
+});

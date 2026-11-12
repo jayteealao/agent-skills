@@ -2,9 +2,11 @@
 // `~/.sdlc/design-repos.json` and the brainstorm pages of those repos. The phone reaches it over
 // the tailnet.
 //
-// The server reads the files of each request. It keeps one thing in memory: the canvas state of
-// each repo, which a worker thread builds and which stays until a file that it reads changes
-// (`stateStamp`). While a canvas is open, it watches those files and pushes each change to the
+// The server reads the files of each request. It keeps two things in memory. The first is the
+// canvas state of each repo, which a worker thread builds and which stays until a file that it
+// reads changes (`stateStamp`); the thread stays too, and keeps what it read from each file for
+// its next build (design-state.mjs). The second is the compressed form of the answers that it
+// sent last, each under the hash of its bytes (`gzipOf`). While a canvas is open, it watches those files and pushes each change to the
 // canvas over an event stream (`/r/<repo>/events`). It keeps no version state, no render queue and no reap. It writes in three cases only: a comment on a screen that exists, the
 // saved positions of the canvas layout, and the restore of a version as a new round. It starts one process: the read-only design audit
 // agent of the Audit button (design-audit.mjs), one run per repo at a time. Each write names a
@@ -183,6 +185,34 @@ function indexPage(repos) {
 
 // Text compresses about ten times; a picture or a font is compressed already.
 const COMPRESS = /^(text\/|application\/json|image\/svg)/;
+// The compressed form of a body, kept under the hash of its bytes: the same bytes are compressed
+// once, and other bytes never get this form. The oldest forms go when the kept bytes pass the limit.
+const GZIP_KEEP = 32 * 1024 * 1024;
+const gzips = new Map();
+let gzipKept = 0;
+/** The gzip of a body. */
+export function gzipOf(buf) {
+  const id = createHash('sha256').update(buf).digest('base64');
+  const held = gzips.get(id);
+  if (held) {
+    // The form that was asked for last is the last to go.
+    gzips.delete(id);
+    gzips.set(id, held);
+    return held;
+  }
+  const out = gzipSync(buf);
+  if (out.length > GZIP_KEEP) return out;
+  gzips.set(id, out);
+  gzipKept += out.length;
+  for (const [k, v] of gzips) {
+    if (gzipKept <= GZIP_KEEP) break;
+    gzips.delete(k);
+    gzipKept -= v.length;
+  }
+  return out;
+}
+/** The compressed forms that the server keeps now: `{ count, bytes, limit }`. */
+export const gzipKeptNow = () => ({ count: gzips.size, bytes: gzipKept, limit: GZIP_KEEP });
 /** True while an answer can still start: no head was sent and the connection is open. */
 const open = (res) => !res.headersSent && !res.writableEnded && !res.destroyed;
 function send(res, status, body, headers = {}) {
@@ -190,7 +220,7 @@ function send(res, status, body, headers = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   const out = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers };
   if (buf.length > 1024 && COMPRESS.test(String(out['content-type'] ?? '')) && /\bgzip\b/.test(String(res.req?.headers['accept-encoding'] ?? ''))) {
-    buf = headers.gzipped ?? gzipSync(buf);
+    buf = headers.gzipped ?? gzipOf(buf);
     out['content-encoding'] = 'gzip';
     out.vary = 'accept-encoding';
   }
@@ -282,21 +312,52 @@ const building = new Map();
 // The ETag of a state carries the start of this server too: a new server can build a state of a
 // new shape from the same files, and a browser must not keep the state of the old code.
 const BOOT = Date.now().toString(36);
+// One worker thread builds every state, one build at a time, so the server answers every other
+// request while a build reads the pages and runs git. The thread stays between the builds: a build
+// keeps what it read from each file, and the next build reads only the files that changed
+// (design-state.mjs, "what a build keeps"). A thread that stopped is started again by the next build.
 const WORKER = new URL('./design-state-worker.mjs', import.meta.url);
-function buildState(root, repo) {
+let stateWorker = null;
+let buildSeq = 0;
+const waiting = new Map();
+function stateWorkerOf() {
+  if (stateWorker) return stateWorker;
+  const w = new Worker(WORKER);
+  const settle = (id, answer) => {
+    const p = waiting.get(id);
+    if (!p) return;
+    waiting.delete(id);
+    // The thread keeps the process alive only while a build waits for it.
+    if (![...waiting.values()].some((x) => x.w === w)) w.unref();
+    answer(p);
+  };
+  const stopped = (e) => {
+    if (stateWorker === w) stateWorker = null;
+    for (const [id, p] of [...waiting]) if (p.w === w) settle(id, (x) => x.no(e));
+  };
+  w.on('message', (m) => settle(m.id, (p) => (m.ok ? p.ok(m.json) : p.no(new Error(m.error)))));
+  w.on('error', stopped);
+  w.on('exit', (code) => stopped(new Error(`the state build stopped with code ${code}`)));
+  w.unref();
+  stateWorker = w;
+  return w;
+}
+/** Build the state of a repo on the worker thread. `files` is `stateFiles` of the root, read at the time `at`. */
+function buildState(root, repo, files, at) {
   return new Promise((ok, no) => {
-    const w = new Worker(WORKER, { workerData: { root, repo } });
-    w.once('message', (m) => (m.ok ? ok(m.json) : no(new Error(m.error))));
-    w.once('error', no);
-    w.once('exit', (code) => { if (code) no(new Error(`the state build stopped with code ${code}`)); });
+    const w = stateWorkerOf();
+    buildSeq += 1;
+    waiting.set(buildSeq, { ok, no, w });
+    w.ref();
+    w.postMessage({ id: buildSeq, root, repo, files, at });
   });
 }
-function jsonOf(root, repo, stamp) {
+function jsonOf(root, repo, stamp, files, at) {
   const held = built.get(root);
   if (held?.stamp === stamp) return Promise.resolve(held.json);
   const run = building.get(root);
   if (run?.stamp === stamp) return run.promise;
-  const promise = buildState(root, repo).then((text) => {
+  const promise = buildState(root, repo, files, at).then((text) => {
     built.set(root, { stamp, json: text });
     return text;
   }).finally(() => { if (building.get(root)?.promise === promise) building.delete(root); });
@@ -332,8 +393,15 @@ export function repoList(repos = readDesignRepos()) {
  * not read (`manifestFault`: null, or the reason; the state then shows no screen), the repos of
  * the list (`repos`: `[{ name, surface }]`), and the address for a phone (`phone`: the address of
  * this server on the tailnet, or null when it listens on this computer only).
+ *
+ * `files` is `stateFiles` of the root when the caller has it, and `at` the time before the caller
+ * read it. Without `at`, the build trusts nothing that it kept and reads every file again.
  */
-export async function stateOf(root, repo, files = undefined, repos = readDesignRepos()) {
+export async function stateOf(root, repo, files = undefined, repos = readDesignRepos(), at = null) {
+  if (!files) {
+    at = Date.now();
+    files = stateFiles(root);
+  }
   const stamp = stateStamp(root, files);
   const facts = JSON.stringify({ repos: repoList(repos), phone: phoneAddress() });
   const mark = createHash('sha1').update(facts).digest('hex').slice(0, 8);
@@ -341,7 +409,7 @@ export async function stateOf(root, repo, files = undefined, repos = readDesignR
   const key = `${stamp}${mark}-${commitOf(root).seq}`;
   const held = states.get(root);
   if (held?.key === key) return held;
-  const text = await jsonOf(root, repo, stamp);
+  const text = await jsonOf(root, repo, stamp, files, at);
   const c = commitOf(root);
   const now = `${stamp}${mark}-${c.seq}`;
   const extra = JSON.stringify({ writeToken: WRITE_TOKEN, recordsCommit: { pending: c.pending, failed: c.failed }, manifestFault: manifestFault(root), ...JSON.parse(facts) });
@@ -399,13 +467,14 @@ async function check(root) {
   f.busy = true;
   let stamp = null;
   try {
+    const at = Date.now();
     const files = stateFiles(root);
     const changed = [...new Set([...files.keys(), ...f.files.keys()])].filter((p) => files.get(p) !== f.files.get(p));
     if (!changed.length) { f.files = files; return; }
     stamp = stateStamp(root, files);
     // The same files failed to build a moment ago: they will fail again. The next change is tried.
     if (f.failed === stamp) return;
-    const state = await stateOf(root, f.repo, files);
+    const state = await stateOf(root, f.repo, files, undefined, at);
     tell(f, `event: change\ndata: ${JSON.stringify({ etag: state.etag, ...changeOf(root, changed) })}\n\n`);
     // Only a change that reached the canvases is done: after a failed build the next check sends it.
     f.files = files;

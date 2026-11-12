@@ -2,18 +2,19 @@
 // and the self-contained snapshot page.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addScreen, initSurface, readManifest, screenFile, setViewports } from '../../../lib/design-surface.mjs';
-import { addComment, openThreads, writeChecks } from '../../../lib/design-records.mjs';
+import { addScreen, initSurface, listScreens, readManifest, screenFile, setViewports, writeManifest } from '../../../lib/design-surface.mjs';
+import { addComment, approvalPicture, openThreads, writeChecks } from '../../../lib/design-records.mjs';
 import { addReference, checkReferences, readReferences } from '../../../lib/design-references.mjs';
 import { runDesign } from '../../../lib/design-cli.mjs';
-import { addComponent } from '../../../lib/design-components.mjs';
-import { canvasState, componentTokens, screenFailures, snapshotHtml, stateStamp, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
+import { addComponent, componentFile } from '../../../lib/design-components.mjs';
+import { framedPages } from '../../../lib/design-embed.mjs';
+import { canvasState, componentTokens, screenFailures, snapshotHtml, stateReads, stateStamp, tokensOf, tokensUsed } from '../../../lib/design-state.mjs';
 
 function repo() {
   const top = mkdtempSync(join(tmpdir(), 'design-state-'));
@@ -245,5 +246,256 @@ test('a surface with only a token sheet gives a legacy model of one theme', () =
     assert.equal(s.tokensLegacy, true);
     assert.deepEqual(s.tokens.map((t) => [t.name, t.kind]), [['--ground', 'color'], ['--space-2', 'space']]);
     assert.deepEqual([s.themes.map((t) => t.name), s.defaultTheme], [['default'], 'default']);
+  } finally { done(); }
+});
+
+// ---------------------------------------------------------------- a build that reuses
+
+// A build trusts what it kept only from a file that is older than a few seconds. A test makes
+// its new files old, each with a time of its own, so that a later write gets another time.
+let aged = 0;
+function age(dir) {
+  for (const d of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, d.name);
+    if (d.isDirectory()) { age(p); continue; }
+    if (statSync(p).mtimeMs < Date.now() - 30_000) continue;
+    aged += 1;
+    const t = new Date(Date.now() - 3_600_000 + aged * 1000);
+    utimesSync(p, t, t);
+  }
+}
+const git = (root, ...args) => execFileSync('git', ['-C', root, '-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+/** The state of a build that reuses, checked against a build that reads everything, and what the build read. */
+function reused(root) {
+  age(root);
+  const before = stateReads();
+  const state = canvasState(root, { repo: 'shop', full: false, reuse: true });
+  const after = stateReads();
+  assert.deepEqual(JSON.parse(JSON.stringify(state)), JSON.parse(JSON.stringify(canvasState(root, { repo: 'shop', full: false }))), 'a build that reuses gives the state of a build that reads everything');
+  return { state, read: { pages: after.pages - before.pages, parts: after.parts - before.parts, threads: after.threads - before.threads, git: after.git - before.git } };
+}
+const screenOf = (state, key) => state.screens.find((s) => s.key === key);
+
+test('a screen or a component whose page stays in a frame carries framed: true, and no other carries the field', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', { title: 'Basket', workflow: 'w1' });
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    addScreen(root, 'ghost', { title: 'Ghost', workflow: 'w1' });
+    addComponent(root, 'button', { title: 'Button' });
+    addComponent(root, 'badge', { title: 'Badge' });
+    rmSync(screenFile(root, 'ghost'));
+    const framed = (s) => [...s.screens, ...s.components].filter((x) => 'framed' in x).map((x) => [x.key, x.framed]);
+    assert.deepEqual(framed(canvasState(root)), [], 'the pages of the templates are drawn with no frame, and a screen with no page says nothing');
+
+    writeFileSync(screenFile(root, 'pay'), readFileSync(screenFile(root, 'pay'), 'utf8').replace('</body>', '<script>document.title = "x"</script></body>'));
+    writeFileSync(componentFile(root, 'badge'), readFileSync(componentFile(root, 'badge'), 'utf8').replace('</body>', '<script src="badge.js"></script></body>'));
+    for (const reuse of [false, true]) {
+      assert.deepEqual(framed(canvasState(root, { reuse })), [['pay', true], ['badge', true]]);
+      assert.deepEqual(framedPages(root).map((p) => p.key).sort(), ['badge', 'pay'], 'the same pages as the list of the CLI');
+    }
+    // A sheet that every page links: a media query with no container form frames each page that links it.
+    const sheet = join(root, '.ai', 'design', 'components.css');
+    writeFileSync(sheet, '@media not all and (min-width: 600px) { .button { color: red } }\n');
+    assert.deepEqual(reused(root).state.screens.filter((s) => s.framed).map((s) => s.key), ['basket', 'pay']);
+    assert.deepEqual(framedPages(root).map((p) => p.key).sort(), ['badge', 'basket', 'button', 'pay']);
+    writeFileSync(sheet, '@media (min-width: 600px) { .button { color: red } }\n');
+    const back = reused(root);
+    assert.deepEqual(framed(back.state), [['pay', true], ['badge', true]]);
+    assert.deepEqual([back.read.pages, back.read.parts], [0, 0], 'the sheet changed, and no page was read again for it');
+  } finally { done(); }
+});
+
+test('a build that reuses reads only the files that changed, and its state follows each change', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    for (const key of ['basket', 'pay', 'done']) addScreen(root, key, { title: key, area: 'checkout', flow: 'buy', workflow: 'w1', slice: 's1' });
+    addComponent(root, 'button', { title: 'Button' });
+    writeFileSync(join(root, '.ai', 'design', 'components.css'), '.button { color: var(--text); }\n');
+    addComment(root, 'basket', { text: 'Make the total bigger', author: 'po', anchor: { x: 0.5, y: 0.2, state: 'default' } });
+    // A repo with no commit has no history to keep: git is asked for it each time.
+    git(root, 'add', '.ai/design');
+    git(root, 'commit', '-qm', 'screens');
+
+    const first = reused(root);
+    assert.deepEqual([first.read.pages, first.read.parts], [3, 1], 'the first build reads every page');
+    const second = reused(root);
+    assert.deepEqual(second.read, { pages: 0, parts: 0, threads: 0, git: 0 }, 'nothing changed: no page, no comment file and no git');
+    assert.deepEqual(second.state, first.state);
+
+    // One page: the other pages are not read again.
+    writeFileSync(screenFile(root, 'pay'), '<html><body style="color: var(--text)"><a href="done.html">next</a><section data-state="default" data-component="button"></section></body></html>');
+    const paged = reused(root);
+    assert.deepEqual([paged.read.pages, paged.read.parts, paged.read.threads], [1, 0, 0]);
+    assert.deepEqual([screenOf(paged.state, 'pay').links, screenOf(paged.state, 'pay').components, screenOf(paged.state, 'pay').states], [['done'], ['button'], ['default']]);
+    assert.notEqual(screenOf(paged.state, 'pay').fingerprint, screenOf(first.state, 'pay').fingerprint);
+    assert.equal(screenOf(paged.state, 'basket').fingerprint, screenOf(first.state, 'basket').fingerprint);
+    assert.deepEqual(paged.state.components.find((c) => c.key === 'button').screens, ['pay'], 'the component names the screen that uses it now');
+
+    // A file of the folder of a screen changes its fingerprint.
+    mkdirSync(join(root, '.ai', 'design', 'screens', 'done'), { recursive: true });
+    writeFileSync(join(root, '.ai', 'design', 'screens', 'done', 'step.html'), '<p>step</p>');
+    const foldered = reused(root);
+    assert.equal(foldered.read.pages, 1);
+    assert.notEqual(screenOf(foldered.state, 'done').fingerprint, screenOf(paged.state, 'done').fingerprint);
+    writeFileSync(join(root, '.ai', 'design', 'screens', 'done', 'step.html'), '<p>next</p>');
+    assert.notEqual(screenOf(reused(root).state, 'done').fingerprint, screenOf(foldered.state, 'done').fingerprint, 'the same size, another text');
+
+    // The component sheet: the tokens of each screen follow, and no page is read for them.
+    writeFileSync(join(root, '.ai', 'design', 'components.css'), '.button { color: var(--accent); background: var(--ground); }\n');
+    const sheeted = reused(root);
+    assert.equal(sheeted.read.pages, 0);
+    assert.ok(screenOf(sheeted.state, 'pay').tokens.includes('--accent'));
+
+    // A comment, a component page, the layout and the manifest.
+    addComment(root, 'pay', { text: 'Too small', author: 'po', anchor: { x: 0.1, y: 0.1, state: 'default' } });
+    const said = reused(root);
+    assert.deepEqual([said.read.pages, said.read.threads, screenOf(said.state, 'pay').openComments], [0, 1, 1]);
+    writeFileSync(componentFile(root, 'button'), readFileSync(componentFile(root, 'button'), 'utf8').replace(/<meta name="wf:states"[^>]*>/, '<meta name="wf:states" content="default odd">'));
+    const parted = reused(root);
+    assert.deepEqual([parted.read.pages, parted.read.parts], [0, 1]);
+    assert.ok(parted.state.components[0].spec.states.includes('odd'));
+    writeFileSync(join(root, '.ai', 'design', 'layout.json'), JSON.stringify({ positions: { pay: { x: 7, y: 9 } } }));
+    assert.deepEqual(screenOf(reused(root).state, 'pay').position, { x: 7, y: 9 });
+    addScreen(root, 'pay', { title: 'Pay now' });
+    addScreen(root, 'thanks', { title: 'Thanks', area: 'checkout', flow: 'buy', workflow: 'w1' });
+    const listed = reused(root);
+    assert.deepEqual([screenOf(listed.state, 'pay').title, listed.state.screens.length, listed.read.pages], ['Pay now', 4, 1]);
+
+    // A page that goes away, and a page that comes back.
+    rmSync(screenFile(root, 'done'));
+    assert.equal(screenOf(reused(root).state, 'done').exists, false);
+    writeFileSync(screenFile(root, 'done'), '<html><body><section data-state="empty"></section></body></html>');
+    assert.deepEqual(screenOf(reused(root).state, 'done').states, ['empty']);
+  } finally { done(); }
+});
+
+test('a new file is not trusted: two writes with one size and one time both reach the state', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    const state = () => canvasState(root, { full: false, reuse: true }).screens[0];
+    const now = new Date();
+    const write = (text) => { writeFileSync(screenFile(root, 'pay'), text); utimesSync(screenFile(root, 'pay'), now, now); };
+    write('<html><body><a href="aaa.html">x</a></body></html>');
+    assert.deepEqual(state().links, ['aaa']);
+    const stat = statSync(screenFile(root, 'pay'));
+    write('<html><body><a href="bbb.html">x</a></body></html>');
+    assert.deepEqual([statSync(screenFile(root, 'pay')).size, statSync(screenFile(root, 'pay')).mtimeMs], [stat.size, stat.mtimeMs], 'the size and the time are the same');
+    assert.deepEqual(state().links, ['bbb'], 'the page was written a moment ago, so the build read it again');
+  } finally { done(); }
+});
+
+test('the history and the approval picture follow a commit, a branch, and a change of the page', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'basket', { title: 'Basket', workflow: 'w1' });
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    git(root, 'add', '.ai/design');
+    git(root, 'commit', '-qm', 'screens');
+    const sha = git(root, 'rev-parse', 'HEAD');
+    // The approval of both screens at this commit, with the picture of each.
+    const m = readManifest(root);
+    for (const key of ['basket', 'pay']) {
+      m.screens[key].approvals = [{ commit: sha, version: 'v1', at: '2026-11-01T10:00:00Z', workflow: 'w1' }];
+      mkdirSync(join(approvalPicture(root, sha, key), '..'), { recursive: true });
+      writeFileSync(approvalPicture(root, sha, key), 'png');
+    }
+    writeManifest(root, m);
+    git(root, 'add', '.ai/design');
+    git(root, 'commit', '-qm', 'approvals');
+    const pictures = (s) => s.screens.map((x) => x.picture);
+    const heads = (s) => s.screens.map((x) => x.history.map((h) => h.subject));
+
+    const first = reused(root);
+    assert.deepEqual(pictures(first.state), [`approvals/${sha}/basket.png`, `approvals/${sha}/pay.png`]);
+    assert.deepEqual(heads(first.state), [['screens'], ['screens']]);
+    assert.deepEqual(reused(root).read, { pages: 0, parts: 0, threads: 0, git: 0 }, 'nothing changed: git is not asked again');
+
+    // A change of an approved page takes its picture; the old text brings it back.
+    const page = readFileSync(screenFile(root, 'pay'), 'utf8');
+    writeFileSync(screenFile(root, 'pay'), page.replace('</main>', '<p>new</p></main>'));
+    const changed = reused(root);
+    assert.deepEqual(pictures(changed.state), [`approvals/${sha}/basket.png`, null]);
+    assert.ok(changed.read.git >= 1, 'git status ran for the changed page');
+    writeFileSync(screenFile(root, 'pay'), page);
+    assert.deepEqual(pictures(reused(root).state), [`approvals/${sha}/basket.png`, `approvals/${sha}/pay.png`]);
+    // The index alone: a staged change that the folder no longer shows.
+    const staged = page.replace('</main>', '<p>staged</p></main>');
+    writeFileSync(screenFile(root, 'pay'), staged);
+    git(root, 'add', '.ai/design/screens/pay.html');
+    assert.deepEqual(pictures(reused(root).state), [`approvals/${sha}/basket.png`, null]);
+    git(root, 'reset', '-q', '--', '.ai/design/screens/pay.html');
+    writeFileSync(screenFile(root, 'pay'), page);
+    assert.deepEqual(pictures(reused(root).state), [`approvals/${sha}/basket.png`, `approvals/${sha}/pay.png`]);
+
+    // A commit of a page: its newest commit is no longer the approval.
+    writeFileSync(screenFile(root, 'basket'), readFileSync(screenFile(root, 'basket'), 'utf8').replace('</main>', '<p>more</p></main>'));
+    git(root, 'commit', '-qam', 'basket changes');
+    const committed = reused(root);
+    assert.deepEqual([pictures(committed.state), heads(committed.state)], [[null, `approvals/${sha}/pay.png`], [['basket changes', 'screens'], ['screens']]]);
+    assert.equal(reused(root).read.git, 0);
+
+    // A commit in a repo that keeps no reflog: the file of the branch still changes.
+    git(root, 'config', 'core.logAllRefUpdates', 'false');
+    rmSync(join(root, '.git', 'logs'), { recursive: true, force: true });
+    reused(root);
+    const stamp = stateStamp(root);
+    writeFileSync(screenFile(root, 'pay'), page.replace('</main>', '<p>paid</p></main>'));
+    git(root, 'commit', '-qam', 'pay changes');
+    assert.equal(existsSync(join(root, '.git', 'logs', 'HEAD')), false);
+    assert.notEqual(stateStamp(root), stamp, 'the stamp of the server follows the branch');
+    assert.deepEqual(heads(reused(root).state), [['basket changes', 'screens'], ['pay changes', 'screens']]);
+
+    // Another branch at the first commit, then back.
+    const branch = git(root, 'rev-parse', '--abbrev-ref', 'HEAD');
+    git(root, 'checkout', '-q', '-b', 'old', sha);
+    const old = reused(root);
+    assert.deepEqual([heads(old.state), pictures(old.state)], [[['screens'], ['screens']], [null, null]], 'the manifest of that commit names no approval');
+    git(root, 'checkout', '-q', branch);
+    assert.deepEqual(heads(reused(root).state), [['basket changes', 'screens'], ['pay changes', 'screens']]);
+  } finally { done(); }
+});
+
+test('a folder that is no git repo costs one git call, and the state sees the repo that it becomes', () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-nogit-'));
+  const root = join(top, 'Shop');
+  mkdirSync(root);
+  const saved = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = join(top, 'home');
+  try {
+    initSurface(root);
+    addScreen(root, 'pay', { title: 'Pay', workflow: 'w1' });
+    // The temporary folder can lie inside a repo of the computer that runs the test: then git is asked each time, as it must be.
+    const inRepo = (() => { try { execFileSync('git', ['-C', root, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); return true; } catch { return false; } })();
+    const before = stateReads().git;
+    for (let i = 0; i < 3; i += 1) { stateStamp(root); canvasState(root, { full: false, reuse: true }); }
+    if (!inRepo) assert.equal(stateReads().git - before, 1, 'git said once that the folder is no repo');
+    const stamp = stateStamp(root);
+    execFileSync('git', ['init', '-q', root]);
+    git(root, 'add', '.ai/design');
+    git(root, 'commit', '-qm', 'screens');
+    assert.notEqual(stateStamp(root), stamp, 'the stamp sees the new repo');
+    assert.deepEqual(reused(root).state.screens[0].history.map((h) => h.subject), ['screens']);
+  } finally {
+    if (saved === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = saved;
+    rmSync(top, { recursive: true, force: true });
+  }
+});
+
+test('the screens of the state come in the order of the list of the screens', () => {
+  const { root, done } = repo();
+  try {
+    initSurface(root);
+    addScreen(root, 'zeta', { title: 'Z', area: 'shop', flow: 'buy', order: 2 });
+    addScreen(root, 'alpha', { title: 'A', area: 'shop', flow: 'buy', order: 10 });
+    addScreen(root, 'mid', { title: 'M', area: 'account', flow: 'sign', order: 1 });
+    addScreen(root, 'loose', { title: 'L' });
+    addScreen(root, 'early', { title: 'E', area: 'shop', flow: 'browse' });
+    assert.deepEqual(canvasState(root).screens.map((s) => s.key), listScreens(root).map((s) => s.key));
   } finally { done(); }
 });
