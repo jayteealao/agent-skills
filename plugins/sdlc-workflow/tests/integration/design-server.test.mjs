@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { addScreen, initSurface } from '../../lib/design-surface.mjs';
 import { formatDoctorTable } from '../../lib/doctor.mjs';
-import { WRITE_HEADER, changeOf, designHandler, listenDesignServer, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
+import { WRITE_HEADER, changeOf, designHandler, listenDesignServer, phoneBase, repoList, saveLayout, tailnetAddresses, taskCreateArgs, taskStatus, writeToken } from '../../lib/design-server.mjs';
 
 function raw(port, path, { method = 'GET', headers = {}, body = null } = {}) {
   return new Promise((ok, no) => {
@@ -63,6 +63,9 @@ test('the design server serves the canvas and the brainstorm pages, and writes o
     for (const bad of ['/canvas/Canvas.js', '/canvas/.canvas.js', '/canvas/canvas.mjs', '/canvas/canvas.js.map', '/canvas/%2e%2e%2fpackage.json']) assert.notEqual((await raw(port, bad)).status, 200, bad);
     const state = JSON.parse((await raw(port, '/r/shop/state.json')).text);
     assert.deepEqual([state.repo, state.writable, state.screens.map((s) => s.key)], ['shop', true, ['basket']]);
+    // The state names the repos of the list, with no path, and no address for a phone: this server listens on this computer only.
+    assert.deepEqual([state.repos, state.phone], [[{ name: 'shop', surface: true }], null]);
+    assert.doesNotMatch(JSON.stringify(state.repos), /Shop|home/);
     assert.match((await raw(port, '/r/shop/s/screens/basket.html')).text, /wf:screen/);
     assert.match((await raw(port, `/r/shop/at/${sha}/screens/basket.html`)).text, /wf:screen/);
     const page = await raw(port, '/b/shop/idea/');
@@ -224,4 +227,19 @@ test('the tailnet addresses, the scheduled task and its doctor row', () => {
   assert.deepEqual([gone.installed, gone.targetExists], [true, existsSync('C:\\nowhere\\design-server.mjs')]);
   const table = formatDoctorTable({ shipped: '1.0.0', buildId: null, hosts: { claude: [], codex: [], pi: [] }, cleanup: { done: true, left: [] }, designTask: gone, verdicts: { claude: 'absent', codex: 'absent', pi: 'absent' }, ok: true });
   assert.match(table, /design server task\s+installed, its script is gone\s+run design server install/);
+});
+
+test('the canvas gets the repos of the list and the address for a phone', () => {
+  const top = mkdtempSync(join(tmpdir(), 'design-server-facts-'));
+  try {
+    mkdirSync(join(top, 'a', '.ai', 'design'), { recursive: true });
+    writeFileSync(join(top, 'a', '.ai', 'design', 'screens.json'), '{}');
+    mkdirSync(join(top, 'b'));
+    // A repo with no surface is named as such; a repo whose folder is gone is left out.
+    assert.deepEqual(repoList([{ name: 'a', root: join(top, 'a') }, { name: 'b', root: join(top, 'b') }, { name: 'gone', root: join(top, 'gone') }]),
+      [{ name: 'a', surface: true }, { name: 'b', surface: false }]);
+    assert.equal(phoneBase(['http://127.0.0.1:4711/']), null, 'a server on this computer only has no address for a phone');
+    assert.equal(phoneBase(['http://127.0.0.1:4711/', 'http://100.101.102.103:4711/']), 'http://100.101.102.103:4711/');
+    assert.equal(phoneBase([]), null);
+  } finally { rmSync(top, { recursive: true, force: true }); }
 });

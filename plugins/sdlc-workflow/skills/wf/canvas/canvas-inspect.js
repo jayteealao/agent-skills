@@ -299,35 +299,40 @@ var WF_CANVAS_INSPECT = (() => {
   // ---- the rules of a page, flattened
 
   const sheetsOf = new WeakMap();
-  /** Every style rule of a document that applies now, in source order: @media and @supports opened, a closed one left out. */
-  function rulesOf(doc) {
-    if (sheetsOf.has(doc)) return sheetsOf.get(doc);
+  /**
+   * Every style rule of a page that applies now, in source order: @media, @container and @supports
+   * opened, a closed one left out. `view` is the handle of the page (canvas-mount.js): a mounted
+   * page and a page in a frame read alike. A rule keeps the selector that the browser matches
+   * (`parts`) and the selector as the page wrote it (`selector`).
+   */
+  function rulesOf(view) {
+    // A container rule opens and closes with the size of the page.
+    const size = `${view.el.offsetWidth}x${view.el.offsetHeight}`;
+    const kept = sheetsOf.get(view.root);
+    if (kept?.size === size) return kept.out;
     const out = [];
-    const win = doc.defaultView;
     const walk = (list, source) => {
       for (const r of list) {
-        if (r.type === 1 && r.selectorText) out.push({ parts: I.splitList(r.selectorText), selector: r.selectorText, style: r.style, source, order: out.length });
-        else if (r.cssRules) {
-          if (r.media && r.type === 4 && !win.matchMedia(r.media.mediaText).matches) continue;
-          if (r.type === 12 && !CSS.supports(r.conditionText)) continue;
-          walk(r.cssRules, source);
-        }
+        if (r.type === 1 && r.selectorText) out.push({ parts: I.splitList(r.selectorText), selector: view.selectorText(r), style: r.style, source, order: out.length });
+        else if (r.cssRules && view.applies(r)) walk(r.cssRules, source);
       }
     };
-    for (const s of doc.styleSheets) {
+    for (const s of view.sheets()) {
       let list = null;
       try { list = s.cssRules; } catch { list = null; }
-      if (list) walk(list, I.sheetName(s.href));
+      if (list) walk(list, I.sheetName(view.nameOf(s)));
     }
-    // The page loads its sheets before its load event; a draw before that reads them again.
-    if (doc.readyState === 'complete') sheetsOf.set(doc, out);
+    // A frame loads its sheets before its load event; a draw before that reads them again.
+    if (view.kind === 'shadow' || view.root.readyState === 'complete') sheetsOf.set(view.root, { size, out });
     return out;
   }
+  /** The page that holds an element: set while the panel draws. */
+  let page = null;
   /** The declarations of `props` on one element, from its matched rules and its style attribute. */
   function declsOf(el, props) {
     const out = [];
     const safe = (sel) => { try { return el.matches(sel); } catch { return false; } };
-    for (const r of rulesOf(el.ownerDocument)) {
+    for (const r of rulesOf(page)) {
       let spec = null;
       for (const p of r.parts) if (safe(p)) { const s = I.specificity(p); if (!spec || I.cmpSpec(s, spec) > 0) spec = s; }
       if (!spec) continue;
@@ -356,7 +361,7 @@ var WF_CANVAS_INSPECT = (() => {
   /** Every design property of an element with what gives it, one row each; the sides of a shorthand share a row. */
   function propertiesOf(el, model) {
     const tokenNames = new Set((model.tokens || []).map((t) => t.name));
-    const style = el.ownerDocument.defaultView.getComputedStyle(el);
+    const style = page.style(el);
     const valueOf = (name) => style.getPropertyValue(name).trim();
     const rows = [];
     const seen = new Set();
@@ -379,8 +384,8 @@ var WF_CANVAS_INSPECT = (() => {
     }
     return rows;
   }
-  /** A short name of an element: its tag and its first classes. */
-  const nameOf = (el) => `${el.tagName.toLowerCase()}${[...el.classList].slice(0, 2).map((c) => `.${c}`).join('')}`;
+  /** A short name of an element: its tag and its first classes. The root and the body of a mounted page have the names of a document. */
+  const nameOf = (el) => `${el.tagName.toLowerCase().replace(/^wf-(html|body)$/, '$1')}${[...el.classList].filter((c) => c !== 'wf-root').slice(0, 2).map((c) => `.${c}`).join('')}`;
 
   // ---- the panel
 
@@ -394,7 +399,8 @@ var WF_CANVAS_INSPECT = (() => {
    * The panel of one element: the component block, the tabs Tokens, Layout and Checks, and the rows
    * of the open tab. `comment(el, text)` starts a comment for the agent on the element, or is null.
    */
-  function panelBody(el, model, { openComponent, comment, tab, setTab }) {
+  function panelBody(el, model, { view, openComponent, comment, tab, setTab }) {
+    page = view;
     const comp = el.closest('[data-component]');
     const key = comp?.getAttribute('data-component');
     const c = comp ? (model.components || []).find((x) => x.key === key) : null;
@@ -426,7 +432,7 @@ var WF_CANVAS_INSPECT = (() => {
       const layout = [...el.classList].filter((x) => x.startsWith('l-'));
       const gap = el.getAttribute('data-gap');
       const pad = el.getAttribute('data-pad');
-      const box = el.getBoundingClientRect();
+      const box = view.rect(el);
       list = [
         h('p', { class: 'ins-layout' }, 'Size ', h('code', {}, `${Math.round(box.width)} × ${Math.round(box.height)}`)),
         layout.length || gap || pad ? h('p', { class: 'ins-layout' }, 'Layout ', ...layout.map((x) => h('code', {}, `.${x}`)), gap ? h('code', {}, `gap ${gap}`) : null, pad ? h('code', {}, `pad ${pad}`) : null) : null,
@@ -455,35 +461,41 @@ var WF_CANVAS_INSPECT = (() => {
 
   let mode = '';
   try { mode = localStorage.getItem(MODE_KEY) || ''; } catch { mode = ''; }
-  /** Put the chosen theme on one frame's page, or take it off for the system's. */
-  function applyMode(frame) {
-    let root = null;
-    try { root = frame.contentDocument?.documentElement; } catch { root = null; }
+  const MOUNT = window.WF_CANVAS_MOUNT || null;
+  /** Put the chosen theme on one page, in a frame or mounted, or take it off for the system's. */
+  function applyMode(el) {
+    const view = MOUNT?.viewOf(el);
+    const root = view?.html;
     if (!root) return;
     // The theme that the page names itself comes back with System.
     if (mode) {
-      if (!root.hasAttribute('data-wf-mode')) root.setAttribute('data-wf-mode', root.getAttribute('data-theme') ?? '');
-      root.setAttribute('data-theme', mode);
+      if (!root.hasAttribute('data-wf-mode')) {
+        // A mounted page that was drawn again came back in the mode: its host kept the theme of the page.
+        const again = el.wfOwn && root.getAttribute('data-theme') === el.wfOwn.mode;
+        el.wfOwn = { mode, theme: again ? el.wfOwn.theme : root.getAttribute('data-theme') ?? '' };
+        root.setAttribute('data-wf-mode', el.wfOwn.theme);
+      } else if (el.wfOwn) el.wfOwn.mode = mode;
+      view.setTheme(mode);
     } else if (root.hasAttribute('data-wf-mode')) {
-      const was = root.getAttribute('data-wf-mode');
-      if (was) root.setAttribute('data-theme', was); else root.removeAttribute('data-theme');
+      view.setTheme(root.getAttribute('data-wf-mode') || null);
       root.removeAttribute('data-wf-mode');
+      el.wfOwn = null;
     }
   }
-  const applyAll = () => { for (const f of document.querySelectorAll('iframe')) applyMode(f); };
-  // A frame's load does not bubble, but the document sees it on the way down: every frame that
-  // loads later, on the board, in the screen view or in a panel, takes the mode too.
+  const applyAll = () => { for (const el of [...document.querySelectorAll('iframe'), ...(MOUNT?.mounts() || [])]) applyMode(el); };
+  // The load of a page does not bubble, but the document sees it on the way down: every page that
+  // comes in later, on the board, in the screen view or in a panel, takes the mode too.
   document.addEventListener('load', (e) => { if (e.target?.tagName === 'IFRAME') applyMode(e.target); }, true);
+  document.addEventListener('wf-load', (e) => applyMode(e.target), true);
 
   function create({ data, openComponent }) {
     // The inspected element: kept by the screen it is on, so a redraw finds it again.
-    const st = { key: null, hover: null, pick: null, doc: null, ctx: null, tab: 'tokens' };
+    const st = { key: null, hover: null, pick: null, page: null, ctx: null, tab: 'tokens' };
     let bar = null;
-    const outlineIn = (layer, el, scale, held) => {
+    const outlineIn = (c, el, held) => {
       if (!el?.isConnected) return;
-      const r = el.getBoundingClientRect();
-      const win = el.ownerDocument.defaultView;
-      layer.append(h('div', { class: `ins-box${held ? ' held' : ''}`, style: `left:${(r.left + win.scrollX) * scale}px;top:${(r.top + win.scrollY) * scale}px;width:${r.width * scale}px;height:${r.height * scale}px` }));
+      const r = c.view.rect(el);
+      c.layer.append(h('div', { class: `ins-box${held ? ' held' : ''}`, style: `left:${r.x * c.scale}px;top:${r.y * c.scale}px;width:${r.width * c.scale}px;height:${r.height * c.scale}px` }));
     };
     /** The outlines go on the layer of the screen; the panel goes into the host that the screen view gives. */
     function drawPanel(focus = false) {
@@ -492,12 +504,12 @@ var WF_CANVAS_INSPECT = (() => {
       c.layer.querySelectorAll('.ins-box').forEach((b) => b.remove());
       if (!c.on) return;
       const el = st.hover?.isConnected ? st.hover : st.pick?.isConnected ? st.pick : null;
-      if (st.pick?.isConnected) outlineIn(c.layer, st.pick, c.scale, true);
-      if (st.hover?.isConnected && st.hover !== st.pick) outlineIn(c.layer, st.hover, c.scale, false);
+      if (st.pick?.isConnected) outlineIn(c, st.pick, true);
+      if (st.hover?.isConnected && st.hover !== st.pick) outlineIn(c, st.hover, false);
       if (!c.host?.isConnected) return;
       const name = el ? nameOf(el) : null;
       const setTab = (id) => { st.tab = id; drawPanel(); c.host.querySelector(`[data-fk="ins:${id}"]`)?.focus({ preventScroll: true }); };
-      const body = el ? panelBody(el, data(), { openComponent, comment: c.comment || null, tab: st.tab, setTab })
+      const body = el ? panelBody(el, data(), { view: c.view, openComponent, comment: c.comment || null, tab: st.tab, setTab })
         : [h('p', { class: 'ins-hint' }, c.touch ? 'Tap an element of the screen to see its component and its tokens.' : 'Point at an element of the screen, or select it, to see its component and its tokens.')];
       const box = h('div', { id: 'inspect', tabindex: '-1', role: 'region', 'aria-label': name ? `Inspect ${name}` : 'Inspect' }, ...body);
       c.host.replaceChildren(box);
@@ -506,9 +518,11 @@ var WF_CANVAS_INSPECT = (() => {
     return {
       /** Draw the outlines and the panel after the screen view drew its marks. */
       draw(ctx) {
-        if (st.key !== ctx.key || st.doc !== ctx.doc || !ctx.on) { st.hover = null; if (st.key !== ctx.key || st.doc !== ctx.doc) st.pick = null; }
+        // The page of the screen: the document of a frame, or the root of a mount.
+        const now = ctx.view?.root ?? null;
+        if (st.key !== ctx.key || st.page !== now || !ctx.on) { st.hover = null; if (st.key !== ctx.key || st.page !== now) st.pick = null; }
         st.key = ctx.key;
-        st.doc = ctx.doc;
+        st.page = now;
         st.ctx = ctx;
         drawPanel();
       },

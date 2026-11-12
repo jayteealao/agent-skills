@@ -458,3 +458,19 @@ test('design next asks for a review of the screens changed since the last one, a
     assert.equal(n.step, 'round');
   } finally { p.done(); }
 });
+
+test('the doctor names the pages that the canvas draws in a frame, as a note that fails nothing', async () => {
+  const p = await drawn();
+  try {
+    const clean = await design(['doctor', p.root]);
+    assert.deepEqual(clean.out.framed, [], 'the pages of the templates are drawn with no frame');
+    assert.doesNotMatch((await design(['doctor', p.root], {})).out, /drawn in a frame/);
+    writeFileSync(screenFile(p.root, 'basket'), readFileSync(screenFile(p.root, 'basket'), 'utf8').replace('</body>', '<script>document.title = "x"</script></body>'));
+    const d = await design(['doctor', p.root]);
+    assert.deepEqual(d.out.framed, [{ kind: 'screen', key: 'basket', reasons: ['it has a script of its own'] }]);
+    assert.deepEqual([d.code, d.out.ok], [clean.code, clean.out.ok], 'a framed page changes neither the exit code nor ok');
+    const text = (await design(['doctor', p.root], {})).out;
+    assert.match(text, /note: 1 screen is drawn in a frame on the canvas: basket \(it has a script of its own\)/);
+    assert.match(text, /_surface\.md/);
+  } finally { p.done(); }
+});

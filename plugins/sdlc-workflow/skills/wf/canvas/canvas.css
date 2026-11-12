@@ -109,7 +109,7 @@ body.viewing #notice { top: max(6px, env(safe-area-inset-top)); max-width: calc(
 .frame { position: relative; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: var(--lift); cursor: zoom-in; transition: box-shadow .15s, transform .15s; }
 .frame:hover { box-shadow: var(--raise); }
 .frame:focus-visible { outline-offset: 4px; }
-.frame iframe, .frame .missing { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
+.frame iframe, .frame .wf-page, .frame .missing { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: #fff; }
 /* Zoomed far out, a card shows the approval picture of its page in place of the live page, or the name of its screen. */
 .frame img.pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; pointer-events: none; }
 .frame .ph { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; background: var(--surface); color: var(--ink); font-size: 26px; font-weight: 600; line-height: 1.15; text-align: center; overflow: hidden; overflow-wrap: anywhere; }
@@ -232,7 +232,10 @@ img.part { height: auto; max-height: 320px; object-fit: contain; }
 .view > .shot:first-child { margin-left: auto; }
 .view > .shot:last-child { margin-right: auto; }
 .shot { position: relative; flex: none; border-radius: 6px; background: #fff; box-shadow: var(--lift); }
-.shot > iframe, .shot > img, .shot > .missing { display: block; border: 0; border-radius: 6px; transform-origin: 0 0; }
+.shot > iframe, .shot > .wf-page, .shot > img, .shot > .missing { display: block; border: 0; border-radius: 6px; transform-origin: 0 0; }
+/* A mounted page beside the screen is a picture: the wheel over it scrolls the stage. */
+.shot:not(.now) > .wf-page { pointer-events: none; }
+.wf-page:focus { outline: none; }
 .shot > img { height: auto; }
 .shot > .cap { position: absolute; left: 0; top: -24px; font-size: 12.5px; color: var(--pencil); white-space: nowrap; }
 /* A bounded screen shows its top; the fade says that there is more. */

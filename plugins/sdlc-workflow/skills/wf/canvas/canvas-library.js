@@ -1,14 +1,15 @@
 // The Library and Tokens views of the design canvas. The Library lists the components of the
 // design system, and shows one at a time: its controls (one per dimension of its spec, one for
-// the state, one for the theme), a live preview of the one case that the controls name, and the
-// grid of all its cases. The Tokens view is a table per kind of token, with the value of each
-// theme, the chain of aliases, and what uses each token.
+// the state, one for the theme), a live preview of the one case that the controls name, and
+// every case as an object of the canvas, in the matrix of the spec. The Tokens view is a table
+// per kind of token, with the value of each theme, the chain of aliases, and what uses each token.
 //
 // The file has two parts, like canvas.js. `WF_LIBRARY_LOGIC` holds the rules that need no
 // browser: which specimen cell shows a case, the matrix of the cells of a spec, the rows of the
 // token table, and the address of a view. The second part draws, and returns at once where there
-// is no document. A component page is a same-origin frame: the views read and style its
-// document directly, and never write the page.
+// is no document. The cases of a component are drawn straight into the canvas (canvas-mount.js):
+// each specimen cell of its page in a shadow root of its own, placed by the canvas. A page that
+// cannot be mounted stays in a same-origin frame. The views never write the page.
 var WF_LIBRARY_LOGIC = (() => {
   'use strict';
   const L = typeof WF_CANVAS_LOGIC === 'undefined' ? null : WF_CANVAS_LOGIC;
@@ -126,6 +127,29 @@ var WF_LIBRARY_LOGIC = (() => {
     return { rows: [...sorted.map(({ key, label }) => ({ key, label })), ...extra], cols, place };
   }
 
+  // ---- the objects of a component
+
+  /** The words of a case, as a cell names it: `tone=solid size=sm state=hover`. */
+  const caseWords = (x) => [...Object.entries(x?.variant || {}).map(([d, v]) => `${d}=${v}`), `state=${x?.state || 'default'}`].join(' ');
+  /** The case after a person picks the object of a cell: the values that the cell names over the chosen ones, and its state. */
+  function caseOver(chosen, text) {
+    const c = cellCase(text);
+    return { variant: { ...(chosen?.variant || {}), ...c.variant }, state: c.state };
+  }
+  /** A line that names one case of a component for the agent. `text` is the spec of its cell, or null when no cell shows the case. */
+  function agentNote(c, text, chosen, theme = null) {
+    const words = text ? caseWords(cellCase(text)) : caseWords(chosen);
+    return `Component ${c?.key} (.ai/design/components/${c?.key}.html), case ${words}${theme ? `, theme ${theme}` : ''}${text ? '' : ', which no specimen cell shows'}: `;
+  }
+  /** A cell at most this wide (its padding and a little) has no width of its own. */
+  const EMPTY_CELL = 40;
+  /** The width of the column that such a cell gets. */
+  const FILL_WIDTH = 360;
+  /** The scale that fits a mount of `width` in a room: never more than 1. */
+  const fitWidth = (width, room) => (width > 0 && room > 0 ? Math.min(1, room / width) : 1);
+  /** The viewport that a page shell is drawn at: the one picked in the library, else the one of the board, else the first. */
+  const shellViewport = (names, picked, board) => ((names || []).includes(picked) ? picked : (names || []).includes(board) ? board : (names || [])[0] ?? null);
+
   // ---- the components
 
   /** The kinds of the component list, in order: the page shells first. */
@@ -210,7 +234,7 @@ var WF_LIBRARY_LOGIC = (() => {
   }
   const libraryHash = (x) => (x?.component ? `#component=${encodeURIComponent(x.component)}` : x?.token ? `#token=${encodeURIComponent(x.token)}` : '');
 
-  return { parsePairs, cellCase, cellScore, pickCell, firstCase, caseGaps, matrixOf, COMPONENT_KINDS, componentGroups, varsOf, aliasChain, tokenTable, parseLibraryHash, libraryHash };
+  return { parsePairs, cellCase, cellScore, pickCell, firstCase, caseGaps, matrixOf, caseWords, caseOver, agentNote, EMPTY_CELL, FILL_WIDTH, fitWidth, shellViewport, COMPONENT_KINDS, componentGroups, varsOf, aliasChain, tokenTable, parseLibraryHash, libraryHash };
 })();
 
 (() => {
@@ -223,9 +247,11 @@ var WF_LIBRARY_LOGIC = (() => {
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const plural = (n, w) => api().L.plural(n, w);
   const root = () => $('#library');
-  // What the views show: the component, its case and theme, the searches, the token, and on a
-  // phone whether the detail is open over the list.
-  const lib = { comp: null, chosen: null, chosenFor: null, theme: null, q: '', tq: '', token: null, open: false, on: false, drawn: null, data: null };
+  // What the views show: the component, its case and theme, the object that the person picked
+  // (`cell`), whether every theme shows side by side, whether inspect mode is on, the viewport of a
+  // page shell, the searches,
+  // the token, and on a phone whether the detail is open over the list.
+  const lib = { comp: null, chosen: null, chosenFor: null, cell: null, theme: null, all: false, inspect: false, viewport: null, q: '', tq: '', token: null, open: false, on: false, drawn: null, data: null, fit: null, wholeFit: null };
 
   /** The themes a component page has panels for, else the themes of the tokens. */
   function themesOf(c) {
@@ -234,16 +260,16 @@ var WF_LIBRARY_LOGIC = (() => {
     const list = c?.spec?.themes?.length ? c.spec.themes : named;
     return [...new Set(list.filter(Boolean))];
   }
-  /** The mode of the bar (canvas-inspect.js): one theme on every frame, or '' for the system's. */
+  /** The mode of the bar (canvas-inspect.js): one theme on every page, or '' for the system's. */
   const boardMode = () => $('#mode')?.value || null;
-  /** The theme the frames show: the one the person picked here, else the mode of the bar, else the default theme. */
+  /** The theme the objects show: the one the person picked here, else the mode of the bar, else the default theme. */
   function themeFor(c) {
     const list = themesOf(c);
     const d = api().data();
     for (const t of [lib.theme, boardMode(), d.defaultTheme]) if (t && list.includes(t)) return t;
     return list[0] || null;
   }
-  // A new mode in the bar shows in the frames of the library too, over a theme picked here.
+  // A new mode in the bar shows in the objects of the library too, over a theme picked here.
   document.addEventListener('change', (e) => {
     if (e.target?.id !== 'mode' || !lib.on) return;
     lib.theme = null;
@@ -260,10 +286,138 @@ var WF_LIBRARY_LOGIC = (() => {
     try { history.replaceState(history.state, '', want || location.pathname + location.search); } catch { /* no history */ }
   }
 
-  // ------------------------------------------------------------ the frames
+  // ------------------------------------------------------------ the objects
 
+  // Each case of a component is an object of the canvas: one specimen cell of its page, drawn in a
+  // shadow root of its own (canvas-mount.js) and placed by the canvas. The page is read once; no
+  // code of the page runs here.
+  const mounter = () => window.WF_CANVAS_MOUNT || null;
+  /** The inspector of the canvas (canvas-inspect.js), or null in a snapshot. */
+  const inspector = () => api().inspect || null;
+  /** The address of the page of a component, as the mount reads it: the whole page, every theme. */
+  const pageUrl = (c) => api().componentSrc(c.key, null);
+  // A cell shows alone: the body gives no room of its own, and the cell takes the width of its
+  // content inside the box that carries the ground of its theme.
+  const CELL_CSS = `html, body { margin: 0 !important; padding: 0 !important; width: auto !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+[data-wf-cell] { display: block !important; position: static !important; box-sizing: border-box !important; width: max-content !important; max-width: 100% !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 16px !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+[data-wf-cell]::before, [data-wf-cell]::after { content: none !important; }`;
+  // A cell of a page shell fills a viewport: `WIDE_CSS` lets it grow to its own height, and
+  // `FULL_CSS` gives it the whole height of the viewport when it has none of its own.
+  const WIDE_CSS = `html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; }
+[data-wf-cell] { display: block !important; position: static !important; box-sizing: border-box !important; width: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+[data-wf-cell]::before, [data-wf-cell]::after { content: none !important; }`;
+  const FULL_CSS = `${WIDE_CSS}
+html, body, [data-wf-cell], [data-wf-cell] > [data-spec], [data-wf-cell] > [data-spec] > * { height: 100% !important; }`;
+  // A whole page in the canvas has no window to fill: it is as tall as its content.
+  const PAGE_CSS = 'html, body { height: auto !important; min-height: 0 !important; }';
+
+  /** The specimen cells of the source panel of a read page, else of the whole page. */
+  const cellsIn = (el) => [...(el.querySelector('[data-theme-source]') || el).querySelectorAll('[data-spec]')];
+  /**
+   * The picker of one cell for the mount: the cell in an empty copy of its theme panel, which gives
+   * it the ground and the ink of the theme and none of the layout of the page.
+   */
+  const pickOf = (index, theme) => (body) => {
+    const cell = cellsIn(body)[index];
+    if (!cell) return null;
+    const panel = cell.closest('section.wf-theme');
+    const box = panel ? panel.cloneNode(false) : body.ownerDocument.createElement('div');
+    for (const name of ['hidden', 'id', 'style']) box.removeAttribute(name);
+    box.setAttribute('data-wf-cell', '');
+    if (theme) box.setAttribute('data-theme', theme);
+    box.append(cell);
+    return box;
+  };
+  const boxOf = (host) => host.shadowRoot?.querySelector('[data-wf-cell]') || null;
+  /**
+   * Fill a host of the library. The library gives each object its theme itself, so its mounts
+   * leave the list that the mode of the bar paints (`mounts()` of the engine).
+   */
+  function fillHost(host, page, opts) {
+    const view = mounter().fill(host, page, opts);
+    host.classList.remove('wf-mount');
+    return view;
+  }
+  /**
+   * Give each object the width of its cell. A mount takes the width that the canvas gives it, so
+   * each gets the room first, the cells are measured, and each mount then hugs its cell. A cell
+   * with no width of its own (a component that fills its place) gets a column.
+   */
+  function fitCells(hosts, room) {
+    const live = hosts.filter((x) => x.isConnected);
+    for (const host of live) { boxOf(host)?.style.removeProperty('width'); host.style.width = `${room}px`; }
+    const widths = live.map((host) => boxOf(host)?.getBoundingClientRect().width || 0);
+    live.forEach((host, i) => {
+      let w = Math.ceil(widths[i]);
+      if (w <= LL.EMPTY_CELL) { w = Math.min(room, LL.FILL_WIDTH); boxOf(host)?.style.setProperty('width', `${w}px`, 'important'); }
+      host.style.width = `${w}px`;
+    });
+  }
+  /** The viewport that a page shell is drawn at: the one picked here, else the one of the board. */
+  function shellSize() {
+    const d = api().data();
+    const names = Object.keys(d.viewports || {});
+    const name = LL.shellViewport(names, lib.viewport, api().ui.viewport);
+    return { name, names, ...api().L.parseSize(d.viewports?.[name]) };
+  }
+  /**
+   * A mount of a fixed width, scaled down to its room: `{ el, host, fit(room) }`. `draw(host, full)`
+   * fills the host. The height is that of the content; a content with no height of its own (it
+   * takes it from the window) is drawn again with `full`, at the height of the viewport.
+   */
+  function scaled(size, draw, measure) {
+    const { h } = api();
+    const host = h('div', { class: 'lib-mount' });
+    const el = h('div', { class: 'lib-scaled' }, host);
+    host.style.width = `${size.width}px`;
+    host.style.height = `${size.height}px`;
+    draw(host, false);
+    let height = 0;
+    let full = false;
+    // The mount is measured once it is in the document.
+    const fit = (room) => {
+      if (!host.isConnected) return;
+      if (!height) {
+        host.style.transform = '';
+        height = measure(host);
+        if (height <= LL.EMPTY_CELL && !full) { full = true; draw(host, true); height = size.height; }
+        height = Math.min(Math.max(Math.ceil(height), LL.EMPTY_CELL), size.height * 3);
+        host.style.height = `${height}px`;
+      }
+      const s = LL.fitWidth(size.width, room);
+      host.style.transform = s < 1 ? `scale(${s})` : '';
+      el.style.width = `${Math.ceil(size.width * s)}px`;
+      el.style.height = `${Math.ceil(height * s)}px`;
+    };
+    return { el, host, fit };
+  }
+  /** One cell of a page as a mount: `{ el, host, fit(room) }`. A cell of a page shell has the width of a viewport. */
+  function cellMount(c, page, index, theme) {
+    if (c.kind === 'layout') {
+      return scaled(shellSize(), (host, full) => fillHost(host, page, { pick: pickOf(index, theme), theme, css: full ? FULL_CSS : WIDE_CSS }),
+        (host) => boxOf(host)?.getBoundingClientRect().height || 0);
+    }
+    const host = api().h('div', { class: 'lib-mount' });
+    fillHost(host, page, { pick: pickOf(index, theme), theme, hug: true, css: CELL_CSS });
+    return { el: host, host, fit: (room) => fitCells([host], room) };
+  }
+  /** A whole page as a mount, with the panel of one theme: `{ el, host, fit(room) }`. */
+  function pageMount(c, page, theme) {
+    if (c.kind === 'layout') {
+      return scaled(shellSize(), (host, full) => fillHost(host, page, { panel: theme, css: full ? '' : PAGE_CSS }),
+        (host) => host.wfView?.html.getBoundingClientRect().height || 0);
+    }
+    const host = api().h('div', { class: 'lib-mount' });
+    fillHost(host, page, { panel: theme, hug: true, css: PAGE_CSS });
+    return { el: host, host, fit: (room) => { host.style.width = `${Math.max(room, 0)}px`; } };
+  }
+
+  // ------------------------------------------------------------ a page that stays in a frame
+
+  // A page with code of its own cannot be drawn in the canvas: it shows in a frame, and the views
+  // read and style its document there.
   const STYLE_ID = 'wf-library-style';
-  /** The rules the views add to a component page: the cells left out, and the grid of the cases. */
+  /** The rules the views add to a framed page: the cells left out, and the grid of the cases. */
   const FRAME_CSS = `[data-wf-off], [hidden] { display: none !important; }
 [data-wf-grid]:not([hidden]) { display: grid !important; grid-auto-flow: row; align-items: center; justify-items: start; gap: 16px 24px; }
 [data-wf-grid]::before { grid-column: 1 / -1; }
@@ -286,11 +440,6 @@ html, body { overflow: hidden; }`;
     const has = theme && panels.some((p) => p.dataset.theme === theme);
     for (const p of panels) p.hidden = Boolean(has && p.dataset.theme !== theme);
   }
-  /** The specimen cells of the source panel of a page, else of the whole page. */
-  function sourceCells(doc) {
-    const source = doc.querySelector('[data-theme-source]') || doc.body;
-    return [...source.querySelectorAll('[data-spec]')];
-  }
   /** The frame takes the height of its page and at least the width of its room, at 1:1. */
   function fitFrame(frame) {
     const doc = docOf(frame);
@@ -303,13 +452,13 @@ html, body { overflow: hidden; }`;
     frame.style.width = `${w}px`;
     frame.style.height = `${Math.max(48, doc.documentElement.scrollHeight)}px`;
   }
-  /** The live preview: only the cell of the chosen case shows. Returns the pick, or null before the page loads. */
+  /** The live preview: only the cell of the chosen case shows. Returns the pick with the text of its cell, or null before the page loads. */
   function showCase(frame, c) {
     const doc = docOf(frame);
     if (!doc) return null;
     ensureStyle(doc);
     showTheme(doc, themeFor(c));
-    const texts = sourceCells(doc).map((el) => el.getAttribute('data-spec'));
+    const texts = cellsIn(doc.body).map((el) => el.getAttribute('data-spec'));
     const pick = LL.pickCell(texts, lib.chosen);
     const want = pick.index >= 0 ? texts[pick.index] : null;
     // The copies of the source panel hold the same cells: in each panel, the first cell of the chosen text shows.
@@ -321,7 +470,7 @@ html, body { overflow: hidden; }`;
       el.toggleAttribute('data-wf-off', !show);
     }
     fitFrame(frame);
-    return pick;
+    return { ...pick, text: want };
   }
   /** The variant grid: every cell, placed in a matrix of its values and states, with their labels. */
   function showGrid(frame, c) {
@@ -331,7 +480,7 @@ html, body { overflow: hidden; }`;
     showTheme(doc, themeFor(c));
     for (const el of doc.querySelectorAll('[data-wf-label]')) el.remove();
     const panels = [...doc.querySelectorAll('section[data-theme-source], section[data-theme-copy]')];
-    const texts = sourceCells(doc).map((el) => el.getAttribute('data-spec'));
+    const texts = cellsIn(doc.body).map((el) => el.getAttribute('data-spec'));
     const m = c.spec?.declared ? LL.matrixOf(c.spec, texts) : null;
     if (!m || !panels.length) { fitFrame(frame); return; }
     const labelled = m.rows.some((r) => r.label);
@@ -404,75 +553,267 @@ html, body { overflow: hidden; }`;
     drawLibrary(true);
     if (fromList && api().phone()) { window.scrollTo(0, 0); $('.lib-detail h2', root())?.focus({ preventScroll: true }); }
   }
-  /** The detail of one component: its header, its controls and preview, its grid, and what its spec lacks. */
-  function drawDetail(box, c) {
+  /** The detail of one component: its header, its cases as objects, what its spec lacks, and what uses it. */
+  function drawDetail(box, c, top = null) {
     const { h, SNAP } = api();
     const d = api().data();
+    lib.fit = null;
     if (!c) { box.replaceChildren(h('p', { class: 'none' }, 'Pick a component from the list.')); return; }
-    if (lib.chosenFor !== c.key) { lib.chosen = LL.firstCase(c.spec); lib.chosenFor = c.key; }
-    const spec = c.spec;
-    const declared = Boolean(spec?.declared);
-    const themes = themesOf(c);
-    const theme = themeFor(c);
+    if (lib.chosenFor !== c.key) { lib.chosen = LL.firstCase(c.spec); lib.chosenFor = c.key; lib.cell = null; }
     const byName = new Map(d.tokens.map((t) => [t.name, t]));
     const back = h('button', { type: 'button', class: 'btn quiet lib-back', onclick: () => { lib.open = false; drawLibrary(true); $(`.lib-item[data-key="${CSS.escape(c.key)}"]`, root())?.focus(); } }, '← All components');
     const head = h('header', { class: 'lib-head' }, back,
       h('h2', { tabindex: '-1' }, c.title || c.key, ' ', api().componentMarks(c)),
       h('p', { class: 'sub' }, h('code', {}, c.key), c.kind === 'layout' ? ' · a page shell' : null),
-      c.code ? h('p', {}, h('code', {}, c.name || c.key), ' in ', h('code', {}, c.code)) : h('p', { class: 'sub' }, 'Not in the code yet: the build makes it.'),
-      h('div', { class: 'lib-facts' },
-        h('div', {}, h('h4', {}, 'Used by ', h('span', { class: 'count' }, String(c.screens?.length || 0))),
-          c.screens?.length ? h('div', { class: 'chips' }, ...c.screens.map((k) => h('button', { type: 'button', onclick: () => api().openScreen(k) }, api().titleOf(d.screens.find((x) => x.key === k) || { key: k }))))
-            : h('p', { class: 'none' }, 'No screen uses it yet.')),
-        h('div', {}, h('h4', {}, 'Tokens it uses ', h('span', { class: 'count' }, String(c.tokens?.length || 0))),
-          c.tokens?.length ? h('div', { class: 'chips' }, ...c.tokens.map((name) => h('a', { href: LL.libraryHash({ token: name }), title: byName.get(name)?.value ?? 'Not in the token model' }, name)))
-            : h('p', { class: 'none' }, 'The component sheet gives it no token.'))));
-    const parts = [head];
-    if (SNAP) {
-      parts.push(h('p', { class: 'none' }, 'The component pages show on the design server only.'));
-    } else if (!declared) {
-      parts.push(h('div', { class: 'lib-banner' }, h('b', {}, 'No spec'),
-        h('p', {}, 'The page declares no variants and states, so the library shows it as it is. Declare them, as design/system-migrate.md says:'),
-        h('pre', {}, h('code', {}, `wf.mjs design component spec . ${c.key} --variants "dim=a|b" --states "default hover pressed focus disabled"`))));
-      parts.push(h('div', { class: 'lib-stage' }, componentFrame(c, `${c.title || c.key}, as the page shows it`, (f) => { const doc = docOf(f); if (doc) { ensureStyle(doc); showTheme(doc, themeFor(c)); fitFrame(f); } })));
-    } else {
-      const dims = Object.entries(spec.variants || {}).filter(([, v]) => v.length);
-      const states = spec.states?.length ? spec.states : ['default'];
-      const note = h('div', { class: 'lib-note', role: 'status' });
-      const preview = componentFrame(c, `${c.title || c.key}, the chosen case`, (f) => showCaseNote(f, c, note));
-      const grid = componentFrame(c, `${c.title || c.key}, every case`, (f) => showGrid(f, c));
-      const redraw = () => { drawControls(); showCaseNote(preview, c, note); };
-      const controls = h('div', { class: 'lib-controls', 'aria-label': 'The case to preview', role: 'group' });
-      const drawControls = () => controls.replaceChildren(
-        ...dims.map(([dim, values]) => segment(dim, values, lib.chosen.variant[dim], (v) => { lib.chosen = { ...lib.chosen, variant: { ...lib.chosen.variant, [dim]: v } }; redraw(); })),
-        segment('state', states, lib.chosen.state, (v) => { lib.chosen = { ...lib.chosen, state: v }; redraw(); }),
-        themes.length > 1 ? segment('theme', themes, themeFor(c), (v) => { lib.theme = v; drawControls(); showCaseNote(preview, c, note); showGrid(grid, c); }) : null);
-      drawControls();
-      parts.push(h('section', { class: 'lib-section' }, h('h3', {}, 'Preview'), controls, note, h('div', { class: 'lib-stage' }, preview)));
-      parts.push(h('section', { class: 'lib-section' }, h('h3', {}, 'Every case', h('small', { class: 'sub' }, dims.length > 2 ? ' as the page lays them out' : dims.length ? ` ${dims[0][0]}${dims[1] ? ` and ${dims[1][0]}` : ''} by state` : ' by state')),
-        h('div', { class: 'lib-stage' }, grid)));
-    }
-    parts.push(h('section', { class: 'lib-section' }, h('h3', {}, 'What the spec lacks ', (c.problems || []).length ? h('span', { class: 'count' }, String(c.problems.length)) : null),
-      (c.problems || []).length ? h('ul', { class: 'lib-gaps' }, ...c.problems.map((x) => h('li', {}, x.message))) : h('p', { class: 'none' }, 'Nothing: each case has its cell, in each theme.')));
-    box.replaceChildren(...parts);
+      c.code ? h('p', {}, h('code', {}, c.name || c.key), ' in ', h('code', {}, c.code)) : h('p', { class: 'sub' }, 'Not in the code yet: the build makes it.'));
+    const facts = h('div', { class: 'lib-facts' },
+      h('div', {}, h('h4', {}, 'Used by ', h('span', { class: 'count' }, String(c.screens?.length || 0))),
+        c.screens?.length ? h('div', { class: 'chips' }, ...c.screens.map((k) => h('button', { type: 'button', onclick: () => api().openScreen(k) }, api().titleOf(d.screens.find((x) => x.key === k) || { key: k }))))
+          : h('p', { class: 'none' }, 'No screen uses it yet.')),
+      h('div', {}, h('h4', {}, 'Tokens it uses ', h('span', { class: 'count' }, String(c.tokens?.length || 0))),
+        c.tokens?.length ? h('div', { class: 'chips' }, ...c.tokens.map((name) => h('a', { href: LL.libraryHash({ token: name }), title: byName.get(name)?.value ?? 'Not in the token model' }, name)))
+          : h('p', { class: 'none' }, 'The component sheet gives it no token.')));
+    const body = h('div', { class: 'lib-body' }, SNAP ? h('p', { class: 'none' }, 'The component pages show on the design server only.') : h('p', { class: 'none', role: 'status' }, 'Drawing the cases…'));
+    box.replaceChildren(head, body,
+      h('section', { class: 'lib-section' }, h('h3', {}, 'What the spec lacks ', (c.problems || []).length ? h('span', { class: 'count' }, String(c.problems.length)) : null),
+        (c.problems || []).length ? h('ul', { class: 'lib-gaps' }, ...c.problems.map((x) => h('li', {}, x.message))) : h('p', { class: 'none' }, 'Nothing: each case has its cell, in each theme.')),
+      h('section', { class: 'lib-section' }, facts));
+    if (!SNAP) drawBody(body, c).then(() => { if (top !== null && body.isConnected) box.scrollTop = top; });
   }
-  /** Show the chosen case in the preview, and say when no cell shows it, or only a close one. */
-  function showCaseNote(frame, c, note) {
-    const pick = showCase(frame, c);
-    if (!pick) return;
+  /** Read the page of a component and draw it: as objects of the canvas, or in a frame when the page cannot be mounted. */
+  async function drawBody(body, c) {
+    const M = mounter();
+    const page = M ? await M.load(pageUrl(c)) : { ok: false, reasons: ['this browser draws no page in the canvas'] };
+    // Another component shows by now.
+    if (!body.isConnected) return;
+    try {
+      if (page.ok) drawObjects(body, c, page); else drawFramed(body, c, page);
+    } catch (e) {
+      lib.fit = null;
+      drawFramed(body, c, { ok: false, reasons: [`the canvas could not draw it (${e?.message || e})`] });
+    }
+  }
+  const noSpec = (c) => api().h('div', { class: 'lib-banner' }, api().h('b', {}, 'No spec'),
+    api().h('p', {}, 'The page declares no variants and states, so the library shows it as it is. Declare them, as design/system-migrate.md says:'),
+    api().h('pre', {}, api().h('code', {}, `wf.mjs design component spec . ${c.key} --variants "dim=a|b" --states "default hover pressed focus disabled"`)));
+  const openPage = (c, theme) => api().h('a', { class: 'out', href: api().componentSrc(c.key, theme), target: '_blank', rel: 'noopener' }, 'Open in a new tab');
+  /** The control of the viewport that a page shell is drawn at; null with one viewport or none. */
+  function widthControl(redraw) {
+    const size = shellSize();
+    return size.names.length > 1 ? segment('viewport', size.names, size.name, (v) => { lib.viewport = v; redraw(); }) : null;
+  }
+
+  /** A page that the canvas cannot mount, in frames as its page lays it out, with the reason. */
+  function drawFramed(body, c, page) {
     const { h } = api();
-    const words = [...Object.entries(lib.chosen.variant).map(([d, v]) => `${d}=${v}`), `state=${lib.chosen.state}`].join(' ');
-    frame.hidden = pick.index < 0;
+    const why = h('p', { class: 'lib-framed', role: 'note' }, page.missing ? 'The file of the page is gone.' : `Drawn in a frame: ${(page.reasons || []).join('; ') || 'the page cannot be drawn in the canvas'}.`);
+    if (page.missing) { body.replaceChildren(why); return; }
+    const spec = c.spec;
+    if (!spec?.declared) {
+      body.replaceChildren(noSpec(c), why, h('div', { class: 'lib-stage' }, componentFrame(c, `${c.title || c.key}, as the page shows it`, (f) => { const doc = docOf(f); if (doc) { ensureStyle(doc); showTheme(doc, themeFor(c)); fitFrame(f); } })));
+      return;
+    }
+    const themes = themesOf(c);
+    const dims = Object.entries(spec.variants || {}).filter(([, v]) => v.length);
+    const states = spec.states?.length ? spec.states : ['default'];
+    const note = h('div', { class: 'lib-note', role: 'status' });
+    const show = (f) => {
+      const pick = showCase(f, c);
+      if (!pick) return;
+      f.hidden = pick.index < 0;
+      caseNote(note, c, pick, pick.text);
+    };
+    const preview = componentFrame(c, `${c.title || c.key}, the chosen case`, show);
+    const grid = componentFrame(c, `${c.title || c.key}, every case`, (f) => showGrid(f, c));
+    const controls = h('div', { class: 'lib-controls', 'aria-label': 'The case to preview', role: 'group' });
+    const drawControls = () => controls.replaceChildren(...[
+      ...dims.map(([dim, values]) => segment(dim, values, lib.chosen.variant[dim], (v) => { lib.chosen = { ...lib.chosen, variant: { ...lib.chosen.variant, [dim]: v } }; drawControls(); show(preview); })),
+      segment('state', states, lib.chosen.state, (v) => { lib.chosen = { ...lib.chosen, state: v }; drawControls(); show(preview); }),
+      themes.length > 1 ? segment('theme', themes, themeFor(c), (v) => { lib.theme = v; drawControls(); show(preview); showGrid(grid, c); }) : null].filter(Boolean));
+    drawControls();
+    body.replaceChildren(
+      h('section', { class: 'lib-section' }, h('h3', {}, 'Preview'), why, controls, note, h('div', { class: 'lib-stage' }, preview)),
+      h('section', { class: 'lib-section' }, h('h3', {}, 'Every case', h('small', { class: 'sub' }, dims.length > 2 ? ' as the page lays them out' : dims.length ? ` ${dims[0][0]}${dims[1] ? ` and ${dims[1][0]}` : ''} by state` : ' by state')),
+        h('div', { class: 'lib-stage' }, grid)));
+  }
+  /** Say when no cell shows the chosen case, or only a close one. `text` is the spec of the cell that shows. */
+  function caseNote(note, c, pick, text) {
+    const { h } = api();
     if (pick.index < 0) {
       const gaps = LL.caseGaps(c.problems, lib.chosen);
-      note.replaceChildren(h('b', {}, 'No specimen for this case'), h('p', {}, words),
+      note.replaceChildren(h('b', {}, 'No specimen for this case'), h('p', {}, LL.caseWords(lib.chosen)),
         gaps.length ? h('ul', { class: 'lib-gaps' }, ...gaps.map((x) => h('li', {}, x.message))) : h('p', { class: 'sub' }, 'The page has no cell for it: add one with these values.'));
       note.className = 'lib-note gap';
     } else if (!pick.exact) {
-      note.replaceChildren(h('p', { class: 'sub' }, `The closest cell: ${docOf(frame) ? sourceCells(docOf(frame))[pick.index]?.getAttribute('data-spec') : ''}`));
+      note.replaceChildren(h('p', { class: 'sub' }, `The closest cell: ${text ?? ''}`));
       note.className = 'lib-note';
     } else { note.replaceChildren(); note.className = 'lib-note'; }
   }
+
+  /**
+   * A mounted page as objects of the canvas: the chosen case alone and live, then every case as an
+   * object of its own in the matrix of the spec, one set for each theme that shows.
+   */
+  function drawObjects(body, c, page) {
+    const { h } = api();
+    const spec = c.spec;
+    const shell = c.kind === 'layout';
+    const room = () => Math.max(120, body.clientWidth - 34);
+    const redraw = () => drawObjects(body, c, page);
+    lib.wholeFit = null;
+    if (!spec?.declared) {
+      const theme = themeFor(c);
+      const themes = themesOf(c);
+      const whole = pageMount(c, page, theme);
+      body.replaceChildren(noSpec(c),
+        h('div', { class: 'lib-controls' }, themes.length > 1 ? segment('theme', themes, theme, (v) => { lib.theme = v; redraw(); }) : null, shell ? widthControl(redraw) : null),
+        h('div', { class: 'lib-stage lib-pad' }, whole.el), h('p', {}, openPage(c, theme)));
+      inspector()?.draw({ on: false, key: null, view: null, layer: body, scale: 1, host: null });
+      lib.fit = () => whole.fit(room());
+      lib.fit();
+      return;
+    }
+    const texts = cellsIn(page.doc.body).map((el) => el.getAttribute('data-spec'));
+    const themes = themesOf(c);
+    const dims = Object.entries(spec.variants || {}).filter(([, v]) => v.length);
+    const states = spec.states?.length ? spec.states : ['default'];
+    const m = shell ? null : LL.matrixOf(spec, texts);
+    const fits = [];
+    const hugging = [];
+    const add = (mount) => { if (shell) fits.push(mount.fit); else hugging.push(mount.host); return mount; };
+
+    const note = h('div', { class: 'lib-note', role: 'status' });
+    const live = h('div', { class: 'lib-stage lib-pad lib-live' });
+    const controls = h('div', { class: 'lib-controls', 'aria-label': 'The case to preview', role: 'group' });
+    const bar = h('div', { class: 'lib-sel', role: 'status' });
+    const sets = h('div', { class: 'lib-sets' });
+    let liveFit = null;
+    // Inspect mode on the chosen case: the inspector of the screen view reads the mount as it reads a screen.
+    const ins = inspector();
+    const insHost = h('div', { class: 'lib-ins' });
+    let drawInspect = () => {};
+    const insToggle = ins ? h('button', { type: 'button', class: 'btn quiet lib-tool lib-inspect', 'aria-pressed': String(Boolean(lib.inspect)), title: 'Point at a part of the preview to see its tokens and the rules that set them',
+      onclick: (e) => { lib.inspect = !lib.inspect; e.currentTarget.setAttribute('aria-pressed', String(lib.inspect)); drawInspect(); } }, 'Inspect') : null;
+    /** The cell that shows the chosen case: the object that the person picked, else the best cell of the case. */
+    const shown = () => (lib.cell !== null && texts[lib.cell] !== undefined ? { index: lib.cell, exact: true } : LL.pickCell(texts, lib.chosen));
+    /** The chosen case, alone and live (its parts take the pointer as on a screen), and the ring on its object. */
+    const drawChosen = () => {
+      const pick = shown();
+      const theme = themeFor(c);
+      controls.replaceChildren(...[
+        ...dims.map(([dim, values]) => segment(dim, values, lib.chosen.variant[dim], (v) => choose({ ...lib.chosen, variant: { ...lib.chosen.variant, [dim]: v } }))),
+        segment('state', states, lib.chosen.state, (v) => choose({ ...lib.chosen, state: v })),
+        themes.length > 1 ? segment('theme', themes, theme, (v) => { lib.theme = v; if (lib.all) drawChosen(); else redraw(); }) : null,
+        shell ? widthControl(redraw) : null].filter(Boolean));
+      caseNote(note, c, pick, texts[pick.index]);
+      live.hidden = pick.index < 0;
+      liveFit = null;
+      drawInspect = () => { insHost.replaceChildren(); ins?.draw({ on: false, key: null, view: null, layer: live, scale: 1, host: null }); };
+      if (pick.index >= 0) {
+        const mount = cellMount(c, page, pick.index, theme);
+        const layer = h('div', { class: 'lib-layer' });
+        const box = h('div', { class: 'lib-live-box' }, mount.el, layer);
+        live.replaceChildren(box);
+        const view = () => mount.host.wfView;
+        const at = (e) => view()?.fromPoint(e.clientX, e.clientY) || null;
+        if (ins) {
+          box.addEventListener('pointermove', (e) => { if (lib.inspect && e.pointerType === 'mouse') ins.hover(at(e)); });
+          box.addEventListener('pointerleave', () => { if (lib.inspect) ins.hover(null); });
+          // In inspect mode a press picks the part, and does not press it.
+          box.addEventListener('click', (e) => { if (!lib.inspect) return; e.preventDefault(); e.stopPropagation(); ins.pick(at(e)); }, true);
+          drawInspect = () => {
+            box.classList.toggle('inspecting', Boolean(lib.inspect));
+            if (!lib.inspect) insHost.replaceChildren();
+            ins.draw({ on: Boolean(lib.inspect), key: `component:${c.key}`, view: view(), layer, scale: view()?.scale || 1, host: insHost, touch: api().phone(), comment: null });
+          };
+        }
+        liveFit = () => { mount.fit(room()); drawInspect(); };
+        liveFit();
+      } else { live.replaceChildren(); drawInspect(); }
+      for (const o of $$('.lib-obj', sets)) o.setAttribute('aria-pressed', String(Number(o.dataset.cell) === pick.index && (o.dataset.theme || null) === theme));
+      const words = pick.index >= 0 ? LL.caseWords(LL.cellCase(texts[pick.index])) : LL.caseWords(lib.chosen);
+      bar.replaceChildren(h('span', { class: 'lib-sel-name' }, h('b', {}, pick.index >= 0 ? 'Selected' : 'No specimen'), h('code', {}, words), theme ? h('span', { class: 'tag' }, theme) : null),
+        h('span', { class: 'lib-sel-acts' },
+          h('button', { type: 'button', class: 'btn quiet', title: 'Copy a line that names this case, to paste into a message to the agent', onclick: (e) => copyNote(e.currentTarget, LL.agentNote(c, pick.index >= 0 ? texts[pick.index] : null, lib.chosen, theme)) }, 'Copy for the agent'),
+          openPage(c, theme)));
+    };
+    /** Choose a case with the controls: the best cell of the case shows. */
+    const choose = (next) => { lib.chosen = next; lib.cell = null; drawChosen(); };
+    /** Pick an object: its cell shows, and the controls take the values that it names. */
+    const pickObject = (index, theme) => {
+      lib.chosen = LL.caseOver(lib.chosen, texts[index]);
+      lib.cell = index;
+      if (theme) lib.theme = theme;
+      drawChosen();
+    };
+    const object = (index, theme) => {
+      const mount = add(cellMount(c, page, index, theme));
+      // The parts of a cell take no focus and no press in the grid: the object does.
+      mount.host.inert = true;
+      const words = LL.caseWords(LL.cellCase(texts[index]));
+      const press = () => pickObject(index, theme);
+      return h('div', { class: 'lib-obj', role: 'button', tabindex: '0', 'aria-pressed': 'false', 'aria-label': `${words}${theme ? `, theme ${theme}` : ''}`, title: words, 'data-cell': String(index), 'data-theme': theme || null,
+        onclick: press, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(); } } }, mount.el);
+    };
+    const setOf = (theme) => {
+      const label = theme ? `Theme ${theme}` : 'Every case';
+      const name = theme ? h('div', { class: 'lib-set-name' }, theme) : null;
+      if (!m || !m.rows.length) {
+        // No matrix: a page shell, or a spec of more than two dimensions. Each object has its case under it.
+        return h('div', { class: `lib-set flow${shell ? ' shell' : ''}`, role: 'group', 'aria-label': label }, name,
+          ...texts.map((t, i) => h('figure', { class: 'lib-fig' }, object(i, theme), h('figcaption', { class: 'lib-lab' }, LL.caseWords(LL.cellCase(t))))));
+      }
+      const labelled = m.rows.some((r) => r.label);
+      const off = labelled ? 2 : 1;
+      const at = (el, row, col) => { el.style.gridRow = String(row); el.style.gridColumn = String(col); return el; };
+      const set = h('div', { class: 'lib-set', role: 'group', 'aria-label': label }, name,
+        ...m.cols.map((st, j) => at(h('div', { class: 'lib-lab', role: 'columnheader' }, st), 2, j + off)),
+        ...(labelled ? m.rows.map((r, i) => at(h('div', { class: 'lib-lab', role: 'rowheader' }, r.label), i + 3, 1)) : []),
+        ...texts.map((t, i) => (m.place[i] ? at(object(i, theme), m.place[i].row + 3, m.place[i].col + off) : null)));
+      set.style.gridTemplateColumns = `${labelled ? 'max-content ' : ''}repeat(${m.cols.length}, max-content)`;
+      return set;
+    };
+
+    const both = Boolean(lib.all && themes.length > 1);
+    const allToggle = themes.length > 1 ? h('button', { type: 'button', class: 'btn quiet lib-tool lib-all', 'aria-pressed': String(both), onclick: () => { lib.all = !lib.all; redraw(); } }, 'Themes side by side') : null;
+    const whole = h('details', { class: 'lib-whole', ontoggle: (e) => {
+      const box = e.currentTarget;
+      const stage = $('.lib-stage', box);
+      if (!box.open) { stage.replaceChildren(); lib.wholeFit = null; return; }
+      const mount = pageMount(c, page, themeFor(c));
+      stage.replaceChildren(mount.el);
+      lib.wholeFit = () => mount.fit(room());
+      lib.wholeFit();
+    } }, h('summary', {}, 'The page as it is written'), h('div', { class: 'lib-stage lib-pad' }));
+    body.replaceChildren(
+      h('section', { class: 'lib-section' }, h('h3', {}, 'Preview', insToggle), controls, note, live, insHost),
+      h('section', { class: 'lib-section' },
+        h('h3', {}, 'Every case', h('small', { class: 'sub' }, shell ? ' each at the width of the viewport' : !m ? ' one object each' : dims.length ? ` ${dims[0][0]}${dims[1] ? ` and ${dims[1][0]}` : ''} by state` : ' by state'), allToggle),
+        h('div', { class: 'lib-stage lib-board' }, sets), bar),
+      whole);
+    sets.replaceChildren(...(both ? themes : [themeFor(c)]).map(setOf));
+    lib.fit = () => {
+      const w = room();
+      fitCells(hugging, w);
+      for (const f of fits) f(w);
+      liveFit?.();
+      lib.wholeFit?.();
+    };
+    drawChosen();
+    lib.fit();
+  }
+  /** Copy a line for the agent, and say so; a browser that refuses the copy shows the line. */
+  async function copyNote(button, text) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch { ok = false; }
+    api().say(ok ? 'Copied: paste it into your message to the agent' : text);
+    if (button?.isConnected) button.focus({ preventScroll: true });
+  }
+  // The fonts of a page and the width of the window change the size of a cell: the objects fit again.
+  let refit = null;
+  const fitSoon = (ms = 120) => { clearTimeout(refit); refit = setTimeout(() => { if (lib.on && $('.lib-body', root())?.isConnected) lib.fit?.(); }, ms); };
+  window.addEventListener('resize', () => fitSoon());
+  document.fonts?.addEventListener?.('loadingdone', () => fitSoon(0));
   function drawLibrary(force = false) {
     const { h } = api();
     const d = api().data();
@@ -491,12 +832,17 @@ html, body { overflow: hidden; }`;
     if (!lib.comp) lib.open = false;
     shell.classList.toggle('open', Boolean(lib.open && lib.comp));
     drawList($('.lib-list-body', shell));
-    // The detail keeps its frames while the state and the component are the same.
+    // The detail keeps its objects while the state and the component are the same.
     const sig = `${lib.comp}|${api().phone()}`;
     if (force || lib.drawn !== sig || lib.data !== d) {
+      const detail = $('.lib-detail', shell);
+      // A new state can be a new page or a new sheet: the pages are read again, and the detail
+      // of the same component keeps its place.
+      const top = lib.data !== d && lib.drawn === sig ? detail.scrollTop : null;
+      if (lib.data !== d) mounter()?.forget();
       lib.drawn = sig;
       lib.data = d;
-      drawDetail($('.lib-detail', shell), d.components.find((c) => c.key === lib.comp) || null);
+      drawDetail(detail, d.components.find((c) => c.key === lib.comp) || null, top);
     }
     syncHash();
   }
@@ -567,7 +913,7 @@ html, body { overflow: hidden; }`;
 
   window.WF_CANVAS_LIBRARY = {
     views: VIEWS,
-    /** Draw the view that shows, or let go of its frames when another view shows. */
+    /** Draw the view that shows, or let go of its objects when another view shows. */
     draw(on) {
       const box = root();
       if (!box) return;
@@ -577,6 +923,7 @@ html, body { overflow: hidden; }`;
           box.hidden = true;
           box.replaceChildren();
           lib.drawn = null;
+          lib.fit = null;
           syncHash();
         }
         return;

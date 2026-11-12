@@ -152,6 +152,7 @@ test('the slim state holds failure counts, and the stamp changes only with a fil
       { screen: 'pay', check: 'states', viewport: null, state: null, message: 'no worst state' }] });
     const pay = canvasState(root, { full: false }).screens[0];
     assert.deepEqual([pay.failures, pay.failureGroups, pay.failureCounts, pay.failureTotal], [undefined, undefined, { 'phone|default': 2 }, 3]);
+    assert.deepEqual(pay.failureChecks, { contrast: 2, states: 1 }, 'the count of each check, for the causes of the Review view');
     assert.equal(screenFailures(root, 'pay').failures.length, 3);
     const before = stateStamp(root);
     assert.equal(stateStamp(root), before, 'nothing changed');

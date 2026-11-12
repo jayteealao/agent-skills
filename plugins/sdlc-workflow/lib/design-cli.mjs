@@ -10,6 +10,7 @@ import { findAnswer } from './answers.mjs';
 import { approvalQuestion, approveDesign, lastApprovalAnswer, systemStay, waiveCause, waiveCommand, waiversOf } from './design-approve.mjs';
 import { browserCandidates, noBrowserReason } from './design-browser.mjs';
 import { checkBrowsers, failureGroups, failureLines, libraryLines, partialLines, runChecks } from './design-check.mjs';
+import { framedLines, framedPages } from './design-embed.mjs';
 import { addComponent, changeManifest, componentFile, foundation, linkComponent, listComponents, removeComponent, scanComponents, setNoComponents, specComponent, verifyComponents, word } from './design-components.mjs';
 import { approvedByAnswer, designNeeded, designReopened, namesScreens } from './design-lane.mjs';
 import { migrateDesign } from './design-migrate.mjs';
@@ -475,6 +476,8 @@ async function run(pos, opt, out) {
         records: { linked: Boolean(project), project: project ?? null, dir: posix(workflowsRoot(projectRoot)) },
         git: { repo: track.manual !== 'not a git repo', tracked: track.tracked },
         viewports: surface ? readManifest(projectRoot).viewports : {},
+        // A note, not a fault: the pages that the canvas draws in a frame, with the reasons.
+        framed: surface ? framedPages(projectRoot) : [],
         ...(surface && browser ? {} : { error: surface ? 'no browser can run the checks' : 'the project has no design surface', fix: surface ? personFix('Install Chrome, Edge or Chromium on this computer, or set SDLC_BROWSER to the path of one.') : agentFix('Make the surface first.', `wf.mjs design init ${R}`) }),
       };
       return finish(d, [
@@ -484,6 +487,7 @@ async function run(pos, opt, out) {
         `records: ${project ? `linked as ${project}, in ${d.records.dir}` : `not linked: the records are in ${d.records.dir}`}`,
         `git: ${!d.git.repo ? 'not a git repo' : d.git.tracked ? '.ai/design/ is tracked' : '.ai/design/ is ignored (run design track)'}`,
         `viewports: ${Object.entries(d.viewports).map(([n, s]) => `${n}=${s}`).join(' ') || 'none'}`,
+        ...framedLines(d.framed),
       ].join('\n'));
     }
     case 'screen': {
@@ -623,10 +627,12 @@ async function run(pos, opt, out) {
           : slug && frontmatterOfDoc(workflowDir(projectRoot, slug), INDEX_NAME) ? designNext(projectRoot, slug)
             : { ok: true, step: 'done', why: 'the screens pass the check' };
       const keptScreens = [...new Set((r.failures ?? []).filter((f) => !(r.checked ?? []).includes(f.screen)).map((f) => f.screen))];
+      // A note, not a failure: the checked screens that the canvas draws in a frame. It blocks nothing.
+      const framed = r.ran && (r.checked ?? []).length ? framedPages(projectRoot, { keys: r.checked }) : [];
       const res = {
         ok: r.ran && !found.length && !lib.length, ran: r.ran, ...(r.ran ? {} : { reason: r.reason, error: r.reason, fix: r.fix }), at: r.at, browser: r.browser ?? null,
         checked: r.checked ?? [], failures: found, library: lib, groups, truncated: r.truncated ?? {}, notices: r.notices ?? [],
-        kept: { failures: r.kept ?? 0, screens: keptScreens }, passed: r.passed,
+        kept: { failures: r.kept ?? 0, screens: keptScreens }, passed: r.passed, framed,
         ...(slug && !blocking ? { question: approvalQuestion(slug) } : {}), next,
         ...(r.ran && (found.length || lib.length) ? { error: next.why, fix: agentFix(next.do, again) } : {}),
       };
@@ -635,6 +641,7 @@ async function run(pos, opt, out) {
         r.ran ? `checked ${r.checked.length} screen(s): ${lines.length || lib.length ? `${found.length + lib.length} failure(s) from ${lines.length + lib.length} cause(s)` : 'all pass'}` : `not checked: ${r.reason}`,
         ...lines, ...libraryLines(lib), ...partialLines(r),
         ...(r.kept ? [`other screens: ${r.kept} failure(s) of an earlier check stay (${keptScreens.join(', ')})`] : []),
+        ...framedLines(framed),
         // The approval question, only when nothing fails and everything was checked.
         ...(slug && r.ran && !found.length && !lib.length && whole && !['ask', 'review'].includes(next.step) ? [`ask: ${approvalQuestion(slug)}`] : []),
         ...nextLines(next),

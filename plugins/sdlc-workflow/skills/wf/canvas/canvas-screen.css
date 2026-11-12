@@ -125,7 +125,7 @@
 #focus .narrow.multi .view { padding-top: 36px; }
 #focus .narrow .view > .shot { max-width: none; }
 #focus .shot { border-radius: 14px; box-shadow: var(--sv-card); }
-#focus .shot > iframe, #focus .shot > img, #focus .shot > .missing, #focus .overlay { border-radius: 14px; }
+#focus .shot > iframe, #focus .shot > .wf-page, #focus .shot > img, #focus .shot > .missing, #focus .overlay { border-radius: 14px; }
 #focus .shot > .cap { display: none; color: var(--cv-ink2); }
 #focus .multi .shot > .cap { display: block; }
 #focus .shot.playing { box-shadow: 0 0 0 2px var(--cv-accent), var(--sv-card); }

@@ -142,6 +142,12 @@ function failureCounts(failures) {
   for (const f of failures) if (f.viewport && f.state) counts[`${f.viewport}|${f.state}`] = (counts[`${f.viewport}|${f.state}`] ?? 0) + 1;
   return counts;
 }
+/** The count of the failures of one screen for each check (`{ token: 12, layout: 7 }`): the Review view names the causes with them. */
+function failureChecks(failures) {
+  const counts = {};
+  for (const f of failures) if (f.check) counts[f.check] = (counts[f.check] ?? 0) + 1;
+  return counts;
+}
 
 // The git folder of each repo, found once: a commit changes its `HEAD` reflog.
 const gitDirs = new Map();
@@ -374,6 +380,7 @@ export function canvasState(root, { repo = null, writable = true, full = true } 
       // One entry for each cause, with its places: the canvas lists these, the CLI prints the same groups.
       ...(full ? { failures, failureGroups: groupFailures(failures) } : {}),
       failureCounts: failureCounts(failures),
+      failureChecks: failureChecks(failures),
       failureTotal: failures.length,
       position: layout.positions?.[s.key] ?? null,
       captures: captures.get(s.key) ?? [],

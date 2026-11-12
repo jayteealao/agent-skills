@@ -26,7 +26,7 @@
 import { createServer } from 'node:http';
 import { Worker } from 'node:worker_threads';
 import { gzipSync } from 'node:zlib';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, watch } from 'node:fs';
 import { homedir, networkInterfaces } from 'node:os';
 import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -303,22 +303,48 @@ function jsonOf(root, repo, stamp) {
   building.set(root, { stamp, promise });
   return promise;
 }
+// The listeners of this process: the canvas shows the address of the first one that a phone can reach.
+const listening = new Set();
+function track(server) {
+  listening.add(server);
+  server.once('close', () => listening.delete(server));
+}
+/** The first address of the list that is not this computer alone, as `http://<host>:<port>/`, or null. */
+export function phoneBase(addresses) {
+  return (addresses ?? []).find((a) => !/^https?:\/\/(?:127\.|localhost|\[::1\])/i.test(String(a))) ?? null;
+}
+/** The address that a phone reaches this server at: a tailnet address that it listens on now, or null. */
+export function phoneAddress() {
+  const at = [];
+  for (const s of listening) { const a = s.address(); if (a && typeof a === 'object' && a.family === 'IPv4') at.push(`http://${a.address}:${a.port}/`); }
+  return phoneBase(at);
+}
+/** The repos of the list, for the switch of the canvas: `[{ name, surface }]`. A repo whose folder is gone is left out; no path leaves the server. */
+export function repoList(repos = readDesignRepos()) {
+  return repos.filter((r) => existsSync(r.root)).map((r) => ({ name: r.name, surface: existsSync(join(surfaceDir(r.root), MANIFEST_FILE)) }));
+}
+
 /**
  * The canvas state of a repo. It is built again only when a file that it reads changed; requests
  * that come during a build wait for that one build. The server adds what only it knows: the write
  * token of this run (`writeToken`) and the state of the background commits (`recordsCommit`:
- * `{ pending, failed }`, where `failed` is null or `{ at, reason }`), and why the manifest does
- * not read (`manifestFault`: null, or the reason; the state then shows no screen).
+ * `{ pending, failed }`, where `failed` is null or `{ at, reason }`), why the manifest does
+ * not read (`manifestFault`: null, or the reason; the state then shows no screen), the repos of
+ * the list (`repos`: `[{ name, surface }]`), and the address for a phone (`phone`: the address of
+ * this server on the tailnet, or null when it listens on this computer only).
  */
-export async function stateOf(root, repo, files = undefined) {
+export async function stateOf(root, repo, files = undefined, repos = readDesignRepos()) {
   const stamp = stateStamp(root, files);
-  const key = `${stamp}-${commitOf(root).seq}`;
+  const facts = JSON.stringify({ repos: repoList(repos), phone: phoneAddress() });
+  const mark = createHash('sha1').update(facts).digest('hex').slice(0, 8);
+  // The mark of these facts joins the stamp, so the ETag keeps its form: `<files>-<commits>-<boot>`.
+  const key = `${stamp}${mark}-${commitOf(root).seq}`;
   const held = states.get(root);
   if (held?.key === key) return held;
   const text = await jsonOf(root, repo, stamp);
   const c = commitOf(root);
-  const now = `${stamp}-${c.seq}`;
-  const extra = JSON.stringify({ writeToken: WRITE_TOKEN, recordsCommit: { pending: c.pending, failed: c.failed }, manifestFault: manifestFault(root) });
+  const now = `${stamp}${mark}-${c.seq}`;
+  const extra = JSON.stringify({ writeToken: WRITE_TOKEN, recordsCommit: { pending: c.pending, failed: c.failed }, manifestFault: manifestFault(root), ...JSON.parse(facts) });
   const body = Buffer.from(text === '{}' ? extra : `${extra.slice(0, -1)},${text.slice(1)}`);
   const s = { stamp, key: now, body, gzipped: gzipSync(body), etag: `"${now}-${BOOT}"` };
   states.set(root, s);
@@ -607,7 +633,7 @@ export function designHandler({ repos = readDesignRepos, audit = { start: startA
         return undefined;
       }
       if (kind === 'state.json' && rest.length === 0) {
-        const s = await stateOf(root, repo.name);
+        const s = await stateOf(root, repo.name, undefined, repos());
         if (fresh(res, s.etag)) return undefined;
         return send(res, 200, s.body, { 'content-type': TYPES['.json'], 'cache-control': 'no-cache', etag: s.etag, gzipped: s.gzipped });
       }
@@ -663,6 +689,7 @@ export async function listenDesignServer({ port = serverPort(), hosts = ['127.0.
       const at = servers.length ? servers[0].address().port : port;
       await new Promise((ok, no) => { server.once('error', no); server.listen(at, host, ok); });
       servers.push(server);
+      track(server);
       addresses.push(`http://${host}:${server.address().port}/`);
     } catch (e) {
       if (host === '127.0.0.1') { for (const s of servers) s.close(); throw e; }
@@ -698,6 +725,7 @@ export async function rebindTailnet(live, { hosts = null, handler = designHandle
     try {
       await new Promise((ok, no) => { server.once('error', no); server.listen(port, host, ok); });
       live.servers.push(server);
+      track(server);
       live.addresses.push(`http://${host}:${port}/`);
       changed = true;
     } catch (e) { log(`design server: not listening on ${host}: ${e.message}\n`); }

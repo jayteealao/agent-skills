@@ -494,3 +494,27 @@ test('the page loads the sheet of the screen view after the sheet of the canvas,
   assert.doesNotMatch(css, /@import|url\((?!"data:)/);
   assert.match(css, /#focus :focus-visible \{ outline: 2px solid var\(--cv-accent\)/);
 });
+
+test('a review row names the checks that fail, the most frequent first, three at most', () => {
+  assert.equal(L.failCauses({ layout: 7, token: 12, component: 9 }), 'token 12 · component 9 · layout 7');
+  assert.equal(L.failCauses({ layout: 7, token: 12, component: 9, contrast: 2, states: 1 }), 'token 12 · component 9 · layout 7 · +2 more');
+  assert.equal(L.failCauses({ token: 3, contrast: 3, layout: 3, a11y: 3 }), 'a11y 3 · contrast 3 · layout 3 · +1 more', 'the same count goes by name');
+  assert.equal(L.failCauses({ token: 1 }), 'token 1');
+  assert.equal(L.failCauses({ token: 4, layout: 2 }, 1), 'token 4 · +1 more');
+  assert.equal(L.failCauses({ token: 0 }), '', 'a check with no failure is no cause');
+  assert.equal(L.failCauses(null), '');
+  // A snapshot carries the failures, not their counts.
+  assert.deepEqual(plain(L.checkCounts([{ check: 'token' }, { check: 'layout' }, { check: 'token' }, { message: 'no check' }, null])), { token: 2, layout: 1 });
+  assert.equal(L.failCauses(L.checkCounts([{ check: 'token' }, { check: 'layout' }, { check: 'token' }])), 'token 2 · layout 1');
+  assert.deepEqual(plain(L.checkCounts(undefined)), {});
+});
+
+test('a reference that is a picture file shows as a picture, whatever its kind', () => {
+  assert.equal(L.refShape({ kind: 'image', file: 'a.bin' }), 'picture');
+  assert.equal(L.refShape({ kind: 'screen', file: '.ai/design/references/current-list.png' }), 'picture', 'a capture of a screen is a picture: a frame would cut it');
+  assert.equal(L.refShape({ kind: 'canvas', file: 'board.JPG' }), 'picture');
+  assert.equal(L.refShape({ kind: 'screen', file: 'old/list.html' }), 'page');
+  assert.equal(L.refShape({ kind: 'page', file: null }), 'page');
+  assert.equal(L.refShape({ kind: 'other', file: 'notes.md' }), 'file');
+  assert.equal(L.refShape(null), 'file');
+});

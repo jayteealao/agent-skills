@@ -204,6 +204,31 @@ var WF_CANVAS_LOGIC = (() => {
   const needsDecision = (screen, hasDraft) => screen?.exists !== false && (Boolean(hasDraft) || !(screen?.approvals || []).length);
   /** The words of a count of failing checks: one number for one thing, on the card and in the view. */
   const failText = (n) => `${plural(n, 'check')} fail${n === 1 ? 's' : ''}`;
+  /**
+   * How a reference shows: `picture`, `page` or `file`. A reference of the kind screen or canvas
+   * is often a capture, a picture file: a picture in a frame shows at its full size and is cut,
+   * so the file name decides before the kind.
+   */
+  function refShape(r) {
+    if (r?.kind === 'image' || /\.(?:png|jpe?g|webp|gif|avif|svg)$/i.test(String(r?.file || ''))) return 'picture';
+    return ['page', 'screen', 'canvas'].includes(r?.kind) ? 'page' : 'file';
+  }
+  /** The count of the failures of each check: `{ token: 12, layout: 7 }`. The state of the server carries it; a snapshot carries the failures. */
+  function checkCounts(failures) {
+    const counts = {};
+    for (const f of failures || []) if (f && f.check) counts[f.check] = (counts[f.check] || 0) + 1;
+    return counts;
+  }
+  /**
+   * The causes of the failing checks of a screen, in one line: the name of each check with its
+   * count, the most frequent first, at most `max` of them, then how many more checks fail:
+   * `token 12 · component 9 · layout 7 · +2 more`. Checks with the same count go by name.
+   */
+  function failCauses(counts, max = 3) {
+    const rows = Object.entries(counts || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    const more = rows.length - max;
+    return [...rows.slice(0, max).map(([name, n]) => `${name} ${n}`), more > 0 ? `+${more} more` : null].filter(Boolean).join(' · ');
+  }
 
   // ---- the one status of a screen, the filters and the review queue
 
@@ -326,7 +351,7 @@ var WF_CANVAS_LOGIC = (() => {
   /** The next wait before the event stream opens again: 5 s, then twice as long each time, at most a minute. */
   const reopenDelay = (tries) => Math.min(60000, 5000 * 2 ** Math.max(0, Math.min(tries, 10)));
 
-  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, statusOf, waitsForLook, reviewQueue, waitReasons, filterCounts, agoText, stepText, VIEW_NAMES, parseView, fitScale, hashOf, parseHash, parseSize, neighbours, subLine, findingComment };
+  return { plural, clip, roleWord, targetName, anchorLabel, threadTarget, reopenDelay, whereText, pinPlace, LABEL_H, REF_PITCH, toStored, fromStored, DRAG_SLOP, isDrag, resetBody, columnsFor, createDrafts, mergeChange, diffStates, TOKEN_KIND_ORDER, tokenGroups, themeValues, specMark, reviewMark, needsDecision, failText, refShape, checkCounts, failCauses, statusOf, waitsForLook, reviewQueue, waitReasons, filterCounts, agoText, stepText, VIEW_NAMES, parseView, fitScale, hashOf, parseHash, parseSize, neighbours, subLine, findingComment };
 })();
 
 (() => {
@@ -712,19 +737,70 @@ var WF_CANVAS_LOGIC = (() => {
   /** True when a frame holds an answer of the server that is not a page: the file is gone. */
   const notPage = (f) => { try { const t = f.contentDocument?.contentType; return Boolean(t) && !/html|xml/.test(t); } catch { return false; } };
   const missingText = (at) => (at ? 'This screen is not in the saved version.' : 'The file of this screen is gone.');
-  function frameFor(key, state, at = null) {
+  const missingBox = (el, at) => h('div', { class: 'missing', style: `width:${el.style.width};height:${el.style.height};transform:${el.style.transform}` }, h('span', {}, missingText(at)));
+  // The engine that draws a page in the canvas itself (canvas-mount.js).
+  const MOUNT = window.WF_CANVAS_MOUNT || null;
+  /** The view of a page, mounted or in a frame: one handle to read both. Null while the page is not in. */
+  function viewOf(el) {
+    const v = el?.isConnected ? MOUNT?.viewOf(el) : null;
+    return v && !(v.kind === 'frame' && v.root.readyState === 'loading') ? v : null;
+  }
+  /** The page in a box: a mount, or the frame that took its place. */
+  const pageIn = (box) => box.querySelector(':scope > .wf-page, :scope > iframe');
+  /** The address that the mount reads a screen from: one page for all its states. */
+  const pageUrl = (key, at) => screenUrl(key, 'default', at).split('?')[0];
+  const ready = (el) => el.dispatchEvent(new CustomEvent('wf-ready', { bubbles: true }));
+  /**
+   * A screen in a frame: the page of a snapshot, and a page that the canvas cannot draw itself.
+   * `why` says what keeps the page in a frame. With `play` the frame takes the keys and scrolls.
+   */
+  function iframeFor(key, state, at = null, { play = false, why = null } = {}) {
     // A screen is an artboard, not a window: a scrollbar would take width from the page.
-    const f = h('iframe', { title: key, tabindex: '-1', scrolling: 'no', 'data-state': state, sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
+    const f = h('iframe', { title: key, tabindex: play ? null : '-1', scrolling: play ? null : 'no', 'data-state': state, sandbox: SNAP ? 'allow-scripts' : 'allow-scripts allow-same-origin' });
+    Object.assign(f, { wfPage: { key, at, play }, wfWhy: why });
     if (SNAP) f.srcdoc = snapDoc(key, state);
-    else {
-      f.src = screenUrl(key, state, at);
-      f.addEventListener('load', () => {
-        if (notPage(f)) { f.replaceWith(h('div', { class: 'missing', style: `width:${f.style.width};height:${f.style.height};transform:${f.style.transform}` }, h('span', {}, missingText(at)))); return; }
+    else f.src = screenUrl(key, state, at);
+    f.addEventListener('load', () => {
+      if (!SNAP) {
+        if (notPage(f)) { f.replaceWith(missingBox(f, at)); return; }
         // The state can change before the page loads; the page then shows the state of the frame.
         try { f.contentDocument.documentElement.dataset.state = f.dataset.state; } catch { /* no access */ }
-      });
-    }
+      }
+      ready(f);
+    });
     return f;
+  }
+  /**
+   * The page of a screen, drawn in the canvas: a host that the mount fills. A page that the mount
+   * cannot draw comes in a frame, in the place of the host. Both say `wf-ready` to the box around
+   * them each time their page is in. The host takes no key until the links are on, like the frame.
+   */
+  function frameFor(key, state, at = null, { play = false } = {}) {
+    if (SNAP || !MOUNT) return iframeFor(key, state, at, { play });
+    const host = h('div', { class: 'wf-page', tabindex: play ? null : '-1', 'data-state': state });
+    host.wfPage = { key, at, play };
+    host.addEventListener('wf-load', () => {
+      // The state can change before the page is in; the page then shows the state of the host.
+      host.wfView.setState(host.dataset.state);
+      ready(host);
+    });
+    host.addEventListener('wf-link', (e) => { if (focusState?.play && host.closest('.shot.now')) followLink(e.detail.anchor.getAttribute('href'), host.wfView.baseURI); });
+    fillPage(host);
+    return host;
+  }
+  function fillPage(host) {
+    const { key, at } = host.wfPage;
+    MOUNT.mount(host, pageUrl(key, at), { state: host.dataset.state })
+      .catch(() => ({ fallback: true, reasons: ['the canvas could not draw it'] }))
+      .then((r) => { if (r.fallback) inFrame(host, r); });
+  }
+  /** Put a frame in the place of a page that the mount cannot draw, or the word that its file is gone. */
+  function inFrame(el, r) {
+    if (!el.parentNode) return;
+    const { key, at, play } = el.wfPage;
+    const next = r.missing ? missingBox(el, at) : iframeFor(key, el.dataset.state, at, { play, why: r.reasons });
+    if (!r.missing) next.style.cssText = el.style.cssText;
+    el.replaceWith(next);
   }
   /**
    * Show another state of a page. A page shows the state that its root element names, so a loaded
@@ -733,6 +809,7 @@ var WF_CANVAS_LOGIC = (() => {
   function setFrameState(f, key, state, at = null) {
     if (f.dataset.state === state) return;
     f.dataset.state = state;
+    if (f.tagName !== 'IFRAME') { f.wfView?.setState(state); return; }
     if (SNAP) { f.srcdoc = snapDoc(key, state); return; }
     try { f.contentDocument.documentElement.dataset.state = state; } catch { f.src = screenUrl(key, state, at); }
   }
@@ -777,7 +854,7 @@ var WF_CANVAS_LOGIC = (() => {
     if (want === 'live' && was !== 'live' && frame.name && liveCount() >= MAX_LIVE) want = 'wait';
     if (was === want) return false;
     frame.dataset.fill = want;
-    frame.querySelector(':scope > iframe, :scope > img.pic, :scope > .ph, :scope > .missing')?.remove();
+    frame.querySelector(':scope > .wf-page, :scope > iframe, :scope > img.pic, :scope > .ph, :scope > .missing')?.remove();
     if (want === 'live') frame.append(frame.make());
     else if (want === 'pic') frame.append(h('img', { class: 'pic', src: frame.pic, alt: '' }));
     else if (want === 'name' || want === 'wait') frame.append(h('span', { class: 'ph' }, frame.name));
@@ -1107,8 +1184,8 @@ var WF_CANVAS_LOGIC = (() => {
     frame.style.height = `${M.frameH}px`;
     frame.dataset.state = ui.state;
     frame.name = titleOf(s);
-    const live = frame.querySelector(':scope > iframe, :scope > .missing');
-    if (live?.tagName === 'IFRAME') setFrameState(sized(live), s.key, ui.state, ui.version || null);
+    const live = frame.querySelector(':scope > .wf-page, :scope > iframe, :scope > .missing');
+    if (live && !live.matches('.missing')) setFrameState(sized(live), s.key, ui.state, ui.version || null);
     else if (live) sized(live);
     // An approval picture shows the default state at its viewport, and the page as it is now.
     const pic = !past && s.picture && ui.state === 'default' && ui.viewport === data.pictureViewport ? `${BASE}${s.picture}` : null;
@@ -1197,6 +1274,30 @@ var WF_CANVAS_LOGIC = (() => {
   }
   /** The address of a component page, with the one theme it shows. */
   const componentSrc = (key, theme) => `${BASE}s/components/${key}.html${theme && theme !== 'default' ? `?theme=${encodeURIComponent(theme)}` : ''}`;
+  /**
+   * The page of a component in the panel, drawn in the canvas itself with the panel of one theme.
+   * A page that the mount cannot draw shows in a frame, with a line that says why. `wfDraw(theme)`
+   * of the box draws it again, in another theme or from new files.
+   */
+  function componentPart(c, theme) {
+    const box = h('div', { class: 'part-box' });
+    const frame = (name) => h('iframe', { class: 'part tall', title: c.title, loading: 'lazy', sandbox: 'allow-scripts allow-same-origin', src: componentSrc(c.key, name) });
+    box.wfDraw = (name = box.wfTheme) => {
+      box.wfTheme = name;
+      if (!MOUNT) { box.replaceChildren(frame(name)); return; }
+      const host = h('div', { class: 'part tall', role: 'group', 'aria-label': c.title });
+      box.replaceChildren(host);
+      MOUNT.mount(host, componentSrc(c.key, null), { panel: name })
+        .catch(() => ({ fallback: true, reasons: ['the canvas could not draw it'] }))
+        .then((r) => {
+          if (!r.fallback || host.parentNode !== box) return;
+          box.replaceChildren(...(r.missing ? [h('p', { class: 'sub' }, 'The file of the page is gone.')]
+            : [frame(name), h('p', { class: 'sub part-why' }, `Drawn in a frame: ${(r.reasons || []).join('; ')}.`)]));
+        });
+    };
+    box.wfDraw(theme);
+    return box;
+  }
   /** The marks of a component: in code or to build, a layout, and what its spec lacks. */
   function componentMarks(c) {
     const gaps = L.specMark(c);
@@ -1224,8 +1325,8 @@ var WF_CANVAS_LOGIC = (() => {
       : data.references.map((r) => {
         const open = () => panel(`reference:${r.key}`);
         const label = `Open the reference ${r.key}`;
-        const pic = !SNAP && r.readable && r.kind === 'image';
-        const page = !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind);
+        const pic = !SNAP && r.readable && L.refShape(r) === 'picture';
+        const page = !SNAP && r.readable && L.refShape(r) === 'page';
         const frame = page ? thumb(`${BASE}ref/${encodeURIComponent(r.key)}`, 1280, 800, label, open)
           : h('button', { type: 'button', class: `frame${pic ? '' : ' doc'}`, 'aria-label': label, style: `height:${Math.round(ITEM_W * 0.625)}px`, onclick: open },
             pic ? h('img', { src: `${BASE}ref/${encodeURIComponent(r.key)}`, alt: '', loading: 'lazy' }) : h('span', {}, cap(r.kind || 'other')));
@@ -1672,30 +1773,33 @@ var WF_CANVAS_LOGIC = (() => {
    * in the state that its `?state=` names, and Back returns along the trail. Any other link
    * stays on the screen, because a design page leads nowhere outside the screens.
    */
-  function playLinks(ifr) {
-    let doc = null;
-    try { doc = ifr.contentDocument; } catch { doc = null; }
-    if (!doc) return;
+  function followLink(href, base) {
+    let url = null;
+    try { url = new URL(href, base); } catch { url = null; }
+    const key = url && /\/screens\/([a-z0-9-]+)\.html$/.exec(url.pathname)?.[1];
+    if (!key || !boardScreens().some((x) => x.key === key)) { say('That link leads to no screen'); return; }
+    const st = url.searchParams.get('state');
+    focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', scroll: 0, sel: null, trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
+    drawFocus();
+    syncHash();
+  }
+  /** The links of a page in a frame: the document of the frame hears them. A mounted page says `wf-link` to its host. */
+  function playLinks(doc) {
     doc.addEventListener('click', (e) => {
       const a = e.target.closest?.('a[href]');
       if (!a) return;
       e.preventDefault();
-      let url = null;
-      try { url = new URL(a.getAttribute('href'), doc.baseURI); } catch { url = null; }
-      const key = url && /\/screens\/([a-z0-9-]+)\.html$/.exec(url.pathname)?.[1];
-      if (!key || !boardScreens().some((x) => x.key === key)) { say('That link leads to no screen'); return; }
-      const st = url.searchParams.get('state');
-      focusState = { ...focusState, key, state: data.states.includes(st) ? st : 'default', compare: '', scroll: 0, sel: null, trail: [...focusState.trail, { key: focusState.key, state: focusState.state }] };
-      drawFocus();
-      syncHash();
+      followLink(a.getAttribute('href'), doc.baseURI);
     });
   }
 
+  const isBody = (el) => el.tagName === 'BODY' || el.tagName === 'WF-BODY';
   function selectorOf(el) {
     if (!el || el.nodeType !== 1) return null;
     if (el.id) return `#${CSS.escape(el.id)}`;
     const parts = [];
-    for (let n = el; n && n.nodeType === 1 && n.tagName !== 'BODY' && parts.length < 5; n = n.parentElement) {
+    // A mounted page has `wf-body` for its body: the path is the same as in a document.
+    for (let n = el; n && n.nodeType === 1 && !isBody(n) && parts.length < 5; n = n.parentElement) {
       if (n.id) { parts.unshift(`#${CSS.escape(n.id)}`); break; }
       const same = n.parentElement ? [...n.parentElement.children].filter((c) => c.tagName === n.tagName) : [];
       parts.unshift(same.length > 1 ? `${n.tagName.toLowerCase()}:nth-of-type(${same.indexOf(n) + 1})` : n.tagName.toLowerCase());
@@ -1706,7 +1810,7 @@ var WF_CANVAS_LOGIC = (() => {
   function describe(el) {
     if (!el || el.nodeType !== 1) return null;
     const attr = (n) => el.getAttribute(n) || '';
-    const labelled = attr('aria-labelledby').split(/\s+/).filter(Boolean).map((id) => el.ownerDocument.getElementById(id)?.textContent || '').join(' ');
+    const labelled = attr('aria-labelledby').split(/\s+/).filter(Boolean).map((id) => el.getRootNode().getElementById?.(id)?.textContent || '').join(' ');
     const name = attr('aria-label') || labelled || attr('alt') || attr('placeholder') || (el.tagName === 'INPUT' ? attr('value') : '') || attr('title');
     // The text of the element, one piece for each text node: two lines of a card do not run together.
     const pieces = [];
@@ -1714,22 +1818,19 @@ var WF_CANVAS_LOGIC = (() => {
     for (let n = walker.nextNode(), size = 0; n && size < 80; n = walker.nextNode()) { const t = n.nodeValue.trim(); if (t) { pieces.push(t); size += t.length; } }
     return { tag: el.tagName, role: attr('role'), type: attr('type'), name, text: pieces.join(' '), block: el.children.length > 0 };
   }
-  /** The element of a selector in a document, or null. A selector that the browser cannot read finds nothing. */
-  function find(doc, selector) {
-    if (!doc || !selector) return null;
-    try { return doc.querySelector(selector); } catch { return null; }
-  }
+  /** The element of a selector on a page, or null. A selector that the browser cannot read finds nothing. */
+  const find = (view, selector) => (view && selector ? view.query(selector) : null);
 
   /** One screen in the view: its page or picture in a box of its own scale. `tall` is the height of the page. */
   function shot(caption, content, size) {
     const box = h('div', { class: 'shot' }, h('div', { class: 'cap' }, caption), content);
     Object.assign(box, { content, size, tall: size.height, scale: 1, bound: 0 });
-    if (content.tagName === 'IFRAME') content.addEventListener('load', () => { if (content.isConnected) hug(box); });
+    box.addEventListener('wf-ready', () => { if (box.isConnected) hug(box); });
     return box;
   }
   /** Give a box its scale, and the height that its page and its bound allow. */
   function sizeShot(box, scale = box.scale, bound = box.bound) {
-    const c = box.querySelector(':scope > iframe, :scope > img, :scope > .missing') || box.content;
+    const c = box.querySelector(':scope > .wf-page, :scope > iframe, :scope > img, :scope > .missing') || box.content;
     box.scale = scale;
     box.bound = bound;
     c.style.width = `${box.size.width}px`;
@@ -1746,16 +1847,15 @@ var WF_CANVAS_LOGIC = (() => {
    * frame. A bounded box keeps the device height: it shows the top of the screen.
    */
   function hug(box) {
-    const ifr = box.querySelector(':scope > iframe');
-    let root = null;
-    try { root = ifr?.contentDocument?.documentElement; } catch { root = null; }
+    const page = pageIn(box);
+    const v = viewOf(page);
     box.tall = box.size.height;
-    if (root && !box.bound) {
-      ifr.style.height = `${box.size.height}px`;
-      const tall = root.scrollHeight;
+    if (v && !box.bound) {
+      page.style.height = `${box.size.height}px`;
+      const tall = v.pageHeight();
       if (tall > box.size.height) {
-        ifr.style.height = `${tall}px`;
-        box.tall = root.scrollHeight > tall ? box.size.height : tall;
+        page.style.height = `${tall}px`;
+        box.tall = v.pageHeight() > tall ? box.size.height : tall;
       }
     }
     sizeShot(box);
@@ -1839,11 +1939,10 @@ var WF_CANVAS_LOGIC = (() => {
     const view = kept ? kept.parentElement : h('div', { class: 'view' });
     const named = past ? draftName(past) : 'Now';
     const caption = f.compare || f.built ? named : `${past ? `${named}, ` : ''}${cap(f.viewport)} ${size.width}×${size.height}, ${f.state} state${f.play ? ', the links work' : ''}`;
-    const live = kept ?? shot(caption, frameFor(s.key, f.state, ui.version || null), size);
+    const live = kept ?? shot(caption, frameFor(s.key, f.state, ui.version || null, { play: f.play }), size);
     live.classList.add('now');
-    const ifr = live.querySelector('iframe');
-    const screenDoc = () => { try { return ifr?.isConnected ? ifr.contentDocument : null; } catch { return null; } };
-    const loaded = () => { const d = screenDoc(); return d && d.readyState !== 'loading' && d.body ? d : null; };
+    // The page of the screen as it is now: a mount, or a frame when the mount cannot draw it.
+    const loaded = () => viewOf(pageIn(live));
     // The layer moves with the page of the screen, so the pins and the boxes stay on their elements.
     const layer = h('div', { class: 'layer' });
     const overlay = h('div', { class: `overlay${f.commenting ? ' commenting' : ''}${f.inspecting ? ' inspecting' : ''}` }, layer);
@@ -1852,28 +1951,27 @@ var WF_CANVAS_LOGIC = (() => {
       live.querySelector(':scope > .cap').textContent = caption;
       live.querySelector(':scope > .overlay')?.remove();
       for (const c of [...view.children]) if (c !== live) c.remove();
-      if (ifr) setFrameState(ifr, s.key, f.state, ui.version || null);
-    } else if (ifr) {
-      ifr.addEventListener('load', () => {
-        const win = screenDoc()?.defaultView;
-        if (!win || focusState?.key !== s.key) return;
-        win.scrollTo({ top: focusState.scroll, behavior: 'instant' });
-        const follow = () => { if (focusState?.key === s.key) focusState.scroll = win.scrollY; live.layer.style.transform = `translateY(${-win.scrollY * live.scale}px)`; };
-        win.addEventListener('scroll', follow);
+      const page = pageIn(live);
+      // Another state can have another length.
+      if (page && page.dataset.state !== f.state) { setFrameState(page, s.key, f.state, ui.version || null); hug(live); }
+    } else {
+      // The page is in: after the first load, after a reload, and when a frame took the place of the mount.
+      live.addEventListener('wf-ready', () => {
+        const v = loaded();
+        if (!v || focusState?.key !== s.key) return;
+        v.scrollTop = focusState.scroll;
+        const follow = () => { if (focusState?.key === s.key) focusState.scroll = v.scrollTop; live.layer.style.transform = `translateY(${-v.scrollTop * live.scale}px)`; };
+        v.onScroll(follow);
         follow();
+        if (focusState.play && v.kind === 'frame') playLinks(v.root);
         // The pins and the names of the targets need the page: draw them now that it is here.
         drawFocus();
       });
       // With the links on, nothing covers the screen, so its links and controls take the pointer.
-      if (f.play) {
-        live.classList.add('playing');
-        ifr.removeAttribute('tabindex');
-        ifr.removeAttribute('scrolling');
-        ifr.addEventListener('load', () => playLinks(ifr));
-      }
+      if (f.play) live.classList.add('playing');
     }
     if (!f.play) live.append(overlay);
-    const doc = loaded();
+    const pageNow = loaded();
     const fx = past ? { failures: [], failureGroups: [] } : failuresFor(s);
     const failuresHere = (fx?.failures || []).filter((q) => q.viewport === f.viewport && q.state === f.state);
     const groups = fx && !fx.error ? groupsOf(fx) : null;
@@ -1897,8 +1995,8 @@ var WF_CANVAS_LOGIC = (() => {
       Object.assign(f, { inspecting: false, commenting: true, play: false, tab: 'comments', sheet: true, size: f.size === 'peek' ? 'half' : f.size });
       f.from ||= document.activeElement?.dataset?.fk || null;
       const box = vp(f.viewport);
-      const r = el?.getBoundingClientRect();
-      f.pick = el ? pickOf(el, Math.min(1, Math.max(0, (r.left + r.width / 2) / box.width)), (r.top + (el.ownerDocument.defaultView?.scrollY || 0) + r.height / 2) / box.height) : at || { whole: true };
+      const r = el ? loaded()?.rect(el) : null;
+      f.pick = r ? pickOf(el, Math.min(1, Math.max(0, (r.x + r.width / 2) / box.width)), (r.y + r.height / 2) / box.height) : at || { whole: true };
       drawFocus();
       const field = $(`#focus [data-fk="draft:${CSS.escape(key)}"]`);
       field?.focus({ preventScroll: ph });
@@ -1908,8 +2006,8 @@ var WF_CANVAS_LOGIC = (() => {
     const drawMarks = () => {
       const scale = live.scale;
       layer.replaceChildren();
-      const win = loaded()?.defaultView;
-      layer.style.transform = `translateY(${-(win?.scrollY || 0) * scale}px)`;
+      const d = loaded();
+      layer.style.transform = `translateY(${-(d?.scrollTop || 0) * scale}px)`;
       if (f.checks && !past) {
         failuresHere.forEach((x, i) => {
           if (!x.rect) return;
@@ -1925,7 +2023,6 @@ var WF_CANVAS_LOGIC = (() => {
           layer.append(boxAt(x.rects[f.viewport], x.rule || 'Audit', x.message, 'audit', f.sel === id, () => { f.sel = id; showIn('checks', 'audit', `[data-row="${id}"]`); }, `abox:${i}`));
         });
       }
-      const d = loaded();
       // The pins show in comment mode and with the marks: nothing covers the screen while the person only looks.
       (s.threads || []).forEach((t, i) => {
         if (past || (!f.commenting && !f.checks) || (!f.all && !t.open)) return;
@@ -1933,7 +2030,7 @@ var WF_CANVAS_LOGIC = (() => {
         if ((a.state || 'default') !== f.state) return;
         const el = find(d, a.selector);
         let rect = null;
-        if (el) { const r = el.getBoundingClientRect(); rect = { left: r.left + (win?.scrollX || 0), top: r.top + (win?.scrollY || 0), width: r.width, height: r.height }; }
+        if (el) { const r = d.rect(el); rect = { left: r.x, top: r.y, width: r.width, height: r.height }; }
         const p = L.pinPlace(a, f.viewport, size, rect);
         if (!p) return;
         layer.append(h('button', { type: 'button', class: `pin${t.open ? '' : ' closed'}${L.reviewMark(t) ? ' review' : ''}`, fk: `pin:${t.id}`, style: `left:${p.x * scale}px;top:${p.y * scale}px`,
@@ -1943,44 +2040,42 @@ var WF_CANVAS_LOGIC = (() => {
       layer.append(hovered, selected);
       outline(selected, f.pick?.selector ? find(d, f.pick.selector) : null);
       // Inspect mode: the outline of the inspected element and its panel.
-      inspect?.draw({ on: Boolean(f.inspecting && !f.play && d), key: s.key, doc: d, layer, scale, root, host: $('#focus .sv-body[data-tab="inspect"]'), touch: ph,
+      inspect?.draw({ on: Boolean(f.inspecting && !f.play && d), key: s.key, view: d, layer, scale, root, host: $('#focus .sv-body[data-tab="inspect"]'), touch: ph,
         comment: data.writable && !past ? agentComment : null });
     };
     const findings = auditOf(s.key);
     const hovered = h('div', { class: 'el-box', hidden: true }, h('span'));
     const selected = h('div', { class: 'el-box held', hidden: true }, h('span'));
     const elementAt = (e) => {
-      const r = overlay.getBoundingClientRect();
-      const el = loaded()?.elementFromPoint((e.clientX - r.left) / live.scale, (e.clientY - r.top) / live.scale);
-      return el && el.tagName !== 'BODY' && el.tagName !== 'HTML' ? el : null;
+      const v = loaded();
+      const el = v?.fromPoint(e.clientX, e.clientY);
+      return el && el !== v.body && el !== v.html ? el : null;
     };
     function outline(box, el) {
-      box.hidden = !el;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const win = el.ownerDocument.defaultView;
+      const r = el ? loaded()?.rect(el) : null;
+      box.hidden = !r;
+      if (!r) return;
       const scale = live.scale;
-      box.style.cssText = `left:${(r.left + win.scrollX) * scale}px;top:${(r.top + win.scrollY) * scale}px;width:${r.width * scale}px;height:${r.height * scale}px`;
+      box.style.cssText = `left:${r.x * scale}px;top:${r.y * scale}px;width:${r.width * scale}px;height:${r.height * scale}px`;
       box.firstChild.textContent = L.targetName(describe(el)).replace(/^the /, '');
     }
     /** The selected element of the comment: kept as its selector and its name, so a redraw finds it again. */
-    const pickOf = (el, x, y) => ({ selector: el ? selectorOf(el) : null, label: el ? L.targetName(describe(el)) : null, x, y, whole: false, canWiden: Boolean(el?.parentElement && el.parentElement.tagName !== 'BODY') });
+    const pickOf = (el, x, y) => ({ selector: el ? selectorOf(el) : null, label: el ? L.targetName(describe(el)) : null, x, y, whole: false, canWiden: Boolean(el?.parentElement && !isBody(el.parentElement)) });
     overlay.addEventListener('click', (e) => {
       if (f.inspecting && inspect) { inspect.pick(elementAt(e)); return; }
       if (!f.commenting) return;
       const r = overlay.getBoundingClientRect();
-      const win = loaded()?.defaultView;
-      f.pick = pickOf(elementAt(e), (e.clientX - r.left) / r.width, ((e.clientY - r.top) / live.scale + (win?.scrollY || 0)) / size.height);
+      f.pick = pickOf(elementAt(e), (e.clientX - r.left) / r.width, ((e.clientY - r.top) / live.scale + (loaded()?.scrollTop || 0)) / size.height);
       drawFocus();
       $('#focus [data-fk="draft:' + CSS.escape(`${s.key}|new`) + '"]')?.focus({ preventScroll: ph });
       keepPickInView();
     });
     overlay.addEventListener('wheel', (e) => {
-      const win = loaded()?.defaultView;
-      if (!win || e.ctrlKey || e.metaKey) return;
-      const from = win.scrollY;
-      win.scrollBy({ top: e.deltaY / live.scale, behavior: 'instant' });
-      if (win.scrollY !== from) e.preventDefault();
+      const v = loaded();
+      if (!v || e.ctrlKey || e.metaKey) return;
+      const from = v.scrollTop;
+      v.scrollTop = from + e.deltaY / live.scale;
+      if (v.scrollTop !== from) e.preventDefault();
       if (f.commenting) outline(hovered, elementAt(e));
       else if (f.inspecting) inspect?.hover(elementAt(e));
     }, { passive: false });
@@ -1991,11 +2086,11 @@ var WF_CANVAS_LOGIC = (() => {
     overlay.addEventListener('pointercancel', () => { finger = null; });
     overlay.addEventListener('pointermove', (e) => {
       if (finger) {
-        const win = loaded()?.defaultView;
-        const from = win?.scrollY;
-        win?.scrollBy({ top: (finger.y - e.clientY) / live.scale, behavior: 'instant' });
+        const v = loaded();
+        const from = v?.scrollTop;
+        if (v) v.scrollTop = from + (finger.y - e.clientY) / live.scale;
         const sc = focusScroller();
-        if (sc && win?.scrollY === from) sc.scrollTop += finger.y - e.clientY;
+        if (sc && v?.scrollTop === from) sc.scrollTop += finger.y - e.clientY;
         if (sc && f.full) sc.scrollLeft += finger.x - e.clientX;
         finger = { x: e.clientX, y: e.clientY };
       } else if (f.commenting && e.pointerType === 'mouse') outline(hovered, elementAt(e));
@@ -2119,7 +2214,7 @@ var WF_CANVAS_LOGIC = (() => {
       const dk = `${s.key}|${t.id}`;
       const a = t.anchor || {};
       // The element as the page has it now names the target; a page that lost it leaves the name that the comment kept.
-      const label = a.selector ? L.threadTarget(describe(find(doc, a.selector)), a) : null;
+      const label = a.selector ? L.threadTarget(describe(find(pageNow, a.selector)), a) : null;
       // The field of a reply shows when the person asks for it, or holds a draft.
       const writingReply = Boolean(f.reply[t.id] || drafts.get(dk));
       const reply = () => {
@@ -2211,8 +2306,11 @@ var WF_CANVAS_LOGIC = (() => {
     ];
     const vlist = versionList(s, f);
     const why = whyView(s);
+    // A page that the canvas cannot draw itself shows in a frame: the side says why.
+    const framed = pageIn(live)?.wfWhy;
     const whyBody = [
       h('p', { class: 'sub' }, metaOf(s)),
+      framed?.length ? h('p', { class: 'sub' }, `Drawn in a frame: ${framed.join('; ')}.`) : null,
       !past && why ? section(f, 'why', 'Why it looks like this', null, why, { long: true }) : null,
       !past && s.components?.length ? section(f, 'components', 'Components', s.components.length, h('ul', { class: 'parts' }, ...s.components.map((k) => {
         const c = data.components.find((x) => x.key === k);
@@ -2503,6 +2601,43 @@ var WF_CANVAS_LOGIC = (() => {
     if (!ui.review.includes(key)) ui.review.unshift(key);
     openScreen(key);
   }
+  /** The other repos of the design server, for the switch: `[{ name, surface }]`. A snapshot knows none. */
+  const otherRepos = () => (SNAP || !Array.isArray(data?.repos) ? [] : data.repos.filter((r) => r && typeof r.name === 'string' && r.name !== data.repo));
+  const repoWord = (r) => (r.surface ? r.name : `${r.name} (no design yet)`);
+  // In the list of a phone, a value with this start names a repo: a workflow slug has no colon.
+  const REPO_VALUE = 'repo:';
+  /** Go to the canvas of another repo of the server. */
+  function openRepo(name) {
+    if (!name || name === data.repo || !otherRepos().some((r) => r.name === name)) return;
+    location.assign(`/r/${encodeURIComponent(name)}/`);
+  }
+  /** The link of the view that shows, at the address that a phone reaches the server at, or '' when it listens on this computer only. */
+  function phoneLink() {
+    if (SNAP || !data?.phone) return '';
+    const search = ui.workflow ? `?workflow=${encodeURIComponent(ui.workflow)}` : '';
+    return `${String(data.phone).replace(/\/$/, '')}${location.pathname}${search}${location.hash}`;
+  }
+  /** The control of the navigation that shows the link for a phone. A server that no phone can reach shows nothing. */
+  function drawPhoneLink() {
+    if (!data) return;
+    const link = phoneLink();
+    $('#phone-link').hidden = !link;
+    if ($('#phone-url').value !== link) $('#phone-url').value = link;
+  }
+  /** Copy the link for a phone. A page of a plain http address has no clipboard: then the field is selected, and the browser copies it. */
+  async function copyPhoneLink() {
+    drawPhoneLink();
+    const field = $('#phone-url');
+    if (!field.value) return;
+    let done = false;
+    try { await navigator.clipboard.writeText(field.value); done = true; } catch { /* no clipboard here */ }
+    if (!done) {
+      field.focus();
+      field.select();
+      try { done = document.execCommand('copy'); } catch { done = false; }
+    }
+    say(done ? 'Link copied' : 'Not copied: select the link and copy it');
+  }
   /** The shell around the views: the names, the counts and the marks of the navigation, the chips, and the time of the last check. */
   function drawShell() {
     const name = viewName();
@@ -2512,13 +2647,31 @@ var WF_CANVAS_LOGIC = (() => {
       if (x.tagName === 'A') { if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); } else { x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }
     }
     const repo = data.repo || 'Design canvas';
+    // With several repos on the server, the name of the repo is a switch. One repo has no switch.
+    const others = otherRepos();
     $('#repo').textContent = repo;
-    $('#repo-m').textContent = repo;
+    $('#repo').hidden = others.length > 0;
+    $('#repo-pick').hidden = !others.length;
+    fill($('#repo-select'), [[data.repo || '', repo], ...others.map((r) => [r.name, repoWord(r)])], data.repo || '');
+    for (const o of $$('#repo-select option')) o.disabled = others.some((r) => r.name === o.value && !r.surface);
+    $('#repo-m').textContent = others.length ? `${repo} ▾` : repo;
     $('#logo').textContent = repo[0].toUpperCase();
     // A repo with one workflow names it; a repo with several has a switch.
     const many = data.workflows.length > 1;
     $('#wf-pick').hidden = !many;
-    $('#wf-pick-m').hidden = !many;
+    // On a phone one list under the name holds the workflows and the other repos.
+    $('#wf-pick-m').hidden = !many && !others.length;
+    $('#switch-m-name').textContent = others.length ? 'Workflow or repo' : 'Workflow';
+    const pickM = $('#workflow-m');
+    const reposSig = JSON.stringify(others);
+    if (pickM.dataset.repos !== reposSig || Boolean($('optgroup', pickM)) !== Boolean(others.length)) {
+      pickM.dataset.repos = reposSig;
+      const old = $('optgroup', pickM);
+      if (old) pickM.removeChild(old);
+      if (others.length) pickM.append(h('optgroup', { label: 'Other repos' }, ...others.map((r) => h('option', { value: `${REPO_VALUE}${r.name}`, disabled: !r.surface }, repoWord(r)))));
+      pickM.value = ui.workflow;
+    }
+    drawPhoneLink();
     $('#wf-name').hidden = many;
     $('#wf-name').textContent = data.workflows[0] || 'No workflow yet';
     // On a phone the name is the switch: the line under it names the workflow that shows.
@@ -2647,8 +2800,11 @@ var WF_CANVAS_LOGIC = (() => {
     const row = (key) => {
       const s = byKey.get(key);
       const f = factsOf(s);
+      // Which checks fail, with their counts: the row names the causes, and the pill has the total.
+      const causes = f.failing ? L.failCauses(s.failureChecks || L.checkCounts(s.failures)) : '';
       return h('li', {}, h('a', { class: 'row', href: L.hashOf({ key, viewport: ui.viewport, state: ui.state }), fk: `open:${key}`, onclick: (e) => { e.preventDefault(); startReview(key); } },
-        rowThumb(s), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, [L.waitReasons(f), s.area ? cap(s.area) : null].filter(Boolean).join(' · '))), pill(L.statusOf(f))));
+        rowThumb(s), h('span', { class: 'row-text' }, h('b', {}, titleOf(s)), h('small', {}, [L.waitReasons(causes ? { ...f, failing: 0 } : f), s.area ? cap(s.area) : null].filter(Boolean).join(' · ')),
+          causes ? h('small', { class: 'causes' }, `Failing: ${causes}`) : null), pill(L.statusOf(f))));
     };
     box.replaceChildren(h('div', { class: 'review-wrap' },
       h('header', { class: 'review-head' },
@@ -2777,8 +2933,8 @@ var WF_CANVAS_LOGIC = (() => {
       const src = `${BASE}ref/${encodeURIComponent(r.key)}`;
       return [h('h2', { tabindex: '-1' }, r.key), h('p', { class: 'lede' }, `${cap(r.kind || 'other')}${r.note ? `: ${r.note}` : ''}`),
         r.readable ? null : h('div', { class: 'check' }, h('b', {}, 'Unreadable'), h('p', {}, r.problem)),
-        !SNAP && r.readable && r.kind === 'image' ? h('img', { class: 'part', src, alt: r.note || r.key }) : null,
-        !SNAP && r.readable && ['page', 'screen', 'canvas'].includes(r.kind) ? h('iframe', { class: 'part tall', title: r.key, sandbox: 'allow-scripts', src }) : null,
+        !SNAP && r.readable && L.refShape(r) === 'picture' ? h('img', { class: 'part', src, alt: r.note || r.key }) : null,
+        !SNAP && r.readable && L.refShape(r) === 'page' ? h('iframe', { class: 'part tall', title: r.key, sandbox: 'allow-scripts', src }) : null,
         !SNAP && r.readable ? newTab(src, 'Open the file in a new tab') : null,
         r.link && /^https?:/i.test(r.link) ? newTab(r.link, 'Open the source') : null,
         r.file ? h('p', { class: 'sub' }, h('code', {}, r.file)) : null];
@@ -2791,14 +2947,14 @@ var WF_CANVAS_LOGIC = (() => {
       const spec = c.spec;
       const themes = (spec?.themes?.length ? spec.themes : (data.themes || []).map((x) => x.name)).filter((x) => x && x !== 'default');
       let theme = ui.componentTheme && themes.includes(ui.componentTheme) ? ui.componentTheme : (themes.includes(data.defaultTheme) ? data.defaultTheme : themes[0] || null);
-      const frame = SNAP ? null : h('iframe', { class: 'part tall', title: c.title, loading: 'lazy', sandbox: 'allow-scripts allow-same-origin', src: componentSrc(c.key, theme) });
+      const part = SNAP ? null : componentPart(c, theme);
       const out = SNAP ? null : h('a', { href: componentSrc(c.key, theme), target: '_blank', rel: 'noopener', class: 'out' }, 'Open the component in a new tab');
       const switches = !SNAP && themes.length > 1 ? h('div', { class: 'seg themes', role: 'group', 'aria-label': 'Theme' }, ...themes.map((name) => h('button', {
         type: 'button', fk: `theme:${name}`, 'aria-pressed': String(name === theme),
         onclick: (e) => {
           theme = name;
           ui.componentTheme = name;
-          frame.src = componentSrc(c.key, name);
+          part.wfDraw(name);
           out.href = componentSrc(c.key, name);
           for (const b of e.currentTarget.parentElement.children) b.setAttribute('aria-pressed', String(b === e.currentTarget));
         },
@@ -2807,7 +2963,7 @@ var WF_CANVAS_LOGIC = (() => {
       const tokensOf = c.tokens || [];
       return [h('h2', { tabindex: '-1' }, c.title, ' ', componentMarks(c)),
         h('p', { class: 'lede' }, c.kind === 'layout' ? 'A page shell that the screens lay out their parts in. The code must use it.' : 'A component that the screens reuse. The code must use it.'),
-        switches, frame, out ? h('p', {}, out) : null,
+        switches, part, out ? h('p', {}, out) : null,
         h('p', {}, h('a', { href: `#component=${encodeURIComponent(c.key)}`, class: 'out', fk: 'library' }, 'Open in the library')),
         c.code ? h('p', {}, h('code', {}, c.name), ' in ', h('code', {}, c.code)) : h('p', {}, 'New. The build makes it, and the code must use it.'),
         h('h3', {}, 'Variants', dims.length ? h('span', { class: 'count' }, String(dims.length)) : null),
@@ -2851,6 +3007,8 @@ var WF_CANVAS_LOGIC = (() => {
     $('#area').addEventListener('change', (e) => { ui.area = e.target.value; drawShell(); applyFilter(); });
     for (const id of ['#workflow', '#workflow-m']) {
       $(id).addEventListener('change', (e) => {
+        // The list of a phone also holds the other repos.
+        if (e.target.value.startsWith(REPO_VALUE)) { const name = e.target.value.slice(REPO_VALUE.length); e.target.value = ui.workflow; openRepo(name); return; }
         ui.workflow = e.target.value;
         $('#workflow').value = ui.workflow;
         $('#workflow-m').value = ui.workflow;
@@ -2858,6 +3016,11 @@ var WF_CANVAS_LOGIC = (() => {
         render();
       });
     }
+    $('#repo-select').addEventListener('change', (e) => { const name = e.target.value; e.target.value = data.repo || ''; openRepo(name); });
+    $('#phone-link').addEventListener('toggle', drawPhoneLink);
+    $('#phone-copy').addEventListener('click', copyPhoneLink);
+    $('#phone-url').addEventListener('focus', (e) => e.target.select());
+    addEventListener('hashchange', drawPhoneLink);
     $('#viewport').addEventListener('change', (e) => { ui.viewport = e.target.value; render(); });
     $('#state').addEventListener('change', (e) => setState(e.target.value));
     $('#version').addEventListener('change', (e) => { ui.version = e.target.value; drawPast(); render(); });
@@ -2996,6 +3159,26 @@ var WF_CANVAS_LOGIC = (() => {
   function reloadFrame(ifr) {
     try { ifr.contentWindow.location.reload(); } catch { const src = ifr.src; ifr.src = src; }
   }
+  /**
+   * Draw the page of a screen again from its files, in its place and its state. The mount forgot
+   * the files before. A page that now has a script goes to a frame, and a page that lost its script
+   * leaves the frame.
+   */
+  function reloadPage(el) {
+    const p = el.wfPage;
+    if (el.tagName !== 'IFRAME') {
+      if (el.wfView) el.wfView.reload({ fresh: false }).then((r) => { if (r.fallback) inFrame(el, r); });
+      else fillPage(el);
+      return;
+    }
+    if (!p || !MOUNT || SNAP) { reloadFrame(el); return; }
+    MOUNT.load(pageUrl(p.key, p.at)).then((page) => {
+      if (!page.ok || !el.parentNode) { reloadFrame(el); return; }
+      const host = frameFor(p.key, el.dataset.state, p.at, p);
+      host.style.cssText = el.style.cssText;
+      el.replaceWith(host);
+    });
+  }
   const holding = () => Boolean(ui.dragging || typing() || applying);
   /** Say that updates wait, while they do. */
   function held() {
@@ -3025,16 +3208,20 @@ var WF_CANVAS_LOGIC = (() => {
         lanes = d.lanes || (!d.pages.length && !d.all);
       }
       const touched = (key) => all || pages.includes(key);
+      // The mount keeps what it read: a page or a sheet changed, so the next draw reads the files again.
+      if (all || pages.length) MOUNT?.forget();
       for (const card of $$('#board > .card')) {
-        const ifr = card.firstChild.querySelector(':scope > iframe');
-        if (ifr && touched(card.dataset.key)) reloadFrame(ifr);
+        const page = pageIn(card.firstChild);
+        if (page && touched(card.dataset.key)) reloadPage(page);
       }
       for (const ifr of $$('#before iframe')) {
         if (all || lanes || parts.some((p) => ifr.src.endsWith(`/s/${p}`))) reloadFrame(ifr);
       }
+      // The page of a component in the panel is drawn again from its files.
+      if (all || lanes || parts.length) for (const box of $$('#panel .part-box')) { MOUNT?.forget(); box.wfDraw(); }
       if (focusState && touched(focusState.key)) {
-        // The page of the open screen loads again in its frame; the sheet around it stays.
-        for (const ifr of $$('#focus .view iframe')) reloadFrame(ifr);
+        // The page of the open screen is drawn again in its place; the sheet around it stays.
+        for (const page of $$('#focus .view .wf-page, #focus .view iframe')) reloadPage(page);
       }
       const n = all ? 'every screen' : pages.length ? plural(pages.length, 'screen') : null;
       if (n) say(`Updated: ${n}`);
@@ -3061,7 +3248,7 @@ var WF_CANVAS_LOGIC = (() => {
     // The review: the keys of the screens to walk, and whether a review runs.
     reviewQueue: () => (data ? reviewQueue() : []),
     reviewing: () => Boolean(ui.review),
-    go, setView, render, openScreen, traceFrom, closePanel, tokenSpecimen, tokenValue, componentMarks, componentSrc, say,
+    go, setView, render, openScreen, traceFrom, closePanel, tokenSpecimen, tokenValue, componentMarks, componentSrc, say, inspect,
   });
   wire();
   setLive(!SNAP);

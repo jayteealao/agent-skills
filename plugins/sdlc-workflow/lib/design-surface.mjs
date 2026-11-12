@@ -282,6 +282,7 @@ export function screenTemplate(key, title) {
   html[data-state="loading"] [data-state~="loading"], html[data-state="error"] [data-state~="error"],
   html[data-state="worst"] [data-state~="worst"] { display: block; }
 </style>
+<!-- The only script of the page: the canvas then draws the page with no frame. A control that opens or closes a part changes a class: onclick="this.closest('.shell').classList.toggle('open')". -->
 <script>
   // The canvas and the checks open a state with ?state=<name>.
   document.documentElement.dataset.state = new URLSearchParams(location.search).get('state') || 'default';

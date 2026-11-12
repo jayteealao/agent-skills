@@ -21,7 +21,7 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 test('the library script loads with no document and gives its rules', () => {
   assert.equal(typeof LL.pickCell, 'function');
   assert.equal(typeof LL.tokenTable, 'function');
-  assert.doesNotMatch(source, /innerHTML|postMessage|window\.prompt/, 'it builds elements, and reads the pages directly');
+  assert.doesNotMatch(source, /innerHTML|postMessage|window\.prompt/, 'it builds elements, and no markup of a page goes into the canvas but through the mount');
 });
 
 test('a cell names its case by its pairs, and a cell with no state is the default state', () => {
@@ -84,6 +84,40 @@ test('a grid with no dimension is one row of states, two cells of one case do no
   assert.deepEqual(none.place, [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }]);
   assert.equal(LL.matrixOf({ variants: { a: ['1'], b: ['1'], c: ['1'] }, states: [] }, ['a=1 b=1 c=1']), null);
   assert.deepEqual(plain(LL.matrixOf({ variants: {}, states: [] }, [])), { rows: [], cols: ['default'], place: [] });
+});
+
+test('an object names its case, and a picked object gives the controls the values that its cell names', () => {
+  assert.equal(LL.caseWords({ variant: { tone: 'solid', size: 'sm' }, state: 'hover' }), 'tone=solid size=sm state=hover');
+  assert.equal(LL.caseWords({ variant: {}, state: 'default' }), 'state=default');
+  assert.equal(LL.caseWords(null), 'state=default');
+  // The cell names one dimension only: the other keeps the value that the controls had.
+  assert.deepEqual(plain(LL.caseOver({ variant: { tone: 'ghost', size: 'md' }, state: 'default' }, 'tone=solid state=hover')), { variant: { tone: 'solid', size: 'md' }, state: 'hover' });
+  assert.deepEqual(plain(LL.caseOver(null, 'tone=solid')), { variant: { tone: 'solid' }, state: 'default' });
+});
+
+test('the line for the agent names the component, its page, the case and the theme', () => {
+  assert.equal(LL.agentNote({ key: 'button' }, 'tone=solid state=hover', null, 'dark'), 'Component button (.ai/design/components/button.html), case tone=solid state=hover, theme dark: ');
+  assert.equal(LL.agentNote({ key: 'button' }, null, { variant: { tone: 'ghost' }, state: 'hover' }), 'Component button (.ai/design/components/button.html), case tone=ghost state=hover, which no specimen cell shows: ');
+});
+
+test('a page shell is drawn at a viewport and scaled down to its room, never up', () => {
+  assert.equal(LL.shellViewport(['phone', 'desktop'], 'desktop', 'phone'), 'desktop', 'the viewport picked in the library');
+  assert.equal(LL.shellViewport(['phone', 'desktop'], 'gone', 'phone'), 'phone', 'else the viewport of the board');
+  assert.equal(LL.shellViewport(['phone', 'desktop'], null, 'gone'), 'phone', 'else the first');
+  assert.equal(LL.shellViewport([], null, null), null);
+  assert.equal(LL.fitWidth(1280, 640), 0.5);
+  assert.equal(LL.fitWidth(400, 640), 1);
+  assert.equal(LL.fitWidth(0, 640), 1);
+  assert.equal(LL.fitWidth(1280, 0), 1);
+  assert.ok(LL.EMPTY_CELL < LL.FILL_WIDTH);
+});
+
+test('the cases are objects of the canvas, and a page that cannot be mounted stays in a frame with its reason', () => {
+  assert.match(source, /WF_CANVAS_MOUNT/, 'the library draws through the mount engine');
+  assert.match(source, /pick: pickOf\(index, theme\), theme, hug: true/, 'one mounted cell for each object, in its theme');
+  assert.match(source, /role: 'button', tabindex: '0', 'aria-pressed'/, 'an object takes the focus and the selection');
+  assert.match(source, /Drawn in a frame: /);
+  assert.match(source, /if \(lib\.data !== d\) mounter\(\)\?\.forget\(\)/, 'a new state reads the pages again');
 });
 
 test('the component list puts the page shells first and keeps what the search matches', () => {
@@ -164,4 +198,6 @@ test('the canvas loads the library, gives it the board place, and hands it the a
   assert.match(canvas, /if \(libraryView\(\) \|\| side\) return;/);
   assert.match(canvas, /window\.WF_CANVAS_LIBRARY\?\.fromHash\(\)/);
   assert.match(canvas, /#component=\$\{encodeURIComponent\(c\.key\)\}/, 'the component panel links to the library');
+  assert.match(canvas, /MOUNT\.mount\(host, componentSrc\(c\.key, null\), \{ panel: name \}\)/, 'the component panel draws the page in the canvas');
+  assert.ok(page.indexOf('/canvas/canvas-mount.js') < page.indexOf('/canvas/canvas.js'), 'the mount engine loads first');
 });

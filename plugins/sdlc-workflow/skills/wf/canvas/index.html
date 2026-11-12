@@ -15,6 +15,7 @@
     <span class="logo" id="logo" aria-hidden="true">D</span>
     <span class="side-name">
       <b id="repo">Design canvas</b>
+      <label class="repo-pick" id="repo-pick" hidden><span class="sr">Repo</span><select id="repo-select"></select></label>
       <span class="side-sub" id="wf-name"></span>
       <label class="wf-pick" id="wf-pick" hidden><span class="sr">Workflow</span><select id="workflow"><option value="">All workflows</option></select></label>
     </span>
@@ -32,6 +33,12 @@
   </div>
   <div class="side-foot">
     <span class="live" id="live" role="status">Live · updates as agents draw</span>
+    <details class="phone-link" id="phone-link" hidden>
+      <summary>Open on your phone</summary>
+      <p>The link of this view. Your phone must be on the same tailnet as this computer.</p>
+      <input id="phone-url" type="text" readonly aria-label="The link of this view for your phone">
+      <button type="button" class="btn" id="phone-copy">Copy link</button>
+    </details>
   </div>
 </nav>
 <div class="app">
@@ -39,7 +46,7 @@
   <div class="bar-name">
     <b id="repo-m">Design canvas</b>
     <span class="side-sub" id="sub-m"></span>
-    <label class="wf-pick" id="wf-pick-m" hidden><span class="sr">Workflow</span><select id="workflow-m"><option value="">All workflows</option></select></label>
+    <label class="wf-pick" id="wf-pick-m" hidden><span class="sr" id="switch-m-name">Workflow</span><select id="workflow-m"><option value="">All workflows</option></select></label>
   </div>
   <h1 class="bar-title" id="view-title">Screens</h1>
   <button type="button" class="icon" id="search-btn" aria-label="Search screens" aria-expanded="false" aria-controls="q"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
@@ -99,6 +106,7 @@
 <aside id="panel" hidden aria-label="Detail"></aside>
 <div id="focus" hidden role="dialog" aria-modal="true" aria-label="Screen"></div>
 <div id="status" role="status"></div>
+<script src="/canvas/canvas-mount.js"></script>
 <script src="/canvas/canvas-inspect.js"></script>
 <script src="/canvas/canvas.js"></script>
 <script src="/canvas/canvas-library.js"></script>
