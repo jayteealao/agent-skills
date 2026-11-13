@@ -1,0 +1,16 @@
+{
+  "$comment": "The capability tier of each model that a run of /wf orchestrate may use. A is the strongest model of a vendor that the person allows; B is the standard coding model; C is a small, fast model with no role yet. judge-only: the model writes scenarios and validates, and never builds. runs: the agent programs that can run the model, with the provider name that pi needs, and with `model` when the provider names the model in another way. host: the name that the subagent tool of a host uses for the model. A model that is not in this file has no tier, and no agent of a run uses it. A Fable-class or Mythos-class model is refused whatever this file says. A file ~/.sdlc/orchestrate-tiers.json on a machine replaces the models of this file that it names.",
+  "models": {
+    "claude-opus-5-5": { "tier": "A", "vendor": "anthropic", "aliases": ["opus"], "runs": { "claude": {}, "pi": { "provider": "anthropic" } }, "host": { "claude": "opus", "pi": "anthropic/claude-opus-5-5" } },
+    "claude-sonnet-5-5": { "tier": "B", "vendor": "anthropic", "aliases": ["sonnet"], "runs": { "claude": {}, "pi": { "provider": "anthropic" } }, "host": { "claude": "sonnet", "pi": "anthropic/claude-sonnet-5-5" } },
+    "gpt-6-astra": { "tier": "A", "vendor": "openai", "judge-only": true, "runs": { "codex": {}, "pi": { "provider": "openai-codex" } }, "host": { "codex": "gpt-6-astra", "pi": "openai-codex/gpt-6-astra" } },
+    "gpt-6.1-sol": { "tier": "B", "vendor": "openai", "runs": { "codex": {}, "pi": { "provider": "openai-codex" } }, "host": { "codex": "gpt-6.1-sol", "pi": "openai-codex/gpt-6.1-sol" } },
+    "glm-5.3": { "tier": "B", "vendor": "zai", "runs": { "pi": { "provider": "openrouter", "model": "z-ai/glm-5.3" } }, "host": { "pi": "openrouter/z-ai/glm-5.3" } },
+    "glm-5.3-prime": { "tier": "B", "vendor": "zai", "runs": { "pi": { "provider": "openrouter", "model": "z-ai/glm-5.3-prime" } }, "host": { "pi": "openrouter/z-ai/glm-5.3-prime" } },
+    "deepseek-v4-pro": { "tier": "B", "vendor": "deepseek", "runs": { "pi": { "provider": "openrouter", "model": "deepseek/deepseek-v4-pro" } }, "host": { "pi": "openrouter/deepseek/deepseek-v4-pro" } },
+    "minimax-m3": { "tier": "B", "vendor": "minimax", "runs": { "pi": { "provider": "openrouter", "model": "minimax/minimax-m3" } }, "host": { "pi": "openrouter/minimax/minimax-m3" } },
+    "gpt-6-luna": { "tier": "C", "vendor": "openai", "runs": { "pi": { "provider": "openai-codex" } } },
+    "glm-5.3-flash": { "tier": "C", "vendor": "zai", "runs": { "pi": { "provider": "openrouter", "model": "z-ai/glm-5.3-flash" } } },
+    "deepseek-v4.1-flash": { "tier": "C", "vendor": "deepseek", "runs": { "pi": { "provider": "openrouter", "model": "deepseek/deepseek-v4.1-flash" } } }
+  }
+}

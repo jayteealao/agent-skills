@@ -1,0 +1,10 @@
+{
+  "about": "The faults planted in app/tally.mjs. A validator that passes an outcome with a planted fault is too lenient: tune its task until it fails each one and still passes the control.",
+  "faults": [
+    { "key": "add-drops-negatives", "outcome": "OUT-TALLY-001", "judge": "measure", "how": "`add` leaves each negative number out of the sum.", "expect": "fail" },
+    { "key": "mean-of-nothing", "outcome": "OUT-TALLY-002", "judge": "product-validator", "how": "`mean` with no number prints NaN. The path with numbers is correct, so only a validator that tries the empty case finds it.", "expect": "fail" }
+  ],
+  "control": [
+    { "outcome": "OUT-TALLY-003", "judge": "measure", "expect": "pass" }
+  ]
+}

@@ -75,7 +75,7 @@ When a workflow changes screens, `/wf design` draws each screen as an HTML page 
 
 `scripts/wf.mjs design server start` serves a canvas of every screen of every repo on this computer, on 127.0.0.1 and your tailnet. Open it on a phone to review the screens and comment on them. `scripts/wf.mjs design migrate <repo>` moves the design boards of an older workflow onto the surface, once per repo. [skills/wf/reference/design/_surface.md](skills/wf/reference/design/_surface.md) lists every design command.
 
-## The 18 keys
+## The 19 keys
 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Does |
@@ -94,6 +94,7 @@ When a workflow changes screens, `/wf design` draws each screen as an HTML page 
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
 | `yolo` | Autonomous driver. Resolves each gate by written policy. |
 | `campaign` | Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet. |
+| `orchestrate` | Takes one instruction, one intake or one list of work packets from your words to proof, with agents and without you. The lead interviews you, writes a vision contract of checkable outcomes, and you approve it once. Builders do the work, and separate validators judge it: a validator that runs the product, hidden scenarios that no builder sees, measured outcomes, and a validator of deliverables. The run comes back to you only for a change of the contract, ends with an evidence page, and stops before the merge. |
 | `loop` | Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person. |
 | `status` | Dashboard; per-slug detail with the next command; `deep` drift check; `advise` sequencing. `status recap` is the plain-language catch-up for a slug or a branch. |
 | `project` | The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`). |

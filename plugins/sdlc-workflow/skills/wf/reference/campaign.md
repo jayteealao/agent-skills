@@ -32,6 +32,8 @@ Run `<cmd> next "<root>" <source-slug>`. It prints one action: `{ ok, action, wh
 
 When the person wants to stop the call, run `then.next` with `--end`.
 
+When an orchestrate run owns the list, `next` fails and names the run. Tell the person: that run builds the list, and it gives the list back with `/wf orchestrate <slug> hand back` ([orchestrate/_changes.md](orchestrate/_changes.md)). The hand-back prints one `<cmd> accept` command, which sets each work packet that the run proved to `done`. Run `accept` only when a hand-back prints it.
+
 ## The actions
 
 ### `migrate`

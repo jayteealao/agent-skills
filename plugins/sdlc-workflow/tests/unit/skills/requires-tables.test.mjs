@@ -39,7 +39,7 @@ const NO_WRITES = new Map([
 // References without a table. `_*.md` sub-procedures never carry one; these
 // are the other files, each loaded by a stage reference that owns the table.
 const NO_TABLE = [
-  [/^auto\.md$|^yolo\.md$|^campaign\.md$|^goal\.md$|^optimize\.md$/, 'lifecycle drivers and loops: they run stage references and scripts; intake/optimize.md carries the optimize table'],
+  [/^auto\.md$|^yolo\.md$|^campaign\.md$|^orchestrate\.md$|^goal\.md$|^optimize\.md$/, 'lifecycle drivers and loops: they run stage references and scripts; intake/optimize.md carries the optimize table'],
   [/^route\.md$/, 'the router: writes nothing; it loads the reference of the command the person confirms'],
   [/^setup\.md$/, 'the first-run setup: the setup command writes the .ai/ tree and the config, not a stage artifact'],
   [/^intake\/amend\.md$/, 'edits 00-index.md only; writes no stage artifact'],

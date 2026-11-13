@@ -1,7 +1,7 @@
 ---
 name: wf
 description: The single entry point for the SDLC lifecycle. Runs one operation per key — the nine stages (intake → design → slice → plan → implement → verify → review → ship → retro), the drivers (probe, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to the folder of the workflow, `<wf-dir>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
-argument-hint: "<slug> | <intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|loop|status|project|docs> [args...]"
+argument-hint: "<slug> | <intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|yolo|campaign|orchestrate|loop|status|project|docs> [args...]"
 ---
 
 # Role

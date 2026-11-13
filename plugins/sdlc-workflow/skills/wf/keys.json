@@ -213,6 +213,22 @@
       }
     },
     {
+      "name": "orchestrate",
+      "group": "drivers",
+      "args": ["<slug> [text]", "text"],
+      "needs": "none",
+      "does": "Take an instruction, an intake or a list from your words to proof, with agents. Stops before the merge.",
+      "summary": "Takes one instruction, one intake or one list of work packets from your words to proof, with agents and without you. The lead interviews you, writes a vision contract of checkable outcomes, and you approve it once. Builders do the work, and separate validators judge it: a validator that runs the product, hidden scenarios that no builder sees, measured outcomes, and a validator of deliverables. The run comes back to you only for a change of the contract, ends with an evidence page, and stops before the merge.",
+      "writes": "`orchestrate/contract.yaml`, `orchestrate/evidence.html`",
+      "artifacts": ["orchestrate/contract.yaml", "orchestrate/evidence.html"],
+      "reference": "reference/orchestrate.md",
+      "hosts": {
+        "claude": "full",
+        "codex": "full",
+        "pi": "full"
+      }
+    },
+    {
       "name": "loop",
       "group": "drivers",
       "args": ["goal <slug> [resume|status|clear|text]", "optimize <slug>|text", "prototype text", "prototype <slug>|<branch> [text]"],

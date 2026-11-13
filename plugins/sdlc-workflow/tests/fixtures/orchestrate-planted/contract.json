@@ -1,0 +1,9 @@
+{
+  "source": { "kind": "instruction" },
+  "commands": { "tests": "node app/check-max.mjs", "ci": "none" },
+  "outcomes": [
+    { "id": "OUT-TALLY-001", "says": "`tally add` prints the sum of every number that it gets, negative numbers included.", "kind": "measure", "proof": { "command": "node app/check-add.mjs" }, "source": "fixture" },
+    { "id": "OUT-TALLY-002", "says": "`tally mean` with no number prints `no numbers`. This outcome covers the case with no number only.", "kind": "behaviour", "proof": { "surface": "the command `node app/tally.mjs mean`", "evidence": "the output of the command" }, "source": "fixture" },
+    { "id": "OUT-TALLY-003", "says": "`tally max` prints the largest number that it gets.", "kind": "measure", "proof": { "command": "node app/check-max.mjs" }, "source": "fixture" }
+  ]
+}

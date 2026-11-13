@@ -62,9 +62,9 @@ import { aggregateCost, readCostRows, rebookedEntries } from '../lib/cost-ledger
 import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 
 /** The sub-commands of this script: a fix names only these. */
-export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'slice-order', 'migrate', 'remove-worktree']);
+export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
 
-const USAGE ='Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|next|plan|digest|open|land|start|built|reopen|done|close|skip|unskip|ahead|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
+const USAGE ='Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|next|plan|digest|open|land|start|built|reopen|done|close|accept|skip|unskip|ahead|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 // A usage error names its repair like every other failure.
 const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
 
@@ -1388,7 +1388,43 @@ function howFarOf(v) {
  * source does not hold yet comes with `recordHowFar`, the command that records it; `ask-how-far`
  * returns the last recorded answer as `howFar`.
  */
+/** The file in the folder of a list that names the orchestrate run that owns the list (scripts/orchestrate.mjs). */
+const OWNER_FILE = 'orchestrate-owner.json';
+const ownerOf = (root, src) => readJson(join(sourceDir(root, src), OWNER_FILE));
+
+/**
+ * The hand-back of an orchestrate run: each work packet that the run passed becomes done, with
+ * the validation records of the run as its proof in place of the fidelity rows and the try-out.
+ * Only the hand-back of the owner asks for it: the owner file names the packets.
+ */
+function acceptCmd(root, src) {
+  const owner = ownerOf(root, src);
+  if (!owner?.['handing-back']) {
+    throw refuse(`${src}: no hand-back of an orchestrate run is ready`, agentFix('Only the hand-back of an orchestrate run accepts work packets this way. A work packet of the walk is done through built and done.', campaignLine(root, 'next', src)));
+  }
+  const { packets } = readList(root, src);
+  const { path: boardPath, board } = boardOf(root, src);
+  const accepted = [];
+  for (const key of Array.isArray(owner.accept) ? owner.accept : []) {
+    const packet = packets.find((p) => p.key === key);
+    if (!packet || ['done', 'dropped'].includes(packet.state)) continue;
+    setPacketState(packet, 'done');
+    const onBoard = board?.work?.find((w) => w.key === key);
+    if (onBoard) onBoard.state = 'done';
+    accepted.push(key);
+  }
+  if (board && accepted.length) writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}
+`);
+  appendHistory(sourceDir(root, src), `The orchestrate run ${owner.owner} handed the list back. Done by its validation records (${owner.evidence ?? 'no evidence page'}): ${accepted.join(', ') || 'none'}.`);
+  rmSync(join(sourceDir(root, src), OWNER_FILE), { force: true });
+  return { ok: true, source: src, accepted, owner: owner.owner, evidence: owner.evidence ?? null, then: { next: campaignLine(root, 'next', src) } };
+}
+
 function nextCmd(root, src, f = {}) {
+  const owner = ownerOf(root, src);
+  if (owner?.owner) {
+    return { ok: false, error: `the list ${src} is owned by the orchestrate run ${owner.owner}`, fix: personFix(`The run ${owner.owner} builds this list. To go on with the walk, tell that run to hand the list back: /wf orchestrate ${owner.owner} hand back.`) };
+  }
   const end = Boolean(f.end);
   const st = statusCmd(root, src, { end });
   if (!st.ok) return st;
@@ -2319,6 +2355,7 @@ function dispatchCmd(cmd, pos, f) {
     case 'reopen': return reopenCmd(root, second, rest);
     case 'done': return doneCmd(root, second, rest, f);
     case 'close': return closeCmd(root, second, rest);
+    case 'accept': return acceptCmd(root, second);
     // `slice-order <checkout> <slug> add`: the second argument is the slug.
     case 'slice-order': return sliceOrder(root, second, rest, f);
     case 'migrate': return migrateCmd(root, second, rest, f);

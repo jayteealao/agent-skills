@@ -12,7 +12,7 @@ You turn the person's words into one `/wf` command. You do not do the work of a 
 Step 0 gives you every token, the key candidate included, and the reason it did not dispatch:
 
 - `empty`: `/wf` has no arguments (Step 2).
-- `not a key`: the first token is not one of the 18 keys of the [key tables](#key-tables).
+- `not a key`: the first token is not one of the 19 keys of the [key tables](#key-tables).
 - `missing <position>`: a required position of the key is empty, for example the slug of `/wf implement`.
 - `<token> does not fit <position>`: a token is not of the class that the Arguments cell names.
 - `<token> does not fit the form`: tokens are left after the last position of every form.
@@ -154,6 +154,7 @@ The dispatch reads the forms of these tables from `skills/wf/keys.json` and chec
 | `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before ship. | none |
 | `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
+| `orchestrate` | `<slug> [text]` · `text` | Take an instruction, an intake or a list from your words to proof, with agents. Stops before the merge. | `orchestrate/contract.yaml`, `orchestrate/evidence.html` |
 | `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 
 ### Navigation · routers

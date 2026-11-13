@@ -36,7 +36,7 @@ Every mode that creates a workflow names it in three steps. A mode card cites th
 **Reserved words.** `wf/SKILL.md` reads a command word before it reads a slug, so a new
 workflow's slug must not be one of these words:
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
-- the keys: `intake`, `shape`, `design`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `probe`, `yolo`, `campaign`, `loop`, `status`, `project`, `docs`;
+- the keys: `intake`, `shape`, `design`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `probe`, `yolo`, `campaign`, `orchestrate`, `loop`, `status`, `project`, `docs`;
 - the sub-keys: `goal`, `optimize`, `prototype`, `recap`, `ship-plan`, `observability`;
 - the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`, `amend`, `modernize`, `close`.
 <!-- end generated -->

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>wf Command Reference</title>
-<meta name="wf:commands" content="campaign, design, docs, handoff, implement, intake, intake adopt, intake amend, intake audit, intake brainstorm, intake close, intake discover, intake fix, intake hotfix, intake ideate, intake investigate, intake modernize, intake optimize, intake rca, intake refactor, intake simplify, intake task, intake update-deps, loop, loop goal, loop optimize, loop prototype, plan, probe, project, project observability, project ship-plan, retro, review, shape, ship, slice, status, status recap, verify, yolo">
+<meta name="wf:commands" content="campaign, design, docs, handoff, implement, intake, intake adopt, intake amend, intake audit, intake brainstorm, intake close, intake discover, intake fix, intake hotfix, intake ideate, intake investigate, intake modernize, intake optimize, intake rca, intake refactor, intake simplify, intake task, intake update-deps, loop, loop goal, loop optimize, loop prototype, orchestrate, plan, probe, project, project observability, project ship-plan, retro, review, shape, ship, slice, status, status recap, verify, yolo">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -456,7 +456,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 <div class="shell" id="top">
   <nav class="toc" aria-label="Sections">
     <ol id="toc"></ol>
-    <p class="foot">sdlc-workflow<br>18 keys · 6 sub-keys<br>17 intake modes</p>
+    <p class="foot">sdlc-workflow<br>19 keys · 6 sub-keys<br>17 intake modes</p>
   </nav>
 
   <main id="main">
@@ -465,7 +465,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       <h1>Every <code class="hp">/wf</code> command, on one page</h1>
       <p class="lede">One command runs the whole software lifecycle, from a rough idea to a shipped release and its retro. Find your situation below, copy the command, and fill in the parts in <span class="t-ph">&lt;angle brackets&gt;</span>. Each run writes its record into <code>.ai/workflows/&lt;slug&gt;/</code> and ends with the exact next command.</p>
       <ul class="stats">
-        <li><b>18</b> keys</li><li><b>6</b> sub-keys</li><li><b>17</b> intake modes</li><li><b>11</b> review rubrics</li><li><b>3</b> hosts</li>
+        <li><b>19</b> keys</li><li><b>6</b> sub-keys</li><li><b>17</b> intake modes</li><li><b>11</b> review rubrics</li><li><b>3</b> hosts</li>
       </ul>
     </div>
 
@@ -477,7 +477,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
 
     <section id="grammar" data-title="How a command reads" class="static">
       <h2><span class="n">02</span>How a command reads</h2>
-      <p class="intro">The first word after the prefix is usually one of the 18 keys. The second word can be a sub-key or an intake mode. Everything else passes to the key unchanged. There are no flags to learn: position carries meaning. Words that do not fit a key go to the router, which turns them into one command.</p>
+      <p class="intro">The first word after the prefix is usually one of the 19 keys. The second word can be a sub-key or an intake mode. Everything else passes to the key unchanged. There are no flags to learn: position carries meaning. Words that do not fit a key go to the router, which turns them into one command.</p>
       <div class="anatomy">
         <div class="anat-line">
           <span class="seg-t c-pre"><code class="hp">/wf</code><small>host prefix</small></span>
@@ -1149,6 +1149,95 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       </div>
     </section>
 
+    <section id="orchestrate-guide" data-title="Orchestrate in depth">
+      <h2><span class="n">07</span>Orchestrate, step by step</h2>
+      <p class="intro">Use orchestrate when you want one piece of work taken from your words to proof without you in the loop. You agree a list of outcomes once. Agents then build the work, and other agents that did not build it judge it. The run comes back to you only when an outcome itself is in question. Start it with <code><span class="hp">/wf</span> orchestrate &lt;what you want&gt;</code>, or with the slug of an intake or of a list of work packets.</p>
+      <nav class="subnav static" aria-label="Orchestrate topics">
+        <a href="#og-flow">The flow</a><a href="#og-contract">The contract</a><a href="#og-proof">Who proves what</a><a href="#og-agents">The agents</a><a href="#og-stops">When it stops</a><a href="#og-list">A list of work packets</a><a href="#og-files">Files</a>
+      </nav>
+
+      <h3 class="group" id="og-flow">The flow <em>one approval, then no stop until the end</em></h3>
+      <ol class="ladder">
+        <li><span class="if">1 · agents</span><span class="then"><b>You say which agents the run may use.</b> The lead shows the agents that this machine can run, with the tier of each, and asks once.</span></li>
+        <li><span class="if">2 · interview</span><span class="then"><b>The lead asks about the gaps.</b> It reads what is decided already, and asks only about results that you can see. Only you end the interview.</span></li>
+        <li><span class="if">3 · design</span><span class="then"><b>You approve each design.</b> An outcome about how something looks gets its design first, in the same run. Design is taste, so only you approve it.</span></li>
+        <li><span class="if">4 · approval</span><span class="then"><b>You approve the contract in chat.</b> The lead plays the outcomes back, shows about three sample scenarios and the cost estimate, and asks one question.</span></li>
+        <li><span class="if">5 · build and prove</span><span class="then"><b>The run works without you.</b> For each milestone: builders, then validators, then fix units for each confirmed failure.</span></li>
+        <li><span class="if">6 · end</span><span class="then"><b>The end proof, then the evidence.</b> Each outcome is proved again on the final build with scenarios that were held back. The run opens a draft PR, watches CI, writes the evidence page, and asks one question: "Reverse any of these?"</span></li>
+      </ol>
+      <p class="aside" data-s>A small contract takes a light path: at most 2 outcomes, no design, and work that one builder can do in one unit. It has one builder and one validator for each outcome, and no hidden scenarios. A contract can move up to the full path, and never down.</p>
+
+      <h3 class="group" id="og-contract">The contract <em>the only definition of done</em></h3>
+      <ul class="rules">
+        <li data-s><b>Outcomes, not tasks</b><span>An outcome says what is true when the work is done, in your words where possible, and names how it is proved.</span></li>
+        <li data-s><b>No agent changes it</b><span>After your approval, a script refuses each change of an outcome that you did not approve. A change is proposed, shown to you in chat, and applied after your yes.</span></li>
+        <li data-s><b>No agent marks it passed</b><span>Only the result of a validator, for the current commit, makes an outcome passed. A new commit makes each earlier pass old until the end proof runs it again.</span></li>
+        <li data-s><b>Standing outcomes</b><span>The script adds what you did not say: the tests of the repo pass, the charter and your steers hold, the project rules hold, the rest of the product works as before, and CI passes.</span></li>
+        <li data-s><b>Unproven is not passed</b><span>When this machine cannot produce the evidence, for example with no device, the work is built and the outcome is marked unproven. Ship waits for you.</span></li>
+      </ul>
+
+      <h3 class="group" id="og-proof">Who proves what <em>the builder never judges its own work</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>The outcome is about</th><th>Judged by</th><th>How</th></tr></thead>
+          <tbody>
+            <tr data-s><td>what a user does and sees</td><td>The product validator</td><td>It uses the running product as a user does, with hidden scenarios. It does not read the code or the report of the builder.</td></tr>
+            <tr data-s><td>what a command can measure</td><td>A script</td><td>It runs the command of the outcome. A failure runs a second time before it counts.</td></tr>
+            <tr data-s><td>how something looks</td><td>The product validator</td><td>It checks each item of a checklist that was written from the design that you approved.</td></tr>
+            <tr data-s><td>a document, with no product to observe</td><td>The artifact validator</td><td>It opens the source of each claim. The page marks such an outcome "judged, not observed".</td></tr>
+            <tr data-s><td>the code itself</td><td>The code validator</td><td>Its findings go into the findings ledger. It cannot pass or fail an outcome, except a breach of a written rule of the project.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="rules">
+        <li data-s><b>Hidden scenarios</b><span>One agent writes the scenarios before any builder starts, in a folder outside the repo. No builder reads them. A fix unit is written from what the validator observed, in general words.</span></li>
+        <li data-s><b>Two sets</b><span>The working set is used during the build. The reserve set is used once, at the end proof, so the work cannot be fitted to it.</span></li>
+        <li data-s><b>A failure is confirmed</b><span>One failed validation is not a round. A second fresh validator must agree, and two of three decide.</span></li>
+        <li data-s><b>Three rounds</b><span>An outcome that fails 3 confirmed rounds becomes a question to you.</span></li>
+      </ul>
+
+      <h3 class="group" id="og-agents">The agents <em>you choose the set, the lead picks from it</em></h3>
+      <ul class="rules">
+        <li data-s><b>You choose</b><span>The lead asks once which agents the run may use. A script refuses each other agent.</span></li>
+        <li data-s><b>Three programs</b><span>An agent can run in Claude Code, in Codex or in pi. Where herdr core (<code>hc</code>) is installed, each agent runs in its own terminal that you can watch.</span></li>
+        <li data-s><b>Tiers</b><span>Each model has a capability tier. The scenarios, the validators and the design need the highest tier. A validator from another vendor than the builders is preferred.</span></li>
+        <li data-s><b>Never a Fable-class model</b><span>You choose the model of the lead with your session. No other agent of a run is a Fable-class or Mythos-class model.</span></li>
+        <li data-s><b>One checkout</b><span>Each agent works in the main checkout, on the branch of the run. Two builders run at once only when their files do not meet. No builder writes while a validator runs.</span></li>
+      </ul>
+
+      <h3 class="group" id="og-stops">When it stops <em>only for the contract</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>What happens</th><th>The run</th></tr></thead>
+          <tbody>
+            <tr data-s><td>a build choice</td><td>The lead settles it, and records it. At the end you get one question: "Reverse any of these?"</td></tr>
+            <tr data-s><td>an outcome is wrong, conflicts with another, or failed 3 rounds</td><td>Holds that outcome as a question to you, and goes on with each outcome that does not depend on it.</td></tr>
+            <tr data-s><td>a written rule of the project is against an outcome</td><td>Holds it as a question to you.</td></tr>
+            <tr data-s><td>an agent asks for a permission</td><td>Never gives it. The agent ends, and the unit goes to another agent.</td></tr>
+            <tr data-s><td>a usage limit</td><td>Gives the unit to an agent of the same tier from another vendor, or waits for the reset.</td></tr>
+            <tr data-s><td>you change your mind</td><td><code><span class="hp">/wf</span> orchestrate &lt;slug&gt; &lt;the new words&gt;</code> proposes a contract change. The run does not stop while you answer.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>The run has no cost limit and no time limit. It never merges, and it never runs ship. The next step is <code><span class="hp">/wf</span> ship &lt;slug&gt;</code>.</p>
+
+      <h3 class="group" id="og-list">A list of work packets <em>take a walk over, and give it back</em></h3>
+      <ul class="rules">
+        <li data-s><b>Take over</b><span><code><span class="hp">/wf</span> orchestrate &lt;slug&gt;</code>, with the slug of a brainstorm or an ideate workflow, takes its list. Each acceptance criterion becomes an outcome. While the run owns the list, <code><span class="hp">/wf</span> campaign &lt;slug&gt;</code> refuses it and names the run.</span></li>
+        <li data-s><b>Work that is done counts</b><span>The outcomes of a done work packet start as passed, and the end proof still runs them on the final build.</span></li>
+        <li data-s><b>A reopened brainstorm</b><span>The run does not stop. Each change of the list becomes one proposed contract change, with one question to you.</span></li>
+        <li data-s><b>Hand back</b><span><code><span class="hp">/wf</span> orchestrate &lt;slug&gt; hand back</code> gives the list back to the walk at a clean boundary: each work packet is fully passed or not started. The walk then marks each passed work packet done.</span></li>
+      </ul>
+
+      <h3 class="group" id="og-files">Files</h3>
+      <ul class="rules">
+        <li data-s><b>The contract</b><span><code>.ai/workflows/&lt;slug&gt;/orchestrate/contract.yaml</code>. Only the script writes it.</span></li>
+        <li data-s><b>The evidence page</b><span><code>.ai/workflows/&lt;slug&gt;/orchestrate/evidence.html</code>: each outcome with its state, what each validator observed, the choices of the lead, and the open findings.</span></li>
+        <li data-s><b>The same records</b><span>A run is a normal workflow, so <code><span class="hp">/wf</span> status</code> and <code><span class="hp">/wf</span> ship</code> read it like each other workflow.</span></li>
+        <li data-s><b>The hidden scenarios</b><span>In the machine folder of the plugin, outside the repo and outside the records.</span></li>
+      </ul>
+    </section>
+
     <section id="loops-guide" data-title="Loops in depth">
       <h2><span class="n"></span>Loops, step by step</h2>
       <p class="intro">The <code>loop</code> key holds three loops. Each one repeats a unit of work until something other than the agent's own claim says it is done: a script, a measured number, or you.</p>
@@ -1289,13 +1378,13 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     </section>
 
     <section id="nav" data-title="Status and project">
-      <h2><span class="n">07</span>Status, project and docs</h2>
+      <h2><span class="n">08</span>Status, project and docs</h2>
       <p class="intro">Find where you are, catch up, and keep the project-level contracts that the release and telemetry steps read.</p>
       <div class="cmds" data-group="nav"></div>
     </section>
 
     <section id="review" data-title="Review dimensions">
-      <h2><span class="n">08</span>Review dimensions</h2>
+      <h2><span class="n">09</span>Review dimensions</h2>
       <p class="intro">With a slug, <code class="hp">/wf review</code> is stage 07 and writes a ledger. Without a slug, name a rubric, an alias or a sweep: the findings come back in chat and nothing is written.</p>
       <div class="tbl-wrap">
         <table>
@@ -1317,7 +1406,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     </section>
 
     <section id="artifacts" data-title="Artifacts">
-      <h2><span class="n">09</span>What gets written where</h2>
+      <h2><span class="n">10</span>What gets written where</h2>
       <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. Its records are YAML files that scripts write: <code>state.yaml</code> and <code>meta.yaml</code> hold the index, <code>intake.yaml</code> the brief and the shape, one <code>slice-&lt;slice&gt;.yaml</code> the slice, plan, implement and verify of each slice, and <code>design.yaml</code>, <code>review-&lt;slice&gt;.yaml</code>, <code>ship.yaml</code> and <code>retro.yaml</code> the rest. A record file holds sections, and each section keeps the name of its old Markdown file: <code>02-shape.md</code> is the <code>shape</code> section of <code>intake.yaml</code>. The command entries write a section as <code>intake.yaml#shape</code>. Print a section with <code>wf.mjs record get &lt;root&gt; &lt;slug&gt; &lt;name&gt;</code>, where the name is the old file name. A workflow of the old layout moves file by file at its first write, and <code>redirects.yaml</code> names the new place of each old path.</p>
       <div class="tbl-wrap">
         <table>
@@ -1328,7 +1417,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     </section>
 
     <section id="rules" data-title="Rules to know">
-      <h2><span class="n">10</span>Rules to know</h2>
+      <h2><span class="n">11</span>Rules to know</h2>
       <p class="intro">The behaviors that surprise people the first time.</p>
       <ul class="rules" id="rulelist"></ul>
     </section>
@@ -1503,6 +1592,9 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
     { g: "drive", id: "campaign", name: "campaign", b: ["gate"], syn: ["campaign <slug>"],
       d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. The PR of the list opens as a draft after the first work packet, so CI runs at the end of each one. When the list is done, you hand off one PR for the whole list, or one PR per work packet when the ship plan asks for stacked PRs (gh-stack). One command resumes at any point.",
       w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · ship packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
+    { g: "drive", id: "orchestrate", name: "orchestrate", b: ["stop"], syn: ["orchestrate <description>", "orchestrate <slug>   # an intake, a list, or a resume", "orchestrate <slug> <new words>   # change the contract", "orchestrate <slug> hand back"],
+      d: "Takes one instruction, one intake or one list of work packets from your words to proof, with agents and without you. The lead agent interviews you and writes a vision contract: a list of outcomes that can be checked. You approve it once, with the designs that it needs. Then builders do the work and separate validators judge it. One validator runs the product against hidden scenarios that no builder sees, a script measures what a command can measure, and another validator checks each claim of a document against its source. No agent can change an approved outcome or mark it passed. The run comes back to you only for a question about the contract. It ends with an evidence page and a draft PR, and stops before the merge. A small contract takes a light path with one builder and one validator. You say which agents the run may use, and the lead picks among them by capability tier, from Claude Code, Codex and pi, and never a Fable-class model. It can take a list over from the campaign walk and hand it back.",
+      w: ["orchestrate/contract.yaml", "orchestrate/evidence.html"], n: "ship <slug>", more: "orchestrate-guide", t: "autonomous end to end agents vision contract outcomes validate proof hands-off multi-agent codex pi" },
     { g: "drive", id: "loop-goal", name: "loop goal", syn: ["loop goal <slug> [objective]", "loop goal <slug> resume|status|clear"],
       d: "Hands the slug to the host's goal feature, so the work continues over many turns. A script decides when it is done and prints GOAL: MET, GOAL: NOT-MET or GOAL: BLOCKED. Kinds: lifecycle (ready for ship, the default), optimize, and proofs (named commands exit 0). At a human gate the goal parks; answer the gate, then resume.",
       more: "lp-goal", w: ["goal.md", "goal/checks.jsonl"], n: "loop goal <slug> resume", t: "keep going long running many turns objective" },
@@ -1563,6 +1655,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["Keep it going over many turns", "lp-goal", "loop goal <slug>"],
       ["Run the stages for me", "yolo", "yolo <slug>"],
       ["Build a list of work packets", "campaign", "campaign <slug>"],
+      ["Agree the outcomes once, and get proof", "orchestrate", "orchestrate <what you want>"],
       ["Check that the app really works", "probe", "probe <slug>"]
     ]],
     ["Finish", [
