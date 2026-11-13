@@ -5,6 +5,11 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.30] - 2026-11-13
+
+- feat(sdlc-workflow): /wf orchestrate takes work from your words to proof with agents
+- feat(sdlc-workflow): agents read the real source of a dependency when its API matters
+
 ## [10.0.0-next.29] - 2026-11-12
 
 - feat(sdlc-workflow): a stage waits for the answer to its question, and the run goes on
