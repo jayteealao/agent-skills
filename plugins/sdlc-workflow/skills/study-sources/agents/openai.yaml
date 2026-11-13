@@ -1,6 +1,6 @@
 interface:
   display_name: "Study Sources"
-  short_description: "Fetch and read real upstream source — Git repos and installed deps (node_modules, ~/.m2, Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart caches) — into a gitignored .scratch/ to build knowledge from actual code"
+  short_description: "Read the real source of a dependency at the version the project resolved, before coding against its API or when a build error names a library symbol"
   default_prompt: "Resolve and read the source of the dependency this task depends on, checking the local package cache before cloning."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

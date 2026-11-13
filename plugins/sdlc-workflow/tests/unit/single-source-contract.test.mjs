@@ -129,8 +129,9 @@ test('the four skills: openai.yaml parses with the expected shape; SKILL.md name
   for (const dir of skills) {
     const doc = parseYaml(read('skills', dir, 'agents', 'openai.yaml'));
     assert.ok(doc?.interface?.display_name && doc.interface.short_description && doc.interface.default_prompt, `${dir}: openai.yaml interface incomplete`);
-    // wf is implicit: the model may start it, under the consent rule of its SKILL.md.
-    assert.equal(doc.policy?.allow_implicit_invocation, dir === 'wf', `${dir}: allow_implicit_invocation must be ${dir === 'wf'}`);
+    // wf and study-sources are implicit: wf under the consent rule of its SKILL.md, study-sources because it only reads.
+    const implicit = ['wf', 'study-sources'].includes(dir);
+    assert.equal(doc.policy?.allow_implicit_invocation, implicit, `${dir}: allow_implicit_invocation must be ${implicit}`);
     const name = /^name:\s*(\S+)/m.exec(read('skills', dir, 'SKILL.md'))?.[1];
     assert.equal(name, dir, `${dir}: SKILL.md name is ${name}`);
     const desc = /^description:\s*(.*)$/m.exec(read('skills', dir, 'SKILL.md'))?.[1] ?? '';

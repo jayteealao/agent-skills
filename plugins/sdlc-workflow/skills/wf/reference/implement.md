@@ -16,6 +16,7 @@ You are running `/wf implement`, stage 5 of 9: 1·intake → 2·design → 3·sl
 
 - Build only the selected slice, in the order of its plan steps. Do not broaden the scope. Do not verify, review or ship.
 - Red before green: where a step names a test, write the failing test first and see it fail.
+- Before you write code against a dependency API that you have not read in this repo, and when a compile or type error names a library symbol (an unresolved reference, a missing export or attribute, a wrong signature), read the installed source with the `study-sources` skill, per [_source-study.md](_source-study.md). Do not fix a library error by trial and error.
 - Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
 - Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
 - A plan or a slice reserves a decision for the person only as [_decision-classes.md](_decision-classes.md) "A reservation needs the person's words" says.
@@ -59,8 +60,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `05-implement-<slice>.md` | writes | | |
 
 Change-mode (`fix`, `hotfix`, `refactor`) and single-scope workflows use the un-suffixed names: `03-slice.md`, `04-plan.md`, `05-implement.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
-
-Before you write code against a dependency whose exact behaviour matters, follow [_source-study.md](_source-study.md).
 
 # Role
 

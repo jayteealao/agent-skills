@@ -8,7 +8,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 
 ## Codex invocation policy
 
-The plugin skills other than `wf` are explicit-only in Codex (`policy.allow_implicit_invocation: false` in their `agents/openai.yaml`). Start one only when the user selects it with `$<skill>`, or when a requested workflow requires the step. `wf` is implicit (`true`), as on the other hosts: the model may start it, but only under the consent rule of `SKILL.md` Step 0. The hooks still run on their registered events.
+`consult` and `diataxis` are explicit-only in Codex (`policy.allow_implicit_invocation: false` in their `agents/openai.yaml`). Start one only when the user selects it with `$<skill>`, or when a requested workflow requires the step. `wf` and `study-sources` are implicit (`true`), as on the other hosts. The model may start `wf` only under the consent rule of `SKILL.md` Step 0. It may start `study-sources` whenever its description matches: the skill is read-only. The hooks still run on their registered events.
 
 ## Browser and runtime drive
 

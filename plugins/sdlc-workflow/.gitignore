@@ -23,3 +23,6 @@ dist/
 # The Claude Code mod under hooks/mod/ typechecks against the declarations that
 # `/plugin-types` writes to .claude/types/. They are a build input, not a source.
 .claude/types/
+
+# claude plugin eval writes each run here.
+evals/results/

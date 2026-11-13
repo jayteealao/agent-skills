@@ -17,6 +17,7 @@ You are running `/wf verify`, stage 6 of 9: 1·intake → 2·design → 3·slice
 ## Card
 
 - Check every acceptance criterion and every check of the plan. Do not fix code while the checks run.
+- Before you rule on a criterion that turns on how a dependency behaves, read its installed source with the `study-sources` skill, per [_source-study.md](_source-study.md).
 - Fix only in the fix round of Step 7.6, after the checks and the AC gate of Step 7.5. Fix a `lint`, `format` or `marker-syntax` issue without a question. Ask a gate question for each other failure, per [_gate-question.md](_gate-question.md): `Fix`, `Skip` or `Escalate`. Send each `Fix` to a write-isolated fix sub-agent, and record each fix in `## Verify-Owned Fixes`. When you have no tool that starts a sub-agent (for example, you are a stage agent of a driver), make each `Fix` yourself, one after another, per "No sub-agent tool" in Step 7.6. A missing sub-agent tool is never a reason to stop or to escalate.
 - Run one fix round only. When an issue still fails after it, write `convergence: escalated` and route to `/wf verify` again or to `/wf implement`.
 - Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again. One that it reports `probe-error` has a probe that could not run on this machine: write a probe that runs in any shell ([verify/_deferrals.md](verify/_deferrals.md)), then check again.
@@ -68,8 +69,6 @@ Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partiti
 | `06-verify-<slice>.md` | writes | | |
 
 Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
-
-Before you rule on a criterion that turns on how a dependency behaves, read its source per [_source-study.md](_source-study.md).
 
 # Role
 

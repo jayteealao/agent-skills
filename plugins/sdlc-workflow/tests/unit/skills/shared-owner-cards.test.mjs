@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CITATION_MARKER_RE } from '../../../lib/limitation-lexicon.mjs';
+import { cardOf } from '../../../lib/brief.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const REF = path.join(pluginRoot, 'skills', 'wf', 'reference');
@@ -95,8 +96,12 @@ test('the source-study rules have one owner; each stage card keeps one citation 
   const markers = ['source:', 'node_modules/', 'repro:', 'issue: #1', 'https://x', 'study-sources', 'a.d.ts'];
   for (const m of markers) assert.match(m, CITATION_MARKER_RE, `${m} is a marker of the lint`);
   for (const m of ['`source:`', '`node_modules/`', '`repro:`', '`issue: #<n>`', 'a URL', '`study-sources`', '`.d.ts`']) assert.ok(owner.includes(m), `the card names ${m}`);
-  for (const name of ['plan.md', 'implement.md', 'verify.md', 'review.md']) {
-    assert.equal(ref(name).split('[_source-study.md](_source-study.md)').length, 2, `${name} cites the owner once`);
+  for (const stage of ['plan', 'implement', 'verify', 'review']) {
+    assert.equal(ref(`${stage}.md`).split('[_source-study.md](_source-study.md)').length, 2, `${stage}.md cites the owner once`);
+    // The brief of a stage agent carries only the ## Card, so the citation and the skill name live there.
+    const card = cardOf(REF, stage) ?? '';
+    assert.ok(card.includes('[_source-study.md](_source-study.md)'), `${stage}: the citation is in the ## Card`);
+    assert.ok(card.includes('`study-sources` skill'), `${stage}: the ## Card names the study-sources skill`);
   }
   assert.match(skill(), /\[reference\/_source-study\.md\]\(reference\/_source-study\.md\)/);
   for (const rel of cards()) {

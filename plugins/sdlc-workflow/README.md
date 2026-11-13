@@ -14,7 +14,7 @@ One source tree serves three hosts. The skill prose is written once and is host-
 | Codex | `.codex-plugin/plugin.json`, `hooks/codex.hooks.json` | `$wf …` |
 | pi | `pi/package.json`, the pi package of this plugin | `/skill:wf …` |
 
-All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs on all three hosts. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`) only when you name them. The command page names each host difference.
+All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs on all three hosts. Codex starts `$consult` and `$diataxis` only when you name them. It may start `$wf` and `$study-sources` by itself. The command page names each host difference.
 
 ## Install
 

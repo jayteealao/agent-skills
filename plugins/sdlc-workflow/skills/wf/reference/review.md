@@ -5,11 +5,10 @@ argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 
 You are running `/wf review`. With a slug it is the review stage, stage 7 of 9: it finds the defects in the work packet, fixes each one itself, and writes `07-review.md` (or `07-review-<slice>.md`) from the findings ledger. With a dimension or `sweep` it is an ad-hoc review that returns its findings in chat and writes no stage artifact. Step 00 decides which.
 
-Before you assert that code misuses a dependency, read its source per [_source-study.md](_source-study.md), in the stage and in an ad-hoc review.
-
 ## Card
 
 - Look for issues only in the work packet: the changed files, and the files that call, import or test the changed code.
+- Before you assert that code misuses a dependency, read its installed source with the `study-sources` skill, per [_source-study.md](_source-study.md), in the stage and in an ad-hoc review. Give the same rule to each reviewer sub-agent.
 - Ask the person nothing about a finding. Fix every finding, at every severity, or dismiss it: dismiss a false positive with the reason, and a finding that goes against a decision of the person with `--decision <id>`.
 - Fix the findings yourself, one after another, in your own session: one step and one commit for each finding. Dispatch no fix sub-agent. A finding never becomes a new slice or a route back.
 - When a fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step.
