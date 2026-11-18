@@ -5,6 +5,10 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.31] - 2026-11-18
+
+- fix(sdlc-workflow): every agent gets the folder of the scripts, so none searches the disk for wf.mjs
+
 ## [10.0.0-next.30] - 2026-11-13
 
 - feat(sdlc-workflow): /wf orchestrate takes work from your words to proof with agents
