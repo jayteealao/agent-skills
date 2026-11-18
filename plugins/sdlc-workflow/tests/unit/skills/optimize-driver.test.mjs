@@ -354,14 +354,14 @@ test('the profile step: the profiler agent in agent mode, the bookkeeping in com
   const outA = await run(ARGS, a.agent);
   assert.equal(outA.ok, true, JSON.stringify(outA));
   const prof = a.calls.find((c) => c.label === 'profile');
-  assert.match(prof.prompt, /^PROFILER for the optimize loop/);
+  assert.match(prof.prompt, /^skill-dir: \/plugin\/skills\/wf\n[^\n]+\n\nPROFILER for the optimize loop/, 'the skill-dir line goes first');
   assert.match(prof.prompt, /probe-open "\/repo" s --on trunk/);
   assert.match(prof.prompt, /profile-record "\/repo" s --file "\/repo\/\.scratch\/optimize\/s\/profile\.json"/);
   assert.equal(prof.model, 'claude-opus-5-5');
   assert.ok(a.calls.findIndex((c) => c.label === 'profile') < a.calls.findIndex((c) => c.label === 'round-open'));
   const b = fakeLoop({ profile: 'command' });
   await run(ARGS, b.agent);
-  assert.match(b.calls.find((c) => c.label === 'profile').prompt, /^BOOKKEEPING[\s\S]*optimize\.mjs" profile "\/repo" s/);
+  assert.match(b.calls.find((c) => c.label === 'profile').prompt, /^skill-dir: [^\n]+\n[^\n]+\n\nBOOKKEEPING[\s\S]*optimize\.mjs" profile "\/repo" s/);
 });
 
 test('a prune is bookkeeping; a port and a bundle apply their kept diffs with no proposer, and the editor runs only when a diff does not apply', async () => {

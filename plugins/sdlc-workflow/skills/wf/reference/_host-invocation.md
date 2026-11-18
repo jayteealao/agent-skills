@@ -28,7 +28,9 @@ A prose reference (`reference/<file>.md`, `../../reference/<file>.md`) is relati
 | Codex | The directory of the loaded SKILL.md inside the installed plugin snapshot |
 | pi | `${CLAUDE_PLUGIN_ROOT}/skills/<skill>` — pi-code substitutes the same variable |
 
-No skill file names a plugin-root variable. Those live only in the hook wiring: `hooks/hooks.json` (Claude Code, and pi through pi-code) and `hooks/codex.hooks.json` (Codex).
+No skill file names a plugin-root variable. Those live only in the hook wiring: `hooks/hooks.json` (Claude Code, and pi through pi-code) and `hooks/codex.hooks.json` (Codex). Claude Code fills `${CLAUDE_PLUGIN_ROOT}` in SKILL.md only. A reference that an agent reads keeps `<skill-dir>` as it is, and a sub-agent never sees the folder the host showed.
+
+**When you do not know `<skill-dir>`** (a sub-agent, an agent of a driven run, a session after a compaction): take the `skill-dir:` line of your prompt, of the brief or of the dispatch result. With no such line, run `node "$HOME/.sdlc/bin/wf.mjs" skill-dir`. The session start of every host writes that entry point, and it works in Git Bash and in PowerShell. Never search the disk for `wf.mjs`, a script or the plugin folder. When neither route gives the folder, stop and ask the person.
 
 ## Script failures
 

@@ -7,6 +7,7 @@ Every task starts with the common head and ends with the common tail.
 ## The common head
 
 ```text
+skill-dir: <skill-dir> — each `<skill-dir>` in a file you read is this folder, and each `wf.mjs` command runs as `node "<skill-dir>/scripts/wf.mjs" …`. Never search the disk for wf.mjs, a script or the plugin folder.
 You are one agent of a larger run. Another agent leads the run. You do one unit of work and then you stop.
 
 Your role: <role>.

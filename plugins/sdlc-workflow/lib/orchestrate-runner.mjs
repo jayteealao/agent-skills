@@ -10,6 +10,7 @@
 import { spawnSync } from 'node:child_process';
 
 import { agentFix, personFix, refuse } from './fix.mjs';
+import { SKILL_DIR } from './skill-dir.mjs';
 
 const str = (v) => String(v ?? '').trim();
 
@@ -70,8 +71,15 @@ export function terminalName(slug, role, n) {
   return base.replace(/^-+/, '').slice(0, 32);
 }
 
-/** The first message of an agent: it names the task file, so no task text passes through a shell. */
-export const firstMessage = (taskFile) => `Read the file ${taskFile} now and do exactly what it says. It is your whole task. Start no other work.`;
+/**
+ * The first message of an agent: it names the task file, so no task text passes through a shell.
+ * It also names the folder of the skill, because a task or a reference it points to may say
+ * `<skill-dir>`, and this agent did not load the skill. One line: `hc` may type it into a terminal.
+ */
+export const firstMessage = (taskFile, skillDir = SKILL_DIR) =>
+  `Read the file ${taskFile} now and do exactly what it says. It is your whole task. Start no other work. ` +
+  `skill-dir: ${skillDir} — each \`<skill-dir>\` in a file you read is this folder, and each \`wf.mjs\` command runs as \`node "${skillDir}/scripts/wf.mjs" …\`. ` +
+  'Never search the disk for wf.mjs, a script or the plugin folder.';
 
 /**
  * The command line of an agent program, as a list of arguments.

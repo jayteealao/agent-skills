@@ -16,6 +16,16 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 - Read and write every record per [_records.md](reference/_records.md): scripts write the record files, an agent writes a draft and puts it.
 - Run the code of another commit only in a scratch worktree that `wf.mjs worktree add` makes, and remove it before the stage ends, per [_workflow-rules.md](reference/_workflow-rules.md).
 
+# Where the scripts are
+
+`<skill-dir>` is the folder of this SKILL.md. Every `node "<skill-dir>/scripts/…"` command and every bare `wf.mjs` command needs it. Take the first of these that you have:
+
+1. The folder of this skill that the host showed when it loaded it.
+2. A `skill-dir:` line: in your prompt, in a brief, or in the result of the dispatch.
+3. The output of `node "$HOME/.sdlc/bin/wf.mjs" skill-dir`. Each session start writes that stable entry point.
+
+Never search the disk for `wf.mjs`, a script or the plugin folder: no `find`, no `Get-ChildItem -Recurse`, no glob from a drive or the filesystem root. Such a search does not end, and its processes fill the memory of the machine. When none of the three gives the folder, stop and ask the person. Give the `skill-dir:` line to each sub-agent you start, per [_subagents.md](reference/_subagents.md).
+
 # Step 0 — Dispatch check
 
 Run this check before any read or write. Its result is your first visible output.
@@ -33,6 +43,7 @@ Run this check before any read or write. Its result is your first visible output
    - `close-ask: <slug> (<why>)`: the branch of an open workflow is merged. Before the key runs, ask the person per [_gate-question.md](reference/_gate-question.md): "The branch of `<slug>` is merged (<why>). Close the workflow?" When there are several `close-ask:` lines, ask per "A list of items" of [_gate-question.md](reference/_gate-question.md): "Close all (Recommended)" or "Go through them one by one". On yes, run `node "<skill-dir>/scripts/wf.mjs" close "<projectRoot>" <slug>`. On no, run the same command with `--decline`. Then run the key.
    - `first-run: reference/setup.md`: the repo has no `.ai/` folder. Run [setup.md](reference/setup.md) first, then the key.
    - `wf-dir: <folder>`: the absolute folder of the workflow that the call names. Each `<wf-dir>/` path of a reference is in this folder, the drafts in `<wf-dir>/.draft/` too. Give the line to each sub-agent you start.
+   - `skill-dir: <folder>`: the absolute folder of this skill, the `<skill-dir>` of every reference. Keep it for the run, and put it first in the prompt of each sub-agent you start.
    - `records: ask …` or `records: stop …`: the records need the person. Act on the line per "Records lines" of [_records-repo.md](reference/_records-repo.md) before the key runs. A `stop` line STOPS the run.
 4. **When you start `/wf` on your own.** The person's last message did not type this `/wf` call: you chose to run it. Run `node "<skill-dir>/scripts/wf.mjs" consent check "<projectRoot>" <slug>` first.
    - Exit 0: continue.

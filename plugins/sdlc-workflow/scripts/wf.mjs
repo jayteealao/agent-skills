@@ -15,6 +15,10 @@
  *   describe [--json]
  *             every CLI form and every function of the library of wf.mjs run, each with one example
  *             Example: wf.mjs describe
+ *   skill-dir
+ *             the absolute folder of the wf skill, the `<skill-dir>` of every reference. An agent
+ *             that has no `skill-dir:` line runs it through the stable entry point, never a search
+ *             Example: node "$HOME/.sdlc/bin/wf.mjs" skill-dir
  *   run      <root> <script.mjs> [<arg>...] [--slug s] [--dry-run] [--json]
  *             run a script in the project: its default export gets { wf, open, args }, and its
  *             return value prints as JSON. All or nothing: a script that throws changes nothing.
@@ -538,6 +542,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
+import { SKILL_DIR } from '../lib/skill-dir.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
 import { runView, runViewLines, sandboxProblem, sessionThread, startDetached } from '../lib/drive-detach.mjs';
@@ -596,7 +601,7 @@ export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|target|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|skill-dir|status|target|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -739,6 +744,7 @@ async function runDispatch(pos, opt) {
   // The queued GitHub edits and the person's comments on the issue of the workflow come in the
   // background, so the call does not wait on the network.
   if (layer && (target || readOutbox().length)) flushInBackground(target ? [projectRoot, target] : []);
+  r.skillDir = SKILL_DIR;
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];
   if (r.reason) lines.push(`reason: ${r.reason}`);
@@ -751,6 +757,8 @@ async function runDispatch(pos, opt) {
   if (r.firstRun) lines.push('first-run: reference/setup.md');
   // The one folder of the workflow: each `<wf-dir>/` path of a reference is in it.
   if (r.wfDir) lines.push(`wf-dir: ${r.wfDir}`);
+  // The folder of the skill: a sub-agent gets it in its prompt, so it never searches for wf.mjs.
+  lines.push(`skill-dir: ${r.skillDir}`);
   if (r.records) lines.push(r.records);
   out(lines.join('\n'));
   return 0;
@@ -2022,6 +2030,7 @@ async function runMain(cmd, pos, opt) {
         return 0;
       }
       case 'run': return await runRun(pos, opt);
+      case 'skill-dir': out(SKILL_DIR); return 0;
       case 'describe': {
         const d = describeAll();
         out(opt.json ? d : describeText(d));

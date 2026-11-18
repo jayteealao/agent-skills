@@ -16,6 +16,7 @@ import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
 import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
+import { skillDirLine, skillDirOf } from './skill-dir.mjs';
 
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
@@ -163,7 +164,9 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     `Standing steer: each live \`steer\` entry under ## Decisions binds this stage. Honor it, never above a mandatory gate, ` +
       `and give the relevant entries to each sub-agent you start (${refDir}/_decisions.md).`,
   ].join('\n');
-  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}${rules}`;
+  // The folder of the skill: the stage reference says `<skill-dir>`, and this agent did not load the skill.
+  const skill = `\n\n${skillDirLine(skillDirOf(referenceRoot))}`;
+  const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}${skill}${rules}`;
   const parts = { card, slice: sliceText, plan: planText, tests: testsText, decisions: decisionsText };
   const text = [
     head,

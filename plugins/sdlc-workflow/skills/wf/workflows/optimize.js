@@ -33,8 +33,15 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 
-const SCRIPT = `${referenceRoot}/../scripts/optimize.mjs`
-const DECIDE = `node "${referenceRoot}/../scripts/wf.mjs" decide`
+// The folder of the skill, the `<skill-dir>` of every reference. An agent of this run did not
+// load the skill, so every prompt names the folder (call() puts SKILL_DIR_LINE first). The text is
+// skillDirLine of lib/skill-dir.mjs; tests/unit/skill-dir.test.mjs holds them together.
+const SKILL_DIR = String(referenceRoot).replace(/\\/g, '/').replace(/\/+$/, '').replace(/\/reference$/, '')
+const SKILL_DIR_LINE = `skill-dir: ${SKILL_DIR}\n` +
+  `Each \`<skill-dir>\` in a file you read is this folder, and each \`wf.mjs\` command runs as \`node "${SKILL_DIR}/scripts/wf.mjs" …\`. ` +
+  'Never search the disk for wf.mjs, a script or the plugin folder.'
+const SCRIPT = `${SKILL_DIR}/scripts/optimize.mjs`
+const DECIDE = `node "${SKILL_DIR}/scripts/wf.mjs" decide`
 const HYP_DIR = `${projectRoot}/.scratch/optimize/${slug}`
 const RUN = OPT.runId || `${slug}-optimize`
 const cmd = (sub, rest = '') => `node "${SCRIPT}" ${sub} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
@@ -99,7 +106,7 @@ let CEILING = CEILING_ARG
 const events = []
 async function call(prompt, opts) {
   AGENTS++
-  return await agent(prompt, opts)
+  return await agent(`${SKILL_DIR_LINE}\n\n${prompt}`, opts)
 }
 
 /** The result of an agent that returns { ok, result }; without one, a failure that names the label. */

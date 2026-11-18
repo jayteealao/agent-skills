@@ -85,8 +85,8 @@ const PLAN_A = { slices: [slice('a', { plan: 'todo', implement: 'done', verify: 
 test('a stage agent records its progress, reads its brief, and returns an intent-bearing decision as a question', async () => {
   const { calls } = await run({}, (label) => (label === 'orient' ? orientResult(PLAN_A) : stageAnswer(label) || common(label)));
   const plan = calls.find((c) => c.label === 'plan:a').prompt;
-  assert.match(plan, /1\. Run `node "\/plugin\/skills\/wf\/reference\/\.\.\/scripts\/wf\.mjs" progress set "\/repo" demo --run 20260928T100000Z-demo --driver yolo --stage plan --slice a --status running`/);
-  assert.match(plan, /2\. Run `node "\/plugin\/skills\/wf\/reference\/\.\.\/scripts\/wf\.mjs" brief "\/repo" demo plan a`/);
+  assert.match(plan, /1\. Run `node "\/plugin\/skills\/wf\/scripts\/wf\.mjs" progress set "\/repo" demo --run 20260928T100000Z-demo --driver yolo --stage plan --slice a --status running`/);
+  assert.match(plan, /2\. Run `node "\/plugin\/skills\/wf\/scripts\/wf\.mjs" brief "\/repo" demo plan a`/);
   assert.match(plan, /QUESTION CONTRACT/);
   assert.match(plan, /decide answered "\/repo" demo --key <key>/);
   assert.match(plan, /return status 'questions'/);
@@ -187,7 +187,7 @@ test('delegate mode settles each intent-bearing decision by the recommendation a
   assert.match(plan, /decide add "\/repo" demo --kind answer --by delegate --key <key>/);
   assert.match(plan, /Return no questions/);
   assert.doesNotMatch(plan, /return status 'questions'/);
-  assert.deepEqual(outcome.delegate, { digest: 'node "/plugin/skills/wf/reference/../scripts/wf.mjs" decide list "/repo" demo --by delegate' });
+  assert.deepEqual(outcome.delegate, { digest: 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --by delegate' });
 });
 
 test('the slug-wide review that returns finding questions stops the run as waiting', async () => {

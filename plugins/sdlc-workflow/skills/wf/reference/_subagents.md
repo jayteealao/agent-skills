@@ -28,6 +28,11 @@ pass** is one wave of them.
   citing-file-relative path (`../review/x.md`, `_timestamp.md`) means nothing
   to it. Write `<skill-dir>/reference/…` in prompt templates and resolve every
   `<skill-dir>` per [_host-invocation.md](_host-invocation.md) before dispatch.
+- **The first line of every child prompt is the `skill-dir:` line** of the
+  dispatch result: `skill-dir: <the absolute skill folder>`. The files that a
+  child reads say `<skill-dir>` too, and the child has no other way to know
+  the folder. A child with no folder searched the disk for `wf.mjs`, and those
+  searches never ended.
 - **Children never ask.** A child must never reach for any rung of the
   gate-question ladder ([_gate-question.md](_gate-question.md)) — it will fail
   or stall. Gates belong to the coordinator; give children everything they

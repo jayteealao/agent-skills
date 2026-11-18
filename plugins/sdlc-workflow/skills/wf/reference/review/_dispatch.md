@@ -4,9 +4,10 @@ Load this file from `_stage.md` Step 3, in mode `select` only. It holds the prom
 
 ## Step 3 — the scout prompt
 
-Substitute the per-slice or slug-wide variant based on the current `review-scope`. Resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against.
+Substitute the per-slice or slug-wide variant based on the current `review-scope`. Resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against. The first line is the `skill-dir:` line of the dispatch result ([_subagents.md](../_subagents.md)).
 
 ```
+skill-dir: <skill-dir> — each `<skill-dir>` in a file you read is this folder. Never search the disk for wf.mjs.
 Execute the review rubric at {rubric-path}.
 Focus: {the triggered `###` sections, or "all sections" for a core rubric}
 

@@ -61,7 +61,7 @@ test('buildBrief: card, slice sections, the plan sections of the stage, and the 
     assert.doesNotMatch(b.parts.plan, /Current State/);
     assert.deepEqual(b.parts.decisions.split('\n').map((l) => l.slice(2, 7)), ['D-001', 'D-003']);
     assert.equal(b.parts.tests, '- fast: `npm test` (120s measured)\n- affected: `npm test -- {files}` (60s estimated)\n- budget: not chosen; the person chooses it once for the repo (_check-budget.md)\n\nTime box: 10 minutes. Longest check of this stage: 600s (from the time box). A longer command is a long run: follow _long-runs.md.');
-    assert.match(b.text, /^# Brief: implement demo api\n\nwf-dir: [^\n]+\/demo\n\nOutput boundary: [^\n]+\nStanding steer: [^\n]+\n\n## Card\n/);
+    assert.match(b.text, /^# Brief: implement demo api\n\nwf-dir: [^\n]+\/demo\n\nskill-dir: [^\n]+\nEach `<skill-dir>` [^\n]+\n\nOutput boundary:[^\n]+\nStanding steer: [^\n]+\n\n## Card\n/);
   } finally { f.done(); }
 });
 

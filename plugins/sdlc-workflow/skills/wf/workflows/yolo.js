@@ -911,8 +911,18 @@ const EOB =
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
 const JOURNAL_PATH = `${WF_DIR}/.driver-journal.jsonl`
+// The folder of the skill, the `<skill-dir>` of every reference. A stage agent did not load the
+// skill, so a reference that says `node "<skill-dir>/scripts/wf.mjs"` gives it no folder, and an
+// agent with no folder searched the whole disk for wf.mjs. Every agent() call of this script goes
+// through spawnAgent, which puts SKILL_DIR_LINE first in the prompt. The text is skillDirLine of
+// lib/skill-dir.mjs (this script cannot import it); tests/unit/skill-dir.test.mjs holds them together.
+const SKILL_DIR = String(referenceRoot).replace(/\\/g, '/').replace(/\/+$/, '').replace(/\/reference$/, '')
+const SKILL_DIR_LINE = `skill-dir: ${SKILL_DIR}\n` +
+  `Each \`<skill-dir>\` in a file you read is this folder, and each \`wf.mjs\` command runs as \`node "${SKILL_DIR}/scripts/wf.mjs" …\`. ` +
+  'Never search the disk for wf.mjs, a script or the plugin folder.'
+const spawnAgent = (prompt, opts) => agent(`${SKILL_DIR_LINE}\n\n${prompt}`, opts)
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
-const WF_CMD = `node "${referenceRoot}/../scripts/wf.mjs"`
+const WF_CMD = `node "${SKILL_DIR}/scripts/wf.mjs"`
 // Every git command of a prompt names the project root in quotes: a root may hold a space.
 const GIT = `git -C "${projectRoot}"`
 // The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
@@ -1504,7 +1514,7 @@ const REFUTE_GROUP = {
 // are already terminal-clean on disk, so a killed run resumes for free).
 // ---------------------------------------------------------------------------
 async function orient() {
-  const res = await agent(
+  const res = await spawnAgent(
     `You are the ORIENT step of an autonomous SDLC driver. READ-ONLY — do not write, edit, commit, or switch ` +
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
     `git as \`${GIT} …\`.\n\n` +
@@ -1670,7 +1680,7 @@ async function ensureBranch(idx) {
     ? `6. If the base branch '${base}' itself does not exist (the create fails for that reason) → return ` +
       `{ ok: false, reason: 'base-branch ${base} does not exist; cannot create ${target}' }.\n`
     : ''
-  return await agent(
+  return await spawnAgent(
     `Autonomous branch posture for SDLC slug '${slug}' (branch-strategy: dedicated). The working tree is on ` +
     `'${idx.branch.current}' but the workflow's dedicated branch is '${target}'. Land the tree on '${target}' NOW, ` +
     `before any stage runs. Run git as \`${GIT} …\`; make NO ` +
@@ -1805,7 +1815,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     : ''
   const label = `${stage}${sliceArg ? ':' + sliceArg : ''}`
   const briefCmd = `${WF_CMD} brief "${projectRoot}" ${slug} ${stage}${sliceArg ? ` ${sliceArg}` : ''}`
-  return await agent(
+  return await spawnAgent(
     `Execute the SDLC '${stage}' stage for slug '${slug}'${sliceClause}, FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
     `${EOB}${WORK_RULES}\n\n` +
     `1. Run \`${WF_CMD} progress set "${projectRoot}" ${slug} --run ${RUN_ID} --driver yolo ` +
@@ -1915,7 +1925,7 @@ function sliceStatusClause(sliceArg) {
 }
 
 async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
-  return await agent(
+  return await spawnAgent(
     `SLICE-COMPLETE BOOKKEEPING for slug '${slug}', slice '${sliceArg}'. The autonomous driver just drove this ` +
     `slice through ${stagesRun.join(' → ')} and every gate cleared. Mirror the recorded outcome into the control ` +
     `files so the index tells the truth without anyone re-deriving it from artifacts.\n\n` +
@@ -2107,7 +2117,7 @@ async function driveWallProbe(sliceArg, idx, fresh = null) {
   const lines = open.map(d => `    • ${d.ac ? `${d.ac} — ` : ''}${d.reason || '(no reason recorded)'}` +
     `${d.clearingEvent ? ` [clearing event: ${d.clearingEvent}]` : ''}` +
     `${d.clearingProbe ? ` [clearing probe: ${d.clearingProbe}]` : ''}`).join('\n')
-  return await agent(
+  return await spawnAgent(
     `WALL RE-CHALLENGE for slug '${slug}', slice '${sliceArg}'. This slice is already built, verified, and (where ` +
     `applicable) reviewed — its ONLY residue is open runtime-evidence deferral(s). Your job is NOT to re-verify ` +
     `the slice. It is to answer one question per wall: **does this wall still stand?**\n\n` +
@@ -2145,7 +2155,7 @@ async function classifyDecisions(res, idx) {
   const bare = res.decisions.filter(d => d && !(d.class && String(d.class).trim()))
   if (!bare.length) return res
   const listed = bare.map((d, i) => `    ${i + 1}. ${d.decision || d.what || d.summary || JSON.stringify(d)}`).join('\n')
-  const out = await agent(
+  const out = await spawnAgent(
     `DECISION CLASSIFICATION (read-only) for slug '${slug}', stage '${res.stage}'` +
     `${res.slice ? `, slice '${res.slice}'` : ''}. The stage recorded these decisions WITHOUT the mandatory ` +
     `\`class\` stamp:\n${listed}\n\n` +
@@ -2239,7 +2249,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   //    review/_select.md), so the fan-out reviews the same dimensions a manual review would.
   //    An RCA-forwarded workflow carries a recommended rubric (idx.reviewDimension) — it is
   //    always selected.
-  const selection = await agent(
+  const selection = await spawnAgent(
     `SELECT REVIEW RUBRICS for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}. READ-ONLY — write nothing.\n\n` +
     `Read ${referenceRoot}/review/_stage.md "# Step 2: Select Review Commands" and ${referenceRoot}/review/_select.md, ` +
     `then apply them to this change: read the index with \`${REC('get')} index\` (workflow-type), the ` +
@@ -2280,7 +2290,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
     `preExisting is true when the diff does not touch the flagged lines; changesAcceptance is true when the fix ` +
     `changes an acceptance check of the slice, a confirmed design board or a 02c-craft.md line. Write nothing.`
   const findingsOf = (s) => (s && Array.isArray(s.findings) ? s.findings : [])
-  const scoutJobs = rubrics.map(r => () => agent(
+  const scoutJobs = rubrics.map(r => () => spawnAgent(
     `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${r.rubric}' rubric ONLY` +
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
     `${r.focus ? ` — only the '${r.focus}' section` : ' in full'}, and ${referenceRoot}/review/_severity.md for the ` +
@@ -2294,7 +2304,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   // entries itself (never a copy).
   const steering = !!selection && selection.steeringPresent === true
   if (steering) {
-    scoutJobs.push(() => agent(
+    scoutJobs.push(() => spawnAgent(
       `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
       `rubric ONLY. Inspect the diff: \`${GIT} diff ${diffRange}\`. Use dimension 'steering'.` +
       `${packetLine} ${shape}\n\n${EOB}` + steer('scout') + beat('scout:steering'),
@@ -2310,7 +2320,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const withIds = raw.map((f, i) => ({ ...f, id: f && f.id ? `${f.dimension}:${f.id}` : `f${i + 1}`, rubric: f.dimension }))
   const groups = refuteGroups(withIds)
   const checked = await parallel(groups.map((g, gi) => () =>
-    agent(
+    spawnAgent(
       `Adversarially REFUTE ${g.length === 1 ? 'this code-review finding' : `each of these ${g.length} code-review findings`}. ` +
       `A finding is refuted when the code does not do what it says, when a guard elsewhere prevents the failure, ` +
       `or when the failure cannot happen with the inputs that reach the code. Read the code at HEAD in ` +
@@ -2347,7 +2357,7 @@ async function driveReview(sliceArg, idx, extra = {}) {
 // it returns stage:'verify' — evaluateGate('verify') and collectDeferrals then treat it
 // identically to a standard verify stage.
 async function runUpdateDepsExec(idx) {
-  return await agent(
+  return await spawnAgent(
     `Execute the SELF-MANAGED update-deps execution for slug '${slug}', FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
     `${EOB}${WORK_RULES}\n\n` +
     `Read ${referenceRoot}/intake/update-deps.md IN FULL and follow Steps 6–9 VERBATIM. Its scan/research/` +
@@ -2493,7 +2503,7 @@ const PLAN_CHECK_RESULT = {
 }
 
 async function planFreshness(sliceArg) {
-  const r = await agent(
+  const r = await spawnAgent(
     `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
     `The project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n${EOB}\n\n` +
     `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
@@ -2765,7 +2775,7 @@ const CHECKPOINT_RESULT = {
 // A `broken` verdict is a stop; at-risk is surfaced. Read-only — it never writes.
 async function charterCheckpoint(idx, throughSlice) {
   const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
-  return await agent(
+  return await spawnAgent(
     `CHARTER FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
     `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n` +
     `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
@@ -2802,7 +2812,7 @@ async function runEnd(stoppedAt = null, reason = null, progress = null) {
   const progressCmd = `${WF_CMD} progress set "${projectRoot}" ${slug} --run ${shellText(RUN_ID)} --driver yolo ` +
     `--status ${p.status}${p.reason ? ` --reason ${shellText(p.reason)}` : ''}${p.resume ? ` --resume ${shellText(p.resume)}` : ''}`
   const worktreeCmd = `${WF_CMD} worktree remove "${projectRoot}" ${slug}`
-  return await agent(
+  return await spawnAgent(
     `RUN END for slug '${slug}'. Bookkeeping only. Never write, edit, or truncate any ` +
     `file other than ${JOURNAL_PATH}, and write that file only with the command below. ` +
     `The command of step 3 removes the scratch worktrees of the slug; delete nothing else.\n` +

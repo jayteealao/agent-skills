@@ -331,6 +331,7 @@ function reviewHarness(selection, found = [], opt = {}) {
   const calls = { agents: [], stages: [], classified: [], batches: [] };
   const build = new Function('stubs', `
     const { agent, parallel, runStage, classifyDecisions, log, OPT } = stubs
+    const spawnAgent = agent
     const slug = 'demo'
     const projectRoot = '/repo'
     const GIT = 'git -C "/repo"'

@@ -891,6 +891,7 @@ async function orientPrompt() {
     const projectRoot = '/repo', referenceRoot = '/plugin/skills/wf/reference', slug = 'demo', slice = null
     const WF_CMD = 'node "/plugin/skills/wf/scripts/wf.mjs"', JOURNAL_PATH = '/repo/j.jsonl', GIVEN_RUN_ID = null, GIT = 'git -C "/repo"'
     const REC = (verb) => WF_CMD + ' record ' + verb, lineCmd = () => 'line', ORIENT_RESULT = {}, OPUS = {}
+    const spawnAgent = agent
     ${extractFn(yoloSrc, 'orient')}
     return orient`)(async (p) => { prompt = p; return null; }, () => null);
   await orient();
