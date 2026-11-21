@@ -5,6 +5,17 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.32] - 2026-11-21
+
+- feat(sdlc-workflow): an optimize run can go on for as long as it finds gains
+- feat(sdlc-workflow): an optimize run with branch rounds and no profile says so
+- feat(sdlc-workflow): the optimize loop checks that its holdout is a different workload
+- feat(sdlc-workflow): the noise floor of an optimize run follows the run
+- feat(sdlc-workflow): the optimize baseline checks the resolution of the metric
+- feat(sdlc-workflow): an optimize metric run can print several samples
+- feat(sdlc-workflow): the canvas closes its sides to give the screens room
+- feat(sdlc-workflow): yolo picks up roster changes between slices
+
 ## [10.0.0-next.31] - 2026-11-18
 
 - fix(sdlc-workflow): every agent gets the folder of the scripts, so none searches the disk for wf.mjs
