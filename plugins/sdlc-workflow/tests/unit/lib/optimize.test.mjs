@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
-  parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
+  instrumentOf, warningsOf, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
   proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
@@ -59,6 +59,35 @@ test('a metric run can print several samples as a JSON array, and its value is t
   assert.equal(parseMetricLine('{"ms":[5]}', 'ms'), 5);
   assert.deepEqual(parseMetricSamples('12.5'), [12.5], 'one number is one sample');
   for (const bad of ['[]', '[1, "2"]', '[1, null]', '[1,', '[[1]]']) assert.equal(parseMetricSamples(bad), null, bad);
+});
+
+test('the resolution of the metric: values that tie, and a keep threshold of few steps, make it coarse', () => {
+  // The baseline of a live run. Its metric came from a processor clock with a step of 15.6 ms.
+  const live = instrumentOf([2.5204, 2.5204, 2.4985, 2.5318, 2.4433], 0.0885);
+  assert.deepEqual({ ties: live.ties, step: live.step, coarse: live.coarse }, { ties: 2, step: 0.0114, coarse: true });
+  assert.ok(live.stepsInThreshold > 7 && live.stepsInThreshold < 8, String(live.stepsInThreshold));
+  assert.equal(instrumentOf([2.5204, 2.5204, 2.4985, 2.5318, 2.4433], 0.0885, 5).coarse, false, 'coarse-steps is the limit');
+  const smooth = instrumentOf([10.113, 10.257, 10.191, 10.302, 10.164], 0.2);
+  assert.deepEqual({ ties: smooth.ties, coarse: smooth.coarse }, { ties: 0, coarse: false }, 'a continuous metric gives no ties');
+  const exact = instrumentOf([100, 100, 100], 2);
+  assert.deepEqual({ ties: exact.ties, step: exact.step, coarse: exact.coarse }, { ties: 3, step: null, coarse: false }, 'an exact metric is not coarse');
+  assert.equal(instrumentOf([1, 1, 1.001, 1.5], 0.5).coarse, false, 'ties with a wide threshold are fine');
+  assert.equal(instrumentOf([1, 1], 1), null, 'fewer than 3 values give no verdict');
+});
+
+test('a coarse metric keeps no gain of fewer than step-floor steps, and the run warns', () => {
+  const spec = specOf();
+  const coarse = stateOf();
+  coarse.baseline.instrument = { values: 5, ties: 2, step: 1, stepsInThreshold: 2, coarse: true };
+  assert.equal(noiseFor(spec, coarse), 1.5, 'half of 3 steps');
+  assert.equal(keepDecision({ spec, best: 100, noise: noiseFor(spec, coarse), first: 97.5 }).wins, false, '2.5 is under 3 steps');
+  assert.equal(keepDecision({ spec, best: 100, noise: noiseFor(spec, coarse), first: 96.5 }).wins, true);
+  assert.equal(warningsOf(spec, coarse).length, 1);
+  assert.match(warningsOf(spec, coarse)[0], /coarse: its values move in steps of about 1, and the keep threshold is only 2 steps wide/);
+  assert.equal(noiseFor(specOf({ metric: { ...fm().metric, 'step-floor': 0 } }), coarse), 0, 'step-floor: 0 turns the floor off');
+  assert.equal(noiseFor(spec, stateOf()), 0);
+  assert.deepEqual(warningsOf(spec, stateOf()), []);
+  assert.match(parseSpec(fm({ metric: { ...fm().metric, 'coarse-steps': -1 } })).errors.join(), /coarse-steps/);
 });
 
 test('a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {

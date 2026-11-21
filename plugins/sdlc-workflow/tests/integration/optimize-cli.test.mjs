@@ -1435,3 +1435,44 @@ test('a metric that prints several samples: the value of a run is their median, 
     rmSync(parent, { recursive: true, force: true });
   }
 });
+
+// A metric with a step of 1: each run reads a counter outside the repository, and prints 100, 101, 100, 102 in turn.
+function coarseMetric(parent, root) {
+  const counter = path.join(parent, 'runs.txt').split(path.sep).join('/');
+  writeFileSync(path.join(root, 'metric.js'), `const fs = require('fs'); const f = '${counter}'; const n = fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0; fs.writeFileSync(f, String(n + 1)); console.log(Number(fs.readFileSync('src/value.txt', 'utf8').trim()) + [0, 1, 0, 2][n % 4]);`);
+  git(root, 'add', 'metric.js');
+  git(root, 'commit', '-q', '-m', 'coarse metric');
+}
+
+test('a coarse metric: metric-check and the baseline say so, the status warns, and a gain under 3 steps is not kept', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []', 'repeat: 2', 'repeat: 4');
+    coarseMetric(parent, root);
+    const check = run(root, 'metric-check');
+    assert.equal(check.ok, true, JSON.stringify(check));
+    assert.deepEqual(check.values, [100, 101, 100, 102], 'with no --cmd, the check runs the metric of the spec');
+    assert.deepEqual({ spread: check.spread, noise: check.noise, threshold: check.threshold }, { spread: 2, noise: 1, threshold: 2 });
+    assert.deepEqual({ ties: check.instrument.ties, step: check.instrument.step, coarse: check.instrument.coarse }, { ties: 2, step: 1, coarse: true });
+    assert.match(check.warnings[0], /The metric is coarse/);
+    assert.equal(existsSync(path.join(root, '.ai', 'workflows', S, 'optimize')), false, 'the check writes nothing');
+    assert.equal(run(root, 'metric-check', '--cmd', 'node -e "console.log(7)"').instrument.coarse, false, 'an exact metric is not coarse');
+    const bad = run(root, 'metric-check', '--cmd', 'node -e "console.log(1)"', '--repeat', '2');
+    assert.equal(bad.ok, false);
+    assert.match(bad.error, /--repeat is an integer of 3 or more/);
+
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.equal(b.baseline.instrument.coarse, true);
+    assert.match(b.warnings[0], /The metric is coarse/);
+    assert.match(run(root, 'status').warnings[0], /at least 3 steps/);
+    assert.equal(ledger(root).find((l) => l.event === 'baseline').instrument.step, 1);
+    // The noise of the baseline is 1, so the threshold was 2. Three steps make it 3.
+    const small = step(root, wt, 'h1', 97.5);
+    assert.equal(small.t.verdict, 'reverted', JSON.stringify(small.t));
+    assert.equal(ledger(root).find((l) => l.event === 'trial').threshold, 3);
+    assert.equal(step(root, wt, 'h2', 90).t.verdict, 'kept');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});

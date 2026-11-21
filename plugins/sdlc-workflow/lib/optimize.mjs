@@ -32,6 +32,8 @@ export const DIGEST_TRIALS = 20;
 export const DEFAULT_SPEC = Object.freeze({
   repeat: 5,
   'min-gain': '2%',
+  'coarse-steps': 20,
+  'step-floor': 3,
   budget: { trials: 60, plateau: 8, 'wall-clock': '6h', tokens: null, 'trial-timeout': '10m', 'propose-time': '15m' },
   'branch-rounds': { at: ['0%', '33%', '66%'], branches: 4, 'branch-trials': null, 'max-extra': 2, merge: 'consider', prune: 'on' },
   width: 1,
@@ -95,6 +97,10 @@ export function parseSpec(fm) {
   if (minGain.invalid) errors.push(`metric.min-gain does not parse: ${minGain.invalid}`);
   const target = metric.target === null || metric.target === undefined || metric.target === '' ? null : Number(metric.target);
   if (target !== null && !Number.isFinite(target)) errors.push('metric.target must be a number or null');
+  const coarseSteps = Number(metric['coarse-steps'] ?? DEFAULT_SPEC['coarse-steps']);
+  if (!(coarseSteps >= 0)) errors.push('metric.coarse-steps must be a number of 0 or more');
+  const stepFloor = Number(metric['step-floor'] ?? DEFAULT_SPEC['step-floor']);
+  if (!(stepFloor >= 0)) errors.push('metric.step-floor must be a number of 0 or more');
   const guard = isObj(fm.guard) ? fm.guard : {};
   if (!str(guard.command)) errors.push('guard.command is empty: a loop needs a guard that must pass after every trial');
   const holdout = isObj(fm.holdout) && str(fm.holdout.command) ? fm.holdout : null;
@@ -139,7 +145,7 @@ export function parseSpec(fm) {
   if (!Number.isInteger(checkpointEvery) || checkpointEvery < 1) errors.push('checkpoint-every must be a positive integer');
   const spec = {
     objective: str(fm.objective),
-    metric: { command: str(metric.command), key: str(metric.key) || null, direction, unit: str(metric.unit), target, repeat, minGain, paired: metric.paired === true || str(metric.paired) === 'true' },
+    metric: { command: str(metric.command), key: str(metric.key) || null, direction, unit: str(metric.unit), target, repeat, minGain, coarseSteps, stepFloor, paired: metric.paired === true || str(metric.paired) === 'true' },
     guard: { command: str(guard.command) },
     holdout: holdout ? { command: str(holdout.command), tolerance, direction: DIRECTIONS.includes(str(holdout.direction)) ? str(holdout.direction) : direction } : null,
     setup: str(fm.setup) || null,
@@ -253,8 +259,53 @@ export function pairedDecision({ spec, best, noise, gains, confirm = null }) {
 export const pairOrder = (i) => (i % 2 === 0 ? ['A', 'B'] : ['B', 'A']);
 /** Paired measurement is on when the spec asks for it and the baseline measured the paired noise. */
 export const pairedActive = (spec, state) => !!spec.metric.paired && Number.isFinite(state?.baseline?.pairedNoise);
-/** The noise that the keep rule of a trial uses. */
-export const noiseFor = (spec, state) => (pairedActive(spec, state) ? state.baseline.pairedNoise : state.baseline.noise);
+/**
+ * The noise that the keep rule of a trial uses: the noise of the baseline, and never less than
+ * half of `metric.step-floor` steps of a coarse metric. The keep threshold is twice this noise, so
+ * a coarse metric cannot keep a gain of fewer than `step-floor` steps.
+ */
+export function noiseFor(spec, state) {
+  const base = pairedActive(spec, state) ? state.baseline.pairedNoise : state.baseline.noise;
+  const inst = state.baseline.instrument;
+  const floor = inst?.coarse ? ((spec.metric.stepFloor ?? 0) * inst.step) / 2 : 0;
+  return Math.max(base, floor);
+}
+
+/**
+ * What the values of one code state say about the resolution of the metric.
+ *   ties: the values that equal another value. A continuous metric gives none.
+ *   step: the smallest gap above 0 between two values, an upper limit of the real step. null when
+ *         every value is the same: such a metric is exact, not coarse.
+ *   stepsInThreshold: the keep threshold in steps.
+ *   coarse: values tie, and the keep threshold is narrower than `coarseSteps` steps.
+ * null with fewer than 3 values.
+ */
+export function instrumentOf(values, threshold, coarseSteps = DEFAULT_SPEC['coarse-steps']) {
+  const v = (values ?? []).filter(Number.isFinite).sort((a, b) => a - b);
+  if (v.length < 3) return null;
+  let ties = 0;
+  let step = null;
+  for (let i = 0; i < v.length; i++) {
+    if (v[i] === v[i - 1] || v[i] === v[i + 1]) ties++;
+    const gap = i ? v[i] - v[i - 1] : 0;
+    if (gap > 0 && (step === null || gap < step)) step = gap;
+  }
+  if (step !== null) step = Number(step.toPrecision(12));
+  const stepsInThreshold = step !== null && threshold > 0 ? Number((threshold / step).toPrecision(6)) : null;
+  return { values: v.length, ties, step, stepsInThreshold, coarse: ties > 0 && stepsInThreshold !== null && stepsInThreshold < coarseSteps };
+}
+
+/** What the person should know about the instrument of this run, in plain words. [] when nothing. */
+export function warningsOf(spec, state) {
+  const out = [];
+  const inst = state?.baseline?.instrument;
+  if (inst?.coarse) {
+    const unit = spec.metric.unit ? ` ${spec.metric.unit}` : '';
+    out.push(`The metric is coarse: its values move in steps of about ${inst.step}${unit}, and the keep threshold is only ${inst.stepsInThreshold} steps wide. `
+      + `A kept gain is at least ${spec.metric.stepFloor} steps. Do more work in one metric run, or read a finer counter, to measure smaller gains.`);
+  }
+  return out;
+}
 
 /** True when the value reaches the target in the metric's direction. */
 export const reachesTarget = (spec, value) => spec.metric.target !== null && value !== null && (spec.metric.direction === 'lower' ? value <= spec.metric.target : value >= spec.metric.target);

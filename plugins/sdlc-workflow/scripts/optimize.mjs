@@ -3,6 +3,9 @@
  * scripts/optimize.mjs — the disk side of /wf loop optimize.
  * skills/wf/scripts/optimize.mjs runs this script.
  *
+ *   metric-check    <root> <slug> [--cmd c] [--key k] [--direction d] [--repeat n] [--min-gain g] [--timeout t]
+ *                                                     run a metric command in the project root and print its spread, its noise and
+ *                                                     its resolution against the keep threshold; reads no state and writes nothing
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
  *   status          <root> <slug>                     running | complete | stopped | finished, and the next action with
  *                                                     its exact command, what the agent supplies, and what comes after
@@ -62,6 +65,7 @@ import {
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricSamples, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
+  instrumentOf, warningsOf, parseAmount, amountOf, parseDuration,
   nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
 } from '../lib/optimize.mjs';
 import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
@@ -75,7 +79,7 @@ import { dropLock as dropFileLock, isStaleLock, refreshLock, takeLock as takeFil
 import { agentFix, failure, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 
 /** The commands of this script, in the order of USAGE. */
-export const COMMANDS = Object.freeze(['baseline', 'status', 'propose-context', 'trial', 'round-open', 'round-close', 'merge-consider', 'merge-trial', 'merge-close', 'checkpoint', 'finish', 'cleanup', 'probe-open', 'probe', 'idea-claim', 'profile', 'profile-record', 'prune', 'ablate', 'resume', 'report']);
+export const COMMANDS = Object.freeze(['metric-check', 'baseline', 'status', 'propose-context', 'trial', 'round-open', 'round-close', 'merge-consider', 'merge-trial', 'merge-close', 'checkpoint', 'finish', 'cleanup', 'probe-open', 'probe', 'idea-claim', 'profile', 'profile-record', 'prune', 'ablate', 'resume', 'report']);
 const USAGE = `Usage: optimize.mjs <${COMMANDS.join('|')}> <projectRoot> <slug>|--all ...`;
 // A usage error names its repair like every other failure.
 const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
@@ -427,14 +431,14 @@ function judge(root, state, spec, wt, env, best, line) {
     line.median = median(first.cand);
     line.delta = first.median;
     line.paired = { ref: first.ref, gains: first.gains };
-    let d = pairedDecision({ spec, best: best.value, noise: state.baseline.pairedNoise, gains: first.gains });
+    let d = pairedDecision({ spec, best: best.value, noise: noiseFor(spec, state), gains: first.gains });
     line.threshold = d.threshold;
     if (d.needConfirm) {
       const c = pairedBlock(spec, A, B, spec.metric.repeat);
       if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm block failed', output: c.output } };
       line.confirm = c.cand;
       Object.assign(line.paired, { confirmRef: c.ref, confirmGains: c.gains });
-      d = pairedDecision({ spec, best: best.value, noise: state.baseline.pairedNoise, gains: first.gains, confirm: c.gains });
+      d = pairedDecision({ spec, best: best.value, noise: noiseFor(spec, state), gains: first.gains, confirm: c.gains });
       if (d.kept) {
         line.median = median([...first.cand, ...c.cand]);
         line.delta = median([...first.gains, ...c.gains]);
@@ -450,13 +454,13 @@ function judge(root, state, spec, wt, env, best, line) {
   if (m.samples) line.samples = m.samples;
   line.median = m.median;
   line.delta = gainOf(spec.metric.direction, best.value, m.median);
-  let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median });
+  let d = keepDecision({ spec, best: best.value, noise: noiseFor(spec, state), first: m.median });
   line.threshold = d.threshold;
   if (d.needConfirm) {
     const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
     if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm run failed', output: c.output } };
     line.confirm = c.values;
-    d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median, confirm: c.median });
+    d = keepDecision({ spec, best: best.value, noise: noiseFor(spec, state), first: m.median, confirm: c.median });
     if (d.kept) {
       line.median = median([...m.values, ...c.values]);
       line.delta = gainOf(spec.metric.direction, best.value, line.median);
@@ -627,7 +631,8 @@ function statusOf(root, slug) {
     ...recover,
     ...(blocked ? { finishBlocked: blocked } : {}),
     best: state.best,
-    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}) },
+    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}), ...(state.baseline.instrument ? { instrument: state.baseline.instrument } : {}) },
+    ...(warningsOf(spec, state).length ? { warnings: warningsOf(spec, state) } : {}),
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
     round: state.round ? { n: state.round.n, reason: state.round.reason, branches: state.round.branches.map((b) => ({ k: b.k, name: b.name, trials: b.trials, keeps: b.keeps, best: b.best.value })) } : null,
@@ -668,6 +673,44 @@ function requireNext(root, slug, action) {
     throw refuse(`the next action is ${st.next?.action ?? 'none'} (${st.state}${st.reason && st.reason !== 'running' ? `: ${st.reason}` : ''}${st.detail ? `, ${st.detail}` : ''}), not ${action}`, fix);
   }
   return st;
+}
+
+// ---------------------------------------------------------------------------
+// metric-check
+// ---------------------------------------------------------------------------
+/**
+ * `metric-check`: run a metric command in the project root and say what the keep rule can resolve
+ * with it. Intake runs it before the person confirms the spec, so it reads no state and writes
+ * nothing. A flag overrides the field of the spec; with no spec, --cmd is needed.
+ */
+function metricCheck(root, slug, f) {
+  const rec = readRecord(wfDir(root, slug), SPEC_FILE);
+  const fm = rec && !rec.error && rec.data?.metric && typeof rec.data.metric === 'object' ? rec.data.metric : {};
+  const text = (k, flag = k) => (typeof f[flag] === 'string' ? f[flag] : String(fm[k] ?? '').trim());
+  const command = text('command', 'cmd');
+  const again = (how) => agentFix(how, opt(root, slug, 'metric-check', '--cmd "<the metric command>"'));
+  if (!command) throw refuse('metric-check needs a metric command: pass --cmd "<command>"', again('Pass the metric command of the brief.'));
+  const direction = text('direction') || 'lower';
+  const repeat = Number(text('repeat') || 5);
+  const minGain = parseAmount(text('min-gain') || '2%');
+  const timeoutMs = parseDuration(typeof f.timeout === 'string' ? f.timeout : '10m');
+  if (!['lower', 'higher'].includes(direction) || !Number.isInteger(repeat) || repeat < 3 || minGain.invalid || !timeoutMs) {
+    throw refuse('metric-check: --direction is lower or higher, --repeat is an integer of 3 or more, --min-gain is a number or a percent, and --timeout is a duration', again('Repair the flag that the error names, then run the command again.'));
+  }
+  const m = measure({ budget: { trialTimeoutMs: timeoutMs } }, root, repeat, command, text('key') || null);
+  if (m.crashed || m.timeout) {
+    return { ok: false, error: `the metric ${m.timeout ? 'timed out' : 'did not print a number'} in run ${m.values.length + 1}`, values: m.values, output: m.output, fix: personFix('The metric command failed. Show its output to the person and repair the command, then run the check again.') };
+  }
+  const noise = noiseOf(m.values);
+  const threshold = Math.max(amountOf(minGain, m.median), 2 * noise);
+  const instrument = instrumentOf(m.values, threshold, Number(text('coarse-steps') || 20));
+  const warnings = warningsOf({ metric: { unit: text('unit'), stepFloor: Number(text('step-floor') || 3) } }, { baseline: { instrument } });
+  return {
+    ok: true, command, direction, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: m.median,
+    spread: Number((2 * noise).toPrecision(12)), noise, threshold, instrument,
+    msPerRun: Math.round(m.runs.reduce((a, r) => a + r.ms, 0) / m.runs.length),
+    ...(warnings.length ? { warnings } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -722,7 +765,10 @@ function baseline(root, slug) {
   }
   const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise });
   state.buildDir = build.buildDir ?? null;
-  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}) });
+  // Every value here is of one code state, so equal values and the gaps between them show the resolution of the metric.
+  const instrument = instrumentOf([...m.values, ...(aa ? [...aa.ref, ...aa.cand] : [])], keepThreshold(spec, state.baseline.median, pairedNoise ?? state.baseline.noise), spec.metric.coarseSteps);
+  if (instrument) state.baseline.instrument = instrument;
+  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}), ...(instrument ? { instrument } : {}) });
   saveState(root, slug, state);
   return { ok: true, worktree: wt, branch: trunk, baseline: state.baseline, ...optimizeStatus(root, slug) };
 }
@@ -972,7 +1018,7 @@ function trial(root, slug, id, f) {
     || reuseText({ port: st.next.port ? state.merge?.candidates.find((c) => c.name === st.next.port) : null, bundle: Array.isArray(st.next.bundle) ? st.next.bundle : null, bundleOf: st.next.bundleOf ?? [] });
   const hypothesis = { id, text, expected: String(f.expected === true ? '' : f.expected ?? '').trim() || (st.next.portOf?.gain !== undefined ? String(st.next.portOf.gain) : '') };
   const n = state.counters.trials + 1;
-  const line = { event: 'trial', trial: n, round: isTrunk ? null : round.n, branch: isTrunk ? null : laneName, hypothesis, values: [], median: null, delta: null, noise: state.baseline.noise, guard: null };
+  const line = { event: 'trial', trial: n, round: isTrunk ? null : round.n, branch: isTrunk ? null : laneName, hypothesis, values: [], median: null, delta: null, noise: noiseFor(spec, state), guard: null };
   const stamp = proposeStamp(root, slug, laneTagOf(state, laneName));
   if (existsSync(stamp)) {
     try { line.prepareMs = Date.now() - JSON.parse(readFileSync(stamp, 'utf8')).at; } catch { /* no time */ }
@@ -1435,7 +1481,7 @@ function mergeTrial(root, slug, f) {
   const best = state.best;
   const n = state.counters.trials + 1;
   const text = `merge of ${cand.name}: ${cand.hypotheses.join(' | ')}`;
-  const line = { event: 'trial', trial: n, round: null, branch: null, merge: { round: mg.round, branch: cand.name }, hypothesis: { id: `m${n}`, text, expected: String(cand.gain) }, values: [], median: null, delta: null, noise: state.baseline.noise, guard: null };
+  const line = { event: 'trial', trial: n, round: null, branch: null, merge: { round: mg.round, branch: cand.name }, hypothesis: { id: `m${n}`, text, expected: String(cand.gain) }, values: [], median: null, delta: null, noise: noiseFor(spec, state), guard: null };
   const done = (verdict, extra = {}) => {
     Object.assign(line, { verdict, ...extra });
     // A reset also ends a merge that stopped at a conflict.
@@ -1611,6 +1657,7 @@ function finish(root, slug, f) {
       `# Implement: ${SLICE}`, '', '## Summary of Changes', '',
       `- The loop ran ${state.counters.trials} trials in ${state.rounds.length} branch round(s) and kept ${kept.length}.`,
       `- The metric moved from ${state.baseline.median}${unit} to ${state.best.value}${unit} (gain ${gain}${unit}; noise floor ${state.baseline.noise}${unit}).`,
+    ...warningsOf(spec, state).map((w) => `- Warning: ${w}`),
     ...(spec.holdout && state.lastCheckpoint?.value !== null && state.lastCheckpoint?.value !== undefined ? [`- The holdout moved from ${state.baseline.holdout} to ${state.lastCheckpoint.value} (checked at trial ${state.lastCheckpoint.trial}).`] : []),
       history === 'per-change'
         ? `- ${shas.length} commit${shas.length === 1 ? '' : 's'} on the slug branch, one for each kept change, ending at ${sha}.`
@@ -2142,6 +2189,7 @@ export function main(argv = process.argv.slice(2)) {
   let out;
   try {
     switch (cmd) {
+      case 'metric-check': out = metricCheck(root, slug, f); break;
       case 'baseline': out = withLock(root, slug, null, () => baseline(root, slug)); break;
       case 'status': out = optimizeStatus(root, slug); break;
       case 'propose-context': out = proposeContext(root, slug, f); break;

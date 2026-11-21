@@ -79,7 +79,8 @@ next-invocation: "/wf loop optimize <slug>"
 1. Run the metric command once from the project root. The last line of its standard output must parse as one number, as a JSON array of numbers, or as JSON with the named key. When the line does not parse, show the output and ask again.
 2. Run the guard once. The guard must exit 0. When the guard fails, report the failure and end the run. A loop cannot start from a red guard.
 3. Record the time of each run. The spec's `trial-timeout` must be larger than the time of the guard plus `repeat` metric runs.
-4. Run the metric 4 more times and show the spread. With `metric.paired`, the noise of a paired block is usually much smaller than this spread. Show the person both numbers beside `metric.min-gain`, so the person sets the smallest gain to keep with them.
+4. Run `node "<skill-dir>/scripts/optimize.mjs" metric-check "<projectRoot>" <slug> --cmd "<the metric command>"`, with `--key <key>` when the brief names one. It runs the metric 5 times, writes nothing, and prints `spread`, `noise`, `threshold` and `instrument`. With `metric.paired`, the noise of a paired block is usually much smaller than this spread. Show the person the numbers beside `metric.min-gain`, so the person sets the smallest gain to keep with them.
+5. When the result has `warnings`, show each one before the spec. A coarse metric moves in steps, and its keep threshold is only a few steps wide: the loop then cannot tell a small gain from the next step. Propose a metric command that does more work in one run, or that reads a finer counter.
 
 # Step 3 — Spec → `02-optimize-spec.md` (`type: optimize-spec`)
 
@@ -97,6 +98,8 @@ next-invocation: "/wf loop optimize <slug>"
 | `metric.repeat` | 5 | Runs for each measurement. The noise floor is half the spread of the baseline runs |
 | `metric.min-gain` | `2%` | The smallest gain to keep, absolute or percent. A keep also needs a gain above 2 × noise |
 | `metric.paired` | `true` for a new spec | Compare each trial with the best of its lane in turns. A block takes `2 × repeat + 2` metric runs, and it cancels the drift of the machine |
+| `metric.coarse-steps` | 20 | The metric is coarse when its baseline values tie and the keep threshold is narrower than this many steps of the metric |
+| `metric.step-floor` | 3 | The smallest gain that a coarse metric can keep, in steps. `0` turns it off |
 | `metric.target` | `null` | When the kept value reaches it, the loop is complete |
 | `budget.trials` | 60 | Trunk trials and branch trials together |
 | `budget.plateau` | 8 | Trunk trials in a row with no keep that open a branch round |

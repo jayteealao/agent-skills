@@ -2415,6 +2415,8 @@
             "target": { "type": ["number", "null"] },
             "repeat": { "type": "integer", "minimum": 1 },
             "min-gain": { "type": ["number", "string"] },
+            "coarse-steps": { "type": "number", "minimum": 0, "description": "The metric is coarse when its values tie and the keep threshold is narrower than this many steps of the metric. Default 20." },
+            "step-floor": { "type": "number", "minimum": 0, "description": "The smallest gain that a coarse metric can keep, in steps of the metric. Default 3." },
             "paired": { "type": "boolean", "description": "true: each trial runs in turns with a reference worktree at the best of its lane, and the keep rule uses the pair gains and the paired noise of the baseline." }
           }
         },
