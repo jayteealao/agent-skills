@@ -328,6 +328,10 @@ export function warningsOf(spec, state) {
     out.push('The holdout runs the same workload as the metric: its command differs only in a number, such as a seed. '
       + 'It cannot show a change that fits only the measured inputs. Give the holdout other inputs, another configuration or another size.');
   }
+  if (!spec.profile && spec.rounds?.at?.length) {
+    out.push('The spec has no profile. The branches of a round then start with no seed, and they can all try the same idea. '
+      + 'Set profile to a command that prints the share of each part of the work, or to agent.');
+  }
   return out;
 }
 

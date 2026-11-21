@@ -76,7 +76,7 @@ test('the resolution of the metric: values that tie, and a keep threshold of few
 });
 
 test('a coarse metric keeps no gain of fewer than step-floor steps, and the run warns', () => {
-  const spec = specOf();
+  const spec = specOf({ profile: 'agent' });
   const coarse = stateOf();
   coarse.baseline.instrument = { values: 5, ties: 2, step: 1, stepsInThreshold: 2, coarse: true };
   assert.equal(noiseFor(spec, coarse), 1.5, 'half of 3 steps');
@@ -329,11 +329,17 @@ test('a holdout that differs from the metric only in a number runs the same work
   assert.equal(holdoutKind('bench --seed 42', 'bench --suite formations --seed 42'), 'different');
   assert.equal(holdoutKind('node m.js', 'node  m.js'), 'same-command');
   assert.equal(holdoutKind('node m.js', null), null);
-  const warn = (holdout) => warningsOf(specOf({ holdout: { command: holdout } }), stateOf());
+  const warn = (holdout) => warningsOf(specOf({ profile: 'agent', holdout: { command: holdout } }), stateOf());
   assert.match(warn('node m.js --seed 7')[0] ?? '', /^$/, 'the metric of this spec has no seed: the commands differ in length');
-  assert.match(warningsOf(specOf({ metric: { ...fm().metric, command: 'node m.js --seed 42' }, holdout: { command: 'node m.js --seed 7' } }), stateOf())[0], /differs only in a number, such as a seed/);
+  assert.match(warningsOf(specOf({ profile: 'agent', metric: { ...fm().metric, command: 'node m.js --seed 42' }, holdout: { command: 'node m.js --seed 7' } }), stateOf())[0], /differs only in a number, such as a seed/);
   assert.match(warn('node m.js')[0], /The holdout command is the metric command/);
   assert.deepEqual(warn('node other.js'), []);
+});
+
+test('a spec with branch rounds and no profile warns: the branches of a round have no seed', () => {
+  assert.match(warningsOf(specOf(), stateOf())[0], /The spec has no profile/);
+  assert.deepEqual(warningsOf(specOf({ profile: 'node profile.js' }), stateOf()), []);
+  assert.deepEqual(warningsOf(specOf({ 'branch-rounds': { at: [] } }), stateOf()), [], 'with no rounds, no branch needs a seed');
 });
 
 test('a claim of an idea refuses a target that another lane claims, and a tried target without a new reason', () => {
