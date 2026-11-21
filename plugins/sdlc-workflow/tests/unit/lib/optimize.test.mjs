@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
-  parseDuration, parseMetricLine, parseSpec, pathViolations, pickWinner,
+  parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
   proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
@@ -43,12 +43,22 @@ test('the metric line is the last stdout line: one number, or JSON with the key'
 });
 
 test('a JSON metric key with no number in it gives no value, and a numeric string still counts', () => {
-  for (const v of ['null', '""', '"  "', 'false', 'true', '[]', '[5]', '{}', '"abc"']) {
+  for (const v of ['null', '""', '"  "', 'false', 'true', '[]', '["5"]', '[1,null]', '{}', '"abc"']) {
     assert.equal(parseMetricLine(`{"ms":${v}}`, 'ms'), null, v);
   }
   assert.equal(parseMetricLine('{"a":{}}', 'a.b'), null);
   assert.equal(parseMetricLine('{"ms":"12.5"}', 'ms'), 12.5);
   assert.equal(parseMetricLine('{"ms":0}', 'ms'), 0);
+});
+
+test('a metric run can print several samples as a JSON array, and its value is their median', () => {
+  assert.deepEqual(parseMetricSamples('building\n[3, 1, 2]\n'), [3, 1, 2]);
+  assert.equal(parseMetricLine('[3, 1, 2]'), 2);
+  assert.equal(parseMetricLine('[4, 2]'), 3);
+  assert.deepEqual(parseMetricSamples('{"bench":{"us":[5, 7, 6]}}', 'bench.us'), [5, 7, 6]);
+  assert.equal(parseMetricLine('{"ms":[5]}', 'ms'), 5);
+  assert.deepEqual(parseMetricSamples('12.5'), [12.5], 'one number is one sample');
+  for (const bad of ['[]', '[1, "2"]', '[1, null]', '[1,', '[[1]]']) assert.equal(parseMetricSamples(bad), null, bad);
 });
 
 test('a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {

@@ -59,7 +59,7 @@ import { fileURLToPath } from 'node:url';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import {
   SPEC_FILE, buildDigest, claimIdea, commandFiles, emptyIdeas, gainOf, holdoutRegressed, keepDecision, keptTable, laneBest, median, newState,
-  STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricLine, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
+  STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricSamples, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
   nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
@@ -334,16 +334,20 @@ function checkout(root, state, branch) {
 function measure(spec, cwd, n, command = spec.metric.command, key = spec.metric.key, env = null) {
   const values = [];
   const runs = [];
+  const samples = [];
   for (let i = 0; i < n; i++) {
     const r = runCommand(command, cwd, spec.budget.trialTimeoutMs, env);
     runs.push({ code: r.code, ms: r.ms });
     if (r.timedOut) return { values, timeout: true, output: tail(r.stdout + r.stderr) };
-    const v = r.code === 0 ? parseMetricLine(r.stdout, key) : null;
-    if (v === null) return { values, crashed: true, output: tail(r.stdout + r.stderr), code: r.code };
-    values.push(v);
+    const s = r.code === 0 ? parseMetricSamples(r.stdout, key) : null;
+    if (s === null) return { values, crashed: true, output: tail(r.stdout + r.stderr), code: r.code };
+    values.push(median(s));
+    samples.push(s);
   }
-  return { values, median: median(values), runs };
+  return { values, median: median(values), runs, ...samplesField(samples) };
 }
+/** The samples of each run, kept only when a run printed more than one. The value of a run is their median. */
+const samplesField = (samples) => (samples.some((s) => s.length > 1) ? { samples } : {});
 
 // ---------------------------------------------------------------------------
 // The reference worktree and paired measurement
@@ -380,10 +384,11 @@ function pairedBlock(spec, a, b, n) {
   const one = (side) => {
     const r = runCommand(spec.metric.command, side.cwd, spec.budget.trialTimeoutMs, side.env);
     if (r.timedOut) return { timeout: true, output: tail(r.stdout + r.stderr) };
-    const v = r.code === 0 ? parseMetricLine(r.stdout, spec.metric.key) : null;
-    return v === null ? { crashed: true, output: tail(r.stdout + r.stderr) } : { v };
+    const s = r.code === 0 ? parseMetricSamples(r.stdout, spec.metric.key) : null;
+    return s === null ? { crashed: true, output: tail(r.stdout + r.stderr) } : { v: median(s), s };
   };
   const out = { ref: [], cand: [], gains: [] };
+  const candSamples = [];
   for (const side of [a, b]) {
     const w = one(side);
     if (w.v === undefined) return { ...out, ...w };
@@ -394,12 +399,13 @@ function pairedBlock(spec, a, b, n) {
       const r = one(s === 'A' ? a : b);
       if (r.v === undefined) return { ...out, ...r };
       got[s] = r.v;
+      if (s === 'B') candSamples.push(r.s);
     }
     out.ref.push(got.A);
     out.cand.push(got.B);
     out.gains.push(gainOf(spec.metric.direction, got.A, got.B));
   }
-  return { ...out, median: median(out.gains) };
+  return { ...out, median: median(out.gains), ...samplesField(candSamples) };
 }
 
 /**
@@ -417,6 +423,7 @@ function judge(root, state, spec, wt, env, best, line) {
     const first = pairedBlock(spec, A, B, spec.metric.repeat);
     if (first.timeout || first.crashed) return { verdict: first.timeout ? 'timeout' : 'crashed', extra: { reason: `the metric ${first.timeout ? 'timed out' : 'did not print a number'} in a paired block`, values: first.cand, output: first.output } };
     line.values = first.cand;
+    if (first.samples) line.samples = first.samples;
     line.median = median(first.cand);
     line.delta = first.median;
     line.paired = { ref: first.ref, gains: first.gains };
@@ -440,6 +447,7 @@ function judge(root, state, spec, wt, env, best, line) {
   if (m.timeout) return { verdict: 'timeout', extra: { reason: 'the metric timed out', values: m.values, output: m.output } };
   if (m.crashed) return { verdict: 'crashed', extra: { reason: 'the metric did not print a number', values: m.values, output: m.output } };
   line.values = m.values;
+  if (m.samples) line.samples = m.samples;
   line.median = m.median;
   line.delta = gainOf(spec.metric.direction, best.value, m.median);
   let d = keepDecision({ spec, best: best.value, noise: state.baseline.noise, first: m.median });
@@ -714,7 +722,7 @@ function baseline(root, slug) {
   }
   const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise });
   state.buildDir = build.buildDir ?? null;
-  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}) });
+  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}) });
   saveState(root, slug, state);
   return { ok: true, worktree: wt, branch: trunk, baseline: state.baseline, ...optimizeStatus(root, slug) };
 }

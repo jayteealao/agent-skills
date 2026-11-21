@@ -1412,3 +1412,26 @@ test('with paired measurement, the merge candidates of a round use the paired no
     rmSync(parent, { recursive: true, force: true });
   }
 });
+
+test('a metric that prints several samples: the value of a run is their median, and the ledger keeps the samples', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []');
+    // Each run prints three samples around the value of src/value.txt.
+    writeFileSync(path.join(root, 'metric.js'), "const v = Number(require('fs').readFileSync('src/value.txt', 'utf8').trim()); console.log(JSON.stringify([v - 1, v, v + 4]));\n");
+    git(root, 'add', 'metric.js');
+    git(root, 'commit', '-q', '-m', 'samples');
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.equal(b.baseline.median, 100);
+    assert.equal(b.baseline.noise, 0, 'the noise comes from the values of the runs, not from the samples inside one run');
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept');
+    const lines = ledger(root);
+    assert.deepEqual(lines.find((l) => l.event === 'baseline').samples, [[99, 100, 104], [99, 100, 104]]);
+    const trial = lines.find((l) => l.event === 'trial');
+    assert.deepEqual(trial.values, [90, 90]);
+    assert.deepEqual(trial.samples, [[89, 90, 94], [89, 90, 94]]);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});

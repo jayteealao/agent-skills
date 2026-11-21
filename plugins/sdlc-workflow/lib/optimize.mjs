@@ -160,11 +160,15 @@ export function parseSpec(fm) {
   return { spec, errors };
 }
 
+/** The samples of a JSON array: every item a finite number, and at least one. null otherwise. */
+const samplesOf = (v) => (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'number' && Number.isFinite(x)) ? v : null);
+
 /**
- * The value of one metric run: the last non-empty stdout line is one number, or JSON
- * with `key`. null when it does not parse.
+ * The samples of one metric run. The last non-empty stdout line is one number, a JSON array of
+ * numbers, or JSON with `key`, where the key holds a number or an array of numbers. A run that
+ * does the measured work several times prints the array. null when the line does not parse.
  */
-export function parseMetricLine(stdout, key = null) {
+export function parseMetricSamples(stdout, key = null) {
   const lines = String(stdout ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const last = lines[lines.length - 1];
   if (last === undefined) return null;
@@ -172,15 +176,25 @@ export function parseMetricLine(stdout, key = null) {
     try {
       const o = JSON.parse(last);
       const v = key.split('.').reduce((acc, k) => (acc && typeof acc === 'object' ? acc[k] : undefined), o);
-      // A number, or a string that holds one. null, false, '' and arrays are no value.
+      if (Array.isArray(v)) return samplesOf(v);
+      // A number, or a string that holds one. null, false and '' are no value.
       const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
-      return Number.isFinite(n) ? n : null;
+      return Number.isFinite(n) ? [n] : null;
     } catch {
       return null;
     }
   }
+  if (last.startsWith('[')) {
+    try { return samplesOf(JSON.parse(last)); } catch { return null; }
+  }
   const n = Number(last);
-  return Number.isFinite(n) && last !== '' ? n : null;
+  return Number.isFinite(n) && last !== '' ? [n] : null;
+}
+
+/** The value of one metric run: the median of its samples. null when the line does not parse. */
+export function parseMetricLine(stdout, key = null) {
+  const s = parseMetricSamples(stdout, key);
+  return s ? median(s) : null;
 }
 
 export function median(values) {
