@@ -706,6 +706,41 @@ function walkOrder(slices) {
   return out
 }
 
+// rewalk() — the walk of the slices still to drive, from a fresh read of the roster.
+// `left` are the slices not yet driven, in walk order; `fresh` is a rosterNow() result;
+// `known` holds every slice that orient saw. The fresh depends-on and roster order win.
+// A slice the roster now marks skipped or dropped, or no longer lists, is retired, so the
+// walk skips it. A slice added after orient is reported, not driven: orient never judged
+// its stages or its design gate, so the next run drives it. An empty read keeps `left`.
+function rewalk(left, fresh, known) {
+  const rows = ((fresh && fresh.slices) || []).filter(r => r && r.slice)
+  if (!rows.length) return { list: left, changes: [], added: [] }
+  const at = new Map(rows.map(r => [r.slice, r]))
+  const pos = new Map(rows.map((r, i) => [r.slice, i]))
+  const changes = []
+  const kept = left.map(s => {
+    const r = at.get(s.slice)
+    if (!r) {
+      if (s.status !== 'dropped') changes.push(`'${s.slice}' left the roster`)
+      return { ...s, status: 'dropped' }
+    }
+    const status = r.roster === 'skipped' || r.roster === 'dropped' ? r.roster : s.status
+    if (status !== s.status) changes.push(`'${s.slice}' is now ${status}`)
+    const was = s.dependsOn || []
+    const dependsOn = Array.isArray(r.dependsOn) ? r.dependsOn.map(String) : was
+    if (dependsOn.join('\n') !== was.join('\n')) changes.push(`'${s.slice}' now runs after ${dependsOn.join(', ') || 'nothing'}`)
+    return { ...s, status, dependsOn }
+  })
+  const rank = (s) => (pos.has(s.slice) ? pos.get(s.slice) : rows.length)
+  const ordered = kept.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(x => x.s)
+  const list = walkOrder(ordered)
+  if (list.map(s => s.slice).join('\n') !== left.map(s => s.slice).join('\n')) {
+    changes.push(`the walk is now ${list.map(s => s.slice).join(' → ')}`)
+  }
+  const added = rows.map(r => r.slice).filter(n => !known.has(n))
+  return { list, changes, added }
+}
+
 // The stage prompt states the shared rules once. A stage agent does not read again the files
 // that hold them; the stage reference still points to them for a person. requiresClause
 // restates _requires.md (all but its Modes table), steeringClause restates _decisions.md,
@@ -2523,6 +2558,40 @@ async function planFreshness(sliceArg) {
   return s ? { fresh: false, reason: s.reason || 'the code changed under the plan' } : { fresh: true }
 }
 
+const ROSTER_NOW = {
+  type: 'object',
+  required: ['slices'],
+  properties: {
+    slices: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['slice'],
+        properties: {
+          slice: { type: 'string' },
+          roster: { type: ['string', 'null'] },
+          dependsOn: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+}
+
+// rosterNow() — the roster as it is now, between two slices. A person or a campaign can
+// change the order (campaign slice-order) or retire a slice while a slice runs, and
+// orient read the roster only once, at the start. This script reads no file itself, so a
+// small agent runs the status command, and rewalk() takes the order from its answer.
+async function rosterNow(afterSlice) {
+  return await spawnAgent(
+    `ROSTER RE-READ for slug '${slug}', after slice '${afterSlice}'. READ-ONLY — write, edit and commit nothing.\n\n` +
+    `Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` once. Return its slices[] in the order of the ` +
+    `output, each as { slice, roster, dependsOn } with the values copied as they are. Read no other file, ` +
+    `and do not reorder, add or leave out an entry. When the command fails, return { slices: [] }.` +
+    heartbeatClause(`roster:${afterSlice}`, 'Drive', 'roster', afterSlice),
+    { schema: ROSTER_NOW, label: `roster:${afterSlice}`, phase: 'Drive', ...SONNET }
+  )
+}
+
 // One implement agent for the whole slice. A re-run resumes after the last committed step.
 async function implementSlice(sliceArg, idx, entry, answered, selfVerify = false) {
   return await runStage('implement', sliceArg, idx, { stopCheck: true, answered, selfVerify })
@@ -2940,8 +3009,14 @@ if (idx.workflowType === 'update-deps') {
     // A checkpoint window in which no stage ran cannot drift the charter, so it is
     // not re-checked: a resumed run otherwise re-checks every finished slice first.
     let workSinceCheckpoint = false
-    for (let si = 0; si < list.length; si++) {
-      const s = list[si]
+    // The slices still to drive. The primary pass reads the roster again after each slice
+    // that ran a stage, so an order or a retirement made during the run takes effect at
+    // the next slice. A slice that ran nothing took no time, so nothing is read after it.
+    let left = [...list]
+    const known = new Set((idx.slices || []).map(x => x.slice))
+    const announced = new Set()
+    for (let si = 0; left.length; si++) {
+      const s = left.shift()
       // An already-skipped roster entry (00-index slices[].status: skipped, with its
       // skip record) has nothing to drive — walking it into verify HARD-STOPs the
       // whole run at a slice a human already retired. Skip it, keep it countable.
@@ -2959,7 +3034,7 @@ if (idx.workflowType === 'update-deps') {
       // Charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
       // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
-      const isLast = si === list.length - 1
+      const isLast = left.length === 0
       const checkpointDue = !bounded && (idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
       if (checkpointDue && !workSinceCheckpoint) {
         log(`charter checkpoint after '${s.slice}' skipped — no work since the last checkpoint touched the charter`)
@@ -2982,6 +3057,14 @@ if (idx.workflowType === 'update-deps') {
             return stopOut('steering-checkpoint', `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in the decision store`, { ...walk, stoppedSlice: s.slice, charterCheckpoints, route: `read the crossed veto(es) with wf.mjs decide list --kind steer, fix the code or supersede the entry, then re-run /wf yolo ${slug}` })
           }
         }
+      }
+      if (!bounded && left.length && (chain.ran || []).length) {
+        const fresh = rewalk(left, await rosterNow(s.slice), known)
+        if (fresh.changes.length) log(`roster changed during '${s.slice}': ${fresh.changes.join('; ')}`)
+        const added = fresh.added.filter(n => !announced.has(n))
+        added.forEach(n => announced.add(n))
+        if (added.length) log(`slice(s) added to the roster after this run started: ${added.join(', ')} — not driven in this run; the next /wf yolo ${slug} drives them`)
+        left = fresh.list
       }
     }
     return null

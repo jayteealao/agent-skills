@@ -44,11 +44,35 @@ A slice of complexity `xs` or `s` has no separate verify agent. Its implement ag
 
 Orientation classifies each slice by why it still has work. The driver runs the classes in this order:
 
-1. `new-work`: a stage never ran, did not converge, or has a substantive residual. These slices run first, in roster order.
+1. `new-work`: a stage never ran, did not converge, or has a substantive residual. These slices run first, in the order of their `depends-on` in `03-slice.md`, with roster order as the tie-break.
 2. The target of the run: the slug-wide review in slug mode, or the named slice in slice mode.
 3. `deferral-rechallenge`: every stage is terminal-clean, and the only residue is an open runtime-evidence deferral that no one authorized. These slices run after the target, in the same run.
 
 A re-challenge is a bounded wall probe, not a verify. A read-only agent runs the recorded capability probes of the open deferrals of the slice again, and reports for each wall whether it still stands. When every wall stands, the deferrals carry fresh receipts and the slice is done for this run. The driver runs a full verify again only for a named reason (a wall fell, or the artifacts contradict the index), and records that reason as a decision.
+
+## Roster changes during a run
+
+Orientation reads the roster once, at the start of the run. In slug mode, the driver reads it again after each `new-work` slice that ran a stage, when slices are still left. A read-only agent (`roster:<slice>` in the journal) runs `wf.mjs status <root> <slug> --json` and returns the `roster` status and the `dependsOn` of each slice. The driver then orders the slices that are left again. So a person or a campaign can change the roster while a slice runs, and the change takes effect at the next slice:
+
+| Change during a slice | What the driver does |
+|---|---|
+| A `depends-on` edge is added or removed (for example with `campaign.mjs slice-order`), or the roster order changes | The slices that are left run in the new order. |
+| A slice gets the roster status `skipped` or `dropped` | The driver skips that slice. |
+| A slice leaves the roster (for example with `wf.mjs slice move`) | The driver skips that slice, as a dropped slice. |
+| A slice is added to the roster | The driver logs the slice once and does not drive it. Orientation did not check its stages or its design gate, so the next `/wf yolo <slug>` drives it. |
+| The read fails or returns no slices | The driver keeps the order that it had. |
+
+The run log names each change, for example `roster changed during 'a': 'b' now runs after c; the walk is now c → b`.
+
+Limits:
+
+- A change made while a slice runs takes effect only when that slice has finished `plan → implement → verify`.
+- After a slice that ran no stage, the driver does not read the roster, because no time has passed.
+- The `deferral-rechallenge` slices keep their order, because they build nothing.
+- A roster status of `complete` does not take a slice out of the run. Only `skipped` and `dropped` do.
+- Slice mode does not read the roster again. Its route to the next slice uses the roster that orientation read.
+
+The re-read is an agent call, so a resumed run replays its answer and takes the same path.
 
 # Driver liveness
 

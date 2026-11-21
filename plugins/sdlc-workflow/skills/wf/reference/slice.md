@@ -210,7 +210,7 @@ recommended-routes:
 
 You write every `refs:` link when you create the file. Later stages do not edit the links of this file.
 
-The `slice-order` command of `campaign.mjs` adds a `depends-on` edge from a plan: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <slice> --after <other slice> --why "<reason>"`. Remove an edge here, with the person.
+The `slice-order` command of `campaign.mjs` adds a `depends-on` edge from a plan: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <slice> --after <other slice> --why "<reason>"`. Remove an edge here, with the person. A running `/wf yolo` reads the roster again after each slice that ran a stage, so a changed edge or a skipped slice takes effect at its next slice. A slice added to the roster during a run waits for the next run.
 
 Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 - `## Goal`, `## Why This Slice Exists`, `## Scope` (what is in; what is out, and which slice handles it).

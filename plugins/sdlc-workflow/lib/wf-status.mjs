@@ -94,6 +94,8 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
     const name = typeof s === 'string' ? s : s?.slug;
     const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
+    // The walk runs a slice after these. A driver reads them again between slices.
+    row.dependsOn = (Array.isArray(s?.['depends-on']) ? s['depends-on'] : []).map(String);
     for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, stageFileOf(dir, prefix, name))?.status ?? null;
     // The verify result and its convergence, so a reader needs no loop over the verify records.
     const v = frontmatterOf(dir, stageFileOf(dir, '06-verify', name));
