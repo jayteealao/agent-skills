@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
-  instrumentOf, warningsOf, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
+  instrumentOf, warningsOf, pushNoise, NOISE_BLOCKS, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
   proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
@@ -88,6 +88,32 @@ test('a coarse metric keeps no gain of fewer than step-floor steps, and the run 
   assert.equal(noiseFor(spec, stateOf()), 0);
   assert.deepEqual(warningsOf(spec, stateOf()), []);
   assert.match(parseSpec(fm({ metric: { ...fm().metric, 'coarse-steps': -1 } })).errors.join(), /coarse-steps/);
+});
+
+test('the noise floor follows the last blocks of the run, and never falls under the baseline', () => {
+  const spec = specOf();
+  const state = stateOf();
+  state.baseline.noise = 0.04425;
+  pushNoise(state, [2.1341, 2.2339, 2.2445, 2.2777, 2.2445]);
+  pushNoise(state, [2.057, 1.9678, 2.1114, 2.023, 2.0676]);
+  assert.equal(noiseFor(spec, state), 0.04425, 'two blocks do not move the floor');
+  pushNoise(state, [2.3442, 2.2777, 2.2551, 2.3223, 2.3442]);
+  // The blocks of a live run, one to two hours after its baseline: the floor rises from 0.044 to 0.072.
+  assert.ok(Math.abs(noiseFor(spec, state) - 0.0718) < 1e-9, String(noiseFor(spec, state)));
+  const quiet = stateOf();
+  quiet.baseline.noise = 5;
+  for (let i = 0; i < 4; i++) pushNoise(quiet, [100, 101, 100]);
+  assert.equal(noiseFor(spec, quiet), 5, 'quiet blocks do not lower the floor');
+  for (let i = 0; i < 20; i++) pushNoise(quiet, [100, 100 + i]);
+  assert.equal(quiet.noise.samples.length, NOISE_BLOCKS, 'only the last blocks are kept');
+  pushNoise(quiet, [7]);
+  assert.equal(quiet.noise.samples.length, NOISE_BLOCKS, 'one value is no sample');
+  // Paired: the floor starts from the paired noise, and the pair gains of a block are its sample.
+  const paired = stateOf();
+  paired.baseline.pairedNoise = 0.5;
+  const ps = specOf({ metric: { ...fm().metric, paired: true } });
+  for (let i = 0; i < 3; i++) pushNoise(paired, [3, 5, 7]);
+  assert.equal(noiseFor(ps, paired), 2);
 });
 
 test('a gain must pass max(min-gain, 2 x noise), and the confirm run must agree', () => {

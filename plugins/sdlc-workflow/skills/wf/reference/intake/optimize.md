@@ -95,7 +95,7 @@ next-invocation: "/wf loop optimize <slug>"
 
 | Field | Default | Meaning |
 |---|---|---|
-| `metric.repeat` | 5 | Runs for each measurement. The noise floor is half the spread of the baseline runs |
+| `metric.repeat` | 5 | Runs for each measurement. The noise floor is half the spread of the baseline runs; it rises when the blocks of later trials spread more |
 | `metric.min-gain` | `2%` | The smallest gain to keep, absolute or percent. A keep also needs a gain above 2 × noise |
 | `metric.paired` | `true` for a new spec | Compare each trial with the best of its lane in turns. A block takes `2 × repeat + 2` metric runs, and it cancels the drift of the machine |
 | `metric.coarse-steps` | 20 | The metric is coarse when its baseline values tie and the keep threshold is narrower than this many steps of the metric |

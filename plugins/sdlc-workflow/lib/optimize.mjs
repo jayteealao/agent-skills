@@ -259,16 +259,34 @@ export function pairedDecision({ spec, best, noise, gains, confirm = null }) {
 export const pairOrder = (i) => (i % 2 === 0 ? ['A', 'B'] : ['B', 'A']);
 /** Paired measurement is on when the spec asks for it and the baseline measured the paired noise. */
 export const pairedActive = (spec, state) => !!spec.metric.paired && Number.isFinite(state?.baseline?.pairedNoise);
+/** The noise floor follows the last blocks of the run: this many, and not before it has 3. */
+export const NOISE_BLOCKS = 8;
 /**
- * The noise that the keep rule of a trial uses: the noise of the baseline, and never less than
- * half of `metric.step-floor` steps of a coarse metric. The keep threshold is twice this noise, so
- * a coarse metric cannot keep a gain of fewer than `step-floor` steps.
+ * Keep the noise sample of one measurement block. Every value of a block is of one code state: the
+ * runs of one measurement, or the pair gains of one paired block, whose true gain is one number.
+ * So half their range is noise, measured at this point of the run.
+ */
+export function pushNoise(state, values) {
+  const v = (values ?? []).filter(Number.isFinite);
+  if (v.length < 2) return;
+  state.noise = { samples: [...(state.noise?.samples ?? []), noiseOf(v)].slice(-NOISE_BLOCKS) };
+}
+
+/**
+ * The noise that the keep rule of a trial uses. It is the largest of three numbers:
+ *   - the noise of the baseline;
+ *   - the median noise of the last blocks of the run, so the floor rises when the machine gets
+ *     noisier after the baseline. It never falls under the baseline;
+ *   - half of `metric.step-floor` steps of a coarse metric. The keep threshold is twice the noise,
+ *     so a coarse metric cannot keep a gain of fewer than `step-floor` steps.
  */
 export function noiseFor(spec, state) {
   const base = pairedActive(spec, state) ? state.baseline.pairedNoise : state.baseline.noise;
+  const samples = state.noise?.samples ?? [];
+  const run = samples.length >= 3 ? median(samples) : 0;
   const inst = state.baseline.instrument;
   const floor = inst?.coarse ? ((spec.metric.stepFloor ?? 0) * inst.step) / 2 : 0;
-  return Math.max(base, floor);
+  return Math.max(base, run, floor);
 }
 
 /**

@@ -1476,3 +1476,29 @@ test('a coarse metric: metric-check and the baseline say so, the status warns, a
     rmSync(parent, { recursive: true, force: true });
   }
 });
+
+test('the noise floor follows the run: blocks that spread more after the baseline raise the keep threshold', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'at: ["0%"]', 'at: []', 'repeat: 2', 'repeat: 4');
+    // The 4 runs of the baseline print the value. Every later run adds 0 or 6 in turn.
+    const counter = path.join(parent, 'runs.txt').split(path.sep).join('/');
+    writeFileSync(path.join(root, 'metric.js'), `const fs = require('fs'); const f = '${counter}'; const n = fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0; fs.writeFileSync(f, String(n + 1)); console.log(Number(fs.readFileSync('src/value.txt', 'utf8').trim()) + (n < 4 ? 0 : [0, 6][n % 2]));`);
+    git(root, 'add', 'metric.js');
+    git(root, 'commit', '-q', '-m', 'noisy metric');
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.deepEqual({ noise: b.baseline.noise, now: b.baseline.noiseNow }, { noise: 0, now: 0 });
+    assert.equal(step(root, wt, 'h1', 90).t.verdict, 'kept', 'two blocks: the floor has not moved');
+    assert.equal(step(root, wt, 'h2', 80).t.verdict, 'kept');
+    assert.equal(run(root, 'status').baseline.noiseNow, 3, 'four blocks with a spread of 6');
+    const small = step(root, wt, 'h3', 79);
+    assert.equal(small.t.verdict, 'reverted', 'a gain of 1 is under 2 x 3');
+    const trials = ledger(root).filter((l) => l.event === 'trial');
+    assert.deepEqual(trials.map((l) => l.noise), [0, 0, 3]);
+    assert.equal(trials[2].threshold, 6);
+    assert.equal(run(root, 'status').baseline.noise, 0, 'the noise of the baseline stays as measured');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});

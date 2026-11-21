@@ -65,7 +65,7 @@ import {
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricSamples, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
-  instrumentOf, warningsOf, parseAmount, amountOf, parseDuration,
+  instrumentOf, warningsOf, pushNoise, parseAmount, amountOf, parseDuration,
   nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
 } from '../lib/optimize.mjs';
 import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
@@ -419,6 +419,8 @@ function pairedBlock(spec, a, b, n) {
  * compared with the best value.
  */
 function judge(root, state, spec, wt, env, best, line) {
+  // One noise floor for the whole trial. Each block of the trial adds its own sample for the trials after it.
+  const noise = noiseFor(spec, state);
   if (pairedActive(spec, state)) {
     const ref = ensureRef(root, state, spec, best.commit);
     if (!ref.ok) return { verdict: 'crashed', extra: { reason: ref.error, output: ref.output } };
@@ -431,14 +433,16 @@ function judge(root, state, spec, wt, env, best, line) {
     line.median = median(first.cand);
     line.delta = first.median;
     line.paired = { ref: first.ref, gains: first.gains };
-    let d = pairedDecision({ spec, best: best.value, noise: noiseFor(spec, state), gains: first.gains });
+    pushNoise(state, first.gains);
+    let d = pairedDecision({ spec, best: best.value, noise, gains: first.gains });
     line.threshold = d.threshold;
     if (d.needConfirm) {
       const c = pairedBlock(spec, A, B, spec.metric.repeat);
       if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm block failed', output: c.output } };
       line.confirm = c.cand;
       Object.assign(line.paired, { confirmRef: c.ref, confirmGains: c.gains });
-      d = pairedDecision({ spec, best: best.value, noise: noiseFor(spec, state), gains: first.gains, confirm: c.gains });
+      pushNoise(state, c.gains);
+      d = pairedDecision({ spec, best: best.value, noise, gains: first.gains, confirm: c.gains });
       if (d.kept) {
         line.median = median([...first.cand, ...c.cand]);
         line.delta = median([...first.gains, ...c.gains]);
@@ -454,13 +458,15 @@ function judge(root, state, spec, wt, env, best, line) {
   if (m.samples) line.samples = m.samples;
   line.median = m.median;
   line.delta = gainOf(spec.metric.direction, best.value, m.median);
-  let d = keepDecision({ spec, best: best.value, noise: noiseFor(spec, state), first: m.median });
+  pushNoise(state, m.values);
+  let d = keepDecision({ spec, best: best.value, noise, first: m.median });
   line.threshold = d.threshold;
   if (d.needConfirm) {
     const c = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
     if (c.timeout || c.crashed) return { verdict: c.timeout ? 'timeout' : 'crashed', extra: { reason: 'the confirm run failed', output: c.output } };
     line.confirm = c.values;
-    d = keepDecision({ spec, best: best.value, noise: noiseFor(spec, state), first: m.median, confirm: c.median });
+    pushNoise(state, c.values);
+    d = keepDecision({ spec, best: best.value, noise, first: m.median, confirm: c.median });
     if (d.kept) {
       line.median = median([...m.values, ...c.values]);
       line.delta = gainOf(spec.metric.direction, best.value, line.median);
@@ -631,7 +637,7 @@ function statusOf(root, slug) {
     ...recover,
     ...(blocked ? { finishBlocked: blocked } : {}),
     best: state.best,
-    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}), ...(state.baseline.instrument ? { instrument: state.baseline.instrument } : {}) },
+    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}), ...(state.baseline.instrument ? { instrument: state.baseline.instrument } : {}), noiseNow: noiseFor(spec, state) },
     ...(warningsOf(spec, state).length ? { warnings: warningsOf(spec, state) } : {}),
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
