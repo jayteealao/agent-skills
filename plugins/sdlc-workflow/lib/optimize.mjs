@@ -322,7 +322,33 @@ export function warningsOf(spec, state) {
     out.push(`The metric is coarse: its values move in steps of about ${inst.step}${unit}, and the keep threshold is only ${inst.stepsInThreshold} steps wide. `
       + `A kept gain is at least ${spec.metric.stepFloor} steps. Do more work in one metric run, or read a finer counter, to measure smaller gains.`);
   }
+  const kind = holdoutKind(spec.metric.command, spec.holdout?.command);
+  if (kind === 'same-command') out.push('The holdout command is the metric command. It shows nothing that the metric does not show. Give the holdout other inputs.');
+  if (kind === 'same-workload') {
+    out.push('The holdout runs the same workload as the metric: its command differs only in a number, such as a seed. '
+      + 'It cannot show a change that fits only the measured inputs. Give the holdout other inputs, another configuration or another size.');
+  }
   return out;
+}
+
+/**
+ * How the holdout command differs from the metric command.
+ *   same-command:  the two are equal.
+ *   same-workload: they differ only in numbers, such as a seed or a count. The runs then take the
+ *                  same code paths, and the holdout cannot show a change that fits the measured inputs.
+ *   different:     any other difference: another file, another sub-command, another flag.
+ * null with no holdout.
+ */
+export function holdoutKind(metricCommand, holdoutCommand) {
+  const words = (c) => str(c).split(/\s+/).filter(Boolean);
+  const a = words(metricCommand);
+  const b = words(holdoutCommand);
+  if (!b.length) return null;
+  if (a.join(' ') === b.join(' ')) return 'same-command';
+  if (a.length !== b.length) return 'different';
+  const flag = (t) => (/^--?[\w-]+=/.exec(t) ?? [''])[0];
+  const isNumber = (t) => /^["']?-?\d+(\.\d+)?["']?$/.test(t.slice(flag(t).length));
+  return a.every((t, i) => t === b[i] || (flag(t) === flag(b[i]) && isNumber(t) && isNumber(b[i]))) ? 'same-workload' : 'different';
 }
 
 /** True when the value reaches the target in the metric's direction. */
@@ -859,7 +885,7 @@ export function laneWorktree(state, lane) {
 }
 
 /** A new state after the baseline. */
-export function newState({ slug, worktree, baseCommit, values, holdoutValue, startedAt, slugBranch, pairedNoise = null }) {
+export function newState({ slug, worktree, baseCommit, values, holdoutValue, startedAt, slugBranch, pairedNoise = null, holdoutNoise = null }) {
   const med = median(values);
   return {
     version: STATE_VERSION,
@@ -869,7 +895,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     slugBranch: slugBranch ?? null,
     baseCommit,
     startedAt,
-    baseline: { values, median: med, noise: noiseOf(values), holdout: holdoutValue ?? null, ...(pairedNoise !== null ? { pairedNoise } : {}) },
+    baseline: { values, median: med, noise: noiseOf(values), holdout: holdoutValue ?? null, ...(holdoutNoise !== null ? { holdoutNoise } : {}), ...(pairedNoise !== null ? { pairedNoise } : {}) },
     best: { commit: baseCommit, value: med, trial: 0, reachedAt: 0 },
     counters: { trials: 0, trunkTrials: 0, streak: 0, sinceCheckpoint: 0, keeps: 0 },
     schedule: { used: [] },
@@ -888,11 +914,14 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
   };
 }
 
-/** A holdout value that regresses past the tolerance. */
-export function holdoutRegressed(spec, baseline, value) {
+/**
+ * A holdout value that regresses past the tolerance. `noise` is the noise of the holdout runs of
+ * the baseline: a loss inside twice that noise is not a regression, whatever the tolerance.
+ */
+export function holdoutRegressed(spec, baseline, value, noise = 0) {
   if (!spec.holdout || baseline === null || value === null) return false;
   const loss = -gainOf(spec.holdout.direction, baseline, value);
-  return loss > amountOf(spec.holdout.tolerance, baseline);
+  return loss > Math.max(amountOf(spec.holdout.tolerance, baseline), 2 * (Number.isFinite(noise) ? noise : 0));
 }
 
 /** The markdown table of the kept trials, for the implement artifact. */

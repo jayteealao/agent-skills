@@ -3,7 +3,7 @@
  * scripts/optimize.mjs — the disk side of /wf loop optimize.
  * skills/wf/scripts/optimize.mjs runs this script.
  *
- *   metric-check    <root> <slug> [--cmd c] [--key k] [--direction d] [--repeat n] [--min-gain g] [--timeout t]
+ *   metric-check    <root> <slug> [--cmd c] [--key k] [--direction d] [--repeat n] [--min-gain g] [--timeout t] [--holdout c]
  *                                                     run a metric command in the project root and print its spread, its noise and
  *                                                     its resolution against the keep threshold; reads no state and writes nothing
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
@@ -65,7 +65,7 @@ import {
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricSamples, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
-  instrumentOf, warningsOf, pushNoise, parseAmount, amountOf, parseDuration,
+  instrumentOf, warningsOf, pushNoise, holdoutKind, parseAmount, amountOf, parseDuration,
   nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
 } from '../lib/optimize.mjs';
 import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
@@ -637,7 +637,7 @@ function statusOf(root, slug) {
     ...recover,
     ...(blocked ? { finishBlocked: blocked } : {}),
     best: state.best,
-    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}), ...(state.baseline.instrument ? { instrument: state.baseline.instrument } : {}), noiseNow: noiseFor(spec, state) },
+    baseline: { median: state.baseline.median, noise: state.baseline.noise, ...(state.baseline.pairedNoise !== undefined ? { pairedNoise: state.baseline.pairedNoise } : {}), ...(state.baseline.instrument ? { instrument: state.baseline.instrument } : {}), noiseNow: noiseFor(spec, state), ...(state.baseline.holdoutNoise !== undefined ? { holdout: state.baseline.holdout, holdoutNoise: state.baseline.holdoutNoise } : {}) },
     ...(warningsOf(spec, state).length ? { warnings: warningsOf(spec, state) } : {}),
     counters: state.counters,
     budget: { trials: spec.budget.trials, roundsMax: spec.rounds.at.length + spec.rounds.maxExtra, branches: spec.rounds.branches, width: spec.width },
@@ -710,9 +710,11 @@ function metricCheck(root, slug, f) {
   const noise = noiseOf(m.values);
   const threshold = Math.max(amountOf(minGain, m.median), 2 * noise);
   const instrument = instrumentOf(m.values, threshold, Number(text('coarse-steps') || 20));
-  const warnings = warningsOf({ metric: { unit: text('unit'), stepFloor: Number(text('step-floor') || 3) } }, { baseline: { instrument } });
+  // The holdout is not run here: the check only compares its command with the metric command.
+  const holdout = typeof f.holdout === 'string' ? f.holdout : String(rec?.data?.holdout?.command ?? '').trim();
+  const warnings = warningsOf({ metric: { command, unit: text('unit'), stepFloor: Number(text('step-floor') || 3) }, holdout: holdout ? { command: holdout } : null }, { baseline: { instrument } });
   return {
-    ok: true, command, direction, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: m.median,
+    ok: true, command, direction, ...(holdout ? { holdout: { command: holdout, kind: holdoutKind(command, holdout) } } : {}), values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: m.median,
     spread: Number((2 * noise).toPrecision(12)), noise, threshold, instrument,
     msPerRun: Math.round(m.runs.reduce((a, r) => a + r.ms, 0) / m.runs.length),
     ...(warnings.length ? { warnings } : {}),
@@ -753,10 +755,12 @@ function baseline(root, slug) {
   const m = measure(spec, wt, spec.metric.repeat, undefined, undefined, env);
   if (m.crashed || m.timeout) return { ok: false, error: `the metric ${m.timeout ? 'timed out' : 'did not print a number'} at the baseline`, output: m.output, fix: specCommandFix('metric command') };
   let holdout = null;
+  let holdoutNoise = null;
   if (spec.holdout) {
     const h = measure(spec, wt, spec.metric.repeat, spec.holdout.command, null, env);
     if (h.crashed || h.timeout) return { ok: false, error: 'the holdout did not print a number at the baseline', output: h.output, fix: specCommandFix('holdout command') };
     holdout = h.median;
+    holdoutNoise = noiseOf(h.values);
   }
   // An A/A block of the reference worktree against the trunk worktree, at the same commit,
   // gives the noise of a paired comparison.
@@ -769,12 +773,12 @@ function baseline(root, slug) {
     if (aa.timeout || aa.crashed) return { ok: false, error: 'the metric failed in the paired A/A block of the baseline', output: aa.output, fix: specCommandFix('metric command') };
     pairedNoise = noiseOf(aa.gains);
   }
-  const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise });
+  const state = newState({ slug, worktree: wt, baseCommit: base.out, values: m.values, holdoutValue: holdout, startedAt: nowIso(), slugBranch, pairedNoise, holdoutNoise });
   state.buildDir = build.buildDir ?? null;
   // Every value here is of one code state, so equal values and the gaps between them show the resolution of the metric.
   const instrument = instrumentOf([...m.values, ...(aa ? [...aa.ref, ...aa.cand] : [])], keepThreshold(spec, state.baseline.median, pairedNoise ?? state.baseline.noise), spec.metric.coarseSteps);
   if (instrument) state.baseline.instrument = instrument;
-  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: state.baseline.median, noise: state.baseline.noise, holdout, ...(aa ? { pairedNoise, aa: aa.gains } : {}), ...(instrument ? { instrument } : {}) });
+  appendResult(root, slug, { event: 'baseline', commit: base.out, values: m.values, ...(m.samples ? { samples: m.samples } : {}), median: state.baseline.median, noise: state.baseline.noise, holdout, ...(holdoutNoise !== null ? { holdoutNoise } : {}), ...(aa ? { pairedNoise, aa: aa.gains } : {}), ...(instrument ? { instrument } : {}) });
   saveState(root, slug, state);
   return { ok: true, worktree: wt, branch: trunk, baseline: state.baseline, ...optimizeStatus(root, slug) };
 }
@@ -1275,7 +1279,7 @@ function runCheckpoint(root, slug, state, spec) {
   checkout(root, state, state.trunk);
   const h = measure(spec, state.worktree, spec.metric.repeat, spec.holdout.command, null, envOf(state, spec));
   const value = h.crashed || h.timeout ? null : h.median;
-  const regressed = value === null || holdoutRegressed(spec, state.baseline.holdout, value);
+  const regressed = value === null || holdoutRegressed(spec, state.baseline.holdout, value, state.baseline.holdoutNoise ?? 0);
   const since = state.lastCheckpoint?.trial ?? 0;
   state.counters.sinceCheckpoint = 0;
   if (regressed) {

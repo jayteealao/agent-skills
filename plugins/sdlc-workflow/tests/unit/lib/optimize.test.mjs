@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
-  instrumentOf, warningsOf, pushNoise, NOISE_BLOCKS, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
+  instrumentOf, warningsOf, pushNoise, NOISE_BLOCKS, holdoutKind, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
   proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
@@ -315,6 +315,25 @@ test('the holdout regresses past its tolerance', () => {
   assert.equal(holdoutRegressed(spec, 100, 100.5), false);
   assert.equal(holdoutRegressed(spec, 100, 102), true);
   assert.equal(holdoutRegressed(spec, 100, 90), false, 'lower is better: 90 is a gain');
+  assert.equal(holdoutRegressed(spec, 100, 102, 1.5), false, 'a loss of 2 is inside twice the noise of the holdout runs');
+  assert.equal(holdoutRegressed(spec, 100, 104, 1.5), true);
+  assert.equal(newState({ slug: 's', worktree: '/wt', baseCommit: 'c0', values: [1, 1], holdoutValue: 5, holdoutNoise: 0.5, startedAt: 'x' }).baseline.holdoutNoise, 0.5);
+});
+
+test('a holdout that differs from the metric only in a number runs the same workload, and the run warns', () => {
+  assert.equal(holdoutKind('bench --seed 42 --matches 5 --json | node pick.mjs', 'bench --seed 7 --matches 5 --json | node pick.mjs'), 'same-workload');
+  assert.equal(holdoutKind('bench --seed=42', 'bench --seed=7'), 'same-workload');
+  assert.equal(holdoutKind('bench --seed=42', 'bench --size=42'), 'different', 'another flag');
+  assert.equal(holdoutKind('bench data1.json', 'bench data2.json'), 'different', 'another file is another input');
+  assert.equal(holdoutKind('node metric.js', 'node holdout.js'), 'different');
+  assert.equal(holdoutKind('bench --seed 42', 'bench --suite formations --seed 42'), 'different');
+  assert.equal(holdoutKind('node m.js', 'node  m.js'), 'same-command');
+  assert.equal(holdoutKind('node m.js', null), null);
+  const warn = (holdout) => warningsOf(specOf({ holdout: { command: holdout } }), stateOf());
+  assert.match(warn('node m.js --seed 7')[0] ?? '', /^$/, 'the metric of this spec has no seed: the commands differ in length');
+  assert.match(warningsOf(specOf({ metric: { ...fm().metric, command: 'node m.js --seed 42' }, holdout: { command: 'node m.js --seed 7' } }), stateOf())[0], /differs only in a number, such as a seed/);
+  assert.match(warn('node m.js')[0], /The holdout command is the metric command/);
+  assert.deepEqual(warn('node other.js'), []);
 });
 
 test('a claim of an idea refuses a target that another lane claims, and a tried target without a new reason', () => {

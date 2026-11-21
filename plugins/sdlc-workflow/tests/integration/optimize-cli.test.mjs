@@ -1502,3 +1502,22 @@ test('the noise floor follows the run: blocks that spread more after the baselin
     rmSync(parent, { recursive: true, force: true });
   }
 });
+
+test('a holdout that differs from the metric only in a number: metric-check and the baseline warn, and the baseline keeps the holdout noise', () => {
+  const { parent, root } = makeRepo('holdout:\n  command: "node metric.js 7"\n  tolerance: 5%\n');
+  try {
+    respec(root, 'command: "node metric.js"', 'command: "node metric.js 42"', 'at: ["0%"]', 'at: []');
+    const check = run(root, 'metric-check', '--repeat', '3');
+    assert.equal(check.ok, true, JSON.stringify(check));
+    assert.deepEqual(check.holdout, { command: 'node metric.js 7', kind: 'same-workload' }, 'the check reads the holdout of the spec');
+    assert.match(check.warnings[0], /differs only in a number, such as a seed/);
+    assert.equal(run(root, 'metric-check', '--repeat', '3', '--holdout', 'node holdout.js').holdout.kind, 'different');
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.equal(b.baseline.holdoutNoise, 0);
+    assert.match(b.warnings[0], /The holdout runs the same workload as the metric/);
+    assert.equal(ledger(root).find((l) => l.event === 'baseline').holdoutNoise, 0);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
