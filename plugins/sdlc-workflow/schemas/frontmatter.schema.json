@@ -2438,7 +2438,7 @@
         "budget": {
           "type": "object",
           "properties": {
-            "trials": { "type": "integer", "minimum": 1 },
+            "trials": { "type": ["integer", "null"], "minimum": 1, "description": "The most trials of the run. null: no trial count; the wall clock is then the budget, and the round points are shares of it." },
             "plateau": { "type": "integer", "minimum": 1 },
             "wall-clock": { "type": ["string", "number", "null"] },
             "tokens": { "type": ["number", "null"] },

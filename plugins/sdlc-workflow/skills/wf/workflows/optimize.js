@@ -324,7 +324,9 @@ phase('Orient')
 let st = await book('status', '', 'status', 'Orient')
 if (!st || st.ok === false) return { ok: false, stopped: true, slug, reason: `status failed: ${(st && st.error) || 'no result'}`, agentsUsed: AGENTS }
 if (!CEILING_ARG) {
-  const trials = Number(st.budget && st.budget.trials) || 60
+  // One launch covers at most 60 trials. A run with more trials, or with no trial count, stops at the
+  // ceiling with stoppedAt 'agent-ceiling', and the session launches the driver again.
+  const trials = Math.min(60, Number(st.budget && st.budget.trials) || 60)
   const rounds = Number(st.budget && st.budget.roundsMax) || 5
   // The merge step adds one consider agent and at most branches - 1 merge trials for each round.
   const branches = Number(st.budget && st.budget.branches) || 4

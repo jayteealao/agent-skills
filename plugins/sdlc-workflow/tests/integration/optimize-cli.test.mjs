@@ -1503,6 +1503,41 @@ test('the noise floor follows the run: blocks that spread more after the baselin
   }
 });
 
+test('with no trial count, the loop stops when max-extra plateau rounds in a row find nothing, and resume starts the count again', () => {
+  const { parent, root, wt } = makeRepo();
+  try {
+    respec(root, 'trials: 14', 'trials: null', 'wall-clock: 1h', 'wall-clock: null', 'at: ["0%"]', 'at: []', 'max-extra: 1', 'max-extra: 2');
+    const b = run(root, 'baseline');
+    assert.equal(b.ok, true, JSON.stringify(b));
+    assert.equal(b.budget.trials, null);
+    let v = 100;
+    const worse = (id) => assert.equal(step(root, wt, id, ++v).t.verdict, 'reverted', id);
+    // Two trunk trials with no keep are a plateau (plateau: 2), and it opens an extra round.
+    for (const id of ['h1', 'h2']) worse(id);
+    assert.equal(run(root, 'status').next.point, 'extra');
+    assert.equal(run(root, 'round-open').ok, true);
+    for (const id of ['h3', 'h4', 'h5', 'h6']) worse(id);
+    const first = run(root, 'round-close');
+    assert.equal(first.winner, 'trunk', 'no branch kept a change');
+    assert.equal(run(root, 'status').state, 'running', 'one plateau round with no gain: max-extra is 2, so the loop goes on');
+    for (const id of ['h7', 'h8']) worse(id);
+    assert.equal(run(root, 'status').next.point, 'extra');
+    assert.equal(run(root, 'round-open').ok, true);
+    for (const id of ['h9', 'h10', 'h11', 'h12']) worse(id);
+    assert.equal(run(root, 'round-close').ok, true);
+    const stop = run(root, 'status');
+    assert.deepEqual([stop.state, stop.reason], ['stopped', 'plateau']);
+    assert.match(stop.detail, /2 plateau rounds in a row found no gain/);
+    const again = run(root, 'resume');
+    assert.equal(again.ok, true, JSON.stringify(again));
+    assert.deepEqual([again.state, again.next.action], ['running', 'trial'], 'the person chose to go on');
+    for (const id of ['h13', 'h14']) worse(id);
+    assert.equal(run(root, 'status').next.point, 'extra', 'the count started again: the next plateau opens a round');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('a holdout that differs from the metric only in a number: metric-check and the baseline warn, and the baseline keeps the holdout noise', () => {
   const { parent, root } = makeRepo('holdout:\n  command: "node metric.js 7"\n  tolerance: 5%\n');
   try {

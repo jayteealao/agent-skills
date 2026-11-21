@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   buildDigest, defaultBranchTrials, digestTrials, globToRegExp, holdoutRegressed, keepDecision, mergeCandidates, newState, nextAction, noiseOf,
-  instrumentOf, warningsOf, pushNoise, NOISE_BLOCKS, holdoutKind, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
+  instrumentOf, warningsOf, pushNoise, NOISE_BLOCKS, holdoutKind, countDryRound, dryRoundsOf, parseDuration, parseMetricLine, parseMetricSamples, parseSpec, pathViolations, pickWinner,
   claimIdea, emptyIdeas, ideaStatusOf, parseProfile, profileLines, profileView, settleIdea, noiseFor, pairOrder, pairedActive, pairedDecision,
   bundleOf, pruneCandidate, seedsOf, paceOf, projectTrials, ablationDue, ablationTable, ablationVerdict, nearMisses,
   proposeOvertime, overtimeRefusal, commandFiles, activeMsOf, tickClock, pauseGapMs, personNext,
@@ -184,9 +184,60 @@ test('a plateau opens the next round early, then extra rounds, then stops', () =
   assert.deepEqual([early.next.action, early.next.point], ['round-open', 1]);
   s.schedule.used = [0, 1, 2];
   assert.equal(nextAction({ state: s, spec }).next.point, 'extra');
-  s.extraRounds = 2;
+  s.dryRounds = 2;
   const stop = nextAction({ state: s, spec });
   assert.deepEqual([stop.state, stop.reason], ['stopped', 'plateau']);
+  assert.match(stop.detail, /2 plateau round\(s\) in a row found no gain/);
+});
+
+test('the plateau stop counts the plateau rounds in a row with no gain; a round that wins sets the count back', () => {
+  const spec = specOf();
+  const s = stateOf({ schedule: { used: [0, 1, 2] }, counters: { trials: 30, trunkTrials: 8, streak: 8, sinceCheckpoint: 0, keeps: 0 } });
+  // Many extra rounds were opened, and the last one won: the next plateau opens one more.
+  s.extraRounds = 9;
+  countDryRound(s, { reason: 'plateau' }, null);
+  assert.equal(s.dryRounds, 1);
+  countDryRound(s, { reason: 'plateau' }, { name: 'b1' });
+  assert.equal(s.dryRounds, 0, 'a winner sets the count back');
+  assert.equal(nextAction({ state: s, spec }).next.point, 'extra');
+  countDryRound(s, { reason: 'schedule' }, null);
+  assert.equal(s.dryRounds, 0, 'a scheduled round with no winner is not a plateau round');
+  countDryRound(s, { reason: 'plateau' }, null);
+  countDryRound(s, { reason: 'plateau' }, null);
+  assert.equal(nextAction({ state: s, spec }).reason, 'plateau', 'two plateau rounds in a row found nothing');
+  // A state from before the count: every extra round of the run is its count.
+  const old = stateOf({ schedule: { used: [0, 1, 2] }, counters: { ...s.counters }, extraRounds: 2 });
+  delete old.dryRounds;
+  assert.equal(dryRoundsOf(old), 2);
+  assert.equal(nextAction({ state: old, spec }).reason, 'plateau');
+  assert.equal(nextAction({ state: s, spec: specOf({ 'branch-rounds': { 'max-extra': 0 } }) }).detail, 'max-extra is 0: a plateau opens no extra round');
+});
+
+test('with no trial count, the wall clock is the budget and the round points are shares of it', () => {
+  const spec = specOf({ budget: { trials: null, 'wall-clock': '10h' } });
+  assert.equal(spec.budget.trials, null);
+  assert.equal(spec.rounds.branchTrials, 3);
+  const t0 = Date.parse('2026-01-01T00:00:00Z');
+  const at = (hours, over = {}) => nextAction({ state: stateOf({ startedAt: new Date(t0).toISOString(), ...over }), spec, now: t0 + hours * 3.6e6 });
+  const first = at(0);
+  assert.deepEqual([first.next.action, first.next.point], ['round-open', 0]);
+  assert.match(first.next.why, /scheduled at 0% of budget\.wall-clock/);
+  const many = { schedule: { used: [0] }, counters: { trials: 500, trunkTrials: 400, streak: 0, sinceCheckpoint: 0, keeps: 3 } };
+  assert.equal(at(1, many).next.action, 'trial', '500 trials are no limit, and the 33% point is not due after 1 of 10 hours');
+  assert.deepEqual([at(3.4, many).next.action, at(3.4, many).next.point], ['round-open', 1]);
+  assert.deepEqual([at(10.1, many).state, at(10.1, many).reason], ['stopped', 'budget']);
+});
+
+test('with no trial count and no wall clock, the loop goes on until a plateau finds nothing', () => {
+  const spec = specOf({ budget: { trials: null, 'wall-clock': null } });
+  const s = stateOf({ schedule: { used: [0] }, counters: { trials: 900, trunkTrials: 700, streak: 0, sinceCheckpoint: 0, keeps: 5 } });
+  assert.equal(nextAction({ state: s, spec }).next.action, 'trial');
+  s.counters.streak = 8;
+  assert.equal(nextAction({ state: s, spec }).next.point, 'extra', 'only the 0% point is scheduled: a plateau adds a round');
+  s.dryRounds = 2;
+  assert.equal(nextAction({ state: s, spec }).reason, 'plateau');
+  assert.equal(nextAction({ state: stateOf(), spec }).next.point, 0, 'the 0% round still opens from the baseline');
+  assert.match(parseSpec(fm({ budget: { trials: 0 } })).errors.join(), /budget\.trials must be a positive integer or null/);
 });
 
 test('the budget, the target and the control file stop the loop', () => {

@@ -85,7 +85,7 @@ next-invocation: "/wf loop optimize <slug>"
 # Step 3 — Spec → `02-optimize-spec.md` (`type: optimize-spec`)
 
 1. Read the code that the metric exercises. Propose `allowed-paths` from that code. Propose `off-limits` for the metric, guard and holdout files and their fixtures: the script adds those files, but name them so the person sees them.
-2. Propose the budget and the branch rounds. The defaults follow the table below.
+2. Ask how long the loop can run, per [_gate-question.md](../_gate-question.md): that time is `budget.wall-clock`, and `budget.trials` stays `null`. Say what the time buys, from the times of Step 2: one trial takes the guard, `2 × repeat + 2` metric runs with pairing, and several minutes for its agents. The machine must stay quiet for the measurements of the whole run. A run of a day or more is `24h` or `3d`. With no time limit (`wall-clock: null`), the loop goes on until `max-extra` plateau rounds in a row find nothing: recommend a time limit for the first run on a project. Propose the branch rounds from the table below.
 3. Read the commit hooks of the project: `lefthook.yml`, `.pre-commit-config.yaml` and `.husky/`. Every trial commit passes these hooks, and a hook that refuses a commit rejects the trial. When a hook checks the format, propose that formatter as `format` (for example `cargo fmt --all` for a `cargo fmt --check` hook). The loop runs it on each change before the commit.
 4. When the build of the stack writes to a folder that one environment variable moves, propose `shared-build` with that variable: `CARGO_TARGET_DIR` for a Rust workspace. Each branch of a round has its own worktree, and the shared folder spares each new worktree a cold build. Leave it out for other stacks.
 5. Propose `profile`. When the project has a profiler or timer counters that print the share of each part of the work, write that command. Otherwise propose `profile: agent`: a profiler agent then adds counters in a probe worktree before the first trial and before each round. Leave it out only when the person declines.
@@ -101,14 +101,14 @@ next-invocation: "/wf loop optimize <slug>"
 | `metric.coarse-steps` | 20 | The metric is coarse when its baseline values tie and the keep threshold is narrower than this many steps of the metric |
 | `metric.step-floor` | 3 | The smallest gain that a coarse metric can keep, in steps. `0` turns it off |
 | `metric.target` | `null` | When the kept value reaches it, the loop is complete |
-| `budget.trials` | 60 | Trunk trials and branch trials together |
+| `budget.trials` | `null` for a new spec | The most trials, trunk and branch together. `null`: no count; the wall clock is the budget. A spec with no `trials` field has 60 |
 | `budget.plateau` | 8 | Trunk trials in a row with no keep that open a branch round |
 | `budget.wall-clock`, `budget.tokens`, `budget.trial-timeout` | `6h`, `null`, `10m` | The other limits |
 | `budget.propose-time` | `15m` | The time of one proposer. Its builds and benchmarks run only as probes, under the measure lock. At twice this time, its probes refuse, and it returns its best hypothesis |
-| `branch-rounds.at` | `[0%, 33%, 66%]` | The share of `budget.trials` used at which a round opens. When the wall clock allows fewer trials, the share is of that smaller number. `[]` turns the rounds off |
+| `branch-rounds.at` | `[0%, 33%, 66%]` | The share of `budget.trials` used at which a round opens. When the wall clock allows fewer trials, the share is of that smaller number. With no trial count, it is the share of `budget.wall-clock`. `[]` turns the rounds off |
 | `branch-rounds.branches` | 4 | Branches of each round |
 | `branch-rounds.branch-trials` | 6% of `budget.trials`, at least 3 | Trials of each branch |
-| `branch-rounds.max-extra` | 2 | The most rounds that a plateau adds after the scheduled ones |
+| `branch-rounds.max-extra` | 2 | The plateau rounds in a row with no gain that stop the loop. A plateau round with a winner sets the count back to 0 |
 | `branch-rounds.merge` | `consider` | After a round, consider a merge of the other kept branches into the trunk. `off` keeps only the winner |
 | `branch-rounds.prune` | `on` | A branch with no keep that trails the leader gives its other trials to a new fork of the leader. `off` keeps every branch to the end of the round |
 | `width` | 1 | Trunk proposals for each batch. Measurement stays serial |
@@ -144,7 +144,7 @@ holdout:
 allowed-paths: ["<glob>"]
 off-limits: ["<glob>"]
 budget:
-  trials: 60
+  trials: null
   plateau: 8
   wall-clock: 6h
   tokens: null

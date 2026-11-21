@@ -142,6 +142,24 @@ test('the agent ceiling stops a runaway run', async () => {
   assert.ok(out.agentsUsed <= 13);
 });
 
+test('one launch covers at most 60 trials: a run with more trials, or with no trial count, stops at the same ceiling', async () => {
+  const ceilingOf = async (trials) => {
+    const { agent } = fakeLoop({ trunkTrials: 2000 });
+    const out = await run(ARGS, async (prompt, opts) => {
+      const r = await agent(prompt, opts);
+      if (opts.label === 'status' && r.result && r.result.budget) r.result.budget = { trials, roundsMax: 2, branches: 4, width: 1 };
+      return r;
+    });
+    assert.equal(out.stoppedAt, 'agent-ceiling', `trials ${trials}`);
+    assert.match(out.reason, /start the driver again/);
+    return out.agentsUsed;
+  };
+  const sixty = await ceilingOf(60);
+  assert.equal(await ceilingOf(500), sixty);
+  assert.equal(await ceilingOf(null), sixty);
+  assert.ok(sixty <= 3 * 60 + 2 * 2 + 10 + 4 * 2 + 2 * 3 + 4 * 2, `agents ${sixty}`);
+});
+
 test('missing args return a stop, not a throw', async () => {
   const out = await run({ projectRoot: '/repo' }, async () => ({}));
   assert.equal(out.ok, false);

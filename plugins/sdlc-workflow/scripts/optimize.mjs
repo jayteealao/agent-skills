@@ -65,7 +65,7 @@ import {
   STATE_VERSION, laneWorktree, mergeCandidates, nextAction, parseMetricSamples, parseProfile, parseSpec, pathViolations, pickWinner, profileLines,
   branchNameOf, settleIdea, noiseOf, pairOrder, pairedActive, pairedDecision, keepThreshold, noiseFor, seedsOf, paceOf,
   ablationDue, ablationTable, ablationVerdict, nearMisses, normTarget, proposeOvertime, overtimeRefusal, pauseGapMs, tickClock, keepMessage,
-  instrumentOf, warningsOf, pushNoise, holdoutKind, parseAmount, amountOf, parseDuration,
+  instrumentOf, warningsOf, pushNoise, holdoutKind, countDryRound, dryRoundsOf, parseAmount, amountOf, parseDuration,
   nextSteps, reuseText, mechanismReport, sumMechanismReports, mechanismTable, trunkLineage,
 } from '../lib/optimize.mjs';
 import { appendStep, commitIdentity, readSteps } from '../lib/steps.mjs';
@@ -1318,6 +1318,8 @@ function resumeLoop(root, slug, f) {
     out.reverted = to.commit;
     out.dropped = event.dropped;
   }
+  // The person chose to go on after a plateau: the count of plateau rounds with no gain starts again.
+  if (stop.reason === 'plateau') state.dryRounds = 0;
   state.stopped = null;
   appendResult(root, slug, event);
   saveState(root, slug, state);
@@ -1398,10 +1400,16 @@ function roundClose(root, slug) {
     if (git(root, ['branch', '-D', b.name]).ok) deleted.push(b.name);
   }
   state.counters.streak = 0;
+  // The plateau stop counts the plateau rounds in a row with no winner.
+  countDryRound(state, r, winner);
   const summary = { n: r.n, reason: r.reason, from: r.from, winner: winner ? { k: winner.k, name: winner.name, value: winner.best.value, commit: winner.best.commit } : null, branches: r.branches.map((b) => ({ k: b.k, trials: b.trials, keeps: b.keeps, best: b.best.value })), merged: [] };
   state.rounds.push(summary);
   state.round = null;
-  if (!winner && r.reason === 'plateau') state.stopped = { reason: 'plateau', detail: `the trunk found no gain in ${spec.budget.plateau} trials, and no branch of round ${r.n} beat it`, at: nowIso() };
+  // A plateau round with no winner stops the loop when max-extra such rounds in a row found nothing.
+  const dry = dryRoundsOf(state);
+  if (!winner && r.reason === 'plateau' && dry >= Math.max(1, spec.rounds.maxExtra)) {
+    state.stopped = { reason: 'plateau', detail: `the trunk found no gain in ${spec.budget.plateau} trials, and no branch of round ${r.n} beat it${dry > 1 ? `: ${dry} plateau rounds in a row found no gain` : ''}`, at: nowIso() };
+  }
   appendResult(root, slug, { event: 'round-close', round: r.n, winner: summary.winner, branches: summary.branches, candidates: candidates.map((c) => ({ name: c.name, gain: c.gain, conflict: c.conflict })), ports: ports.map((c) => ({ name: c.name, branch: c.branch, gain: c.gain, conflict: c.conflict })), bundles: bundles.map((c) => ({ name: c.name, trials: c.trials, gain: c.gain })) });
   let cp = { ran: false };
   const all = [...candidates, ...ports, ...bundles];

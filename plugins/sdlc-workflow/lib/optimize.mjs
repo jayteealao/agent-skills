@@ -109,8 +109,9 @@ export function parseSpec(fm) {
   if (!allowed.length) errors.push('allowed-paths is empty');
   const offLimits = Array.isArray(fm['off-limits']) ? fm['off-limits'].map(str).filter(Boolean) : [];
   const b = { ...DEFAULT_SPEC.budget, ...(isObj(fm.budget) ? fm.budget : {}) };
-  const trials = Number(b.trials);
-  if (!Number.isInteger(trials) || trials < 1) errors.push('budget.trials must be a positive integer');
+  // null: no trial count. The wall clock is then the budget, and with no wall clock the loop ends on a plateau or the target.
+  const trials = b.trials === null || b.trials === '' ? null : Number(b.trials);
+  if (trials !== null && (!Number.isInteger(trials) || trials < 1)) errors.push('budget.trials must be a positive integer or null');
   const plateau = Number(b.plateau);
   if (!Number.isInteger(plateau) || plateau < 1) errors.push('budget.plateau must be a positive integer');
   const wallClock = parseDuration(b['wall-clock']);
@@ -501,7 +502,9 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (control && typeof control === 'object') {
     if (control.action === 'stop') return { state: 'stopped', reason: 'stop-request', detail: str(control.reason), next: { action: 'person', why: 'resume with /wf loop optimize <slug> once the request is cleared' } };
   }
-  const B = spec.budget.trials;
+  // With no trial count, the clock is the budget: the count has no end, and the round points are shares of the clock.
+  const byClock = spec.budget.trials === null;
+  const B = byClock ? Infinity : spec.budget.trials;
   const used = state.counters.trials;
   // The wall clock counts the time that the loop ran, not a pause while it was stopped.
   const ranMs = activeMsOf(state, now, pauseGapMs(spec));
@@ -550,19 +553,24 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   // The schedule follows the budget that ends the run first: budget.trials, or the trials that the wall clock allows.
   const projected = projectTrials(spec, state, pace, now);
   const S = projected === null ? B : Math.min(B, projected);
-  const allows = S < B ? `; the wall clock allows about ${S} trials` : '';
+  const allows = S < B && Number.isFinite(S) ? `; the wall clock allows about ${S} trials` : '';
   const remaining = S - used;
+  // A round point is due at its share of budget.trials. With no trial count, it is due at its share of
+  // the wall clock, which does not move with the pace; with no wall clock either, only the 0% point is scheduled.
+  const isDue = (p) => (byClock ? p === 0 || (spec.budget.wallClockMs !== null && ranMs >= p * spec.budget.wallClockMs) : used >= Math.ceil(p * S));
+  const shareOf = byClock ? 'budget.wall-clock' : 'budget.trials';
   // A round opens only when its measurements, and the reserve after them, fit in the time left.
   const fits = timeLeft === null || !pace?.measureMs || need * pace.measureMs + reserveMs <= timeLeft;
   const roundTime = pace?.measureMs ? `its ${need} measurements take about ${minutes(need * pace.measureMs)}, and ${minutes(Math.max(0, timeLeft ?? 0))} are left` : '';
-  const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i));
+  const points = spec.rounds.at.map((p, i) => ({ p, i })).filter(({ i }) => !state.schedule.used.includes(i))
+    .filter(({ p }) => !(byClock && spec.budget.wallClockMs === null) || p === 0);
   // The first profile comes before any trial, and a round opens only on a profile of the trunk best.
   if (spec.profile && !state.profile) return running({ action: 'profile', why: 'the first profile of the code, before any trial' });
   const open = (next) => (spec.profile && state.profile?.commit !== state.best.commit
     ? running({ action: 'profile', why: `a profile of the trunk best before the round (${next.why})` })
     : running(next));
-  const due = points.find(({ p }) => used >= Math.ceil(p * S));
-  if (due && remaining >= need && fits) return open({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of budget.trials${allows}` });
+  const due = points.find(({ p }) => isDue(p));
+  if (due && remaining >= need && fits) return open({ action: 'round-open', point: due.i, why: `scheduled at ${Math.round(due.p * 100)}% of ${shareOf}${allows}` });
   // A due round that does not fit is skipped: the next trunk trial records it, and the trunk continues.
   const skip = due && remaining >= need && !fits ? { point: due.i, why: `the round of ${Math.round(due.p * 100)}% is skipped: ${roundTime}` } : null;
   const trunk = (next) => running({ ...next, ...(skip ? { skipRound: skip.point } : {}), why: `${skip ? `${skip.why}; ` : ''}${next.why}${allows}` });
@@ -574,11 +582,13 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
     return { state: 'stopped', reason: 'budget', detail: keptFor, next: { action: 'person', why: personNext('budget') } };
   }
   if (state.counters.streak >= spec.budget.plateau) {
-    // A plateau opens the next scheduled round early, or adds one, up to max-extra.
-    const later = points.find(({ p }) => used < Math.ceil(p * S));
+    // A plateau opens the next scheduled round early, or adds one. The loop stops for a plateau when
+    // max-extra plateau rounds in a row found no gain: a plateau round with a winner sets the count back.
+    const later = points.find(({ p }) => !isDue(p));
     if (later && remaining >= need && fits) return open({ action: 'round-open', point: later.i, why: `plateau: ${state.counters.streak} trunk trials with no keep; the round of ${Math.round(later.p * 100)}% opens early` });
-    if (state.extraRounds < spec.rounds.maxExtra && remaining >= need && fits) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
-    const detail = state.extraRounds >= spec.rounds.maxExtra ? `max-extra (${spec.rounds.maxExtra}) is used`
+    const dry = dryRoundsOf(state);
+    if (dry < spec.rounds.maxExtra && remaining >= need && fits) return open({ action: 'round-open', point: 'extra', why: `plateau: ${state.counters.streak} trunk trials with no keep; an extra round` });
+    const detail = dry >= spec.rounds.maxExtra ? (spec.rounds.maxExtra ? `${dry} plateau round(s) in a row found no gain (max-extra ${spec.rounds.maxExtra})` : 'max-extra is 0: a plateau opens no extra round')
       : remaining < need ? `${remaining} trials are left, and a round needs ${need}` : `no round fits in the time left: ${roundTime}`;
     return { state: 'stopped', reason: 'plateau', detail, next: { action: 'person', why: personNext('plateau') } };
   }
@@ -591,6 +601,22 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   return trunk({ action: 'trial', on: state.trunk, why: `trunk trial ${state.counters.trunkTrials + 1}` });
 }
 const running = (next) => ({ state: 'running', reason: 'running', next });
+
+/**
+ * The plateau rounds in a row that found no gain. A state from before this count has only
+ * `extraRounds`, every extra round that the run opened: it stays the count for that run.
+ */
+export const dryRoundsOf = (state) => state.dryRounds ?? state.extraRounds ?? 0;
+
+/**
+ * Count a closed round for the plateau stop. A round with a winner found a gain, so the count
+ * goes back to 0. A plateau round with no winner adds one; a scheduled round with no winner changes nothing.
+ */
+export function countDryRound(state, round, winner) {
+  if (winner) state.dryRounds = 0;
+  else if (round.reason === 'plateau') state.dryRounds = dryRoundsOf(state) + 1;
+  return state;
+}
 
 /** The ablation runs before finish: on in the spec, not run yet, and a kept change to check. */
 export function ablationDue(spec, state) {
@@ -614,7 +640,7 @@ export function ablationTable(ablation, spec) {
 export function personNext(reason) {
   switch (reason) {
     case 'budget': return 'choose finish, or a new budget in the spec';
-    case 'plateau': return 'choose finish, or raise the budget or branch-rounds.max-extra in the spec and run resume';
+    case 'plateau': return 'choose finish, or run resume to go on: the count of plateau rounds with no gain starts again. Raise the budget or branch-rounds.max-extra in the spec first when the detail names it';
     case 'holdout-regression': return 'look at the trials since the last good checkpoint; then finish, resume --revert to go back to that checkpoint, or resume to go on';
     case 'state-error': return 'report; do not repair. state.json and results.jsonl disagree, or the branch moved outside the loop';
     case 'guard-red': return 'the guard fails at the baseline: fix it first. A loop cannot start from a red guard';
@@ -904,6 +930,7 @@ export function newState({ slug, worktree, baseCommit, values, holdoutValue, sta
     counters: { trials: 0, trunkTrials: 0, streak: 0, sinceCheckpoint: 0, keeps: 0 },
     schedule: { used: [] },
     extraRounds: 0,
+    dryRounds: 0,
     round: null,
     merge: null,
     rounds: [],

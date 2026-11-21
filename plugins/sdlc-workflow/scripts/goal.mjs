@@ -149,7 +149,7 @@ function check(root, slug) {
       let s;
       try { s = optimizeStatus(root, slug); } catch (e) { s = { ok: false, error: e.message } /* internal */; }
       lines.push(`  optimize: ${s.state ?? 'error'}${s.reason ? ` (${s.reason})` : ''}${s.detail ? `: ${s.detail}` : ''}`);
-      if (s.best) lines.push(`  best ${s.best.value} against the baseline ${s.baseline?.median}; trials ${s.counters?.trials} of ${s.budget?.trials}`);
+      if (s.best) lines.push(`  best ${s.best.value} against the baseline ${s.baseline?.median}; trials ${s.counters?.trials}${s.budget?.trials ? ` of ${s.budget.trials}` : ''}`);
       v = fromOptimize(s);
     } else {
       const runs = runProofs(root, contract.proofs);
