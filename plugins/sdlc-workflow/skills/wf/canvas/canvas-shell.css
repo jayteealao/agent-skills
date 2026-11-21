@@ -65,6 +65,15 @@ body { display: flex; flex-direction: row; height: 100%; min-height: 0; overflow
 .phone-link input { width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--field); color: var(--ink); font-size: 12px; }
 .phone-link .btn { width: 100%; margin-top: 6px; color: var(--ink); }
 .tabs { display: none; }
+/* The closed navigation: a rail of the four icons. The names stay for a screen reader, and show as a tip. */
+.side-head:has(.side-toggle) { gap: 8px; padding: 0 2px 0 8px; }
+.side-toggle { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--pencil); cursor: pointer; }
+.side-toggle:hover { background: var(--sunk); color: var(--ink); }
+.side.mini { width: 60px; padding: 14px 8px; }
+.side.mini .side-head { justify-content: center; padding: 0; }
+.side.mini .logo, .side.mini .side-name, .side.mini .nav.before, .side.mini .side-foot, .side.mini .nav .n:not(.badge) { display: none; }
+.side.mini .nav a { position: relative; justify-content: center; gap: 0; padding: 0; font-size: 0; }
+.side.mini .nav .n.badge { position: absolute; right: 6px; top: 6px; min-width: 8px; width: 8px; height: 8px; padding: 0; font-size: 0; }
 
 /* ------------------------------------------------------------ the bar of the screens */
 
@@ -100,6 +109,44 @@ body[data-view="screens"] .bar-title { display: none; }
 /* On a view that is not the screens, the bar keeps the name of the view and the mode switch. */
 body:not([data-view="screens"]) :is(#group, #viewport-pick, #opts, #chips, #zoom, #search-btn, .bar > .search) { display: none; }
 body:is([data-view="review"], [data-view="sketches"], [data-view="references"]) #mode-pick { display: none; }
+
+/* When the bar of a wide window has little room, the search box is an icon: the box opens under the
+   bar. The closed navigation gives the bar 172 px more, so its limit is that much lower. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  body[data-view="screens"] .side:not(.mini) ~ .app #search-btn { display: grid; }
+  body[data-view="screens"] .side:not(.mini) ~ .app .bar > .search { display: none; order: 9; flex: 1 1 100%; }
+  body[data-view="screens"] .side:not(.mini) ~ .app .bar.searching > .search { display: flex; }
+}
+@media (min-width: 900px) and (max-width: 927px) {
+  body[data-view="screens"] .side.mini ~ .app #search-btn { display: grid; }
+  body[data-view="screens"] .side.mini ~ .app .bar > .search { display: none; order: 9; flex: 1 1 100%; }
+  body[data-view="screens"] .side.mini ~ .app .bar.searching > .search { display: flex; }
+}
+@media (min-width: 900px) {
+  #search-btn { width: 40px; height: 40px; margin-right: auto; border: 1px solid var(--line-2); background: var(--surface); }
+  #search-btn[aria-expanded="true"] { border-color: var(--ink); }
+}
+
+/* ------------------------------------------------------------ the list of a select */
+/* A wide window draws the list of a select as a part of the canvas, where the browser can: a raised
+   sheet, one row for each choice, a mark on the chosen one. A phone keeps the list of its system. */
+@supports (appearance: base-select) {
+  @media (min-width: 900px) {
+    select, ::picker(select) { appearance: base-select; }
+    /* A long name stops at the chevron. */
+    select { align-items: center; overflow: clip; overflow-clip-margin: content-box; white-space: nowrap; }
+    select::picker-icon { display: none; }
+    ::picker(select) { min-width: max(anchor-size(width), 180px); max-height: min(60vh, 420px); margin: 4px 0; padding: 6px; overflow: auto; border: 0; border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: var(--raise); font-size: 14px; font-weight: 400; opacity: 1; }
+    select option { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 0 10px; border-radius: 8px; background: transparent; color: var(--ink); white-space: nowrap; cursor: pointer; }
+    /* The row that the keys are on shows by its ground, and by a line when it is the chosen one. */
+    select option:hover, select option:focus-visible { background: var(--sunk); }
+    select option:focus-visible, #focus select option:focus-visible { outline: none; }
+    select option:checked { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+    select option:checked:focus-visible { box-shadow: inset 2px 0 0 var(--accent); }
+    select option::checkmark { order: 1; margin-left: auto; font-size: 13px; }
+    select option:not(:checked)::checkmark { visibility: hidden; }
+  }
+}
 
 /* ------------------------------------------------------------ the filter chips */
 

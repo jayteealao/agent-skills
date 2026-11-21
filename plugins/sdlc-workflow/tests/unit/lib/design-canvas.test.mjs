@@ -497,6 +497,42 @@ test('the page loads the sheet of the screen view after the sheet of the canvas,
   assert.match(css, /#focus :focus-visible \{ outline: 2px solid var\(--cv-accent\)/);
 });
 
+test('the three sides of a wide window close: the navigation, the list of screens and the dock', () => {
+  const dir = join(pluginRoot, 'skills', 'wf', 'canvas');
+  const page = readFileSync(join(dir, 'index.html'), 'utf8');
+  const source = readFileSync(join(dir, 'canvas.js'), 'utf8');
+  const screen = readFileSync(join(dir, 'canvas-screen.css'), 'utf8');
+  const shell = readFileSync(join(dir, 'canvas-shell.css'), 'utf8');
+  // The navigation: one button that says what it controls, and a rail of icons when it is closed.
+  assert.match(page, /<button type="button" class="side-toggle" id="side-toggle" aria-controls="side" aria-expanded="true"/);
+  assert.match(shell, /\.side\.mini \{ width: 60px;/);
+  // The screen view: a button for each side in the top bar, and a class of the sheet for each closed side.
+  assert.match(source, /railBtn\('list', 'the list of screens'\)/);
+  assert.match(source, /railBtn\('dock', 'the inspector'\)/);
+  assert.match(source, /`wide\$\{rails\.list \? ' list-off' : ''\}\$\{rails\.dock \? ' dock-off' : ''\}`/);
+  // A closed side stays in the page: the inspector keeps the place that it draws into.
+  assert.match(screen, /\.sheet\.wide\.list-off > \.sv-list, \.sheet\.wide\.dock-off > \.sv-dock \{ display: none; \}/);
+  // A mode, a tab and a finding open the dock again.
+  for (const opener of ["opener();\n      setRail('dock', false);", "const setTab = (t) => {\n      setRail('dock', false);", "const showIn = (t, id, rowSel) => { setRail('dock', false);"]) {
+    assert.ok(source.replace(/\r\n/g, '\n').includes(opener), opener);
+  }
+  // The choice stays in the browser, and a value that is not `true` means open.
+  assert.match(source, /rails\[k\] = kept\[k\] === true/);
+});
+
+test('a wide window with little room shows the search box as an icon, and draws the list of a select itself', () => {
+  const dir = join(pluginRoot, 'skills', 'wf', 'canvas');
+  const source = readFileSync(join(dir, 'canvas.js'), 'utf8');
+  const shell = readFileSync(join(dir, 'canvas-shell.css'), 'utf8').replace(/\r\n/g, '\n');
+  // The icon shows on the screens only, at a limit for the open navigation and a lower one for the closed one.
+  assert.match(shell, /@media \(min-width: 900px\) and \(max-width: 1099px\) \{\n {2}body\[data-view="screens"\] \.side:not\(\.mini\) ~ \.app #search-btn \{ display: grid; \}/);
+  assert.match(shell, /@media \(min-width: 900px\) and \(max-width: 927px\) \{\n {2}body\[data-view="screens"\] \.side\.mini ~ \.app #search-btn \{ display: grid; \}/);
+  // Ctrl K opens the box wherever the icon shows, not only on a phone.
+  assert.match(source, /const icon = getComputedStyle\(\$\('#search-btn'\)\)\.display !== 'none';/);
+  // The list of a select: only where the browser can draw it, and not on a phone.
+  assert.match(shell, /@supports \(appearance: base-select\) \{\n {2}@media \(min-width: 900px\) \{\n {4}select, ::picker\(select\) \{ appearance: base-select; \}/);
+});
+
 test('a review row names the checks that fail, the most frequent first, three at most', () => {
   assert.equal(L.failCauses({ layout: 7, token: 12, component: 9 }), 'token 12 · component 9 · layout 7');
   assert.equal(L.failCauses({ layout: 7, token: 12, component: 9, contrast: 2, states: 1 }), 'token 12 · component 9 · layout 7 · +2 more');

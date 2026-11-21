@@ -397,6 +397,27 @@ var WF_CANVAS_LOGIC = (() => {
   const phone = () => matchMedia('(max-width: 720px)').matches;
   // The shell and the board change at 900 px: under it the navigation is a tab bar and the board is a list.
   const narrow = () => matchMedia('(max-width: 899px)').matches;
+  // The sides of a wide window close, to give the screens the room: the navigation of the board,
+  // and the list and the dock of the screen view. The choice stays in this browser.
+  const RAILS_KEY = 'wf-canvas-rails';
+  const rails = { nav: false, list: false, dock: false };
+  try {
+    const kept = JSON.parse(localStorage.getItem(RAILS_KEY) || '{}') || {};
+    for (const k of Object.keys(rails)) rails[k] = kept[k] === true;
+  } catch { /* a private window: every side is open */ }
+  const setRail = (name, closed) => {
+    rails[name] = Boolean(closed);
+    try { localStorage.setItem(RAILS_KEY, JSON.stringify(rails)); } catch { /* the choice lasts for this visit */ }
+  };
+  /** Show the navigation of the board as it is: open, or only its icons. */
+  function drawNav() {
+    const btn = $('#side-toggle');
+    if (!btn) return;
+    $('#side').classList.toggle('mini', rails.nav);
+    btn.setAttribute('aria-expanded', String(!rails.nav));
+    btn.title = rails.nav ? 'Show the navigation' : 'Hide the navigation';
+    btn.setAttribute('aria-label', btn.title);
+  }
   const GROUPS = ['grid', 'flow', 'slice'];
   /** The grouping of the screens: the one that shows, or the last one while another view shows. */
   const groupNow = () => (GROUPS.includes(ui.view) ? ui.view : ui.group);
@@ -2046,7 +2067,7 @@ var WF_CANVAS_LOGIC = (() => {
     h('button', { type: 'button', class: 'tag', fk, 'aria-label': `${label}: ${message}`, 'aria-pressed': String(Boolean(pressed)), onclick: (e) => { e.stopPropagation(); onclick(); } }, h('span', {}, label)),
     h('span', { class: 'msg' }, message));
     /** Open a tab of the dock (on a phone, its sheet), and bring one of its rows into view. */
-    const showIn = (t, id, rowSel) => { f.tab = t; f.sheet = true; if (t !== 'inspect') f.inspecting = false; showRow(f, id, rowSel); };
+    const showIn = (t, id, rowSel) => { setRail('dock', false); f.tab = t; f.sheet = true; if (t !== 'inspect') f.inspecting = false; showRow(f, id, rowSel); };
     /**
      * Start a comment for the agent from a finding: the composer opens on the element (or on the
      * place `at` when the page does not hold it now) with the text in it. It posts only when the person sends it.
@@ -2211,6 +2232,7 @@ var WF_CANVAS_LOGIC = (() => {
     const setMode = (m) => {
       if (m === 'view') { leaveMode(); return; }
       opener();
+      setRail('dock', false);
       Object.assign(f, { commenting: m === 'comment' && data.writable && !past, inspecting: m === 'inspect', play: false, tab: m === 'comment' ? 'comments' : 'inspect', sheet: true, size: 'half' });
       if (m !== 'comment') f.pick = null;
       drawFocus();
@@ -2218,6 +2240,7 @@ var WF_CANVAS_LOGIC = (() => {
     };
     /** Show one tab of the dock. The Inspect tab is the inspect mode; another tab leaves it. */
     const setTab = (t) => {
+      setRail('dock', false);
       Object.assign(f, { tab: t, sheet: true, inspecting: t === 'inspect' && Boolean(inspect) });
       if (t === 'inspect') f.play = false;
       if (t !== 'comments') { f.commenting = false; f.pick = null; }
@@ -2418,10 +2441,18 @@ var WF_CANVAS_LOGIC = (() => {
     const sub = L.subLine({ area: s.area, flow: s.flow, at: near.at, total: near.list.length, queue: near.kind === 'queue', touch: true, failing: total, open: openThreads.length,
       mode: !sheetOpen ? 'view' : tab === 'inspect' ? 'inspect' : tab === 'comments' ? (f.commenting ? 'comment' : 'comments') : tab });
     const slash = () => h('span', { 'aria-hidden': 'true' }, '/');
+    // A side of a wide window closes and opens from the top bar. A closed dock leaves its mode.
+    const railBtn = (name, what) => h('button', { type: 'button', class: 'sv-icon', fk: `rail:${name}`, 'aria-expanded': String(!rails[name]),
+      'aria-label': `${rails[name] ? 'Show' : 'Hide'} ${what}`, title: `${rails[name] ? 'Show' : 'Hide'} ${what}`,
+      onclick: () => {
+        setRail(name, !rails[name]);
+        if (name === 'dock' && rails.dock) Object.assign(f, { commenting: false, inspecting: false, pick: null, tab: f.tab === 'inspect' ? '' : f.tab });
+        drawFocus();
+      } }, ic(name === 'list' ? 'side-l' : 'side-r'));
     const top = ph
       ? h('header', { class: 'sv-top' }, backBtn, h('div', { class: 'title' }, h('h2', { tabindex: '-1', title: titleOf(s) }, titleOf(s)), h('div', { class: 'sub' }, sub)), trailBtn,
         sheetOpen ? h('button', { type: 'button', class: 'sv-done', fk: 'sheet:done', onclick: leaveMode }, 'Done') : [failPill, menu])
-      : h('header', { class: 'sv-top' }, backBtn,
+      : h('header', { class: 'sv-top' }, backBtn, railBtn('list', 'the list of screens'),
         h('div', { class: 'sv-crumbs' }, near.kind === 'queue' ? [h('span', {}, 'Review queue'), slash()] : null, s.area ? [h('span', {}, cap(s.area)), slash()] : null, s.flow ? [h('span', {}, `${cap(s.flow)} flow`), slash()] : null,
           h('h2', { tabindex: '-1', title: metaOf(s) }, titleOf(s)), pill, failPill),
         trailBtn,
@@ -2429,7 +2460,8 @@ var WF_CANVAS_LOGIC = (() => {
           vlist ? h('button', { type: 'button', class: 'sv-btn', fk: 'versions', onclick: showVersions }, versionsText) : null,
           url ? h('a', { class: 'sv-btn', fk: 'newtab', href: url, target: '_blank', rel: 'noopener' }, 'Open in a new tab') : null,
           menu,
-          near.next ? h('button', { type: 'button', class: 'sv-next', fk: 'step:1', title: `${titleOf(near.next)} (→ or ])`, onclick: () => step(1) }, `Next: ${titleOf(near.next)}`) : null));
+          near.next ? h('button', { type: 'button', class: 'sv-next', fk: 'step:1', title: `${titleOf(near.next)} (→ or ])`, onclick: () => step(1) }, `Next: ${titleOf(near.next)}`) : null,
+          railBtn('dock', 'the inspector')));
     // A chip shows its value; the native list of its select opens over it.
     const chip = (name, text, values, value, on, labels, label, dot = null) => h('label', { class: 'sv-chip', title: label }, dot, h('span', {}, text), ic('down'), sel(name, values, value, on, labels, label));
     const modes = inspect?.modes() || [];
@@ -2484,7 +2516,7 @@ var WF_CANVAS_LOGIC = (() => {
     // ---- put the sheet together
 
     const sheet = kept && $('#focus .sheet');
-    const cls = `sheet ${ph ? 'narrow' : 'wide'}${panes.length > 1 ? ' multi' : ''}`;
+    const cls = `sheet ${ph ? 'narrow' : `wide${rails.list ? ' list-off' : ''}${rails.dock ? ' dock-off' : ''}`}${panes.length > 1 ? ' multi' : ''}`;
     // A phone: the top bar, the chips, the screen, then the sheet or the bottom bar. A wide window: the top bar, the list, the stage with its toolbar, the dock.
     const before = ph ? [top, sheetOpen ? null : h('div', { class: 'sv-chips' }, chips, pill)] : [top, listPane];
     const after = ph ? [dock, sheetOpen ? null : h('footer', { class: 'sv-bottom' }, stepBtn(-1), modeSeg, stepBtn(1))]
@@ -3148,6 +3180,9 @@ var WF_CANVAS_LOGIC = (() => {
       barHeight();
       if (open) $('#q').focus();
     });
+    drawNav();
+    // The board has another width: what listens for the size of the window measures again.
+    $('#side-toggle')?.addEventListener('click', () => { setRail('nav', !rails.nav); drawNav(); window.dispatchEvent(new Event('resize')); });
     $('#zin').addEventListener('click', () => zoomBy(1.25));
     $('#zout').addEventListener('click', () => zoomBy(0.8));
     $('#zfit').addEventListener('click', () => fit());
@@ -3158,7 +3193,9 @@ var WF_CANVAS_LOGIC = (() => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k' && !focusState && data) {
         e.preventDefault();
         if (viewName() !== 'screens') go('screens');
-        if (narrow() && !$('.bar').classList.contains('searching')) $('#search-btn').click(); else $('#q').focus();
+        // Where the search box is an icon, the key opens the box.
+        const icon = getComputedStyle($('#search-btn')).display !== 'none';
+        if (icon && !$('.bar').classList.contains('searching')) $('#search-btn').click(); else $('#q').focus();
         return;
       }
       // The arrow keys, and [ and ], walk the screens in the screen view, unless a field or a control has the key.
