@@ -480,6 +480,11 @@
  *             remove the copies of the workflow, or one of them; a copy that holds a link is kept
  *             and reported; exit 1 when a copy stays
  *             Example: wf.mjs worktree remove . demo
+ *   slice-files <root> <slug> [<slice> <other slice>] [--json]
+ *             the planned files of the slices: with two slices, the files that both change
+ *             (`shared`; `known` is false when one of them has no file list); with none, each
+ *             pair that shares a file and each depends-on edge whose slices share no file
+ *             Example: wf.mjs slice-files . demo api web --json
  *   ship     facts <root> [--base b] [--json]
  *             the merge rules of the repo: allowed methods, rulesets, protection, merge queue
  *             Example: wf.mjs ship facts . --base main
@@ -563,6 +568,7 @@ import { modernizeWorkflow } from '../lib/modernize.mjs';
 import { runDesign } from '../lib/design-cli.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
+import { orderReport, orderText, pairOf } from '../lib/slice-files.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
@@ -1520,6 +1526,21 @@ function runWorktree(pos, opt) {
   throw usage('worktree: <add|remove> is required');
 }
 
+function runSliceFiles(pos, opt) {
+  const [root, slug, a, b] = pos;
+  if (!root || !slug || (a && !b)) throw usage('slice-files: <root> <slug> are required, with no slice or with two slices');
+  const dir = join(wfRoot(resolve(root)), slug);
+  if (!existsSync(dir)) throw noFolder(`slice-files: no workflow folder ${dir}`, root);
+  if (a) {
+    const p = pairOf(dir, a, b);
+    out(opt.json ? p : !p.known ? `${a} or ${b} has no file list` : p.shared.length ? `${a} and ${b} share: ${p.shared.join(', ')}` : `${a} and ${b} share no file`);
+    return 0;
+  }
+  const r = orderReport(dir);
+  out(opt.json ? r : orderText(r));
+  return 0;
+}
+
 const TASK_PREFIX = 'ship-ready:';
 
 function runShip(pos, opt) {
@@ -2143,6 +2164,7 @@ async function runMain(cmd, pos, opt) {
       case 'consent': return runConsent(pos, opt);
       case 'base': return runBase(pos, opt);
       case 'worktree': return runWorktree(pos, opt);
+      case 'slice-files': return runSliceFiles(pos, opt);
       case 'ship': return runShip(pos, opt);
       case 'drive': return await runDrive(pos, opt);
       case 'progress': {

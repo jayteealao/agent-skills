@@ -44,6 +44,7 @@ import { DECISIONS_FILE, HOW_FAR_KEY, HOW_FAR_QUESTION, RUN_DECISIONS_KEY, RUN_D
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
+import { pairOf } from '../lib/slice-files.mjs';
 import { ignoredAtRisk, loadManifest, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { appendSquash, commitIdentity } from '../lib/steps.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
@@ -1772,6 +1773,11 @@ function sliceOrder(root, slug, [action], f) {
   if (!entry || !roster.some((e) => e.slug === t)) return { ok: false, error: `slice-order: ${!entry ? s : t} is not a slice of the roster of ${slug}`, fix: agentFix(`Name slices of the roster of ${slug} (${roster.map((e) => e.slug).join(', ') || 'none yet'}), and run slice-order again.`) };
   if (entry.dependsOn.includes(t)) return { ok: true, slug, slice: s, after: t, added: false, walkOrder: rosterWalkOrder(roster).map((e) => e.slug) };
   if (closesCycle(roster, s, t)) return { ok: false, cycle: true, error: `slice-order: ${s} after ${t} closes a cycle, because ${t} already depends on ${s}`, fix: personFix(`The roster runs ${t} after ${s}, and this order asks for ${s} after ${t}: the person says which of the two runs first.`) };
+  // An order that the files do not explain needs its reason on record.
+  const pair = pairOf(dir, s, t);
+  if (pair.known && !pair.shared.length && !String(f.why ?? '').trim()) {
+    return { ok: false, error: `slice-order: ${s} and ${t} share no planned file, so the order needs its reason`, fix: agentFix(`Run slice-order add again with --why "<why ${s} needs the code of ${t}>". When there is no reason, add no edge: the two slices do not depend on each other.`, `${addLine} --why "<reason>"`) };
+  }
   const deps = [...entry.dependsOn, t];
   const edited = setRosterEntry(dir, s, { 'depends-on': deps });
   const sliceName = `03-slice-${s}.md`;
