@@ -80,7 +80,7 @@ test('a usage error prints the forms of the verb and the allowed values of its e
     assert.equal(r.status, 1);
     assert.match(r.stderr, /by must be one of person, policy, delegate/);
     assert.match(r.stderr, /the forms of decide add:\ndecide {3}add <root> <slug> --answer a/);
-    assert.match(r.stderr, /values: --by person\|policy\|delegate\|standing:<id>; --kind answer\|steer\|approval\|try-out\|delegate/);
+    assert.match(r.stderr, /values: --by person\|policy\|delegate\|stage\|standing:<id>; --kind answer\|steer\|approval\|try-out\|delegate\|note\|settled/);
     assert.doesNotMatch(r.stderr, /the forms of decide add:[\s\S]*decide {3}list/);
     const stop = run(['step', 'stop', f.root, 'demo', 'api', '--kind', 'pause']);
     assert.match(stop.stderr, /values: --kind fail\|gate\|question/);
@@ -98,7 +98,7 @@ test('a bare form prints the help and exits 0: a command of forms, one verb, a c
   assert.equal(add.status, 0);
   assert.match(add.stdout, /^decide {3}add <root> <slug> --answer a/m);
   assert.doesNotMatch(add.stdout, /decide {3}list/);
-  assert.match(add.stdout, /^values: --by person\|policy\|delegate\|standing:<id>/m);
+  assert.match(add.stdout, /^values: --by person\|policy\|delegate\|stage\|standing:<id>/m);
   const status = run(['status']);
   assert.equal(status.status, 0);
   assert.match(status.stdout, /^status {3}<root> \[<slug>\]/m);

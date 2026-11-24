@@ -7,7 +7,10 @@
 //
 //   id             D-001, D-002, ... in the order of writing
 //   at             the time of writing (ISO 8601, seconds)
-//   kind           answer | steer | approval | try-out | delegate
+//   kind           answer | steer | approval | try-out | delegate | note | settled
+//                  steer: a standing rule of the person. note: a hand-off from a stage to one
+//                  slice, open until it is ended. settled: a decision that a stage settled itself;
+//                  it is kept for the count and the audit, and no list or brief shows it unless asked.
 //   key            a stable question key, or null for a free steer
 //   question       the question as asked, or null
 //   answer         the answer, exact
@@ -17,7 +20,9 @@
 //   stage          the stage that asked, or null
 //   source         where the entry came from (a stage, or the file an import read)
 //   rewrote        the records that the answer changed, for an answer that changes the build
-//   superseded-by  the id of the entry that replaced this one, or null
+//   class          implementation-detail | intent-bearing, for a settled or a delegate entry
+//   superseded-by  the id of the entry that replaced this one, `ended` for an entry that was
+//                  ended with no successor (with ended-at and ended-why), or null
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -27,8 +32,13 @@ import { parse, stringify } from './yaml.mjs';
 import { agentFix, refuse } from './fix.mjs';
 
 export const DECISIONS_FILE = 'decisions.yaml';
-export const KINDS = ['answer', 'steer', 'approval', 'try-out', 'delegate'];
-export const BY = ['person', 'policy', 'delegate'];
+export const KINDS = ['answer', 'steer', 'approval', 'try-out', 'delegate', 'note', 'settled'];
+export const BY = ['person', 'policy', 'delegate', 'stage'];
+/** The stages that run as agents of a build. They write notes and settled entries, never a steer. */
+export const STAGE_WRITERS = ['plan', 'implement', 'verify', 'review'];
+export const CLASSES = ['implementation-detail', 'intent-bearing'];
+/** The `superseded-by` of an entry that was ended with no successor. */
+export const ENDED = 'ended';
 export const LEGACY_ANSWERS = 'po-answers.md';
 export const LEGACY_STEER = 'steer.md';
 
@@ -104,10 +114,21 @@ export const STANDING_BY = ['standing rule', 'standing default'];
 
 const settledByStanding = (by) => byStanding(by) || STANDING_BY.includes(by);
 
-/** The live entries in a scope, in the order of writing. `by: 'standing'` takes the cases that a standing answer settled. */
+/**
+ * The live entries in a scope, in the order of writing. `by: 'standing'` takes the cases that a
+ * standing answer settled. A `settled` entry is given only when `kind` asks for it: it is a record
+ * of what a stage chose, not an input of the next stage. A note of one slice is given only to a
+ * query of that slice.
+ */
 export function liveDecisions(list, query = {}, { by = null, kind = null } = {}) {
+  // `kind` takes one kind, or several with commas.
+  const kinds = kind ? String(kind).split(',').map((k) => k.trim()).filter(Boolean) : null;
+  const q = cleanScope(query);
   return list.filter((e) => isLive(e) && inScope(e, query)
-    && (!by || (by === 'standing' ? settledByStanding(e.by) : e.by === by)) && (!kind || e.kind === kind));
+    && (e.kind !== 'settled' || Boolean(kinds?.includes('settled')))
+    && (e.kind !== 'note' || !cleanScope(e.scope).slice || !q.slice || cleanScope(e.scope).slice === q.slice)
+    && (e.kind !== 'note' || Boolean(q.slice) || Boolean(q.files) || Boolean(kinds?.includes('note')))
+    && (!by || (by === 'standing' ? settledByStanding(e.by) : e.by === by)) && (!kinds || kinds.includes(e.kind)));
 }
 
 /** The kind of a question key: the part before the first colon, or null for a key with no colon. */
@@ -166,13 +187,28 @@ export function dropAnswered(list, questions, query = {}) {
  */
 export function appendEntry(list, input, { now = nowIso() } = {}) {
   const kind = input.kind ?? 'answer';
-  const by = input.by ?? 'person';
+  const by = input.by ?? (kind === 'note' || kind === 'settled' ? 'stage' : 'person');
   if (!KINDS.includes(kind)) {
-    throw refuse(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing constraint), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person)`, agentFix('Run the command again with a --kind that the error lists.'));
+    throw refuse(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing rule of the person), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person), note (a hand-off from a stage to one slice), settled (a decision that a stage settled itself)`, agentFix('Run the command again with a --kind that the error lists.'));
   }
   if (!BY.includes(by) && !STANDING_BY.includes(by) && !(byStanding(by) && /^D-\d+$/.test(by.slice(STANDING_PREFIX.length)))) throw refuse(`by must be one of ${BY.join(', ')}, ${STANDING_BY.join(', ')}, or standing:<id> of a standing answer`, agentFix('Run the command again with the --by that says who decided: one of the values that the error lists.'));
   if (input.answer == null || String(input.answer).trim() === '') throw refuse('an answer is required', agentFix('Run the command again with --answer, the answer in the words of who gave it.'));
-  if (kind !== 'steer' && !input.key) throw refuse(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`, agentFix('Run the command again with --key, a short stable name of the question.'));
+  // A steer is a standing rule of the person. A build stage that has something for a later slice
+  // writes a note to that slice; a choice of its own is a settled entry.
+  if (kind === 'steer' && STAGE_WRITERS.includes(input.stage)) {
+    throw refuse(`the ${input.stage} stage does not write a steer: a steer is a standing rule of the person`, agentFix('For a hand-off to another slice, run the command again with --kind note --slice <the slice it is for>. For a choice that you settled, use --kind settled --class implementation-detail --slice <your slice>. To record the words of the person, leave --stage out.'));
+  }
+  if (kind === 'note' && !cleanScope(input.scope).slice && !cleanScope(input.scope).files) {
+    throw refuse('a note needs the slice that it is for', agentFix('Run the command again with --slice <the slice that must read the note>, or with --files <paths> for a note about some files.'));
+  }
+  if (input.class != null && !CLASSES.includes(input.class)) throw refuse(`class must be one of ${CLASSES.join(', ')}`, agentFix('Run the command again with a --class that the error lists.'));
+  if (kind === 'settled' && !input.class) throw refuse('a settled entry needs --class', agentFix(`Run the command again with --class, one of ${CLASSES.join(', ')}.`));
+  const replaces = [...new Set((Array.isArray(input.replaces) ? input.replaces : []).map(String))];
+  for (const id of replaces) {
+    const old = list.find((e) => e.id === id);
+    if (!old) throw refuse(`no entry ${id} to replace`, agentFix('Run decide list to see the ids, then run the command again with --replaces <an id of the list>.'));
+  }
+  if (!['steer', 'note', 'settled'].includes(kind) && !input.key) throw refuse(`a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind} needs --key <a short stable name of the question>`, agentFix('Run the command again with --key, a short stable name of the question.'));
   const max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
   const entry = {
     id: idOf(max + 1),
@@ -186,9 +222,15 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
     stage: input.stage ?? null,
     source: input.source ?? input.stage ?? null,
     rewrote: Array.isArray(input.rewrote) ? input.rewrote.map(norm) : [],
+    ...(input.class ? { class: input.class } : {}),
     'superseded-by': null,
   };
   const superseded = [];
+  // An entry that names the entries it replaces supersedes them, whatever their key and scope:
+  // a new rule that contradicts an old one takes its place, and the old one leaves every list.
+  for (const e of list) {
+    if (replaces.includes(e.id) && isLive(e)) { e['superseded-by'] = entry.id; superseded.push(e.id); }
+  }
   if (entry.key) {
     for (const e of list) {
       if (isLive(e) && e.key === entry.key && sameScope(e.scope, entry.scope) && familyOf(e.kind) === familyOf(kind)) {
@@ -212,6 +254,64 @@ export function addDecision(slugDir, input, { now = nowIso() } = {}) {
     const r = appendEntry(list, input, { now });
     writeDecisions(slugDir, list);
     return r;
+  });
+}
+
+/**
+ * End a live entry that has no successor: a rule that no longer holds, or a note that was handled.
+ * Returns the entry, or throws when the id is not a live entry.
+ */
+export function endDecision(slugDir, id, why, { now = nowIso() } = {}) {
+  return withStoreLock(slugDir, () => {
+    const list = readDecisions(slugDir);
+    const e = list.find((x) => x.id === id);
+    if (!e) throw refuse(`no entry ${id}`, agentFix('Run decide list to see the ids, then run the command again with an id of the list.'));
+    if (!isLive(e)) throw refuse(`entry ${id} is not live: ${e['superseded-by'] === ENDED ? 'it was ended' : `${e['superseded-by']} replaced it`}`, agentFix('Nothing to do: the entry is already out of every list.'));
+    if (!String(why ?? '').trim()) throw refuse('an end needs its reason', agentFix('Run the command again with --reason "<why the entry no longer holds, or how the note was handled>".'));
+    e['superseded-by'] = ENDED;
+    e['ended-at'] = now;
+    e['ended-why'] = String(why).trim();
+    writeDecisions(slugDir, list);
+    return e;
+  });
+}
+
+const DONE_SLICE = ['complete', 'skipped', 'dropped'];
+
+/**
+ * The tidy of the steers and notes of a store, against the roster (`statusOf`: slice → status).
+ * Returns { end, toNote, review }:
+ * - `end`: a live steer or note of one slice whose slice is complete, skipped or dropped;
+ * - `toNote`: a live steer of one open slice that a build stage wrote: it is a hand-off, so it
+ *   becomes a note;
+ * - `review`: each other live steer, oldest first, for the person: keep it, end it, or move it to
+ *   the rules of the project. `fromStage` marks one that a build stage wrote.
+ */
+export function tidyPlan(list, statusOf = {}) {
+  const end = [];
+  const toNote = [];
+  const review = [];
+  for (const e of list) {
+    if (!isLive(e) || (e.kind !== 'steer' && e.kind !== 'note')) continue;
+    const slice = cleanScope(e.scope).slice ?? null;
+    const fromStage = STAGE_WRITERS.includes(e.stage);
+    if (slice && DONE_SLICE.includes(statusOf[slice])) end.push({ id: e.id, kind: e.kind, slice, why: `its slice ${slice} is ${statusOf[slice]}` });
+    else if (e.kind === 'steer' && slice && fromStage) toNote.push({ id: e.id, slice });
+    else if (e.kind === 'steer') review.push({ id: e.id, at: e.at, key: e.key ?? null, by: e.by, fromStage, slice, chars: String(e.answer ?? '').length + String(e.question ?? '').length });
+  }
+  return { end, toNote, review };
+}
+
+/** Apply the `end` and `toNote` rows of a tidy plan, and write the store. Returns the plan. */
+export function applyTidy(slugDir, statusOf = {}, { now = nowIso() } = {}) {
+  return withStoreLock(slugDir, () => {
+    const list = readDecisions(slugDir);
+    const plan = tidyPlan(list, statusOf);
+    const byId = new Map(list.map((e) => [e.id, e]));
+    for (const r of plan.end) { const e = byId.get(r.id); e['superseded-by'] = ENDED; e['ended-at'] = now; e['ended-why'] = r.why; }
+    for (const r of plan.toNote) { const e = byId.get(r.id); e.kind = 'note'; e['was-kind'] = 'steer'; }
+    if (plan.end.length || plan.toNote.length) writeDecisions(slugDir, list);
+    return plan;
   });
 }
 
@@ -385,7 +485,8 @@ export function decisionLine(e) {
   const where = Object.entries(cleanScope(e.scope)).map(([k, v]) => `${k}=${[].concat(v).join(',')}`).join(' ');
   const key = e.key ? `[${e.key}] ` : '';
   const q = e.question ? `${e.question} → ` : '';
-  const tail = [e.kind, e.by !== 'person' ? `by ${e.by}` : null, where || null, e['superseded-by'] ? `superseded by ${e['superseded-by']}` : null]
+  const gone = e['superseded-by'] === ENDED ? `ended: ${e['ended-why'] ?? ''}`.trim() : e['superseded-by'] ? `superseded by ${e['superseded-by']}` : null;
+  const tail = [e.kind, e.class ?? null, e.by !== 'person' ? `by ${e.by}` : null, where || null, gone]
     .filter(Boolean).join('; ');
   return `${e.id} ${key}${q}${e.answer} (${tail})`;
 }

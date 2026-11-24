@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
+import { readRules, ruleLine } from './project-rules.mjs';
 import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
@@ -147,10 +148,16 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   }
 
   const live = liveDecisions(decisionsOf(dir), slice ? { slice } : {});
-  const decisionsText = live.length ? live.map((e) => `- ${decisionLine(e)}`).join('\n') : null;
+  // The rules, the steers and the notes come first, apart from the answers: they bind the whole
+  // stage, and an agent that reads the top of a long list must not miss them.
+  const bind = (e) => e.kind === 'steer' || e.kind === 'note';
+  const projectRules = readRules(projectRoot);
+  const rulesText = [...projectRules.map((r) => `- RULE ${ruleLine(r)} (project rule)`), ...live.filter(bind).map((e) => `- ${decisionLine(e)}`)].join('\n') || null;
+  const answers = live.filter((e) => !bind(e));
+  const decisionsText = answers.length ? answers.map((e) => `- ${decisionLine(e)}`).join('\n') : null;
   // The rule of lib/decisions.mjs answeredBy: the key itself, or a standing answer of its kind.
   const answeredRule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` ' +
-    'is also answered when a `[standing:<kind>]` entry is listed: use its answer, and record the case with `--by standing:<id>` of that entry.';
+    'is also answered when a `[standing:<kind>]` entry is listed under ## Rules, steers and notes: use its answer, and record the case with `--by standing:<id>` of that entry.';
 
   const cli = wfCli ? `\n\nThe decision commands are \`node "${String(wfCli).replace(/\\/g, '/')}" decide <verb> "${String(projectRoot).replace(/\\/g, '/')}" ${slug} ...\`.` : '';
   // The one folder of the workflow: each `<wf-dir>/` path of a reference is in it, the drafts too.
@@ -161,19 +168,20 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const rules = '\n\n' + [
     `Output boundary: write each commit message, PR text, doc and code comment in product language, with no workflow vocabulary ` +
       `(stage, command or skill names) and no \`.ai/\` paths, and leak-check it before you publish (${refDir}/_output-boundary.md).`,
-    `Standing steer: each live \`steer\` entry under ## Decisions binds this stage. Honor it, never above a mandatory gate, ` +
+    `Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live \`steer\` of the person, or a \`note\` that an earlier stage left for this slice. Honor it, never above a mandatory gate, ` +
       `and give the relevant entries to each sub-agent you start (${refDir}/_decisions.md).`,
   ].join('\n');
   // The folder of the skill: the stage reference says `<skill-dir>`, and this agent did not load the skill.
   const skill = `\n\n${skillDirLine(skillDirOf(referenceRoot))}`;
   const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}${skill}${rules}`;
-  const parts = { card, slice: sliceText, plan: planText, tests: testsText, decisions: decisionsText };
+  const parts = { card, slice: sliceText, plan: planText, tests: testsText, rules: rulesText, decisions: decisionsText };
   const text = [
     head,
     `## Card\n\n${card ?? `(none: reference/${stage}.md has no ## ${CARD_HEADING})`}`,
     `## ${slice ? `Slice ${slice}` : 'Workflow'}\n\n${sliceText ?? '(none)'}`,
     ...(want ? [`## Plan\n\n${planText ?? '(none)'}`] : []),
     ...(suites ? [`## Tests\n\n${testsText ?? '(no test profile)'}`] : []),
+    `## Rules, steers and notes\n\n${rulesText ?? 'None in this scope.'}`,
     `## Decisions\n\n${decisionsText ? `${answeredRule}\n\n${decisionsText}` : 'No live decisions in this scope.'}`,
     ...(missing.length ? [`## Missing\n\n${missing.map((m) => `- ${m}`).join('\n')}`] : []),
   ].join('\n\n');

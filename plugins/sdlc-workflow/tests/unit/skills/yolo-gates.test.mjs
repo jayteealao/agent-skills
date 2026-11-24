@@ -750,6 +750,7 @@ const CONTRACT = '/plugin/skills/wf/reference/_decisions.md';
 const { steeringClause, steeringDigest } = new Function(
   [
     `const STEER_CMD = ${JSON.stringify(STEER)}, referenceRoot = '/plugin/skills/wf/reference'`,
+    `const steerCmdOf = (slice) => STEER_CMD + (slice ? ' --slice ' + slice : '') + ' --rules', WF_CMD = 'wf', projectRoot = '/repo', slug = 'demo', DRAFT_DIR = '/repo/.draft'`,
     extractFn(yoloSrc, 'stageResults'),
     extractFn(yoloSrc, 'steeringClause'),
     extractFn(yoloSrc, 'steeringDigest'),
@@ -773,7 +774,7 @@ test('steering: every role names the command, demands a fresh run, and handles n
     assert.ok(c.includes(STEER), `${role}: command missing`);
     assert.ok(c.includes(CONTRACT), `${role}: contract missing`);
     assert.match(c, /` NOW/, `${role}: no fresh-run demand`);
-    assert.match(c, /never use a copy/, `${role}: allows a stale copy`);
+    assert.match(c, /never use a copy/i, `${role}: allows a stale copy`);
     assert.match(c, /prints no entries, there is no steering/, `${role}: no entries not handled`);
     assert.match(c, /VETO outranks every autonomous-policy default/, `${role}: veto precedence missing`);
     assert.match(c, /never overrides a mandatory gate/, `${role}: mandatory-gate floor missing`);
@@ -815,7 +816,7 @@ test('steering: the driver never snapshots the steer entries at orient', () => {
 
 test('steering: every judging or writing agent carries the clause; bookkeeping agents do not', () => {
   const withClause = {
-    runStage: "steer('writer')",
+    runStage: "steer('writer', sliceArg)",
     runUpdateDepsExec: "steer('writer')",
     driveWallProbe: "steer('context')",
     classifyDecisions: "steer('classify')",
@@ -919,4 +920,26 @@ test('orient: an absent review-scope follows the rule of reviewScopeOf, not a pe
   const p = await orientPrompt();
   assert.doesNotMatch(p, /default 'per-slice' if the field is absent/);
   assert.match(p, /the rule of reviewScopeOf: the review-scope key wins; with no key, 'per-slice' only when 07-review-<slice>\.md records exist and 07-review\.md does not/);
+});
+
+test('hand-offs: a stage agent of a slice writes notes and settled entries, never a steer, and the check runs with no charter', () => {
+  const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+  const at = src.indexOf('function handoffClause(stage, slice) {');
+  assert.ok(at > 0, 'the driver has the hand-off clause');
+  const body = src.slice(at, src.indexOf('\n}\n', at) + 3);
+  const handoffClause = new Function('WF_CMD', 'projectRoot', 'slug', 'DRAFT_DIR', `${body}; return handoffClause`)('wf', '/repo', 'demo', '/repo/.draft');
+  assert.equal(handoffClause('implement', null), '');
+  assert.equal(handoffClause('review', 'slug-wide'), '');
+  const impl = handoffClause('implement', 'api');
+  assert.match(impl, /You never write a steer/);
+  assert.match(impl, /--kind note --slice <that slice> --stage implement/);
+  assert.match(impl, /decide end "\/repo" demo <id> --reason/);
+  assert.match(impl, /Before each step or fix round, run `wf decide list "\/repo" demo --kind note --slice api` again/);
+  assert.match(impl, /"kind": "settled", "class": "implementation-detail", "slice": "api", "stage": "implement"/);
+  assert.doesNotMatch(handoffClause('plan', 'api'), /Before each step or fix round/, 'a plan agent has no steps to read between');
+  assert.match(src, /steer\('writer', sliceArg\) \+ handoffClause\(stage, sliceArg\)/, 'each stage agent carries the clause, outside the steering block');
+  assert.match(src, /--kind steer,note --slice \$\{slice\} --rules/, 'the steering list of a slice is its own, with the project rules');
+  assert.match(src, /const checkpointDue = !bounded && !isLast && \(si \+ 1\) % CHECKPOINT_EVERY === 0/, 'the check every 3 slices does not need a charter');
+  assert.match(src, /This workflow has no charter\. The commitments are the goal and the acceptance criteria/);
+  assert.match(src, /decide tidy "\$\{projectRoot\}" \$\{slug\} --apply/, 'the write-back of a finished slice ends its steers and notes');
 });

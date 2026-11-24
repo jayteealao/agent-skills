@@ -307,18 +307,45 @@
  *             move a slice to the roster of another workflow: the slice record goes with it,
  *             and the source says dropped, with moved-to
  *             Example: wf.mjs slice move . demo ui --to demo-ui --reason "its own PR"
- *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b]
+ *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b] [--class c] [--replaces D-1,D-2]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--source s] [--json]
  *             Example: wf.mjs decide add . demo --key db --question "Which database?" --answer postgres
  *   decide   add <root> <slug> --file <answers.json> [--by b] [--stage s] [--json]
  *             record a decision; a live entry with the same key and scope is superseded, and
  *             each record that names it gets superseded-decisions.<old id>: <new id>
  *             Example: wf.mjs decide add . demo --file .ai/workflows/demo/.draft/answers.json
- *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k] [--all] [--json]
+ *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k[,k2]] [--rules] [--all] [--json]
  *             the live entries in a scope (--all: every entry; --by standing: the cases that a
  *             standing answer settled). Use it to read what is decided;
  *             use decide answered to test one key before a question is asked
  *             Example: wf.mjs decide list . demo --slice api
+ *   decide   end <root> <slug> <id> --reason r [--json]
+ *             end a live entry that has no successor: a steer that no longer holds, or a note
+ *             that was handled; the entry leaves every list and every brief
+ *             Example: wf.mjs decide end . demo D-050 --reason "the tests run once for the slice now"
+ *   decide   tidy <root> <slug> [--apply] [--full] [--json]
+ *             the steers and notes against the roster: those of a slice that is done (ended),
+ *             steers that a build stage wrote for one open slice (made notes), and the live
+ *             steers left for the person; --apply makes the first two changes, --full lists
+ *             the third
+ *             Example: wf.mjs decide tidy . demo
+ *   rule     add <root> --text t [--key k] [--json]
+ *            add a standing rule of the project (.ai/sdlc-config.json `rules`): each brief of each
+ *            workflow prints the rules, so a rule of the whole project is written once, not as a
+ *            steer of every workflow; a rule with the same key is replaced
+ *            Example: wf.mjs rule add . --key one-shared-body --text "One body model for every player."
+ *   rule     list <root> [--json]
+ *            the standing rules of the project
+ *            Example: wf.mjs rule list .
+ *   rule     end <root> <key> --reason r [--json]
+ *            take a rule out of the project
+ *            Example: wf.mjs rule end . one-shared-body --reason "the keeper has its own body now"
+ *   rule     candidates <root> [--json]
+ *            the steers that say the same in 3 or more workflows of the project
+ *            Example: wf.mjs rule candidates .
+ *   rule     adopt <root> --from <slug>:<id> [--key k] [--json]
+ *            make one steer a rule of the project, and end each steer of any workflow that says the same
+ *            Example: wf.mjs rule adopt . --from demo:D-012
  *   decide   answered <root> <slug> --key k [--packet p] [--slice s] [--files f,g] [--json]
  *             exit 0 and the entry when a live entry answers the key, exit 1 when none does. A
  *             standing answer (key standing:<kind>) answers each key <kind>:<case>.
@@ -569,7 +596,9 @@ import { runDesign } from '../lib/design-cli.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
 import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
 import { orderReport, orderText, pairOf } from '../lib/slice-files.mjs';
-import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
+import { addDecision, answeredBy, applyTidy, decisionLine, decisionsOf, dropAnswered, endDecision, importLegacy, liveDecisions, tidyPlan } from '../lib/decisions.mjs';
+import { rosterOf } from '../lib/roster-edit.mjs';
+import { addRule, adoptRule, endRule, readRules, ruleCandidates, ruleLine } from '../lib/project-rules.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, updateLedger, verdictOf, writeLedger } from '../lib/findings.mjs';
@@ -638,7 +667,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -973,7 +1002,7 @@ function waitingAgent(journal, stage, slice) {
 
 export function runDecide(pos, opt) {
   const [verb, root, slug, arg] = pos;
-  if (!verb || !root || !slug) throw usage('decide: <add|list|answered|hold|wait|drop|import> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('decide: <add|list|answered|end|tidy|hold|wait|drop|import> <root> <slug> are required');
   const dir = join(wfRoot(resolve(root)), slug);
   if (!existsSync(dir)) throw noFolder(`decide: no workflow folder ${dir}`, root);
   switch (verb) {
@@ -989,19 +1018,46 @@ export function runDecide(pos, opt) {
       }
       const r = addDecision(dir, {
         kind: opt.kind, key: opt.key, question: opt.question, answer: opt.answer, by: opt.by,
-        scope: scopeOf(opt), stage: opt.stage, source: opt.source,
+        scope: scopeOf(opt), stage: opt.stage, source: opt.source, class: opt.class,
+        replaces: opt.replaces ? String(opt.replaces).split(',').map((s) => s.trim()).filter(Boolean) : [],
         rewrote: opt.rewrote ? String(opt.rewrote).split(',').map((s) => s.trim()).filter(Boolean) : [],
       });
       // Each record that names a superseded entry gets a marker that names the new one.
       const marked = markSuperseded(dir, r.superseded, r.entry.id);
-      const settled = r.entry.kind !== 'steer' && settleQuestion(dir, r.entry.key);
+      const settled = !['steer', 'note', 'settled'].includes(r.entry.kind) && settleQuestion(dir, r.entry.key);
       out(opt.json ? { ...r, marked, settled } : [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...marked.map((n) => `marked ${n}`), ...(settled ? [`settled ${r.entry.key}`] : [])].join('\n'));
       return 0;
     }
     case 'list': {
       const all = decisionsOf(dir);
       const rows = opt.all ? all : liveDecisions(all, scopeOf(opt), { by: opt.by, kind: opt.kind });
-      out(opt.json ? rows : rows.length ? rows.map(decisionLine).join('\n') : 'no decisions');
+      // --rules: the standing rules of the project come first, so one command gives an agent
+      // every rule that binds it.
+      const rules = opt.rules ? readRules(resolve(root)) : [];
+      if (opt.json) { out(opt.rules ? { rules, decisions: rows } : rows); return 0; }
+      const lines = [...rules.map((r) => `RULE ${ruleLine(r)} (project rule)`), ...rows.map(decisionLine)];
+      out(lines.length ? lines.join('\n') : 'no decisions');
+      return 0;
+    }
+    case 'end': {
+      if (!arg) throw usage('decide end: <id> is required');
+      const e = endDecision(dir, arg, opt.reason);
+      out(opt.json ? e : decisionLine(e));
+      return 0;
+    }
+    case 'tidy': {
+      // The roster says which slices are done: a steer or a note of a done slice has no reader left.
+      const statusOf = Object.fromEntries(rosterOf(dir).map((s) => [s.slug, s.status]));
+      const plan = opt.apply ? applyTidy(dir, statusOf) : tidyPlan(decisionsOf(dir), statusOf);
+      if (opt.json) { out({ applied: Boolean(opt.apply), ...plan }); return 0; }
+      const did = opt.apply ? '' : 'would be ';
+      out([
+        `${plan.end.length} ${did}ended: the steer or note of a slice that is complete, skipped or dropped`,
+        `${plan.toNote.length} ${did}made a note: a steer that a build stage wrote for one open slice`,
+        `${plan.review.length} for the person: live steers with no slice, or of an open slice (${plan.review.reduce((n, r) => n + r.chars, 0)} characters; ${plan.review.filter((r) => r.fromStage).length} written by a build stage)`,
+        ...(opt.apply ? [] : ['Run the command again with --apply to make the first two changes. The third list changes only by decide end, decide add --replaces, or rule add.']),
+        ...(opt.full ? plan.review.map((r) => `  ${r.id} ${String(r.at ?? '').slice(0, 10)} ${r.fromStage ? '(stage) ' : ''}${r.slice ? `[${r.slice}] ` : ''}${r.key ?? '(no key)'} — ${r.chars} characters`) : []),
+      ].join('\n'));
       return 0;
     }
     case 'answered': {
@@ -1524,6 +1580,36 @@ function runWorktree(pos, opt) {
     return kept.length ? 1 : 0;
   }
   throw usage('worktree: <add|remove> is required');
+}
+
+function runRule(pos, opt) {
+  const [verb, root, key] = pos;
+  if (!['add', 'list', 'end', 'candidates', 'adopt'].includes(verb) || !root) throw usage('rule: <add|list|end|candidates|adopt> <root> are required');
+  const projectRoot = resolve(root);
+  if (verb === 'list') {
+    const rules = readRules(projectRoot);
+    out(opt.json ? rules : rules.length ? rules.map(ruleLine).join('\n') : 'no rules');
+    return 0;
+  }
+  if (verb === 'candidates') {
+    const c = ruleCandidates(projectRoot);
+    out(opt.json ? c : c.length ? c.map((g) => `in ${g.workflows} workflows: ${g.entries[0].slug}:${g.entries[0].id} [${g.key ?? 'no key'}] ${g.text.slice(0, 160)}`).join('\n') : 'no steer repeats in 3 or more workflows');
+    return 0;
+  }
+  if (verb === 'adopt') {
+    if (!opt.from) throw usage('rule adopt: --from <slug>:<id> is required');
+    const r = adoptRule(projectRoot, { from: opt.from, key: opt.key ?? null });
+    out(opt.json ? r : `added ${ruleLine(r.rule)}\nended ${r.ended.length} steer(s) that said the same in ${new Set(r.ended.map((e) => e.slug)).size} workflow(s)`);
+    return 0;
+  }
+  if (verb === 'add') {
+    const r = addRule(projectRoot, { key: opt.key ?? key ?? null, text: opt.text });
+    out(opt.json ? r : `${r.replaced ? 'replaced' : 'added'} ${ruleLine(r.rule)}`);
+    return 0;
+  }
+  const r = endRule(projectRoot, key, opt.reason);
+  out(opt.json ? r : `ended ${ruleLine(r)}`);
+  return 0;
 }
 
 function runSliceFiles(pos, opt) {
@@ -2164,6 +2250,7 @@ async function runMain(cmd, pos, opt) {
       case 'consent': return runConsent(pos, opt);
       case 'base': return runBase(pos, opt);
       case 'worktree': return runWorktree(pos, opt);
+      case 'rule': return runRule(pos, opt);
       case 'slice-files': return runSliceFiles(pos, opt);
       case 'ship': return runShip(pos, opt);
       case 'drive': return await runDrive(pos, opt);

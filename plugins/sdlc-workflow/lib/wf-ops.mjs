@@ -175,7 +175,8 @@ export function decideAdd(dir, a, { by = null, stage = null } = {}) {
     kind: a.kind, key: a.key, question: a.question, answer: a.answer, by: a.by ?? by,
     scope: { packet: a.packet, slice: a.slice && a.slice !== 'slug-wide' ? a.slice : undefined, files: a.files },
     stage: a.stage ?? stage, source: a.source, rewrote: Array.isArray(a.rewrote) ? a.rewrote : [],
+    class: a.class, replaces: Array.isArray(a.replaces) ? a.replaces : [],
   });
   const marked = markSuperseded(dir, r.superseded, r.entry.id);
-  return { ...r, marked, settled: r.entry.kind !== 'steer' && settleQuestion(dir, r.entry.key) };
+  return { ...r, marked, settled: !['steer', 'note', 'settled'].includes(r.entry.kind) && settleQuestion(dir, r.entry.key) };
 }

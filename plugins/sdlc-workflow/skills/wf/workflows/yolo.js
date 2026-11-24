@@ -173,9 +173,10 @@ function implementStepsClause(slice, retry) {
 // Bookkeeping agents (branch, write-back, index write-back, run end) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
-function steeringClause(role) {
+function steeringClause(role, slice = null) {
   const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in its decision ` +
-    `store. Run \`${STEER_CMD}\` NOW — never use a copy in a prompt or from an earlier run: the user can add an ` +
+    `store, and standing rules for the project. Run \`${steerCmdOf(slice)}\` NOW and read every line it prints: ` +
+    `do not send it to a file and search the file. Never use a copy in a prompt or from an earlier run: the user can add an ` +
     `entry while this run drives. If it prints no entries, there is no steering: skip the rest of this block ` +
     `and return no steering fields. The contract is ${referenceRoot}/_decisions.md. No ` +
     `human gate in this run repeats these entries, so the store is the user's voice here. A steering VETO ` +
@@ -225,6 +226,34 @@ function steeringClause(role) {
   return head +
     ` Keep your work inside these entries: never run a command, recommend an action, or select an option an ` +
     `entry forbids. When an entry names a concern your task covers, weigh it.`
+}
+
+// ---------------------------------------------------------------------------
+// HAND-OFFS AND SETTLED DECISIONS. A stage agent has two things to leave behind that are not a
+// steer. A hand-off to another slice is a note: only that slice reads it, and it ends when it is
+// handled. A decision that the agent settled itself is a settled entry: no later stage reads it,
+// and the person can count and audit what the run chose. Agents that run at the same time (the
+// verify of the last slice, the implement of this one) read the notes again before each step,
+// so a note is also how one tells the other what it changed.
+// ---------------------------------------------------------------------------
+function handoffClause(stage, slice) {
+  if (!slice || slice === 'slug-wide') return ''
+  const add = `${WF_CMD} decide add "${projectRoot}" ${slug}`
+  return `\n\nHAND-OFFS. ` +
+    `A line of kind \`note\` in the steering list is a hand-off that another stage left for this slice. Act on it. ` +
+    `When you have handled it, run \`${WF_CMD} decide end "${projectRoot}" ${slug} <id> --reason "<what you did>"\`.\n` +
+    `- You never write a steer: the command refuses it. When you have something for ANOTHER slice (a red test ` +
+    `that it owns, a finding, a file of its plan that you changed), write a note to that slice: \`${add} ` +
+    `--kind note --slice <that slice> --stage ${stage} --answer "<the hand-off, in 3 sentences or fewer>"\`.\n` +
+    (stage === 'implement' || stage === 'verify'
+      ? `- Another agent of this run may work at the same time as you. Before each step or fix round, run ` +
+        `\`${WF_CMD} decide list "${projectRoot}" ${slug} --kind note --slice ${slice}\` again and act on a new line.\n`
+      : '') +
+    `- Record each decision that you settled yourself, in one call at the end of the stage. Write them as a JSON ` +
+    `array [{ "kind": "settled", "class": "implementation-detail", "slice": "${slice}", "stage": "${stage}", "key": ` +
+    `"<a short name>", "question": "<what was open>", "answer": "<what you chose, and why in one sentence>" }] to ` +
+    `${DRAFT_DIR}/settled-${stage}-${slice}.json and run \`${add} --file ${DRAFT_DIR}/settled-${stage}-${slice}.json\`. ` +
+    `With no decision of your own, skip the call.`
 }
 
 // stageResults() — every stage result of an outcome, in one list, for each hand-back roll-up.
@@ -1047,6 +1076,11 @@ const WORK_RULES =
   `files you change in full whenever you need them.`
 
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
+// The command of one slice gives the rules of the project, the steers in the scope of the slice
+// and the notes that earlier stages left for it. The whole list of a long packet is too long to read.
+const steerCmdOf = (slice) => (slice && slice !== 'slug-wide'
+  ? `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer,note --slice ${slice} --rules`
+  : `${STEER_CMD} --rules`)
 // The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file.
 const steer = steeringClause
 
@@ -1927,7 +1961,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     questionContract(stage) + (DELEGATE ? delegateClause() : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
-    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer') +
+    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -2044,7 +2078,9 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
-    `the workflow is not done.` +
+    `the workflow is not done.\n` +
+    `4. After the roster holds the status, run \`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply\`: it ends ` +
+    `the steers and the notes of slices that are done, so the later slices do not read them.` +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
     `Return { ok, wrote: [<the records you actually changed>], note }.` +
     heartbeatClause(`writeback:${sliceArg}`, 'Drive', 'writeback', sliceArg),
@@ -2987,15 +3023,24 @@ const CHECKPOINT_RESULT = {
   },
 }
 
+const CHECKPOINT_EVERY = 3   // the default K
+
 // charterCheckpoint() — every K slices, a cheap read-only subagent reads the charter
 // and the last K implement artifacts and asks "is the build still advancing each commitment?".
 // A `broken` verdict is a stop; at-risk is surfaced. Read-only — it never writes.
 async function charterCheckpoint(idx, throughSlice) {
   const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
+  // A workflow with no charter is checked against the goal and the acceptance criteria of the
+  // slices that were built since the last check: each one is a commitment, with the slice name as its id.
+  const against = charterList
+    ? `The intake committed to these charter commitments:\n    ${charterList}\n\n`
+    : `This workflow has no charter. The commitments are the goal and the acceptance criteria of the last ` +
+      `${CHECKPOINT_EVERY} slices that were built, through '${throughSlice}': read each slice record ` +
+      `(03-slice-<slice>.md) and use the slice name as the id of its commitment.\n\n`
   return await spawnAgent(
-    `CHARTER FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
+    `FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
     `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n` +
-    `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
+    against +
     `List the records with \`${REC('list')}\`, read the last few implement records with ` +
     `\`${REC('get')} <name>\`, and inspect the built ` +
     `code they touched. For EACH commitment, judge whether the build so far is still ADVANCING it: 'honored' ` +
@@ -3129,7 +3174,6 @@ if (idx.workflowType === 'update-deps') {
   const reviewPer = idx.reviewScope === 'per-slice'
   const perSliceStages = reviewPer ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
   const results = []
-  const CHECKPOINT_EVERY = 3   // the default K
   const charterCheckpoints = []
 
   // ---- THE WORK THIS RUN EXISTS FOR GOES FIRST. -------------------------
@@ -3352,8 +3396,11 @@ if (idx.workflowType === 'update-deps') {
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
       // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
       const isLast = left.length === 0
-      const checkpointDue = !bounded && (idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
-      if (checkpointDue && !workSinceCheckpoint) {
+      const hasCharter = (idx.charter || []).length > 0
+      const checkpointDue = !bounded && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
+      // With a charter, a check is due only after work that touched it. With no charter, each
+      // built slice is work to check.
+      if (checkpointDue && hasCharter && !workSinceCheckpoint) {
         log(`charter checkpoint after '${s.slice}' skipped — no work since the last checkpoint touched the charter`)
       } else if (checkpointDue) {
         workSinceCheckpoint = false

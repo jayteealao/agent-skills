@@ -72,7 +72,7 @@ test('buildBrief: the header carries the output boundary and the standing steer,
     const ref = f.ref.replace(/\\/g, '/');
     assert.match(b.text, /^Output boundary: write each commit message, PR text, doc and code comment in product language.*leak-check it before you publish \(.+\/_output-boundary\.md\)\.$/m);
     assert.ok(b.text.includes(`(${ref}/_output-boundary.md)`), 'the boundary names its card');
-    assert.match(b.text, /^Standing steer: each live `steer` entry under ## Decisions binds this stage\. Honor it, never above a mandatory gate, and give the relevant entries to each sub-agent you start \(.+\/_decisions\.md\)\.$/m);
+    assert.match(b.text, /^Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live `steer` of the person, or a `note` that an earlier stage left for this slice\. Honor it, never above a mandatory gate, and give the relevant entries to each sub-agent you start \(.+\/_decisions\.md\)\.$/m);
     assert.equal(b.text.split('Standing steer: ').length, 2, 'the steer rule is in the brief once');
   } finally { f.done(); }
   // SKILL.md binds both rules for the main session; the stage cards keep no preamble.
@@ -96,8 +96,10 @@ test('buildBrief: the decisions carry their keys, and one line says when a quest
     addDecision(f.dir, { kind: 'steer', key: 'standing:retry', answer: 'retry twice' });
     const b = buildBrief({ projectRoot: f.root, referenceRoot: f.ref, slug: 'demo', stage: 'implement', slice: 'api' });
     assert.match(b.parts.decisions, /^- D-001 \[db\] Which store\? → sqlite \(answer\)$/m);
-    assert.match(b.parts.decisions, /^- D-002 \[standing:retry\] retry twice \(steer\)$/m);
-    const rule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` is also answered when a `[standing:<kind>]` entry is listed: use its answer, and record the case with `--by standing:<id>` of that entry.';
+    assert.match(b.parts.rules, /^- D-002 \[standing:retry\] retry twice \(steer\)$/m);
+    assert.doesNotMatch(b.parts.decisions, /D-002/, 'a steer is listed once, above the answers');
+    assert.ok(b.text.indexOf('## Rules, steers and notes') < b.text.indexOf('## Decisions'), 'the steers come before the answers');
+    const rule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` is also answered when a `[standing:<kind>]` entry is listed under ## Rules, steers and notes: use its answer, and record the case with `--by standing:<id>` of that entry.';
     assert.equal(b.text.split(rule).length, 2, 'the rule is in the brief once');
     assert.match(b.text, /## Decisions\n\nA question whose key is listed here/);
   } finally { f.done(); }
