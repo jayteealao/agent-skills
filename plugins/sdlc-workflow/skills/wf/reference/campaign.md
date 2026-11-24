@@ -92,7 +92,7 @@ Each question of the entry is an open item that the person left to this build in
 Dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to run the stage in `slice.md` on `args.slug`, with these policy answers:
 - The scope, the acceptance criteria, `ux-impact` and the stack are confirmed. Do not ask about them again.
 - The decision store settles the open items of the work packet: an answer of the person, or a steer that leaves the choice to the build. For a steer, choose the option that best fits the acceptance criteria, and record the choice as an assumption.
-- Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has fewer than 40 steps. Do not size a slice by lines.
+- Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has 20 steps or fewer. Do not size a slice by lines.
 - Aim for 10 slices. When the work packet needs more than 14, write them and return a warning.
 - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
 - When `02c-craft.md` exists, map each slice to its screen keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").

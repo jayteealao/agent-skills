@@ -1,5 +1,5 @@
-// The slice stages pay less fixed cost: a step runs only its own tests, the suites run once at
-// the receipt, a slow check runs once at the review, and verify reuses runtime evidence whose
+// The slice stages pay less fixed cost: a step runs a static check and no test, the tests and
+// the suites run once for the slice, a slow check runs once at the review, and verify reuses runtime evidence whose
 // input files did not change. These rules live in the stage references, so the references
 // must agree on them.
 import { test } from 'node:test';
@@ -11,9 +11,18 @@ import { fileURLToPath } from 'node:url';
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', ...p), 'utf8');
 
-test('a step runs only its own tests, and the suites run once at the receipt', () => {
-  assert.match(ref('implement.md'), /After each step, run only the tests that cover the files of that step\. Run the fast and affected suites of the test profile once, at the end, with `wf\.mjs receipt`/);
-  assert.match(ref('implement', '_steps.md'), /After each plan step, run only the tests that cover the files of that step\. Do not run the suites of the profile after each step: the test receipt runs them once, at the end\./);
+test('a step runs a static check and no test; the slice runs its checks once, with one fix loop', () => {
+  const card = ref('implement.md');
+  const steps = ref('implement', '_steps.md');
+  assert.match(card, /After a step, run only the cheapest static check of the project on the files of that step/);
+  assert.match(card, /A step runs no test, no guard set, no measured run, no device check and no full build/);
+  assert.match(card, /After the last step, run the slice checks once, then the fast and affected suites of the test profile with `wf\.mjs receipt`/);
+  assert.doesNotMatch(card, /Red before green/);
+  assert.match(steps, /After each plan step, run only the cheapest static check of the project on the files of that step/);
+  assert.match(steps, /## The slice checks/);
+  assert.match(steps, /The limit is 3 rounds for the slice, counted over all its reds together/);
+  assert.match(ref('plan.md'), /A slice has 20 steps or fewer/);
+  assert.match(ref('plan.md'), /It is never a test run/);
 });
 
 test('plan, implement and verify run no slow check; the review runs each packet check once', () => {

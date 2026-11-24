@@ -24,7 +24,7 @@ export const SECTION_CAP = 12000;
 
 // The plan sections that each stage acts on. A stage that is not named takes no plan section.
 export const PLAN_SECTIONS = {
-  implement: ['Likely Files / Areas to Touch', 'Step-by-Step Plan', 'Handover'],
+  implement: ['Likely Files / Areas to Touch', 'Step-by-Step Plan', 'Slice Checks', 'Handover'],
   verify: ['Verification Strategy', 'Test / Verification Plan'],
   review: ['Proposed Change Strategy', 'Handover'],
 };

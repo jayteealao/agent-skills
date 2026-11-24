@@ -1,6 +1,6 @@
 You are running the **tune sub-procedure**: a bounded loop that moves one measured number into its target range.
 
-> **Loaded as a sub-procedure (not a standalone key).** Shape (intake from v10) flags `tune` in `augmentations-needed` when an acceptance criterion is a number that the build must reach. Implement may also start it when a plan step's done check is a number that the first build misses. `plan` runs the feasibility spike, `implement` runs the rounds, and `verify` runs the harness again.
+> **Loaded as a sub-procedure (not a standalone key).** Shape (intake from v10) flags `tune` in `augmentations-needed` when an acceptance criterion is a number that the build must reach. Implement may also start it when a slice check of the plan is a number that the first run misses. `plan` runs the feasibility spike, `implement` runs the rounds, and `verify` runs the harness again.
 
 | | Detail |
 |---|---|

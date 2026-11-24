@@ -35,6 +35,8 @@ export const STOP_KINDS = ['fail', 'gate', 'question'];
 // A slice whose implement failed this many times since the last retry is a split question.
 export const SPLIT_AFTER_STOPS = 2;
 export const PLAN_SECTION = 'Step-by-Step Plan';
+/** The most steps that the plan of one slice has. */
+export const STEP_LIMIT = 20;
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
@@ -101,13 +103,13 @@ const titleOf = (text) => {
  * The steps of a plan body: the numbered lines of `## Step-by-Step Plan` up to the next heading,
  * or the `### Step <n>` headings of that section when it has them. Lines in code fences are not
  * steps. A repeated number keeps its first row, and each repeat is a warning. Returns
- * `{ steps: [{ n, title }], warnings, found, hash }`; `found` is false when the body has no plan
- * section, and `hash` is the hash of the section text.
+ * `{ steps: [{ n, title }], warnings, found, hash, texts }`; `found` is false when the body has no plan
+ * section, `hash` is the hash of the section text, and `texts` maps each step number to its lines.
  */
 export function readPlan(body) {
   const text = String(body ?? '');
   const section = sectionOf(text, PLAN_SECTION);
-  if (section === null) return { steps: [], warnings: [], found: false, hash: null };
+  if (section === null) return { steps: [], warnings: [], found: false, hash: null, texts: new Map() };
   // The section as lines of the body, so that a warning names the line of the body.
   const all = text.split(/\r?\n/);
   let first = 0;
@@ -130,28 +132,67 @@ export function readPlan(body) {
   const steps = [];
   const warnings = [];
   const seen = new Map();
-  const add = (n, title, line) => {
+  const texts = new Map();
+  let open = null;
+  const add = (n, title, line, raw) => {
+    open = null;
     if (n === 0) warnings.push(`line ${line}: step 0; number the steps from 1`);
     if (seen.has(n)) { warnings.push(`line ${line}: step ${n} repeats the step of line ${seen.get(n)}`); return; }
     seen.set(n, line);
     steps.push({ n, title });
+    texts.set(n, [raw]);
+    open = n;
   };
+  const more = (l) => { if (open !== null) texts.get(open).push(l); };
   for (let i = 0; i < lines.length; i += 1) {
     const l = lines[i];
     if (FENCE.test(l)) { fence = !fence; continue; }
     if (fence) continue;
     if (HEADING.test(l)) {
       const m = STEP_HEADING.exec(l);
-      if (byHeading && m) { add(Number(m[1]), titleOf(m[2] || `Step ${m[1]}`), first + i + 1); continue; }
+      if (byHeading && m) { add(Number(m[1]), titleOf(m[2] || `Step ${m[1]}`), first + i + 1, l); continue; }
       if (!byHeading) break;
       continue;
     }
-    if (byHeading) continue;
+    if (byHeading) { more(l); continue; }
     const m = NUMBERED.exec(l);
-    if (m) add(Number(m[1]), titleOf(m[2]), first + i + 1);
+    if (m) add(Number(m[1]), titleOf(m[2]), first + i + 1, l);
+    else more(l);
   }
   const hash = createHash('sha256').update(section.replace(/\r\n/g, '\n').trim()).digest('hex').slice(0, 16);
-  return { steps: steps.filter((s) => s.n > 0), warnings, found: true, hash };
+  return { steps: steps.filter((s) => s.n > 0), warnings, found: true, hash, texts };
+}
+
+// A done check that runs a test: a test runner, a test task of a build tool, or the words "tests pass".
+const TEST_RUN = new RegExp([
+  String.raw`\bnextest\b`, String.raw`\bcargo\s+test\b`,
+  String.raw`\b(?:npm|pnpm|yarn|bun|go|dotnet|swift|flutter|mix|deno|mvn|make)\s+(?:run\s+)?(?:\S+:)?test\b`,
+  String.raw`\bgradlew?\b[^\n]*?\b\w*[tT]est\w*`,
+  String.raw`\b(?:vitest|jest|pytest|mocha|playwright|cypress|maestro|ctest|rspec|phpunit|xctest|unittest)\b`,
+  String.raw`\bxcodebuild\b[^\n]*\btest\b`, String.raw`\badb\b`, String.raw`\bemulator\b`,
+  String.raw`\b(?:the\s+)?(?:tests?|suites?)\s+(?:pass|passes|run|runs|are green|is green)\b`,
+].join('|'), 'i');
+const DONE_CHECK = /done when:?\s*([\s\S]*)/i;
+const PROBE_MARK = /\(probe\)/i;
+
+/**
+ * The problems of the slice rules in a plan body. `kind` is `limit` (more than STEP_LIMIT steps)
+ * or `step-test` (a step whose done check runs a test, and that is not marked `(probe)`).
+ */
+export function planRuleProblems(body) {
+  const p = readPlan(body);
+  if (!p.found) return [];
+  const out = [];
+  if (p.steps.length > STEP_LIMIT) {
+    out.push({ kind: 'limit', text: `the plan has ${p.steps.length} steps; a slice has ${STEP_LIMIT} steps or fewer: route back to /wf slice and cut the slice in two` });
+  }
+  for (const s of p.steps) {
+    const text = (p.texts.get(s.n) || []).join('\n');
+    const done = DONE_CHECK.exec(text);
+    if (!done || PROBE_MARK.test(text) || !TEST_RUN.test(done[1])) continue;
+    out.push({ kind: 'step-test', text: `step ${s.n} ("${s.title}"): its done check runs a test; a step has a static check only. Move the test run to "## Slice Checks", or mark the step (probe) when the next step depends on the result` });
+  }
+  return out;
 }
 
 /** The problems that make a plan body unusable for the step record, each naming its line; [] when none. */

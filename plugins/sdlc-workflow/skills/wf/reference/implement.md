@@ -15,13 +15,14 @@ You are running `/wf implement`, stage 5 of 9: 1·intake → 2·design → 3·sl
 ## Card
 
 - Build only the selected slice, in the order of its plan steps. Do not broaden the scope. Do not verify, review or ship.
-- Red before green: where a step names a test, write the failing test first and see it fail.
+- A step writes its tests with its code and does not run them. The first run of a new test is the slice run, after the last step.
 - Before you write code against a dependency API that you have not read in this repo, and when a compile or type error names a library symbol (an unresolved reference, a missing export or attribute, a wrong signature), read the installed source with the `study-sources` skill, per [_source-study.md](_source-study.md). Do not fix a library error by trial and error.
 - Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
 - Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
 - A plan or a slice reserves a decision for the person only as [_decision-classes.md](_decision-classes.md) "A reservation needs the person's words" says.
 - Settle an implementation-detail decision yourself, and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
-- After each step, run only the tests that cover the files of that step. Run the fast and affected suites of the test profile once, at the end, with `wf.mjs receipt` ([implement/_steps.md](implement/_steps.md)).
+- The slice is the unit that is tested, not the step. After a step, run only the cheapest static check of the project on the files of that step: a compile or type check, or a linter. A step runs no test, no guard set, no measured run, no device check and no full build. A step that the plan marks `(probe)` runs the one check that the plan names for it. After the last step, run the slice checks once, then the fast and affected suites of the test profile with `wf.mjs receipt` ([implement/_steps.md](implement/_steps.md)).
+- When a slice check or the receipt is red, fix all the reds of that run together in one round. The limit is 3 rounds for the slice, not 3 for each red ([implement/_steps.md](implement/_steps.md), "The fix loop").
 - A `full` or `heavy` command, or a command longer than the longest check of your brief, is a long run. A long run is never a slice step (`_long-runs.md` L5): record it under `## Packet Checks`. Do this also when an acceptance criterion needs it or names a push hook. The review runs it once for the packet.
 - Never stop for context: the host compacts a full conversation, and each committed step is kept. Keep build and test logs in files, per [_workflow-rules.md](_workflow-rules.md).
 - Done when the code is committed and `05-implement-<slice>.md` has `status: complete`.
@@ -98,7 +99,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
    | `benchmark` (mode: baseline) | `05c-benchmark.md` | Note the baseline numbers; the build may not regress them. `verify` runs the compare again (it loads `augment/benchmark.md` in compare mode). |
    | `tune` | `05d-tune.md` | Run the rounds of `augment/tune.md`: one lever per round, the harness after each commit, until the target is met, the budget is spent, or the number stalls. |
 
-   **Start a tune loop yourself** when the done check of a plan step is a measured number and the first build misses it:
+   **Start a tune loop yourself** when a slice check of the plan is a measured number and the first run misses it:
    1. Write the draft of `05d-tune.md` per `augment/tune.md`, with the metric, the target and the harness of that step, and run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
    2. Register it in the `augmentations:` list of the index with `type: tune`: `record set "<root>" <slug> index "augmentations+={type: tune, artifact: 05d-tune.md, status: in-progress}"`.
    3. Run the rounds.
@@ -156,7 +157,7 @@ This section applies when the slice builds UI and a visual contract or the desig
 2. Track the plan steps in the step record. Run `step where` for the slice, and record each step of `## Step-by-Step Plan` of `04-plan-<slice-slug>.md` with `step start` and `step done`, per [implement/_steps.md](implement/_steps.md). The step record replaces a host checklist. A blocked step gets `step stop` with its reason.
 3. Check the current code again before you edit it, with the files that sibling slices changed.
 4. When the slice depends on external APIs or libraries that change, run a freshness pass first.
-5. Build the selected slice, step by step. Commit and record each plan step per [implement/_steps.md](implement/_steps.md).
+5. Build the selected slice, step by step. Commit and record each plan step per [implement/_steps.md](implement/_steps.md). After the last step, run the slice checks and the fix loop of that file.
 6. Change tests, docs, types, configs or migrations only where this slice needs it.
 7. Summarize the exact change set.
 8. Write the draft of `05-implement-<slice-slug>.md` per [implement/_artifact.md](implement/_artifact.md), and put it. Ground the record per [_grounded-progress.md](_grounded-progress.md): each entry of `## Verification Seams Built` and `## Visual Contract Honored` cites a `file:line` that you opened again after the edit, not your memory of the edit.

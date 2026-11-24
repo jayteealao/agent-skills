@@ -1,6 +1,6 @@
 # Step commits, the steps table, and the test receipt
 
-`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared`. One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
+`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared`. One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. A step commit means that the tree compiles, not that the slice works: the tests run once, for the slice. Verify reuses a green test run.
 
 ## Step commits
 
@@ -12,7 +12,7 @@ The step record is `<wf-dir>/steps.jsonl`. Only `wf.mjs step` writes it. Use it 
    - When `step where` says that the plan changed since the last complete run, the run starts at the next step that it names.
    - When `step where` says that the plan has no steps that the step record can read, stop. The plan must number its steps from 1, as numbered lines or as `### Step <n>` headings.
 2. Before each step, run `<wf> step start "<projectRoot>" <slug> <slice-slug> <n> --title "<the step title of the plan>"`.
-3. After each plan step, run only the tests that cover the files of that step. Do not run the suites of the profile after each step: the test receipt runs them once, at the end. Then commit the step. Stage by path, per the commit rule of [../_workflow-rules.md](../_workflow-rules.md). The message is a conventional commit about the product, made from the plan step: `<type>: <what the step does>`, for example `feat: show the stall alert setting`. Pick the type that fits the step: `feat`, `fix`, `test`, `refactor` or `docs`. Name no slug, no slice, no step number and no finding id ([../_output-boundary.md](../_output-boundary.md)): `step done --sha` maps the commit to its step. Then run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --sha HEAD`.
+3. After each plan step, run only the cheapest static check of the project on the files of that step: a compile or type check (`cargo check`, `tsc --noEmit`, a compile task of the build), or a linter when the language has no compile. Run no test, no guard set, no measured run, no device or emulator check and no full build: they are slice checks. A step that the plan marks `(probe)` runs the one check that the plan names for it, and nothing else. A project with no static check runs nothing. Then commit the step. Stage by path, per the commit rule of [../_workflow-rules.md](../_workflow-rules.md). The message is a conventional commit about the product, made from the plan step: `<type>: <what the step does>`, for example `feat: show the stall alert setting`. Pick the type that fits the step: `feat`, `fix`, `test`, `refactor` or `docs`. Name no slug, no slice, no step number and no finding id ([../_output-boundary.md](../_output-boundary.md)): `step done --sha` maps the commit to its step. Then run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --sha HEAD`.
    - The commit must move HEAD. When the commit fails, for example in a commit hook, `step done` refuses, because HEAD is still the commit before the step. Fix the cause and commit again.
    - For a step that changed no file, run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --no-change`.
 4. When you stop before the slice is done, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --kind <kind> --reason "<one line>"`. The kind is:
@@ -38,12 +38,30 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 - `skipped` is a step that `complete --skip` named. Give its reason in `## Deviations from Plan`.
 - A step with no commit gets `—` in Commit.
 
+## The slice checks
+
+A step runs no test. After the commit of the last step, and before the receipt, run the slice checks, each once:
+
+1. The tests that the slice wrote or changed, and the tests that cover the files of the slice.
+2. Each check under `## Slice Checks` of the plan: a guard set, a measured run, a device check.
+
+Keep the output of each run in a file, per [../_workflow-rules.md](../_workflow-rules.md). A long run is not a slice check: it stays a packet check ([../_long-runs.md](../_long-runs.md) L5).
+
+## The fix loop
+
+When a slice check or the receipt is red:
+
+1. Read every failure of the run. Fix all of them in one round. You choose how many commits the round makes. Each is a `fix:` commit about the product; it is not a plan step and gets no `step done`.
+2. Run again only the checks that failed. When they pass, run all the slice checks and the receipt once more.
+
+One round is steps 1 and 2. The limit is 3 rounds for the slice, counted over all its reds together: a red does not get 3 rounds of its own. When a check is still red after round 3, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --kind fail --reason "<the checks that are still red>"` and stop. Do not run a check again when no code changed since it passed.
+
 ## The test receipt
 
-After the final commit, run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`. It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
+After the slice checks pass, run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`. It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
 
 ```json
 { "sha": "<the final commit sha>", "commands": ["<each suite command that ran green on that tree>"], "result": "pass", "at": "<ISO time>", "dirty": [{ "path": "<a tracked file outside .ai that HEAD lacks>", "hash": "<its blob hash, or null when deleted>" }] }
 ```
 
-A tracked change outside `.ai` that is not yours, such as a stray `.gitignore` edit, does not stop the receipt: the receipt names it in `dirty`. When the test profile has no suite for implement, the command prints `receipt: none (no suite in the profile)` and exits 0: go on, and do not ask the person for a suite, because setup asks once for the project. When it exits 1, a suite failed: fix it in a new step, then run `receipt` again. Do not write the receipt file by hand. Verify reuses it while no code changed in a commit after `sha` and each `dirty` file keeps its hash; any other change makes it stale ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").
+A tracked change outside `.ai` that is not yours, such as a stray `.gitignore` edit, does not stop the receipt: the receipt names it in `dirty`. When the test profile has no suite for implement, the command prints `receipt: none (no suite in the profile)` and exits 0: go on, and do not ask the person for a suite, because setup asks once for the project. When it exits 1, a suite failed: fix it in the fix loop, within its 3 rounds. Do not write the receipt file by hand. Verify reuses it while no code changed in a commit after `sha` and each `dirty` file keeps its hash; any other change makes it stale ([../verify/_sub-agents.md](../verify/_sub-agents.md), "Test receipt").
