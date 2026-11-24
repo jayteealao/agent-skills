@@ -164,3 +164,12 @@ test('wf.mjs decide: a stage steer is refused with exit 1, a note and an end and
     assert.match(cli(['decide', 'list', f.root, 'demo', '--kind', 'note']).stdout, /no decisions/);
   } finally { f.done(); }
 });
+
+test('a steer that the run reads by its key is never a rule candidate', () => {
+  const f = fixture(['one', 'two', 'three']);
+  try {
+    for (const s of ['one', 'two', 'three']) addDecision(f.dirs[s], { kind: 'steer', key: 'run-decisions', answer: 'Take the recommended option and show me each one at the end' });
+    assert.deepEqual(ruleCandidates(f.root), []);
+    assert.throws(() => adoptRule(f.root, { from: 'one:D-001' }), /no live steer one:D-001/);
+  } finally { f.done(); }
+});

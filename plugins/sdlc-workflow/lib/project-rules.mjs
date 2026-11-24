@@ -14,6 +14,7 @@ import { withFileLock } from './file-lock.mjs';
 import { endDecision, readDecisions } from './decisions.mjs';
 import { projectConfigPath, workflowsRoot } from './records-root.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { STANDING_KEYS } from './standing.mjs';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const isRule = (r) => r && typeof r === 'object' && typeof r.text === 'string' && r.text.trim();
@@ -104,7 +105,8 @@ function liveSteers(root) {
     let list = [];
     try { list = readDecisions(w.dir); } catch { continue; }
     for (const e of list) {
-      if (e.kind === 'steer' && !e['superseded-by'] && !e.scope?.slice) out.push({ ...w, id: e.id, key: e.key ?? null, text: String(e.answer ?? '') });
+      // A steer whose key the run reads from the store of the workflow (run-decisions) stays there.
+      if (e.kind === 'steer' && !e['superseded-by'] && !e.scope?.slice && !Object.hasOwn(STANDING_KEYS, String(e.key ?? ''))) out.push({ ...w, id: e.id, key: e.key ?? null, text: String(e.answer ?? '') });
     }
   }
   return out;
