@@ -44,6 +44,7 @@ function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
     ${extractFn('settle')}
     ${extractFn('questionStop')}
     ${extractFn('answeredFor')}
+    ${extractFn('fixRoundLeft')}
     ${extractFn('driveChain')}
     return driveChain
   `);

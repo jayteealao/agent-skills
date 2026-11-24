@@ -44,6 +44,14 @@ export const meta = {
 //   slug          the workflow slug to drive
 //   slice         (optional) one slice → slice mode; absent → slug mode
 //   reviewFanout  (optional, default true) the parallel per-dimension review; pass false to opt out
+//   planAhead     (optional, default true) the plan of the next slice is written during the
+//                 implement of this one; pass false to plan each slice only when its turn comes
+//   verifyBehind  (optional, default true) the verify of a slice runs in a scratch worktree on a
+//                 side branch at the last commit of the slice, during the implement of the next
+//                 slice; its fix commits are merged at the next slice boundary; pass false to
+//                 verify each slice in the main checkout before the next slice starts
+//   pairSlices    (optional, default false) two slices whose plans share no file are built at
+//                 the same time, the second one in a scratch worktree on a side branch
 //   answered      (optional) the answers of the questions that stopped the last run, each
 //                 { key, id (the decision id), question, answer, by, stage, slice }
 //   delegate      (optional, default false) the person delegated the intent-bearing decisions
@@ -68,6 +76,10 @@ if (!OPT || typeof OPT !== 'object') {
 const { projectRoot, referenceRoot, slug } = OPT
 const slice = OPT.slice && String(OPT.slice).trim() ? String(OPT.slice).trim() : null
 const DELEGATE = OPT.delegate === true
+// Overlapping work in slug mode. Each one keeps the order of the slices; none changes a gate.
+const PLAN_AHEAD = OPT.planAhead !== false
+const VERIFY_BEHIND = OPT.verifyBehind !== false
+const PAIR_SLICES = OPT.pairSlices === true
 const HOST = ['claude', 'pi', 'codex'].includes(OPT.host) ? OPT.host : 'claude'
 const GIVEN_RUN_ID = typeof OPT.runId === 'string' && /^[A-Za-z0-9._-]{1,120}$/.test(OPT.runId.trim()) ? OPT.runId.trim() : null
 // The answers that the main session recorded since the last run. Each reaches the stage that asked it.
@@ -1818,6 +1830,56 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `Rewrite per ${referenceRoot}/_additive-write.md with trigger scope-change. Do NOT edit the sibling plans ` +
       `or the master 04-plan.md.`
     : ''
+  // A plan written ahead: the slice before it is still being built.
+  const aheadClause = stage === 'plan' && extra.ahead
+    ? ` PLAN AHEAD: slice '${extra.ahead}' is being built in the checkout now, so its code is not all there yet. ` +
+      `Plan slice '${sliceArg}' from the code at HEAD and from the plan record of '${extra.ahead}' ` +
+      `(\`${REC('get', `04-plan-${extra.ahead}.md`)}\`): treat what that plan builds as built. Do not wait for it, and do ` +
+      `not read files that are changing under you twice to chase a moving state. The driver checks this plan ` +
+      `against the code before its implement starts.`
+    : ''
+  // Verify sent the slice back after its own fix rounds: implement fixes the failing items, and runs no plan step again.
+  const sentBackClause = stage === 'implement' && extra.sentBack
+    ? `\n\nVERIFY SENT THIS SLICE BACK. The verify of slice '${sliceArg}' still fails after its fix rounds: ` +
+      `${String(extra.sentBack.reason || 'see the verify record').slice(0, 600)}. This overrides STEP COMMITS above: every plan ` +
+      `step is done, so run no plan step again and run no \`step start\`, \`step done\` or \`step complete\`. Read the verify ` +
+      `record in full (\`${REC('get', `06-verify-${sliceArg}.md`)}\`). Fix each failing item in the code, as \`fix:\` commits. Then ` +
+      `run the slice checks and the receipt, with the fix loop of ${referenceRoot}/implement/_steps.md (3 rounds for ` +
+      `all the reds together). Add what you changed to the implementation record. Do not change the verify record: ` +
+      `verify runs again after you.`
+    : ''
+  // A verify that runs behind: in a copy of the repo, on a side branch at the last commit of the
+  // slice. It runs its fix loop there; the driver merges the branch at the next slice boundary.
+  const behindClause = stage === 'verify' && extra.behind
+    ? `\n\nVERIFY BEHIND. The next slice is being built in ${projectRoot} now, so the code there is not the code ` +
+      `of this slice. Verify slice '${sliceArg}' at commit ${extra.behind.sha}, in its own copy of the repo:\n` +
+      `(1) Run \`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.behind.name} ${extra.behind.sha}\`. It prints the ` +
+      `path of the copy. In the copy, run \`git switch -C ${extra.behind.branch}\`.\n` +
+      `(2) Read the code, build, and run every check in the copy: start each such command there ` +
+      `(\`cd "<the copy>" && …\`, or \`git -C "<the copy>" …\`), never in ${projectRoot}. Each wf.mjs command and ` +
+      `each record keeps the project root ${projectRoot}. Install or build inside the copy; never link ` +
+      `node_modules or a build folder into it with a junction or a symlink.\n` +
+      `(3) Run the fix loop as verify.md says (Step 7.6), in the copy: make each fix and each commit there, on ` +
+      `${extra.behind.branch}. Never edit or commit in ${projectRoot}. The driver merges the branch into the work of ` +
+      `the next slice.\n` +
+      `(4) Do not remove the copy and do not merge. Return the HEAD of the copy as headEnd ` +
+      `(\`git -C "<the copy>" rev-parse HEAD\`); it is ${extra.behind.sha} when you made no commit.`
+    : ''
+  // An implement in a side checkout: another slice is built in the main checkout at the same time.
+  const sideClause = stage === 'implement' && extra.side
+    ? `\n\nSIDE CHECKOUT. Slice '${extra.side.with}' is being built in ${projectRoot} at the same time, and the two ` +
+      `plans share no file. Build slice '${sliceArg}' in its own copy of the repo:\n` +
+      `(1) Run \`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.side.name} <headStart>\`, with the commit ` +
+      `id that you return as headStart. It prints the path of the copy. In the copy, run \`git switch -c ${extra.side.branch}\`.\n` +
+      `(2) Make every edit, static check, slice check and commit in the copy: start each such command there ` +
+      `(\`cd "<the copy>" && …\`). Never edit a file of ${projectRoot} outside the copy.\n` +
+      `(3) Run each \`wf.mjs step\` command from inside the copy too (\`cd "<the copy>" && ${WF_CMD} step …\`), with ` +
+      `the project root ${projectRoot} as its argument: \`--sha HEAD\` is then the HEAD of the copy.\n` +
+      `(4) Do not run \`wf.mjs receipt\`: it runs in the main checkout. Verify runs the suites after the merge.\n` +
+      `(5) Install or build inside the copy; never link node_modules or a build folder into it with a junction or a symlink.\n` +
+      `(6) Do not merge, and do not remove the copy: the driver merges ${extra.side.branch} and removes the copy. ` +
+      `Return the HEAD of the copy as headEnd.`
+    : ''
   const dimensionHint =
     stage === 'review' && idx.reviewDimension
       ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
@@ -1865,7 +1927,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     questionContract(stage) + (DELEGATE ? delegateClause() : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
-    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${scanClause}` + steer('writer') +
+    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -1890,6 +1952,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `- When you stop, still finish the artifact in its honest terminal state, then return status 'hard-stop' ` +
     `with hardStopReason, or status 'questions' with the questions.` +
     (stage === 'implement' ? implementStepsClause(sliceArg || slug, extra.retry === true) : '') +
+    sentBackClause + sideClause +
     (stage === 'implement' && extra.selfVerify && sliceArg ? selfVerifyClause(sliceArg, idx, deferCmd) : '') +
     (stage === 'verify' && sliceArg ? sliceStatusClause(sliceArg) : '') +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
@@ -2537,10 +2600,13 @@ const PLAN_CHECK_RESULT = {
   },
 }
 
-async function planFreshness(sliceArg) {
+async function planFreshness(sliceArg, since = null) {
   const r = await spawnAgent(
     `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
     `The project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n${EOB}\n\n` +
+    (since ? `0. Run \`${WF_CMD} slice-files "${projectRoot}" ${slug} ${sliceArg} ${since} --json\`. Slice '${since}' was built after ` +
+      `this plan was written. When the output has "known": true and an empty "shared" list, the two slices change no ` +
+      `common file: return stale: [] at once, and skip the steps below.\n` : '') +
     `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
     `\`files:\` and \`edges:\`.\n` +
     `2. Find the commits since the plan was last written: \`${GIT} log --oneline <the last commit ` +
@@ -2593,8 +2659,8 @@ async function rosterNow(afterSlice) {
 }
 
 // One implement agent for the whole slice. A re-run resumes after the last committed step.
-async function implementSlice(sliceArg, idx, entry, answered, selfVerify = false) {
-  return await runStage('implement', sliceArg, idx, { stopCheck: true, answered, selfVerify })
+async function implementSlice(sliceArg, idx, entry, answered, selfVerify = false, more = {}) {
+  return await runStage('implement', sliceArg, idx, { stopCheck: true, answered, selfVerify, ...more })
 }
 
 async function driveChain(stages, sliceArg, idx, opts = {}) {
@@ -2621,6 +2687,12 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   // An xs or s slice verifies in its implement agent; that verify result stands in for verify round 1.
   const selfVerify = !!entry && SELF_VERIFY_SIZES.includes(entry.complexity) && stages.includes('verify')
   let selfVerified = null
+  // A plan that the walk wrote ahead is used once. A verify that still fails after its fix
+  // rounds goes back to implement once. The last commit of the implement goes to the caller.
+  let usedAhead = false
+  let sentBack = null
+  let implHead = null
+  const shaOf = (h) => (typeof h === 'string' && /^[0-9a-f]{7,40}$/.test(h.trim()) ? h.trim() : null)
   if (opts.forceFrom && CHAIN_ORDER.includes(opts.forceFrom)) {
     CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(opts.forceFrom)).filter(s => stages.includes(s)).forEach(s => forced.add(s))
     carried = opts.carried ? { ...opts.carried, routedBack: opts.forceFrom } : null
@@ -2632,7 +2704,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // A verify that a route back to plan or implement forced, when that implement made no
     // commit and the slice verified clean before: nothing changed, so the clean result stands.
     // A route back to verify itself always runs it: the answer asks verify to check something new.
-    if (stage === 'verify' && forced.has('verify') && routedTo !== 'verify' && noCodeChange && done.verify === 'done') {
+    if (stage === 'verify' && forced.has('verify') && routedTo !== 'verify' && noCodeChange && done.verify === 'done' && !sentBack) {
       log(`skip verify:${sliceArg} (no code change since the clean verify at ${headAt})`)
       ran.push({
         stage: 'verify', slice: sliceArg, status: 'complete', accepted: true, skipped: true, artifactPath: '', terminal: {},
@@ -2640,9 +2712,14 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       })
       continue
     }
-    if (stage === 'implement' && !freshChecked && !ranStages.includes('plan') && codeMoved > 0 && done.plan === 'done') {
+    // A verify after a send-back that made no commit would only fail again.
+    if (stage === 'verify' && sentBack && noCodeChange) {
+      return stopOut('verify', `${sentBack.reason} — sent back to implement, which made no commit`, { slice: sliceArg, ran })
+    }
+    const aheadStale = usedAhead && !!opts.planAhead && codeMoved > opts.planAhead.codeMoved
+    if (stage === 'implement' && !freshChecked && codeMoved > 0 && ((!ranStages.includes('plan') && done.plan === 'done') || aheadStale)) {
       freshChecked = true
-      const f = await planFreshness(sliceArg)
+      const f = await planFreshness(sliceArg, aheadStale ? opts.planAhead.during : null)
       if (!f.fresh) {
         log(`the plan of '${sliceArg}' is out of date: ${f.reason} — refreshing it before implement`)
         refresh = { reason: f.reason }
@@ -2702,10 +2779,20 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     log(`yolo → ${stage} ${slug} ${sliceArg}${answered ? ` (answered: ${answered.key || 'answer'})` : ''}`)
     // A verify answer that the implement agent did not see needs its own verify agent.
     const firstVerify = stage === 'verify' && selfVerified && (carried || !answered) ? selfVerified : null
+    // The plan that the walk wrote ahead, during the implement of the slice before this one.
+    let pre = null
+    if (stage === 'plan' && opts.planAhead && !usedAhead && !refresh && !answered) {
+      usedAhead = true
+      pre = await opts.planAhead.promise
+      if (pre) log(`plan:${sliceArg} was written ahead, during the implement of '${opts.planAhead.during}'`)
+      else log(`the plan of '${sliceArg}' that was written ahead did not return — planning it now`)
+    }
+    // The walk starts its overlapping work when the code of this slice starts to change.
+    if (stage === 'implement' && typeof opts.beforeImplement === 'function') opts.beforeImplement()
     if (firstVerify) log(`verify:${sliceArg} ran in the implement agent (complexity ${entry.complexity}) — no separate verify agent`)
     if (stage === 'implement') selfVerified = null
-    const dispatched =
-      stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify)
+    const dispatched = pre ? pre
+      : stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify, { ...(sentBack && sentBack.live ? { sentBack } : {}), ...(opts.side ? { side: opts.side } : {}) })
       : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
@@ -2740,6 +2827,19 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       queue.push(...again)
       continue
     }
+    // A verify that still fails for a code reason after its fix rounds goes back to implement
+    // once: a new agent fixes the failing items, and verify runs again. The run stops only when
+    // that also fails. The verify in an implement agent (xs or s) already had its builder.
+    if (stage === 'verify' && res && !sentBack && !firstVerify && opts.bounded !== true && fixRoundLeft(res)) {
+      sentBack = { reason: res.hardStopReason || 'verify did not converge', live: true }
+      log(`verify:${sliceArg} still fails after its fix rounds — sent back to implement once: ${sentBack.reason}`)
+      forced.add('implement')
+      forced.add('verify')
+      routedTo = 'implement'
+      noCodeChange = false
+      queue.unshift('implement', 'verify')
+      continue
+    }
     if (!res || res.status === 'hard-stop') {
       return stopOut(stage, (res && res.hardStopReason) || `${stage} stopped`, { slice: sliceArg, ran })
     }
@@ -2753,12 +2853,17 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       selfVerified = res.verify && typeof res.verify === 'object' ? res.verify : null
       if (!selfVerified) log(`implement:${sliceArg} returned no verify — a verify agent runs`)
     }
+    if (stage === 'implement') {
+      implHead = shaOf(res.headEnd)
+      if (sentBack) sentBack.live = false
+    }
     if (stage === 'implement' && forced.has('implement')) {
-      const sha = (h) => (typeof h === 'string' && /^[0-9a-f]{7,40}$/.test(h.trim()) ? h.trim() : null)
-      headAt = sha(res.headStart)
-      noCodeChange = !!headAt && headAt === sha(res.headEnd)
+      headAt = shaOf(res.headStart)
+      noCodeChange = !!headAt && headAt === shaOf(res.headEnd)
     }
   }
+  // A caller that drives the slice in parts writes the status back itself, after the last part.
+  if (opts.noWriteBack) return { stopped: false, slice: sliceArg, ran, headEnd: implHead }
   // The chain cleared every gate: record the slice as complete at DRIVE
   // time. Only when this run actually drove something (a chain that skipped every
   // stage as already-done has nothing new to write back).
@@ -2776,7 +2881,50 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     else if (wb && wb.ok) log(`slice '${sliceArg}' complete but the write-back wrote nothing${wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
     else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf ship will self-repair the index`)
   }
-  return { stopped: false, slice: sliceArg, ran }
+  return { stopped: false, slice: sliceArg, ran, headEnd: implHead }
+}
+
+// pairCheck() — whether the plans of two slices share a file. Code compares the lists; the
+// agent only runs the command, because this script reads no file itself.
+const PAIR_CHECK = {
+  type: 'object',
+  required: ['known', 'shared'],
+  properties: { known: { type: 'boolean' }, shared: { type: 'array', items: { type: 'string' } } },
+}
+async function pairCheck(a, b) {
+  return await spawnAgent(
+    `PAIR CHECK for slices '${a}' and '${b}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing.\n\n` +
+    `Run \`${WF_CMD} slice-files "${projectRoot}" ${slug} ${a} ${b} --json\` once. Return the "known" and "shared" ` +
+    `values of its output, copied as they are. Read no other file. When the command fails, return ` +
+    `{ known: false, shared: [] }.` +
+    heartbeatClause(`pair:${a}+${b}`, 'Drive', 'pair-check', a),
+    { schema: PAIR_CHECK, label: `pair:${a}+${b}`, phase: 'Drive', ...SONNET }
+  )
+}
+
+// mergeSide() — merge the side branch of a slice that was built in a side checkout, with a
+// merge commit, and remove the copy. A conflict is aborted and reported: the driver stops.
+const MERGE_RESULT = {
+  type: 'object',
+  required: ['ok'],
+  properties: { ok: { type: 'boolean' }, conflicts: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } },
+}
+async function mergeSide(sliceArg, side) {
+  return await spawnAgent(
+    `MERGE the side branch of slice '${sliceArg}' of slug '${slug}'. The project root ${projectRoot} is ABSOLUTE; ` +
+    `run git as \`${GIT} …\`. Change no file by hand.\n\n` +
+    `1. Run \`${GIT} status --porcelain\`. When a tracked file is changed, return { ok: false, note: 'the main ` +
+    `checkout has uncommitted changes' } and do nothing else.\n` +
+    `2. Run \`${GIT} merge --no-ff -m "merge: <what the merged work does, in product words>" ${side.branch}\`. The ` +
+    `message names no slug, slice or branch.\n` +
+    `When git answers that the branch is already up to date, there is nothing to merge: go to step 4.\n` +
+    `3. When the merge stops on a conflict, list the files of \`${GIT} diff --name-only --diff-filter=U\`, run ` +
+    `\`${GIT} merge --abort\`, and return { ok: false, conflicts: [<the files>] }. Do not resolve a conflict.\n` +
+    `4. When the merge commit is made, run \`${WF_CMD} worktree remove "${projectRoot}" ${slug} ${side.name}\`, then ` +
+    `\`${GIT} branch -d ${side.branch}\`, and return { ok: true }. A copy or a branch that stays goes in note.` +
+    heartbeatClause(`merge:${sliceArg}`, 'Drive', 'merge', sliceArg),
+    { schema: MERGE_RESULT, label: `merge:${sliceArg}`, phase: 'Drive', ...SONNET }
+  )
 }
 
 // The slug-wide review, the run's target after every slice verified. The review runs once: it
@@ -2974,8 +3122,10 @@ if (idx.workflowType === 'update-deps') {
   outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.stoppedAt, reason: chain.reason, ran: chain.ran, route, ...(chain.questions ? { questions: chain.questions } : {}) }
 } else {
   // ---- Slug mode — sequential over the roster. ---------------------------
-  // Each slice runs plan → implement → verify before the next slice plans. Implement
-  // writes code on the shared tree, so slices run one at a time.
+  // Each slice runs plan → implement → verify, in roster order. Implement writes code on the
+  // shared tree, so one slice is built at a time. Three things may overlap that build: the plan
+  // of the next slice (planAhead), the verify of the slice before (verifyBehind, in a scratch
+  // worktree on a side branch), and a second slice whose plan shares no file (pairSlices, in a side checkout).
   const reviewPer = idx.reviewScope === 'per-slice'
   const perSliceStages = reviewPer ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
   const results = []
@@ -3001,9 +3151,116 @@ if (idx.workflowType === 'update-deps') {
     log(`work ordering: ${primary.filter(s => s.status !== 'skipped' && s.status !== 'dropped').length} slice(s) with real work run first; ${sweep.length} terminal-clean slice(s) whose only residue is an open deferral are re-challenged AFTER the target, as a bounded wall probe rather than a full re-verify`)
   }
 
-  // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
-  // whole list cleared. `bounded` marks the re-challenge sweep.
+  // OVERLAPPING WORK. The slices still run in roster order, and every gate stays where it is.
+  // plansAhead: the plan of the next slice, started when the implement of this one starts.
+  // pendingVerify: the verify of a slice, running in a scratch worktree at its last commit
+  // while the next slice is built; it is settled at the next slice boundary.
+  const stagesOf = (name) => ((idx.slices.find(x => x.slice === name) || {}).stages) || {}
+  const plansAhead = new Map()
+  let pendingVerify = null
+  const plannedEarly = new Set()
+  const planDone = (name) => stagesOf(name).plan === 'done' || plannedEarly.has(name)
+  const retiredNow = (x) => x.status === 'skipped' || x.status === 'dropped'
+  const wroteAny = (w) => w && w.ok === true && Array.isArray(w.wrote) && w.wrote.length > 0
+
+  // settleBehind() — take the result of the verify that ran behind. Its fix commits are merged
+  // first, with a merge commit. A clean result then stands: its decisions are classed and the
+  // slice status is written back. Any other result, or a merge that did not go through, runs the
+  // verify again in the main checkout, at the tip. Returns a stop, or null.
+  async function settleBehind() {
+    if (!pendingVerify) return null
+    const p = pendingVerify
+    pendingVerify = null
+    const raw = await p.promise
+    // The fix commits of the verify are on its side branch: they join the tip before anything
+    // else. The merge agent also removes the copy and the branch.
+    const m = await mergeSide(p.slice, p.side)
+    const merged = !!m && m.ok === true
+    if (!merged) {
+      const why = m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}` : (m && m.note) || 'the merge agent did not return'
+      log(`the branch ${p.side.branch} of the verify of '${p.slice}' is not merged: ${why} — the branch is kept, and the verify runs again in the main checkout`)
+    } else if (m.note) log(`merge:${p.slice} — ${m.note}`)
+    const t = (raw && raw.terminal) || {}
+    const clean = merged && !!raw && raw.status === 'complete' && verifyClean(t, raw.residual) && probeGaps(t, raw.residual).length === 0
+    if (clean) {
+      const { res } = await settle({ ...raw, stage: 'verify', slice: p.slice }, idx, p.chain.ran)
+      log(`verify:${p.slice} passed behind, from ${p.sha}, during the next implement`)
+      if (!wroteAny(res && res.sliceWriteBack)) await writeBackSliceStatus(p.slice, idx, ['plan', 'implement', 'verify'])
+      return null
+    }
+    if (merged) log(`the verify of '${p.slice}' that ran behind did not pass (${raw ? raw.hardStopReason || raw.status : 'no result'}) — it runs again in the main checkout, at the tip`)
+    const v = await driveChain(['verify'], p.slice, idx, {})
+    p.chain.ran.push(...(v.ran || []))
+    if (!v.stopped) return null
+    return stopOut(v.stoppedAt, v.reason, { mode: 'slug', reviewScope: idx.reviewScope, results, stoppedSlice: p.slice, route: v.route || `address the gate at '${v.stoppedAt}' on slice '${p.slice}', then re-run /wf yolo ${slug}`, ...(v.questions ? { questions: v.questions } : {}) })
+  }
+
+  // driveRoster() — walk one partition, then settle the work that still overlaps. Returns a
+  // stop-outcome, or null when the whole list cleared. `bounded` marks the re-challenge sweep.
   async function driveRoster(list, bounded) {
+    const stop = await walkRoster(list, bounded)
+    const late = await settleBehind()
+    // A plan written ahead for a slice that this run did not reach is on disk: the next run uses it.
+    for (const [name, p] of plansAhead) { await p.promise; log(`the plan of '${name}' was written ahead and not used in this run — the next run starts from it`) }
+    plansAhead.clear()
+    return stop || late
+  }
+
+  // drivePair() — two slices whose plans share no file, built at the same time: `a` in the main
+  // checkout, `b` in a scratch worktree on a side branch. Both plans are written first, and code
+  // compares their file lists. The side branch is merged with a merge commit before `b` verifies.
+  // Returns { stop, paired }: paired is false when the pair cannot be built together, and then
+  // only the plans ran.
+  async function drivePair(a, b, walk) {
+    const tail = perSliceStages.filter(x => x !== 'plan')
+    const stopOf = (chain, name) => stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: name, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${name}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) })
+    const ra = { slice: a.slice, ran: [], stopped: false }
+    const rb = { slice: b.slice, ran: [], stopped: false }
+    results.push(ra, rb)
+    const take = (into, chain) => { into.ran.push(...(chain.ran || [])); if (chain.stopped) Object.assign(into, { stoppedAt: chain.stoppedAt, reason: chain.reason, stopped: true }) }
+    for (const [x, into] of [[a, ra], [b, rb]]) {
+      if (planDone(x.slice)) continue
+      const pa = plansAhead.get(x.slice)
+      plansAhead.delete(x.slice)
+      const c = await driveChain(['plan'], x.slice, idx, { noWriteBack: true, ...(pa ? { planAhead: pa } : {}) })
+      take(into, c)
+      if (c.stopped) return { stop: stopOf(c, x.slice), paired: true }
+      plannedEarly.add(x.slice)
+    }
+    const pc = await pairCheck(a.slice, b.slice)
+    if (!pc || pc.known !== true || (pc.shared || []).length) {
+      log(`slices '${a.slice}' and '${b.slice}' are not built together: ${pc && pc.known === true ? `their plans share ${pc.shared.slice(0, 3).join(', ')}` : 'one of the plans names no files'}`)
+      return { stop: null, paired: false, ra, rb }
+    }
+    const side = { name: `pair-${b.slice}`, branch: `side/${slug}/${b.slice}`, with: a.slice }
+    log(`slices '${a.slice}' and '${b.slice}' share no planned file — building both: '${b.slice}' in a side checkout on ${side.branch}`)
+    const [ca, cb] = await Promise.all([
+      driveChain(tail, a.slice, idx, {}),
+      driveChain(['implement'], b.slice, idx, { side, noWriteBack: true }),
+    ])
+    take(ra, ca)
+    take(rb, cb)
+    // The side branch is merged whenever its implement finished, so the records and the branch agree.
+    if (!cb.stopped) {
+      const m = await mergeSide(b.slice, side)
+      if (!m || m.ok !== true) {
+        const why = m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}` : (m && m.note) || 'the merge agent did not return'
+        return { stop: stopOut('merge', `the side branch ${side.branch} of slice '${b.slice}' is not merged: ${why}. Its implement is complete on that branch. Merge it with a merge commit, then re-run /wf yolo ${slug}`, { ...walk, stoppedSlice: b.slice, route: `git merge --no-ff ${side.branch}, then /wf yolo ${slug}` }), paired: true }
+      }
+      if (m.note) log(`merge:${b.slice} — ${m.note}`)
+    }
+    if (ca.stopped) return { stop: stopOf(ca, a.slice), paired: true }
+    if (cb.stopped) return { stop: stopOut(cb.stoppedAt, `${cb.reason} (the work of '${b.slice}' is on the branch ${side.branch}, in .scratch/worktrees/${slug}/${side.name})`, { ...walk, stoppedSlice: b.slice, route: cb.route || `address the gate on slice '${b.slice}', then re-run /wf yolo ${slug}`, ...(cb.questions ? { questions: cb.questions } : {}) }), paired: true }
+    const rest = tail.filter(x => x !== 'implement')
+    if (rest.length) {
+      const vb = await driveChain(rest, b.slice, idx, {})
+      take(rb, vb)
+      if (vb.stopped) return { stop: stopOf(vb, b.slice), paired: true }
+    }
+    return { stop: null, paired: true }
+  }
+
+  async function walkRoster(list, bounded) {
     // The fields of every stop of the roster walk.
     const walk = { mode: 'slug', reviewScope: idx.reviewScope, results }
     // A checkpoint window in which no stage ran cannot drift the charter, so it is
@@ -3025,11 +3282,71 @@ if (idx.workflowType === 'update-deps') {
         results.push({ slice: s.slice, skipped: true, ran: [], stopped: false })
         continue
       }
-      const chain = await driveChain(perSliceStages, s.slice, idx, { bounded })
+      const mine = stagesOf(s.slice)
+      const nextUp = () => left.find(x => !retiredNow(x)) || null
+      const unrelated = (x, y) => !(x.dependsOn || []).includes(y.slice) && !(y.dependsOn || []).includes(x.slice)
+      // ---- two slices at once (pairSlices) ---------------------------------
+      // Only for two slices that both still need their implement, that do not depend on each
+      // other, and that carry no answer; the branch must take commits.
+      const mate = PAIR_SLICES && !bounded && idx.branch.strategy !== 'none' ? nextUp() : null
+      const pairable = (x) => stagesOf(x.slice).implement !== 'done' && !answeredFor(ANSWERED, 'plan', x.slice) && !answeredFor(ANSWERED, 'implement', x.slice) && !answeredFor(ANSWERED, 'verify', x.slice)
+      if (mate && pairable(s) && pairable(mate) && unrelated(s, mate)) {
+        const pair = await drivePair(s, mate, walk)
+        if (pair.paired) {
+          left = left.filter(x => x !== mate)
+          workSinceCheckpoint = true
+          const lateP = await settleBehind()
+          if (pair.stop) return pair.stop
+          if (lateP) return lateP
+          if (left.length) {
+            const fresh = rewalk(left, await rosterNow(mate.slice), known)
+            if (fresh.changes.length) log(`roster changed during '${s.slice}' and '${mate.slice}': ${fresh.changes.join('; ')}`)
+            left = fresh.list
+          }
+          continue
+        }
+        // Not a pair: both plans are written, and the two slices run one after the other.
+      }
+      // ---- the plan of the next slice, ahead (planAhead) ---------------------
+      const beforeImplement = () => {
+        if (!PLAN_AHEAD || bounded) return
+        const n = nextUp()
+        if (!n || plansAhead.has(n.slice) || planDone(n.slice)) return
+        // A slice that needs the code of this one is planned after that code exists.
+        if ((n.dependsOn || []).includes(s.slice) || answeredFor(ANSWERED, 'plan', n.slice)) return
+        log(`yolo → plan ${slug} ${n.slice} (ahead, during the implement of '${s.slice}')`)
+        plansAhead.set(n.slice, { during: s.slice, codeMoved, promise: runStage('plan', n.slice, idx, { ahead: s.slice }).catch(() => null) })
+      }
+      // ---- the verify of this slice, behind (verifyBehind) -------------------
+      // Not for an xs or s slice (its implement agent verifies), not for the last slice, not for a
+      // slice that carries an answer for its verify, and not on a branch that takes no commit.
+      const behind = VERIFY_BEHIND && !bounded && !reviewPer && idx.branch.strategy !== 'none' && !SELF_VERIFY_SIZES.includes(s.complexity) && mine.verify !== 'done' && !answeredFor(ANSWERED, 'verify', s.slice) && !!nextUp()
+      const ahead = plansAhead.get(s.slice)
+      plansAhead.delete(s.slice)
+      // While a verify runs behind, this slice stops after its implement: the fix commits of that
+      // verify join the tip before this slice is verified.
+      const split = behind || !!pendingVerify
+      const stagesNow = (split ? ['plan', 'implement'] : perSliceStages).filter(x => !(x === 'plan' && plannedEarly.has(s.slice)))
+      const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}) })
       results.push(chain)
       if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
+      // The verify of the slice before this one ran during this implement: its result is due now.
+      const late = await settleBehind()
       if (chain.stopped) {
         return stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: s.slice, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) })
+      }
+      if (late) return late
+      if (split) {
+        if (behind && chain.headEnd && nextUp()) {
+          log(`yolo → verify ${slug} ${s.slice} (behind, at ${chain.headEnd}, during the next implement)`)
+          const side = { name: `verify-${s.slice}`, branch: `verify/${slug}/${s.slice}` }
+          pendingVerify = { slice: s.slice, sha: chain.headEnd, chain, side, promise: runStage('verify', s.slice, idx, { behind: { sha: chain.headEnd, ...side } }).catch(() => null) }
+        } else {
+          // No commit id to verify at, or no slice left to build: the rest of the slice runs here.
+          const v = await driveChain(perSliceStages.filter(x => x !== 'plan' && x !== 'implement'), s.slice, idx, {})
+          chain.ran.push(...(v.ran || []))
+          if (v.stopped) return stopOut(v.stoppedAt, v.reason, { ...walk, stoppedSlice: s.slice, route: v.route || `address the gate at '${v.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(v.questions ? { questions: v.questions } : {}) })
+        }
       }
       // Charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.

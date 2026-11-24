@@ -179,9 +179,21 @@ Workflow({
     delegate:      true,            // delegate mode only — omit otherwise
     reviewFindings: true            // the review-findings mode of the campaign walk only (campaign.md, the action `fix-run`) — omit otherwise
     // reviewFanout (on): omit unless the person asks
+    // planAhead (on), verifyBehind (on): omit unless the person asks
+    pairSlices:    true             // only when the person asks — see Overlapping work
   }
 })
 ```
+
+**Overlapping work.** In slug mode the slices run in roster order, and one slice is built at a time. Three args let other work overlap that build. None of them changes a gate.
+
+| Arg | Default | What overlaps | When it helps |
+|---|---|---|---|
+| `planAhead` | on | The plan of the next slice is written during the implement of this one. Before its implement, a plan check compares it with the code; a plan that is out of date is refreshed. A slice that depends on this one is planned after it. | Always. Pass `false` only when the person asks. |
+| `verifyBehind` | on | The verify of a slice runs in a scratch worktree at the last commit of the slice, on the side branch `verify/<slug>/<slice>`, during the implement of the next slice. It runs its fix loop there. At the next slice boundary the driver merges the branch with a merge commit. A verify that still fails, or a merge that stops on a conflict, runs the verify again in the main checkout at the tip. It does not run for an xs or s slice, for the last slice, or on `branch-strategy: none`. | Always, unless a build in a new copy of the repo costs more than the wait. Pass `false` only when the person asks. |
+| `pairSlices` | off | Two slices are built at the same time: the second one in a scratch worktree on the side branch `side/<slug>/<slice>`. Both plans are written first, and `wf.mjs slice-files` compares their file lists: only two slices that share no planned file and do not depend on each other are built together. The driver merges the side branch with a merge commit before the second slice verifies. A merge conflict stops the run. | The slices of the packet change different files. In most packets nearly every pair of slices shares a file, and then no pair is built together. |
+
+Pass `pairSlices` only when the person asks for it by name or in plain words ("build two slices at once"). The Codex launch has no flag for it, and no flag that turns `planAhead` or `verifyBehind` off.
 
 The workflow runs in the background. Right after this call, start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md). On Codex, the launch command below starts the watch itself.
 

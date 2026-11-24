@@ -49,6 +49,7 @@ function chainHarness(answers, answered = []) {
     ${extractFn('settle')}
     ${extractFn('questionStop')}
     ${extractFn('answeredFor')}
+    ${extractFn('fixRoundLeft')}
     ${extractFn('driveChain')}
     return driveChain
   `);
@@ -129,7 +130,7 @@ test('the driver journals by root and slug, keeps found.json in the drafts, and 
 test('every stage boundary carries the stop check, and no fix round does', () => {
   assert.match(src, /status: \{ enum: \['complete', 'hard-stop', 'stopped', 'questions'\] \}/, 'STAGE_RESULT allows stopped and questions');
   assert.match(src, /runStage\(stage, sliceArg, idx, \{ stopCheck: true, answered \}\)/, 'plan in driveChain');
-  assert.match(src, /runStage\('implement', sliceArg, idx, \{ stopCheck: true, answered, selfVerify \}\)/, 'implement in driveChain');
+  assert.match(src, /runStage\('implement', sliceArg, idx, \{ stopCheck: true, answered, selfVerify, \.\.\.more \}\)/, 'implement in driveChain');
   assert.match(src, /stopCheck: round === 1 && !probeCorrection/, 'verify: the first round only');
   assert.match(src, /runStage\('review', sliceArg, idx, \{ stopCheck: true, answered: extra\.answered \|\| null \}\)/, 'review without the fan-out');
   assert.match(extractFn('driveReview'), /stopCheck\(\) \+ ` When the stop-request check stops you/, 'review fan-out: the rubric selection agent checks before any scout');
