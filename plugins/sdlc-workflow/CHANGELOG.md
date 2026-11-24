@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.33] - 2026-11-24
+
+- fix(sdlc-workflow): a steer that the run reads by its key is not a rule candidate
+- feat(sdlc-workflow): steers are the rules of the person; stages write notes
+- feat(sdlc-workflow): the driver overlaps the plan, the verify and a second slice
+- feat(sdlc-workflow): the slice is the unit that is tested, not the step
+- feat(sdlc-workflow): the order of slices is checked against their planned files
+
 ## [10.0.0-next.32] - 2026-11-21
 
 - feat(sdlc-workflow): an optimize run can go on for as long as it finds gains
