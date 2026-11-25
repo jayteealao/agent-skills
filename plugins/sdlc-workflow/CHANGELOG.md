@@ -5,6 +5,10 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.34] - 2026-11-25
+
+- fix(sdlc-workflow): a long run waits, tells a live driver from a dead one, and keeps the person's answer
+
 ## [10.0.0-next.33] - 2026-11-24
 
 - fix(sdlc-workflow): a steer that the run reads by its key is not a rule candidate
