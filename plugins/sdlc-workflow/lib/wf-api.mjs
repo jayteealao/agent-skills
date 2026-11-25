@@ -137,16 +137,29 @@ function changedPaths(before, after) {
   return out;
 }
 
+const same = (a, b) => (a == null || b == null ? a == null && b == null : a.equals(b));
+
 /**
  * Put the files that the run wrote back as the snapshot has them; a file that another session
  * wrote meanwhile stays. `touched` lists the paths of the run's own writes; without it, every
- * file goes back. Returns true when a file changed.
+ * file goes back. `last` maps each touched path to the bytes that the run wrote last (null: it
+ * removed the file): a path that holds other bytes now was written by another writer after the
+ * run, so it stays, and its path goes to `kept`. Returns true when a file changed.
  */
-function restore(dir, snap, touched = null) {
+function restore(dir, snap, touched = null, last = null, kept = []) {
   let changed = false;
-  for (const r of filesOf(dir).keys()) if (!snap.has(r) && (!touched || touched.has(r))) { rmSync(join(dir, r), { force: true }); changed = true; }
+  const theirs = (r) => {
+    if (!last?.has(r)) return false;
+    const file = join(dir, r);
+    const now = existsSync(file) && statSync(file).isFile() ? readFileSync(file) : null;
+    if (same(now, last.get(r))) return false;
+    kept.push(r);
+    return true;
+  };
+  for (const r of filesOf(dir).keys()) if (!snap.has(r) && (!touched || touched.has(r)) && !theirs(r)) { rmSync(join(dir, r), { force: true }); changed = true; }
   for (const [r, bytes] of snap) {
     if (touched && !touched.has(r)) continue;
+    if (theirs(r)) continue;
     const file = join(dir, r);
     if (existsSync(file) && statSync(file).isFile() && readFileSync(file).equals(bytes)) continue;
     mkdirSync(dirname(file), { recursive: true });
@@ -306,7 +319,8 @@ export function openWorkflow(root, slug, hooks = {}) {
  * nothing: the first write to each workflow takes a snapshot of its folder; when the script
  * throws, or with `dryRun`, every folder goes back to its snapshot. When the script returns,
  * `afterChange` runs once for each workflow that changed: one commit each. Each operation gets
- * a line in the run log. Returns `{ ok, value, error, failedOp, ops, changed, applied }`.
+ * a line in the run log. A file that another writer changed after the run wrote it is not put
+ * back; `kept` names it. Returns `{ ok, value, error, failedOp, ops, changed, applied, kept? }`.
  */
 export async function runScript(root, fn, { slug = null, dryRun = false, warn } = {}) {
   const projectRoot = resolve(root);
@@ -315,6 +329,8 @@ export async function runScript(root, fn, { slug = null, dryRun = false, warn } 
   const opened = new Map();
   // The paths that the operations of this run wrote, by workflow: a restore puts back only these.
   const touched = new Map();
+  // The bytes that the run wrote last to each of those paths, so a restore keeps a later write of another writer.
+  const last = new Map();
   const beforeOp = [];
   const hooks = {
     before: (s, dir) => {
@@ -325,8 +341,11 @@ export async function runScript(root, fn, { slug = null, dryRun = false, warn } 
       const pre = beforeOp.pop();
       if (!pre) return;
       const set = touched.get(s) ?? new Set();
-      for (const r of changedPaths(pre, filesOf(dir))) set.add(r);
+      const mine = last.get(s) ?? new Map();
+      const post = filesOf(dir);
+      for (const r of changedPaths(pre, post)) { set.add(r); mine.set(r, post.get(r) ?? null); }
       touched.set(s, set);
+      last.set(s, mine);
     },
     log: (e) => ops.push({ at: nowIso(), ...e }),
   };
@@ -345,8 +364,14 @@ export async function runScript(root, fn, { slug = null, dryRun = false, warn } 
   }
   const apply = !error && !dryRun;
   const changed = [];
+  const kept = [];
   for (const [s, { dir, files }] of snaps) {
-    if (!apply) { restore(dir, files, touched.get(s) ?? new Set()); continue; }
+    if (!apply) {
+      const theirs = [];
+      restore(dir, files, touched.get(s) ?? new Set(), last.get(s), theirs);
+      kept.push(...theirs.map((r) => `${s}/${r}`));
+      continue;
+    }
     if (differs(dir, files)) changed.push(s);
   }
   for (const s of changed) {
@@ -365,5 +390,5 @@ export async function runScript(root, fn, { slug = null, dryRun = false, warn } 
       appendRecord(file, list.map((o) => JSON.stringify({ ...o, applied: apply })).join('\n').concat('\n'));
     } catch { /* the log is not the change */ }
   }
-  return { ok: !error, value, error, failedOp, ops, changed, applied: apply };
+  return { ok: !error, value, error, failedOp, ops, changed, applied: apply, ...(kept.length ? { kept } : {}) };
 }

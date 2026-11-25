@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { addDecision, decisionsOf } from './decisions.mjs';
 import { PATH_FORMS, applySet, enumAt, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
-import { INDEX_NAME, assertWritable, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
+import { INDEX_NAME, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, updateFields } from './records.mjs';
 import { agentFix, refuse } from './fix.mjs';
 import { rosterOf } from './roster-edit.mjs';
 
@@ -39,12 +39,16 @@ export function defOfType(schema, type) {
 // workflow as blocked until that stage runs again.
 export function settleQuestion(dir, key) {
   if (!key) return false;
-  const open = frontmatterOfDoc(dir, INDEX_NAME)?.['open-questions'];
-  if (!Array.isArray(open)) return false;
-  const kept = open.filter((q) => (q && typeof q === 'object' ? q.key ?? q.id : q) !== key);
-  if (kept.length === open.length) return false;
-  setFields(dir, INDEX_NAME, { 'open-questions': kept });
-  return true;
+  if (!Array.isArray(frontmatterOfDoc(dir, INDEX_NAME)?.['open-questions'])) return false;
+  let settled = false;
+  updateFields(dir, INDEX_NAME, (fm) => {
+    const open = Array.isArray(fm['open-questions']) ? fm['open-questions'] : [];
+    const kept = open.filter((q) => (q && typeof q === 'object' ? q.key ?? q.id : q) !== key);
+    if (kept.length === open.length) return false;
+    fm['open-questions'] = kept;
+    settled = true;
+  });
+  return settled;
 }
 
 // A stage that holds a question and continues with other work publishes it in `open-questions`
@@ -53,9 +57,6 @@ export function settleQuestion(dir, key) {
 export function holdQuestion(dir, q) {
   if (!q?.key) throw refuse('decide hold: --key is required', agentFix('Run decide hold again with --key, a short stable name of the question.'));
   if (!q.question) throw refuse('decide hold: --question is required', agentFix('Run decide hold again with --question, the question in full.'));
-  const fm = frontmatterOfDoc(dir, INDEX_NAME);
-  if (!fm) throw refuse(`decide hold: the workflow has no ${INDEX_NAME}`, agentFix('Run the command again with the slug of a workflow that status lists.'));
-  const open = Array.isArray(fm['open-questions']) ? fm['open-questions'] : [];
   const entry = {
     key: q.key, question: q.question, stage: q.stage ?? null,
     ...(q.slice && q.slice !== 'slug-wide' ? { slice: q.slice } : {}),
@@ -67,9 +68,14 @@ export function holdQuestion(dir, q) {
   // same key for two slices, and neither takes the question of the other out of the index.
   const sliceOf = (x) => (x && typeof x === 'object' && x.slice && x.slice !== 'slug-wide' ? x.slice : null);
   const mine = q.slice && q.slice !== 'slug-wide' ? q.slice : null;
-  const kept = open.filter((x) => (x && typeof x === 'object' ? x.key ?? x.id : x) !== q.key || sliceOf(x) !== mine);
-  setFields(dir, INDEX_NAME, { 'open-questions': [...kept, entry] });
-  return { entry, replaced: kept.length !== open.length };
+  let replaced = false;
+  updateFields(dir, INDEX_NAME, (fm) => {
+    const open = Array.isArray(fm['open-questions']) ? fm['open-questions'] : [];
+    const kept = open.filter((x) => (x && typeof x === 'object' ? x.key ?? x.id : x) !== q.key || sliceOf(x) !== mine);
+    replaced = kept.length !== open.length;
+    fm['open-questions'] = [...kept, entry];
+  }, { missing: () => refuse(`decide hold: the workflow has no ${INDEX_NAME}`, agentFix('Run the command again with the slug of a workflow that status lists.')) });
+  return { entry, replaced };
 }
 
 // The short names of a record for `record get` and `record set`.
@@ -125,24 +131,23 @@ export function checkDismissDecision(dir, id, what = 'findings set') {
 }
 
 export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
-  assertWritable(dir, name);
-  const doc = readDoc(dir, name);
-  if (!doc?.frontmatter) throw refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.'));
   const schema = schemaOf();
-  const def = defOfType(schema, doc.frontmatter.type ?? (name === INDEX_NAME ? 'index' : null));
-  const fm = structuredClone(doc.frontmatter);
   const changes = args.map((a) => (typeof a === 'string'
     ? parseSetArg(a)
     : a));
-  for (const c of changes) {
-    const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
-    if (allowed && !allowed.includes(c.value)) {
-      throw refuse(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`, agentFix('Run record set again with one of the values that the error lists.'));
+  // The read, the path changes and the write are one step under the lock: a path into a list
+  // (`slices[api].status`) changes the list that is on disk now, not a copy read before.
+  const written = updateFields(dir, name, (fm) => {
+    const def = defOfType(schema, fm.type ?? (name === INDEX_NAME ? 'index' : null));
+    for (const c of changes) {
+      const allowed = def && c.op === '=' && c.value !== null ? enumAt(def, c.path, (n) => resolveRef(schema, n)) : null;
+      if (allowed && !allowed.includes(c.value)) {
+        throw refuse(`record set: ${c.key}=${c.value} is not allowed; the values are: ${allowed.join(', ')}. The path forms are: ${PATH_FORMS}`, agentFix('Run record set again with one of the values that the error lists.'));
+      }
+      applySet(fm, c);
     }
-    applySet(fm, c);
-  }
-  const top = [...new Set(changes.map((c) => c.path[0].key))];
-  const written = setFields(dir, name, Object.fromEntries(top.map((k) => [k, fm[k] ?? null])));
+    for (const k of new Set(changes.map((c) => c.path[0].key))) if (fm[k] == null) delete fm[k];
+  }, { missing: () => refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.')) });
   return { frontmatter: written, keys: changes.map((c) => c.key) };
 }
 

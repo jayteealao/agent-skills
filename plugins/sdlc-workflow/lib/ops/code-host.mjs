@@ -101,7 +101,8 @@ export async function runCode(root, { slug = null, code, mode = 'query', dryRun 
   try {
     if (mode === 'run' && slug) lock(slug);
     const r = await runScript(root, body, { slug, dryRun: mode !== 'run' || dryRun });
-    return { ok: r.ok, value: r.ok ? r.value : null, error: r.error ? r.error.message : null, failedOp: r.failedOp ?? null, ops, changed: r.changed, applied: r.applied };
+    const note = r.kept?.length ? ` Another writer changed ${r.kept.join(', ')} after this code wrote it: that file keeps the other change and holds what this code wrote too; check it.` : '';
+    return { ok: r.ok, value: r.ok ? r.value : null, error: r.error ? `${r.error.message}${note}` : null, failedOp: r.failedOp ?? null, ops, changed: r.changed, applied: r.applied, ...(r.kept ? { kept: r.kept } : {}) };
   } catch (e) {
     return { ok: false, value: null, error: e.message, failedOp: null, ops, changed: [], applied: false };
   } finally {

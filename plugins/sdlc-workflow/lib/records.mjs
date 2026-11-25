@@ -373,6 +373,26 @@ export function setFields(dir, name, changes, { now = nowIso(), opts } = {}) {
   });
 }
 
+/**
+ * A read-modify-write of the frontmatter of one record under the lock of the folder: `fn(fm)`
+ * changes a copy of the frontmatter that was read under the lock, and the copy is written. So a
+ * change that builds on a list (`slices[api].status`, the open questions) loses no change of
+ * another writer. `updated-at` moves unless `fn` sets it. `fn` may throw to refuse; nothing is
+ * written then. Returns the written frontmatter, or the old one when `fn` returns false.
+ */
+export function updateFields(dir, name, fn, { now = nowIso(), opts, missing = null } = {}) {
+  return withRecordLock(dir, () => {
+    assertWritable(dir, name, opts);
+    const doc = readDoc(dir, name, opts);
+    if (!doc || !doc.frontmatter) throw missing ? missing() : refuse(`no record ${name} in ${dir}`, agentFix('Run the command again with the name of a record of the workflow.'));
+    const fm = structuredClone(doc.frontmatter);
+    if (fn(fm) === false) return doc.frontmatter;
+    if (Object.hasOwn(fm, 'updated-at') && fm['updated-at'] === doc.frontmatter['updated-at']) fm['updated-at'] = now;
+    writeDocLocked(dir, name, { frontmatter: fm, body: doc.body }, opts);
+    return fm;
+  });
+}
+
 // ---------------------------------------------------------------- decisions
 
 /**
