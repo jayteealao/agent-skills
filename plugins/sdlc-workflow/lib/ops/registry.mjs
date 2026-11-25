@@ -45,9 +45,6 @@ const ROWS = {
 // The flag with which an operation that writes only reads, so a read tool may run it.
 const READ_WITH = { index: 'check', 'record evidence': null, 'design track': 'check', 'design migrate': 'check', 'board render': 'check', receipt: 'check', modernize: 'check', 'decide tidy': null };
 
-// Removed: code goes to wf_query and wf_run.
-const NO_TOOL = new Set(['run']);
-
 export const TOOLS = Object.keys(ROWS);
 export const READ_TOOLS = new Set(['wf_context', 'wf_read', 'wf_query']);
 
@@ -70,7 +67,7 @@ export function coverage() {
   const ops = allOps();
   const rows = registry();
   return {
-    missing: [...ops.keys()].filter((n) => !rows.has(n) && !NO_TOOL.has(n)),
+    missing: [...ops.keys()].filter((n) => !rows.has(n)),
     unknown: [...rows.keys()].filter((n) => !ops.has(n)),
   };
 }

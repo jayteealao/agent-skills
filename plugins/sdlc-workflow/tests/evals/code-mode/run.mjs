@@ -5,10 +5,10 @@
 // WARNING: a run starts `claude -p`, `codex exec` or pi, and spends the usage limits of that
 // host. Without --yes this prints the list of runs and starts nothing.
 //
-//   node tests/evals/code-mode/run.mjs [--cells c,...] [--arms cli,api] [--tasks t,...]
+//   node tests/evals/code-mode/run.mjs [--cells c,...] [--arms cli] [--tasks t,...]
 //                                      [--runs 5] [--out <dir>] [--yes]
 //
-// Arms: cli gets the records reference; api gets the same reference plus _api.md.
+// Arms: cli gets the records reference. The MCP arm comes with the evaluation of the wf tools.
 // Cells: <host>-<model>-<shell>; the shell is the tool that the prompt names.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ export const CELLS = {
   'pi-default-pwsh': { host: 'pi', model: null, shell: 'PowerShell' },
   'pi-default-bash': { host: 'pi', model: null, shell: 'Bash' },
 };
-const ARMS = ['cli', 'api'];
+const ARMS = ['cli'];
 const REFERENCE = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const TIMEOUT_MS = 15 * 60_000;
 
@@ -47,7 +47,6 @@ export function promptOf(task, arm, cell, root) {
     `You work in the git repository at ${root}. It has one /wf workflow, ${SLUG}, in .ai/workflows/${SLUG}/.`,
     `The wf command line is: ${wf}. Run ${wf} help <command> for the forms of a command.`,
     `Read this reference before you start: ${join(REFERENCE, '_records.md')}.`,
-    ...(arm === 'api' ? [`Read this reference too: ${join(REFERENCE, '_api.md')}. It says when to write a script for ${wf} run.`] : []),
     `Run each shell command with the ${cell.shell} tool.`,
     `Task: ${task.prompt}`,
     'When the task is done, give your final answer.',
@@ -92,7 +91,6 @@ async function main() {
   const total = cells.length * arms.length * tasks.length * runs;
   process.stdout.write(`${total} run(s): ${cells.length} cell(s) × ${arms.length} arm(s) × ${tasks.length} task(s) × ${runs}\ncells: ${cells.map(([c]) => c).join(', ')}\nout: ${out}\n`);
   if (!opt.yes) { process.stdout.write('Nothing started. Add --yes after the person said yes to these runs and their usage.\n'); return 0; }
-  if (arms.includes('api') && !existsSync(join(REFERENCE, '_api.md'))) throw new Error('the api arm needs skills/wf/reference/_api.md');
   mkdirSync(out, { recursive: true });
   for (const [name, cell] of cells) {
     for (const arm of arms) {

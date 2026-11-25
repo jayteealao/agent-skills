@@ -47,16 +47,13 @@ const CASES = [
   ['a project name that the pattern refuses', ['records', 'link', '<root>', 'Bad Name'], 'agent', true, /must match/],
   ['only the person sets a standing answer', ['standing', 'set', '<root>', 'pr-wanted', '--answer', 'yes', '--question', 'q', '--by', 'policy'], 'person', false, /only the person sets/],
   ['a GitHub layer that is off', ['gh', 'backfill', '<root>'], 'person', false, /the layer is off/],
-  ['a script outside the project', ['run', '<root>', '<outside>'], 'agent', false, /outside the project/],
 ];
 
 for (const [name, args, who, command, error] of CASES) {
   test(`wf.mjs fix: ${name}`, async () => {
     const f = repo();
-    const outside = path.join(mkdtempSync(path.join(tmpdir(), 'sdlc-wf-out-')), 'x.mjs');
-    writeFileSync(outside, 'export default async () => 1;\n');
     try {
-      const r = f.run(args.map((a) => (a === '<root>' ? f.root : a === '<outside>' ? outside : a)));
+      const r = f.run(args.map((a) => (a === '<root>' ? f.root : a)));
       assert.equal(r.status, 1, `${r.stdout}\n${r.stderr}`);
       assert.match(`${r.stdout}\n${r.stderr}`, error);
       const fix = fixFromLines(r.stderr);
@@ -64,7 +61,7 @@ for (const [name, args, who, command, error] of CASES) {
       await assertFix(fix, { who, command });
       // The fix lines are the last lines of stderr.
       assert.match(r.stderr.trim().split(/\r?\n/).pop(), /^fix(\.who|\.do|\.then)?: /);
-    } finally { f.done(); rmSync(path.dirname(outside), { recursive: true, force: true }); }
+    } finally { f.done(); }
   });
 }
 

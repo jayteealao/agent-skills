@@ -1,9 +1,9 @@
 /**
- * The wf library: the record operations of the CLI as functions, for a script that
- * `wf.mjs run <root> <script.mjs>` runs. The CLI and the library call the same functions
+ * The wf library: the record operations of the CLI as functions, for the code of the MCP tools
+ * wf_query and wf_run (lib/ops/code-host.mjs). The CLI and the library call the same functions
  * (lib/wf-ops.mjs, lib/wf-status.mjs, lib/decisions.mjs, lib/findings.mjs, lib/board-ops.mjs)
  * and the same step after a change (lib/after-change.mjs), so neither door has a rule that the
- * other door lacks. `wf.mjs describe` prints the functions of this header.
+ * other door lacks. `wf.help(name)` in the code gives the functions of this header.
  *
  * API:
  *   wf.records.get(name)
@@ -91,7 +91,7 @@
  */
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { afterChange } from './after-change.mjs';
 import { boardAdd, boardItems, boardMove, boardRegroup, boardRemove } from './board-ops.mjs';
 import { answeredBy, decisionsOf, liveDecisions } from './decisions.mjs';
@@ -167,7 +167,7 @@ function differs(dir, snap) {
 
 /**
  * The API of one workflow. `hooks.before(slug, dir)` runs before each write, and
- * `hooks.log(entry)` gets one entry for each operation; `wf.mjs run` uses them for the
+ * `hooks.log(entry)` gets one entry for each operation; a code run uses them for the
  * snapshot and the run log. Without hooks, each write applies at once.
  */
 export function openWorkflow(root, slug, hooks = {}) {
@@ -299,16 +299,16 @@ export function openWorkflow(root, slug, hooks = {}) {
   return { slug, dir, records, decisions, findings, status, steps, board, answersOf: () => answers.slice() };
 }
 
-// ---------------------------------------------------------------- a run of one script
+// ---------------------------------------------------------------- a run of code
 
 /**
- * Run the default export of a script, `async ({ wf, open, args }) => value`, with all or
+ * Run `fn`, `async ({ wf, open }) => value`, with all or
  * nothing: the first write to each workflow takes a snapshot of its folder; when the script
  * throws, or with `dryRun`, every folder goes back to its snapshot. When the script returns,
  * `afterChange` runs once for each workflow that changed: one commit each. Each operation gets
  * a line in the run log. Returns `{ ok, value, error, failedOp, ops, changed, applied }`.
  */
-export async function runScript(root, fn, { slug = null, script = null, args = [], dryRun = false, warn } = {}) {
+export async function runScript(root, fn, { slug = null, dryRun = false, warn } = {}) {
   const projectRoot = resolve(root);
   const snaps = new Map();
   const ops = [];
@@ -328,7 +328,7 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
       for (const r of changedPaths(pre, filesOf(dir))) set.add(r);
       touched.set(s, set);
     },
-    log: (e) => ops.push({ at: nowIso(), script: script ? basename(script) : null, ...e }),
+    log: (e) => ops.push({ at: nowIso(), ...e }),
   };
   const open = (s) => {
     if (!opened.has(s)) opened.set(s, openWorkflow(projectRoot, s, hooks));
@@ -338,7 +338,7 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
   let error = null;
   let failedOp = null;
   try {
-    value = await fn({ wf: slug ? open(slug) : null, open, args });
+    value = await fn({ wf: slug ? open(slug) : null, open });
   } catch (e) {
     error = e;
     failedOp = e?.wfOp ?? null;
@@ -353,7 +353,7 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
     for (const a of opened.get(s)?.answersOf() ?? []) {
       try { noteAnswer(projectRoot, s, a); } catch { /* the layer queue is not the change */ }
     }
-    afterChange(projectRoot, s, { label: `${s}: wf run ${script ? basename(script) : 'script'}`, ...(warn ? { warn } : {}) });
+    afterChange(projectRoot, s, { label: `${s}: a code run`, ...(warn ? { warn } : {}) });
   }
   // The log names the fields of each operation, not their values.
   const bySlug = new Map();

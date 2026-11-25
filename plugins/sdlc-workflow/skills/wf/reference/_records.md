@@ -67,7 +67,42 @@ A value outside the enum of the schema is refused, and the refusal names the all
 
 ## Change several records
 
-To change several records or several list items, or to read several records with a filter, write a script and run it with `<wf> run`, per [_api.md](_api.md). One script makes one commit, and a script that fails changes nothing.
+When the wf tools are loaded, give code to one tool call:
+
+| The work | The call |
+|---|---|
+| Read several records, or read with a filter | `wf_query` with `slug` and `code` |
+| Change several records or several list items | `wf_run` with `slug` and `code`; `dryRun: true` first lists nothing and keeps nothing, to try the code |
+| One field, one decision, a step, a slice drop or move, a stage done | The typed operation (`wf_run` `record set`, `wf_decide`, `wf_step`), not code |
+
+The code is the body of an async function of `wf` (the workflow of `slug`) and `open(slug)` (another workflow), and its `return` is the result. It has the same rules as the CLI: the schema check, the refusals of record put, and the guards of the person. `wf.help(name)` gives the form of a function, and `wf.help()` lists them. A `wf_run` call is all or nothing: when the code throws or runs past 60 s, no change stays; when it returns, each workflow that changed gets one commit.
+
+The slices that have a plan and no verify record yet (`wf_query`):
+
+```js
+const names = new Set(wf.records.list());
+return wf.records.fields('03-slice', ['slices']).slices
+  .filter(({ slug }) => names.has(`04-plan-${slug}.md`) && !names.has(`06-verify-${slug}.md`))
+  .map(({ slug, status }) => ({ slice: slug, status }));
+```
+
+The size of several slices of the roster (`wf_run`):
+
+```js
+const sizes = { s1: 's', s4: 'm' };
+for (const [slice, size] of Object.entries(sizes)) wf.records.set('03-slice', `slices[${slice}].complexity`, size);
+return Object.keys(sizes);
+```
+
+Every open finding in one file, set to `fixed` after the fix is committed (`wf_run`):
+
+```js
+const found = wf.findings.list({ open: true }).filter((f) => f.file === 'retry.js');
+for (const f of found) wf.findings.set(f.id, { status: 'fixed' });
+return found.map((f) => f.id);
+```
+
+Without the wf tools, make each change with its own command of the CLI.
 
 The command reads the file, merges the change and writes the file in one step, under a lock of the workflow folder. So two writers lose no field, and a re-read before the change is not needed. A record file that does not parse refuses the write and names the file: repair it first, because the write would drop what the file held.
 

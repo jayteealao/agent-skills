@@ -25,7 +25,7 @@ You are running `/wf plan`, stage 4 of 9: 1·intake → 2·design → 3·slice �
 - Do not write product code, and do not edit files other than the plan records. Your only output is the plan records and the chat summary.
 - Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
-- To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
+- To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
 

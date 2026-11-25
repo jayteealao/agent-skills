@@ -19,7 +19,7 @@ You are running `/wf review`. With a slug it is the review stage, stage 7 of 9: 
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
 - Stop only on a BLOCKER that is `could-not-fix`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
-- To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
+- To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
 

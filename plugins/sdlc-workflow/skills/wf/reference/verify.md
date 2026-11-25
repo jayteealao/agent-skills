@@ -35,7 +35,7 @@ You are running `/wf verify`, stage 6 of 9: 1·intake → 2·design → 3·slice
 - Set the terminal state honestly: `convergence` and `result`.
 - Done when `06-verify-<slice>.md` records the result of every acceptance criterion.
 - To change one section or one line of a record, run `wf.mjs record edit "<root>" <slug> <name> --section <heading> --from <file>` or `... --replace "<old>" --with "<new>"`. To change much of the body, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
-- To change several records or several list items, write a script for `wf.mjs run`, per [_api.md](_api.md).
+- To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
 

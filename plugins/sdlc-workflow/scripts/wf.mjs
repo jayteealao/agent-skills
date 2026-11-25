@@ -13,17 +13,12 @@
  *             the commands, or the forms and the flags of one command (also <command> --help)
  *             Example: wf.mjs help record
  *   describe [--json]
- *             every CLI form and every function of the library of wf.mjs run, each with one example
+ *             every CLI form, each with one example
  *             Example: wf.mjs describe
  *   skill-dir
  *             the absolute folder of the wf skill, the `<skill-dir>` of every reference. An agent
  *             that has no `skill-dir:` line runs it through the stable entry point, never a search
  *             Example: node "$HOME/.sdlc/bin/wf.mjs" skill-dir
- *   run      <root> <script.mjs> [<arg>...] [--slug s] [--dry-run] [--json]
- *             run a script in the project: its default export gets { wf, open, args }, and its
- *             return value prints as JSON. All or nothing: a script that throws changes nothing.
- *             Each changed workflow gets one commit. --dry-run lists the changes and applies none
- *             Example: wf.mjs run . .ai/workflows/demo/.draft/verify-all.mjs --slug demo
  *   records  <link|status|sync|push|close|retry|dismiss|migrate> [<root>] [<project>|<slug>] [--problems] [--dry-run] [--json]
  *             the records repo: link a project (its records move into the clone, and each
  *             workflow gets its issue), show the clone (--problems: only the failed pushes, the
@@ -638,7 +633,7 @@ import { STOP_KINDS, stopKind } from '../lib/steps.mjs';
 import { hostname } from 'node:os';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
 import { BOOLEAN_FLAGS } from '../lib/cli-flags.mjs';
@@ -698,7 +693,6 @@ import { linkedProject, localWorkflowsRoot, recordsHome, runRoot, workflowDir, w
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
 import { refuseNoteToDoneSlice, checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
-import { runScript } from '../lib/wf-api.mjs';
 import { inboxOf, inboxText } from '../lib/inbox.mjs';
 import { REQUIRES_MAX_BYTES, resolveRequires } from '../lib/requires-resolve.mjs';
 import { runStanding } from '../lib/standing.mjs';
@@ -2067,40 +2061,6 @@ function runPage(pos, opt) {
   return r.ok ? 0 : 1;
 }
 
-/**
- * `wf.mjs run`: a script of the project, with the library (lib/wf-api.mjs). The script comes
- * from a file that the agent wrote, never from shell text; a path outside the project is refused.
- */
-async function runRun(pos, opt) {
-  const [root, script, ...args] = pos;
-  if (!root || !script) throw usage('run: <root> <script.mjs> are required');
-  const projectRoot = realpathSync(resolve(root));
-  const file = [resolve(projectRoot, script), resolve(script)].find(existsSync);
-  if (!file) throw redo(`run: no script ${script}`, 'Write the script in <wf-dir>/.draft/ or in .scratch/, then run the command again with its path.');
-  const real = realpathSync(file);
-  const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
-  // The workflows of a linked project are in the records clone, so a script in a wf-dir runs too.
-  const homes = [projectRoot, existsSync(wfRoot(projectRoot)) ? realpathSync(wfRoot(projectRoot)) : null].filter(Boolean);
-  if (!homes.some((h) => fold(real).startsWith(fold(`${h}${sep}`)))) {
-    throw redo(`run: ${real} is outside the project ${projectRoot}. Write the script in <wf-dir>/.draft/ or in .scratch/`, 'Move the script into <wf-dir>/.draft/ or .scratch/ of the project, then run the command again.');
-  }
-  const mod = await import(`${pathToFileURL(real).href}?run=${Date.now()}`);
-  if (typeof mod.default !== 'function') throw redo(`run: ${script} has no default export function; write export default async function ({ wf, open, args }) { ... }`, 'Give the script a default export, export default async function ({ wf, open, args }) { ... }, then run it again.');
-  const dryRun = Boolean(opt['dry-run']);
-  const r = await runScript(projectRoot, mod.default, { slug: opt.slug ?? null, script: real, args, dryRun });
-  const writes = r.ops.filter((o) => o.write).map(({ slug, op, record, keys }) => ({ slug, op, record, keys }));
-  if (!r.ok) {
-    process.stderr.write(`wf.mjs: run: ${r.error?.message ?? r.error}\n${r.failedOp ? `wf.mjs: run: the operation that failed: ${r.failedOp}\n` : ''}wf.mjs: run: nothing was applied\n`);
-    return 1;
-  }
-  if (opt.json) { out({ value: r.value ?? null, applied: r.applied, changed: r.changed, changes: writes }); return 0; }
-  if (r.value !== undefined) out(r.value);
-  const list = writes.map((w) => `  ${w.slug}: ${w.op}${w.record ? ` ${w.record}` : ''}${w.keys.length ? ` (${w.keys.join(', ')})` : ''}`);
-  if (dryRun) process.stderr.write(`dry run: ${writes.length} change(s), none applied${list.length ? `:\n${list.join('\n')}` : ''}\n`);
-  else if (writes.length) process.stderr.write(`applied ${writes.length} change(s); committed ${r.changed.join(', ') || 'nothing'}\n`);
-  return 0;
-}
-
 /** Import the person's comments on the issue of a workflow into its inbox, and commit them at once. */
 function importIssueComments(projectRoot, slug) {
   try {
@@ -2242,7 +2202,6 @@ function headerBlocks(file) {
   return blocks;
 }
 
-const API_FILE = join(PLUGIN_ROOT, 'lib', 'wf-api.mjs');
 
 /** Every CLI form and every library function, each with its text and its example. */
 export function describeAll() {
@@ -2252,7 +2211,7 @@ export function describeAll() {
     about: b.lines.slice(1).filter((l) => !/^\s*Example:/.test(l)).map((l) => l.trim()).join(' '),
     example: b.lines.find((l) => /^\s*Example:/.test(l))?.replace(/^\s*Example:\s*/, '') ?? null,
   });
-  return { cli: headerBlocks(fileURLToPath(import.meta.url)).map(entry), api: headerBlocks(API_FILE).map(entry) };
+  return { cli: headerBlocks(fileURLToPath(import.meta.url)).map(entry) };
 }
 
 function describeText(d) {
@@ -2260,10 +2219,6 @@ function describeText(d) {
   return [
     'CLI: wf.mjs <command> ... (one record or one decision)',
     ...d.cli.map(block),
-    '',
-    'API: wf.mjs run <root> <script.mjs> --slug <slug> (several records, a list edit, a read with a filter).',
-    'The script exports default async function ({ wf, open, args }); its return value prints as JSON.',
-    ...d.api.map(block),
   ].join('\n');
 }
 
@@ -2347,7 +2302,6 @@ async function runMain(cmd, pos, opt) {
         closeCandidates(root, await scanWorkflowIndexes({ projectRoot: root }));
         return 0;
       }
-      case 'run': return await runRun(pos, opt);
       case 'skill-dir': out(SKILL_DIR); return 0;
       case 'describe': {
         const d = describeAll();

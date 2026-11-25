@@ -1,4 +1,4 @@
-// A script of `wf.mjs run` in a linked project: one commit for each workflow that it changed,
+// A code run (lib/wf-api.mjs runScript, as wf_run runs it) in a linked project: one commit for each workflow that it changed,
 // none for a workflow that it only read, and none at all when it throws.
 
 import { execFileSync } from 'node:child_process';
@@ -44,18 +44,18 @@ test('one commit for each changed workflow, none for a read, none for a script t
       w1.decisions.add({ kind: 'answer', key: 'db', question: 'Which database?', answer: 'postgres', by: 'person' });
       open('w2').records.set('index', 'current-stage', 'verify');
       return open('w3').records.get('index').frontmatter.status;
-    }, { script: 'many.mjs' });
+    });
     assert.equal(r.ok, true, r.error?.message);
     assert.deepEqual([r.value, r.changed.sort()], ['active', ['w1', 'w2']]);
     assert.deepEqual(['w1', 'w2', 'w3'].map(count), [before[0] + 1, before[1] + 1, before[2]]);
-    assert.match(git(clone, 'log', '-1', '--format=%s', 'HEAD', '--', 'notes/w1'), /w1: wf run many\.mjs/);
+    assert.match(git(clone, 'log', '-1', '--format=%s', 'HEAD', '--', 'notes/w1'), /w1: a code run/);
     assert.equal(git(bare, 'rev-parse', 'main'), git(clone, 'rev-parse', 'HEAD'), 'the push went out');
 
     const after = ['w1', 'w2'].map(count);
     const bad = await runScript(root, async ({ open }) => {
       open('w1').records.set('index', 'current-stage', 'review');
       throw new Error('stop');
-    }, { script: 'bad.mjs' });
+    });
     assert.equal(bad.ok, false);
     assert.deepEqual(['w1', 'w2'].map(count), after);
     assert.equal(frontmatterOfDoc(workflowDir(root, 'w1'), INDEX_NAME)['current-stage'], 'implement', 'the folder is as its commit has it');

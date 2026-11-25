@@ -1,6 +1,6 @@
-// The library of `wf.mjs run`: each function of lib/wf-api.mjs, all or nothing, the dry run, a
-// refused write with the CLI message, a script path outside the project, the run log, and a
-// describe that names every form of the header.
+// The library of code mode (wf_query, wf_run): each function of lib/wf-api.mjs, all or nothing, the dry run, a
+// refused write with the CLI message, the run log, and a
+// describe and wf.help that name every form and every function.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,6 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { API_LOG, openWorkflow, runScript } from '../../lib/wf-api.mjs';
+import { libraryHelp } from '../../lib/ops/code-host.mjs';
 import { INDEX_NAME, frontmatterOfDoc, writeDoc } from '../../lib/records.mjs';
 import { runDir } from '../../lib/records-root.mjs';
 import { describeAll, helpText } from '../../scripts/wf.mjs';
@@ -131,60 +132,24 @@ test('a script that throws applies nothing and names the operation that failed',
   } finally { f.done(); }
 });
 
-test('wf.mjs run: the result, the dry run, the run log, and a script outside the project', () => {
-  const f = fixture();
-  try {
-    const file = f.script('slices.mjs', `export default async function ({ wf, args }) {
-  for (const s of ['api', 'ui']) wf.records.set('03-slice', \`slices[\${s}].status\`, args[0]);
-  return wf.records.list().filter((n) => n.startsWith('06-verify-')).map((n) => wf.records.fields(n, ['result']));
-}
-`);
-    const dry = cli(['run', f.root, file, 'in-progress', '--slug', 'demo', '--dry-run']);
-    assert.equal(dry.status, 0, dry.stderr);
-    assert.match(dry.stderr, /dry run: 2 change\(s\), none applied:\n {2}demo: records\.set 03-slice\.md \(slices\[api\]\.status\)/);
-    assert.deepEqual(frontmatterOfDoc(f.dir, '03-slice.md').slices.map((s) => s.status), ['defined', 'defined']);
-    const real = cli(['run', f.root, path.relative(f.root, file), 'in-progress', '--slug', 'demo', '--json']);
-    assert.equal(real.status, 0, real.stderr);
-    const out = JSON.parse(real.stdout);
-    assert.deepEqual(out.value, [{ result: 'pass' }]);
-    assert.deepEqual([out.applied, out.changed], [true, ['demo']]);
-    assert.deepEqual(frontmatterOfDoc(f.dir, '03-slice.md').slices.map((s) => s.status), ['in-progress', 'in-progress']);
-    const log = readFileSync(path.join(runDir(f.root, 'demo'), API_LOG), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-    const sets = log.filter((l) => l.op === 'records.set');
-    assert.deepEqual(sets.map((l) => l.applied), [false, false, true, true]);
-    assert.deepEqual(sets[2].keys, ['slices[api].status']);
-    assert.ok(!JSON.stringify(log).includes('in-progress'), 'the log holds no value');
-    assert.deepEqual(Object.keys(sets[2]).sort(), ['applied', 'at', 'keys', 'op', 'record', 'script', 'slug', 'write']);
-
-    const outside = path.join(tmpdir(), `outside-${process.pid}.mjs`);
-    writeFileSync(outside, 'export default async () => 1;\n');
-    try {
-      const refused = cli(['run', f.root, outside]);
-      assert.equal(refused.status, 1);
-      assert.match(refused.stderr, /is outside the project/);
-    } finally { rmSync(outside, { force: true }); }
-    const thrown = cli(['run', f.root, f.script('bad.mjs', "export default async ({ wf }) => { wf.records.set('03-slice', 'slices[ui].status', 'finished'); };\n"), '--slug', 'demo']);
-    assert.equal(thrown.status, 1);
-    assert.match(thrown.stderr, /the operation that failed: records\.set 03-slice\.md\nwf\.mjs: run: nothing was applied/);
-  } finally { f.done(); }
-});
-
-test('describe names every form of the header and every function of the library', () => {
+test('describe names every form of the header, and wf.help every function of the library', () => {
   const d = describeAll();
   const commands = /Commands: (.*)/.exec(helpText())[1].split(', ');
   for (const c of commands) assert.ok(d.cli.some((e) => e.name === c), `describe has no ${c}`);
   assert.ok(d.cli.every((e) => e.example), 'each CLI form has an example');
+  assert.equal(d.api, undefined, 'the library is in wf.help of code mode, not in describe');
   const f = fixture();
   try {
     const wf = openWorkflow(f.root, 'demo');
     for (const ns of ['records', 'decisions', 'findings', 'status', 'steps', 'board']) {
-      for (const fn of Object.keys(wf[ns])) assert.ok(d.api.some((e) => e.name.startsWith(`wf.${ns}.${fn}(`)), `describe has no wf.${ns}.${fn}`);
+      for (const fn of Object.keys(wf[ns])) {
+        const h = libraryHelp(`${ns}.${fn}`);
+        assert.ok(h, `wf.help has no ${ns}.${fn}`);
+        assert.match(h.about, /Example: /, `${ns}.${fn} has an example`);
+      }
     }
-    assert.ok(d.api.every((e) => e.example), 'each function has an example');
   } finally { f.done(); }
-  const text = cli(['describe']);
-  assert.equal(text.status, 0);
-  assert.match(text.stdout, /^API: wf\.mjs run/m);
+  assert.doesNotMatch(cli(['describe']).stdout, /wf\.mjs run/);
 });
 
 test('findings.add takes the work packet and returns what it dropped; findings.set takes a commit and a decision of the person', () => {

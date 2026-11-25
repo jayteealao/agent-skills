@@ -1,9 +1,10 @@
 # The code-mode eval
 
-This eval compares two ways for an agent to change the records of a workflow:
+This eval measures how an agent changes the records of a workflow:
 
 - **cli**: the `wf.mjs` command line with its flag forms.
-- **api**: the same command line, plus `wf.mjs run` with the library of `lib/wf-api.mjs`, and the reference `skills/wf/reference/_api.md`.
+
+Code with the library of `lib/wf-api.mjs` runs only in the MCP tools `wf_query` and `wf_run`; their arm comes with the evaluation of the wf tools.
 
 The eval is not part of `npm test`.
 
@@ -13,7 +14,7 @@ The eval is not part of `npm test`.
 |---|---|
 | `fixture.mjs` | Makes a git repo with one workflow of six slices, five open questions, a stopped run and a brainstorm board. |
 | `tasks.mjs` | The eight tasks, each with a check of the end state or of the final answer. Two tasks are controls. |
-| `selftest.mjs` | Solves each task with the CLI or a script and checks the result. It starts no model. |
+| `selftest.mjs` | Solves each task with the CLI or with code mode, and checks the result. It starts no model. |
 | `run.mjs` | Runs the tasks on the hosts and saves each transcript and one result row. |
 | `measure.mjs` | Reads the calls, the invalid calls, the tokens, the writes around `wf.mjs` and the final answer from a transcript. |
 | `report.mjs` | Prints the table of each cell and arm, and the decision rule for each cell. |
