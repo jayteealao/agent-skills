@@ -3,7 +3,8 @@
 // them: `{ "op": "step done", "slug": "demo", "slice": "api", "n": 3, "sha": "HEAD" }`. Within
 // a tool, the first word of the operation may be left out (`"op": "done"` in wf_step).
 import { allOps, callOf } from '../lib/ops/forms.mjs';
-import { invoke } from '../lib/ops/invoke.mjs';
+import { invoke, invokeCode } from '../lib/ops/invoke.mjs';
+import { READS, WRITES, libraryHelp } from '../lib/ops/code-host.mjs';
 import { READ_TOOLS, TOOLS, opsOfTool, refusal, registry } from '../lib/ops/registry.mjs';
 
 const ABOUT = {
@@ -21,6 +22,21 @@ const ABOUT = {
 
 const opsOf = (tool) => opsOfTool(tool).concat(tool === 'wf_person' ? ['decide add'] : []);
 
+/**
+ * The code mode text of wf_query and wf_run: what the code is, the functions it may call, and
+ * examples. Inside 4,096 characters with the rest of the description.
+ */
+function codeAbout(tool) {
+  const run = tool === 'wf_run';
+  const calls = libraryHelp(null, run ? [...READS, ...WRITES] : READS).filter((c) => c !== 'open(slug)');
+  const examples = run
+    ? ["for (const f of wf.findings.list({ open: true }).filter((f) => f.file === 'src/a.ts')) wf.findings.set(f.id, { status: 'fixed' })",
+      "wf.records.set('03-slice', 'slices[api].status', 'complete'); return wf.steps.where('api')"]
+    : ["return wf.findings.list({ open: true }).map((f) => [f.id, f.severity, f.file])",
+      "return Object.fromEntries(wf.records.list().filter((n) => n.startsWith('06-verify-')).map((n) => [n, wf.records.fields(n, ['result'])]))"];
+  return ` Or give \`code\` in place of \`op\`: the body of an async function of \`wf\` (the workflow of \`slug\`) and \`open(slug)\` (another workflow), whose \`return\` is the result. Many reads${run ? ' and writes' : ''} in one call, with loops and filters. ${run ? 'All or nothing: a throw, a timeout (60 s) or `dryRun: true` keeps no change; a kept change makes one commit for each workflow.' : 'It writes nothing.'} The code has no file, process or require; it may reach the network. \`wf.help(name)\` gives the form of a function. Functions: ${calls.join('; ')}. Examples: ${examples.map((e) => `\`${e}\``).join(' · ')}.`;
+}
+
 /** The input schema of a tool: `op` and the common fields; the other fields are the arguments of the form. */
 function schemaOf(tool) {
   const common = {
@@ -31,12 +47,15 @@ function schemaOf(tool) {
   if (tool === 'wf_context') return { type: 'object', properties: { argv: { type: 'array', items: { type: 'string' }, description: 'the words after /wf' }, slug: common.slug, stage: { type: 'string' }, slice: common.slice, op: { type: 'string', enum: opsOf(tool) } } };
   if (tool === 'wf_read') return { type: 'object', required: ['items'], properties: { slug: common.slug, items: { type: 'array', items: { type: 'object', required: ['op'], properties: { op: { type: 'string', enum: opsOf(tool) } } } } } };
   const ops = opsOf(tool);
+  const code = tool === 'wf_query' || tool === 'wf_run';
   return {
     type: 'object',
-    required: ['op'],
+    ...(code ? {} : { required: ['op'] }),
     additionalProperties: true,
     properties: {
       op: { type: 'string', enum: ops, description: 'the operation; the other fields are the arguments of its form, by the names of wf.mjs help (`n`, `sha`, `answer`, `key`)' },
+      ...(code ? { code: { type: 'string', description: 'in place of op: the body of an async function of wf and open' } } : {}),
+      ...(tool === 'wf_run' ? { dryRun: { type: 'boolean', description: 'with code: run it and keep no change' } } : {}),
       ...common,
       ...(tool === 'wf_step' ? { n: { type: ['integer', 'string'] }, title: { type: 'string' }, next_title: { type: 'string', description: 'done_next: the title of step n + 1' } } : {}),
     },
@@ -46,7 +65,7 @@ function schemaOf(tool) {
 export function toolList() {
   return TOOLS.map((name) => ({
     name,
-    description: `${ABOUT[name]} Operations: ${opsOf(name).join(', ')}. The fields of an operation: wf_query { "op": "help", "command": "<first word>" }.`,
+    description: `${ABOUT[name]} Operations: ${opsOf(name).join(', ')}. The fields of an operation: wf_query { "op": "help", "command": "<first word>" }.${name === 'wf_query' || name === 'wf_run' ? codeAbout(name) : ''}`,
     inputSchema: schemaOf(name),
     annotations: {
       readOnlyHint: READ_TOOLS.has(name),
@@ -121,7 +140,13 @@ export async function callTool(name, args = {}, ctx = {}) {
     const start = await run('step start', { slug: rest.slug, slice: rest.slice, n: Number(n) + 1, ...(nextTitle ? { title: nextTitle } : {}) });
     return start.ok ? { ok: true, data: { done: done.data, start: start.data }, warnings: [...done.warnings, ...start.warnings] } : { ...start, done: done.data };
   }
-  if (!args.op) return fail(`${name} needs op; its operations are: ${opsOf(name).join(', ')}`);
+  if ((name === 'wf_query' || name === 'wf_run') && typeof args.code === 'string') {
+    if (args.op) return fail(`${name}: give op or code, not both`);
+    const r = await invokeCode({ root, checkout: args.checkout ?? root, caller, slug: args.slug ?? null, code: args.code, mode: name === 'wf_run' ? 'run' : 'query', dryRun: Boolean(args.dryRun), env: ctx.env ?? {} });
+    if (r.ok) return { ok: true, data: r.value, ops: r.ops, ...(name === 'wf_run' ? { changed: r.changed, applied: r.applied } : {}), warnings: [] };
+    return fail(r.error ?? 'the code failed', { kept: false, ops: r.ops ?? 0 });
+  }
+  if (!args.op) return fail(`${name} needs op${name === 'wf_query' || name === 'wf_run' ? ' or code' : ''}; its operations are: ${opsOf(name).join(', ')}`);
   const op = fullOp(name, args.op);
   const why = name === 'wf_person' && op === 'decide add' ? null : refusal(name, op, args);
   if (why) return fail(why);

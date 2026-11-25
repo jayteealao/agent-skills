@@ -7,6 +7,7 @@
 // caller, `unknown` too, runs with WF_ACTOR set, so the person-only guards of the handlers refuse
 // it. Only the wf_person tool passes `person`, behind its own guards.
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { allOps, argvOf, WF_SCRIPT } from './forms.mjs';
 
 export const CALL_TIMEOUT_MS = 10 * 60_000;
@@ -25,6 +26,30 @@ export function workerEnv(caller, extra = {}, base = process.env) {
   if (caller === 'person') delete env.WF_ACTOR;
   else env.WF_ACTOR = String(caller ?? 'unknown') || 'unknown';
   return env;
+}
+
+const CODE_HOST = fileURLToPath(new URL('./code-host.mjs', import.meta.url));
+
+/**
+ * Run one code call (`wf_query` or `wf_run` with `code`) in a worker process that runs as the
+ * caller: lib/ops/code-host.mjs. Returns its result `{ ok, value, error, ops, changed, applied }`.
+ */
+export function invokeCode({ root, checkout = root, caller = 'unknown', slug = null, code, mode = 'query', dryRun = false, timeoutMs, env: extraEnv = {} } = {}) {
+  return new Promise((done) => {
+    const child = spawn(process.execPath, [CODE_HOST], { cwd: checkout, env: workerEnv(caller, extraEnv), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    // The host stops the code at its own limit; this one is for a host that hangs.
+    const timer = setTimeout(() => child.kill(), (timeoutMs ?? 60_000) + 30_000);
+    child.on('error', (e) => { clearTimeout(timer); done({ ok: false, error: e.message }); });
+    child.on('close', (exit) => {
+      clearTimeout(timer);
+      try { done(JSON.parse(stdout.trim().split('\n').at(-1))); } catch { done({ ok: false, error: `the code host stopped (exit ${exit}): ${stderr.trim().split('\n').at(-1) ?? ''}` }); }
+    });
+    child.stdin.end(JSON.stringify({ root, slug, code, mode, dryRun, ...(timeoutMs ? { timeoutMs } : {}) }));
+  });
 }
 
 /**
