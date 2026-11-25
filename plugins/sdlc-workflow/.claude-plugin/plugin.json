@@ -25,5 +25,14 @@
     "accessibility",
     "typography",
     "responsive"
-  ]
+  ],
+  "mcpServers": {
+    "wf": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"
+      ],
+      "alwaysLoad": true
+    }
+  }
 }

@@ -641,6 +641,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildBrief } from '../lib/brief.mjs';
+import { BOOLEAN_FLAGS } from '../lib/cli-flags.mjs';
 import { SKILL_DIR } from '../lib/skill-dir.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
@@ -739,7 +740,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules', 'take-over', 'wants-reply', 'peek', 'stop', 'optional', 'no-plan-ahead', 'no-verify-behind', 'pair-slices'].includes(name)) opt[name] = true;
+      if (BOOLEAN_FLAGS.has(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -837,7 +838,9 @@ async function runDispatch(pos, opt) {
   r.wfDir = wfSlug ? workflowDir(projectRoot, wfSlug) : null;
   // One records line, or none when all is well: the lease (two or more computers), the last
   // push, and the last flush of the GitHub layer.
-  const rec = recordsLine(projectRoot, { target: linked ? target : null, host: opt.host ?? null });
+  // A call of the MCP server only reads (SDLC_MCP_READ=1): no claim, no pull, no rebuild, nothing in the background.
+  const readOnly = process.env.SDLC_MCP_READ === '1';
+  const rec = recordsLine(projectRoot, { target: linked ? target : null, host: opt.host ?? null, claim: !readOnly });
   r.records = rec.line;
   // The registry is generated in the clone: a pull at the claim that moved a folder rebuilds it.
   if (rec.pulled) await reconcileIndex(projectRoot);
@@ -845,12 +848,12 @@ async function runDispatch(pos, opt) {
   // A PR answer older than the cache time is checked in the background, for the next call.
   const stale = [];
   r.closeAsk = closeCandidates(projectRoot, await scanWorkflowIndexes({ projectRoot }), { offline: true, stale });
-  if (stale.length) closeCheckInBackground(projectRoot);
+  if (stale.length && !readOnly) closeCheckInBackground(projectRoot);
   // A repo with no .ai/ folder runs the setup before the key. Status and the router only read.
   r.firstRun = Boolean(r.key && r.key !== 'status' && needsSetup(projectRoot));
   // The queued GitHub edits and the person's comments on the issue of the workflow come in the
   // background, so the call does not wait on the network.
-  if (layer && (target || readOutbox().length)) flushInBackground(target ? [projectRoot, target] : []);
+  if (!readOnly && layer && (target || readOutbox().length)) flushInBackground(target ? [projectRoot, target] : []);
   r.skillDir = SKILL_DIR;
   if (opt.json) { out({ ...r, line: dispatchLine(r, safe) }); return 0; }
   const lines = [dispatchLine(r, safe)];

@@ -1,0 +1,3 @@
+// The flags of wf.mjs that take no value. The parser of wf.mjs and the operation registry share
+// this list, so a tool call builds the same command line that a person types.
+export const BOOLEAN_FLAGS = new Set(['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules', 'take-over', 'wants-reply', 'peek', 'stop', 'optional', 'no-plan-ahead', 'no-verify-behind', 'pair-slices']);

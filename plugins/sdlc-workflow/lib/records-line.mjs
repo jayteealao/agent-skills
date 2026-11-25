@@ -27,7 +27,7 @@ export const stopLine = (reason) => `records: stop ${reason}`;
  * acts on (null for a read). Returns `{ line, pulled }`: `pulled` is true when the claim of the
  * lease pulled commits of another computer, so the caller rebuilds the registry.
  */
-export function recordsLine(root, { target = null, host = null, now = Date.now() } = {}) {
+export function recordsLine(root, { target = null, host = null, now = Date.now(), claim = true } = {}) {
   const project = linkedProject(root);
   const layer = layerOf(root);
   if (!project && !layer) return { line: null, pulled: false };
@@ -39,7 +39,8 @@ export function recordsLine(root, { target = null, host = null, now = Date.now()
     if (second) return { line: stopLine(`${second}.`), pulled };
     if (hasLiveBranch(recordsHome(), `${project}/${target}`)) return { line: stopLine(`${target} has a live branch of an older version, so its commits are refused. Show the person \`wf.mjs records migrate --dry-run\`: the move takes the copy of the branch. Run \`wf.mjs records migrate\` only after a yes.`), pulled };
   }
-  if (project && target && leasesOn(recordsHome())) {
+  // `claim: false` only reads: no claim and no pull.
+  if (claim && project && target && leasesOn(recordsHome())) {
     const before = heldBefore(root, target);
     const c = claimAndPull(root, target, { host });
     if (!c.ok) {

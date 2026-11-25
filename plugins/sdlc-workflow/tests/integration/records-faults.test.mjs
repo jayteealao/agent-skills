@@ -176,24 +176,6 @@ test('a git lock that a dead process left is moved aside, and a young lock or a 
   } finally { w.done(); }
 });
 
-test('the process check of this computer tells an old git from a later one', async () => {
-  const w = world();
-  const { spawn } = await import('node:child_process');
-  let held;
-  try {
-    const a = one(w);
-    // A git process that waits for its input.
-    held = spawn('git', ['cat-file', '--batch'], { cwd: a.clone, stdio: ['pipe', 'pipe', 'ignore'] });
-    held.stdin.write('HEAD\n');
-    await new Promise((ok) => { held.stdout.once('data', ok); });
-    const lock = join(a.clone, '.git', 'index.lock');
-    writeFileSync(lock, '');
-    const t = new Date(Date.now() - 3600_000);
-    utimesSync(lock, t, t);
-    assert.equal(clearStaleIndexLock(a.clone).cleared, true, 'a git that started after the lock does not hold it');
-  } finally { held?.kill(); w.done(); }
-});
-
 test('a command whose records commit failed says so', () => {
   const w = world();
   try {

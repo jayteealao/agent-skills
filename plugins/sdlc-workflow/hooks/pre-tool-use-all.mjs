@@ -35,6 +35,8 @@ export function planPreToolUse(input) {
     stages.push(['shell-write-guard', lazy('./shell-write-guard.mjs')]);
     stages.push(['leak-guard-bash', lazy('./leak-guard-bash.mjs')]);
   }
+  // A call of the wf MCP server: a sub-agent does not call wf_person.
+  if (String(input?.tool_name ?? '').startsWith('mcp__plugin_sdlc-workflow_wf__')) stages.push(['mcp-guard', lazy('./mcp-guard.mjs'), { failClosed: true }]);
   return stages;
 }
 
