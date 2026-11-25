@@ -213,6 +213,20 @@
         }
       }
     },
+    "rules": {
+      "type": "array",
+      "description": "The rules of the project: standing instructions of the person for every workflow. Each brief prints them. Only wf.mjs rule writes them, and only on the person's words.",
+      "items": {
+        "type": "object",
+        "required": ["key", "text"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "description": "A short stable name." },
+          "text": { "type": "string", "minLength": 1, "description": "The exact words of the person." },
+          "at": { "type": "string", "description": "When the rule was written." },
+          "from": { "type": "string", "description": "The steer that the rule was adopted from, as <slug>:<id>." }
+        }
+      }
+    },
     "standing": {
       "type": "object",
       "additionalProperties": false,

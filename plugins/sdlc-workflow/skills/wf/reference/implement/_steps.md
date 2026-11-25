@@ -16,7 +16,7 @@ The step record is `<wf-dir>/steps.jsonl`. Only `wf.mjs step` writes it. Use it 
    - The commit must move HEAD. When the commit fails, for example in a commit hook, `step done` refuses, because HEAD is still the commit before the step. Fix the cause and commit again.
    - For a step that changed no file, run `<wf> step done "<projectRoot>" <slug> <slice-slug> <n> --no-change`.
 4. When you stop before the slice is done, run `<wf> step stop "<projectRoot>" <slug> <slice-slug> --kind <kind> --reason "<one line>"`. The kind is:
-   - `fail`: the step failed, for example its tests do not pass. This is the default.
+   - `fail`: the work failed, for example a check of the slice is still red after the last fix round. This is the default. A stop that waits on the person is stored as `question`, whatever kind you give.
    - `gate`: a gate of the plan stops the run, as the plan says.
    - `question`: the step needs an answer of the person.
 

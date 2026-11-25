@@ -377,7 +377,8 @@ test('the CLI exits by itself after the run-end line, and the run-end is its las
     });
     assert.equal(code, 0);
     const events = stdout.trim().split('\n').map((l) => JSON.parse(l));
-    assert.deepEqual(events.map((e) => e.event), ['stage-start', 'stage-end', 'run-end']);
+    // The stage start goes to commentary.md; the run end is still the last line.
+    assert.deepEqual(events.map((e) => e.event), ['stage-end', 'run-end']);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -695,13 +696,14 @@ test('--once exits after the first poll that gives news, and the next watch goes
       }),
     });
     assert.equal(first.code, 0);
-    assert.deepEqual(first.lines.map((l) => l.event), ['stage-start', 'stage-end']);
+    // The stage start goes to commentary.md: the session gets the end of the stage.
+    assert.deepEqual(first.lines.map((l) => l.event), ['stage-end']);
     const second = await runCli([root, SLUG, '--once'], env, {
       onSpawn: () => setTimeout(() => journal(root,
         { at: stamp(2), seq: 2, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' },
         { at: stamp(3), seq: 2, event: 'agent-end', agent: 'implement:auth', status: 'complete' }), 400),
     });
-    assert.deepEqual(second.lines.map((l) => `${l.event}:${l.stage}`), ['stage-start:implement', 'stage-end:implement'], 'the plan lines are not given again');
+    assert.deepEqual(second.lines.map((l) => `${l.event}:${l.stage}`), ['stage-end:implement'], 'the plan lines are not given again');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
 
@@ -719,7 +721,7 @@ test('--once: a commit and no other event keeps the watch polling; the commit go
       }),
     });
     assert.equal(r.code, 0);
-    assert.deepEqual(r.lines.map((l) => l.event), ['commit', 'watch-timeout'], 'the commit did not end the watch: the lifetime did');
+    assert.deepEqual(r.lines.map((l) => l.event), ['watch-timeout'], 'the commit did not end the watch and was not printed: the lifetime ended it');
     assert.match(readFileSync(W.commentaryPath(root, SLUG), 'utf8'), /commit `[0-9a-f]+` · feat: a step/);
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });

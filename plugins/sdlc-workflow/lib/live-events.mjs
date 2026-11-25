@@ -201,6 +201,11 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       st.waitingFrom = null;
       continue;
     }
+    // A stop request held: the agent that was stopped wrote no start and no end.
+    if (line.event === 'stop-honoured') {
+      if (emit) events.push({ event: 'stop', slug, run: line.run || st.run, stage: null, slice: null, kind: 'stop-request', reason: line.reason || null, at: line.at || null, resume: resumeCommand(slug) });
+      continue;
+    }
     if (!stage) continue;
     if (line.event === 'agent-start') {
       st.openStages[line.agent] = line.at || null;
@@ -264,7 +269,7 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   const silentMs = nowMs - since;
   const limit = byTranscript ? AGENT_SILENT_MS : liveLimitMs(st);
   if (silentMs <= limit) return [];
-  if (st.newest && st.newest.event === 'agent-end') {
+  if (st.newest && ENDS.includes(st.newest.event)) {
     st.ended = true;
     // The run's end was already said: the wave driver writes agent lines after its
     // run-end, and a re-arm resets `ended`. The same run does not end twice.
@@ -287,12 +292,15 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
  * past half of it, `stale` past it, `ended` after the run's end or a clean
  * stop, `none` before any line.
  */
+// The lines after which silence is the end of the run, not a hung agent.
+const ENDS = ['agent-end', 'stop-honoured'];
+
 export function livenessOf(st, nowMs) {
   if (st.lastLineAt === null) return { state: 'none', silentMs: null, limitMs: liveLimitMs(st) };
   const silentMs = Math.max(0, nowMs - st.lastLineAt);
   const limitMs = liveLimitMs(st);
   if (st.ended || (st.newest && st.newest.event === 'run-end')) return { state: 'ended', silentMs, limitMs };
-  if (silentMs > limitMs) return { state: st.newest && st.newest.event === 'agent-end' ? 'ended' : 'stale', silentMs, limitMs };
+  if (silentMs > limitMs) return { state: st.newest && ENDS.includes(st.newest.event) ? 'ended' : 'stale', silentMs, limitMs };
   if (silentMs > limitMs / 2) return { state: 'quiet', silentMs, limitMs };
   return { state: 'live', silentMs, limitMs };
 }

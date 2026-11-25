@@ -314,7 +314,7 @@
  *             record a decision; a live entry with the same key and scope is superseded, and
  *             each record that names it gets superseded-decisions.<old id>: <new id>
  *             Example: wf.mjs decide add . demo --file .ai/workflows/demo/.draft/answers.json
- *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k[,k2]] [--rules] [--all] [--json]
+ *   decide   list <root> <slug> [--packet p] [--slice s] [--files f,g] [--by b] [--kind k[,k2]] [--rules] [--since D-012] [--all] [--json]
  *             the live entries in a scope (--all: every entry; --by standing: the cases that a
  *             standing answer settled). Use it to read what is decided;
  *             use decide answered to test one key before a question is asked
@@ -568,7 +568,8 @@ import { fromGitBashPath, undoGitBashPath, unrepairedWarning } from '../lib/msys
 import { BY as DECISION_BY, KINDS as DECISION_KINDS } from '../lib/decisions.mjs';
 import { SOURCES as FINDING_SOURCES, STATUSES as FINDING_STATUSES } from '../lib/findings.mjs';
 import { STATUSES as PROGRESS_STATUSES } from '../lib/progress.mjs';
-import { STOP_KINDS } from '../lib/steps.mjs';
+import { STOP_KINDS, stopKind } from '../lib/steps.mjs';
+import { hostname } from 'node:os';
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -579,7 +580,7 @@ import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
 import { runView, runViewLines, sandboxProblem, sessionThread, startDetached } from '../lib/drive-detach.mjs';
 import { appendJournalLine, appendRunEnd, journalPath } from './yolo-watch.mjs';
-import { WAIT_CALL_MS, waitForAnswers } from '../lib/decide-wait.mjs';
+import { WAIT_CALL_MS, heldQuestions, waitForAnswers } from '../lib/decide-wait.mjs';
 import { parseJsonLines, stageOf } from '../lib/live-events.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
 import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
@@ -602,7 +603,7 @@ import { addRule, adoptRule, endRule, readRules, ruleCandidates, ruleLine } from
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, updateLedger, verdictOf, writeLedger } from '../lib/findings.mjs';
-import { progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
+import { markBusy, progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
 import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, draftsOf, frontmatterOfDoc, keptPath, listDocs, markSuperseded, migrateWorkflow, outlineOf, putDraft, readDoc, redirectOf, sectionText, setFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
@@ -611,7 +612,7 @@ import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/
 import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
 import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardDigest, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
-import { isMainModule } from '../lib/proc.mjs';
+import { hostProcess, isMainModule } from '../lib/proc.mjs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
 import { STAGE_SUITES, SUITES, BUDGET_PRESETS, budgetLine, noCommand, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
@@ -624,7 +625,7 @@ import { stageYoloDriver } from './stage-yolo-driver.mjs';
 import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
-import { checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
+import { refuseNoteToDoneSlice, checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
 import { runScript } from '../lib/wf-api.mjs';
 import { inboxOf, inboxText } from '../lib/inbox.mjs';
 import { REQUIRES_MAX_BYTES, resolveRequires } from '../lib/requires-resolve.mjs';
@@ -667,7 +668,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules', 'take-over'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -689,7 +690,7 @@ async function runDrive(pos, opt) {
   const [root, slug, slice] = pos;
   if (!root || !slug) throw usage('drive: <root> <slug> are required');
   const projectRoot = resolve(root);
-  const staged = stageYoloDriver(projectRoot, { slug });
+  const staged = stageYoloDriver(projectRoot, { slug, takeOver: Boolean(opt['take-over']) });
   const answered = opt.answered ? JSON.parse(readFileSync(resolve(opt.answered), 'utf8')) : null;
   if (answered && !Array.isArray(answered)) throw redo('drive: --answered must name a JSON array of answers', 'Write the answers file as a JSON array of answers, then run drive again.');
   const run = opt.resume || opt.run || `${nowIso().replace(/[-:]/g, '')}-${slug}`;
@@ -730,7 +731,7 @@ function detachDrive({ pos, opt, projectRoot, slug, run, runDir }) {
   if (opt.resume && !existsSync(runDir)) throw redo(`drive: no earlier run ${run} in .scratch/wf/drive/`, 'Run drive again with no --resume to start a new run, or with the name of a run folder in .scratch/wf/drive/.');
   const self = fileURLToPath(import.meta.url);
   const pass = ['answered', 'time-box'].filter((k) => opt[k] != null).flatMap((k) => [`--${k}`, k === 'answered' ? resolve(String(opt[k])) : String(opt[k])]);
-  const bools = ['delegate', 'review-findings'].filter((k) => opt[k]).map((k) => `--${k}`);
+  const bools = ['delegate', 'review-findings', 'take-over'].filter((k) => opt[k]).map((k) => `--${k}`);
   const driveArgv = [self, 'drive', projectRoot, ...pos.slice(1), ...pass, ...bools, ...(opt.resume ? ['--resume', run] : ['--run', run]), '--json'];
   const thread = opt['no-watch'] ? null : (opt.thread ?? sessionThread());
   const watchArgv = opt['no-watch'] ? null : [join(PLUGIN_ROOT, 'scripts', 'yolo-watch.mjs'), projectRoot, slug, ...(thread ? ['--queue', thread] : ['--max-minutes', '1440'])];
@@ -1016,6 +1017,7 @@ export function runDecide(pos, opt) {
         out(opt.json ? rows : rows.flatMap((r) => [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...(r.settled ? [`settled ${r.entry.key}`] : [])]).join('\n'));
         return 0;
       }
+      refuseNoteToDoneSlice(dir, { kind: opt.kind, slice: opt.slice });
       const r = addDecision(dir, {
         kind: opt.kind, key: opt.key, question: opt.question, answer: opt.answer, by: opt.by,
         scope: scopeOf(opt), stage: opt.stage, source: opt.source, class: opt.class,
@@ -1030,13 +1032,20 @@ export function runDecide(pos, opt) {
     }
     case 'list': {
       const all = decisionsOf(dir);
-      const rows = opt.all ? all : liveDecisions(all, scopeOf(opt), { by: opt.by, kind: opt.kind });
+      let rows = opt.all ? all : liveDecisions(all, scopeOf(opt), { by: opt.by, kind: opt.kind });
       // --rules: the standing rules of the project come first, so one command gives an agent
       // every rule that binds it.
-      const rules = opt.rules ? readRules(resolve(root)) : [];
+      let rules = opt.rules ? readRules(resolve(root)) : [];
+      // --since <id>: only the entries that are newer, for an agent that reads the list again while it works.
+      if (opt.since) {
+        const num = (id) => Number(String(id ?? '').replace(/\D/g, '')) || 0;
+        const mark = all.find((e) => e.id === opt.since)?.at ?? null;
+        rows = rows.filter((e) => num(e.id) > num(opt.since));
+        rules = mark ? rules.filter((r) => String(r.at ?? '') > String(mark)) : [];
+      }
       if (opt.json) { out(opt.rules ? { rules, decisions: rows } : rows); return 0; }
       const lines = [...rules.map((r) => `RULE ${ruleLine(r)} (project rule)`), ...rows.map(decisionLine)];
-      out(lines.length ? lines.join('\n') : 'no decisions');
+      out(lines.length ? lines.join('\n') : opt.since ? `no entries after ${opt.since}` : 'no decisions');
       return 0;
     }
     case 'end': {
@@ -1163,7 +1172,10 @@ export function runStep(pos, opt) {
     run.forEach((r, i) => { if (r.event === 'complete') from = i + 1; });
     const current = run.slice(from);
     const start = [...current].reverse().find((r) => r.event === 'start' && r.step === step);
-    if (start?.head && start.head === s) throw refuse(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change when the step changed no file`, agentFix('Commit the step, then run step done with --sha HEAD.', commitThenDone));
+    // A step that was committed before its start row was written: the commit is new since the last done step, so it is the commit of this step.
+    const lastDone = current.filter((r) => r.event === 'done' && r.step !== step && r.sha).at(-1)?.sha ?? null;
+    const committedEarly = Boolean(lastDone) && lastDone !== s;
+    if (start?.head && start.head === s && !committedEarly) throw refuse(`step done: ${s.slice(0, 8)} is the HEAD at the start of step ${step}, so the step made no commit. Commit the step first, or run step done with --no-change when the step changed no file`, agentFix('Commit the step, then run step done with --sha HEAD.', commitThenDone));
     const owner = current.find((r) => r.event === 'done' && r.step !== step && r.sha === s);
     if (owner) throw refuse(`step done: ${s.slice(0, 8)} is the commit of step ${owner.step}. Commit step ${step} first; a failed commit hook leaves HEAD where it was`, agentFix('Commit the step, then run step done with --sha HEAD.', commitThenDone));
     return { slice, event: 'done', step, sha: s, ...commitIdentity(checkout, s), branch };
@@ -1180,7 +1192,8 @@ export function runStep(pos, opt) {
   const rows = {
     start: () => ({ slice, event: 'start', step, title: opt.title ?? null, head: head(), branch }),
     done,
-    stop: () => ({ slice, event: 'hard-stop', reason: opt.reason ?? null, kind: opt.kind ?? 'fail' }),
+    // A stop that waits on the person is a question, whatever kind the caller gave: it does not count toward the split.
+    stop: () => ({ slice, event: 'hard-stop', reason: opt.reason ?? null, kind: stopKind(opt.kind, opt.reason, { held: heldQuestions(dir).some((q) => !q.slice || q.slice === slice) }) }),
     retry: () => ({ slice, event: 'retry' }),
     complete,
   };
@@ -1235,7 +1248,9 @@ export function runProfile(pos, opt) {
     if (!suite?.command) throw noCommand(a, 'profile run: ');
     const t0 = Date.now();
     // The output of the suite goes to a log file, not to the terminal of the agent.
-    const r = runSuiteLogged(projectRoot, a, suite.command);
+    markBusy(projectRoot, `the ${a} suite`);
+    let r;
+    try { r = runSuiteLogged(projectRoot, a, suite.command); } finally { markBusy(projectRoot, null); }
     const seconds = Math.round((Date.now() - t0) / 100) / 10;
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
@@ -2121,7 +2136,7 @@ export async function main(argv = process.argv.slice(2)) {
     const [root, slug] = [resolve(target[0]), target[1]];
     afterChange(root, slug, {
       label: `${slug}: ${cmd} ${cmd === 'close' ? '' : pos[0]}`.trim(),
-      answer: cmd === 'decide' && opt.answer ? { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null } : null,
+      answer: cmd === 'decide' && pos[0] === 'add' && opt.answer && ['answer', 'approval', 'try-out', 'delegate'].includes(opt.kind ?? 'answer') ? { question: opt.question ?? null, answer: opt.answer, by: opt.by ?? null } : null,
     });
   }
   return code;
@@ -2261,6 +2276,13 @@ async function runMain(cmd, pos, opt) {
         if (!existsSync(dir)) throw noFolder(`progress: no workflow folder ${dir}`, root);
         if (verb === 'set') {
           const change = Object.fromEntries(['stage', 'slice', 'status', 'run', 'driver', 'reason', 'resume'].filter((k) => opt[k] != null).map((k) => [k, opt[k]]));
+          // A driver run names the agent host that runs it, so its life is asked of the process, not guessed from silence.
+          if (change.driver && change.status === 'running') {
+            // A driver that is its own process (the Codex launch) names itself; else the agent host is looked up.
+            const own = Number(process.env.SDLC_DRIVER_PID);
+            const h = Number.isInteger(own) && own > 0 ? { pid: own } : hostProcess();
+            if (h) Object.assign(change, { hostPid: h.pid, host: hostname() });
+          }
           writeProgress(dir, change);
         }
         if (verb === 'watch') {
@@ -2372,7 +2394,9 @@ async function runMain(cmd, pos, opt) {
           const suite = profile[name];
           const t0 = Date.now();
           // The output of the suite goes to a log file, not to the terminal of the agent.
-          const r = runSuiteLogged(projectRoot, name, suite.command);
+          markBusy(projectRoot, `the ${name} suite`);
+          let r;
+          try { r = runSuiteLogged(projectRoot, name, suite.command); } finally { markBusy(projectRoot, null); }
           const seconds = Math.round((Date.now() - t0) / 100) / 10;
           if (!r.error) {
             try { recordRun(projectRoot, name, seconds); } catch (e) { process.stderr.write(`wf.mjs: the time of the ${name} suite was not recorded: ${e.message}\n`); }

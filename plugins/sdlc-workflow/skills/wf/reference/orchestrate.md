@@ -44,7 +44,7 @@ To use another agent later, for example after a usage limit, ask the person, and
 
 # Step 1 — The interview
 
-1. Read what exists: the input, the decision store (`<wf> decide list`), the live steers, the charter of the index, the approved design records, and `.ai/ship-plan.md`.
+1. Read what exists: the input, the decision store (`<wf> decide list`), the live steers and the rules of the project (`<wf> decide list <root> <slug> --kind steer --rules`), the charter of the index, the approved design records, and `.ai/ship-plan.md`.
 2. Ask the person only about the gaps, with the host question tool, by [_gate-question.md](_gate-question.md) and [_question-craft.md](_question-craft.md). Ask about results that a person can see, not about the build.
 3. The interview has no round limit. Only the person ends it.
 4. Record each answer with `<wf> decide add --kind answer --by person` per [_decisions.md](_decisions.md), and keep the id: it is the `source` of the outcome that the answer gives.
@@ -149,7 +149,7 @@ A blocked agent, a usage limit, and the end of a terminal are in [orchestrate/_r
   - a change of the source ([orchestrate/_changes.md](orchestrate/_changes.md)).
 - **Publish it, and go on.** Run the `decide hold` command that `hold` prints, so that the question shows in `/wf status` and in the watch. Go on with each outcome that does not depend on the held one.
 - **When nothing else is left,** ask the person each held question with the host question tool, at most four in one call. Where the host can notify the person, notify first. Then wait: the wait has no limit. Record the answer: `<o> answer <root> <slug> <id> --words "<the person's words>"`, with `--drop` when the person drops the outcome. An answer that changes what the outcome says is a contract change ([orchestrate/_changes.md](orchestrate/_changes.md)).
-- **A steer reaches the run.** Read `<wf> decide list <root> <slug> --kind steer` before each milestone, and put the live steers into each task. A veto outranks a build choice.
+- **A steer reaches the run.** Read `<wf> decide list <root> <slug> --kind steer --rules` before each milestone, and put the rules of the project and the live steers into each task. A veto outranks a build choice.
 - **Hard stops with no question:** git refuses a switch or a commit; `<o> helpers` fails; a BLOCKER of the code validator about security or data loss that a builder could not fix in two tries. The last one fails no outcome: stop before you mark the draft PR ready, and put the finding first in the hand-back.
 - **No budget stop.** The run has no cost limit and no time limit.
 

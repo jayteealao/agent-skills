@@ -185,8 +185,13 @@ test('delegate mode settles each intent-bearing decision by the recommendation a
   const plan = calls.find((c) => c.label === 'plan:a').prompt;
   assert.match(plan, /DELEGATE MODE/);
   assert.match(plan, /decide add "\/repo" demo --kind answer --by delegate --key <key>/);
-  assert.match(plan, /Return no questions/);
-  assert.doesNotMatch(plan, /return status 'questions'/);
+  // A question that the person kept (a steer says "ask me first") waits; it does not end the run.
+  assert.match(plan, /NOT DELEGATED\. Two things are never a delegate decision/);
+  assert.match(plan, /that entry outranks the delegation: do not settle the question, and do not return it\. Hold the question: run `[^`]*decide hold "\/repo" demo/);
+  assert.match(plan, /decide wait "\/repo" demo --key <each key that you hold/);
+  assert.match(plan, /A red test, a failing gate or a refused check\. Fix it\. A delegate decision never waives it, never marks it as passed/);
+  assert.match(plan, /BACKGROUND WORK\. Never start a command in the background, and never end your turn to wait for one/);
+  assert.match(plan, /STOP-REQUEST CHECK \(the FIRST thing you do, before the start heartbeat of this prompt\)/);
   assert.deepEqual(outcome.delegate, { digest: 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --by delegate' });
 });
 

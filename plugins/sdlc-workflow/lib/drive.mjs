@@ -188,7 +188,9 @@ export async function driveScript(o) {
   const resume = o.resume || {};
   // A driven agent changes no repo guidance file and writes no rules block. It is no part of
   // the session that started the run, so the marks of that session and its sandbox are left out.
-  const env = { ...process.env, SDLC_HOST: 'codex', SDLC_DISABLE_MEMORY_SEED: '1' };
+  // SDLC_DRIVER_PID names this process, which lives for the whole run: `progress set` records it as
+  // the host of the run. The `codex exec` of one agent ends with that agent.
+  const env = { ...process.env, SDLC_HOST: 'codex', SDLC_DISABLE_MEMORY_SEED: '1', SDLC_DRIVER_PID: String(process.pid) };
   for (const k of Object.keys(env)) if (/^CODEX_(SANDBOX|THREAD_ID$|SESSION_ID$|CI$)/.test(k)) delete env[k];
   const totals = { agents: 0, failed: 0, replayed: 0, usage: { input: 0, cached: 0, output: 0, reasoning: 0 } };
   let n = 0;

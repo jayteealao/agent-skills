@@ -132,7 +132,9 @@ function runGateEntry(root, f) {
   if (o && o.status === 'waiting' && (!p || p.state !== 'running')) {
     return { slug: f.slug, kind: 'run-gate', ask: clip(`The ${o.driver ?? 'driver'} run ${o.run ?? ''} stopped with ${o.questions ?? 'some'} question(s) for you${o.stoppedAt ? ` at ${o.stoppedAt}` : ''}${o.reason ? `: ${o.reason}` : ''}.`), since: iso(o.at), answer: o.resume ?? `/wf yolo ${f.slug}` };
   }
-  if (p && p.state === 'running') return null;
+  // A run that is quiet while its host lives may be a run whose task was stopped: a step that
+  // stopped at a gate or a question is then shown.
+  if (p && p.state === 'running' && !p.quietAlive) return null;
   const slice = lastSlice(f.dir);
   if (!slice || !planDocOf(f.dir, slice)) return null;
   let w = null;

@@ -1141,7 +1141,10 @@ function driverLive(root, slug) {
   let mtimeMs;
   try { text = readFileSync(file, 'utf8'); mtimeMs = statSync(file).mtimeMs; } catch { return false; }
   const last = parseJsonLines(text).lines.at(-1);
-  return Boolean(last) && last.event !== 'run-end' && Date.now() - mtimeMs < STALE_FLOOR_MS;
+  if (!last || last.event === 'run-end') return false;
+  if (Date.now() - mtimeMs < STALE_FLOOR_MS) return true;
+  // A long suite writes no journal line: the host process of the run decides when the record names one.
+  try { const p = progressOf(wfDir(root, slug), slug); return Boolean(p) && p.status === 'running' && p.hostAlive === true; } catch { return false; }
 }
 
 /** The slug of the build packet whose driver runs in this checkout now, or null: the next run of the walk, or a fix run. */

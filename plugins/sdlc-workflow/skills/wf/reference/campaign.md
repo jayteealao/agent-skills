@@ -93,7 +93,7 @@ Dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to
 - The scope, the acceptance criteria, `ux-impact` and the stack are confirmed. Do not ask about them again.
 - The decision store settles the open items of the work packet: an answer of the person, or a steer that leaves the choice to the build. For a steer, choose the option that best fits the acceptance criteria, and record the choice as an assumption.
 - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has 20 steps or fewer. Do not size a slice by lines.
-- Aim for 10 slices. When the work packet needs more than 14, write them and return a warning.
+- Aim for 10 slices. Above 14, merge before you write, per step 4 of [slice.md](slice.md); return a warning only when the count is still above 14.
 - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
 - When `02c-craft.md` exists, map each slice to its screen keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
 - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.

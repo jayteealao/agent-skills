@@ -934,7 +934,8 @@ test('hand-offs: a stage agent of a slice writes notes and settled entries, neve
   assert.match(impl, /You never write a steer/);
   assert.match(impl, /--kind note --slice <that slice> --stage implement/);
   assert.match(impl, /decide end "\/repo" demo <id> --reason/);
-  assert.match(impl, /Before each step or fix round, run `wf decide list "\/repo" demo --kind note --slice api` again/);
+  assert.match(impl, /Before each step or fix round, run `wf decide list "\/repo" demo --kind steer,note --slice api --rules --since <the highest D-id that you have read>`/);
+  assert.match(impl, /A new steer or rule binds you from that moment/);
   assert.match(impl, /"kind": "settled", "class": "implementation-detail", "slice": "api", "stage": "implement"/);
   assert.doesNotMatch(handoffClause('plan', 'api'), /Before each step or fix round/, 'a plan agent has no steps to read between');
   assert.match(src, /steer\('writer', sliceArg\) \+ handoffClause\(stage, sliceArg\)/, 'each stage agent carries the clause, outside the steering block');

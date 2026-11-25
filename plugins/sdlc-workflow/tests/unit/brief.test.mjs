@@ -78,7 +78,7 @@ test('buildBrief: the header carries the output boundary and the standing steer,
   // SKILL.md binds both rules for the main session; the stage cards keep no preamble.
   const skill = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'SKILL.md'), 'utf8');
   assert.match(skill, /^- Apply \[_output-boundary\.md\]\(reference\/_output-boundary\.md\) to every external-facing output\.$/m);
-  assert.match(skill, /^- Apply each live `steer` entry of the decision store \(`decide list --kind steer`\) per \[_decisions\.md\]\(reference\/_decisions\.md\)\./m);
+  assert.match(skill, /^- Apply each rule of the project, each live `steer` entry of the decision store and each `note` that a stage left for your slice \(`decide list --kind steer,note --slice <slice> --rules`; with no slice, `decide list --kind steer --rules`\) per \[_decisions\.md\]\(reference\/_decisions\.md\)\./m);
   const refRoot = path.join(pluginRoot, 'skills', 'wf', 'reference');
   const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.md') ? [path.join(d, e.name)] : []));
   for (const file of walk(refRoot)) {

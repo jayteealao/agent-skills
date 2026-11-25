@@ -10,6 +10,7 @@ import { PATH_FORMS, applySet, enumAt, parseSetArg } from './record-path.mjs';
 import { putChecked } from './record-put.mjs';
 import { INDEX_NAME, assertWritable, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, setFields } from './records.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { rosterOf } from './roster-edit.mjs';
 
 const SCHEMA_FILE = fileURLToPath(new URL('../schemas/frontmatter.schema.json', import.meta.url));
 
@@ -114,6 +115,7 @@ export function resolveRecord(dir, name, verb = 'record') {
 export function checkDismissDecision(dir, id, what = 'findings set') {
   const d = decisionsOf(dir).find((x) => x.id === id);
   if (!d) throw refuse(`${what}: no decision ${id}`, agentFix('List the decisions with decide list, then run the command again with an id that it lists.'));
+  if (d['superseded-by'] === 'ended') throw refuse(`${what}: decision ${d.id} was ended${d['ended-why'] ? `: ${d['ended-why']}` : ''}`, agentFix('Run the command again with the id of a live answer, steer or approval of the person.'));
   if (d['superseded-by']) throw refuse(`${what}: decision ${d.id} is superseded by ${d['superseded-by']}`, agentFix('Run the command again with the id of the decision that supersedes it.'));
   if (d.by !== 'person' || !['answer', 'steer', 'approval'].includes(d.kind)) throw refuse(`${what}: decision ${d.id} is not an answer, steer or approval of the person`, agentFix('Run the command again with the id of an answer, steer or approval of the person.'));
 }
@@ -170,7 +172,19 @@ export const pick = (fm, keys) => Object.fromEntries(keys.map((k) => [k, k.split
  * its key, the records that name them get a marker, and an answer settles its open question.
  * `a` is `{ kind, key, question, answer, by, packet, slice, files, stage, source, rewrote }`.
  */
+/** Throw when a note names a slice that is complete: a note is a hand-off to work that is still to do. */
+export function refuseNoteToDoneSlice(dir, a) {
+  if (a.kind === 'note' && a.slice && a.slice !== 'slug-wide') {
+    let status = null;
+    try { status = rosterOf(dir).find((s) => s.slug === a.slice)?.status ?? null; } catch { status = null; }
+    if (status === 'complete') {
+      throw refuse(`decide add: the slice ${a.slice} is complete, so it reads no note`, agentFix('Fix the matter in your own slice. A red test that your slice turned red is yours to make green. When it cannot be fixed there, hold a question for the person with decide hold.'));
+    }
+  }
+}
+
 export function decideAdd(dir, a, { by = null, stage = null } = {}) {
+  refuseNoteToDoneSlice(dir, a);
   const r = addDecision(dir, {
     kind: a.kind, key: a.key, question: a.question, answer: a.answer, by: a.by ?? by,
     scope: { packet: a.packet, slice: a.slice && a.slice !== 'slug-wide' ? a.slice : undefined, files: a.files },

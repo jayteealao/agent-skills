@@ -35,8 +35,22 @@ function readConfigText(root) {
 export function readRules(root) {
   try {
     const { cfg } = readConfigText(root);
-    return (Array.isArray(cfg.rules) ? cfg.rules : []).filter(isRule);
+    return (Array.isArray(cfg.rules) ? cfg.rules : []).filter((r) => isRule(r) && !r.ended);
   } catch { return []; }
+}
+
+/**
+ * True when a write of the config changes the rules of the project. Only `wf.mjs rule` writes them,
+ * on the words of the person: a rule binds every stage of every workflow.
+ */
+export function rulesChanged(priorText, nextText) {
+  const of = (text) => {
+    if (text == null) return '[]';
+    try { return JSON.stringify(JSON.parse(String(text).replace(/^\uFEFF/, ''))?.rules ?? []); } catch { return null; }
+  };
+  const before = of(priorText);
+  const after = of(nextText);
+  return before !== null && after !== null && before !== after;
 }
 
 function writeRules(root, mutate) {
@@ -106,6 +120,8 @@ function liveSteers(root) {
     try { list = readDecisions(w.dir); } catch { continue; }
     for (const e of list) {
       // A steer whose key the run reads from the store of the workflow (run-decisions) stays there.
+      // A question that the brainstorm left to the build is an answer to one named question of one packet, not a rule.
+      if (e.stage === 'brainstorm' && e.key && /^The person left this to the build./.test(String(e.answer ?? ''))) continue;
       if (e.kind === 'steer' && !e['superseded-by'] && !e.scope?.slice && !Object.hasOwn(STANDING_KEYS, String(e.key ?? ''))) out.push({ ...w, id: e.id, key: e.key ?? null, text: String(e.answer ?? '') });
     }
   }

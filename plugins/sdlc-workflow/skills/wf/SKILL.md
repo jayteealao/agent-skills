@@ -9,7 +9,7 @@ argument-hint: "<slug> | <intake|shape|design|slice|plan|implement|verify|review
 You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, `/wf <slug>` runs the next step of that workflow, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
-- Apply each live `steer` entry of the decision store (`decide list --kind steer`) per [_decisions.md](reference/_decisions.md). Never apply it above a mandatory gate, and give the relevant entries to each sub-agent you start.
+- Apply each rule of the project, each live `steer` entry of the decision store and each `note` that a stage left for your slice (`decide list --kind steer,note --slice <slice> --rules`; with no slice, `decide list --kind steer --rules`) per [_decisions.md](reference/_decisions.md). Never apply it above a mandatory gate, and give the relevant entries to each sub-agent you start.
 - Write chat narratives per [_chat-return.md](reference/_chat-return.md).
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).

@@ -33,6 +33,7 @@ import { missingDesignFiles } from '../lib/design-surface.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/packets.mjs';
 import { standingChanged } from '../lib/standing.mjs';
+import { rulesChanged } from '../lib/project-rules.mjs';
 import { blockToolCall, hookConfig, hookProjectRoot, isEntry, refuseWrite, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
@@ -117,6 +118,11 @@ async function configLoweringRefusal(filePath, toolInput, projectRoot) {
   if (standingChanged(prior, next)) {
     return `wf-validate: blocked a write to ${abs}: it changes the standing answers.\n`
       + 'Only the person sets a standing answer. Offer it to the person; on a yes, run wf.mjs standing set with the person\'s words.\n';
+  }
+  // The rules of the project are the person's too: they bind every stage of every workflow.
+  if (rulesChanged(prior, next)) {
+    return `wf-validate: blocked a write to ${abs}: it changes the rules of the project.\n`
+      + 'Only the person sets a project rule. Offer it to the person; on a yes, run wf.mjs rule add (or rule end) with the person\'s words.\n';
   }
   const lowered = guardLowerings(prior, next);
   if (!lowered.length) return null;

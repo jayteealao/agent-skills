@@ -6,13 +6,22 @@
 // status is running, waiting (on the person), stopped or done. A run that says running but has
 // written nothing (no progress record, no driver journal line) for DEAD_AFTER_MS is stopped: its
 // driver died. The ETA of a slice comes from the start and done times of its steps.
+//
+// A driver run also records `hostPid` and `host`: the agent host process that runs it, and its
+// machine. On that machine the process decides: while it lives, silence is not death (a long
+// command writes no line), and when it is gone the run is dead at once. `busy` names a suite
+// that runs now.
 import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 
 import { readSteps, whereOf } from './steps.mjs';
 import { workflowsRoot } from './records-root.mjs';
 import { ensureRunFolder, runDirOf } from './run-files.mjs';
 import { undoGitBashPath } from './msys.mjs';
+import { pidAlive } from './proc.mjs';
+import { withFileLock } from './file-lock.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 export const PROGRESS_FILE = 'progress.json';
 export const STATUSES = ['running', 'waiting', 'stopped', 'done'];
@@ -35,14 +44,21 @@ export function writeProgress(slugDir, change, { now = nowIso(), root = null } =
   if (change.status === 'complete' || change.status === 'completed') change = { ...change, status: 'done' };
   if (change.status && !STATUSES.includes(change.status)) throw new Error(`status must be one of ${STATUSES.join(', ')}`);
   if (typeof change.resume === 'string') change = { ...change, resume: undoGitBashPath(change.resume).value };
-  const old = readProgress(slugDir) ?? {};
-  const fresh = change.run && change.run !== old.run;
-  const base = fresh ? {} : old;
-  const next = { ...base, ...change, updatedAt: now };
-  if (!next.startedAt || fresh) next.startedAt = now;
   const file = join(slugDir, PROGRESS_FILE);
-  writeFileSync(`${file}.tmp`, `${JSON.stringify(next, null, 2)}\n`);
-  renameSync(`${file}.tmp`, file);
+  // Several processes write this record (the stage agents, a suite that starts and ends): one
+  // read-modify-write at a time, and each write through its own temp file.
+  const next = withFileLock(file, () => {
+    const old = readProgress(slugDir) ?? {};
+    const fresh = change.run && change.run !== old.run;
+    const base = fresh ? {} : old;
+    const merged = { ...base, ...change, updatedAt: now };
+    if (!merged.startedAt || fresh) merged.startedAt = now;
+    // A suite mark belongs to the stage that started it: a new stage, slice or status ends it.
+    const moved = ['stage', 'slice', 'status'].some((k) => change[k] != null && change[k] !== base[k]);
+    if (moved && !Object.hasOwn(change, 'busy')) merged.busy = null;
+    writeFileAtomic(file, `${JSON.stringify(merged, null, 2)}\n`);
+    return merged;
+  });
   // The end of a driver run (its last `progress set`) saves the outcome on this machine.
   if (next.driver && change.status && change.status !== 'running') {
     writeDriverOutcome(slugDir, { run: next.run ?? null, driver: next.driver, status: next.status, stage: next.stage ?? null, slice: next.slice ?? null, reason: next.reason ?? null, resume: next.resume ?? null }, { now, root });
@@ -121,16 +137,21 @@ export function resumeOf(p, slug) {
  * The progress of a workflow as a person reads it, or null when it has none: the record plus
  * `state` (the status, or `stopped` for a dead run), `quietMinutes` and `etaSeconds`.
  */
-export function progressOf(slugDir, slug, { now = Date.now() } = {}) {
+export function progressOf(slugDir, slug, { now = Date.now(), alive = pidAlive, host = hostname() } = {}) {
   const p = readProgress(slugDir);
   if (!p) return null;
   const seen = Math.max(...[ms(p.updatedAt), journalSeen(slugDir)].filter(Number.isFinite), -Infinity);
   const quietMinutes = Number.isFinite(seen) ? Math.floor((now - seen) / 60000) : null;
-  const dead = p.status === 'running' && Number.isFinite(seen) && now - seen > DEAD_AFTER_MS;
+  const quiet = Number.isFinite(seen) && now - seen > DEAD_AFTER_MS;
+  // null: no host process to ask (another machine, an older record), so silence decides.
+  const hostAlive = p.host === host && Number.isInteger(p.hostPid) ? alive(p.hostPid) : null;
+  const dead = p.status === 'running' && (hostAlive === false || (hostAlive === null && quiet));
   return {
     ...p,
     state: dead ? 'stopped' : p.status,
     dead,
+    hostAlive,
+    quietAlive: p.status === 'running' && hostAlive === true && quiet,
     quietMinutes,
     etaSeconds: p.status === 'running' && !dead ? etaSeconds(slugDir, p.slice) : null,
     resume: resumeOf(p, slug),
@@ -142,11 +163,38 @@ const where = (p) => [p.stage, p.slice].filter(Boolean).join(' ') + (p.step ? ` 
 /** One line for a person. */
 export function progressLine(p) {
   if (!p) return 'no progress record';
+  if (p.dead && p.hostAlive === false) return `stopped at ${where(p)}: the host process that ran it is gone. Resume with ${p.resume}`;
   if (p.dead) return `stopped at ${where(p)}: no sign of life for ${p.quietMinutes} min. Resume with ${p.resume}`;
+  // The host lives: a long command writes no line. No resume command, so no second run starts over this one.
+  if (p.quietAlive) return `running ${where(p)}: no line for ${p.quietMinutes} min, and its host process is alive${p.busy?.what ? ` (in ${p.busy.what})` : ''}. A long command writes no line. Do not start another run: look at the task of this run first`;
+  if (p.state === 'running' && p.busy?.what) return `running ${where(p)}, in ${p.busy.what}`;
   if (p.state === 'running') return `running ${where(p)}${p.etaSeconds != null ? `, about ${Math.max(1, Math.round(p.etaSeconds / 60))} min left in the slice` : ''}`;
   if (p.state === 'waiting') return `waiting on the person at ${where(p)}${p.reason ? `: ${p.reason}` : ''}`;
   if (p.state === 'stopped') return `stopped at ${where(p)}${p.reason ? `: ${p.reason}` : ''}. Resume with ${p.resume}`;
   return `done${p.stage ? ` after ${p.stage}` : ''}`;
+}
+
+/**
+ * Say that a suite runs now (`what`), or that it ended (null), in each running driver run of the
+ * project. The write moves `updatedAt`, so a long suite is a sign of life at its start and its end.
+ */
+export function markBusy(projectRoot, what, { now = nowIso(), alive = pidAlive, host = hostname() } = {}) {
+  const root = workflowsRoot(projectRoot);
+  if (!existsSync(root)) return 0;
+  let n = 0;
+  for (const e of readdirSync(root, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue;
+    const dir = join(root, e.name);
+    const p = readProgress(dir);
+    if (!p || p.status !== 'running' || !p.driver) continue;
+    // Only a run of this machine whose host process lives: the suite cannot be of another run, and a
+    // write would make an abandoned run look alive.
+    if (p.host !== host || !Number.isInteger(p.hostPid) || !alive(p.hostPid)) continue;
+    // The end of a suite changes only a record that still holds the mark.
+    if (!what && !p.busy) continue;
+    try { writeProgress(dir, { busy: what ? { what: String(what), at: now } : null }, { now }); n += 1; } catch { /* a record that cannot be written stays */ }
+  }
+  return n;
 }
 
 // A stopped run older than this is history: the session notice leaves it out.
@@ -161,7 +209,7 @@ export function stoppedRuns(projectRoot, { now = Date.now() } = {}) {
     if (!e.isDirectory()) continue;
     const p = progressOf(join(root, e.name), e.name, { now });
     const recent = p && p.quietMinutes != null && p.quietMinutes < NOTICE_DAYS * 24 * 60;
-    if (recent && (p.dead || p.state === 'stopped')) out.push({ slug: e.name, line: progressLine(p) });
+    if (recent && (p.dead || p.state === 'stopped')) out.push({ slug: e.name, line: progressLine(p), dead: Boolean(p.dead) });
   }
   return out;
 }

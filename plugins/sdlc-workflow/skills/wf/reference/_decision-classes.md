@@ -3,7 +3,7 @@
 Every workflow decision is one of two classes. The class decides *who*
 may resolve it: an **implementation-detail** decision may be settled by an autonomous policy
 (and recorded); an **intent-bearing** decision may not — it is asked of the product owner in a
-human-gated run, or is a stop condition in an autonomous run. This file is the single source;
+human-gated run, or is held as a question in an autonomous run, which waits for the answer. This file is the single source;
 `plan.md`, `implement.md`, and `yolo.md` cite it instead of restating the boundary.
 
 ## Intent-bearing (never resolved by an autonomous policy)
@@ -49,8 +49,10 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
 - **Human-gated run** (plan/implement/verify with a PO present): an intent-bearing decision is
   ASKED — a question asked per [_gate-question.md](_gate-question.md), constructed per `_question-craft.md` (consequence-framed).
 - **Autonomous run** (`/wf yolo`): an intent-bearing decision is a
-  **Stop** — record the pending decision in the artifact as awaiting-input (the decision store records the answer),
-  surface it in the run report, and halt rather than settle it.
+  **question that waits** — the stage holds it (`decide hold`), does the work that does not depend on it, and
+  waits for the answer in `decide wait`. It never settles it. The run ends with the question only when the wait
+  command itself fails. In delegate mode the stage settles it by its recommended option, except a question that a
+  steer, a project rule or a note keeps for the person: that one is held and waited on too.
 - A recorded autonomous decision carries a mandatory `class: implementation-detail` stamp. An
   autonomous record may never carry `class: intent-bearing` — writing one is the tell that the
   policy overstepped.

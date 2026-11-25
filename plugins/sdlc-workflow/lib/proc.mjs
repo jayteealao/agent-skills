@@ -32,6 +32,34 @@ export function pidAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
 }
 
+// The programs that host an agent session. A command of a stage runs under one of them.
+const HOST_NAMES = /^(claude|codex)(\.exe)?$/i;
+
+/**
+ * The nearest ancestor of `pid` that is an agent host: { pid, name }, or null when none is found
+ * or the process table cannot be read. One call reads the table of the machine (about a second on Windows).
+ */
+export function hostProcess({ pid = process.pid, names = HOST_NAMES } = {}) {
+  try {
+    const table = new Map();
+    const win = process.platform === 'win32';
+    const r = win
+      ? spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.Name)" }'], { encoding: 'utf8', windowsHide: true, timeout: 20000 })
+      : spawnSync('ps', ['-A', '-o', 'pid=,ppid=,comm='], { encoding: 'utf8', timeout: 20000 });
+    for (const line of String(r.stdout ?? '').split(/\r?\n/)) {
+      const m = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+      if (m) table.set(Number(m[1]), { parent: Number(m[2]), name: m[3].split(/[\\/]/).pop() });
+    }
+    let at = table.get(pid)?.parent;
+    for (let i = 0; i < 30 && at && table.has(at); i += 1) {
+      const p = table.get(at);
+      if (names.test(p.name)) return { pid: at, name: p.name };
+      at = p.parent;
+    }
+  } catch { /* no table: the caller judges by silence */ }
+  return null;
+}
+
 /**
  * Kill the process `pid` and its children. On Windows, `taskkill /T /F` ends the tree. On POSIX the
  * process group goes first, which reaches the children of a child spawned with `detached: true`; when

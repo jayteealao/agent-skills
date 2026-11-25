@@ -47,7 +47,8 @@ function kernelBody() {
     '- Ground facts in real source instead of guessing: reach for **study-sources** before asserting',
     '  how a library, framework, SDK, or API actually behaves.',
     '- Durable per-workflow constraints (vetoes, preferences) go in `.ai/workflows/<slug>/decisions.yaml`',
-    '  as `steer` entries, written only by `wf.mjs decide add --kind steer`.',
+    '  as `steer` entries, written only by `wf.mjs decide add --kind steer`. A rule for every workflow of the',
+    '  project is a project rule, written only by `wf.mjs rule add` on the person\'s words.',
   ].join('\n');
 }
 

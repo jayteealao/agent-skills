@@ -32,6 +32,15 @@ export const LEGACY_PROGRESS = '.implement-progress.jsonl';
 export const EVENTS = ['start', 'done', 'hard-stop', 'retry', 'complete'];
 /** The kinds of a stop. Only a `fail` counts toward the split question. */
 export const STOP_KINDS = ['fail', 'gate', 'question'];
+
+// A stop that waits on the person is a question, whatever kind the caller gave: only a real
+// failure counts toward the split question. `held` says that the slice holds an open question.
+const ASKS = /\bquestions?\b|\bask(s|ed|ing)?\b[^.]{0,40}\b(person|user|you)\b|\bfor the person\b|\bawait(s|ing)? (the person|an answer)\b/i;
+export function stopKind(kind, reason, { held = false } = {}) {
+  const k = kind ?? 'fail';
+  if (k !== 'fail') return k;
+  return held || ASKS.test(String(reason ?? '')) ? 'question' : 'fail';
+}
 // A slice whose implement failed this many times since the last retry is a split question.
 export const SPLIT_AFTER_STOPS = 2;
 export const PLAN_SECTION = 'Step-by-Step Plan';
@@ -393,9 +402,15 @@ export function whereOf(slugDir, slice, { isAncestor = () => true, hasBranch = (
   const current = started && !doneSet.has(started.step) && !stopRow ? { n: started.step, title: started.title ?? null, at: started.at ?? null } : null;
   const stopped = started && !doneSet.has(started.step) && stopRow ? { n: started.step, reason: stopRow.reason ?? null, kind: stopRow.kind ?? 'fail', at: stopRow.at ?? null } : null;
   const stops = { fail: 0, gate: 0, question: 0 };
+  // The stops that count toward the split question, so a person can see what was counted.
+  let failStops = [];
   for (const r of run) {
-    if (r.event === 'hard-stop') stops[STOP_KINDS.includes(r.kind) ? r.kind : 'fail'] += 1;
-    if (r.event === 'retry') stops.fail = 0;
+    if (r.event === 'hard-stop') {
+      const kind = STOP_KINDS.includes(r.kind) ? r.kind : 'fail';
+      stops[kind] += 1;
+      if (kind === 'fail') failStops.push({ at: r.at ?? null, reason: r.reason ?? null });
+    }
+    if (r.event === 'retry') { stops.fail = 0; failStops = []; }
   }
   let lastRun = null;
   if (lastComplete) {
@@ -419,6 +434,7 @@ export function whereOf(slugDir, slice, { isAncestor = () => true, hasBranch = (
     replanned,
     lastRun,
     hardStops: stops.fail,
+    failStops,
     stops,
     splitQuestion: stops.fail >= SPLIT_AFTER_STOPS,
     warnings: plan.warnings,
@@ -447,7 +463,7 @@ export function whereLine(w) {
     ...w.done.filter((d) => d.state === 'moved').map((d) => `step ${d.n} moved ${String(d.oldSha).slice(0, 8)} → ${String(d.sha).slice(0, 8)}`),
     ...w.done.filter((d) => d.state === 'unverified').map((d) => `step ${d.n} is unverified: its branch is not on this machine`),
     ...w.dropped.map((d) => `step ${d.n} dropped: its commit left the branch`),
-    w.hardStops ? `${w.hardStops} hard-stop(s)${w.splitQuestion ? ': ask the person to split the slice' : ''}` : null,
+    w.hardStops ? `${w.hardStops} hard-stop(s)${w.splitQuestion ? ': ask the person to split the slice' : ''}${(w.failStops ?? []).map((f) => ` [${String(f.at ?? '').slice(0, 16)} ${f.reason ?? 'no reason'}]`).join('')}` : null,
   ].filter(Boolean);
   return `${w.slice}: ${n} of ${w.total} steps done; ${at}${extra.length ? `; ${extra.join('; ')}` : ''}`;
 }

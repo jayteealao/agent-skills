@@ -149,12 +149,18 @@ test('a project rule is written once, each brief prints it first, and adopt ends
 test('wf.mjs decide: a stage steer is refused with exit 1, a note and an end and a tidy work', () => {
   const f = fixture();
   try {
-    writeFileSync(path.join(f.dir, '03-slice.md'), ['---', 'type: slice', 'slices:', '  - slug: api', '    status: complete', '  - slug: web', '    status: defined', '---', ''].join('\n'));
+    const roster = (api) => writeFileSync(path.join(f.dir, '03-slice.md'), ['---', 'type: slice', 'slices:', '  - slug: api', `    status: ${api}`, '  - slug: web', '    status: defined', '---', ''].join('\n'));
+    roster('in-progress');
     const no = cli(['decide', 'add', f.root, 'demo', '--kind', 'steer', '--stage', 'implement', '--answer', 'x']);
     assert.equal(no.status, 1);
     assert.match(no.stderr, /the implement stage does not write a steer/);
     assert.equal(cli(['decide', 'add', f.root, 'demo', '--kind', 'note', '--slice', 'web', '--stage', 'implement', '--answer', 'the page test is yours']).status, 0);
     assert.equal(cli(['decide', 'add', f.root, 'demo', '--kind', 'note', '--slice', 'api', '--stage', 'verify', '--answer', 'old']).status, 0);
+    // The slice is done: the tidy ends its note, and it takes no new note.
+    roster('complete');
+    const late = cli(['decide', 'add', f.root, 'demo', '--kind', 'note', '--slice', 'api', '--stage', 'verify', '--answer', 'too late']);
+    assert.equal(late.status, 1);
+    assert.match(late.stderr, /the slice api is complete, so it reads no note/);
     assert.match(cli(['decide', 'list', f.root, 'demo', '--kind', 'steer,note', '--slice', 'web']).stdout, /^D-001 the page test is yours \(note; by stage; slice=web\)\s*$/);
     const dry = cli(['decide', 'tidy', f.root, 'demo']);
     assert.match(dry.stdout, /^1 would be ended/);

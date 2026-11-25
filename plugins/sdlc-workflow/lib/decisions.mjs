@@ -77,8 +77,11 @@ function cleanScope(scope = {}) {
 }
 
 // An approval or a try-out verdict sits beside the choice that it judges, under the same key:
-// it supersedes only an earlier verdict of its own kind. Every other kind is a choice.
-const familyOf = (kind) => (kind === 'approval' || kind === 'try-out' ? kind : 'choice');
+// it supersedes only an earlier verdict of its own kind. A note and a settled entry are what a
+// build stage wrote: each supersedes only its own kind, so it never takes the place of an answer or
+// a steer of the person under the same key. Every other kind is a choice.
+const OWN_FAMILY = ['approval', 'try-out', 'note', 'settled'];
+const familyOf = (kind) => (OWN_FAMILY.includes(kind) ? kind : 'choice');
 
 const sameScope = (a = {}, b = {}) => JSON.stringify(cleanScope(a)) === JSON.stringify(cleanScope(b));
 

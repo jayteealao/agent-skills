@@ -15,7 +15,7 @@ You are running `/wf review`. With a slug it is the review stage, stage 7 of 9: 
 - When the tests of a fix step fail twice, revert the step, set the finding `could-not-fix`, and continue.
 - Every finding gets a refuter before it enters the ledger. Merge the findings with `wf.mjs findings add`. Do not edit `findings.yaml` by hand.
 - After the fix steps, run the full and heavy suites of the test profile once for the packet, and each check that a plan, implement or verify record names under `## Packet Checks`. Run each suite with `wf.mjs profile run "<root>" <suite>`: it runs the command of the suite and records its time and the HEAD that it passed at. When you fix code after a packet suite passed, run again only the suites that read the files of the fix.
-- A command longer than the longest check of your brief is a long run. Follow [_long-runs.md](_long-runs.md): measure it first with a pilot, check that a later change does not make its result stale, take the fastest path that gives a valid answer, and run it in the background.
+- A command longer than the longest check of your brief is a long run. Follow [_long-runs.md](_long-runs.md): measure it first with a pilot, check that a later change does not make its result stale, take the fastest path that gives a valid answer, and run it as L4 says: in the background in a session, in the foreground as a stage agent of a driver.
 - Take the verdict and the counts from `wf.mjs findings metrics`. The verdict counts the open findings only.
 - Stop only on a BLOCKER that is `could-not-fix`.
 - To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.

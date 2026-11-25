@@ -8,6 +8,8 @@
  * runNotice itself and gives the text to the model. A compaction is not a session start.
  * Always exits 0: a session start must never fail on a notice.
  */
+import { spawnSync } from 'node:child_process';
+
 import { stoppedRuns } from '../lib/progress.mjs';
 import { outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
@@ -17,7 +19,16 @@ export function runNotice(projectRoot, { now = Date.now() } = {}) {
   const runs = stoppedRuns(projectRoot, { now });
   if (!runs.length) return null;
   // `status --brief` prints where each one stands: the stage, the step, the questions, the next command.
-  return ['Stopped workflow runs:', ...runs.map((r) => `- ${r.slug}: ${r.line}`), 'Run `wf.mjs status <root> <slug> --brief` for where a workflow stands.'].join('\n');
+  // A run that died may have left work in the checkout: say how much, so the resume judges it.
+  let left = null;
+  if (runs.some((r) => r.dead)) {
+    try {
+      const r = spawnSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+      const n = r.status === 0 ? r.stdout.split(/\r?\n/).filter(Boolean).length : 0;
+      if (n) left = `The checkout has ${n} uncommitted file${n === 1 ? '' : 's'}: a run that died may have left them. The next run judges them before its own work; do not restore or delete them.`;
+    } catch { /* no git: no count */ }
+  }
+  return ['Stopped workflow runs:', ...runs.map((r) => `- ${r.slug}: ${r.line}`), ...(left ? [left] : []), 'Run `wf.mjs status <root> <slug> --brief` for where a workflow stands.'].join('\n');
 }
 
 async function main() {

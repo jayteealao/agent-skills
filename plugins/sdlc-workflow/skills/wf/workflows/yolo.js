@@ -246,8 +246,10 @@ function handoffClause(stage, slice) {
     `that it owns, a finding, a file of its plan that you changed), write a note to that slice: \`${add} ` +
     `--kind note --slice <that slice> --stage ${stage} --answer "<the hand-off, in 3 sentences or fewer>"\`.\n` +
     (stage === 'implement' || stage === 'verify'
-      ? `- Another agent of this run may work at the same time as you. Before each step or fix round, run ` +
-        `\`${WF_CMD} decide list "${projectRoot}" ${slug} --kind note --slice ${slice}\` again and act on a new line.\n`
+      ? `- The person can add a steer while you work, and another agent of this run may leave you a note. ` +
+        `Before each step or fix round, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer,note ` +
+        `--slice ${slice} --rules --since <the highest D-id that you have read>\`. It prints only the entries that ` +
+        `are newer. A new steer or rule binds you from that moment; act on a new note.\n`
       : '') +
     `- Record each decision that you settled yourself, in one call at the end of the stage. Write them as a JSON ` +
     `array [{ "kind": "settled", "class": "implementation-detail", "slice": "${slice}", "stage": "${stage}", "key": ` +
@@ -360,7 +362,10 @@ function deadDriverClause(priorRun) {
     `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
     `write it may have made as SUSPECT and possibly half-finished: re-read each record you touch with ` +
     `\`${REC('get')} <name>\` before you change it, and if what you find contradicts what the index claims, trust ` +
-    `the stage record and correct the index with \`${REC('set')} index key=value ...\`. Do not assume the previous run left a consistent state.`
+    `the stage record and correct the index with \`${REC('set')} index key=value ...\`. Do not assume the previous run left a consistent state. ` +
+    `Run \`${GIT} status --short\` before your own work: a file that the dead run left uncommitted is work to ` +
+    `judge, not to throw away. Read it, keep what is right, and continue from it. Do not start the stage over, ` +
+    `and do not restore or delete a file that you did not judge.`
 }
 
 // verifyClean() — the SINGLE source of truth for "verify cleared the gate so the
@@ -932,15 +937,26 @@ function delegateAcceptClause(sliceArg, when = 'this is the last verify round of
 }
 
 // Delegate mode: the person delegated the intent-bearing decisions of this run.
-function delegateClause() {
+function delegateClause(stage) {
   return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. ` +
     sameQuestionClause() +
     `Otherwise settle it by the option you would recommend, record it with \`${WF_CMD} decide add "${projectRoot}" ` +
     `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
-    `<stage>\`, and continue. Return no questions. When your own slice moves a measured product behaviour ` +
+    `<stage>\`, and continue. When your own slice moves a measured product behaviour ` +
     `outside its pinned range and the cause is not known, do not carry it to later work: spend one bounded round ` +
     `on finding the cause, then decide. The person gets every delegate decision in one list at the end of the run, ` +
-    `and reverses any of them in one answer.`
+    `and reverses any of them in one answer.\n` +
+    `NOT DELEGATED. Two things are never a delegate decision. ` +
+    `(1) A question that the person kept. When a steer, a project rule or a note says that the person decides, ` +
+    `or that the person is asked first, that entry outranks the delegation: do not settle the question, and do ` +
+    `not return it. ` + holdAndWaitClause(stage) + ` ` +
+    `(2) A red test, a failing gate or a refused check. Fix it. A delegate decision never waives it, never ` +
+    `marks it as passed and never hands it to a slice that is complete. The one way to go on with an item ` +
+    `that still fails is DELEGATE ACCEPT, when this prompt has that block: it is for the last verify round ` +
+    `only, and it records the item as a HIGH finding that the review must fix. A test that your slice turned ` +
+    `red is yours to make green; hand it to another slice with a note only when the plan of that slice already ` +
+    `owns the behaviour. When you cannot fix it and no such slice exists, it is a question that the person ` +
+    `kept: hold it and wait as (1) says.`
 }
 
 
@@ -1032,7 +1048,8 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
   return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). A background driver that dies leaves no ` +
     `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
     `Append each line with the command below, never by hand (it appends to ${JOURNAL_PATH} and stamps the time):\n` +
-    `  • BEFORE any other work, run: \`${lineCmd(start)}\`\n` +
+    `  • BEFORE any other work, run: \`${lineCmd(start)}\` (only a stop-request check of this prompt comes ` +
+    `earlier; when that check stops you, write no heartbeat line)\n` +
     `  • IMMEDIATELY BEFORE you return, run: \`${lineCmd({ ...start, event: 'agent-end' })} ${END_FLAGS}\`.\n` +
     `Never read the journal back into your answer, and never let an append failure change what you do — the ` +
     `heartbeat is diagnostic, never a gate.`
@@ -1073,7 +1090,12 @@ const WORK_RULES =
   `build, test or check command with its output in a file of ${LOG_DIR} (\`<command> > <file> 2>&1\`), read ` +
   `its exit status, and search the file for the failures. Never print a whole log, and never let a long ` +
   `command write to your terminal. Read the stage files (the brief, the records, the plan) and the source ` +
-  `files you change in full whenever you need them.`
+  `files you change in full whenever you need them.\n\n` +
+  `BACKGROUND WORK. Never start a command in the background, and never end your turn to wait for one: the ` +
+  `host takes your result the moment your turn ends, and the work that still runs is lost. Run a long command ` +
+  `in the foreground with a long timeout; when one call times out, run a command that waits for it in the ` +
+  `foreground. Before you return, stop each process that you started and remove each scratch worktree that ` +
+  `you made.`
 
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
 // The command of one slice gives the rules of the project, the steers in the scope of the slice
@@ -1089,8 +1111,8 @@ const steer = steeringClause
 // after the current verify" in chat; the main session writes
 // .ai/run/<slug>/.control.json through scripts/yolo-watch.mjs control. This
 // script cannot read the file, so the agent that starts each stage reads it, fresh,
-// by path. When the request holds, the agent does no work
-// and returns status 'stopped', and the driver ends cleanly with stoppedAt
+// by path, before it writes its start heartbeat. When the request holds, the agent does no work,
+// the check command writes a 'stop-honoured' journal line, and the agent returns status 'stopped', and the driver ends cleanly with stoppedAt
 // 'stop-request'. Only stage-boundary agents check:
 // a stop never lands inside a verify fix round or between the review scouts.
 // A stop request is a control signal, not steering: it says WHEN the driver ends,
@@ -1102,10 +1124,11 @@ const CONTROL_PATH = `${projectRoot}/.ai/run/${slug}/.control.json`
 // The command reads the stop request and the journal, so the rule lives in code (yolo-watch stopCheck),
 // and the check finds the request wherever the records live.
 function stopCheckClause(cmd) {
-  return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
-    `one). Run \`${cmd}\` now. It prints one JSON line. When it prints "stop": false, continue normally and do ` +
-    `not mention the check. When it prints "stop": true, stop: do no stage work, write no artifact, and edit no ` +
-    `file except your heartbeat lines. Return status 'stopped', stopReason quoting the "reason" of the line, ` +
+  return `\n\nSTOP-REQUEST CHECK (the FIRST thing you do, before the start heartbeat of this prompt). Run ` +
+    `\`${cmd}\` now. It prints one JSON line. When it prints "stop": false, continue normally: write the start ` +
+    `heartbeat next, and do not mention the check. When it prints "stop": true, stop: do no stage work, write no ` +
+    `artifact, edit no file and write NO heartbeat line. The command has written the journal line of the stop, ` +
+    `so the watch shows a stop and no stage start. Return status 'stopped', stopReason quoting the "reason" of the line, ` +
     `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete the ` +
     `control file: the main session owns it.`
 }
@@ -1151,6 +1174,41 @@ const DECISION_CONTRACT =
 // implementation-detail decision itself. An intent-bearing decision is a question: the
 // stage finishes its artifact honestly and returns the question, and the run stops.
 // ---------------------------------------------------------------------------
+// HOLD AND WAIT. How a stage asks the person and stays alive: it holds the question, does the work
+// that does not depend on it, and blocks in `decide wait` until the answer comes. Both modes use
+// it. In delegate mode it is for the questions that the person kept: a steer, a rule or a note
+// that says "ask me first" outranks the delegation, and a return of 'questions' would end the run.
+function holdAndWaitClause(stage) {
+  return `Hold the question: run \`${WF_CMD} decide hold "${projectRoot}" ` +
+    `${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended ` +
+    `"<a>"\`, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
+    `the person can answer it while you work. When other work of this stage does not depend on the decision, ` +
+    `continue with that work. When no such work is left, wait for the answer: run \`${WF_CMD} decide wait ` +
+    `"${projectRoot}" ${slug} --key <each key that you hold, with commas between the keys> --stage ${stage}\`, ` +
+    `with --slice <your slice> when you run on a slice. Give that shell call a timeout of 5 minutes ` +
+    `(300000 ms): the command blocks for 4 minutes at most, and it sends the question to the person. It ` +
+    `prints one of two results. "answered": the line gives the answer. "still waiting": run the same ` +
+    `command again at once, and do nothing else between the calls. The wait has no limit: run the command ` +
+    `again each time it prints "still waiting", for as long as it takes. A long wait is not a failure, and it ` +
+    `is never a reason to return, to hard-stop or to settle the decision yourself. Never wait in another way, ` +
+    `and never end your turn while a question that you hold has no answer. When the command prints ` +
+    `"answered", settle the question by that answer in this run, record it as a decision with class ` +
+    `'intent-bearing' and the id that the line gives, and go on with the stage. When the answer changes the ` +
+    `plan, use the route-back rules of this stage. Return status 'questions' only ` +
+    `when the command itself fails twice in a row. In that case, look again for each ` +
+    `question that still has no answer: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
+    `run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, with --slice <your slice> ` +
+    `when you run on a slice, and find an entry made after the held-at time of the question that answers the ` +
+    `same question under another key. Settle the question by that entry, and cite its id in the decision ` +
+    `that you record. (3) Settle each answered question in this run when its work fits this stage. When the ` +
+    `answer changes the plan, use the route-back rules of this stage. Then finish the artifact honestly ` +
+    `(status: awaiting-input, each open question recorded), and return status 'questions' with only the ` +
+    `questions that are still open, in questions: { key (a short stable name), question (one sentence the ` +
+    `person can answer without the artifact), options (2 to 4), recommended (one of the options), why (one ` +
+    `line) }. Batch every open question of this stage in that one return. Questions are not a failure: the ` +
+    `main session asks them, and the next run carries the answers.`
+}
+
 function questionContract(stage) {
   return `\n\nQUESTION CONTRACT. Wherever the reference asks the user (AskUserQuestion) or pauses for a human, ` +
     `DO NOT ask. Settle an implementation-detail decision yourself by the card of your brief, and record it. ` +
@@ -1158,34 +1216,7 @@ function questionContract(stage) {
     sameQuestionClause() +
     (DELEGATE
       ? `Otherwise follow DELEGATE MODE below.`
-      : `Otherwise do not settle it yet. Hold the question: run \`${WF_CMD} decide hold "${projectRoot}" ` +
-        `${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended ` +
-        `"<a>"\`, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
-        `the person can answer it while you work. When other work of this stage does not depend on the decision, ` +
-        `continue with that work. When no such work is left, wait for the answer: run \`${WF_CMD} decide wait ` +
-        `"${projectRoot}" ${slug} --key <each key that you hold, with commas between the keys> --stage ${stage}\`, ` +
-        `with --slice <your slice> when you run on a slice. Give that shell call a timeout of 5 minutes ` +
-        `(300000 ms): the command blocks for 4 minutes at most, and it sends the question to the person. It ` +
-        `prints one of two results. "answered": the line gives the answer. "still waiting": run the same ` +
-        `command again at once, and do nothing else between the calls. The wait has no limit: run the command ` +
-        `again each time it prints "still waiting", for as long as it takes. A long wait is not a failure, and it ` +
-        `is never a reason to return, to hard-stop or to settle the decision yourself. Never wait in another way, ` +
-        `and never end your turn while a question that you hold has no answer. When the command prints ` +
-        `"answered", settle the question by that answer in this run, record it as a decision with class ` +
-        `'intent-bearing' and the id that the line gives, and go on with the stage. When the answer changes the ` +
-        `plan, use the route-back rules of this stage. Return status 'questions' only ` +
-        `when the command itself fails twice in a row. In that case, look again for each ` +
-        `question that still has no answer: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
-        `run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, with --slice <your slice> ` +
-        `when you run on a slice, and find an entry made after the held-at time of the question that answers the ` +
-        `same question under another key. Settle the question by that entry, and cite its id in the decision ` +
-        `that you record. (3) Settle each answered question in this run when its work fits this stage. When the ` +
-        `answer changes the plan, use the route-back rules of this stage. Then finish the artifact honestly ` +
-        `(status: awaiting-input, each open question recorded), and return status 'questions' with only the ` +
-        `questions that are still open, in questions: { key (a short stable name), question (one sentence the ` +
-        `person can answer without the artifact), options (2 to 4), recommended (one of the options), why (one ` +
-        `line) }. Batch every open question of this stage in that one return. Questions are not a failure: the ` +
-        `main session asks them, and the next run carries the answers.`) +
+      : `Otherwise do not settle it yet. ` + holdAndWaitClause(stage)) +
     (stage === 'verify'
       ? ` FIX ROUND (verify): when you have no tool that starts a sub-agent, make each fix of the fix round yourself, ` +
         `one after another, per "No sub-agent tool" in ${referenceRoot}/verify.md Step 7.6. Never return ` +
@@ -1958,7 +1989,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `3. Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write ` +
     `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
     `${referenceRoot}/_records.md.` +
-    questionContract(stage) + (DELEGATE ? delegateClause() : '') + answeredClause(extra.answered, stage, sliceArg) +
+    questionContract(stage) + (DELEGATE ? delegateClause(stage) : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
     `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) +
@@ -2080,7 +2111,9 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
     `the workflow is not done.\n` +
     `4. After the roster holds the status, run \`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply\`: it ends ` +
-    `the steers and the notes of slices that are done, so the later slices do not read them.` +
+    `the steers and the notes of slices that are done, so the later slices do not read them.\n` +
+    `5. Run \`${GIT} worktree list\`. When a scratch worktree of this slice is left, name it in your note: a ` +
+    `stage must remove what it made.` +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
     `Return { ok, wrote: [<the records you actually changed>], note }.` +
     heartbeatClause(`writeback:${sliceArg}`, 'Drive', 'writeback', sliceArg),
@@ -2499,7 +2532,7 @@ async function runUpdateDepsExec(idx) {
     `04-plan.md are complete; you START at Step 6. Wherever the reference asks the user or pauses for a human, ` +
     `resolve it by the "## Card" section of intake/update-deps.md (a driver run): the full plan, a failed ` +
     `package blocked and the run continuing, and the stop after 06-verify.md.` +
-    questionContract('update-deps') + (DELEGATE ? delegateClause() : '') +
+    questionContract('update-deps') + (DELEGATE ? delegateClause('update-deps') : '') +
     answeredClause(answeredFor(ANSWERED, 'update-deps', null), 'update-deps') +
     reChallengeClause(idx.priorDeferrals, `${WF_CMD} defer check "${projectRoot}" ${slug}`) +
     steer('writer') + `\n\n` +
@@ -2807,7 +2840,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (stage === 'implement' && ((entry && entry.implementStops) || 0) >= SPLIT_AFTER_STOPS) {
       return stopOut('implement',
         `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
-          `or record a retry (\`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}\`) and run /wf yolo ${slug} again`,
+          `or record a retry (\`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}\`) and run /wf yolo ${slug} again. The stops that were counted: \`${WF_CMD} step where "${projectRoot}" ${slug} ${sliceArg}\``,
         { slice: sliceArg, ran, split: true })
     }
     // The answer that reaches this stage: one a route back carries, or one from args.answered.

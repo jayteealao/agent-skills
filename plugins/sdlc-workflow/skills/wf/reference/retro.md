@@ -126,7 +126,7 @@ Zero learnings is a valid outcome. Do not pad.
 Strong candidates:
 
 - A runtime-evidence deferral that repeats ("<wall> blocks all interactive ACs; the one-time harness that retires it = …"), category `testing` or `gotcha`.
-- A standing steering entry that recurs across workflows (the live `steer` entries of this slug or earlier ones; see [_decisions.md](_decisions.md)), usually category `process` or the category of its subject. The three tests still apply.
+- A standing steering entry that recurs across workflows (the live `steer` entries of this slug or earlier ones; see [_decisions.md](_decisions.md)), usually category `process` or the category of its subject. The three tests still apply. Run `rule candidates`: it lists the steers that say the same in 3 or more workflows. Offer each to the person as a project rule, and on a yes run `rule adopt`.
 - For an optimize slug: read `optimize/results.jsonl`, the trials of deleted round branches included. Record which hypotheses moved the metric and which did not as one learning tagged `optimize`, with `status: active`. The next optimize loop reads it.
 
 Write each learning:

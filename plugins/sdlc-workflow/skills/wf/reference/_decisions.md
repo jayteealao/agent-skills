@@ -2,7 +2,7 @@
 
 This file is the one statement of the decision contract. Every stage reference cites it by name and does not restate it.
 
-The decision store holds what the person decided for one workflow: the answers to questions, the standing steer, the approvals, the try-out verdicts and the choices made in delegate mode. A question is asked once. A stage reads the answer from the store and does not ask again.
+The decision store holds what the person decided for one workflow: the answers to questions, the standing steer, the approvals, the try-out verdicts and the choices made in delegate mode. It also holds two kinds that a build stage writes: the notes that it leaves for a slice, and the decisions that it settled itself. A question is asked once. A stage reads the answer from the store and does not ask again.
 
 ## The file
 
@@ -14,7 +14,7 @@ Each entry has these fields:
 |---|---|
 | `id` | `D-001`, `D-002` and so on, in the order of writing |
 | `at` | the time of writing |
-| `kind` | `answer`, `steer`, `approval`, `try-out` or `delegate` |
+| `kind` | `answer`, `steer`, `approval`, `try-out`, `delegate`, `note` or `settled` |
 | `key` | a stable kebab-case name of the decision, for example `auth-method`; a `steer` entry can have none |
 | `question` | the question as asked |
 | `answer` | the answer, in the person's exact words |
@@ -53,6 +53,7 @@ The kind of a common word:
 | Record several answers in one call | `<wf> decide add "<projectRoot>" <slug> --file <answers.json>`: a JSON list of `{ key, question, answer, by, stage, slice }` |
 | Record standing steer | `<wf> decide add "<projectRoot>" <slug> --kind steer --answer "<exact words>" [--slice s] [--replaces D-012]` |
 | The rules, steers and notes of one slice | `<wf> decide list "<projectRoot>" <slug> --kind steer,note --slice <slice> --rules` |
+| Only the entries after one that you read | `<wf> decide list "<projectRoot>" <slug> --kind steer,note --slice <slice> --rules --since D-012` |
 | Leave a hand-off for another slice | `<wf> decide add "<projectRoot>" <slug> --kind note --slice <the slice it is for> --stage <stage> --answer "<the hand-off>"` |
 | Record the decisions that a stage settled itself | `<wf> decide add "<projectRoot>" <slug> --file <settled.json>`: a JSON list of `{ kind: "settled", class, slice, stage, key, question, answer }` |
 | End a steer that no longer holds, or a note that was handled | `<wf> decide end "<projectRoot>" <slug> <id> --reason "<why>"` |
@@ -86,13 +87,15 @@ A `steer` entry is a standing constraint or preference of the person, for exampl
 - In an autonomous run (`/wf yolo`), a `steer` veto outranks every policy default.
 - A `steer` entry can answer one NAMED intent-bearing question (per [_decision-classes.md](_decision-classes.md)) in advance. It cannot give an autonomous run standing leave to settle intent-bearing decisions in general.
 - `status <slug> deep` reads the `steer` entries as signal. An artifact that contradicts a live `steer` entry is a drift finding.
-- A `steer` entry that recurs across workflows can become a solutions-corpus learning at retro.
+- A `steer` entry that recurs across workflows can become a project rule (`rule candidates`, `rule adopt`) or a solutions-corpus learning at retro.
+- A stage acts on each `note` of its slice, and ends the note with `decide end` when it is handled.
+- An entry that was ended has `superseded-by: ended`, with `ended-at` and `ended-why`. It names no other entry.
 
 ## Notes and settled entries
 
 A build stage (plan, implement, verify, review) writes two kinds of entry, both `by: stage`.
 
-- A `note` is a hand-off to one slice: a red test that the slice owns, a finding for it, a file that was changed under it. It needs `--slice`. Only that slice reads it. The stage that handles it ends it with `decide end`. `decide tidy --apply` ends the notes of a slice that is done.
+- A `note` is a hand-off to one slice: a red test that the slice owns, a finding for it, a file that was changed under it. It needs `--slice`. Only that slice reads it. A note to a slice that is complete is refused: that slice reads nothing more. The stage that handles it ends it with `decide end`. `decide tidy --apply` ends the notes of a slice that is done.
 - A `settled` entry is a decision that the stage settled itself, with its `class` per [_decision-classes.md](_decision-classes.md). No brief and no list shows it unless `--kind settled` asks: it is the record of what the run chose, for the person and for an audit.
 
 ## Older workflows

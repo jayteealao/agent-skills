@@ -69,7 +69,7 @@ function heartbeat(label, phaseName) {
 }
 
 const steering = `\n\nSTANDING STEERING. The person keeps standing instructions for this workflow in its decision store. Run ` +
-  `\`${DECIDE} list "${projectRoot}" ${slug} --kind steer\` NOW, and keep your work inside the entries it prints. An entry never widens ` +
+  `\`${DECIDE} list "${projectRoot}" ${slug} --kind steer --rules\` NOW, and keep your work inside the entries it prints: the rules of the project and the steers of this workflow. An entry never widens ` +
   `allowed-paths and never permits an edit of an off-limits path.`
 
 // ---------------------------------------------------------------------------

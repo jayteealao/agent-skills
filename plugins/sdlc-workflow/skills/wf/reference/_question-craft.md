@@ -64,6 +64,8 @@ quantities instead of abstract statements.
    `decide add --kind steer --key standing:<kind> --question "<the question>"
    --answer "<the choice and its scope in one line>"`. A later question of the
    kind is settled by the steer ([_decision-classes.md](_decision-classes.md)).
+   Leave `--stage` out of this call: a steer is the person's, and the command
+   refuses one that carries the stage plan, implement, verify or review.
 9. **State the time of a check.** An option that starts, repeats or skips a
    check or a long run states its wall time, the date of the measurement and
    the machine, for example "about 4 min (measured 2026-10-22 on desk-1)". A

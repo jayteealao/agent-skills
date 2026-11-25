@@ -78,7 +78,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). `<wf>` below stands for `node "<
    - Record every answer with `decide add --stage slice`.
 2. Run freshness research only where external constraints affect the cut or the order.
 3. Break the work into vertical slices that can each be implemented and verified on its own. A slice is one capability: a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". Its small outcomes become the steps of its plan. A slice has 20 plan steps or fewer; cut a larger capability into two slices. Do not size a slice by lines of code.
-4. For a campaign work packet (`00-index.md` has `origin-packet`), aim for 10 slices. Above 14, write every slice, go on, and warn in the chat return with the count; the person can split the work packet later.
+4. For a campaign work packet (`00-index.md` has `origin-packet`), aim for 10 slices. Each slice carries a fixed cost: its own verify and its own end run. Above 14, merge before you write: join the slices that verify checks together, until the count is 14 or fewer or a merge would pass 20 plan steps in one slice. When the count is still above 14, write every slice, go on, and warn in the chat return with the count and the reason that each merge was not possible; the person can split the work packet later. When you split one slice, make at most four slices of it, and give each one the reason that it is separate.
 5. Give each slice a slice-slug: a lowercase kebab-case identifier from its name ("Auth Flow" → `auth-flow`).
 6. Put the slices that reduce risk and uncertainty early.
 7. Find the best first slice.

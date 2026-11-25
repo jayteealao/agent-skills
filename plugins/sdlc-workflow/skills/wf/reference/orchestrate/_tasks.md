@@ -20,7 +20,7 @@ Rules for every agent of this run:
 - Do not ask a person anything. When you cannot go on, write why in your result with status "blocked", and stop.
 - Never use `git add -A`, `git add .` or `git commit -a`. Stage each file by its path.
 - Never push, never merge, never rewrite history, never delete a branch.
-- Standing instructions of the person for this run: <the live steers, or "none">.
+- Standing instructions of the person for this run: <the rules of the project and the live steers, or "none">.
 ```
 
 ## The common tail

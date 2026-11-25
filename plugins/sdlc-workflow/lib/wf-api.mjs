@@ -246,7 +246,7 @@ export function openWorkflow(root, slug, hooks = {}) {
   const decisions = {
     add: (entry) => write('decisions.add', 'decisions.yaml', [entry?.key].filter(Boolean), () => {
       const r = decideAdd(dir, entry ?? {});
-      if (r.entry.answer && r.entry.kind !== 'steer') answers.push({ question: r.entry.question ?? null, answer: r.entry.answer, by: r.entry.by ?? null });
+      if (r.entry.answer && ['answer', 'approval', 'try-out', 'delegate'].includes(r.entry.kind)) answers.push({ question: r.entry.question ?? null, answer: r.entry.answer, by: r.entry.by ?? null });
       return r;
     }),
     addMany: (entries) => entries.map((e) => decisions.add(e)),

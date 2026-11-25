@@ -193,7 +193,8 @@ test('the watch process queues the news of a run for the session and ends at the
     assert.deepEqual([calls[0].thread, calls[0].sandbox], [null, null], 'the codex call carries no mark of the session');
     const body = calls[0].argv[4].split('\n');
     assert.match(body[0], /^\[sdlc-workflow watch\]/);
-    assert.deepEqual(body.slice(2, -1).map((l) => JSON.parse(l).event), ['stage-start', 'stage-end', 'run-end']);
+    // A stage start is in commentary.md: the message carries the news.
+    assert.deepEqual(body.slice(2, -1).map((l) => JSON.parse(l).event), ['stage-end', 'run-end']);
     assert.match(body.at(-1), /^The run ended\./);
   } finally { drop(root); }
 });

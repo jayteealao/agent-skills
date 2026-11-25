@@ -31,6 +31,10 @@
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --driver optimize
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --slug <slug>
  *
+ *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --slug <slug> --take-over
+ *
+ * With `--slug`, the staging refuses while a run of that workflow is recorded as running in a host
+ * process that is alive. `--take-over` starts over such a run, after the session saw that no task of it runs.
  * `--driver` stages another Workflow script of skills/wf/workflows/ the same
  * way, beside yolo.js. `--slug` adds `delegate`: true when the live `run-decisions`
  * steer of the workflow takes the recommended option, so the launch passes `delegate: true`.
@@ -44,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 
 import { modelsOf } from '../lib/campaign.mjs';
 import { runDelegatedIn } from '../lib/decisions.mjs';
+import { progressOf } from '../lib/progress.mjs';
 import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
 
@@ -84,6 +89,17 @@ export function stageYoloDriver(projectRoot, opts = {}) {
     throw refuse(`stage-yolo-driver: ${projectRoot} has no .ai/workflows — pass the repo root that owns the workflow`, agentFix('Run it again with the root of the repo that holds .ai/workflows (git rev-parse --show-toplevel in the main checkout names it).', stageLine('<absolute projectRoot>')));
   }
   const name = opts.driver ?? 'yolo';
+  // ONE DRIVER PER WORKFLOW. A run that says running, in a host process that lives, is not
+  // replaced by silence alone: two drivers on one tree edit and commit over each other.
+  if (opts.slug && name === 'yolo' && !opts.takeOver) {
+    const p = (opts.progressOf ?? progressOf)(workflowDir(projectRoot, opts.slug), opts.slug);
+    if (p && p.status === 'running' && p.hostAlive === true) {
+      throw refuse(
+        `stage-yolo-driver: a run of ${opts.slug} is recorded as running (${[p.stage, p.slice].filter(Boolean).join(' ') || 'no stage'}, run ${p.run ?? 'unknown'}), and its host process ${p.hostPid} is alive. Its last line is ${p.quietMinutes ?? '?'} min old; a long command writes no line`,
+        agentFix('Look at the run first: the Workflow tasks of your own session, or on Codex the driver process of the run (wf.mjs drive --view). When it still runs, start no second run: wait for it, or ask it to stop with a stop request. When it does not run (it was stopped, or it belongs to a session that ended), start again with --take-over: this staging command, or wf.mjs drive with --take-over on Codex.', stageLine(projectRoot, '--slug', opts.slug, '--take-over')),
+      );
+    }
+  }
   if (!DRIVERS.includes(name)) throw refuse(`stage-yolo-driver: the driver is one of ${DRIVERS.join(', ')}`, agentFix(`Run it again with --driver ${DRIVERS.join(' or --driver ')}.`, stageLine(projectRoot, '--driver', DRIVERS[0])));
   const source = opts.source ?? path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', `${name}.js`);
   const log = opts.log ?? ((line) => console.error(line));
@@ -134,7 +150,7 @@ function main() {
     process.exit(2);
   }
   try {
-    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver, slug })));
+    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver, slug, takeOver: process.argv.includes('--take-over') })));
   } catch (err) {
     console.error(err.message);
     for (const l of fixLines(err.fix ?? defectFix('stage-yolo-driver.mjs', err))) console.error(l);

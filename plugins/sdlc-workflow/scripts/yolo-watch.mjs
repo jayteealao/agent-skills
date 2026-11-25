@@ -18,6 +18,8 @@
  *       --queue: on Codex, send the news to that session with `codex queue`, one message
  *       for each poll that has news. The watch then lives until the run ends (24 hours at
  *       most), because no tool stops it. `wf.mjs drive --detach` starts it this way, with
+ *       --all: print every event. Without it, a stage start and a commit go to commentary.md
+ *       only, and wake no session.
  *       --driver-pid <pid>: when that process is gone and the journal has no run end, the
  *       watch gives one inferred run-end and exits.
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
@@ -80,6 +82,7 @@ import {
 import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
 import { heldQuestions } from '../lib/decide-wait.mjs';
+import { readProgress } from '../lib/progress.mjs';
 import { pidAlive, isMainModule } from '../lib/proc.mjs';
 import { clearStopRequest, lastRunEndAt, madeAfterLastRun } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
@@ -110,6 +113,11 @@ const CONTROL_FILE = '.control.json';
 // after them. Every other event (stage-end, decision, question, stop, stale, protected-change,
 // run-end, look-in) ends a --once watch.
 export const NOT_NEWS_EVENTS = Object.freeze(['stage-start', 'commit']);
+/**
+ * True for an event that the session does not need to see: a stage start or a commit. The watch
+ * writes it to commentary.md and does not print or queue it. The end of each stage is still news.
+ */
+export const isRoutine = (ev) => Boolean(ev) && NOT_NEWS_EVENTS.includes(ev.event);
 /** True when an event wakes the session: news, and not a look-in that goes to commentary.md only. */
 export const isNews = (ev) => Boolean(ev) && !ev.quiet && !NOT_NEWS_EVENTS.includes(ev.event);
 const STATE_VERSION = 1;
@@ -812,6 +820,21 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
  * "current" or a stage: it is dropped, and does not stop a later run (`stale: true`).
  * Returns `{ stop, stale?, reason?, request? }`.
  */
+/** Where a stop request lands, in words, so a request that names the wrong point is seen at once. */
+export const stopLands = (after) => (after === 'current'
+  ? 'The run ends when the agent that runs now returns: the next stage does not start. The agent that runs now is not cut short.'
+  : `The run ends after the next ${after} stage that ends from now on, before the stage that follows it. A ${after} stage that has ended already does not count.`);
+
+/** The host process that the progress record of a workflow names, when it is of this machine; else null. */
+export function hostPidOf(root, slug, { since = 0 } = {}) {
+  try {
+    const p = readProgress(workflowDir(root, slug));
+    // A record from before the watch started may be of an earlier run, whose host is gone by now.
+    if (!p || (Date.parse(p.updatedAt || '') || 0) < since) return null;
+    return p.status === 'running' && p.host === os.hostname() && Number.isInteger(p.hostPid) ? p.hostPid : null;
+  } catch { return null; }
+}
+
 export function stopCheck(root, slug) {
   const file = findRunFile(root, slug, CONTROL_FILE);
   if (!file) return { stop: false };
@@ -900,6 +923,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--once') flags.once = true;
+    else if (a === '--all') flags.all = true;
     // Git Bash puts its install path in front of a value that starts with /wf; lib/msys.mjs undoes it.
     else if (a.startsWith('--')) { flags[a.slice(2)] = undoGitBashPath(argv[i + 1]).value; i++; } else pos.push(a);
   }
@@ -976,8 +1000,11 @@ async function watch(root, slugs, flags) {
   const since = flags.since !== undefined ? Number(flags.since) : null;
   const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, lookInMs: lookInMsOf(flags) });
   const queue = flags.queue ? createQueueSender({ thread: flags.queue, slugs, root }) : null;
-  const driverPid = Number(flags['driver-pid']) || null;
+  // The host process of the run: the flag, or the progress record that the run writes while this watch runs.
+  const flagPid = Number(flags['driver-pid']) || null;
+  let driverPid = flagPid;
   let goneAt = null;
+  let printed = 0;
   let lastGit = 0;
   let stopping = false;
   const stop = () => { stopping = true; };
@@ -990,16 +1017,27 @@ async function watch(root, slugs, flags) {
       if (replaced) { out(replaced); break; }
       const t = Date.now();
       const events = [];
-      if (t - lastGit >= gitMs) { lastGit = t; events.push(...w.pollCommits(), ...w.pollProtected()); }
+      if (t - lastGit >= gitMs) {
+        lastGit = t;
+        events.push(...w.pollCommits(), ...w.pollProtected());
+        if (!flagPid) {
+          const pid = hostPidOf(root, slugs[0], { since: startedAt });
+          if (pid && pid !== driverPid) { driverPid = pid; goneAt = null; }
+        }
+      }
       // The journal goes last, so a run-end follows the commits the run made.
       events.push(...w.pollJournals());
       events.push(...w.pollLookIn());
+      // Routine events go to commentary.md and wake no session; --all prints every event.
+      if (!flags.all) for (const ev of events) if (isRoutine(ev)) ev.quiet = true;
       w.recordFacts(events);
       // A quiet look-in (a delegated run) is in commentary.md: on stdout it would wake the session.
-      for (const ev of events) if (!ev.quiet) out(ev);
+      for (const ev of events) if (!ev.quiet) { out(ev); printed += 1; }
       if (queue) queue.push(events);
       w.save();
-      if (w.allEnded()) break;
+      // Say why the watch ends: a watch that ends with no line looks like a failure to its reader.
+      // A watch that printed nothing in its life (the run had ended before it started) gives its reason.
+      if (w.allEnded()) { if (!printed) out({ event: 'watch-end', reason: 'the journal of each workflow has the end of its newest run', slugs, at: new Date().toISOString() }); break; }
       // The driver process is gone and its journal has no run end: after two more polls
       // (a last line may still land), say that the run ended, and stop.
       if (driverPid && !pidAlive(driverPid)) {
@@ -1060,7 +1098,7 @@ export async function main(argv = process.argv.slice(2)) {
     const v = writeControl(path.resolve(root), slug, action, rest, Date.now());
     process.stderr.write(action === 'clear'
       ? `yolo-watch: control clear: ${v ? `kept the request made after the run ended: ${JSON.stringify(v)}` : 'no stop request'}\n`
-      : `yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n`);
+      : `yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n${action === 'stop' && v ? `${stopLands(v.after)}\n` : ''}`);
     return 0;
   }
   if (first === 'end') {
@@ -1071,7 +1109,18 @@ export async function main(argv = process.argv.slice(2)) {
   if (first === 'stop-check') {
     const [, root, slug] = pos;
     if (!root || !slug) { process.stderr.write(`usage: yolo-watch.mjs stop-check <projectRoot> <slug>\n${fixText(usageFix())}`); return 2; }
-    process.stdout.write(`${JSON.stringify(stopCheck(path.resolve(root), slug))}\n`);
+    const verdict = stopCheck(path.resolve(root), slug);
+    // The stop is recorded here, by code: the agent that was stopped writes no heartbeat, so the
+    // journal shows a stop and no start of the stage.
+    if (verdict.stop) {
+      try {
+        const file = journalPath(path.resolve(root), slug);
+        const run = readJournalFrom(file, 0).lines.findLast((l) => l && l.run)?.run ?? null;
+        mkdirSync(path.dirname(file), { recursive: true });
+        appendFileSync(file, `${JSON.stringify({ at: iso(Date.now()), run, event: 'stop-honoured', agent: 'stop-check', reason: verdict.reason ?? null })}\n`);
+      } catch (e) { process.stderr.write(`yolo-watch: the stop was not written to the journal: ${e.message}\n`); }
+    }
+    process.stdout.write(`${JSON.stringify(verdict)}\n`);
     return 0;
   }
   if (first === 'line') {
