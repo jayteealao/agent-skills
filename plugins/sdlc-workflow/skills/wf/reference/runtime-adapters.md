@@ -44,6 +44,14 @@ This table owns detection. Load the file of each selected adapter. Each file giv
 | `service` | a `Dockerfile` exposing an HTTP port; files declaring an HTTP server framework (Express, Fastify, FastAPI, Flask, Gin, Actix-web, Axum, Spring Boot, Rails, or a similar framework); `openapi.yaml` / `openapi.json` / `swagger.yaml`; `docker-compose.yml` with web service definitions | [runtime-adapters/service.md](runtime-adapters/service.md) |
 | `notebook` | `*.ipynb` files; `requirements.txt` / `pyproject.toml` declaring `jupyter`, `notebook`, `nbconvert`, or `papermill`; `environment.yml` for a conda env aimed at data work | [runtime-adapters/notebook.md](runtime-adapters/notebook.md) |
 
+## In a run with other agents
+
+An adapter says "in the background" for a server, an emulator or a log capture. In a session that works alone, do that. In a run of a driver or of `/wf orchestrate`, other agents work at the same time, so apply [_talk.md](_talk.md) to every adapter step:
+
+- Start the server, the emulator or the capture as a job (`talk job`), not as a background command. Stop only your own jobs (`talk jobs --stop --as <you>`).
+- Before you use a device, an emulator, a port or a test machine, run `talk resources`. When it names the one that you need, hold it with `talk wait --claim <key>` first.
+- An emulator or a server that already runs can be the one of another agent. Use it only when no agent holds it, and never stop it: `adb emu kill`, `docker compose down` and a kill of the server are only for what your own job started.
+
 ## Shared protocols (load with every adapter run)
 
 - [runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) — the constraint-resolution ladder (mandatory before any deferral): wall-ownership triage, attempt-before-declare, the headless boot and the real wall of each adapter, pre-authorized tool absence, and the env-remediation rung. The per-wall rung lists: [runtime-adapters/_ladder-walls.md](runtime-adapters/_ladder-walls.md).

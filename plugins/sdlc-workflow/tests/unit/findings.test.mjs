@@ -118,7 +118,8 @@ test('a fixed finding that a later run finds again opens, counts in the verdict,
 
 test('findingsTable: open rows first, and verdictOf filters by source', () => {
   const one = mergeRun(EMPTY, [sqlInjection, slowLoop], { now: T1 }).ledger;
-  setStatus(one, 'PER-1', 'fixed', null, { now: T1 });
+  assert.throws(() => setStatus(one, 'PER-1', 'fixed', null, { now: T1 }), /a fixed finding needs the commit of the fix/);
+  setStatus(one, 'PER-1', 'fixed', null, { now: T1, commit: '1a2b3c' });
   const table = findingsTable(one).split('\n');
   assert.match(table[2], /^\| SEC-1 \| HIGH \| security \| `src\/db.js:40` /);
   assert.match(table[3], /^\| PER-1 .* \| fixed \|$/);

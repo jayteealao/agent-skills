@@ -62,6 +62,15 @@ A host with no Monitor tool launches the driver with `wf.mjs drive --detach` (yo
 
 Scout, classifier, and bookkeeping agents give no event.
 
+## The talk of the run
+
+The agents of a run talk in one log ([../_talk.md](../_talk.md)). The watch sends three events of it: `talk` (an agent posted for the session), `talk-ping` (an agent has waited 10 minutes on another agent) and `talk-fallback` (an agent got no reply in 20 minutes and went on).
+
+- To tell a running agent something, post as `session`: `<wf> talk post "<projectRoot>" <slug> --as session --to <slice> --text "…"`. The agent reads it at its next reading point, or at once when it waits.
+- Do not write a steer to reach an agent. A steer holds the words of the person, and only those.
+- On `talk-ping`, check that the receiver still works (`progress show`). When it is dead, say so and restart the run. When it works, do nothing: it reads the message at its next reading point.
+- `<wf> talk list "<projectRoot>" <slug> --open` shows every open thread and who holds each shared resource.
+
 ## The commentary rules
 
 - **C1.** For `stage-end`, read the stage artifact that the event names with `node "<pluginRoot>/skills/wf/scripts/wf.mjs" record get "<projectRoot>" <slug> <name>` ([_records.md](../_records.md)). Then say:

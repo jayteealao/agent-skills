@@ -23,6 +23,7 @@ import { decisionsOf } from './decisions.mjs';
 import { withFileLock } from './file-lock.mjs';
 import { projectConfigPath, workflowsRoot } from './records-root.mjs';
 import { agentFix, personFix, refuse } from './fix.mjs';
+import { personOnly } from './actor.mjs';
 
 /**
  * The keys that may have a standing answer, each with the kind of its decision entry and the
@@ -147,6 +148,7 @@ export function suggestStanding(root) {
 /** Set a standing answer. Only the person sets one: `by` must be `person`, with the person's answer and the question. */
 export function setStanding(root, key, { answer, question, by } = {}) {
   knownKey(key, 'set');
+  personOnly('set a standing answer');
   if (by !== 'person') throw refuse('standing set: --by person is required; only the person sets a standing answer', personFix('Only the person sets a standing answer: ask the person whether the answer stands for every workflow.'));
   if (answer == null || !String(answer).trim()) throw refuse('standing set: --answer is required: the answer of the person, in their words', agentFix('Run standing set again with --answer, the answer of the person in their words.'));
   if (question == null || !String(question).trim()) throw refuse('standing set: --question is required: the question as the person saw it', agentFix('Run standing set again with --question, the question as the person saw it.'));

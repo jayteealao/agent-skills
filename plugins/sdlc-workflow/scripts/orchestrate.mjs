@@ -40,6 +40,7 @@
  *
  * Every command prints one JSON object.
  */
+import { progressOf } from '../lib/progress.mjs';
 import { isMainModule, runShell } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -395,7 +396,8 @@ function dispatchCmd(root, slug, [n], f) {
       if (ROLES[u.role].validator || ROLES[u.role].judge) throw refuse('a validator or a scenario agent always gets a fresh agent', agentFix('Run dispatch again with no --continue.'));
       if (!ROLES[cont.role].builds || !cont.agent?.terminal) throw refuse(`the unit ${cont.n} has no live builder to continue`, agentFix('Run dispatch again with no --continue: the unit gets a fresh agent.'));
     }
-    Object.assign(u, { state: 'running', 'started-at': nowIso(), agent: { id: agent.id, program: agent.program, model: model.model, tier: model.tier, vendor: model.vendor, launch: agent.launch, ...(cont ? { terminal: cont.agent.terminal, continues: cont.n } : {}) }, task: posix(taskFile) });
+    // The commit that the agent starts on: a verdict holds for this code and no other.
+    Object.assign(u, { 'head-at-start': headOf(root), state: 'running', 'started-at': nowIso(), agent: { id: agent.id, program: agent.program, model: model.model, tier: model.tier, vendor: model.vendor, launch: agent.launch, ...(cont ? { terminal: cont.agent.terminal, continues: cont.n } : {}) }, task: posix(taskFile) });
     return { n: u.n, role: u.role, model, cont };
   });
   journal(root, slug, { event: 'agent-start', agent: `${plan.role}:${plan.n}`, stage: plan.role, model: plan.model.model });
@@ -560,9 +562,16 @@ function resultCmd(root, slug, [n, file]) {
       if (committed) commits = [committed];
     }
     Object.assign(u, { state: r.status === 'blocked' ? 'failed' : 'done', 'ended-at': now, commits, result: { status: r.status ?? 'done', did: str(r.did), left: str(r.left), found: list(r.found), commands: list(r.commands) } });
-    const answer = { ok: true, unit: u.n, role: u.role, state: u.state, ...(committed ? { committed, note: 'The builder left its change uncommitted, and the script committed the files that it listed.' } : {}) };
+    // A builder that stopped can leave a change in the working tree: the next builder must not get it unseen.
+    const leftPaths = role.builds && r.status === 'blocked' ? [...new Set([...list(u.files), ...list(r.files)].map(posix).filter(Boolean))] : [];
+    const left = leftPaths.length ? spawnSync('git', ['-C', root, 'status', '--porcelain', '--', ...leftPaths], { encoding: 'utf8', windowsHide: true }).stdout.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3)) : [];
+    const answer = { ok: true, unit: u.n, role: u.role, state: u.state, ...(left.length ? { uncommitted: left, do: 'The blocked agent left changes in these files. Read the diff. Keep it for the next unit and say so in its task, or restore each file with git restore. Never leave it unseen.' } : {}), ...(committed ? { committed, note: 'The builder left its change uncommitted, and the script committed the files that it listed.' } : {}) };
     if (role.validator && u.role !== 'code-validator') {
       if (!head) throw refuse('the checkout has no commit: a verdict is recorded for a commit', personFix('Make the first commit of the repo, then run the validation again.'));
+      // The validator saw the code of its start. A commit that landed while it ran was not validated.
+      if (u['head-at-start'] && u['head-at-start'] !== head) {
+        throw refuse(`the code moved while the validator of the unit ${u.n} ran (${String(u['head-at-start']).slice(0, 8)} to ${head.slice(0, 8)}): its verdicts are of older code`, agentFix('Start a new validator unit for the same outcomes on the code as it is now. Let no builder commit while a validator runs.'));
+      }
       const entries = list(r.verdicts).map((v) => ({ outcome: str(v.outcome), verdict: v.verdict, set: v.set ?? 'none', observed: scrubSecrets(str(v.observed)).text, evidence: list(v.evidence).map(posix) }));
       answer.outcomes = recordVerdicts(s, entries, { head, unit: u.n, now });
     }
@@ -653,7 +662,13 @@ function driverLive(root, slug) {
   const file = join(workflowDir(root, slug), '.driver-journal.jsonl');
   try {
     const last = parseJsonLines(readFileSync(file, 'utf8')).lines.at(-1);
-    return Boolean(last) && last.event !== 'run-end' && !String(last.run ?? '').startsWith('orchestrate-') && Date.now() - statSync(file).mtimeMs < STALE_FLOOR_MS;
+    if (!last || last.event === 'run-end' || String(last.run ?? '').startsWith('orchestrate-')) return false;
+    // The host process of the run decides when the record names one: a run that sits in a long suite
+    // writes no journal line and is still live. Silence decides only with no such record.
+    let alive = null;
+    try { const p = progressOf(workflowDir(root, slug), slug); alive = p && p.status === 'running' ? p.hostAlive ?? null : null; } catch { /* no record */ }
+    if (alive !== null) return alive;
+    return Date.now() - statSync(file).mtimeMs < STALE_FLOOR_MS;
   } catch { return false; }
 }
 

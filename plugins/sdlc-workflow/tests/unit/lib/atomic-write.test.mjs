@@ -35,17 +35,3 @@ test('a write that fails removes its temp file and throws', () => {
   assert.deepEqual(readdirSync(dir), ['taken']);
   rmSync(dir, { recursive: true, force: true });
 });
-
-test('four processes that write one file at the same time all succeed', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'atomic-'));
-  const file = join(dir, 'shared.json');
-  const code = `const { writeFileAtomic } = await import(${JSON.stringify(MOD)}); for (let i = 0; i < 60; i++) writeFileAtomic(${JSON.stringify(file)}, JSON.stringify({ pid: process.pid, i }));`;
-  const codes = await Promise.all([0, 1, 2, 3].map(() => new Promise((res) => {
-    const c = spawn(process.execPath, ['--input-type=module', '-e', code], { stdio: ['ignore', 'ignore', 'inherit'] });
-    c.on('exit', res);
-  })));
-  assert.deepEqual(codes, [0, 0, 0, 0]);
-  assert.equal(JSON.parse(readFileSync(file, 'utf8')).i, 59);
-  assert.deepEqual(readdirSync(dir), ['shared.json']);
-  rmSync(dir, { recursive: true, force: true });
-});

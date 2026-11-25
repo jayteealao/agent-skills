@@ -1075,13 +1075,11 @@ function readyPacket(extra = []) {
   return root;
 }
 
-test('done waits while the checkout has changes outside .ai/, and a tracked .ai/ change is not one', () => {
+test('done is not blocked by a file that its merge does not touch: an untracked file, or a tracked .ai/ change', () => {
   const root = readyPacket();
   try {
+    // The work of another session in the same checkout. The merge of done does not touch it.
     writeFileSync(path.join(root, 'scratch.txt'), 'work in progress\n');
-    const busy = run(['done', root, SRC, 'engine']);
-    assert.deepEqual([busy.ok, busy.busy, busy.dirty], [false, true, ['scratch.txt']], JSON.stringify(busy));
-    rmSync(path.join(root, 'scratch.txt'));
     // A tracked file under .ai/ with a change: the first status line starts with a space.
     mkdirSync(path.join(root, '.ai'), { recursive: true });
     writeFileSync(path.join(root, '.ai', 'aaa-note.txt'), 'one\n');

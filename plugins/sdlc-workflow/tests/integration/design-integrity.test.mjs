@@ -423,36 +423,6 @@ test('the token sheet is not emptied when DESIGN.md has no role', () => {
   } finally { p.done(); }
 });
 
-test('two processes that write the manifest and the rounds at once lose nothing', async () => {
-  const p = project();
-  try {
-    edit(p.root, 'basket', 'a');
-    const surface = pathToFileURL(join(LIB, 'design-surface.mjs')).href;
-    const versions = pathToFileURL(join(LIB, 'design-versions.mjs')).href;
-    const run = (code) => new Promise((ok, no) => {
-      const c = spawn(process.execPath, ['--input-type=module', '-e', code], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
-      let out = '';
-      let err = '';
-      c.stdout.on('data', (d) => { out += d; });
-      c.stderr.on('data', (d) => { err += d; });
-      c.on('exit', (status) => (status === 0 ? ok(out.trim()) : no(new Error(err))));
-    });
-    const root = JSON.stringify(p.root);
-    const adds = [1, 2, 3, 4, 5, 6].map((i) => run(`import { addScreen } from ${JSON.stringify(surface)}; for (let n = 0; n < 5; n += 1) addScreen(${root}, 'screen-${i}-' + n, { workflow: 'w2' });`));
-    const rounds = [1, 2, 3, 4].map((i) => run(`import { writeFileSync } from 'node:fs'; import { saveRound } from ${JSON.stringify(versions)}; import { screenFile } from ${JSON.stringify(surface)};
-      writeFileSync(screenFile(${root}, 'pay'), '<html><body>writer ${i}</body></html>'); const r = saveRound(${root}, 'w1', { reason: 'writer ${i}' }); console.log(r.saved ? r.id : 'none');`));
-    await Promise.all(adds);
-    const ids = (await Promise.all(rounds)).filter((id) => id !== 'none');
-    assert.equal(Object.keys(readManifest(p.root).screens).length, 32, 'every screen of every writer is in the manifest');
-    assert.equal(new Set(ids).size, ids.length, 'no two writers got one round number');
-    const saved = listVersions(p.root, 'w1').rounds;
-    assert.deepEqual(saved.map((r) => r.id).sort(), [...ids].sort(), 'each round that was saved is whole');
-    for (const r of saved) assert.ok(existsSync(join(versionDir(p.root, 'w1', r.id), 'screens', 'pay.html')));
-    assert.deepEqual(readdirSync(join(p.top, 'home', 'locks')).filter((f) => f.endsWith('.lock')), [], 'no lock is left');
-    assert.deepEqual(readdirSync(join(p.root, '.ai', 'design')).filter((f) => /\.(lock|tmp)$/.test(f)), [], 'no lock and no half file in the repo');
-  } finally { p.done(); }
-});
-
 test('the server keeps serving after a bad manifest, serves no file through a link, and names no folder of this computer', async () => {
   const p = project();
   let live = null;

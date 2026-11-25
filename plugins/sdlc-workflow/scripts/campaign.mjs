@@ -57,7 +57,7 @@ import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 import { STALE_FLOOR_MS, parseJsonLines } from '../lib/live-events.mjs';
-import { readLedger } from '../lib/findings.mjs';
+import { readLedger, verdictOf } from '../lib/findings.mjs';
 import { lastRunEndAt } from '../lib/stop-request.mjs';
 import { aggregateCost, readCostRows, rebookedEntries } from '../lib/cost-ledger.mjs';
 import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
@@ -157,8 +157,8 @@ function trunkRef(root, trunk) {
 }
 
 /** Files that git sees as changed in a checkout, outside `.ai/`. */
-function dirtyOutsideAi(cwd) {
-  const r = git(cwd, ['status', '--porcelain'], { raw: true });
+function dirtyOutsideAi(cwd, { tracked = false } = {}) {
+  const r = git(cwd, ['status', '--porcelain', ...(tracked ? ['--untracked-files=no'] : [])], { raw: true });
   if (r.status !== 0) return null;
   return r.stdout.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, '')).filter((p) => !posix(p).startsWith('.ai/'));
 }
@@ -324,7 +324,7 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
   if (at < 0) return carriedKeys.length ? none : { table: true, missing: [], rows: [] };
   const section = text.slice(at).split(/\n## /)[0];
   const decisions = decisionsOf(dir);
-  const approved = (key) => decisions.some((e) => !e['superseded-by'] && e.kind === 'approval' && e.key === key && e.answer === 'approved');
+  const approved = (key) => decisions.some((e) => !e['superseded-by'] && e.kind === 'approval' && e.key === key && e.answer === 'approved' && e.by === 'person');
   const seen = new Set();
   const rows = [];
   for (const line of section.split(/\r?\n/)) {
@@ -334,7 +334,8 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
     if (!key || /^:?-+:?$/.test(key) || /^key$/i.test(key)) continue;
     seen.add(key);
     const verdict = plainCell(cells[2]).toLowerCase();
-    if (/^honored\b/.test(verdict)) continue;
+    // "honored in part" and "honored? no" are not honored.
+    if (/^honored[.!]?$/.test(verdict)) continue;
     if (!approved(key)) rows.push({ key, verdict: verdict || 'no verdict', evidence: cells[3] ?? '' });
   }
   return { table: true, missing: carriedKeys.map(String).filter((k) => !seen.has(k)), rows };
@@ -347,8 +348,11 @@ export function openSlices(root, slug) {
   return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));
 }
 
-const tryOutRecorded = (root, slug) => decisionsOf(wfDir(root, slug))
-  .some((e) => !e['superseded-by'] && e.kind === 'try-out' && e.answer === 'works');
+// A try-out counts for the build that the person tried: one that is older than the last run of the driver tried older code.
+const tryOutRecorded = (root, slug) => {
+  const ended = lastRunEndAt(join(wfDir(root, slug), '.driver-journal.jsonl')) ?? 0;
+  return decisionsOf(wfDir(root, slug)).some((e) => !e['superseded-by'] && e.kind === 'try-out' && e.answer === 'works' && (Date.parse(e.at ?? '') || Infinity) >= ended);
+};
 
 /** The next step of the walk for a packet (6.1). */
 function nextStep(root, src, packet) {
@@ -581,7 +585,9 @@ function digestCmd(root, src, [key], f) {
   const dir = wfDir(root, packet['packet-slug']);
   const open = openDigest(dir);
   if (!open.length) return { ok: true, key: packet.key, slug: packet['packet-slug'], changed: false, reason: 'no delegate decision waits for the person' };
-  const answer = String(f.answer ?? '').trim() || 'None, keep them all';
+  // The answer is the answer of the person to the digest. With none, nothing is recorded in the name of the person.
+  const answer = String(f.answer ?? '').trim();
+  if (!answer) return { ok: false, key: packet.key, slug: packet['packet-slug'], changed: false, error: 'digest needs --answer: the answer of the person to the digest question', fix: 'Show the digest to the person, ask "Reverse any of these?", then run digest again with --answer "<the answer>".' };
   const { entry } = addDecision(dir, {
     kind: 'approval', key: DIGEST_KEY, answer, by: 'person', stage: 'campaign',
     question: String(f.question ?? '').trim() || 'Reverse any of these?',
@@ -1101,6 +1107,12 @@ function startCmd(root, src, [key], f) {
 function builtCmd(root, src, [key], f = {}) {
   const { packet } = packetOf(root, src, key);
   if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open`, fix: nextFix(root, src, `${packet.key} is ${packet.state}: built marks an open packet after a clean run. Run next for its step now.`) };
+  // A packet is built by a run that ended clean. A run that stopped, or that has not ended, built nothing yet.
+  const lastLine = lastJournalLine(root, packet['packet-slug']);
+  if (lastLine && (lastLine.event !== 'run-end' || lastLine.stoppedAt)) {
+    const why = lastLine.event !== 'run-end' ? 'the last run of its driver has not ended' : `the last run of its driver stopped at ${lastLine.stoppedAt}`;
+    return { ok: false, error: `${packet.key} is not built: ${why}`, fix: agentFix(`Run the driver of ${packet['packet-slug']} again and mark the packet built after a run that ends clean.`) };
+  }
   setPacketState(packet, 'built');
   // The flat shape: the end branch marks the built work, so a packet that starts while this one
   // waits reviews from it. done moves it again.
@@ -1142,9 +1154,13 @@ function driverLive(root, slug) {
   try { text = readFileSync(file, 'utf8'); mtimeMs = statSync(file).mtimeMs; } catch { return false; }
   const last = parseJsonLines(text).lines.at(-1);
   if (!last || last.event === 'run-end') return false;
-  if (Date.now() - mtimeMs < STALE_FLOOR_MS) return true;
-  // A long suite writes no journal line: the host process of the run decides when the record names one.
-  try { const p = progressOf(wfDir(root, slug), slug); return Boolean(p) && p.status === 'running' && p.hostAlive === true; } catch { return false; }
+  // The host process of the run decides when the record names one: a dead host is dead at once, and a
+  // live one is live through a long suite that writes no journal line. Silence decides only with no such record.
+  let alive = null;
+  try { const p = progressOf(wfDir(root, slug), slug); alive = p && p.status === 'running' ? p.hostAlive ?? null : null; } catch { /* no record */ }
+  if (alive === false) return false;
+  if (alive === true) return true;
+  return Date.now() - mtimeMs < STALE_FLOOR_MS;
 }
 
 /** The slug of the build packet whose driver runs in this checkout now, or null: the next run of the walk, or a fix run. */
@@ -1161,6 +1177,8 @@ function doneCmd(root, src, [key], f) {
   const slug = packet['packet-slug'];
   const unbuilt = openSlices(root, slug);
   if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(', ')} of ${slug} are not complete: run the driver again`, unbuilt, fix: nextFix(root, src, `The slices ${unbuilt.join(', ')} of ${slug} are not complete: run next, which launches the driver for them.`) };
+  // The verdict of the findings ledger is computed by code: a packet with an open BLOCKER is not done.
+  if (verdictOf(readLedger(wfDir(root, slug))) === 'dont-ship') return { ok: false, error: `the findings ledger of ${slug} says dont-ship: a BLOCKER finding is open`, fix: agentFix(`Run wf.mjs findings list ${root} ${slug} --open, fix each BLOCKER (the review of ${slug} does it), then run done again.`) };
   const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
   if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table`, fix: agentFix(`Run the review of ${slug}: it writes the ## Decision Fidelity table in 07-review.md. Then run done again.`) };
   if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing, fix: agentFix(`Add a row for each of ${fid.missing.join(', ')} to the ## Decision Fidelity table of ${slug}/07-review.md, as the review writes it. Then run done again.`) };
@@ -1171,7 +1189,10 @@ function doneCmd(root, src, [key], f) {
   // still runs edits and commits in it.
   const live = liveLaterDriver(root, packets, packet);
   if (live) return { ok: false, busy: true, running: live, error: `the driver of ${live} still runs in this checkout: run done after its run ends`, fix: waitFix(live, 'run done again') };
-  const dirty = dirtyOutsideAi(root);
+  // A file that is not committed blocks done only where the next git command needs it gone. The merge of
+  // the single shape refuses by itself when it would write over one. The rebase of the stacked shape needs
+  // the tracked files clean. An untracked file, or a changed file that the merge does not touch, blocks nothing.
+  const dirty = shapeOf(root) === 'stacked' ? dirtyOutsideAi(root, { tracked: true }) : [];
   if (dirty?.length) return { ok: false, busy: true, dirty: dirty.slice(0, 20), error: `${dirty.length} uncommitted change(s) outside .ai/ in the checkout: run done after the running driver ends, or commit them`, fix: personFix(`The checkout has ${dirty.length} uncommitted change(s) outside .ai/ (dirty lists them): when no driver runs, the person commits them or says what to do with them. Then run done again.`) };
   const trunk = trunkOf(root, f);
   if (shapeOf(root) === 'stacked') {

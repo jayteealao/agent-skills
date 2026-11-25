@@ -134,6 +134,27 @@ function pruneEmpty(dir, stop) {
  * Remove the scratch worktrees of a workflow, or one of them. A worktree that holds a link, or
  * whose link scan did not finish, is kept and reported. Returns { removed, refused, failed }.
  */
+/**
+ * The side branches of a workflow that hold commits that HEAD does not have: the fix branch of a
+ * verify that ran beside the next slice (`verify/<slug>/<slice>`), and the branch of a slice that
+ * was built in a scratch copy (`side/<slug>/<slice>`). A run that stopped can leave one. The
+ * next run takes its commits in before any other work, so no fix and no step is left behind.
+ * Returns [{ branch, kind, slice, ahead }].
+ */
+export function leftoverBranches(root, slug) {
+  const out = [];
+  for (const kind of ['verify', 'side']) {
+    const refs = git(root, ['for-each-ref', '--format=%(refname:short)', `refs/heads/${kind}/${slug}/`]);
+    if (!refs.ok) continue;
+    for (const branch of refs.out.split(/\r?\n/).filter(Boolean)) {
+      const n = git(root, ['rev-list', '--count', `HEAD..${branch}`]);
+      const ahead = n.ok ? Number(n.out) : 0;
+      if (ahead > 0) out.push({ branch, kind, slice: branch.slice(`${kind}/${slug}/`.length), ahead });
+    }
+  }
+  return out;
+}
+
 export function removeScratchWorktrees(root, slug, name = null) {
   const scope = scratchWorktreeDir(root, slug, name);
   const out = { removed: [], refused: [], failed: [] };
@@ -142,6 +163,13 @@ export function removeScratchWorktrees(root, slug, name = null) {
     const scan = linksUnder(w.path);
     if (scan.links.length || !scan.complete) {
       out.refused.push({ path: w.path, reason: scan.links.length ? `it holds links: ${scan.links.slice(0, 3).join(', ')}` : 'the link scan did not finish' });
+      continue;
+    }
+    // A copy with a change that is not committed holds work that is nowhere else: it is kept and reported.
+    const dirty = git(w.path, ['status', '--porcelain', '--untracked-files=no']);
+    const changed = dirty.ok ? dirty.out.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3)) : null;
+    if (changed === null || changed.length) {
+      out.refused.push({ path: w.path, reason: changed === null ? 'git could not read its state' : `it holds ${changed.length} change${changed.length === 1 ? '' : 's'} that are not committed: ${changed.slice(0, 3).join(', ')}` });
       continue;
     }
     const r = git(root, ['worktree', 'remove', '--force', w.path]);

@@ -54,7 +54,9 @@ test('no lib file builds a conventional commit with an interpolated scope', () =
 test('_workflow-rules.md owns the stage-by-path commit rule, and the copies cite it', () => {
   const rules = readFileSync(path.join(refRoot, '_workflow-rules.md'), 'utf8');
   assert.match(rules, /\*\*Stage each file by its path when you commit\.\*\*/);
-  assert.match(rules, /Fail closed: do not stage it, and ask the person/);
+  // Another session's uncommitted file does not stop a commit: it is left alone.
+  assert.match(rules, /Any other dirty path is not yours\. Do not stage it, do not stash it, and go on\./);
+  assert.doesNotMatch(rules, /Fail closed: do not stage it, and ask the person/);
   assert.match(rules, /Never run `git add -A`, `git add \.`, `git commit -a` or a `git add` with no path/);
   assert.match(rules, /`<type>: <what the change does>`/);
   for (const rel of ['implement.md', 'intake/small.md', 'implement/_reviews-mode.md', 'prototype.md', '_fix-loop.md', 'implement/_steps.md']) {

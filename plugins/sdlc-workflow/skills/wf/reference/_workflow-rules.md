@@ -19,7 +19,7 @@
 - **Stage each file by its path when you commit.** Other sessions leave uncommitted work in the same tree.
   1. Stage the code files that this step changed, each by its path: `git add -- <path> <path>`.
   2. Stage the workflow records under `<wf-dir>/` by path.
-  3. Any other dirty path is not yours. Fail closed: do not stage it, and ask the person.
+  3. Any other dirty path is not yours. Do not stage it, do not stash it, and go on. Ask the person only when the path is a file that your step must change and its uncommitted change is not yours.
   4. Never run `git add -A`, `git add .`, `git commit -a` or a `git add` with no path. A sweep commits the work of other sessions.
   5. Write the message as `implement/_steps.md` says: `<type>: <what the change does>`. Name no slug, no slice, no step number and no finding id.
 - **Run the code of another commit only in a scratch worktree.** This applies when a step needs the code of a commit that is not checked out: the base of a slice (to see whether a test failed before the slice), a release tag, or a commit to bisect.

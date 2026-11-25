@@ -12,6 +12,7 @@ import {
   parseLegacyAnswers, parseLegacySteer, readDecisions,
 } from '../../lib/decisions.mjs';
 import { parse } from '../../lib/yaml.mjs';
+import { setFields } from '../../lib/records.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const wf = path.join(pluginRoot, 'scripts', 'wf.mjs');
@@ -152,10 +153,15 @@ test('wf.mjs decide hold publishes a held question; a second hold replaces it; a
     assert.deepEqual(q[1].options, ['refuse', 'clamp']);
     assert.equal(q[1].recommended, 'refuse');
     assert.match(q[1]['held-at'], /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-    r = cli('hold', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse or clamp a restart below the floor?', '--stage', 'implement', '--json');
+    r = cli('hold', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse or clamp a restart below the floor?', '--stage', 'implement', '--slice', 'rules', '--json');
     assert.equal(JSON.parse(r.stdout).replaced, true);
     q = open();
-    assert.equal(q.length, 2, 'a second hold of the key replaces the entry');
+    assert.equal(q.length, 2, 'a second hold of the key for the same slice replaces the entry');
+    // The same key for another slice is another question: the stage of that slice holds its own.
+    r = cli('hold', f.root, 'demo', '--key', 'restart-floor', '--question', 'Refuse or clamp, in the save path?', '--stage', 'verify', '--slice', 'saves', '--json');
+    assert.equal(JSON.parse(r.stdout).replaced, false);
+    assert.deepEqual(open().slice(1).map((x) => x.slice), ['rules', 'saves']);
+    setFields(f.dir, '00-index.md', { 'open-questions': open().slice(0, 2) });
     assert.equal(q[1].question, 'Refuse or clamp a restart below the floor?');
     const qf = path.join(f.root, 'q.json');
     writeFileSync(qf, JSON.stringify({ questions: [{ key: 'restart-floor' }, { key: 'other' }] }));

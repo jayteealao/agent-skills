@@ -34,7 +34,7 @@ A run that is still over `budget.long` on the fastest valid path is a decision. 
 
 ## L4 — Run in the background
 
-- In a session, start a long run in the background, with its output in a file. A stage agent of a driver does not: it runs the command in the foreground with a long timeout and its output in a file, and never ends its turn to wait, because the host takes its result when the turn ends.
+- In a session, start a long run in the background, with its output in a file. A stage agent of a driver does not: it starts the command as a job and waits for its end with `talk wait --job` ([_talk.md](_talk.md)). It never ends its turn to wait, because the host takes its result when the turn ends.
 - Record it in the stage record under `long-runs:`, one entry each: `{ command, started-at, expected-end, output, machine }`. A later stage or session reads the result from the output file.
 - Continue with work that does not depend on the result.
 - In a session, wait on the process with the wait tool of the host. Do not wait in a `sleep` loop.

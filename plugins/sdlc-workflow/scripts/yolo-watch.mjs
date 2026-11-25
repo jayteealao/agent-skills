@@ -82,9 +82,10 @@ import {
 import { RUN_DECISIONS_KEY, decisionsOf, delegatesDecisions, liveDecisions, runDelegatedIn } from '../lib/decisions.mjs';
 import { readDoc } from '../lib/records.mjs';
 import { heldQuestions } from '../lib/decide-wait.mjs';
+import { readTalk, watchEventsOf } from '../lib/talk.mjs';
 import { readProgress } from '../lib/progress.mjs';
 import { pidAlive, isMainModule } from '../lib/proc.mjs';
-import { clearStopRequest, lastRunEndAt, madeAfterLastRun } from '../lib/stop-request.mjs';
+import { clearStopRequest, lastRunEndAt, madeAfterLastRun, madeForGoneRun } from '../lib/stop-request.mjs';
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
@@ -433,8 +434,21 @@ function freshSlugState() {
   return {
     version: STATE_VERSION, offset: 0, run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0,
     newest: null, ended: false, endedRun: null, staleFor: null, decisionsSeen: [], openStages: {}, lookIns: {},
-    questionsSeen: [], waitingFrom: null,
+    questionsSeen: [], waitingFrom: null, talkSeen: null,
   };
+}
+
+/**
+ * The state that a watch starts from. A re-arm, minutes after the last poll, goes on with the run
+ * that it watched. A state that no watch polled for hours is of another launch: only what was
+ * read and reported is kept, and the run of that state (its newest line, its open stages, its
+ * wait) is history that raises no alert.
+ */
+export function resumedState(saved, nowMs) {
+  const endedRun = saved.endedRun || (saved.ended && saved.run ? saved.run : null);
+  if (Number(saved.polledAt) > nowMs - REPO_STALE_MS) return { ...saved, ended: false, endedRun, watchFrom: keptWatchFrom(saved, nowMs) };
+  return { ...saved, ended: false, endedRun: endedRun || saved.run || null, run: null, newest: null, lastLineAt: null, prevLineAt: null,
+    longestGapMs: 0, staleFor: null, openStages: {}, waitingFrom: null, watchFrom: nowMs };
 }
 
 export function loadState(root, slug) {
@@ -473,7 +487,10 @@ export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {
  */
 export function keptWatchFrom(saved, nowMs) {
   const from = Number(saved && saved.watchFrom);
-  const live = Number.isFinite(from) && saved.lastLineAt !== null && saved.lastLineAt >= from
+  // A re-arm comes minutes after the last poll of the watch before it. A state that no watch
+  // polled for hours is of another launch: its run is history, and its silence is not a hung agent.
+  const recent = Number(saved && saved.polledAt) > nowMs - REPO_STALE_MS;
+  const live = recent && Number.isFinite(from) && saved.lastLineAt !== null && saved.lastLineAt >= from
     && !(saved.newest && saved.newest.event === 'run-end');
   return live ? from : nowMs;
 }
@@ -530,7 +547,7 @@ export function createWatcher({
       // A new watch belongs to a new launch or a re-arm. The previous run's end
       // must not end this watch before the relaunched driver writes its first line.
       // A state from before `endedRun` that ended keeps its run as ended.
-      ? { st: { ...saved, ended: false, endedRun: saved.endedRun || (saved.ended && saved.run ? saved.run : null), watchFrom: keptWatchFrom(saved, watchStartMs) }, first: false, historyBefore: null }
+      ? { st: resumedState(saved, watchStartMs), first: false, historyBefore: null }
       : { st: { ...freshSlugState(), watchFrom: watchStartMs }, first: true, historyBefore: null };
     states.set(slug, entry);
     setSource(slug, entry);
@@ -583,6 +600,7 @@ export function createWatcher({
 
   function save() {
     for (const [slug, { st }] of states) {
+      st.polledAt = now();
       try {
         ensureRunDir(root, slug);
         writeJsonAtomic(statePath(root, slug), st);
@@ -697,6 +715,9 @@ export function createWatcher({
   function recordFacts(events) {
     for (const ev of events) {
       if (ev.event === 'stage-start') fact([ev.slug], `stage start · ${ev.stage}${ev.slice ? ` · slice ${ev.slice}` : ''}`, ev.at);
+      else if (ev.event === 'talk') fact([ev.slug], `talk ${ev.id} · ${ev.by} → ${ev.to.join(', ')}${ev.re ? ` (re ${ev.re})` : ''} · ${ev.text}`, ev.at);
+      else if (ev.event === 'talk-ping') fact([ev.slug], `talk ping · ${ev.of} of ${ev.from} has no ${ev.auto ? 'receipt' : 'answer'} from ${ev.to.join(', ')}`, ev.at);
+      else if (ev.event === 'talk-fallback') fact([ev.slug], `talk · ${ev.by} got no reply to ${ev.of} and took its fallback: ${ev.fallback}`, ev.at);
       else if (ev.event === 'commit') fact(Array.isArray(ev.slugs) ? ev.slugs : [], `commit \`${ev.sha}\` · ${ev.subject}`, ev.committedAt);
       // A look-in of a delegated run wakes no session: its record is this line.
       else if (ev.event === 'look-in' && ev.quiet) {
@@ -715,6 +736,20 @@ export function createWatcher({
   // next only past twice that time. The counts live in the saved state, so a watch
   // restart does not repeat a look-in. In a delegated run the look-in is quiet: it goes to
   // commentary.md, and the session is not woken.
+  /** The new entries of the talk of each workflow. The entries before the first poll are history. */
+  function pollTalk() {
+    const events = [];
+    for (const [slug, { st }] of states) {
+      let log = [];
+      try { log = readTalk(workflowDir(root, slug)); } catch { continue; }
+      const newest = log.length ? Number(String(log[log.length - 1].id).replace(/\D/g, '')) || 0 : 0;
+      if (st.talkSeen === null || st.talkSeen === undefined || newest < st.talkSeen) { st.talkSeen = newest; continue; }
+      if (newest > st.talkSeen) events.push(...watchEventsOf(slug, log, st.talkSeen));
+      st.talkSeen = newest;
+    }
+    return events;
+  }
+
   function pollLookIn() {
     if (lookInMs === 0) return [];
     const t = now();
@@ -756,7 +791,7 @@ export function createWatcher({
   }
 
   return {
-    root, states, pollJournals, pollCommits, pollProtected,
+    root, states, pollJournals, pollCommits, pollProtected, pollTalk,
     pollLookIn, recordFacts, checkLocks, releaseLocks, allEnded, save: finish,
   };
 }
@@ -850,6 +885,8 @@ export function stopCheck(root, slug) {
   const runEnd = lastRunEndAt(journalPath(root, slug));
   const served = runEnd !== null && Number.isFinite(Date.parse(request.requestedAt || '')) && !madeAfterLastRun(request, runEnd);
   if (served) return { stop: false, stale: true, request };
+  // A request that the person made for a run whose host died is not for the run that came after it.
+  if (madeForGoneRun(request, journalPath(root, slug))) return { stop: false, stale: true, request };
   if (after === 'current') return { stop: true, reason: 'stop after the current agent', request };
   const asked = Date.parse(request.requestedAt || '') || 0;
   const ended = readJournalFrom(journalPath(root, slug), 0).lines.some((l) => l && l.event === 'agent-end' &&
@@ -1027,9 +1064,10 @@ async function watch(root, slugs, flags) {
       }
       // The journal goes last, so a run-end follows the commits the run made.
       events.push(...w.pollJournals());
+      events.push(...w.pollTalk());
       events.push(...w.pollLookIn());
       // Routine events go to commentary.md and wake no session; --all prints every event.
-      if (!flags.all) for (const ev of events) if (isRoutine(ev)) ev.quiet = true;
+      if (!flags.all) for (const ev of events) if (isRoutine(ev) || ev.routine) ev.quiet = true;
       w.recordFacts(events);
       // A quiet look-in (a delegated run) is in commentary.md: on stdout it would wake the session.
       for (const ev of events) if (!ev.quiet) { out(ev); printed += 1; }

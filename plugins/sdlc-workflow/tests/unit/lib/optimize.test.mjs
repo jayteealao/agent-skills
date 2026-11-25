@@ -653,3 +653,12 @@ test('a proposer past twice its propose-time is over its time; without a start o
   assert.equal(proposeOvertime(0, 0, 99 * min), null);
   assert.match(overtimeRefusal('trunk', { elapsedMs: 31 * min, limitMs: 30 * min }), /31 min ago, past twice its propose-time \(30 min\).*return your best hypothesis/);
 });
+
+test('the loop stops on a stop request of its own time, and not on one that is older than the loop', () => {
+  const spec = specOf();
+  const s = stateOf({ startedAt: '2026-11-25T09:00:00Z' });
+  const old = nextAction({ state: s, spec, control: { action: 'stop', requestedAt: '2026-11-20T09:00:00Z' } });
+  assert.notEqual(old.reason, 'stop-request', 'that request was made for another run of the slug');
+  assert.equal(nextAction({ state: s, spec, control: { action: 'stop', requestedAt: '2026-11-25T09:00:30Z' } }).reason, 'stop-request');
+  assert.equal(nextAction({ state: s, spec, control: { action: 'stop' } }).reason, 'stop-request', 'a request with no time stops, as before');
+});

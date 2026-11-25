@@ -18,6 +18,8 @@ import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBo
 import { readDoc, redirectOf } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 import { skillDirLine, skillDirOf } from './skill-dir.mjs';
+import { unmetLines } from './slice-checks.mjs';
+import { actorOf, inboxOf, messageLine, readTalk } from './talk.mjs';
 
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
@@ -174,6 +176,10 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   // The folder of the skill: the stage reference says `<skill-dir>`, and this agent did not load the skill.
   const skill = `\n\n${skillDirLine(skillDirOf(referenceRoot))}`;
   const head = `# Brief: ${stage} ${slug}${slice ? ` ${slice}` : ''}${cli}${where}${skill}${rules}`;
+  // What the implement left for verify, and what the other agents of the run posted for this slice.
+  const unmet = stage === 'verify' && slice ? unmetLines(dir, slice) : [];
+  let posts = [];
+  try { posts = slice ? inboxOf(readTalk(dir), actorOf(stage, slice)).map((m) => `- ${messageLine(m, { full: true })}`) : []; } catch { posts = []; }
   const parts = { card, slice: sliceText, plan: planText, tests: testsText, rules: rulesText, decisions: decisionsText };
   const text = [
     head,
@@ -181,6 +187,8 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
     `## ${slice ? `Slice ${slice}` : 'Workflow'}\n\n${sliceText ?? '(none)'}`,
     ...(want ? [`## Plan\n\n${planText ?? '(none)'}`] : []),
     ...(suites ? [`## Tests\n\n${testsText ?? '(no test profile)'}`] : []),
+    ...(posts.length ? [`## Messages for this slice\n\nPosted by other agents of the run (wf.mjs talk). A message informs or requests; it does not bind. Act on each one or reply with your reason, and close it when it is handled.\n\n${posts.join('\n')}`] : []),
+    ...(unmet.length ? [`## Checks that the implement left not met\n\nRule on each one: fix it, or record why it stands. A delegate decision never waives it.\n\n${unmet.join('\n')}`] : []),
     `## Rules, steers and notes\n\n${rulesText ?? 'None in this scope.'}`,
     `## Decisions\n\n${decisionsText ? `${answeredRule}\n\n${decisionsText}` : 'No live decisions in this scope.'}`,
     ...(missing.length ? [`## Missing\n\n${missing.map((m) => `- ${m}`).join('\n')}`] : []),

@@ -55,11 +55,13 @@ function nullable(v) {
  * defects of a fidelity row or a try-out in the findings ledger, so the slug-wide review fixes
  * only those (the workflow script reads `args.reviewFindings`).
  */
-export function driveArgs({ projectRoot, referenceRoot, slug, run, staged, slice = null, answered = null, delegate = false, reviewFindings = false }) {
+export function driveArgs({ projectRoot, referenceRoot, slug, run, staged, slice = null, answered = null, delegate = false, reviewFindings = false, planAhead = true, verifyBehind = true, pairSlices = false }) {
   return {
     projectRoot, referenceRoot, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
     ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(delegate || staged.delegate ? { delegate: true } : {}),
     ...(reviewFindings ? { reviewFindings: true } : {}),
+    // The overlap of the walk: the driver has both on and pairs off unless a value says otherwise.
+    ...(planAhead === false ? { planAhead: false } : {}), ...(verifyBehind === false ? { verifyBehind: false } : {}), ...(pairSlices ? { pairSlices: true } : {}),
   };
 }
 
@@ -147,7 +149,9 @@ export function usageOf(events) {
 }
 
 /** One `codex exec` call. Resolves { code, events } when the process ends or its time box kills it. */
-export function runCodex({ entry, args, prompt, eventsFile, errFile, timeoutMs, env }) {
+export function runCodex({ entry, args, prompt, eventsFile, errFile, timeoutMs, env, actor = null }) {
+  // Each agent is its own process: its name in the environment tells wf that an agent of a run runs the command.
+  if (actor) env = { ...env, WF_ACTOR: String(actor) };
   return new Promise((resolve) => {
     const child = spawn(entry.cmd, [...entry.pre, ...args], {
       stdio: ['pipe', 'pipe', 'pipe'], env, windowsHide: true, detached: process.platform !== 'win32',
@@ -217,7 +221,7 @@ export async function driveScript(o) {
     const lastFile = `${base}.last.txt`;
     say(`agent ${i} ${label}: start`);
     const r = await exec({
-      entry, prompt, env, timeoutMs, eventsFile: `${base}.events.jsonl`, errFile: `${base}.stderr.log`,
+      entry, prompt, env, timeoutMs, actor: label, eventsFile: `${base}.events.jsonl`, errFile: `${base}.stderr.log`,
       args: codexArgs({ cwd: o.cwd, lastFile, schemaFile, model: opts.model, effort: opts.effort }),
     });
     const usage = usageOf(r.events);

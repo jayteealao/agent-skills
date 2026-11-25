@@ -190,7 +190,9 @@ test('delegate mode settles each intent-bearing decision by the recommendation a
   assert.match(plan, /that entry outranks the delegation: do not settle the question, and do not return it\. Hold the question: run `[^`]*decide hold "\/repo" demo/);
   assert.match(plan, /decide wait "\/repo" demo --key <each key that you hold/);
   assert.match(plan, /A red test, a failing gate or a refused check\. Fix it\. A delegate decision never waives it, never marks it as passed/);
-  assert.match(plan, /BACKGROUND WORK\. Never start a command in the background, and never end your turn to wait for one/);
+  assert.match(plan, /LONG COMMANDS\. Never start a command in the background with `&` or a background tool, and never end your turn to wait for one/);
+  assert.match(plan, /is a job: start it with `[^`]*talk job "\/repo" demo --as <your name> --name <short-name> -- "<the command line>"`/);
+  assert.match(plan, /SHARED RESOURCES\. Run `[^`]*talk resources "\/repo" demo` once before your first build or test command/);
   assert.match(plan, /STOP-REQUEST CHECK \(the FIRST thing you do, before the start heartbeat of this prompt\)/);
   assert.deepEqual(outcome.delegate, { digest: 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --by delegate' });
 });

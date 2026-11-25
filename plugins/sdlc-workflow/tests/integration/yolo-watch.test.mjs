@@ -492,9 +492,12 @@ test('a restart does not reset the silence; a long gap and a long silence across
 });
 
 test('a restart after the run ended counts from its own start', () => {
-  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 100, 'the run wrote after the first watch: keep its start');
-  assert.equal(W.keptWatchFrom({ watchFrom: 300, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 999, 'no line since the first watch: a new launch');
-  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'run-end' } }, 999), 999, 'the run ended');
+  // A re-arm comes minutes after the last poll of the watch before it.
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, polledAt: 900, newest: { event: 'agent-start' } }, 999), 100, 'the run wrote after the first watch: keep its start');
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 999, 'no watch polled this state lately: a new launch');
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, polledAt: 900, newest: { event: 'agent-start' } }, 900 + W.REPO_STALE_MS + 1), 900 + W.REPO_STALE_MS + 1, 'hours after the last poll: a new launch');
+  assert.equal(W.keptWatchFrom({ watchFrom: 300, lastLineAt: 200, polledAt: 900, newest: { event: 'agent-start' } }, 999), 999, 'no line since the first watch: a new launch');
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, polledAt: 900, newest: { event: 'run-end' } }, 999), 999, 'the run ended');
   assert.equal(W.keptWatchFrom({ lastLineAt: 200 }, 999), 999, 'a state from before F3');
 });
 

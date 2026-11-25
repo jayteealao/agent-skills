@@ -499,7 +499,11 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (!state) return { state: 'stopped', reason: 'no-baseline', next: { action: 'baseline' } };
   if (state.finished) return { state: 'finished', reason: 'finished', detail: `finished at ${state.finished.commit ?? 'no commit'}`, next: { action: 'verify' } };
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
-  if (control && typeof control === 'object') {
+  // A stop request that is older than this loop was made for another run of the slug.
+  const askedAt = Date.parse(control?.requestedAt ?? '');
+  const startedAt = Date.parse(state.startedAt ?? state['started-at'] ?? '');
+  const forThisLoop = !(Number.isFinite(askedAt) && Number.isFinite(startedAt) && askedAt < startedAt);
+  if (control && typeof control === 'object' && forThisLoop) {
     if (control.action === 'stop') return { state: 'stopped', reason: 'stop-request', detail: str(control.reason), next: { action: 'person', why: 'resume with /wf loop optimize <slug> once the request is cleared' } };
   }
   // With no trial count, the clock is the budget: the count has no end, and the round points are shares of the clock.

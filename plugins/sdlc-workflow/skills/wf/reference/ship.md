@@ -125,14 +125,15 @@ Each step can run again on its own: detect the done state before you make the si
 
 ## Step 1 — Pre-flight
 
-1.1 **The branch and the tree.** Check that you are on `<branch>`, and that `git status --porcelain` is empty. When the tree is dirty, sort each dirty path into a class, and stop only on a path that needs the person:
+1.1 **The branch and the tree.** Check that you are on `<branch>`, and read `git status --porcelain`. Other sessions leave uncommitted work in the same tree, so a dirty path alone does not stop the ship. Sort each dirty path into a class, and stop only on a path that needs the person:
 
    | Dirty path | Do |
    |---|---|
    | A file that the plugin seeded: a `CLAUDE.md` whose diff lies entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` that holds only the `<!-- sdlc:wf-rules -->` fence, or `.ai/.wf-rules-seeded` | The memory seed wrote these; check by the diff that nothing lies outside the fences. Ask a gate question per [_gate-question.md](_gate-question.md): commit as `chore(sdlc): seed wf rules` (Recommended), or gitignore the marker file. Do not just tell the person to commit or stash. |
    | The `.ai/` bookkeeping of the workflow | Follow the `artifactTracking` setting of `.ai/sdlc-config.json` (see `/wf project ship-plan init`). `tracked`: offer to commit the bookkeeping now as `chore(sdlc): workflow artifacts`. `ignored`: these paths should not be dirty; report the policy breach (likely a missing `.gitignore` block), and do not commit. Not set: ask once for this run, and write the answer (`tracked` or `ignored`) under `artifactTracking` in `.ai/sdlc-config.json`, as `ship-plan init` Step 3.5 does. |
    | The output of `ship-plan build`: a file whose diff carries the `# Added by wf ship-plan build` provenance comment | Do not commit it silently. Offer: route it to a review slice first (Recommended; stop with the `/wf intake <slug> fix …` seed), or accept it as it is, recorded in `## Pre-flight` as `unreviewed-build-output-accepted` with the file list. |
-   | Anything else | Stop, and ask the person to commit or stash it. An unknown path always fails closed. |
+   | A path that a ship step writes (a version file, the changelog), or a path that the diff of the branch against its base changes | Stop, and ask the person to commit or stash it: the ship would carry or overwrite that change. |
+   | Anything else | The path is not yours and the ship does not touch it. Do not stage it and do not stash it. List it in `## Pre-flight` as `not-of-this-ship`, and go on. |
 
    When the tree is clean, or every path is resolved, record `branch` and `head-sha-at-start: <git rev-parse HEAD>`.
 

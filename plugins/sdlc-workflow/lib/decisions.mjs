@@ -30,6 +30,7 @@ import { writeFileAtomic } from './atomic-write.mjs';
 import { withFileLock } from './file-lock.mjs';
 import { parse, stringify } from './yaml.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { callerActor, personOnly } from './actor.mjs';
 
 export const DECISIONS_FILE = 'decisions.yaml';
 export const KINDS = ['answer', 'steer', 'approval', 'try-out', 'delegate', 'note', 'settled'];
@@ -190,7 +191,10 @@ export function dropAnswered(list, questions, query = {}) {
  */
 export function appendEntry(list, input, { now = nowIso() } = {}) {
   const kind = input.kind ?? 'answer';
-  const by = input.by ?? (kind === 'note' || kind === 'settled' ? 'stage' : 'person');
+  // With no --by, the session of the person records the words of the person. An agent of a run never does.
+  const by = input.by ?? (kind === 'note' || kind === 'settled' || callerActor() ? 'stage' : 'person');
+  if (by === 'person') personOnly('record an entry');
+  else if (kind === 'steer' || kind === 'approval') personOnly(`write ${kind === 'steer' ? 'a steer' : 'an approval'}`);
   if (!KINDS.includes(kind)) {
     throw refuse(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing rule of the person), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person), note (a hand-off from a stage to one slice), settled (a decision that a stage settled itself)`, agentFix('Run the command again with a --kind that the error lists.'));
   }
@@ -235,8 +239,12 @@ export function appendEntry(list, input, { now = nowIso() } = {}) {
     if (replaces.includes(e.id) && isLive(e)) { e['superseded-by'] = entry.id; superseded.push(e.id); }
   }
   if (entry.key) {
+    const same = (e) => isLive(e) && e.key === entry.key && sameScope(e.scope, entry.scope) && familyOf(e.kind) === familyOf(kind);
+    // The answer of the person stands until the person changes it: no stage and no delegate writes over it.
+    const ofPerson = by === 'person' ? null : list.find((e) => same(e) && e.by === 'person');
+    if (ofPerson) throw refuse(`the person answered ${entry.key} (${ofPerson.id}): that answer stands`, agentFix(`Follow ${ofPerson.id}. When it does not fit the case, hold the question for the person with decide hold; do not record another answer under the same key.`));
     for (const e of list) {
-      if (isLive(e) && e.key === entry.key && sameScope(e.scope, entry.scope) && familyOf(e.kind) === familyOf(kind)) {
+      if (same(e)) {
         e['superseded-by'] = entry.id;
         superseded.push(e.id);
       }
@@ -466,7 +474,12 @@ export function delegatesDecisions(answer) {
   const a = String(answer ?? '').trim().toLowerCase().replace(/[\s.!]+$/, '').replace(/\s+/g, ' ');
   if (!a) return false;
   if (a === RUN_DECISIONS_OPTIONS[1].toLowerCase()) return true;
-  if (/\b(no|not|never|none|nor|neither|without|stop|wait|ask|don'?t|doesn'?t|won'?t)\b|n't\b/.test(a)) return false;
+  // A tail that only declines the digest changes nothing: "take the recommended option, no need to show me".
+  // The tails are a closed list. Any other tail is read with the rest of the answer.
+  const body = a.replace(/\s*(?:[,;:]|\band\b)\s*(?:no need to show me|(?:do not|don'?t) show me)(?: each one| them| the digest)?$/, '').replace(/\s*[,;:]\s*no digest$/, '');
+  if (body !== a) return delegatesDecisions(body);
+  // A negation, a stop, or a condition ("unless", "only for", "before", "first") is not a plain yes: the run asks.
+  if (/\b(no|not|never|none|nor|neither|without|stop|wait|ask|unless|except|only|if|when|before|first|until|don'?t|doesn'?t|won'?t)\b|n't\b/.test(a)) return false;
   return /\b(take|use|pick|choose|go with|accept|follow)\b.*\brecommend/.test(a)
     || /^(the )?recommended( option| one)?$/.test(a)
     || /^(yes,? )?delegate\b/.test(a)
@@ -477,7 +490,8 @@ export function delegatesDecisions(answer) {
 export function runDelegatedIn(slugDir) {
   try {
     const entry = answeredBy(decisionsOf(slugDir), RUN_DECISIONS_KEY);
-    return Boolean(entry) && delegatesDecisions(entry.answer);
+    // Only the person, or a standing answer of the person, lets a run settle the decisions of the person.
+    return Boolean(entry) && (entry.by === 'person' || settledByStanding(entry.by)) && delegatesDecisions(entry.answer);
   } catch { return false; }
 }
 

@@ -27,6 +27,10 @@ You are running `/wf verify`, stage 6 of 9: 1·intake → 2·design → 3·slice
 - A `full` or `heavy` command, or a command longer than the longest check of your brief, is a long run. A long run is never a slice step (`_long-runs.md` L5): record it under `## Packet Checks`. Do this also when an acceptance criterion needs it or names a push hook. The review runs it once for the packet.
 - Reuse the runtime evidence of a check when no file that the check depends on changed since its evidence commit, per [verify/_runtime-evidence.md](verify/_runtime-evidence.md). Drive the runtime only for the other checks.
 - When `verified-head` of the last verify record of this slice equals HEAD and the plan of the slice did not change, keep the last clean result. Run no check again. When the result is clean, write `verified-head` with the HEAD sha.
+- `record stage-done verify` checks these facts in code, and refuses the end of the stage when one does not hold:
+  - A `pass` names `verified-head`, and no code changed after that commit. After a fix commit of Step 7.6, run the checks again and write the new HEAD.
+  - Each slice check of the plan is met on that code. Run each one through wf (`step check --run "<command>"`, or `talk job` and `step check --job <id>`), so that wf sees its exit code. A check that implement left as not met needs a new run that passes, or the result is not `pass`.
+  - `accepted-items` names who accepted in `accepted-by`, and the decision store holds that accept: an answer by the person for this slice, or one `verify-accept:<slice>:<item>` entry by a delegate.
 - Use an emulator or a simulator. Do not drive a physical device that `devices.test` of `.ai/sdlc-config.json` does not name.
 - Set the terminal state honestly: `convergence` and `result`.
 - Done when `06-verify-<slice>.md` records the result of every acceptance criterion.

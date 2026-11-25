@@ -4,7 +4,9 @@ This file judges whether a driver, a background run, or another session is still
 
 ## The staleness rule
 
-Rules 3 and 4 of [_control-file-ownership.md](_control-file-ownership.md), and every status line about a driver, turn on one question: *is a driver actually running right now?* Answer it from **recency**, never from existence.
+Rules 3 and 4 of [_control-file-ownership.md](_control-file-ownership.md), and every status line about a driver, turn on one question: *is a driver actually running right now?*
+
+**Ask the host process first.** Run `node "<skill-dir>/scripts/wf.mjs" progress show "<root>" <slug>`. A run records the process of its host. When the line says that the host process is alive, the run is live, however long its journal is silent: a long suite writes no journal line. When it says that the host process is gone, the run is dead at once. Only when the record names no host process does the rule below decide. Answer it then from **recency**, never from existence.
 
 > **A journal silent for longer than its own longest observed inter-agent gap is no longer running. When its newest entry is an `agent-start`, that agent never returned: say "presumed dead since `<last entry>`", never "still running". When its newest entry is an `agent-end`, every agent returned: say "stopped at `<stage>`".**
 

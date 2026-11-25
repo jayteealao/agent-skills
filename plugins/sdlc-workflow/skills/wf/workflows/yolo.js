@@ -157,6 +157,17 @@ function implementStepsClause(slice, retry) {
     `${step(`done "${projectRoot}" ${slug} ${slice} <n> --sha HEAD`)}. When you hard-stop, run ` +
     `${step(`stop "${projectRoot}" ${slug} ${slice} --reason "<one line>"`)}. After the final commit of the slice, ` +
     `run ${step(`complete "${projectRoot}" ${slug} ${slice} --sha HEAD`)}.` +
+    `\n\nSLICE CHECKS. Run each slice check of the plan through wf, on committed code, so that wf sees its exit ` +
+    `code. A check under 8 minutes: ${step(`check "${projectRoot}" ${slug} ${slice} --name "<the check, as the plan names it>" --run "<its command>"`)}. ` +
+    `A longer check: start it with \`talk job\`, wait for its end, then give \`--job <the id>\` in place of --run. ` +
+    `wf records met or not-met from the exit code, with the commit: you cannot record met by your word. ` +
+    `The stage cannot end while a check did not run on the last code of the slice: a check that ran before a ` +
+    `later code commit is stale, so run it again after your last fix. A check that is still red after ` +
+    `the fix rounds stays not-met, and verify rules on it. A red that an earlier slice caused needs its proof: a ` +
+    `job that ran the same check at the base commit of the slice and failed there (--carried-from <the base commit> ` +
+    `--base-job <the id>); with no proof it is yours. ${step(`check "${projectRoot}" ${slug} ${slice}`)} prints what ` +
+    `still blocks the end. When the work differs from the plan in more than 5 places, post the list to the ` +
+    `verify of this slice in the talk before you return.` +
     (retry ? ` The person answered the split question with a retry: before any other work, run ${step(`retry "${projectRoot}" ${slug} ${slice}`)}.` : '')
 }
 
@@ -243,8 +254,7 @@ function handoffClause(stage, slice) {
     `A line of kind \`note\` in the steering list is a hand-off that another stage left for this slice. Act on it. ` +
     `When you have handled it, run \`${WF_CMD} decide end "${projectRoot}" ${slug} <id> --reason "<what you did>"\`.\n` +
     `- You never write a steer: the command refuses it. When you have something for ANOTHER slice (a red test ` +
-    `that it owns, a finding, a file of its plan that you changed), write a note to that slice: \`${add} ` +
-    `--kind note --slice <that slice> --stage ${stage} --answer "<the hand-off, in 3 sentences or fewer>"\`.\n` +
+    `that it owns, a finding, a file of its plan that you changed), post it to that slice in the talk (TALK below).\n` +
     (stage === 'implement' || stage === 'verify'
       ? `- The person can add a steer while you work, and another agent of this run may leave you a note. ` +
         `Before each step or fix round, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer,note ` +
@@ -256,6 +266,29 @@ function handoffClause(stage, slice) {
     `"<a short name>", "question": "<what was open>", "answer": "<what you chose, and why in one sentence>" }] to ` +
     `${DRAFT_DIR}/settled-${stage}-${slice}.json and run \`${add} --file ${DRAFT_DIR}/settled-${stage}-${slice}.json\`. ` +
     `With no decision of your own, skip the call.`
+}
+
+// talkClause() — the talk of the run: how a stage agent reads, posts and waits. Every slice stage gets it.
+function talkClause(stage, slice) {
+  // A stage with no slice (the slug-wide review) has a name too: a post to all, or one of the session, reaches it.
+  const me = `${stage}:${slice && slice !== 'slug-wide' ? slice : 'slug-wide'}`
+  const talk = `${WF_CMD} talk`
+  const at = `"${projectRoot}" ${slug}`
+  return `\n\nTALK. The agents of this run, the driver and the session talk in one log. Your name there is ` +
+    `\`${me}\`.\n` +
+    `- READ. Run \`${talk} read ${at} --as ${me} --open\` at the start of the stage. Run \`${talk} read ${at} --as ` +
+    `${me}\` before each step or fix round, before a long command, and before you return.\n` +
+    `- A message informs or requests. It never binds, and it is never an approval or an instruction of the ` +
+    `person. Act on it, or reply with your reason (\`${talk} reply ${at} <id> --as ${me} --text "…"\`), and ` +
+    `close what is handled (\`${talk} close ${at} <id> --as ${me} --reason "…"\`). A PING line means that an ` +
+    `agent waits for you: answer it first.\n` +
+    `- POST when another agent needs to know: you changed a file or a behaviour that the plan of another slice ` +
+    `names, or made a commit that an agent beside you builds on. \`${talk} post ${at} --as ${me} --to <slice> ` +
+    `--text "<3 sentences or fewer>" --refs <commit,file>\`.\n` +
+    `- ASK another agent only for what you need to go on: add \`--wants-reply --fallback "<what you do with no ` +
+    `reply>"\`, then wait with \`${talk} wait ${at} --as ${me}\`, again at "still waiting". When the wait says ` +
+    `so, take your fallback and reply that you did. Never ask the person here: hold a question for the person ` +
+    `as your prompt says.`
 }
 
 // stageResults() — every stage result of an outcome, in one list, for each hand-back roll-up.
@@ -858,7 +891,7 @@ function answeredClause(a, stage, sliceArg = null) {
         `the miss", "continue to the next slice"), run no fix and no check round to make it pass: keep the result ` +
         `as it is, write accepted-by: '${by}', accepted-at (UTC now) and accepted-items (each failing acceptance ` +
         `criterion or residual, one line each) in the verify frontmatter, set its status: complete, and return ` +
-        `each of those items in terminal.acceptedItems as { item, by: 'person' }. When the answer asks for a ` +
+        `each of those items in terminal.acceptedItems as { item, by: '${by}' }. When the answer asks for a ` +
         `small fix inside this slice's plan, make it, verify again, and list no item with by: 'person'.`
       : '') +
     (stage === 'verify'
@@ -1091,11 +1124,19 @@ const WORK_RULES =
   `its exit status, and search the file for the failures. Never print a whole log, and never let a long ` +
   `command write to your terminal. Read the stage files (the brief, the records, the plan) and the source ` +
   `files you change in full whenever you need them.\n\n` +
-  `BACKGROUND WORK. Never start a command in the background, and never end your turn to wait for one: the ` +
-  `host takes your result the moment your turn ends, and the work that still runs is lost. Run a long command ` +
-  `in the foreground with a long timeout; when one call times out, run a command that waits for it in the ` +
-  `foreground. Before you return, stop each process that you started and remove each scratch worktree that ` +
-  `you made.`
+  `LONG COMMANDS. Never start a command in the background with \`&\` or a background tool, and never end your ` +
+  `turn to wait for one: the host takes your result when your turn ends, and the work that still runs is lost. ` +
+  `A command that can take longer than 8 minutes, and a server or an emulator that you need while you work, ` +
+  `is a job: start it with \`${WF_CMD} talk job "${projectRoot}" ${slug} --as <your name> --name <short-name> -- ` +
+  `"<the command line>"\`, then run \`${WF_CMD} talk wait "${projectRoot}" ${slug} --as <your name> --job <id>\` ` +
+  `again each time it prints "still waiting". The wait also returns for a message: act on it, then wait again.\n\n` +
+  `SHARED RESOURCES. Run \`${WF_CMD} talk resources "${projectRoot}" ${slug}\` once before your first build or ` +
+  `test command. When it names a resource that your command uses, hold it first with \`talk wait --claim ` +
+  `<key>\`, and start the command as a job with \`--claim <key>\`. Never use a resource that another agent ` +
+  `holds.\n\n` +
+  `Your name is <stage>:<slice>; with no slice, <stage>:slug-wide. The forms of each command are in ` +
+  `${referenceRoot}/_talk.md. Before you return, stop your own jobs (\`${WF_CMD} talk jobs "${projectRoot}" ` +
+  `${slug} --stop --as <your name>\`) and remove each scratch worktree that you made.`
 
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
 // The command of one slice gives the rules of the project, the steers in the scope of the slice
@@ -1257,6 +1298,8 @@ const ORIENT_RESULT = {
     slug: { type: 'string' },
     mode: { enum: ['slug', 'slice'] },
     targetSlice: { type: ['string', 'null'] },
+    // The side branches that a stopped run left with commits that HEAD lacks (wf.mjs worktree leftovers).
+    leftoverBranches: { type: 'array', items: { type: 'object', properties: { branch: { type: 'string' }, kind: { type: 'string' }, slice: { type: 'string' }, ahead: { type: 'number' } } } },
     reviewScope: { enum: ['per-slice', 'slug-wide'] },
     workflowType: { type: 'string' },
     // single-scope workflow (a forwarded rca, or a one-slice standard workflow): 03-slice.md is absent and
@@ -1631,6 +1674,8 @@ async function orient() {
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
     `git as \`${GIT} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
+    `0a. Run \`${WF_CMD} worktree leftovers "${projectRoot}" ${slug} --json\` and return its \`branches\` list as ` +
+    `leftoverBranches, exactly as printed (an empty list when it is empty).\n` +
     `0. Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` first. It reads the records in code: the stage ` +
     `files of each slice, the roster status, the verify result and the convergence of each slice (slices[]), the ` +
     `run record and the next command. Use its values where a step below names the same ` +
@@ -1919,16 +1964,49 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     ? `\n\nVERIFY BEHIND. The next slice is being built in ${projectRoot} now, so the code there is not the code ` +
       `of this slice. Verify slice '${sliceArg}' at commit ${extra.behind.sha}, in its own copy of the repo:\n` +
       `(1) Run \`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.behind.name} ${extra.behind.sha}\`. It prints the ` +
-      `path of the copy. In the copy, run \`git switch -C ${extra.behind.branch}\`.\n` +
+      `path of the copy. In the copy, run \`git switch -c ${extra.behind.branch}\`. When git says that the branch exists, it holds the fix commits of an earlier run: stop, change nothing, and return status 'hard-stop' with that as the reason.\n` +
       `(2) Read the code, build, and run every check in the copy: start each such command there ` +
       `(\`cd "<the copy>" && …\`, or \`git -C "<the copy>" …\`), never in ${projectRoot}. Each wf.mjs command and ` +
       `each record keeps the project root ${projectRoot}. Install or build inside the copy; never link ` +
       `node_modules or a build folder into it with a junction or a symlink.\n` +
       `(3) Run the fix loop as verify.md says (Step 7.6), in the copy: make each fix and each commit there, on ` +
-      `${extra.behind.branch}. Never edit or commit in ${projectRoot}. The driver merges the branch into the work of ` +
-      `the next slice.\n` +
+      `${extra.behind.branch}. Never edit or commit in ${projectRoot}.\n` +
+      `(3a) Hand each fix commit over at once${extra.behind.next ? `, to slice '${extra.behind.next}', which is being built now` : ''}: ` +
+      `\`${WF_CMD} talk post "${projectRoot}" ${slug} --as verify:${sliceArg} --to ${extra.behind.next || 'driver'} --kind ` +
+      `handover --refs <the commit>,<each file> --key fix-<the commit> --text "<what the fix changes, and whether ` +
+      `it changes behaviour or only tests>"\`. That agent merges ${extra.behind.branch} at its next safe step, so a ` +
+      `fix is never lost and never waits for the end. What is still on the branch at the end, the driver merges.\n` +
+      `(3b) When that agent asks whether more fixes are coming, reply with what is left and how long you expect ` +
+      `it to take.\n` +
+      `(3c) When your verdict is written, post it: \`--kind done --to ${extra.behind.next || 'driver'} --text "the verify of ` +
+      `${sliceArg}: <pass or fail>, <n> fix commits, the last one <commit>"\`.\n` +
       `(4) Do not remove the copy and do not merge. Return the HEAD of the copy as headEnd ` +
       `(\`git -C "<the copy>" rev-parse HEAD\`); it is ${extra.behind.sha} when you made no commit.`
+    : ''
+  // An implement while the verify of the slice before it runs behind: the fix commits of that
+  // verify reach this agent as hand-overs in the talk, and it merges them at a safe step.
+  const besideClause = stage === 'implement' && extra.beside
+    ? `\n\nVERIFY BESIDE YOU. The verify of slice '${extra.beside.slice}' runs now, in its own copy of the repo, on ` +
+      `the branch ${extra.beside.branch}. It may fix code that you build on.\n` +
+      `(1) A message of kind handover from verify:${extra.beside.slice} names a fix commit. Merge the branch at the ` +
+      `end of the step that you are in: \`${GIT} merge --no-ff -m "merge: <what the fix does, in product words>" ` +
+      `${extra.beside.branch}\`. The message names no slug, slice or branch. Reply in the thread with the merge ` +
+      `commit, and close the thread.\n` +
+      `(2) On a conflict, resolve it: read both sides, and write the file so that the change of each side holds. ` +
+      `Never take one whole side to make it merge, and never delete or weaken a test to make it merge. A ` +
+      `generated file (a snapshot, stored results, a lock file) is not merged by hand: take your side, and make ` +
+      `it again in the step that generates it. Run the static check of your step after the merge. When you ` +
+      `cannot make both changes hold, run \`${GIT} merge --abort\`, say so in the thread, and go on: the driver's ` +
+      `merge stage takes it at the end of your slice.\n` +
+      `(3) Before a step that the plan marks (after-merge), and before any step that generates stored results or ` +
+      `takes a measurement, ask whether more fixes are coming: \`${WF_CMD} talk post "${projectRoot}" ${slug} --as ` +
+      `implement:${sliceArg} --to verify:${extra.beside.slice} --wants-reply --fallback "go on with the step" --text ` +
+      `"I am about to <the step>. Are more fixes coming, and how long?"\`, then wait with \`talk wait\`. When the ` +
+      `reply says that a fix comes soon, do other steps first when the plan allows it, else wait for the hand-over.\n` +
+      `(4) Before your slice checks, merge the branch once more, so the checks run on both changes.\n` +
+      `(5) Do not delete the branch or its copy: the driver does. When the verify has not posted its verdict ` +
+      `at your end, post \`--kind done --to verify:${extra.beside.slice}\` with your last commit: the driver merges ` +
+      `the fixes that come after it.`
     : ''
   // An implement in a side checkout: another slice is built in the main checkout at the same time.
   const sideClause = stage === 'implement' && extra.side
@@ -1992,7 +2070,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     questionContract(stage) + (DELEGATE ? delegateClause(stage) : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
-    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) +
+    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) + talkClause(stage, sliceArg) +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -2017,7 +2095,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `- When you stop, still finish the artifact in its honest terminal state, then return status 'hard-stop' ` +
     `with hardStopReason, or status 'questions' with the questions.` +
     (stage === 'implement' ? implementStepsClause(sliceArg || slug, extra.retry === true) : '') +
-    sentBackClause + sideClause +
+    sentBackClause + sideClause + besideClause +
     (stage === 'implement' && extra.selfVerify && sliceArg ? selfVerifyClause(sliceArg, idx, deferCmd) : '') +
     (stage === 'verify' && sliceArg ? sliceStatusClause(sliceArg) : '') +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
@@ -2302,7 +2380,7 @@ async function driveWallProbe(sliceArg, idx, fresh = null) {
     `the artifacts contradict the index, or a wall fell and its acceptance criterion now needs real evidence ` +
     `collected. Name it in one line; the driver records your reason as a decision so a later audit can see why ` +
     `the run chose bookkeeping over new work. If every wall still stands, leave escalateReason empty.` +
-    heartbeatClause(`wall-probe:${sliceArg}`, 'Drive', 'wall-probe', sliceArg),
+    WORK_RULES + talkClause('wall-probe', sliceArg) + heartbeatClause(`wall-probe:${sliceArg}`, 'Drive', 'wall-probe', sliceArg),
     { schema: WALL_PROBE_RESULT, label: `wall-probe:${sliceArg}`, phase: 'Drive', ...SONNET }
   )
 }
@@ -2616,6 +2694,14 @@ function stopOut(at, reason, extra) {
   return { ok: false, stopped: true, stoppedAt: at, reason, ...extra }
 }
 
+// bothStops() — a walk returns one stop. When a second stop came at the same boundary (a fix branch
+// that is not merged, beside a stage that stopped), its reason joins the first: no stop is lost.
+function bothStops(first, second) {
+  if (!first) return second || null
+  if (!second) return first
+  return { ...first, reason: `${first.reason} ALSO, at '${second.stoppedAt}': ${second.reason}`, alsoStopped: { at: second.stoppedAt, reason: second.reason, route: second.route || null } }
+}
+
 // settle() — the steps after a stage returns, the same in every walk. A stop request means the
 // stage did no work, so it joins nothing. Otherwise the decisions get their classes (one
 // corrective round; driveReview classifies a review itself), the result joins `ran` when the
@@ -2861,7 +2947,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (firstVerify) log(`verify:${sliceArg} ran in the implement agent (complexity ${entry.complexity}) — no separate verify agent`)
     if (stage === 'implement') selfVerified = null
     const dispatched = pre ? pre
-      : stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify, { ...(sentBack && sentBack.live ? { sentBack } : {}), ...(opts.side ? { side: opts.side } : {}) })
+      : stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify, { ...(sentBack && sentBack.live ? { sentBack } : {}), ...(opts.side ? { side: opts.side } : {}), ...(opts.beside ? { beside: opts.beside } : {}) })
       : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
@@ -2971,28 +3057,71 @@ async function pairCheck(a, b) {
   )
 }
 
-// mergeSide() — merge the side branch of a slice that was built in a side checkout, with a
-// merge commit, and remove the copy. A conflict is aborted and reported: the driver stops.
+// mergeSide() — the merge stage: merge the side branch of a slice with a merge commit, and remove
+// the copy. A conflict is resolved so that the change of each side holds. A merge that cannot be
+// made is aborted and reported: the driver stops with the branch kept, so no fix is left behind.
 const MERGE_RESULT = {
   type: 'object',
   required: ['ok'],
-  properties: { ok: { type: 'boolean' }, conflicts: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } },
+  properties: {
+    ok: { type: 'boolean' }, merged: { type: 'boolean' }, conflicts: { type: 'array', items: { type: 'string' } },
+    resolved: { type: 'array', items: { type: 'string' } }, regenerate: { type: 'array', items: { type: 'string' } },
+    note: { type: 'string' },
+  },
 }
-async function mergeSide(sliceArg, side) {
+async function mergeSide(sliceArg, side, withSlice = null) {
+  const plans = withSlice
+    ? `each slice (\`${REC('get', `04-plan-${sliceArg}.md`)}\`, \`${REC('get', `04-plan-${withSlice}.md`)}\`)`
+    : `the slice (\`${REC('get', `04-plan-${sliceArg}.md`)}\`)`
   return await spawnAgent(
-    `MERGE the side branch of slice '${sliceArg}' of slug '${slug}'. The project root ${projectRoot} is ABSOLUTE; ` +
-    `run git as \`${GIT} …\`. Change no file by hand.\n\n` +
-    `1. Run \`${GIT} status --porcelain\`. When a tracked file is changed, return { ok: false, note: 'the main ` +
-    `checkout has uncommitted changes' } and do nothing else.\n` +
-    `2. Run \`${GIT} merge --no-ff -m "merge: <what the merged work does, in product words>" ${side.branch}\`. The ` +
-    `message names no slug, slice or branch.\n` +
-    `When git answers that the branch is already up to date, there is nothing to merge: go to step 4.\n` +
-    `3. When the merge stops on a conflict, list the files of \`${GIT} diff --name-only --diff-filter=U\`, run ` +
-    `\`${GIT} merge --abort\`, and return { ok: false, conflicts: [<the files>] }. Do not resolve a conflict.\n` +
-    `4. When the merge commit is made, run \`${WF_CMD} worktree remove "${projectRoot}" ${slug} ${side.name}\`, then ` +
-    `\`${GIT} branch -d ${side.branch}\`, and return { ok: true }. A copy or a branch that stays goes in note.` +
-    heartbeatClause(`merge:${sliceArg}`, 'Drive', 'merge', sliceArg),
-    { schema: MERGE_RESULT, label: `merge:${sliceArg}`, phase: 'Drive', ...SONNET }
+    `MERGE STAGE: the side branch ${side.branch} of slice '${sliceArg}' of slug '${slug}' joins the work in ` +
+    `${projectRoot}. The project root is ABSOLUTE; run git as \`${GIT} …\`.\n\n` +
+    `1. Run \`${GIT} merge --no-ff -m "merge: <what the merged work does, in product words>" ${side.branch}\`. The ` +
+    `message names no slug, slice or branch. When git answers that the branch is already up to date, there is ` +
+    `nothing to merge: go to step 5 and return merged: false.\n` +
+    `2. A file with an uncommitted change that the merge does not touch is not yours and does not block: leave ` +
+    `it as it is. When git refuses because the merge would overwrite an uncommitted change, change nothing and ` +
+    `return { ok: false, note: 'uncommitted changes in <the files> block the merge' }.\n` +
+    `3. When the merge stops on a conflict, resolve it. List the files with \`${GIT} diff --name-only ` +
+    `--diff-filter=U\`. Read both sides of each file, and the plan record of ${plans}. Write each file so that ` +
+    `the change of each side holds. Never take one whole side to make it merge, and never delete or weaken a ` +
+    `test to make it merge. A generated file (a snapshot, stored results, a lock file) is not merged by hand: ` +
+    `take the side of ${projectRoot} (\`${GIT} checkout --ours -- <file>\`) and name it in regenerate[]. Then run ` +
+    `the static check that the steps of the plan use (the build or the type check). When it passes, \`${GIT} ` +
+    `add -- <each file that you resolved>\` and run \`${GIT} commit --no-edit\`. Name the files in resolved[].\n` +
+    `4. When you cannot write a file so that both changes hold, or the static check still fails after your ` +
+    `resolution, run \`${GIT} merge --abort\` and return { ok: false, conflicts: [<the files>], note: '<why>' }.\n` +
+    `5. When the merge commit is made, or there was nothing to merge, run \`${WF_CMD} worktree remove ` +
+    `"${projectRoot}" ${slug} ${side.name}\`, then \`${GIT} branch -d ${side.branch}\`, and return { ok: true, ` +
+    `merged: <true when you made a merge commit> }. A copy or a branch that stays goes in note.` +
+    WORK_RULES + talkClause('merge', sliceArg) + heartbeatClause(`merge:${sliceArg}`, 'Drive', 'merge', sliceArg),
+    { schema: MERGE_RESULT, label: `merge:${sliceArg}`, phase: 'Drive', ...OPUS }
+  )
+}
+
+// recheckSlice() — the slice checks of a slice once more, at the tip, after its verify passed on a
+// side branch and its fix commits joined other work. It changes no code: a red sends the slice to
+// a full verify at the tip.
+const RECHECK_RESULT = {
+  type: 'object',
+  required: ['ok'],
+  properties: { ok: { type: 'boolean' }, reds: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } },
+}
+async function recheckSlice(sliceArg, why) {
+  return await spawnAgent(
+    `SLICE RE-CHECK for slice '${sliceArg}' of slug '${slug}'. Change, fix and commit nothing.\n\n` +
+    `The verify of this slice passed on a side branch. ${why} So its checks run once more, on the code at HEAD ` +
+    `of ${projectRoot}.\n` +
+    `1. Read the plan record (\`${REC('get', `04-plan-${sliceArg}.md`)}\`) and find its \`## Slice Checks\` section. ` +
+    `A plan with no such section has nothing to run: return { ok: true, note: 'no slice checks' }.\n` +
+    `2. Run each check of that section once through wf, so that wf sees its exit code: \`${WF_CMD} step check ` +
+    `"${projectRoot}" ${slug} ${sliceArg} --name "<the check>" --run "<its command>"\`, or \`talk job\` and ` +
+    `\`--job <the id>\` for a check over 8 minutes.\n` +
+    `3. Run \`${WF_CMD} step check "${projectRoot}" ${slug} ${sliceArg}\`. Return { ok: true } only when it exits ` +
+    `0 and prints no check that is not met. Else return { ok: false, reds: [<each line that it prints as ` +
+    `blocking or not met, with the test or the figure that fails>] }.` +
+    WORK_RULES + heartbeatClause(`recheck:${sliceArg}`, 'Drive', 'recheck', sliceArg),
+    { schema: RECHECK_RESULT, label: `recheck:${sliceArg}`, phase: 'Drive', ...SONNET }
   )
 }
 
@@ -3114,7 +3243,7 @@ async function runEnd(stoppedAt = null, reason = null, progress = null) {
     `1. Run \`${endCmd}\`. It appends the run-end line.\n` +
     `2. Run \`${progressCmd}\`. It writes where the run stands.\n` +
     `3. Run \`${worktreeCmd}\`. It removes the copies of the repo that the stages left in .scratch/worktrees/${slug}/. ` +
-    `When it exits 1, put each \`kept\` line of its output in worktreesKept.\n` +
+    `When it exits 1, put each \`kept\` line of its output in worktreesKept. Then run \`${WF_CMD} talk jobs "${projectRoot}" ${slug} --stop\`: it ends the long commands that the stages left running.\n` +
     `Return { ended: true } when the commands of steps 1 and 2 exit 0, else { ended: false }. Step 3 does not change ended.` +
     heartbeatClause('run-end', 'Drive', 'run-end', null),
     { schema: RUN_END_RESULT, label: 'run-end', phase: 'Drive', ...HAIKU } // mechanical bookkeeping; pinned per _subagents.md
@@ -3136,6 +3265,10 @@ if (!idx) {
 // Adopt the runId orient minted (this script has no clock of its own) so every
 // later heartbeat is attributable to THIS run.
 RUN_ID = GIVEN_RUN_ID || (idx.runId && String(idx.runId).trim()) || `run-${slug}`
+// A plan that an earlier run wrote can be older than the code of a slice that was built after it.
+// The counter of this run starts at 0, so the built slices of the roster say that code has moved:
+// such a plan is checked against the code before its implement, as a plan written ahead in this run is.
+if ((idx.slices || []).some(s => s && s.stages && s.stages.implement === 'done')) codeMoved = 1
 // Say what the PREVIOUS driver's journal shows, before anything else.
 // Silence is the finding: a driver that died leaves a journal that simply stops, and
 // the whole point is that this is now stated rather than inferred away.
@@ -3149,6 +3282,27 @@ if (!idx.ok) {
   const notReady = idx.blockReason || 'workflow not ready (intake/shape/design/slice/plan incomplete, or a terminal-analysis type with no decided build)'
   await runEnd('orient', notReady)
   return { ok: false, stopped: true, mode: idx.mode, reason: notReady, route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
+}
+
+// A run that stopped can leave a side branch with commits that HEAD lacks: the fix commits of a
+// verify that ran beside the next slice, or the steps of a slice built in a scratch copy. This run
+// takes the fixes in before any other work. With them left behind, the slice would be verified
+// and built on without them.
+for (const b of (idx.leftoverBranches || [])) {
+  if (!b || !b.branch || !(b.ahead > 0)) continue
+  const what = `the branch ${b.branch} holds ${b.ahead} commit${b.ahead === 1 ? '' : 's'} of an earlier run that HEAD does not have`
+  let why = null
+  if (b.kind === 'verify') {
+    log(`${what} — the merge stage takes them in first`)
+    const m = await mergeSide(b.slice, { name: `verify-${b.slice}`, branch: b.branch }, null)
+    if (m && m.ok === true) { log(`merge:${b.slice} — the fix commits of the earlier run are in${(m.resolved || []).length ? ` (a conflict was resolved in ${m.resolved.join(', ')})` : ''}`); continue }
+    why = `${what}, and they could not be merged: ${m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}` : (m && m.note) || 'the merge agent did not return'}`
+  } else {
+    why = `${what}: the work of slice '${b.slice}' that was built in a scratch copy`
+  }
+  const route = `merge ${b.branch} with a merge commit so that both changes hold, or delete the branch when its work is not wanted, then re-run /wf yolo ${slug}`
+  await runEnd('merge', why)
+  return stopOut('merge', why, { mode: idx.mode, route, ...(priorDriver ? { priorDriver } : {}) })
 }
 // Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
 // base-branch if it does not exist yet) BEFORE driving any stage, so the whole run —
@@ -3240,32 +3394,49 @@ if (idx.workflowType === 'update-deps') {
   const retiredNow = (x) => x.status === 'skipped' || x.status === 'dropped'
   const wroteAny = (w) => w && w.ok === true && Array.isArray(w.wrote) && w.wrote.length > 0
 
-  // settleBehind() — take the result of the verify that ran behind. Its fix commits are merged
-  // first, with a merge commit. A clean result then stands: its decisions are classed and the
-  // slice status is written back. Any other result, or a merge that did not go through, runs the
-  // verify again in the main checkout, at the tip. Returns a stop, or null.
+  // settleBehind() — take the result of the verify that ran behind. Its fix commits join the tip
+  // first: the implement beside it merged the ones that were handed over, and the merge stage takes
+  // the rest. A merge that cannot be made stops the run with the branch kept. A clean result then
+  // stands when its checks also pass on the merged code; any other result runs the verify again in
+  // the main checkout, at the tip. Returns a stop, or null.
   async function settleBehind() {
     if (!pendingVerify) return null
     const p = pendingVerify
     pendingVerify = null
     const raw = await p.promise
-    // The fix commits of the verify are on its side branch: they join the tip before anything
-    // else. The merge agent also removes the copy and the branch.
-    const m = await mergeSide(p.slice, p.side)
+    const m = await mergeSide(p.slice, p.side, p.next || null)
     const merged = !!m && m.ok === true
     if (!merged) {
-      const why = m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}` : (m && m.note) || 'the merge agent did not return'
-      log(`the branch ${p.side.branch} of the verify of '${p.slice}' is not merged: ${why} — the branch is kept, and the verify runs again in the main checkout`)
-    } else if (m.note) log(`merge:${p.slice} — ${m.note}`)
+      const why = m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}${m.note ? ` (${m.note})` : ''}` : (m && m.note) || 'the merge agent did not return'
+      return stopOut('merge', `the fix branch ${p.side.branch} of the verify of '${p.slice}' is not merged: ${why}. Its fixes are on that branch. Merge it with a merge commit so that both changes hold, then re-run /wf yolo ${slug}`, { mode: 'slug', reviewScope: idx.reviewScope, results, stoppedSlice: p.slice, route: `git merge --no-ff ${p.side.branch}, then /wf yolo ${slug}` })
+    }
+    if (m.note) log(`merge:${p.slice} — ${m.note}`)
+    if ((m.resolved || []).length) log(`merge:${p.slice} — a conflict was resolved in ${m.resolved.join(', ')}`)
     const t = (raw && raw.terminal) || {}
-    const clean = merged && !!raw && raw.status === 'complete' && verifyClean(t, raw.residual) && probeGaps(t, raw.residual).length === 0
+    const passed = !!raw && raw.status === 'complete' && verifyClean(t, raw.residual) && probeGaps(t, raw.residual).length === 0
+    let clean = passed
+    // The verify passed on the code of its own branch. When that branch made fix commits, or the
+    // merge was resolved by hand, the checks of the slice run once more on the code that holds both.
+    // The merge agent made a merge commit only when the branch held commits: the word of the verify alone does not decide.
+    const fixed = (!!raw && !!raw.headEnd && raw.headEnd !== p.sha) || m.merged === true
+    const joined = (m.resolved || []).length > 0 || (m.regenerate || []).length > 0
+    if (passed && (fixed || joined)) {
+      const rc = (m.regenerate || []).length
+        ? { ok: false, reds: [`generated files to make again: ${m.regenerate.join(', ')}`] }
+        : await recheckSlice(p.slice, joined ? 'The merge of its fix commits had a conflict that was resolved.' : 'Its fix commits were merged into the work of the next slice.')
+      if (rc && rc.ok === true) log(`the checks of '${p.slice}' pass on the merged code`)
+      else {
+        clean = false
+        log(`the checks of '${p.slice}' do not pass on the merged code (${rc ? (rc.reds || []).join('; ') || rc.note || 'no detail' : 'the re-check did not return'}) — the verify runs again, at the tip`)
+      }
+    }
     if (clean) {
       const { res } = await settle({ ...raw, stage: 'verify', slice: p.slice }, idx, p.chain.ran)
       log(`verify:${p.slice} passed behind, from ${p.sha}, during the next implement`)
       if (!wroteAny(res && res.sliceWriteBack)) await writeBackSliceStatus(p.slice, idx, ['plan', 'implement', 'verify'])
       return null
     }
-    if (merged) log(`the verify of '${p.slice}' that ran behind did not pass (${raw ? raw.hardStopReason || raw.status : 'no result'}) — it runs again in the main checkout, at the tip`)
+    if (!passed) log(`the verify of '${p.slice}' that ran behind did not pass (${raw ? raw.hardStopReason || raw.status : 'no result'}) — it runs again in the main checkout, at the tip`)
     const v = await driveChain(['verify'], p.slice, idx, {})
     p.chain.ran.push(...(v.ran || []))
     if (!v.stopped) return null
@@ -3280,7 +3451,7 @@ if (idx.workflowType === 'update-deps') {
     // A plan written ahead for a slice that this run did not reach is on disk: the next run uses it.
     for (const [name, p] of plansAhead) { await p.promise; log(`the plan of '${name}' was written ahead and not used in this run — the next run starts from it`) }
     plansAhead.clear()
-    return stop || late
+    return bothStops(stop, late)
   }
 
   // drivePair() — two slices whose plans share no file, built at the same time: `a` in the main
@@ -3319,7 +3490,7 @@ if (idx.workflowType === 'update-deps') {
     take(rb, cb)
     // The side branch is merged whenever its implement finished, so the records and the branch agree.
     if (!cb.stopped) {
-      const m = await mergeSide(b.slice, side)
+      const m = await mergeSide(b.slice, side, a.slice)
       if (!m || m.ok !== true) {
         const why = m && (m.conflicts || []).length ? `a conflict in ${m.conflicts.join(', ')}` : (m && m.note) || 'the merge agent did not return'
         return { stop: stopOut('merge', `the side branch ${side.branch} of slice '${b.slice}' is not merged: ${why}. Its implement is complete on that branch. Merge it with a merge commit, then re-run /wf yolo ${slug}`, { ...walk, stoppedSlice: b.slice, route: `git merge --no-ff ${side.branch}, then /wf yolo ${slug}` }), paired: true }
@@ -3373,8 +3544,7 @@ if (idx.workflowType === 'update-deps') {
           left = left.filter(x => x !== mate)
           workSinceCheckpoint = true
           const lateP = await settleBehind()
-          if (pair.stop) return pair.stop
-          if (lateP) return lateP
+          if (pair.stop || lateP) return bothStops(pair.stop, lateP)
           if (left.length) {
             const fresh = rewalk(left, await rosterNow(mate.slice), known)
             if (fresh.changes.length) log(`roster changed during '${s.slice}' and '${mate.slice}': ${fresh.changes.join('; ')}`)
@@ -3404,20 +3574,21 @@ if (idx.workflowType === 'update-deps') {
       // verify join the tip before this slice is verified.
       const split = behind || !!pendingVerify
       const stagesNow = (split ? ['plan', 'implement'] : perSliceStages).filter(x => !(x === 'plan' && plannedEarly.has(s.slice)))
-      const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}) })
+      const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}), ...(pendingVerify ? { beside: { slice: pendingVerify.slice, branch: pendingVerify.side.branch } } : {}) })
       results.push(chain)
       if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
       // The verify of the slice before this one ran during this implement: its result is due now.
       const late = await settleBehind()
       if (chain.stopped) {
-        return stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: s.slice, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) })
+        return bothStops(stopOut(chain.stoppedAt, chain.reason, { ...walk, stoppedSlice: s.slice, route: chain.route || `address the gate at '${chain.stoppedAt}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.questions ? { questions: chain.questions } : {}) }), late)
       }
       if (late) return late
       if (split) {
         if (behind && chain.headEnd && nextUp()) {
           log(`yolo → verify ${slug} ${s.slice} (behind, at ${chain.headEnd}, during the next implement)`)
           const side = { name: `verify-${s.slice}`, branch: `verify/${slug}/${s.slice}` }
-          pendingVerify = { slice: s.slice, sha: chain.headEnd, chain, side, promise: runStage('verify', s.slice, idx, { behind: { sha: chain.headEnd, ...side } }).catch(() => null) }
+          const nextSlice = (nextUp() || {}).slice || null
+          pendingVerify = { slice: s.slice, sha: chain.headEnd, chain, side, next: nextSlice, promise: runStage('verify', s.slice, idx, { behind: { sha: chain.headEnd, ...side, next: nextSlice } }).catch(() => null) }
         } else {
           // No commit id to verify at, or no slice left to build: the rest of the slice runs here.
           const v = await driveChain(perSliceStages.filter(x => x !== 'plan' && x !== 'implement'), s.slice, idx, {})

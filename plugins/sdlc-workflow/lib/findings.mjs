@@ -67,11 +67,13 @@ export function updateLedger(slugDir, fn) {
 }
 
 // Two findings are the same when they share a source, a slice, a dimension and a key, or a
-// source, a slice, a file and a line within 3 lines. A finding with no line matches only by key.
+// source, a slice, a dimension, a file and a line within 3 lines. A finding with no line matches only by key.
 const sliceOf = (f) => f.slice ?? null;
 function sameFinding(a, b) {
   if (a.source !== b.source || sliceOf(a) !== sliceOf(b)) return false;
   if (a.key && b.key) return a.key === b.key && a.dimension === b.dimension;
+  // A finding of another dimension at the same place is another finding: it takes no id and no status of this one.
+  if (a.dimension !== b.dimension) return false;
   if (!a.file || norm(a.file) !== norm(b.file)) return false;
   const la = lineNo(a.line);
   const lb = lineNo(b.line);
@@ -138,7 +140,13 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
       old['last-seen-at'] = now;
       // The entry follows its finding: the next run matches it at the place where this run saw it.
       if (f.file && f.line != null) { old.file = norm(f.file); old.line = String(f.line); }
-      if (rank(f.severity) < rank(old.severity)) old.severity = f.severity;
+      // A finding that the person or a triage set aside comes back as a graver one: it is open again.
+      const graver = rank(f.severity) < rank(old.severity);
+      if (graver && !f.refuted && ['dismissed', 'kept-by-person', 'deferred'].includes(old.status)) {
+        old['set-aside-before'] = [...(old['set-aside-before'] ?? []), { status: old.status, reason: old.reason ?? null, severity: old.severity, 'reopened-at': now }];
+        old.status = 'open'; old.reason = null; old['resolved-at'] = null; delete old.decision; old.reopened = (old.reopened ?? 0) + 1;
+      }
+      if (graver) old.severity = f.severity;
       if (f.issue) old.issue = f.issue;
       if (f.evidence) old.evidence = f.evidence;
       if (f.preExisting != null) old['pre-existing'] = Boolean(f.preExisting);
@@ -190,6 +198,9 @@ export function mergeRun(ledger, found, { source = 'review', dimensions = [], sl
   const resolved = [];
   for (const e of findings) {
     if (seen.has(e.id) || e.source !== source || sliceOf(e) !== slice || e.status !== 'open' || !checked.has(e.dimension)) continue;
+    // A residual is an item that a verify accepted. A later accept of another slice says nothing about it:
+    // it closes only when a review fixes it, with findings set.
+    if (e.dimension === 'residual') continue;
     e.status = 'resolved';
     e['resolved-at'] = now;
     resolved.push(e.id);
@@ -210,6 +221,8 @@ export function setStatus(ledger, id, status, reason = null, { now = nowIso(), c
   if (!e) throw refuse(`no finding ${id}`, agentFix('List the findings with findings list, then run the command again with an id that it lists.'));
   if (decision && status !== 'dismissed') throw refuse('only a dismissed finding names a decision', agentFix('Run the command again with no decision, or with the status dismissed.'));
   if (decision) reason = reason ? `decision ${decision}: ${reason}` : `decision ${decision}`;
+  // A fix is a commit. With no commit there is no fix to find.
+  if (status === 'fixed' && !String(commit ?? '').trim()) throw refuse('a fixed finding needs the commit of the fix', agentFix('Run findings set again with --commit <the sha of the fix commit>. When no commit fixed it, the finding is not fixed: leave it open, or set could-not-fix with --reason.'));
   if (TRIAGED.has(status) && status !== 'fixed' && !reason) throw refuse(`a ${status} finding needs a reason`, agentFix('Run the command again with --reason, the reason for the status.'));
   e.status = status;
   e.reason = reason;

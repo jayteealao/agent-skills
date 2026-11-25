@@ -6,7 +6,8 @@
  * selects the checks, in the order the three separate hooks used to run:
  *   - a file write (`tool_input.file_path`) → pre-write-validate (needs full
  *     `content`, so it acts on Write only), then leak-guard-write;
- *   - a shell command (`tool_input.command`) → shell-write-guard, then leak-guard-bash.
+ *   - a shell command (`tool_input.command`) → person-guard (a call of a sub-agent only),
+ *     shell-write-guard, then leak-guard-bash.
  * The first blocking check ends the process with exit 2 and its stderr reason.
  *
  * pre-write-validate fails closed: when it throws, the write is refused with a message that
@@ -29,6 +30,8 @@ export function planPreToolUse(input) {
     stages.push(['leak-guard-write', lazy('./leak-guard-write.mjs')]);
   }
   if (typeof ti.command === 'string') {
+    // Only a call of a sub-agent can be refused here, so the check loads for no other call.
+    if (input?.agent_id) stages.push(['person-guard', lazy('./person-guard.mjs')]);
     stages.push(['shell-write-guard', lazy('./shell-write-guard.mjs')]);
     stages.push(['leak-guard-bash', lazy('./leak-guard-bash.mjs')]);
   }

@@ -30,6 +30,31 @@ export function lastRunEndAt(journalFile) {
 }
 
 /**
+ * Whether a stop request was made for a run that is gone. The person asked while run R worked
+ * (the journal line before the request is a line of R, and not its end), R wrote no end (its
+ * host died), and the journal now has lines of another run. That request was for R: it does not
+ * stop the run that came after it.
+ */
+export function madeForGoneRun(request, journalFile) {
+  const asked = Date.parse(request?.requestedAt || '');
+  if (!Number.isFinite(asked)) return false;
+  let text;
+  try { text = readFileSync(journalFile, 'utf8'); } catch { return false; }
+  let before = null;
+  let laterRun = false;
+  for (const raw of text.split('\n')) {
+    if (!raw.trim()) continue;
+    let line;
+    try { line = JSON.parse(raw); } catch { continue; }
+    const at = Date.parse(line?.at || '');
+    if (!Number.isFinite(at) || !line.run) continue;
+    if (at <= asked) before = line;
+    else if (before && line.run !== before.run) laterRun = true;
+  }
+  return Boolean(before) && before.event !== 'run-end' && laterRun;
+}
+
+/**
  * Whether a stop request is newer than the last run end, so it waits for the next run. A request
  * without a readable `requestedAt`, or a journal without a run end, is not newer.
  */
@@ -45,7 +70,7 @@ export function madeAfterLastRun(request, runEndAt) {
 export function clearStopRequest(controlFile, journalFile, { force = false } = {}) {
   if (!existsSync(controlFile)) return { cleared: false };
   const request = readJson(controlFile);
-  if (!force && request && typeof request === 'object' && madeAfterLastRun(request, lastRunEndAt(journalFile))) {
+  if (!force && request && typeof request === 'object' && madeAfterLastRun(request, lastRunEndAt(journalFile)) && !madeForGoneRun(request, journalFile)) {
     return { cleared: false, kept: request };
   }
   rmSync(controlFile, { force: true });

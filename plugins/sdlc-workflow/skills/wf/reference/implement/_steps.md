@@ -47,6 +47,29 @@ A step runs no test. After the commit of the last step, and before the receipt, 
 
 Keep the output of each run in a file, per [../_workflow-rules.md](../_workflow-rules.md). A long run is not a slice check: it stays a packet check ([../_long-runs.md](../_long-runs.md) L5).
 
+### Record each check
+
+Run each slice check through wf, on committed code, so that wf sees its exit code. wf records the result and the commit:
+
+```
+node "<skill-dir>/scripts/wf.mjs" step check "<root>" <slug> <slice-slug> --name "<the check, as the plan names it>" --run "<its command>"
+```
+
+- A check over 8 minutes is a job ([../_talk.md](../_talk.md)): start it with `talk job`, wait for its end, then give `--job <the id>` in place of `--run`.
+- You cannot record `met` by your word. Record by hand only a check that did not pass (`--result not-met --sha HEAD`) or did not run (`--result not-run`).
+
+| Result | Meaning | Effect |
+|---|---|---|
+| `met` | The check ran and passed. | None. |
+| `not-met` | The check ran and did not pass, and the fix loop did not make it pass. | The stage can end. Verify must rule on the check. A delegate decision never waives it. |
+| `not-run` | The check did not run. | `record stage-done implement` refuses, unless the plan marks the check as optional and you give `--optional`. |
+
+- A check must run on the last code of the slice. A check that ran before a later code commit is stale, and counts as `not-run`. A commit that changes only prose or the records does not make a check stale.
+- A measured run is a check. Take it again after the last commit that changes behaviour, or record it as `not-met` with its figures in `--note`.
+- A red that an earlier slice caused is `not-met` with `--carried-from <the base commit of the slice> --base-job <id>`. The job ran the same check in a scratch worktree at the base commit and failed there. With no such job, the red belongs to this slice.
+- The plan lists the checks. Each one needs its own record: `record stage-done implement` refuses while fewer checks are recorded than the plan lists.
+- Run `step check "<root>" <slug> <slice-slug>` with no `--name` to see what still blocks the end of the stage.
+
 ## The fix loop
 
 When a slice check or the receipt is red:

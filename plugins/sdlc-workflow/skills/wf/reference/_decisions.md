@@ -54,7 +54,7 @@ The kind of a common word:
 | Record standing steer | `<wf> decide add "<projectRoot>" <slug> --kind steer --answer "<exact words>" [--slice s] [--replaces D-012]` |
 | The rules, steers and notes of one slice | `<wf> decide list "<projectRoot>" <slug> --kind steer,note --slice <slice> --rules` |
 | Only the entries after one that you read | `<wf> decide list "<projectRoot>" <slug> --kind steer,note --slice <slice> --rules --since D-012` |
-| Leave a hand-off for another slice | `<wf> decide add "<projectRoot>" <slug> --kind note --slice <the slice it is for> --stage <stage> --answer "<the hand-off>"` |
+| Leave a hand-off for another slice | `<wf> talk post "<projectRoot>" <slug> --as <stage>:<slice> --to <the slice it is for> --text "<the hand-off>"` ([_talk.md](_talk.md)). The older form, `decide add --kind note`, still works. |
 | Record the decisions that a stage settled itself | `<wf> decide add "<projectRoot>" <slug> --file <settled.json>`: a JSON list of `{ kind: "settled", class, slice, stage, key, question, answer }` |
 | End a steer that no longer holds, or a note that was handled | `<wf> decide end "<projectRoot>" <slug> <id> --reason "<why>"` |
 | Tidy the steers and notes against the roster | `<wf> decide tidy "<projectRoot>" <slug> [--apply] [--full]` |

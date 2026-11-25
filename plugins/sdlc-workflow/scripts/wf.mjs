@@ -371,10 +371,73 @@
  *   decide   import <root> <slug>
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
  *             Example: wf.mjs decide import . demo
+ *   talk     post <root> <slug> --as a --to x[,y] --text t [--kind info|request|handover|done]
+ *                [--refs a,b] [--wants-reply --fallback f] [--key k] [--json]
+ *             post a message to the agents of the run. --as is your name: <stage>:<slice>,
+ *             driver or session. --to is a slice, <stage>:<slice>, driver, session or all; a
+ *             slice that has not started reads it when it starts. --wants-reply needs
+ *             --fallback, what you do when no reply comes. A message informs or requests; it
+ *             never binds, and a decision of the person is never asked here
+ *             Example: wf.mjs talk post . demo --as verify:api --to web --kind handover --text "fix in abc123: the cache key" --refs abc123
+ *   talk     reply <root> <slug> <id> --as a --text t [--refs a,b] [--wants-reply --fallback f] [--json]
+ *             answer a message in its thread; the reply goes to its sender
+ *             Example: wf.mjs talk reply . demo T-4 --as implement:web --text "merged at step 5"
+ *   talk     read <root> <slug> --as a [--open] [--all] [--thread id] [--after id] [--peek] [--json]
+ *             the messages for you that you have not seen, with their receipts written
+ *             (--open: every open message for you, for the start of a stage; --all: closed
+ *             ones too; --peek: no receipt). Read at each reading point that your prompt names
+ *             Example: wf.mjs talk read . demo --as implement:web
+ *   talk     close <root> <slug> <id> --as a [--reason r] [--json]
+ *             the matter of a message is handled: its thread leaves every inbox
+ *             Example: wf.mjs talk close . demo T-4 --as implement:web --reason "merged"
+ *   talk     ping <root> <slug> <id> --as a [--json]
+ *             a message is urgent now: an agent that waits sees it at once
+ *             Example: wf.mjs talk ping . demo T-4 --as session
+ *   talk     wait <root> <slug> --as a [--after id] [--job id] [--key k[,k2]] [--claim r]
+ *                [--lease-min n] [--why w] [--seconds n] [--json]
+ *             block until a message arrives for you, or what you wait for is there: the end
+ *             of a job (--job), the answer of the person to a held question (--key), or a
+ *             shared resource (--claim). One call blocks for 4 minutes at most: give the
+ *             shell call a timeout of 5 minutes, and run it again at "still waiting"
+ *             Example: wf.mjs talk wait . demo --as verify:api --job J-20261125T140001Z-ab12
+ *   talk     claim <root> <slug> <resource> --as a [--lease-min n] [--why w] [--json]
+ *             ask once for a shared resource of the project; exit 1 when another holds it
+ *             Example: wf.mjs talk claim . demo test-machine --as verify:api
+ *   talk     release <root> <slug> <resource> --as a [--json]
+ *             Example: wf.mjs talk release . demo test-machine --as verify:api
+ *   talk     resources <root> <slug> [--json]
+ *             the shared resources that the config of the project names (`resources`), and
+ *             who holds each one now
+ *             Example: wf.mjs talk resources . demo
+ *   talk     job <root> <slug> --as a [--name n] [--claim r] [--cwd d] [--json] -- <command>
+ *             start a long command as its own process, with its output in a log file, and
+ *             return at once. With --claim the job keeps the resource that you hold and gives
+ *             it back at its end. Wait for the end with talk wait --job
+ *             Example: wf.mjs talk job . demo --as verify:api --name end-run --claim test-machine -- npm test
+ *   talk     jobs <root> <slug> [--stop [--as a]] [--json]
+ *             the jobs of the workflow; --stop ends the ones that still run (with --as, only
+ *             the jobs that this actor started)
+ *             Example: wf.mjs talk jobs . demo
+ *   talk     list <root> <slug> [--thread id] [--after id] [--open] [--full] [--json]
+ *             every thread of the run and who holds each resource: the audit of the talk
+ *             Example: wf.mjs talk list . demo --open
  *   step     start <root> <slug> <slice> <n> [--title t]
  *             Example: wf.mjs step start . demo api 3 --title "add the route"
  *   step     done <root> <slug> <slice> <n> (--sha s|HEAD | --no-change)
  *             Example: wf.mjs step done . demo api 3 --sha HEAD
+ *   step     check <root> <slug> <slice> [--name n (--run "<command>" | --job <id> |
+ *                --result not-met|not-run [--sha s|HEAD]) [--optional] [--note t]
+ *                [--carried-from <base commit> --base-job <id>]] [--json]
+ *             record the result of one slice check of the plan, with the commit that it ran
+ *             on. A check is met only by an exit code that wf saw: --run runs the command
+ *             here (8 minutes at most), --job takes the exit code and the commit of a job
+ *             that ended (talk job). With no --name: the checks of the slice and what blocks
+ *             the end of the stage (exit 1 when something blocks). record stage-done refuses
+ *             an implement while a required check did not run on the last code of the slice,
+ *             and a verify that says pass while a check is not met. --carried-from is for a
+ *             red of an earlier slice: --base-job names a job that ran the same check at the
+ *             base commit of the slice and failed there
+ *             Example: wf.mjs step check . demo api --name "guard set" --run "npm run guards"
  *   step     stop <root> <slug> <slice> [--reason r] [--kind fail|gate|question]
  *             Example: wf.mjs step stop . demo api --kind gate --reason "the plan names a manual check"
  *   step     retry <root> <slug> <slice>
@@ -530,9 +593,12 @@
  *             Example: wf.mjs ship finish . demo --keep-branch
  *   drive    <root> <slug> [<slice>] [--answered <file.json>] [--delegate] [--resume <run>]
  *            [--review-findings] [--time-box <minutes>] [--detach] [--no-watch] [--json]
+ *            [--no-plan-ahead] [--no-verify-behind] [--pair-slices]
  *             run the yolo driver under Node, each agent as one `codex exec` call; prints the
  *             outcome, and keeps the run's records in .scratch/wf/drive/<run>/. --review-findings:
  *             the slug-wide review fixes only the findings that the campaign walk put in the ledger.
+ *             --no-plan-ahead, --no-verify-behind and --pair-slices set the overlap of the walk.
+ *            
  *             --detach: start the driver and its watch as their own processes and return at once;
  *             the watch sends the news of the run to the Codex session that ran the command
  *             (--no-watch starts none). The command runs outside the sandbox of Codex: inside
@@ -595,13 +661,13 @@ import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
 import { modernizeWorkflow } from '../lib/modernize.mjs';
 import { runDesign } from '../lib/design-cli.mjs';
 import { baseCheck, defaultRun, finishShip, mergeCommand, readyGaps, shipFacts } from '../lib/last-mile.mjs';
-import { addScratchWorktree, removeScratchWorktrees } from '../lib/scratch-worktree.mjs';
+import { addScratchWorktree, removeScratchWorktrees, leftoverBranches } from '../lib/scratch-worktree.mjs';
 import { orderReport, orderText, pairOf } from '../lib/slice-files.mjs';
 import { addDecision, answeredBy, applyTidy, decisionLine, decisionsOf, dropAnswered, endDecision, importLegacy, liveDecisions, tidyPlan } from '../lib/decisions.mjs';
 import { rosterOf } from '../lib/roster-edit.mjs';
 import { addRule, adoptRule, endRule, readRules, ruleCandidates, ruleLine } from '../lib/project-rules.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
-import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
+import { checkDeferrals, deferralLine, openDeferrals } from '../lib/deferrals.mjs';
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, updateLedger, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { markBusy, progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
@@ -615,14 +681,19 @@ import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf
 import { hostProcess, isMainModule } from '../lib/proc.mjs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
+import { runTalk } from '../lib/talk-cli.mjs';
+import { RESULTS as CHECK_RESULTS, addCheck, checkLine, checksOf, isProse, sliceCheckState } from '../lib/slice-checks.mjs';
+import { jobState } from '../lib/jobs.mjs';
+import { verifyGate } from '../lib/stage-gates.mjs';
+import { actorOf, markRead, markSeen, messageLine, readTalk, unreadFor } from '../lib/talk.mjs';
 import { STAGE_SUITES, SUITES, BUDGET_PRESETS, budgetLine, noCommand, overLongBudget, profileLines, readBudget, readProfile, recordRun, setBudget, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { hookSuites } from '../lib/repo-hooks.mjs';
-import { runSuiteLogged } from '../lib/run-files.mjs';
+import { SUITE_LOG_DIR, runSuiteLogged } from '../lib/run-files.mjs';
 import { NO_SUITE, implementSuites, noSuiteReceipt, receiptState, treeChanges } from '../lib/test-receipt.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { stageYoloDriver } from './stage-yolo-driver.mjs';
-import { linkedProject, localWorkflowsRoot, recordsHome, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
+import { linkedProject, localWorkflowsRoot, recordsHome, runRoot, workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { briefText, costSummary, count, statusBrief, statusOf, stepGit } from '../lib/wf-status.mjs';
 import { resolveTarget, targetText } from '../lib/wf-target.mjs';
 import { refuseNoteToDoneSlice, checkDismissDecision, decideAdd, defOfType, editRecord, holdQuestion, noRecord, pick, recordName, resolveRecord, resolveRef, schemaOf, setRecordPaths, settleQuestion } from '../lib/wf-ops.mjs';
@@ -637,7 +708,7 @@ export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|skill-dir|status|target|index|cost|stamp|decide|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|skill-dir|status|target|index|cost|stamp|decide|talk|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -668,7 +739,7 @@ function flags(argv) {
     if (a === '--') { pos.push(...argv.slice(i + 1)); break; }
     if (a.startsWith('--')) {
       const name = a.slice(2);
-      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules', 'take-over'].includes(name)) opt[name] = true;
+      if (['json', 'check', 'all', 'open', 'delegate', 'print', 'decline', 'ignore', 'take', 'unread', 'resolve', 'no-change', 'brief', 'dry-run', 'allow-no-plan', 'keep-branch', 'outline', 'full', 'problems', 'background', 'review-findings', 'on-resume', 'force', 'no-start', 'detach', 'no-watch', 'once', 'apply', 'rules', 'take-over', 'wants-reply', 'peek', 'stop', 'optional', 'no-plan-ahead', 'no-verify-behind', 'pair-slices'].includes(name)) opt[name] = true;
       else {
         // Git Bash puts its install path in front of `/wf`: the repair is silent, and only a
         // value that it cannot repair warns.
@@ -700,7 +771,7 @@ async function runDrive(pos, opt) {
   if (sandboxed) throw ask(`drive: ${sandboxed}`, 'The person approves this same command to run outside the sandbox of Codex (the approval prompt of the command, or a session with full access). Then run it again.');
   if (opt.detach) return detachDrive({ pos, opt, projectRoot, slug, run, runDir });
   if (opt.resume && !existsSync(runDir)) throw redo(`drive: no earlier run ${run} in .scratch/wf/drive/`, 'Run drive again with no --resume to start a new run, or with the name of a run folder in .scratch/wf/drive/.');
-  const args = driveArgs({ projectRoot, referenceRoot: REFERENCE_ROOT, slug, run, staged, slice, answered, delegate: Boolean(opt.delegate), reviewFindings: Boolean(opt['review-findings']) });
+  const args = driveArgs({ projectRoot, referenceRoot: REFERENCE_ROOT, slug, run, staged, slice, answered, delegate: Boolean(opt.delegate), reviewFindings: Boolean(opt['review-findings']), planAhead: !opt['no-plan-ahead'], verifyBehind: !opt['no-verify-behind'], pairSlices: Boolean(opt['pair-slices']) });
   // The journal gets the end of this run whatever happens, so a watch of the run ends with it.
   // The last step of the driver writes the same line; a second end of one run appends nothing.
   const endRun = (stoppedAt, reason) => { try { appendRunEnd(projectRoot, slug, stoppedAt, Date.now(), { run, reason, agent: 'drive' }); } catch { /* the watch then ends by its own rules */ } };
@@ -1051,13 +1122,16 @@ export function runDecide(pos, opt) {
     case 'end': {
       if (!arg) throw usage('decide end: <id> is required');
       const e = endDecision(dir, arg, opt.reason);
-      out(opt.json ? e : decisionLine(e));
+      // Each record that names the entry says that it ended.
+      const marked = markSuperseded(dir, [arg], 'ended');
+      out(opt.json ? { ...e, marked } : [decisionLine(e), ...marked.map((n) => `marked ${n}`)].join('\n'));
       return 0;
     }
     case 'tidy': {
       // The roster says which slices are done: a steer or a note of a done slice has no reader left.
       const statusOf = Object.fromEntries(rosterOf(dir).map((s) => [s.slug, s.status]));
       const plan = opt.apply ? applyTidy(dir, statusOf) : tidyPlan(decisionsOf(dir), statusOf);
+      if (opt.apply && plan.end.length) markSuperseded(dir, plan.end.map((r) => r.id ?? r), 'ended');
       if (opt.json) { out({ applied: Boolean(opt.apply), ...plan }); return 0; }
       const did = opt.apply ? '' : 'would be ';
       out([
@@ -1092,13 +1166,19 @@ export function runDecide(pos, opt) {
         try { appendJournalLine(journal, null, { ...who, event, fields: JSON.stringify(fields) }); } catch { /* the wait goes on */ }
       };
       const seconds = Number(opt.seconds);
+      const talkActor = opt.stage ? actorOf(opt.stage, opt.slice) : null;
       const r = waitForAnswers(dir, {
         keys: String(opt.key ?? '').split(','), scope: scopeOf(opt),
         callMs: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : WAIT_CALL_MS,
         onStart: ({ until, questions }) => line('waiting', { keys: questions.map((q) => q.key), until: new Date(until).toISOString() }),
+        // A message of another agent for the stage that waits ends this call: the stage reads it, then waits on.
+        interrupt: talkActor ? () => { const u = unreadFor(readTalk(dir), talkActor); return u.messages.length || u.pings.length ? u : null; } : null,
         onEnd: ({ state }) => line('wait-end', { state }),
       });
+      if (r.interrupt?.messages.length) markRead(dir, talkActor, r.interrupt.messages.map((m) => m.id));
+      if (r.interrupt?.pings.length) markSeen(dir, talkActor);
       out(opt.json ? r : [
+        ...(r.interrupt ? [...r.interrupt.messages.map((m) => `message: ${messageLine(m, { full: true })}`), ...r.interrupt.pings.map((p) => `PING about ${p.of} of ${p.from}: "${p.text}" — it is urgent now. Answer it before you wait on.`), 'A message informs or requests; it does not bind. Act on each one or reply with your reason (talk reply), then:'] : []),
         ...r.answered.map((a) => `answered: ${decisionLine(a.entry)}`),
         ...(r.state === 'waiting' ? [`still waiting for: ${r.open.join(', ')}. Run this command again now.`] : []),
       ].join('\n'));
@@ -1122,12 +1202,19 @@ export function runDecide(pos, opt) {
   }
 }
 
+/** A line of the driver journal for a wait of the talk: the watch reads that the agent waits. */
+function talkJournal(projectRoot, slug, stage, slice, event, fields) {
+  const journal = journalPath(projectRoot, slug);
+  const who = waitingAgent(journal, ['session', 'driver'].includes(stage) ? null : stage, slice && slice !== 'slug-wide' ? slice : null);
+  appendJournalLine(journal, null, { ...who, event, fields: JSON.stringify(fields) });
+}
+
 // ---------------------------------------------------------------- step
 
 
 export function runStep(pos, opt) {
   const [verb, root, slug, slice, n] = pos;
-  if (!verb || !root || !slug) throw usage('step: <start|done|stop|retry|complete|where> <root> <slug> are required');
+  if (!verb || !root || !slug) throw usage('step: <start|done|stop|retry|complete|check|where> <root> <slug> are required');
   const projectRoot = resolve(root);
   const dir = join(wfRoot(projectRoot), slug);
   if (!existsSync(dir)) throw noFolder(`step: no workflow folder ${dir}`, root);
@@ -1155,6 +1242,53 @@ export function runStep(pos, opt) {
     const refused = sliceRefusal(dir, slug, slice);
     const one = refused && /its one slice is (\S+)$/.exec(refused)?.[1];
     if (refused) throw refuse(`step ${verb}: ${refused}`, one ? agentFix('Run the step command again with the one slice of the workflow.', again(verb, one, n != null ? ` ${n}` : '')) : agentFix('Run the step command again with a slice that the error names.'));
+  }
+  if (verb === 'check') {
+    const refused = sliceRefusal(dir, slug, slice);
+    if (refused) throw refuse(`step check: ${refused}`, agentFix('Run the command again with a slice that the error names.'));
+    const planBody = planDocOf(dir, slice)?.body ?? '';
+    // With no --name: the checks of the slice and what still blocks its end.
+    if (!opt.name) {
+      const st = sliceCheckState(dir, slice, { checkout, planBody });
+      const rows = checksOf(dir, slice);
+      if (opt.json) { out({ checks: rows, ...st }); return st.blocking.length ? 1 : 0; }
+      out([...(rows.length ? rows.map(checkLine) : ['no check is recorded']), ...st.blocking.map((b) => `blocks the end of the stage: ${b}`), ...(st.unmet.length ? [`${st.unmet.length} not met: verify rules on each one`] : [])].join('\n'));
+      return st.blocking.length ? 1 : 0;
+    }
+    // A check passes by an exit code that wf saw: of a job of this run (--job), or of a command that wf runs here (--run).
+    const endedJob = (id, flag) => {
+      const j = jobState(projectRoot, slug, id);
+      if (j.state !== 'done' || j.stopped || j.timedOut || j.exit == null) throw refuse(`step check: the job ${id} has no exit code (${j.state === 'done' ? (j.stopped ? 'stopped' : 'ended at its time limit') : j.state})`, agentFix(`Wait for the end of the job with talk wait --job ${id}, then run step check again with ${flag} ${id}. A job that was stopped proves nothing: start the check again.`));
+      if (!j.head) throw refuse(`step check: the job ${id} did not run in a git checkout`, agentFix('Start the check with talk job --cwd <the checkout>, then run step check again.'));
+      return j;
+    };
+    let proof = null;
+    let sha = opt.sha;
+    let result = opt.result;
+    if (opt.job) {
+      const j = endedJob(opt.job, '--job');
+      if ((j.dirty ?? []).some((f) => !isProse(f))) throw refuse(`step check: the job ${opt.job} ran on code that was not committed (${j.dirty.filter((f) => !isProse(f)).slice(0, 3).join(', ')})`, agentFix('Commit the work of the slice, run the check again, and record that run.'));
+      proof = { by: 'job', id: j.id, exit: j.exit, log: j.log, command: j.command };
+      sha = j.head;
+      result = j.exit === 0 ? 'met' : 'not-met';
+    } else if (opt.run) {
+      const before = gitRevParse(checkout, 'HEAD');
+      const logDir = join(runRoot(projectRoot), SUITE_LOG_DIR);
+      mkdirSync(logDir, { recursive: true });
+      const log = join(logDir, `check-${String(opt.name).replace(/[^A-Za-z0-9_.-]+/g, '-').slice(0, 40)}-${Date.now()}.log`);
+      const r = spawnSync(String(opt.run), { cwd: checkout, shell: true, encoding: 'utf8', windowsHide: true, timeout: 8 * 60_000, maxBuffer: 64 * 1024 * 1024 });
+      writeFileSync(log, `${r.stdout ?? ''}${r.stderr ?? ''}`);
+      if (r.error?.code === 'ETIMEDOUT' || r.status == null) throw refuse('step check: the command did not end in 8 minutes', agentFix('A longer check is a job: start it with talk job, wait with talk wait --job, then run step check again with --job <its id>.'));
+      proof = { by: 'run', exit: r.status, log, command: String(opt.run) };
+      sha = before;
+      result = r.status === 0 ? 'met' : 'not-met';
+    }
+    const row = addCheck(dir, { slice, name: opt.name, result, sha, required: !opt.optional, note: opt.note, carriedFrom: opt['carried-from'], proof, base: opt['base-job'] ? endedJob(opt['base-job'], '--base-job') : null }, {
+      resolve: (name) => gitRevParse(checkout, name),
+      isAncestor: (base, tip) => spawnSync('git', ['-C', checkout, 'merge-base', '--is-ancestor', base, tip], { windowsHide: true }).status === 0,
+    });
+    out(opt.json ? row : [checkLine(row), ...(proof && proof.exit !== 0 ? [`output: ${proof.log}`] : [])].join('\n'));
+    return 0;
   }
   const step = n == null ? null : Number(n);
   const where = () => whereOf(dir, slice, stepGit(projectRoot, dir));
@@ -1335,7 +1469,15 @@ export function runFindings(pos, opt) {
       // A dismissal by a decision names a live answer, steer or approval of the person.
       if (opt.decision) checkDismissDecision(dir, opt.decision);
       const e = updateLedger(dir, (now) => {
-        const entry = setStatus(now, a, b, opt.reason ?? null, { commit: opt.commit ?? null, decision: opt.decision ?? null });
+        // The commit of a fix is a commit of this repo.
+        let commit = opt.commit ?? null;
+        const repo = b === 'fixed' && commit ? stepCheckout(resolve(root)) : null;
+        if (repo && gitRevParse(repo, 'HEAD')) {
+          const full = gitRevParse(repo, `${commit}^{commit}`);
+          if (!full) throw refuse(`findings set: ${commit} is not a commit of this repo`, agentFix('Run findings set again with --commit <the sha of the fix commit>, as git log shows it.'));
+          commit = full;
+        }
+        const entry = setStatus(now, a, b, opt.reason ?? null, { commit, decision: opt.decision ?? null });
         writeLedger(dir, now);
         return entry;
       });
@@ -1462,13 +1604,34 @@ function runRecord(pos, opt) {
     case 'stage-done': {
       const [stage, slice] = rest;
       if (!stage) throw usage(`record stage-done: <stage> is required; the stages are: ${Object.keys(STAGE_FILES).join(', ')}`);
+      // An implement ends only when each required slice check ran on the code that the slice ends with.
+      let unmet = [];
+      if (stage === 'implement' && slice && (opt.status ?? 'complete') === 'complete') {
+        const st = sliceCheckState(dir, slice, { checkout: stepCheckout(resolve(root)), planBody: planDocOf(dir, slice)?.body ?? '' });
+        if (st.blocking.length) {
+          throw refuse(`record stage-done: the implement of ${slice} is not complete: ${st.blocking.join('; ')}`,
+            agentFix('Run each check that is named on the code as it is now, and record its result with step check --sha HEAD. A check that cannot run here is recorded with --result not-run only when the plan marks it optional (--optional). Then run record stage-done again.', `wf.mjs step check ${word(root)} ${word(slug)} ${word(slice)}`));
+        }
+        unmet = st.unmet;
+      }
+      // A review ends only when each BLOCKER finding has an outcome in the ledger.
+      if (stage === 'review' && (opt.status ?? 'complete') === 'complete') {
+        const open = readLedger(dir).findings.filter((f) => f.source === 'review' && f.severity === 'BLOCKER' && f.status === 'open' && (!slice || (f.slice ?? null) === null || f.slice === slice));
+        if (open.length) throw refuse(`record stage-done: the review has ${open.length} BLOCKER finding${open.length === 1 ? '' : 's'} with no outcome: ${open.map((f) => f.id).join(', ')}`, agentFix('Fix each one and record it with findings set <id> fixed --commit <sha>. When a fix cannot be made, record findings set <id> could-not-fix --reason "<why>" and return it in couldNotFixBlockers.'));
+      }
+      // A verify passes only on the code that its checks ran on, and an accept names who accepted.
+      if (stage === 'verify' && slice) {
+        const g = verifyGate(dir, slice, { checkout: stepCheckout(resolve(root)), planBody: planDocOf(dir, slice)?.body ?? '' });
+        if (g.blocking.length) throw refuse(`record stage-done: the verify of ${slice} cannot end as it is: ${g.blocking.join('; ')}`, agentFix(g.fix));
+      }
       const changes = stageDone(dir, slug, stage, slice ?? null, { next: opt.next ?? null, status: opt.status ?? null });
       // The drafts that were put in this stage are kept until here, for a second edit.
       for (const h of new Set([join(localWorkflowsRoot(resolve(root)), slug), dir])) clearKept(h, { slice: slice ?? null });
       // An implement stage of a project with no suite for implement gets the receipt that says so.
       const none = stage === 'implement' && slice ? noSuiteReceipt(resolve(root), dir, slice, { now: nowIso() }) : null;
       const receipt = none?.result === 'none' ? `; receipt: none (${NO_SUITE})` : '';
-      out(opt.json ? { ...changes, ...(receipt ? { receipt: `none (${NO_SUITE})` } : {}) } : `${stage}${slice ? ` ${slice}` : ''} done: progress.${stage}=${changes[`progress.${stage}`]}; next ${changes['next-invocation']}${receipt}`);
+      const unmetText = unmet.length ? `; ${unmet.length} check(s) not met go to verify: ${unmet.map((c) => c.name).join(', ')}` : '';
+      out(opt.json ? { ...changes, ...(receipt ? { receipt: `none (${NO_SUITE})` } : {}), ...(unmet.length ? { unmetChecks: unmet } : {}) } : `${stage}${slice ? ` ${slice}` : ''} done: progress.${stage}=${changes[`progress.${stage}`]}; next ${changes['next-invocation']}${receipt}${unmetText}`);
       return 0;
     }
     case 'draft': {
@@ -1594,7 +1757,13 @@ function runWorktree(pos, opt) {
     }
     return kept.length ? 1 : 0;
   }
-  throw usage('worktree: <add|remove> is required');
+  if (verb === 'leftovers') {
+    if (!root || !slug) throw usage('worktree: leftovers <root> <slug> are required');
+    const branches = leftoverBranches(resolve(root), slug);
+    out(opt.json ? { branches } : branches.length ? branches.map((b) => `${b.branch}: ${b.ahead} commit${b.ahead === 1 ? '' : 's'} that HEAD does not have`).join('\n') : 'no side branch holds work that HEAD does not have');
+    return 0;
+  }
+  throw usage('worktree: <add|remove|leftovers> is required');
 }
 
 function runRule(pos, opt) {
@@ -1676,6 +1845,19 @@ function runShip(pos, opt) {
     if (!f.ok) throw refuse(f.reason, f.fix ?? personFix('Check that gh is installed and signed in (gh auth status) and that the repo has a GitHub remote, then run the command again.'));
     const method = opt.method ? String(opt.method) : null;
     if (method && !f.allowed.includes(method)) throw redo(`ship merge: ${f.base} does not allow --method ${method}; allowed: ${f.allowed.join(', ') || 'none'}`, 'Run ship merge again with --method set to an allowed method, or with no --method.');
+    // The merge checks the facts of the workflow in code: the stage does not certify them by its word.
+    const wfDirOf = join(wfRoot(projectRoot), slug);
+    const stops = [];
+    if (verdictOf(readLedger(wfDirOf)) === 'dont-ship') stops.push('the findings ledger says dont-ship: a BLOCKER finding is open');
+    const ready = frontmatterOfDoc(wfDirOf, '08-handoff.md')?.['pr-readiness-verdict'];
+    if (ready && !['ready', 'not-applicable'].includes(String(ready))) stops.push(`the handoff record says pr-readiness-verdict: ${ready}`);
+    const openDef = openDeferrals(wfDirOf);
+    if (openDef.length) {
+      // An open deferral ships only with the word of the person: --override names that answer in the decision store.
+      const over = opt.override ? liveDecisions(decisionsOf(wfDirOf)).find((e) => e.id === opt.override && e.by === 'person') : null;
+      if (!over) stops.push(`${openDef.length} runtime-evidence deferral${openDef.length === 1 ? ' is' : 's are'} open (${openDef.map((d) => d.ac ?? d.id ?? d.slice ?? '?').slice(0, 4).join(', ')})`);
+    }
+    if (stops.length) throw refuse(`ship merge: ${slug} is not ready to merge: ${stops.join('; ')}`, agentFix('Clear each one: fix the BLOCKER findings, run the handoff again, and clear each deferral with its probe (wf.mjs deferrals check). When the person decides to ship with an open deferral, record that answer with decide add --by person and run ship merge again with --override <its id>.'));
     const cmd = mergeCommand(f, pr, { method });
     if (!cmd) throw ask(`ship merge: the repo allows no merge method for ${f.base}`, 'The repo allows no merge method for this base: allow one in the settings of the repo on GitHub, or merge the pull request by hand.');
     if (opt.print || !f.direct) {
@@ -2258,6 +2440,7 @@ async function runMain(cmd, pos, opt) {
         return 0;
       }
       case 'decide': return runDecide(pos, opt);
+      case 'talk': return runTalk(pos, opt, { out, journal: talkJournal, command: pos.slice(3) });
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
       case 'findings': return runFindings(pos, opt);
@@ -2473,6 +2656,7 @@ const ENUM_ARGS = {
   'decide add': { '--by': [...DECISION_BY, 'standing:<id>'], '--kind': DECISION_KINDS },
   'decide list': { '--by': [...DECISION_BY, 'standing'], '--kind': DECISION_KINDS },
   'step stop': { '--kind': STOP_KINDS },
+  'step check': { '--result': CHECK_RESULTS },
   'findings add': { '--source': FINDING_SOURCES },
   'findings list': { '--source': FINDING_SOURCES },
   'findings table': { '--source': FINDING_SOURCES },

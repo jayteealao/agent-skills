@@ -11,9 +11,10 @@ import { join } from 'node:path';
 
 import { writeFileAtomic } from './atomic-write.mjs';
 import { withFileLock } from './file-lock.mjs';
-import { endDecision, readDecisions } from './decisions.mjs';
+import { STAGE_WRITERS, endDecision, readDecisions } from './decisions.mjs';
 import { projectConfigPath, workflowsRoot } from './records-root.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { personOnly } from './actor.mjs';
 import { STANDING_KEYS } from './standing.mjs';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -53,12 +54,12 @@ export function rulesChanged(priorText, nextText) {
   return before !== null && after !== null && before !== after;
 }
 
-function writeRules(root, mutate) {
+function writeRules(root, mutate, now = nowIso()) {
   const file = projectConfigPath(root);
   return withFileLock(file, () => {
     const { text, cfg } = readConfigText(root);
     const rules = (Array.isArray(cfg.rules) ? cfg.rules : []).filter(isRule);
-    const result = mutate(rules);
+    const result = mutate(rules, now);
     if (rules.length) cfg.rules = rules; else delete cfg.rules;
     const eol = text.includes('\r\n') ? '\r\n' : '\n';
     writeFileAtomic(file, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
@@ -75,24 +76,29 @@ const keyOf = (rules, key) => {
 
 /** Add a rule. A rule with the same key is replaced. Returns { rule, replaced }. */
 export function addRule(root, { key = null, text }, { now = nowIso() } = {}) {
+  personOnly('add a rule of the project');
   if (!String(text ?? '').trim()) throw refuse('a rule needs its text', agentFix('Run the command again with --text "<the rule, in the words of the person>".'));
   if (key && !/^[a-z0-9][a-z0-9-]{0,60}$/.test(String(key))) throw refuse(`the key ${key} is not a short name`, agentFix('Run the command again with a --key of lowercase letters, digits and dashes.'));
   return writeRules(root, (rules) => {
     const rule = { key: keyOf(rules, key), text: String(text).trim(), at: now };
-    const at = rules.findIndex((r) => r.key === rule.key);
+    // A rule with the key of an ended rule is a new rule: the ended one keeps its place in the history.
+    const at = rules.findIndex((r) => r.key === rule.key && !r.ended);
     if (at >= 0) rules[at] = rule; else rules.push(rule);
     return { rule, replaced: at >= 0 };
   });
 }
 
-/** End a rule: it leaves the config. Returns the rule that was ended. */
+/** End a rule: it stays in the config as ended, with the reason, and no reader lists it. Returns the rule. */
 export function endRule(root, key, why) {
+  personOnly('end a rule of the project');
   if (!key) throw refuse('rule end: <key> is required', agentFix('Run rule list to see the keys, then run the command again with one of them.'));
   if (!String(why ?? '').trim()) throw refuse('an end needs its reason', agentFix('Run the command again with --reason "<why the rule no longer holds>".'));
-  return writeRules(root, (rules) => {
-    const at = rules.findIndex((r) => r.key === key);
+  return writeRules(root, (rules, at_) => {
+    const at = rules.findIndex((r) => r.key === key && !r.ended);
     if (at < 0) throw refuse(`no rule ${key}`, agentFix('Run rule list to see the keys, then run the command again with one of them.'));
-    return rules.splice(at, 1)[0];
+    // The rule stays in the config with its end and the reason: no reader lists it, and the history keeps why.
+    rules[at] = { ...rules[at], ended: at_, 'ended-why': String(why).trim() };
+    return rules[at];
   });
 }
 
@@ -122,6 +128,8 @@ function liveSteers(root) {
       // A steer whose key the run reads from the store of the workflow (run-decisions) stays there.
       // A question that the brainstorm left to the build is an answer to one named question of one packet, not a rule.
       if (e.stage === 'brainstorm' && e.key && /^The person left this to the build./.test(String(e.answer ?? ''))) continue;
+      // A rule of the project comes only from a steer of the person.
+      if (e.by !== 'person' || STAGE_WRITERS.includes(e.stage)) continue;
       if (e.kind === 'steer' && !e['superseded-by'] && !e.scope?.slice && !Object.hasOwn(STANDING_KEYS, String(e.key ?? ''))) out.push({ ...w, id: e.id, key: e.key ?? null, text: String(e.answer ?? '') });
     }
   }

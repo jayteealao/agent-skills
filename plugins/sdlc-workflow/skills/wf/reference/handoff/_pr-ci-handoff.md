@@ -14,6 +14,8 @@ A host can have its own PR monitor, which fixes CI and answers review comments b
 
 A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is. Run the loop in one read-only CI-watch sub-agent at **low** effort per [_subagents.md](../_subagents.md). The sub-agent runs steps 1–3, edits nothing, and returns only the outcome (`green`, `red` or `timed-out`), the failed or pending check names, and the poll count. The watch can take up to `max-wait-minutes`. Wait for the sub-agent's result before the next handoff step, and do not ask the person about CI while the watch runs.
 
+One shell call ends long before `max-wait-minutes`. Never run the watch as one long call, and never in the background: start it as a job and wait for the job ([_talk.md](../_talk.md)). `node "<skill-dir>/scripts/wf.mjs" talk job "<root>" <slug> --as ship:slug-wide --name ci-watch --max-min <max-wait-minutes> -- "gh pr checks <pr-number> --watch --interval <poll-interval-seconds>"`, then `... talk wait "<root>" <slug> --as ship:slug-wide --job <id>`, again at each "still waiting". The job ends at the ceiling by itself; a job that ended at its time limit is **timed-out**.
+
 Inputs: `pr-number`; `ci-watch.poll-interval-seconds` (default 30); `ci-watch.max-wait-minutes` (default 30). The wall-clock bound is the user's hard ceiling; never exceed it silently.
 
 1. **Read current state:** `gh pr view <pr-number> --json statusCheckRollup`. Partition `.statusCheckRollup[]`:

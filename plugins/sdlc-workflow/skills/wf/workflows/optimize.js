@@ -42,6 +42,7 @@ const SKILL_DIR_LINE = `skill-dir: ${SKILL_DIR}\n` +
   'Never search the disk for wf.mjs, a script or the plugin folder.'
 const SCRIPT = `${SKILL_DIR}/scripts/optimize.mjs`
 const DECIDE = `node "${SKILL_DIR}/scripts/wf.mjs" decide`
+const TALK = `node "${SKILL_DIR}/scripts/wf.mjs" talk`
 const HYP_DIR = `${projectRoot}/.scratch/optimize/${slug}`
 const RUN = OPT.runId || `${slug}-optimize`
 const cmd = (sub, rest = '') => `node "${SCRIPT}" ${sub} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
@@ -119,7 +120,11 @@ async function book(sub, rest, label, phaseName, pre = '', line = null) {
     `  ${line || cmd(sub, rest)}\n` +
     `Return { ok, result } where result is the JSON object that the command printed on stdout, parsed, every field ` +
     `as printed. When the command exits non-zero it still prints JSON: return it as result with ok false. Do not ` +
-    `edit any other file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
+    `edit any other file, do not run git, and do not try to repair a failure. The command can run longer than ` +
+    `one shell call allows. When your shell tool cannot wait for it, do not run it in the background: start it ` +
+    `with \`${TALK} job "${projectRoot}" ${slug} --as optimize:${slug} --name ${label.replace(/[^A-Za-z0-9_.-]+/g, '-')} -- "<the command>"\`, ` +
+    `wait with \`${TALK} wait "${projectRoot}" ${slug} --as optimize:${slug} --job <id>\` (run it again at ` +
+    `"still waiting"), and read the JSON from the output file that the job names.` + heartbeat(label, phaseName),
     { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET, effort: 'low' }
   )
   return unwrap(res, label)

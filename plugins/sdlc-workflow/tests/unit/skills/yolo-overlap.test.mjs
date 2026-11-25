@@ -42,13 +42,13 @@ function answerOf(label) {
   return undefined;
 }
 
-async function run(slices, { args = {}, answer = () => undefined, strategy = 'dedicated' } = {}) {
+async function run(slices, { args = {}, answer = () => undefined, strategy = 'dedicated', orient = {} } = {}) {
   const calls = [];
   const logs = [];
   const agent = async (prompt, opts = {}) => {
     const call = { label: opts.label, prompt, n: calls.filter((c) => c.label === opts.label).length + 1 };
     calls.push(call);
-    if (opts.label === 'orient') return orientResult(slices, strategy);
+    if (opts.label === 'orient') return { ...orientResult(slices, strategy), ...orient };
     // One turn of the event loop, so that work started together can overlap.
     await new Promise((r) => setImmediate(r));
     const own = answer(call);
@@ -104,7 +104,8 @@ test('the verify of a slice runs behind by default, fixes code on its own branch
   assert.equal(r.count('verify:a'), 1);
   assert.match(r.prompt('verify:a'), /VERIFY BEHIND\. .*at commit [0-9a-f]{8}, in its own copy of the repo:/s);
   assert.match(r.prompt('verify:a'), /worktree add "\/repo" demo verify-a [0-9a-f]{8}/);
-  assert.match(r.prompt('verify:a'), /git switch -C verify\/demo\/a/);
+  // The branch is made new: a branch that exists holds the fixes of an earlier run, and is never moved.
+  assert.match(r.prompt('verify:a'), /git switch -c verify\/demo\/a`\. When git says that the branch exists, it holds the fix commits of an earlier run: stop/);
   assert.match(r.prompt('verify:a'), /Run the fix loop as verify\.md says \(Step 7\.6\), in the copy/);
   assert.doesNotMatch(r.prompt('verify:a'), /Change no code/);
   assert.ok(r.at('verify:a') < r.at('implement:b'), 'the verify of a starts before the implement of b');
@@ -126,12 +127,83 @@ test('verifyBehind false, or a branch that takes no commit, verifies each slice 
   }
 });
 
-test('a verify branch that does not merge is kept, and the verify runs again in the main checkout', async () => {
-  const r = await run([slice('a'), slice('b')], { answer: (c) => (c.label === 'merge:a' ? { ok: false, conflicts: ['src/x.js'] } : undefined) });
+test('a verify branch that the merge stage cannot merge stops the run with the branch kept: its fixes are never left behind', async () => {
+  const r = await run([slice('a'), slice('b')], { answer: (c) => (c.label === 'merge:a' ? { ok: false, conflicts: ['src/x.js'], note: 'both sides rewrote the parser' } : undefined) });
+  assert.equal(r.outcome.ok, false);
+  assert.equal(r.outcome.stoppedAt, 'merge');
+  assert.match(r.outcome.reason, /the fix branch verify\/demo\/a of the verify of 'a' is not merged: a conflict in src\/x\.js \(both sides rewrote the parser\)\. Its fixes are on that branch/);
+  assert.equal(r.count('verify:a'), 1, 'no second verify runs without the fixes');
+  assert.equal(r.count('verify:b'), 0);
+});
+
+test('a fix branch that an earlier run left is merged before any other work, and a run stops when it cannot be', async () => {
+  const left = { leftoverBranches: [{ branch: 'verify/demo/a', kind: 'verify', slice: 'a', ahead: 2 }] };
+  const done = [slice('a', { status: 'in-progress', stages: { plan: 'done', implement: 'done', verify: 'todo', review: 'n-a' } }), slice('b')];
+  const r = await run(done, { orient: left });
   assert.equal(r.outcome.ok, true, r.outcome.reason);
-  assert.equal(r.count('verify:a'), 2);
-  assert.doesNotMatch(r.prompt('verify:a', 2), /VERIFY BEHIND/);
-  assert.ok(r.logs.some((m) => /verify\/demo\/a .* is not merged: a conflict in src\/x\.js/.test(m)), r.logs.join('\n'));
+  assert.equal(r.labels[r.at('orient') + 1], 'merge:a', 'the merge is the first work of the run');
+  assert.ok(r.logs.some((l) => /the branch verify\/demo\/a holds 2 commits of an earlier run that HEAD does not have/.test(l)));
+  assert.match(r.prompt('orient'), /worktree leftovers "\/repo" demo --json/);
+  // The merge cannot be made: no stage runs on code that lacks the fixes.
+  const stop = await run(done, { orient: left, answer: (c) => (c.label === 'merge:a' ? { ok: false, conflicts: ['src/x.js'] } : undefined) });
+  assert.equal(stop.outcome.stoppedAt, 'merge');
+  assert.match(stop.outcome.reason, /holds 2 commits of an earlier run that HEAD does not have, and they could not be merged: a conflict in src\/x\.js/);
+  assert.equal(stop.count('verify:a') + stop.count('plan:b'), 0);
+  // The steps of a slice that was built in a scratch copy: the run does not build that slice again without them.
+  const side = await run(done, { orient: { leftoverBranches: [{ branch: 'side/demo/b', kind: 'side', slice: 'b', ahead: 4 }] } });
+  assert.equal(side.outcome.stoppedAt, 'merge');
+  assert.match(side.outcome.route, /merge side\/demo\/b with a merge commit/);
+  assert.equal(side.count('implement:b'), 0);
+});
+
+test('the merge stage resolves a conflict, and does not refuse over a changed file that the merge does not touch', async () => {
+  const r = await run([slice('a'), slice('b')]);
+  const p = r.prompt('merge:a');
+  assert.match(p, /MERGE STAGE: the side branch verify\/demo\/a of slice 'a'/);
+  assert.match(p, /A file with an uncommitted change that the merge does not touch is not yours and does not block/);
+  assert.doesNotMatch(p, /status --porcelain/, 'no refusal over every changed file of the checkout');
+  assert.match(p, /When the merge stops on a conflict, resolve it\./);
+  assert.match(p, /Never take one whole side to make it merge, and never delete or weaken a test to make it merge/);
+  assert.match(p, /04-plan-a\.md.*04-plan-b\.md/s, 'the plans of both slices');
+  assert.match(p, /run `git -C "\/repo" merge --abort` and return \{ ok: false, conflicts/);
+});
+
+test('the verify behind hands each fix over in the talk, and the implement beside it merges at a safe step', async () => {
+  const r = await run([slice('a'), slice('b'), slice('c')]);
+  const v = r.prompt('verify:a');
+  assert.match(v, /\(3a\) Hand each fix commit over at once, to slice 'b', which is being built now: `[^`]*talk post "\/repo" demo --as verify:a --to b --kind handover/);
+  assert.match(v, /\(3b\) When that agent asks whether more fixes are coming, reply/);
+  assert.match(v, /\(3c\) When your verdict is written, post it: `--kind done --to b/);
+  const i = r.prompt('implement:b');
+  assert.match(i, /VERIFY BESIDE YOU\. The verify of slice 'a' runs now, in its own copy of the repo, on the branch verify\/demo\/a/);
+  assert.match(i, /\(2\) On a conflict, resolve it: read both sides, and write the file so that the change of each side holds/);
+  assert.match(i, /\(3\) Before a step that the plan marks \(after-merge\)/);
+  assert.match(i, /--to verify:a --wants-reply --fallback "go on with the step"/);
+  assert.match(i, /\(4\) Before your slice checks, merge the branch once more/);
+  assert.doesNotMatch(r.prompt('implement:a'), /VERIFY BESIDE YOU/, 'the first slice has no verify beside it');
+});
+
+test('a verify behind that made fix commits has its slice checks run again on the merged code', async () => {
+  const fixed = (c) => (c.label === 'verify:a' && c.n === 1 ? { stage: 'verify', slice: 'a', status: 'complete', artifactPath: 'x', terminal: PASS, headEnd: 'fff00001', sliceWriteBack: { ok: true, wrote: ['00-index.md'] } } : undefined);
+  const ok = await run([slice('a'), slice('b')], { answer: (c) => fixed(c) ?? (c.label === 'recheck:a' ? { ok: true } : undefined) });
+  assert.equal(ok.outcome.ok, true, ok.outcome.reason);
+  assert.equal(ok.count('recheck:a'), 1);
+  assert.match(ok.prompt('recheck:a'), /SLICE RE-CHECK for slice 'a'.*Change, fix and commit nothing/s);
+  assert.equal(ok.count('verify:a'), 1);
+  assert.ok(ok.at('recheck:a') > ok.at('merge:a') && ok.at('recheck:a') < ok.at('verify:b'), ok.labels.join(' '));
+  // A red on the merged code: the verify runs again, at the tip.
+  const red = await run([slice('a'), slice('b')], { answer: (c) => fixed(c) ?? (c.label === 'recheck:a' ? { ok: false, reds: ['guard set: parser_roundtrip'] } : undefined) });
+  assert.equal(red.outcome.ok, true, red.outcome.reason);
+  assert.equal(red.count('verify:a'), 2);
+  assert.doesNotMatch(red.prompt('verify:a', 2), /VERIFY BEHIND/);
+  assert.ok(red.logs.some((m) => /do not pass on the merged code \(guard set: parser_roundtrip\)/.test(m)), red.logs.join('\n'));
+  // No fix commit and no conflict: the result of the verify stands with no second run of the checks.
+  const plain = await run([slice('a'), slice('b')]);
+  assert.equal(plain.count('recheck:a'), 0);
+  // A conflict that the merge stage resolved: the checks run again.
+  const joined = await run([slice('a'), slice('b')], { answer: (c) => (c.label === 'merge:a' ? { ok: true, merged: true, resolved: ['src/x.js'] } : c.label === 'recheck:a' ? { ok: true } : undefined) });
+  assert.equal(joined.count('recheck:a'), 1);
+  assert.ok(joined.logs.some((m) => /a conflict was resolved in src\/x\.js/.test(m)));
 });
 
 test('a verify that fails behind runs again in the main checkout, with its fix rounds', async () => {

@@ -20,6 +20,9 @@ Rules for every agent of this run:
 - Do not ask a person anything. When you cannot go on, write why in your result with status "blocked", and stop.
 - Never use `git add -A`, `git add .` or `git commit -a`. Stage each file by its path.
 - Never push, never merge, never rewrite history, never delete a branch.
+- Your name in this run is `<role>:<unit number>`. A command that can take longer than 8 minutes is a job, never a background command and never one long shell call: start it with `node "<skill-dir>/scripts/wf.mjs" talk job "<root>" <slug> --as <your name> --name <short-name> -- "<the command>"`, then wait with `... talk wait "<root>" <slug> --as <your name> --job <id>` and run the wait again each time it prints "still waiting". A server or an emulator that you need while you work is a job too.
+- Before you use an emulator, a device, a port or a test machine, run `... talk resources "<root>" <slug>`. When it names the one that you need, hold it first with `... talk wait "<root>" <slug> --as <your name> --claim <key>` (run it again at "still waiting"), and start your command with `talk job --claim <key>`. Never use a resource that another agent holds, and never stop an emulator or a server that you did not start.
+- Before you write your result file, stop your own jobs: `... talk jobs "<root>" <slug> --stop --as <your name>`.
 - Standing instructions of the person for this run: <the rules of the project and the live steers, or "none">.
 ```
 

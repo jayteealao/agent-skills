@@ -97,7 +97,7 @@ test('findings, status, steps and board', async () => {
     const add = wf.findings.add([{ dimension: 'correctness', severity: 'HIGH', issue: 'a bug', file: 'a.js', line: 3 }], { source: 'review', dimensions: ['correctness'] });
     assert.equal(add.added.length, 1);
     const [one] = wf.findings.list({ open: true });
-    assert.equal(wf.findings.set(one.id, { status: 'fixed' }).status, 'fixed');
+    assert.equal(wf.findings.set(one.id, { status: 'fixed', commit: '1a2b3c' }).status, 'fixed');
     assert.equal(wf.findings.list({ open: true }).length, 0);
     const s = await wf.status.summary();
     assert.equal(s.stage, 'verify');

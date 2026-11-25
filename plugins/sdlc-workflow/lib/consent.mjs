@@ -23,6 +23,9 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export function isConsentQuestion(text, slug) {
   const t = norm(text).toLowerCase();
   if (!t.includes('start the next steps')) return false;
+  // The consent question asks for the consent itself. A question that only offers something
+  // before the steps start is not one.
+  if (!t.includes('on my own')) return false;
   return new RegExp(`(?:^|[^a-z0-9_-])${escapeRe(String(slug).toLowerCase())}(?:$|[^a-z0-9_-])`).test(t);
 }
 
@@ -67,7 +70,8 @@ export function grantConsent(projectRoot, slug, { since = null, now = new Date()
   const from = since && after ? (Date.parse(since) > Date.parse(after) ? since : after) : (since ?? after);
   const answer = findAnswer(projectRoot, (text) => isConsentQuestion(text, slug), { since: from });
   if (!answer) return { ok: false, reason: 'no answer event for the consent question', question };
-  if (!/^\s*yes\b/i.test(answer.answer)) return { ok: false, reason: `the person answered: ${answer.answer}`, question };
+  // A yes with a condition ("yes, but ask me before implement") is not the consent.
+  if (!/^\s*yes\b/i.test(answer.answer) || /\b(but|only|except|unless|ask|before|not|until|first)\b/i.test(answer.answer)) return { ok: false, reason: `the person answered: ${answer.answer}`, question };
   const consent = { granted: true, by: 'person', at: now.toISOString().replace(/\.\d{3}Z$/, 'Z'), answer: answer.answer, 'answered-at': answer.at, host: answer.host };
   setFields(dir, INDEX_NAME, { [CONSENT_FIELD]: consent });
   return { ok: true, consent };

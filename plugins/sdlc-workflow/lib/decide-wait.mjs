@@ -38,14 +38,17 @@ export function heldQuestions(dir) {
  * @param {(ms: number) => void} [o.sleep]
  * @param {(info: { until: number, questions: object[] }) => void} [o.onStart] called once before the block
  * @param {(info: { state: string }) => void} [o.onEnd] called once after the block
+ * @param {() => any} [o.interrupt] asked at each poll: a value that is not null ends this call early, with the
+ *   questions still open, and comes back as `interrupt` (a message of another agent for the stage that waits)
  * @returns {{ state: 'answered' | 'waiting', answered: Array<{ key: string, entry: object }>, open: string[], waitedMs: number }}
  *   `waiting`: this call ended with a question still open, so the stage calls again.
  */
-export function waitForAnswers(dir, { keys, scope = {}, callMs = WAIT_CALL_MS, pollMs = WAIT_POLL_MS, now = Date.now, sleep = pause, onStart = () => {}, onEnd = () => {} } = {}) {
+export function waitForAnswers(dir, { keys, scope = {}, callMs = WAIT_CALL_MS, pollMs = WAIT_POLL_MS, now = Date.now, sleep = pause, onStart = () => {}, onEnd = () => {}, interrupt = null } = {}) {
   const want = [...new Set((keys ?? []).map((k) => String(k).trim()).filter(Boolean))];
   if (!want.length) throw refuse('decide wait: --key is required', agentFix('Run decide wait again with --key, the key of each question that you hold, with commas between the keys.'));
   const read = () => {
-    const list = decisionsOf(dir);
+    // A note of a stage is not an answer: a wait for the person does not end on it.
+    const list = decisionsOf(dir).filter((e) => e.kind !== 'note');
     const answered = [];
     const open = [];
     for (const key of want) {
@@ -68,11 +71,14 @@ export function waitForAnswers(dir, { keys, scope = {}, callMs = WAIT_CALL_MS, p
   }
   const until = startMs + callMs;
   onStart({ until, questions: waiting });
+  let broke = null;
   while (cur.open.length && now() < until) {
+    broke = interrupt ? interrupt() ?? null : null;
+    if (broke !== null) break;
     sleep(Math.max(1, Math.min(pollMs, until - now())));
     cur = read();
   }
-  const r = result();
+  const r = { ...result(), ...(broke !== null ? { interrupt: broke } : {}) };
   onEnd({ state: r.state });
   return r;
 }

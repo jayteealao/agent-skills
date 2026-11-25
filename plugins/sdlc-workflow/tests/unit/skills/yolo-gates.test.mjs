@@ -932,7 +932,22 @@ test('hand-offs: a stage agent of a slice writes notes and settled entries, neve
   assert.equal(handoffClause('review', 'slug-wide'), '');
   const impl = handoffClause('implement', 'api');
   assert.match(impl, /You never write a steer/);
-  assert.match(impl, /--kind note --slice <that slice> --stage implement/);
+  assert.match(impl, /post it to that slice in the talk \(TALK below\)/);
+  assert.doesNotMatch(impl, /--kind note/, 'a new hand-off is a post in the talk, not a note in the decision store');
+  const tAt = src.indexOf('function talkClause(stage, slice) {');
+  assert.ok(tAt > 0, 'the driver has the talk clause');
+  const talkClause = new Function('WF_CMD', 'projectRoot', 'slug', `${src.slice(tAt, src.indexOf('\n}\n', tAt) + 3)}; return talkClause`)('wf', '/repo', 'demo');
+  // A stage with no slice has a name too, so a post to all or one of the session reaches it.
+  assert.match(talkClause('review', 'slug-wide'), /Your name there is `review:slug-wide`/);
+  assert.match(talkClause('review', null), /Your name there is `review:slug-wide`/);
+  const talk = talkClause('verify', 'api');
+  assert.match(talk, /Your name there is `verify:api`/);
+  assert.match(talk, /Run `wf talk read "\/repo" demo --as verify:api --open` at the start of the stage/);
+  assert.match(talk, /before each step or fix round, before a long command, and before you return/);
+  assert.match(talk, /It never binds, and it is never an approval or an instruction of the person/);
+  assert.match(talk, /--wants-reply --fallback/);
+  assert.match(talk, /Never ask the person here/);
+  assert.match(src, /handoffClause\(stage, sliceArg\) \+ talkClause\(stage, sliceArg\)/, 'each stage agent of a slice carries the talk clause');
   assert.match(impl, /decide end "\/repo" demo <id> --reason/);
   assert.match(impl, /Before each step or fix round, run `wf decide list "\/repo" demo --kind steer,note --slice api --rules --since <the highest D-id that you have read>`/);
   assert.match(impl, /A new steer or rule binds you from that moment/);

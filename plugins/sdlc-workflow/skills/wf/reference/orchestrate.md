@@ -118,7 +118,7 @@ For each milestone, in order:
 # Step 8 — The end
 
 1. **End proof.** When each milestone has passed, dispatch one fresh `product-validator` with the reserve set. It runs each reserve scenario and each outcome again on the final build. Run `<o> measure` again. An outcome that fails here goes back to Step 7, and the scenario agent writes a new reserve scenario for it. `<o> state` lists what is not proved at the current commit in `passed-at-an-older-commit` and `no-reserve-pass`.
-2. **Push and CI.** Push the branch, and open the PR of the run as a draft with `gh pr create --draft`. Then run `<o> measure <root> <slug> OUT-STAND-CI`: it watches CI to its end. Each CI failure is fix work, and the run is not done while CI fails.
+2. **Push and CI.** Push the branch, and open the PR of the run as a draft with `gh pr create --draft`. Then run `<o> measure <root> <slug> OUT-STAND-CI`: it watches CI to its end. The watch can take longer than one shell call: start it as a job (`<wf> talk job "<root>" <slug> --as session --name ci -- "<the measure command>"`) and wait with `<wf> talk wait "<root>" <slug> --as session --job <id>` ([_talk.md](_talk.md)). Do the same for any `measure` whose commands take more than 8 minutes. Each CI failure is fix work, and the run is not done while CI fails.
 3. **Helpers.** Run `<o> helpers <root> <slug>`. On `ok: false`, end each helper that it names, and count the unit of its parent as failed.
 4. **Evidence.** Run `<o> evidence <root> <slug>`. It writes the evidence page. Open the page for the person where the host can open a file, and give its path.
 5. **Reversal.** Write the choices of the run with the largest effect in chat as a numbered list (`choices` of the `evidence` result), and ask one question: "Reverse any of these?", per "Delegate mode" of [yolo.md](yolo.md). A reversal is fix work: go back to Step 7, then prove the end again.
@@ -134,7 +134,7 @@ One unit is one agent. For each unit:
 4. Run `<o> dispatch <root> <slug> <n> --agent <roster id> --task <task file> --host <your host>`.
    - `launch: host-subagent`: start the subagent of your host that `do` describes. When it returns, run the `then` command.
    - `launch: hc`: the agent works in a terminal that outlives your session. Do other work that does not depend on it. Then run `<o> wait <root> <slug> <n>`, and follow what it says. A `working` status is a check-in, not a failure: wait again. Never sleep and poll.
-   - `launch: direct`: the machine has no `hc`. The command returns when the agent ends.
+   - `launch: direct`: the machine has no `hc`. The command returns when the agent ends, which can be hours: start the dispatch as a job (`<wf> talk job ... --as session --max-min 240 -- "<the dispatch command>"`) and wait with `talk wait --job`, never as one shell call.
 5. Record the result: `<o> result <root> <slug> <n> <result file>`. Trust the result file, not what the agent says in chat or on its screen. With no result file, run `result` with no file: the unit failed.
 6. A fix unit can go to the builder that did the first unit, with its context kept: add `--continue <the first unit>` to the dispatch. A validator always gets a fresh agent.
 

@@ -223,7 +223,22 @@
           "key": { "type": "string", "minLength": 1, "description": "A short stable name." },
           "text": { "type": "string", "minLength": 1, "description": "The exact words of the person." },
           "at": { "type": "string", "description": "When the rule was written." },
-          "from": { "type": "string", "description": "The steer that the rule was adopted from, as <slug>:<id>." }
+          "from": { "type": "string", "description": "The steer that the rule was adopted from, as <slug>:<id>." },
+          "ended": { "type": "string", "description": "When the rule was ended. An ended rule binds nothing and no brief prints it." },
+          "ended-why": { "type": "string", "description": "Why the rule no longer holds." }
+        }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "description": "The shared resources of the project that one agent uses at a time: a test machine, a device, a port, a build folder. A stage holds the key (wf.mjs talk wait --claim) before it uses the resource.",
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "description": "A short stable name." },
+          "about": { "type": "string", "description": "What the resource is, and which commands use it." },
+          "lease-min": { "type": "integer", "minimum": 1, "description": "The minutes of one lease. A job renews its lease while it runs." }
         }
       }
     },

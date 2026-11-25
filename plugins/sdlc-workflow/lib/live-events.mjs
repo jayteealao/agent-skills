@@ -265,7 +265,8 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   // of that call. Past the end, with no wait-end line, the command died: the silence counts.
   if (st.newest && st.newest.event === 'waiting' && !(Number.isFinite(st.newest.until) && nowMs > st.newest.until + WAIT_END_GRACE_MS)) return [];
   const byTranscript = Number.isFinite(activityMs) && st.newest && st.newest.event === 'agent-start';
-  const since = byTranscript ? Math.max(st.lastLineAt, activityMs) : Math.max(st.lastLineAt, watchStartMs);
+  // The start of the watch bounds both signals: a watch never calls a run stale for silence before it started.
+  const since = byTranscript ? Math.max(st.lastLineAt, activityMs, watchStartMs) : Math.max(st.lastLineAt, watchStartMs);
   const silentMs = nowMs - since;
   const limit = byTranscript ? AGENT_SILENT_MS : liveLimitMs(st);
   if (silentMs <= limit) return [];

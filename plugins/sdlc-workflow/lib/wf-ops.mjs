@@ -63,7 +63,11 @@ export function holdQuestion(dir, q) {
     ...(q.recommended ? { recommended: q.recommended } : {}),
     'held-at': q.heldAt ?? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
   };
-  const kept = open.filter((x) => (x && typeof x === 'object' ? x.key ?? x.id : x) !== q.key);
+  // A question is held by its key and its slice: two stages that work at the same time can hold the
+  // same key for two slices, and neither takes the question of the other out of the index.
+  const sliceOf = (x) => (x && typeof x === 'object' && x.slice && x.slice !== 'slug-wide' ? x.slice : null);
+  const mine = q.slice && q.slice !== 'slug-wide' ? q.slice : null;
+  const kept = open.filter((x) => (x && typeof x === 'object' ? x.key ?? x.id : x) !== q.key || sliceOf(x) !== mine);
   setFields(dir, INDEX_NAME, { 'open-questions': [...kept, entry] });
   return { entry, replaced: kept.length !== open.length };
 }

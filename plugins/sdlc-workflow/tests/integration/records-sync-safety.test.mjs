@@ -512,7 +512,7 @@ test('findings add and findings set are changes: each one commits the ledger to 
     assert.equal(run('findings', 'add', a.root, 'w1', found).status, 0);
     assert.ok(filesOf(a.clone, 'HEAD').includes('notes/w1/findings.yaml'), 'the add made a records commit');
     const before = git(a.clone, 'rev-parse', 'HEAD');
-    assert.equal(run('findings', 'set', a.root, 'w1', 'SEC-1', 'fixed').status, 0);
+    assert.equal(run('findings', 'set', a.root, 'w1', 'SEC-1', 'fixed', '--commit', 'HEAD').status, 0);
     assert.notEqual(git(a.clone, 'rev-parse', 'HEAD'), before, 'the set made a records commit');
     assert.match(git(a.clone, 'show', 'HEAD:notes/w1/findings.yaml'), /status: fixed/);
   } finally { w.done(); }

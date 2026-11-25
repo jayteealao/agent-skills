@@ -240,6 +240,6 @@ test('without an answer, items with by person do not accept a failing verify', a
 
 test('the verify prompt and the stage schema carry one accept shape', () => {
   assert.doesNotMatch(src, /acceptedByPerson/);
-  assert.match(src, /return ` \+\s+`each of those items in terminal\.acceptedItems as \{ item, by: 'person' \}/);
+  assert.match(src, /return ` \+\s+`each of those items in terminal\.acceptedItems as \{ item, by: '\$\{by\}' \}/, 'the item carries who answered: an answer of a delegate is not an accept of the person');
   assert.match(src, /'person' when the answer of the\n\s+\/\/ person accepts the slice with its items/);
 });
