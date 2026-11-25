@@ -146,7 +146,9 @@ function approvedPicture(s, history, records, seen) {
  */
 function recordFiles(root) {
   const dir = designRecordsDir(root);
-  return { comments: (key) => join(dir, 'comments', `${key}.json`), picture: (sha, key) => join(dir, 'approvals', sha, `${key}.png`) };
+  // The comments of a screen: its old file and each of its event files.
+  const events = (key) => { try { return readdirSync(join(dir, 'comments', key)).filter((n) => n.endsWith('.json')).sort().map((n) => join(dir, 'comments', key, n)); } catch { return []; } };
+  return { comments: (key) => [join(dir, 'comments', `${key}.json`), ...events(key)], picture: (sha, key) => join(dir, 'approvals', sha, `${key}.png`) };
 }
 
 /**
@@ -646,7 +648,7 @@ export function canvasState(root, { repo = null, writable = true, full = true, r
   }
   const dirty = dirtyOf(root, git, [...pictures.keys()].sort(), memo, seen);
   const screens = listed.map(({ page, screen: s }) => {
-    const threads = kept(memo?.threads, s.key, () => seen.key([records.comments(s.key)]), () => { reads.threads += 1; return readComments(root, s.key).threads; });
+    const threads = kept(memo?.threads, s.key, () => seen.key(records.comments(s.key)), () => { reads.threads += 1; return readComments(root, s.key).threads; });
     const failures = failuresOf.get(s.key) ?? [];
     return {
       ...s,

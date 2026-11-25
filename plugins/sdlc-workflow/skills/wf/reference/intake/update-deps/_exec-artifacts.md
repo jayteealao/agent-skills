@@ -51,7 +51,7 @@ metric-acceptance-total: <int>
 metric-interactive-checks-run: 0
 metric-interactive-checks-passed: 0
 metric-issues-found: <int>           # blocked packages
-evidence-dir: "<wf-dir>/verify-evidence/<slug>/"
+evidence-dir: "verify-evidence/<slug>/"   # relative to <wf-dir>
 stack-source: unconfirmed-auto-detect   # the update-deps stack policy leaves the stack unconfirmed
 skipped-gating-specs: []
 debt-markers-found: 0

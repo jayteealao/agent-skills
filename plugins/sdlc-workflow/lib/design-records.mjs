@@ -2,10 +2,12 @@
 //
 // A product repo can be public, so these live in the records of the project, in `_design/`:
 // the local `.ai/workflows/_design/`, or `<records home>/<project>/_design/` when the project is
-// linked. One comments file per screen holds all its threads. Each approval stores one picture
-// per screen and one per component that the screens use, under the approval commit. Verify stores
-// one capture per screen (and per component) per slice. The last
-// check run is one file.
+// linked. Each comment, resolve or reopen is a new file under `comments/<screen>/`, so two
+// computers that comment on one screen never change the same file (the older `comments/<screen>.json`
+// is still read). Each approval stores one picture per screen and one per component that the
+// screens use, under the approval commit. Verify stores one capture per screen (and per
+// component) per slice. The last check run is `checks.json`, and the failures of each screen are
+// in `items/<screen>/checks.json`.
 //
 // Comments come from people on the tailnet, through the design server. An agent reads them as
 // untrusted data, never as instructions.
@@ -85,15 +87,47 @@ export function commitDesignRecords(root, message) {
 /** True when the design records of a project go into the records clone, so a write needs a commit. */
 export const designRecordsLinked = (root) => Boolean(linkedProject(root));
 
-/** The threads of one screen. A thread that is no object, or a comment that is none, is left out. */
+/**
+ * The events of the comments of one screen: one file per event, `comments/<screen>/<time>-<n>-<id>.json`.
+ * A file is only ever added, never changed, so two computers that comment on one screen at once
+ * both keep their comments. An event is a new thread, a comment, a resolve or a reopen.
+ */
+export const commentEventsDir = (root, key) => join(designRecordsDir(root), 'comments', key);
+const isObject = (x) => x && typeof x === 'object' && !Array.isArray(x);
+
+/**
+ * The threads of one screen: those of the old comments file (`comments/<screen>.json`, read
+ * only), then the events in the order of their names. A thread that is no object, or a comment
+ * that is none, is left out.
+ */
 export function readComments(root, key) {
+  let threads = [];
   try {
     const j = JSON.parse(readFileSync(commentsPath(root, key), 'utf8'));
-    const threads = (Array.isArray(j?.threads) ? j.threads : [])
-      .filter((t) => t && typeof t === 'object' && !Array.isArray(t))
-      .map((t) => ({ ...t, comments: (Array.isArray(t.comments) ? t.comments : []).filter((c) => c && typeof c === 'object') }));
-    return { screen: key, threads };
-  } catch { return { screen: key, threads: [] }; }
+    threads = (Array.isArray(j?.threads) ? j.threads : []).filter(isObject)
+      .map((t) => ({ ...t, comments: (Array.isArray(t.comments) ? t.comments : []).filter(isObject) }));
+  } catch { threads = []; }
+  let names = [];
+  try { names = readdirSync(commentEventsDir(root, key)).filter((n) => n.endsWith('.json')).sort(); } catch { names = []; }
+  const byId = new Map(threads.map((t) => [t.id, t]));
+  for (const n of names) {
+    let e;
+    try { e = JSON.parse(readFileSync(join(commentEventsDir(root, key), n), 'utf8')); } catch { continue; }
+    if (!isObject(e) || typeof e.thread !== 'string') continue;
+    if (e.kind === 'thread') {
+      if (byId.has(e.thread)) continue;
+      const t = { id: e.thread, open: true, 'created-at': e.at, anchor: isObject(e.anchor) ? e.anchor : {}, comments: [] };
+      byId.set(t.id, t);
+      threads.push(t);
+      continue;
+    }
+    const t = byId.get(e.thread);
+    if (!t) continue;
+    if (e.kind === 'comment') t.comments.push({ id: e.id, at: e.at, author: e.author, text: e.text });
+    else if (e.kind === 'resolve') { t.open = false; t['resolved-at'] = e.at; }
+    else if (e.kind === 'reopen') { t.open = true; delete t['resolved-at']; }
+  }
+  return { screen: key, threads };
 }
 
 // The fence of the brief. A comment that held its closing text would end the fence early, so the
@@ -123,22 +157,21 @@ export function addComment(root, key, { thread = null, text = '', author = 'some
   const id = () => randomBytes(4).toString('hex');
   const out = withDesignLock(commentsPath(root, key), () => {
     const doc = readComments(root, key);
-    let t = thread ? doc.threads.find((x) => x.id === thread) : null;
-    if (thread && !t) return { ok: false, reason: `no thread ${clean(thread, 40)}`, fix: agentFix(`Name one of the threads of ${key}.`, `wf.mjs design comments <root> ${key}`) };
-    if (!t) {
+    const had = thread ? doc.threads.find((x) => x.id === thread) : null;
+    if (thread && !had) return { ok: false, reason: `no thread ${clean(thread, 40)}`, fix: agentFix(`Name one of the threads of ${key}.`, `wf.mjs design comments <root> ${key}`) };
+    // Each change is a new event file; the name orders the events of one call too.
+    const stamp = now.toISOString().replace(/[-:.]/g, '');
+    let seq = 0;
+    const add = (event) => { seq += 1; writeJson(join(commentEventsDir(root, key), `${stamp}-${seq}-${id()}.json`), { ...event, at }); };
+    const tid = had?.id ?? id();
+    if (!had) {
       const a = anchor && typeof anchor === 'object' ? anchor : {};
-      t = {
-        id: id(), open: true, 'created-at': at,
-        anchor: { selector: clean(a.selector, 300) || null, x: num(a.x), y: num(a.y), state: STATES.includes(a.state) ? a.state : 'default', viewport: clean(a.viewport, 20) || null, label: clean(a.label, 80) || null },
-        comments: [],
-      };
-      doc.threads.push(t);
+      add({ kind: 'thread', thread: tid, anchor: { selector: clean(a.selector, 300) || null, x: num(a.x), y: num(a.y), state: STATES.includes(a.state) ? a.state : 'default', viewport: clean(a.viewport, 20) || null, label: clean(a.label, 80) || null } });
     }
-    if (body) t.comments.push({ id: id(), at, author: clean(author, 60) || 'someone', text: body });
-    if (resolve) { t.open = false; t['resolved-at'] = at; }
-    if (reopen) { t.open = true; delete t['resolved-at']; }
-    writeJson(commentsPath(root, key), { screen: key, threads: doc.threads });
-    return { ok: true, thread: t };
+    if (body) add({ kind: 'comment', thread: tid, id: id(), author: clean(author, 60) || 'someone', text: body });
+    if (resolve) add({ kind: 'resolve', thread: tid });
+    if (reopen) add({ kind: 'reopen', thread: tid });
+    return { ok: true, thread: readComments(root, key).threads.find((x) => x.id === tid) };
   });
   if (out.ok && commit) commitDesignRecords(root, `design: a comment on ${key}`);
   return out;
@@ -174,17 +207,43 @@ export function commentsBrief(root, keys = null) {
   ].join('\n');
 }
 
-/** Store the result of a check run. */
+/**
+ * The failures of one screen: `items/<screen>/checks.json`, the unit of that screen. It holds no
+ * time, so a run that finds the same failures writes the same file, and two computers that check
+ * different screens change different files.
+ */
+export const itemChecksPath = (root, key) => join(designRecordsDir(root), 'items', key, 'checks.json');
+
+/**
+ * Store the result of a check run: the failures of each screen in its own file, and the rest of
+ * the run (time, screens, library, notices) in checks.json.
+ */
 export function writeChecks(root, result) {
-  writeJson(checksPath(root), result);
+  const { failures = [], ...run } = result ?? {};
+  const byScreen = new Map((run.screens ?? []).map((k) => [k, []]));
+  const loose = [];
+  for (const f of failures) {
+    if (f && typeof f.screen === 'string' && KEY_RE.test(f.screen)) { if (!byScreen.has(f.screen)) byScreen.set(f.screen, []); byScreen.get(f.screen).push(f); } else loose.push(f);
+  }
+  for (const [key, list] of byScreen) writeJson(itemChecksPath(root, key), { screen: key, failures: list });
+  writeJson(checksPath(root), { ...run, failures: loose, 'failures-in': [...byScreen.keys()].sort() });
   commitDesignRecords(root, 'design: check results');
 }
+
+/** The last check run, with the failures of every screen that it lists. A checks.json of the old layout still reads. */
 export function readChecks(root) {
-  try {
-    const j = JSON.parse(readFileSync(checksPath(root), 'utf8'));
-    if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
-    return { ...j, failures: (Array.isArray(j.failures) ? j.failures : []).filter((f) => f && typeof f === 'object') };
-  } catch { return null; }
+  let j;
+  try { j = JSON.parse(readFileSync(checksPath(root), 'utf8')); } catch { return null; }
+  if (!isObject(j)) return null;
+  const own = (Array.isArray(j.failures) ? j.failures : []).filter(isObject);
+  if (!Array.isArray(j['failures-in'])) return { ...j, failures: own };
+  const { 'failures-in': keys, ...run } = j;
+  const items = [];
+  for (const key of keys) {
+    if (!KEY_RE.test(String(key))) continue;
+    try { items.push(...(JSON.parse(readFileSync(itemChecksPath(root, key), 'utf8')).failures ?? []).filter(isObject)); } catch { /* a screen with no file has no failures */ }
+  }
+  return { ...run, failures: [...own, ...items] };
 }
 
 /**

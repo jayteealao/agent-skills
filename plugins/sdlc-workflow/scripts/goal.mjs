@@ -17,7 +17,7 @@
  */
 import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,6 +32,7 @@ import { runDir, workflowDir } from '../lib/records-root.mjs';
 import { runFileFor } from '../lib/run-files.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from '../lib/records.mjs';
 import { agentFix, failureOf, fixLines, refuse, withFix } from '../lib/fix.mjs';
+import { appendRecord } from '../lib/atomic-write.mjs';
 
 /** The commands of this script, in the order of USAGE. */
 export const COMMANDS = Object.freeze(['arm', 'check', 'park', 'status', 'clear', 'lifecycle']);
@@ -162,7 +163,7 @@ function check(root, slug) {
   }
   if (contract) {
     mkdirSync(goalDir(root, slug), { recursive: true });
-    appendFileSync(checksPath(root, slug), `${JSON.stringify({ at: nowIso(), arming, n: count + 1, verdict: v.verdict, reason: v.reason })}\n`);
+    appendRecord(checksPath(root, slug), `${JSON.stringify({ at: nowIso(), arming, n: count + 1, verdict: v.verdict, reason: v.reason })}\n`);
     const next = v.verdict === 'MET' ? 'met' : v.verdict === 'BLOCKED' ? 'blocked' : contract.state;
     if (next !== contract.state && contract.state !== 'cleared') saveContract(root, slug, { ...contract, state: next });
   }

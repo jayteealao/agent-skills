@@ -404,7 +404,7 @@ function addScreenTo(root, m, key, { title, area, flow, order, workflow, slice, 
   const file = screenFile(root, key);
   mkdirSync(join(surfaceDir(root), SCREENS_DIR), { recursive: true });
   const created = !existsSync(file);
-  if (created) writeFileSync(file, screenTemplate(key, s.title));
+  if (created) writeFileAtomic(file, screenTemplate(key, s.title));
   return { key, created, screen: s, file };
 }
 
@@ -506,7 +506,7 @@ export function initSurface(root) {
   mkdirSync(join(dir, SCREENS_DIR), { recursive: true });
   mkdirSync(join(dir, EXPLORE_DIR), { recursive: true });
   mkdirSync(join(dir, COMPONENTS_DIR), { recursive: true });
-  if (!existsSync(join(dir, COMPONENTS_FILE))) writeFileSync(join(dir, COMPONENTS_FILE), '/* The style of each component of the library. Use tokens only. */\n');
+  if (!existsSync(join(dir, COMPONENTS_FILE))) writeFileAtomic(join(dir, COMPONENTS_FILE), '/* The style of each component of the library. Use tokens only. */\n');
   if (created) writeManifest(root, emptyManifest());
   if (!existsSync(join(dir, REFERENCES_FILE))) writeJson(join(dir, REFERENCES_FILE), { references: [] });
   const tokens = writeTokens(root, { keep: true });

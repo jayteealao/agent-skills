@@ -44,11 +44,11 @@ import { progressOf } from '../lib/progress.mjs';
 import { isMainModule, runShell } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { writeFileAtomic } from '../lib/atomic-write.mjs';
+import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
 import { addDecision, decisionsOf, isLive } from '../lib/decisions.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
 import { OPEN_STATUSES, readLedger } from '../lib/findings.mjs';
@@ -149,7 +149,7 @@ function journal(root, slug, entry) {
     const file = join(workflowDir(root, slug), '.driver-journal.jsonl');
     let seq = 1;
     try { seq = (parseJsonLines(readFileSync(file, 'utf8')).lines.at(-1)?.seq ?? 0) + 1; } catch { /* the first line */ }
-    appendFileSync(file, `${JSON.stringify({ at: nowIso(), run: `orchestrate-${slug}`, seq, phase: 'Orchestrate', ...entry })}\n`);
+    appendRecord(file, `${JSON.stringify({ at: nowIso(), run: `orchestrate-${slug}`, seq, phase: 'Orchestrate', ...entry })}\n`);
   } catch { /* the journal is a diagnostic, not a gate */ }
 }
 
@@ -583,7 +583,7 @@ function resultCmd(root, slug, [n, file]) {
       if (found.length) {
         const ff = join(workflowDir(root, slug), '.draft', `found-${u.n}.json`);
         mkdirSync(join(workflowDir(root, slug), '.draft'), { recursive: true });
-        writeFileSync(ff, `${JSON.stringify({ findings: found.map(({ rule, ...x }) => x) }, null, 2)}\n`);
+        writeFileAtomic(ff, `${JSON.stringify({ findings: found.map(({ rule, ...x }) => x) }, null, 2)}\n`);
         const dims = [...new Set(found.map((x) => str(x.dimension)).filter(Boolean))];
         answer.findings = { count: found.length, command: `node "${WF_WRAPPER}" findings add "${root}" ${slug} "${posix(ff)}" --source review --dimensions ${dims.join(',')}` };
       }
@@ -852,7 +852,7 @@ function scrubCmd(_root, _slug, [file]) {
   const p = resolve(file ?? '');
   if (!file || !existsSync(p)) throw refuse(`scrub: no file ${file ?? ''}`, agentFix('Run scrub again with the path of the log.'));
   const r = scrubSecrets(readFileSync(p, 'utf8'));
-  if (r.removed) writeFileSync(p, r.text);
+  if (r.removed) writeFileAtomic(p, r.text);
   return { ok: true, file: posix(p), removed: r.removed };
 }
 

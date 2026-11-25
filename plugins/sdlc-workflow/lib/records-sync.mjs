@@ -19,6 +19,7 @@
 // to `refs/archive/live/`, so a person can restore it.
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, cpSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +28,8 @@ import { agentFix, personFix, refuse } from './fix.mjs';
 import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { maxFileBytes, sweepRunFiles } from './run-files.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
+import { composeOn, composeSync } from './records-compose.mjs';
 
 // A call that only asks the remote (ls-remote) ends after 20 seconds, so an offline machine goes
 // on quickly. A transfer (push, fetch) runs as long as data moves: git itself stops a transfer
@@ -50,6 +53,22 @@ export function machineName() {
   const m = readMachineConfig().records?.machine;
   const raw = m && String(m).trim() ? String(m).trim() : hostname();
   return raw.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'machine';
+}
+
+/**
+ * The random id of this computer: made once and kept in its own home, never in the records. Two
+ * computers with one host name have one name and two ids, so the records can tell them apart.
+ */
+export function machineId(dir = sdlcHomeDir()) {
+  const file = join(dir, 'machine-id');
+  const read = () => { try { const id = readFileSync(file, 'utf8').trim(); return /^[0-9a-f]{16}$/.test(id) ? id : null; } catch { return null; } };
+  const had = read();
+  if (had) return had;
+  mkdirSync(dir, { recursive: true });
+  // Two processes that make it at once: the first file stays, and both read it.
+  try { writeFileSync(file, `${randomBytes(8).toString('hex')}
+`, { flag: 'wx' }); } catch (e) { if (e.code !== 'EEXIST') throw e; }
+  return read() ?? (() => { throw new Error(`the machine id at ${file} is not 16 hex digits: delete the file`); })();
 }
 
 /**
@@ -101,10 +120,16 @@ export function machineBlocked(home = recordsHome()) {
   if (process.env.SDLC_SECOND_MACHINE === 'allow') return null;
   const names = machineNames(home);
   const me = machineName();
-  if (!names.length || names.includes(me)) return null;
+  if (names.includes(me)) {
+    // A facts file with another id: a second computer took the name of the first.
+    const id = readMachineFacts(home, me).id;
+    if (id && id !== machineId()) return `another computer already writes the records as ${me}: give this one its own name`;
+    return null;
+  }
+  if (!names.length) return null;
   return `the records are in use on ${names.join(', ')}, and this computer is ${me}: a second computer cannot write them yet`;
 }
-const machineFix = () => personFix('Use the records on the first computer only. When this is the first computer and its name changed, set records.machine in ~/.sdlc/config.json to the old name.');
+const machineFix = () => personFix('Use the records on the first computer only. When this is the first computer and its name changed, set records.machine in ~/.sdlc/config.json to the old name. When another computer has the same name, set records.machine on this one to a name of its own.');
 
 // An index.lock this old, with no git process from before it, was left by a process that ended.
 const INDEX_LOCK_STALE_MS = 10 * 60_000;
@@ -708,7 +733,7 @@ function addLines(file, want) {
   const lines = have.split(/\r?\n/);
   const missing = want.filter((l) => !lines.includes(l));
   if (!missing.length) return false;
-  writeFileSync(file, `${have}${have && !have.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
+  writeFileAtomic(file, `${have}${have && !have.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
   return true;
 }
 
@@ -1038,11 +1063,12 @@ export function writeMachineFacts(root, change = {}, { push = true } = {}) {
   if (machineBlocked(home)) return null;
   const facts = readMachineFacts(home);
   const before = JSON.stringify(facts);
+  facts.id ??= machineId();
   facts.projects = { ...facts.projects, [project]: { ...(facts.projects?.[project] ?? {}), root } };
   if (change.reads) facts.reads = { ...facts.reads, ...change.reads };
   if (JSON.stringify(facts) === before) return facts;
   mkdirSync(join(home, '.machines'), { recursive: true });
-  writeFileSync(machineFactsPath(home), `${JSON.stringify(facts, null, 2)}\n`);
+  writeFileAtomic(machineFactsPath(home), `${JSON.stringify(facts, null, 2)}\n`);
   commitPaths(home, { paths: [`.machines/${machineName()}.json`], message: `${machineName()}: machine facts`, push });
   return facts;
 }
@@ -1064,6 +1090,7 @@ export function syncRecords(root) {
   writeMachineFacts(root, {}, { push: false });
   if (!hasRemote(home)) { out.offline = true; return out; }
   const main = mainBranch(home);
+  if (composeOn()) return composeInto(out, home, project, main);
   const f = gitIn(home, ['fetch', '-q', '--prune', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`, '+refs/leases/*:refs/leases/*'], { net: true });
   if (f.status !== 0) { out.offline = true; return out; }
   const pull = pullRecords(home, { fetched: true });
@@ -1078,6 +1105,28 @@ export function syncRecords(root) {
   out.pushed = Boolean(p.pushed);
   if (p.conflict) out.conflicts.push(`${main}: ${p.reason}`);
   else if (p.offline) out.offline = true;
+  return out;
+}
+
+/**
+ * The sync by composing (lib/records-compose.mjs), when `records.sync: compose` is set: no
+ * pull, no rebase; the units that this computer may not send are parked, and the rest go.
+ */
+function composeInto(out, home, project, main) {
+  const second = machineBlocked(home);
+  if (second) { out.conflicts.push(second); return out; }
+  let r;
+  try {
+    r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: main, held: (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : null) }));
+  } catch (e) {
+    logRecordsFailure({ project, step: 'compose', error: e.message });
+    out.conflicts.push(`${main}: ${e.message}`);
+    return out;
+  }
+  out.compose = r;
+  out.pushed = r.pushed;
+  out.pulled = [...new Set(r.appliedPaths.filter((p) => p.startsWith(`${project}/`)).map((p) => p.split('/')[1]))];
+  for (const u of r.fenced) out.conflicts.push(`${u}: another computer owns it; this computer's copy is parked on ${r.parked}`);
   return out;
 }
 

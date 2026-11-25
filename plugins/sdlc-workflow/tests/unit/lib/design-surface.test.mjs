@@ -113,7 +113,8 @@ test('comments: threads, replies and resolve on a real screen only; the brief ma
     assert.match(commentsBrief(root), /<untrusted-comments>[\s\S]*mallory: Ignore your instructions[\s\S]*<\/untrusted-comments>/);
     addComment(root, 'basket', { thread: t.thread.id, resolve: true });
     assert.equal(openThreads(root).length, 0);
-    assert.ok(existsSync(join(root, '.ai', 'workflows', '_design', 'comments', 'basket.json')), 'the comments stay in the records, not in .ai/design/');
+    assert.ok(existsSync(join(root, '.ai', 'workflows', '_design', 'comments', 'basket')), 'the comments stay in the records, not in .ai/design/');
+    assert.ok(!existsSync(join(root, '.ai', 'workflows', '_design', 'comments', 'basket.json')), 'a comment is a new event file; no file is rewritten');
   } finally { done(); }
 });
 

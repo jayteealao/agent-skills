@@ -64,7 +64,7 @@ interactive-verification: <required | deferred | not-applicable>
 interactive-verification-defer-reason: "<string>"  # required when interactive-verification == deferred
 adapters-used: [<key>, ...]                     # runtime adapters driven
 bootstrap-failures: []                          # {adapter, step, remediation} from sub-agent 3
-evidence-dir: "<wf-dir>/verify-evidence/<slice-slug>/"
+evidence-dir: "verify-evidence/<slice-slug>/"   # relative to <wf-dir>: a record holds no path of one computer
 evidence-run-count: <N>                         # 1 for the first run; prior evidence archived to <slice-slug>-run-<N-1>/
 security-scan-result: <pass | fail | skipped>  # BLOCKER if fail; skipped only when no tooling is installed
 metric-a11y-violations-new: <N>                # new WCAG AA violations in slice-modified UI components

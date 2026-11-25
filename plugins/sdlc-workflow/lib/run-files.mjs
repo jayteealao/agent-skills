@@ -15,12 +15,13 @@
 // sha256, machine), so another computer sees that the file exists and where it was made.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname, tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { readMachineConfig } from './home.mjs';
 import { resolveProjectRoot } from './project-root.mjs';
 import { MONTH_FILE_RE, chunkCostFile, splitCostLedger } from './cost-ledger.mjs';
+import { appendRecord } from './atomic-write.mjs';
 import {
   AI_DIR, EVIDENCE_DIR, RUN_FILES, evidenceDir, linkedProject, recordsRel, runDir, runRoot, workflowDir,
 } from './records-root.mjs';
@@ -149,7 +150,7 @@ function moveFile(src, dst) {
     const add = readFileSync(src, 'utf8').split(/\r?\n/).filter((l) => l && !have.has(l));
     if (add.length) {
       const text = readFileSync(dst, 'utf8');
-      appendFileSync(dst, `${text && !text.endsWith('\n') ? '\n' : ''}${add.join('\n')}\n`);
+      appendRecord(dst, `${text && !text.endsWith('\n') ? '\n' : ''}${add.join('\n')}\n`);
     }
     const now = new Set(readFileSync(dst, 'utf8').split(/\r?\n/).filter(Boolean));
     if (readFileSync(src, 'utf8').split(/\r?\n/).some((l) => l && !now.has(l))) return 'kept';
@@ -225,7 +226,7 @@ export function noteEvidence(root, slug, dir, { machine = null } = {}) {
     }
   };
   walk(base);
-  if (lines.length) appendFileSync(join(dir, EVIDENCE_LOG), lines.map((l) => `${JSON.stringify(l)}\n`).join(''));
+  if (lines.length) appendRecord(join(dir, EVIDENCE_LOG), lines.map((l) => `${JSON.stringify(l)}\n`).join(''));
   return lines;
 }
 

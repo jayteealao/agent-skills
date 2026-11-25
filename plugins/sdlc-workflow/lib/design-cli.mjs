@@ -4,7 +4,7 @@
 // the fix says who repairs it and how (lib/fix.mjs). A mistake of the caller (a wrong key, a
 // slug that names no workflow, a missing argument) is a refusal with a fix for the agent, never
 // a defect of the plugin. `design next` computes the one next action of the stage from disk.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { findAnswer } from './answers.mjs';
 import { approvalQuestion, approveDesign, lastApprovalAnswer, systemStay, waiveCause, waiveCommand, waiversOf } from './design-approve.mjs';
@@ -16,7 +16,7 @@ import { approvedByAnswer, designNeeded, designReopened, namesScreens } from './
 import { migrateDesign } from './design-migrate.mjs';
 import { missingKinds } from './design-tokens.mjs';
 import { dtcgToTables } from './design-dtcg.mjs';
-import { addComment, approvalComponentPictures, approvalPicture, capturePicture, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
+import { addComment, approvalComponentPictures, approvalPicture, capturePicture, commentEventsDir, commentsBrief, commentsPath, commitDesignRecords, openThreads, readChecks } from './design-records.mjs';
 import { addReference, checkReferences } from './design-references.mjs';
 import { REVIEW_AUTHOR_RE, sameOpenThread } from './design-records.mjs';
 import { reviewDone, reviewPack, reviewState, reviewSummary } from './design-review.mjs';
@@ -31,6 +31,7 @@ import { approvedPages, dropRounds, listVersions, restoreVersion, saveRound, ver
 import { Refusal, agentFix, asFix, failureOf, fixLines, personFix, refuse } from './fix.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
 import { linkedProject, workflowDir, workflowsRoot } from './records-root.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 /**
  * Every form of `wf.mjs design`: its words, what it does, and one example. The usage text, the
@@ -334,7 +335,7 @@ function changeLayout(root, change) {
   let layout = null;
   try { layout = JSON.parse(readFileSync(file, 'utf8')); } catch { return; }
   if (!layout?.positions || change(layout.positions) === false) return;
-  writeFileSync(file, `${JSON.stringify(layout, null, 2)}\n`);
+  writeFileAtomic(file, `${JSON.stringify(layout, null, 2)}\n`);
 }
 
 function removeScreen(root, key, { force = false } = {}) {
@@ -366,7 +367,7 @@ function renameScreen(root, from, to, { force = false } = {}) {
   const dir = join(surfaceDir(root), SCREENS_DIR);
   if (existsSync(screenFile(root, from))) {
     const html = readFileSync(screenFile(root, from), 'utf8').replace(/(<meta\s+name=["']wf:screen["']\s+content=["'])[^"']*(["'])/i, `$1${to}$2`);
-    writeFileSync(screenFile(root, to), html);
+    writeFileAtomic(screenFile(root, to), html);
     rmSync(screenFile(root, from), { force: true });
   }
   if (existsSync(join(dir, from))) renameSync(join(dir, from), join(dir, to));
@@ -376,16 +377,22 @@ function renameScreen(root, from, to, { force = false } = {}) {
   for (const s of listScreens(root, { withHtml: true })) {
     if (!s.exists || !link.test(s.html)) continue;
     link.lastIndex = 0;
-    writeFileSync(screenFile(root, s.key), s.html.replace(link, `$1${to}$2`));
+    writeFileAtomic(screenFile(root, s.key), s.html.replace(link, `$1${to}$2`));
     links.push(s.key);
   }
   changeLayout(root, (p) => { if (!(from in p)) return false; p[to] = p[from]; delete p[from]; return true; });
-  // The comment threads of the screen go with it.
-  if (existsSync(commentsPath(root, from)) && !existsSync(commentsPath(root, to))) {
+  // The comment threads of the screen go with it: copied, since a comment file is only ever
+  // added (another computer may hold the old one). Nothing reads the key that is gone.
+  const events = commentEventsDir(root, from);
+  const oldFile = existsSync(commentsPath(root, from)) && !existsSync(commentsPath(root, to));
+  const oldEvents = existsSync(events) && !existsSync(commentEventsDir(root, to));
+  if (oldFile || oldEvents) {
     try {
-      const doc = JSON.parse(readFileSync(commentsPath(root, from), 'utf8'));
-      writeFileSync(commentsPath(root, to), `${JSON.stringify({ ...doc, screen: to }, null, 2)}\n`);
-      rmSync(commentsPath(root, from), { force: true });
+      if (oldFile) {
+        const doc = JSON.parse(readFileSync(commentsPath(root, from), 'utf8'));
+        writeFileAtomic(commentsPath(root, to), `${JSON.stringify({ ...doc, screen: to }, null, 2)}\n`);
+      }
+      if (oldEvents) cpSync(events, commentEventsDir(root, to), { recursive: true });
       commitDesignRecords(root, `design: the screen ${from} is now ${to}`);
     } catch { /* the threads stay under the old key */ }
   }
@@ -802,7 +809,7 @@ async function run(pos, opt, out) {
       // Inside the surface, in a folder of its own: the page is made from the screens, and is no screen.
       const file = resolve(typeof opt.out === 'string' ? opt.out : join(surfaceDir(projectRoot), 'published', 'canvas.html'));
       mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, snapshotHtml(projectRoot, { repo: basename(projectRoot) }));
+      writeFileAtomic(file, snapshotHtml(projectRoot, { repo: basename(projectRoot) }));
       return finish({ ok: true, file }, `canvas page: ${file}`);
     }
     case 'migrate': {

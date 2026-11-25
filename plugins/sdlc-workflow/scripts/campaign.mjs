@@ -35,7 +35,7 @@
  */
 import { isMainModule } from '../lib/proc.mjs';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
@@ -61,6 +61,7 @@ import { readLedger, verdictOf } from '../lib/findings.mjs';
 import { lastRunEndAt } from '../lib/stop-request.mjs';
 import { aggregateCost, readCostRows, rebookedEntries } from '../lib/cost-ledger.mjs';
 import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
+import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
 
 /** The sub-commands of this script: a fix names only these. */
 export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
@@ -169,7 +170,7 @@ const shapeOf = (root) => prShapeOf(readShipPlan(root));
 
 function appendHistory(dir, text, stage = 'campaign') {
   mkdirSync(dir, { recursive: true });
-  appendFileSync(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text, stage })}\n`);
+  appendRecord(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text, stage })}\n`);
 }
 
 /** Set top-level frontmatter keys of a packet file; returns false when the file has no frontmatter. */
@@ -180,7 +181,7 @@ function setFields(file, fields) {
     if (next === null) return false;
     text = next;
   }
-  writeFileSync(file, text);
+  writeFileAtomic(file, text);
   return true;
 }
 
@@ -255,10 +256,10 @@ export function archiveCommand(dir, boardFile, { dryRun = false, now = null } = 
   const archivePath = join(archiveDir, 'board.json');
   const prior = existsSync(archivePath) ? JSON.parse(readFileSync(archivePath, 'utf8')) : null;
   mkdirSync(archiveDir, { recursive: true });
-  writeFileSync(archivePath, `${JSON.stringify(mergeArchive(prior, archived), null, 2)}\n`);
+  writeFileAtomic(archivePath, `${JSON.stringify(mergeArchive(prior, archived), null, 2)}\n`);
   const at = (now ?? new Date()).toISOString();
   kept.archived = [...(board.archived ?? []), { session: board.sessions ?? null, at, file: 'archive/board.json', ...result.moved }];
-  writeFileSync(boardPath, `${JSON.stringify(kept, null, 2)}\n`);
+  writeFileAtomic(boardPath, `${JSON.stringify(kept, null, 2)}\n`);
   return result;
 }
 
@@ -606,7 +607,7 @@ function indexRow(root, slug, branch) {
   rows.push([slug, 'active', 'feature', branch, nowIso()].join('\t'));
   rows.sort((a, b) => a.split('\t')[0].localeCompare(b.split('\t')[0]));
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${[...head, ...rows].join('\n')}\n`);
+  writeFileAtomic(file, `${[...head, ...rows].join('\n')}\n`);
   return true;
 }
 
@@ -799,7 +800,7 @@ function openCmd(root, src, [key], f) {
   mkdirSync(dir, { recursive: true });
   const wrote = new Set();
   for (const [name, r] of Object.entries(records)) {
-    if (typeof r === 'string') { writeFileSync(join(dir, name), r); wrote.add(name); continue; }
+    if (typeof r === 'string') { writeFileAtomic(join(dir, name), r); wrote.add(name); continue; }
     wrote.add(writeDoc(dir, name, r).file);
     if (name === INDEX_NAME) wrote.add(META_FILE);
   }
@@ -1246,7 +1247,7 @@ function closeCmd(root, src, [key, to]) {
   const onBoard = board?.work?.find((w) => w.key === packet.key);
   if (onBoard) {
     onBoard.state = to;
-    writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+    writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
   }
   // A dropped migrated packet keeps its unit branch; its old worktree goes, with the guarded remove.
   const wt = to === 'dropped' && packet.migrated?.worktree && existsSync(packet.migrated.worktree) ? packet.migrated.worktree : null;
@@ -1273,7 +1274,7 @@ function removeFields(file, keys) {
     while (c < lines.length && lines[c].trim() && (/^\s/.test(lines[c]) || /^- /.test(lines[c]))) c++;
     lines.splice(k, c - k);
   }
-  writeFileSync(file, `${m[1]}${lines.join(nl)}${m[3]}${text.slice(m[0].length)}`);
+  writeFileAtomic(file, `${m[1]}${lines.join(nl)}${m[3]}${text.slice(m[0].length)}`);
   return true;
 }
 
@@ -1438,7 +1439,7 @@ function acceptCmd(root, src) {
     if (onBoard) onBoard.state = 'done';
     accepted.push(key);
   }
-  if (board && accepted.length) writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}
+  if (board && accepted.length) writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}
 `);
   appendHistory(sourceDir(root, src), `The orchestrate run ${owner.owner} handed the list back. Done by its validation records (${owner.evidence ?? 'no evidence page'}): ${accepted.join(', ') || 'none'}.`);
   rmSync(join(sourceDir(root, src), OWNER_FILE), { force: true });
@@ -1812,7 +1813,7 @@ function sliceOrder(root, slug, [action], f) {
     if (!l.includes(t)) setRecordFields(dir, sliceName, { 'depends-on': [...l, t] });
   }
   const why = String(f.why ?? '').trim();
-  appendFileSync(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text: `slice-order: '${s}' after '${t}'${why ? `: ${why}` : ''}`, stage: 'plan' })}\n`);
+  appendRecord(join(dir, 'index-history.jsonl'), `${JSON.stringify({ at: nowIso(), kind: 'note', text: `slice-order: '${s}' after '${t}'${why ? `: ${why}` : ''}`, stage: 'plan' })}\n`);
   const order = rosterWalkOrder(edited ?? rosterOf(dir)).map((e) => e.slug);
   const plan = readDoc(dir, '04-plan.md');
   if (plan?.frontmatter && JSON.stringify(plan.frontmatter['implementation-order']) !== JSON.stringify(order)) {
@@ -2188,7 +2189,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   const shape = validateBrainstormBoard(board);
   if (!shape.valid) return { ok: false, error: 'the migrated board does not pass the board schema', errors: shape.errors.slice(0, 10), records, fix: boardSchemaFix(root, src, 'apply') };
   const backup = backupBoard(root, src, boardPath, 'apply');
-  writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+  writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
 
   // Step 5: the index of each in-flight packet, in the main checkout.
   const indexes = [];
@@ -2211,7 +2212,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
 function backupBoard(root, src, boardPath, phase) {
   const file = join(oldCampDir(root, src), `board.before-${phase}-${nowIso().replace(/[-:]/g, '')}.json`);
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, readFileSync(boardPath));
+  writeFileAtomic(file, readFileSync(boardPath));
   return posix(relative(root, file));
 }
 
@@ -2261,7 +2262,7 @@ export function migrateRegroup(root, src, f = {}) {
   const shape = validateBrainstormBoard(board);
   if (!shape.valid) return { ok: false, error: 'the regrouped board does not pass the board schema', errors: shape.errors.slice(0, 10), fix: boardSchemaFix(root, src, 'regroup') };
   out.backup = backupBoard(root, src, boardPath, 'regroup');
-  writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+  writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
   return out;
 }
 
@@ -2305,7 +2306,7 @@ function migrateCmd(root, src, [phase], f) {
   if (phase === 'report') {
     const rep = migrationReport(root, src, f);
     if (!rep.ok) return rep;
-    writeFileSync(join(workDir(root, src), 'migration.md'), renderMigration(rep));
+    writeFileAtomic(join(workDir(root, src), 'migration.md'), renderMigration(rep));
     return { ...rep, wrote: posix(relative(root, join(workDir(root, src), 'migration.md'))) };
   }
   if (phase === 'apply') return migrateApply(root, src, f);

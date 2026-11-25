@@ -11,9 +11,10 @@
 // receipt and `record stage-done` write it and go on, and verify runs its own checks. The setup
 // asks for the suites once for the project.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { STAGE_SUITES, readProfile } from './test-profile.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 const git = (root, args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
 
@@ -41,7 +42,7 @@ export function noSuiteReceipt(root, dir, slice, { now = new Date().toISOString(
   }
   const head = git(root, ['rev-parse', 'HEAD']);
   const receipt = { sha: head.status === 0 ? head.stdout.trim() : null, commands: [], result: 'none', reason: NO_SUITE, at: now };
-  writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
+  writeFileAtomic(file, `${JSON.stringify(receipt, null, 2)}\n`);
   return receipt;
 }
 

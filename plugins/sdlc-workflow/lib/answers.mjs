@@ -7,9 +7,10 @@
 // A script that must know what the person answered (the model-invocation consent, a confirmed
 // design direction) reads the log, never the agent's word. An older plugin wrote the log in
 // .ai/workflows/, so the reader reads that file too.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { linkedProject, localWorkflowsRoot, runRoot, workflowsRoot } from './records-root.mjs';
+import { appendRecord } from './atomic-write.mjs';
 
 export const ANSWERS_FILE = 'answers.jsonl';
 
@@ -61,7 +62,7 @@ export function appendAnswerEvent(projectRoot, event, { host = null, session = n
   const ignore = join(dir, '.gitignore');
   if (!existsSync(ignore)) writeFileSync(ignore, '# The files of this machine: never committed.\n*\n');
   const row = { at: now.toISOString(), host, session, tool: event.tool, questions: event.questions };
-  appendFileSync(join(dir, ANSWERS_FILE), `${JSON.stringify(row)}\n`);
+  appendRecord(join(dir, ANSWERS_FILE), `${JSON.stringify(row)}\n`);
   return true;
 }
 

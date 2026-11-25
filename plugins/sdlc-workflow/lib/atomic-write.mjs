@@ -2,7 +2,7 @@
 // The text goes to a temp file beside the target, then a rename puts it in place. Each write
 // has its own temp name (`<file>.<pid>.<random>.tmp`), so two processes that write one file at
 // the same time never share a temp file. The temp file is removed when the write fails.
-import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname } from 'node:path';
 
@@ -36,4 +36,15 @@ export function writeFileAtomic(file, data, { mkdir = true, ...options } = {}) {
     rmSync(tmp, { force: true });
     throw e;
   }
+}
+
+/**
+ * Append text to a records file in one write call. A line log of the records (`*.jsonl`) grows
+ * only by whole lines: a reader that meets a last line with no newline is reading a write that
+ * has not ended, and leaves that line out. `text` must end with a newline.
+ */
+export function appendRecord(file, text, { mkdir = true } = {}) {
+  if (!String(text).endsWith('\n')) throw new Error(`appendRecord: the text for ${file} must end with a newline`);
+  if (mkdir) mkdirSync(dirname(file), { recursive: true });
+  appendFileSync(file, text);
 }

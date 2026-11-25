@@ -16,7 +16,7 @@
 // `.ai/design/migrated.json` maps each old board key to its screen key. The old files stay where
 // they are, so the old paths keep working. A board that has no file but a claude.ai link must be
 // exported first: the migration lists it and does not migrate that workflow.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { commitSurface } from './design-approve.mjs';
@@ -27,6 +27,7 @@ import { KEY_RE, MANIFEST_FILE, SURFACE_REL, SCREENS_DIR, initSurface, readManif
 import { agentFix, personFix, refuse } from './fix.mjs';
 import { frontmatterOfDoc, setFields } from './records.mjs';
 import { workflowDir, workflowsRoot } from './records-root.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 export const LEGACY_DIR = 'legacy';
 export const MIGRATED_FILE = 'migrated.json';
@@ -253,12 +254,12 @@ function writeRevision(root, slug, rev, map, now) {
       const src = boardSource(rev.dir, first);
       if (src.kind === 'html') {
         const html = readFileSync(src.abs, 'utf8');
-        writeFileSync(screenFile(root, key), screenFromBoard(html, key, fromOf(src)));
+        writeFileAtomic(screenFile(root, key), screenFromBoard(html, key, fromOf(src)));
         warn(key, html);
       } else {
         mkdirSync(join(surfaceDir(root), LEGACY_DIR), { recursive: true });
         copyFileSync(src.abs, join(surfaceDir(root), LEGACY_DIR, `${key}.png`));
-        writeFileSync(screenFile(root, key), legacyPage(key, title, fromOf(src)));
+        writeFileAtomic(screenFile(root, key), legacyPage(key, title, fromOf(src)));
         paths.push(legacyRel(key));
       }
     } else {
@@ -272,18 +273,18 @@ function writeRevision(root, slug, rev, map, now) {
         mkdirSync(join(surfaceDir(root), SCREENS_DIR, key), { recursive: true });
         if (src.kind === 'html') {
           const html = readFileSync(src.abs, 'utf8');
-          writeFileSync(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), screenFromBoard(html, key, fromOf(src)));
+          writeFileAtomic(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), screenFromBoard(html, key, fromOf(src)));
           warn(`${key} (${name})`, html);
         } else {
           mkdirSync(join(surfaceDir(root), LEGACY_DIR, key), { recursive: true });
           copyFileSync(src.abs, join(surfaceDir(root), LEGACY_DIR, key, `${name}.png`));
-          writeFileSync(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), legacyPage(key, title, fromOf(src), `../../${LEGACY_DIR}/${key}/${name}.png`));
+          writeFileAtomic(join(surfaceDir(root), SCREENS_DIR, key, `${name}.html`), legacyPage(key, title, fromOf(src), `../../${LEGACY_DIR}/${key}/${name}.png`));
           paths.push(`${SURFACE_REL}/${LEGACY_DIR}/${key}/${name}.png`);
         }
         paths.push(pageRel);
         variants.push({ name, width });
       }
-      writeFileSync(screenFile(root, key), viewportPage(key, title, `${slug}/${rev.rel}`, variants));
+      writeFileAtomic(screenFile(root, key), viewportPage(key, title, `${slug}/${rev.rel}`, variants));
     }
     entries.push({ key, title, flow: parseBoardKey(first.key).surface, legacy, boards });
     paths.push(screenRel(key));
@@ -437,7 +438,7 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
     const commits = { ...held };
     const keep = () => {
       done.progress = { ...(done.progress ?? {}), [slug]: { commits } };
-      writeFileSync(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
+      writeFileAtomic(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
     };
     const warnings = new Set();
     for (const rev of plan.revisions) {
@@ -469,7 +470,7 @@ export function migrateDesign(root, { slugs = null, write = true, now = new Date
     }
     done.workflows[slug] = { at: nowIso(now), commits, keys: plan.map, ...(approved ? { approved: `r${plan.confirmed.n}` } : {}) };
     if (done.progress) { delete done.progress[slug]; if (!Object.keys(done.progress).length) delete done.progress; }
-    writeFileSync(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
+    writeFileAtomic(migratedPath(root), `${JSON.stringify(done, null, 2)}\n`);
     const last = commitSurface(root, [`${SURFACE_REL}/${MANIFEST_FILE}`, `${SURFACE_REL}/${MIGRATED_FILE}`], `design: map the boards of ${slug} to screens`);
     if (approved && plan.contract) {
       setFields(workflowDir(root, slug), CONTRACT, {

@@ -3,7 +3,7 @@
 // process left, a failed commit that a command hides, and a live branch that came after the move.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -96,6 +96,44 @@ test('the computer that .machines/ lists goes on', () => {
     change(a);
     assert.ok(commitWorkflow(a.root, 'w1', 'x').commit);
     assert.equal(pushRecords().pushed, true);
+  } finally { w.done(); }
+});
+
+test('a second computer with the name of the first is refused: their ids differ', () => {
+  const w = world({ second: '' });
+  try {
+    const a = one(w);
+    assert.match(readFileSync(join(a.clone, '.machines', 'alpha.json'), 'utf8'), /"id": "[0-9a-f]{16}"/);
+    // Another computer, also called alpha: its own home, so its own id.
+    const home = join(w.top, 'home-alpha-2');
+    mkdirSync(home, { recursive: true });
+    writeFileSync(join(home, 'config.json'), JSON.stringify({ records: { machine: 'alpha' } }));
+    git(w.top, 'clone', '-q', w.bare, join(home, 'records'));
+    const root = join(w.top, 'project-alpha-2');
+    workflow(root, 'w2');
+    w.as({ home });
+    const r = linkProject(root, 'notes');
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /another computer already writes the records as alpha/);
+    // The first computer goes on.
+    w.as(a);
+    change(a);
+    assert.ok(commitWorkflow(a.root, 'w1', 'x').commit);
+  } finally { w.done(); }
+});
+
+test('with records.sync: compose, the sync composes: no pull, and the change reaches the remote', () => {
+  const w = world({ second: '' });
+  try {
+    const a = one(w);
+    writeFileSync(join(a.home, 'config.json'), JSON.stringify({ records: { machine: 'alpha', sync: 'compose' } }));
+    change(a);
+    const r = syncRecords(a.root);
+    assert.equal(r.pushed, true, JSON.stringify(r));
+    assert.ok(r.compose, 'the compose engine ran');
+    assert.deepEqual(r.conflicts, []);
+    assert.match(git(w.top, '--git-dir', w.bare, 'log', '-1', '--format=%s', 'main'), /^sync alpha$/);
+    assert.equal(git(a.clone, 'rev-parse', 'main'), git(w.top, '--git-dir', w.bare, 'rev-parse', 'main'));
   } finally { w.done(); }
 });
 

@@ -10,11 +10,12 @@
 // `wf.mjs msg`. The GitHub layer mirrors each message as a comment on the issue, and imports the
 // person's issue comments as messages.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sdlcHomeDir } from './home.mjs';
 import { linkedProject, recordsHome, workflowDir } from './records-root.mjs';
 import { commitPaths, machineName, namesAt, otherProjectSource, postFileTo, readMachineFacts, textAt, writeMachineFacts } from './records-sync.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 export const KINDS = ['handoff', 'review-request', 'question-for-project', 'note'];
 export const INBOX = 'inbox';
@@ -51,7 +52,7 @@ function addRead(root, key, id) {
   if (linkedProject(root)) writeMachineFacts(root, { reads: change });
   else {
     mkdirSync(sdlcHomeDir(), { recursive: true });
-    writeFileSync(localReadsPath(), `${JSON.stringify({ ...reads, ...change }, null, 2)}\n`);
+    writeFileAtomic(localReadsPath(), `${JSON.stringify({ ...reads, ...change }, null, 2)}\n`);
   }
 }
 
@@ -86,7 +87,7 @@ export function postMessage(root, slug, { kind, text, to = null, from = machineN
     return { id, file: null, project, pushed: true };
   }
   mkdirSync(inbox, { recursive: true });
-  writeFileSync(join(inbox, id), body);
+  writeFileAtomic(join(inbox, id), body);
   if (project) {
     const home = recordsHome();
     commitPaths(home, { paths: [`${project}/${slug}/${INBOX}/${id}`], message: `${project}/${slug}: ${kind} from ${from}` });
@@ -131,7 +132,7 @@ export function importComments(root, slug, comments) {
     const id = `${stampOf(at)}-github-note-${commentNumber(c)}.md`;
     if (existsSync(join(inbox, id))) continue;
     mkdirSync(inbox, { recursive: true });
-    writeFileSync(join(inbox, id), `---\nkind: note\nfrom: github\nauthor: ${c.author?.login ?? 'unknown'}\nat: ${at.toISOString().replace(/\.\d{3}Z$/, 'Z')}\n---\n\n${body}\n`);
+    writeFileAtomic(join(inbox, id), `---\nkind: note\nfrom: github\nauthor: ${c.author?.login ?? 'unknown'}\nat: ${at.toISOString().replace(/\.\d{3}Z$/, 'Z')}\n---\n\n${body}\n`);
     added.push(id);
   }
   return added;

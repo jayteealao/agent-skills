@@ -31,6 +31,7 @@ import { dropLock, refreshLock, takeLock as takeFileLock } from './file-lock.mjs
 import { projectConfigPath, workflowDir } from './records-root.mjs';
 import { commitWorkflow, inBackground } from './records-sync.mjs';
 import { TERMINAL_WORKFLOW_STATUSES } from './workflow-index.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 export const STATUS_SCHEMA = 'wf-status/1';
 export const NEEDS_ME = 'needs-me';
@@ -264,7 +265,7 @@ function recordIssue(e, issue) {
   const key = keyOf(e.project, e.slug);
   const old = readJson(join(dir, LAYER_FILE), null);
   if (old?.number === issue.number && old?.key === key && Boolean(old?.boarded) === Boolean(issue.boarded)) return;
-  writeFileSync(join(dir, LAYER_FILE), `${JSON.stringify({ key, repo: e.repo, number: issue.number, url: issue.url, boarded: Boolean(issue.boarded) }, null, 2)}\n`);
+  writeFileAtomic(join(dir, LAYER_FILE), `${JSON.stringify({ key, repo: e.repo, number: issue.number, url: issue.url, boarded: Boolean(issue.boarded) }, null, 2)}\n`);
   try { commitWorkflow(e.root, e.slug, `${key}: the GitHub issue`); } catch { /* the next records commit takes it */ }
 }
 

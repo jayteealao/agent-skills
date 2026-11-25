@@ -34,6 +34,7 @@ import {
 import { basename, dirname, join } from 'node:path';
 
 import { parseWorkflowPath } from './records-root.mjs';
+import { appendRecord, writeFileAtomic } from './atomic-write.mjs';
 
 export const COST_FILE = 'cost.jsonl';
 export const CLAUDE_USAGE_FIELDS = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'];
@@ -707,7 +708,7 @@ export function chunkCostFile(file) {
   let part = Math.max(partOf(name), ...readdirSync(dir).filter((n) => monthOf(n) === month).map(partOf));
   for (const c of chunks.slice(1)) {
     part += 1;
-    writeFileSync(join(dir, partName(month, part)), `${c.join('\n')}\n`, 'utf-8');
+    writeFileAtomic(join(dir, partName(month, part)), `${c.join('\n')}\n`);
   }
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, `${chunks[0].join('\n')}\n`, 'utf-8');
@@ -726,7 +727,7 @@ export function chunkCostFile(file) {
 export function appendCostRow(slugDir, row) {
   mkdirSync(slugDir, { recursive: true });
   const file = appendTarget(slugDir, row?.ts);
-  appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${JSON.stringify(row)}\n`, 'utf-8');
+  appendRecord(file, `${endsWithNewline(file) ? '' : '\n'}${JSON.stringify(row)}\n`);
   return file;
 }
 
@@ -775,7 +776,7 @@ export function splitCostLedger(slugDir) {
     const file = join(slugDir, name);
     const have = held(file);
     const add = rows.filter((l) => !have.has(l));
-    if (add.length) appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${add.join('\n')}\n`, 'utf-8');
+    if (add.length) appendRecord(file, `${endsWithNewline(file) ? '' : '\n'}${add.join('\n')}\n`);
   }
   for (const [name, rows] of byFile) {
     const have = held(join(slugDir, name));

@@ -7,13 +7,14 @@
 // Pure functions first (checkList, renderPacket, renderListIndex, ...), then writeList,
 // the one function that touches the disk.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { stringify } from './yaml.mjs';
 
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { setFrontmatterValue } from './roster-edit.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from './schema-validator.mjs';
+import { appendRecord, writeFileAtomic } from './atomic-write.mjs';
 
 // The forms that open or extend a workflow slug get a packet file.
 export const PACKET_FORMS = Object.freeze(['intake', 'investigate', 'discover', 'rca', 'fix', 'hotfix', 'task', 'extension']);
@@ -784,7 +785,7 @@ export function writeList(dir, { now = null, isIgnored = null, dryRun = false, b
       mkdirSync(join(w.path, '..'), { recursive: true });
       if (w.removeFirst) mkdirSync(historyDir, { recursive: true });
       if (w.removeFirst && existsSync(w.removeFirst)) renameSync(w.removeFirst, join(historyDir, `work-${w.removeFirst.split(/[\\/]/).pop().replace(/\.md$/, '')}.r${oldRevision || 1}.md`));
-      writeFileSync(w.path, w.text);
+      writeFileAtomic(w.path, w.text);
     }
     for (const c of cut) {
       mkdirSync(historyDir, { recursive: true });
@@ -793,7 +794,7 @@ export function writeList(dir, { now = null, isIgnored = null, dryRun = false, b
     const notes = readResearchNotes(dir);
     if (notes.length || existsSync(join(dir, 'research'))) {
       mkdirSync(join(dir, 'research'), { recursive: true });
-      writeFileSync(join(dir, 'research', 'index.md'), renderResearchIndex(board, notes));
+      writeFileAtomic(join(dir, 'research', 'index.md'), renderResearchIndex(board, notes));
     }
     const entry = [
       `## Revision ${finalRevision} — ${at}`,
@@ -809,9 +810,9 @@ export function writeList(dir, { now = null, isIgnored = null, dryRun = false, b
       '',
     ].join('\n');
     const changesPath = join(workDir, 'changes.md');
-    if (!existsSync(changesPath)) writeFileSync(changesPath, '# List changes\n\nOne entry per revision of the list.\n\n');
-    appendFileSync(changesPath, entry);
-    writeFileSync(indexPath, renderListIndex(board, { revision: finalRevision, generatedAt: at, files, states }));
+    if (!existsSync(changesPath)) writeFileAtomic(changesPath, '# List changes\n\nOne entry per revision of the list.\n\n');
+    appendRecord(changesPath, entry);
+    writeFileAtomic(indexPath, renderListIndex(board, { revision: finalRevision, generatedAt: at, files, states }));
   }
 
   return { ok: true, revision: finalRevision, added, changed, kept, reordered, cut: cut.map((c) => c.key), pendingCut, writtenNow: writtenNow.map((p) => p.key), archivedPackets: oldPackets, warnings: check.warnings };

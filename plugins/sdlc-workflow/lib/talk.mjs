@@ -13,10 +13,11 @@
 // before a fix round, before it returns), and every long block of an agent is one call of
 // `waitTalk`, which also returns when a message arrives. So a ping reaches an agent that waits on
 // a long command, on an answer of the person, or on a shared resource.
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { withFileLock } from './file-lock.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { appendRecord } from './atomic-write.mjs';
 
 export const TALK_FILE = 'talk.jsonl';
 /** What a message is: news, a request, work handed over (for example fix commits), or an end. */
@@ -66,7 +67,7 @@ function append(dir, make, now = Date.now()) {
     const events = readTalk(dir);
     let n = events.reduce((m, e) => Math.max(m, num(e.id)), 0);
     const added = (make(events) ?? []).map((e) => ({ id: `T-${++n}`, at: iso(now), ...e }));
-    if (added.length) appendFileSync(file, added.map((e) => `${JSON.stringify(e)}\n`).join(''));
+    if (added.length) appendRecord(file, added.map((e) => `${JSON.stringify(e)}\n`).join(''));
     return added;
   });
 }

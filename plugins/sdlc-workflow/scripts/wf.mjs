@@ -636,7 +636,7 @@ import { SOURCES as FINDING_SOURCES, STATUSES as FINDING_STATUSES } from '../lib
 import { STATUSES as PROGRESS_STATUSES } from '../lib/progress.mjs';
 import { STOP_KINDS, stopKind } from '../lib/steps.mjs';
 import { hostname } from 'node:os';
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -1280,7 +1280,7 @@ export function runStep(pos, opt) {
       mkdirSync(logDir, { recursive: true });
       const log = join(logDir, `check-${String(opt.name).replace(/[^A-Za-z0-9_.-]+/g, '-').slice(0, 40)}-${Date.now()}.log`);
       const r = spawnSync(String(opt.run), { cwd: checkout, shell: true, encoding: 'utf8', windowsHide: true, timeout: 8 * 60_000, maxBuffer: 64 * 1024 * 1024 });
-      writeFileSync(log, `${r.stdout ?? ''}${r.stderr ?? ''}`);
+      writeFileAtomic(log, `${r.stdout ?? ''}${r.stderr ?? ''}`);
       if (r.error?.code === 'ETIMEDOUT' || r.status == null) throw refuse('step check: the command did not end in 8 minutes', agentFix('A longer check is a job: start it with talk job, wait with talk wait --job, then run step check again with --job <its id>.'));
       proof = { by: 'run', exit: r.status, log, command: String(opt.run) };
       sha = before;
@@ -1646,7 +1646,7 @@ function runRecord(pos, opt) {
       if (!doc) { process.stderr.write(`wf.mjs: ${noRecord(name, slug, dir)}\n`); return 1; }
       const path = draftPath(dir, n);
       mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, `---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
+      writeFileAtomic(path, `---\n${stringifyYaml(doc.frontmatter ?? {})}\n---\n${doc.body ?? ''}`);
       out(opt.json ? { name: n, draft: path } : `draft ${n} → ${path}; edit it, then run record put`);
       return 0;
     }
@@ -2603,7 +2603,7 @@ async function runMain(cmd, pos, opt) {
         }
         const pass = runs.length === names.length && runs.every((r) => r.pass);
         const receipt = { sha: head.stdout.trim(), commands: runs.map((r) => r.command), result: 'pass', at: nowIso(), dirty };
-        if (pass) writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
+        if (pass) writeFileAtomic(file, `${JSON.stringify(receipt, null, 2)}\n`);
         // A change that HEAD lacks is in no commit of the slice: the receipt records it in dirty.
         const named = dirty.length ? `; recorded ${dirty.length} change(s) that are in no commit of the slice: ${dirty.map((d) => d.path).join(', ')}` : '';
         const failed = runs.find((r) => !r.pass);

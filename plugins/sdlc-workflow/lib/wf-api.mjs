@@ -89,7 +89,7 @@
  *             the same object for another workflow of the project
  *             Example: const other = open('add-tags')
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterChange } from './after-change.mjs';
@@ -106,6 +106,7 @@ import { lastSlice, whereOf } from './steps.mjs';
 import { checkDismissDecision, decideAdd, editRecord, noRecord, pick, recordName as plainName, resolveRecord, setRecordPaths } from './wf-ops.mjs';
 import { statusBrief, stepGit } from './wf-status.mjs';
 import { stringify as stringifyYaml } from './yaml.mjs';
+import { appendRecord, writeFileAtomic } from './atomic-write.mjs';
 
 /** The run log of the scripts, in the run folder of each workflow (<root>/.ai/run/<slug>/); it stays on this machine. */
 export const API_LOG = '.api-log.jsonl';
@@ -149,7 +150,7 @@ function restore(dir, snap, touched = null) {
     const file = join(dir, r);
     if (existsSync(file) && statSync(file).isFile() && readFileSync(file).equals(bytes)) continue;
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, bytes);
+    writeFileAtomic(file, bytes);
     changed = true;
   }
   return changed;
@@ -237,7 +238,7 @@ export function openWorkflow(root, slug, hooks = {}) {
       if (!d) throw new Error(noRecord(name, slug, dir));
       const path = draftPath(dir, recordName(name));
       mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, `---\n${stringifyYaml(d.frontmatter ?? {})}\n---\n${d.body ?? ''}`);
+      writeFileAtomic(path, `---\n${stringifyYaml(d.frontmatter ?? {})}\n---\n${d.body ?? ''}`);
       return path;
     }),
   };
@@ -361,7 +362,7 @@ export async function runScript(root, fn, { slug = null, script = null, args = [
     const file = join(runDir(projectRoot, s), API_LOG);
     try {
       ensureRunFolder(dirname(file));
-      appendFileSync(file, list.map((o) => JSON.stringify({ ...o, applied: apply })).join('\n').concat('\n'));
+      appendRecord(file, list.map((o) => JSON.stringify({ ...o, applied: apply })).join('\n').concat('\n'));
     } catch { /* the log is not the change */ }
   }
   return { ok: !error, value, error, failedOp, ops, changed, applied: apply };

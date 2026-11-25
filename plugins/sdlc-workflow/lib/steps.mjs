@@ -20,12 +20,13 @@
 // record .implement-progress.jsonl (event `step` for done) is read too, in time order.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { sectionOf } from './brief.mjs';
 import { INDEX_NAME, frontmatterOfDoc, readDoc } from './records.mjs';
 import { stageFileOf } from './stage-done.mjs';
+import { appendRecord } from './atomic-write.mjs';
 
 export const STEPS_FILE = 'steps.jsonl';
 export const LEGACY_PROGRESS = '.implement-progress.jsonl';
@@ -77,7 +78,7 @@ export function readSteps(slugDir) {
 export function appendSquash(slugDir, { sha, commits, branch = null, patchId = null, subject = null }, { now = nowIso() } = {}) {
   if (!sha || !Array.isArray(commits) || !commits.length) throw new Error('a squash row needs the squash commit and the commits it holds');
   const line = { at: now, event: 'squash', sha, patchId, subject, branch, commits };
-  appendFileSync(join(slugDir, STEPS_FILE), `${JSON.stringify(line)}\n`);
+  appendRecord(join(slugDir, STEPS_FILE), `${JSON.stringify(line)}\n`);
   return line;
 }
 
@@ -92,7 +93,7 @@ export function appendStep(slugDir, row, { now = nowIso() } = {}) {
     throw new Error(`the kind of a stop must be one of ${STOP_KINDS.join(', ')}`);
   }
   const line = { at: now, ...row };
-  appendFileSync(join(slugDir, STEPS_FILE), `${JSON.stringify(line)}\n`);
+  appendRecord(join(slugDir, STEPS_FILE), `${JSON.stringify(line)}\n`);
   return line;
 }
 

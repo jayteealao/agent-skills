@@ -235,6 +235,43 @@ function writeIndex(dir, frontmatter, body) {
 // ship x` on the way in; each write stores the value with the Git install path taken off.
 export const COMMAND_FIELDS = ['next-invocation', 'recommended-next-invocation', 'resume', 'resume-command'];
 
+const ABSOLUTE = /^(?:[A-Za-z]:[\\/]|\/)/;
+
+/**
+ * A path of this computer as a path that holds on any computer, or the value as it is. An
+ * absolute path into the folder of workflow `slug` becomes relative to that folder
+ * (`verify-evidence/s1/`); one into another part of `.ai/` becomes relative to the project
+ * (`.ai/evidence/demo`). Any other value stays: a worktree outside the project is a fact of this
+ * computer. A reader still takes an old absolute path.
+ */
+export function portablePath(value, slug, wfDir = null) {
+  if (typeof value !== 'string' || !ABSOLUTE.test(value)) return value;
+  const p = value.replace(/\\/g, '/');
+  // The wf-dir itself, wherever it is: in the clone of the records repo for a linked project.
+  if (wfDir) {
+    const d = `${String(wfDir).replace(/\\/g, '/').replace(/\/+$/, '')}/`;
+    const same = process.platform === 'win32' || /^[A-Za-z]:/.test(d) ? p.toLowerCase().startsWith(d.toLowerCase()) || `${p}/`.toLowerCase() === d.toLowerCase() : p.startsWith(d) || `${p}/` === d;
+    if (same) return p.slice(d.length) || './';
+  }
+  const at = p.toLowerCase().lastIndexOf('/.ai/');
+  if (at < 0) return value;
+  const rest = p.slice(at + 1);
+  const own = `.ai/workflows/${slug}/`;
+  if (slug && rest.toLowerCase().startsWith(own.toLowerCase())) return rest.slice(own.length) || './';
+  return rest;
+}
+
+/** The frontmatter with every path of this computer made portable (portablePath), at any depth. */
+export function portablePaths(frontmatter, slug, wfDir = null) {
+  const walk = (v) => {
+    if (typeof v === 'string') return portablePath(v, slug, wfDir);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return frontmatter && typeof frontmatter === 'object' ? walk(frontmatter) : frontmatter;
+}
+
 /** The frontmatter with each command field repaired (lib/msys.mjs). */
 export function repairCommands(frontmatter) {
   if (!frontmatter || typeof frontmatter !== 'object') return frontmatter;
@@ -252,7 +289,7 @@ export function writeDoc(dir, name, doc, opts = {}) {
 }
 
 function writeDocLocked(dir, name, { frontmatter: rawFrontmatter, body = '' }, opts = {}) {
-  const frontmatter = repairCommands(rawFrontmatter);
+  const frontmatter = portablePaths(repairCommands(rawFrontmatter), rawFrontmatter?.slug ?? basename(dir), dir);
   const n = basename(name);
   // A body ends with one newline: trailing blank lines carry nothing, and the YAML of the
   // last block of a file would not keep them.

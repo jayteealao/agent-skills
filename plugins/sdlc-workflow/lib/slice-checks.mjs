@@ -13,9 +13,10 @@
 // is not met because of an earlier slice ("carried") needs the proof: the same check red at the
 // base commit of the slice.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { agentFix, refuse } from './fix.mjs';
+import { appendRecord } from './atomic-write.mjs';
 
 export const CHECKS_FILE = 'slice-checks.jsonl';
 export const RESULTS = ['met', 'not-met', 'not-run'];
@@ -99,7 +100,7 @@ export function addCheck(dir, c, { now = nowIso(), resolve = () => null, isAnces
     ...(sha ? { sha } : {}), ...(c.note ? { note: String(c.note) } : {}), ...(carried ? { carried } : {}),
     ...(c.proof ? { proof: { by: c.proof.by, ...(c.proof.id ? { id: c.proof.id } : {}), exit: c.proof.exit, ...(c.proof.log ? { log: c.proof.log } : {}), ...(c.proof.command ? { command: c.proof.command } : {}) } } : {}),
   };
-  appendFileSync(join(dir, CHECKS_FILE), `${JSON.stringify(row)}\n`);
+  appendRecord(join(dir, CHECKS_FILE), `${JSON.stringify(row)}\n`);
   return row;
 }
 

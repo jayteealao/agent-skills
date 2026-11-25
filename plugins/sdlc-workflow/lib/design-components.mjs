@@ -8,11 +8,12 @@
 //
 // The foundation is the tokens and the library. A new screen waits for it.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { COMPONENTS_DIR, COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, SURFACE_REL, TOKENS_FILE, designMdOf, listScreens, readManifest, readTokenModel, screenFile, surfaceDir, updateManifest } from './design-surface.mjs';
 import { GENERATED_MARK, missingKinds, platformFileOf } from './design-tokens.mjs';
 import { agentFix, refuse } from './fix.mjs';
+import { writeFileAtomic } from './atomic-write.mjs';
 
 /** One read-modify-write of the manifest, under its lock. */
 export function changeManifest(root, change) {
@@ -290,7 +291,7 @@ ${cellHtml(key, {}, 'default')}`, '');
       html = `${html.slice(0, source.index)}${source[1]}${inner}\n${cellHtml(key, cell.variant, cell.state)}\n${source[3]}${html.slice(source.index + source[0].length)}`;
       added += 1;
     }
-    if (html !== had || !existsSync(file)) { mkdirSync(join(surfaceDir(root), COMPONENTS_DIR), { recursive: true }); writeFileSync(file, html); }
+    if (html !== had || !existsSync(file)) { mkdirSync(join(surfaceDir(root), COMPONENTS_DIR), { recursive: true }); writeFileAtomic(file, html); }
   }
   const spec = componentSpec(html);
   return { ok: true, key, added, spec, problems: specProblems(spec, { themes }), file: componentRel(key) };
@@ -352,7 +353,7 @@ export function addComponent(root, key, { title = null, code = null, name = null
   const file = componentFile(root, key);
   mkdirSync(join(surfaceDir(root), COMPONENTS_DIR), { recursive: true });
   const created = !existsSync(file);
-  if (created) { const model = readTokenModel(root); writeFileSync(file, componentTemplate(key, entry.title, { themes: themeNames(model), space: panelSpace(model) })); }
+  if (created) { const model = readTokenModel(root); writeFileAtomic(file, componentTemplate(key, entry.title, { themes: themeNames(model), space: panelSpace(model) })); }
   return { ok: true, key, created, component: entry, file };
 }
 

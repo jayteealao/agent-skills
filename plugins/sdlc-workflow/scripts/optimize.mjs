@@ -55,7 +55,7 @@
  * tree destroys uncommitted work.
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,7 +74,7 @@ import { findRunFile } from '../lib/run-files.mjs';
 import { isMainModule, runShell } from '../lib/proc.mjs';
 import { costFiles, readCostRows } from '../lib/cost-ledger.mjs';
 import { INDEX_NAME, hasDoc, readDoc, writeDoc } from '../lib/records.mjs';
-import { writeFileAtomic } from '../lib/atomic-write.mjs';
+import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
 import { dropLock as dropFileLock, isStaleLock, refreshLock, takeLock as takeFileLock, withLock as withFileLockAt } from '../lib/file-lock.mjs';
 import { agentFix, failure, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 
@@ -164,7 +164,7 @@ function readResults(root, slug) {
 }
 function appendResult(root, slug, line) {
   mkdirSync(optDir(root, slug), { recursive: true });
-  appendFileSync(resultsPath(root, slug), `${JSON.stringify({ at: nowIso(), ...line })}\n`);
+  appendRecord(resultsPath(root, slug), `${JSON.stringify({ at: nowIso(), ...line })}\n`);
 }
 // The ideas ledger. Proposers claim ideas while a trial runs, so each change of the file
 // holds a short lock of its own: a read, the change, and an atomic write.
@@ -942,7 +942,7 @@ function saveProfile(root, slug, state, entries, source, ms = null) {
   const wt = probePath(state, 'trunk');
   if (source === 'agent' && existsSync(wt)) {
     const d = gitDiff(wt, []);
-    if (d) writeFileSync(profilePatch(root, slug), d);
+    if (d) writeFileAtomic(profilePatch(root, slug), d);
   }
   state.profile = { commit: state.best.commit, at, trial: state.counters.trials, source, entries: entries.length };
   appendResult(root, slug, { event: 'profile', commit: state.best.commit, source, entries: entries.length, top: entries.slice(0, 5).map((e) => `${e.name} ${Math.round(e.share * 1000) / 10}%`), ...(Number.isFinite(ms) ? { ms } : {}) });
@@ -1099,7 +1099,7 @@ function trial(root, slug, id, f) {
     const keepPatch = !!line.commit && (verdict === 'kept' || (verdict === 'reverted' && Number.isFinite(line.delta) && line.delta > 0));
     if (keepPatch) {
       mkdirSync(patchesDir(root, slug), { recursive: true });
-      writeFileSync(join(patchesDir(root, slug), `${n}.patch`), gitDiff(wt, [`${line.commit}~1`, line.commit]));
+      writeFileAtomic(join(patchesDir(root, slug), `${n}.patch`), gitDiff(wt, [`${line.commit}~1`, line.commit]));
       line.patch = `patches/${n}.patch`;
     }
     if (ideaId) withIdeas(root, slug, (book) => settleIdea(book, ideaId, { trial: n, verdict, gain: line.delta, patch: keepPatch }));

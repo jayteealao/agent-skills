@@ -68,10 +68,7 @@
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import {
-  appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync,
-  readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync,
-} from 'node:fs';
+import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,6 +90,7 @@ import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
 import { createDriveActivity, driveRunsDir, newestRun, queueMessage, watchMessage } from '../lib/drive-detach.mjs';
+import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
 
 /** The sub-commands of this script (the watch itself takes <projectRoot> <slug>): a fix names only these. */
 export const COMMANDS = Object.freeze(['note', 'control', 'end', 'line', 'stop-check', 'help']);
@@ -809,21 +807,21 @@ export function appendNote(root, slug, text, kind = null, nowMs = Date.now()) {
 function ensureCommentary(file, name) {
   if (existsSync(file)) return;
   mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, `# Commentary — ${name}\n\nThe running commentary of the yolo runs on this workflow, newest last. The watch appends one line for each stage start and each commit; the main session appends a note for the other events (reference/yolo/_commentary.md).\n`);
+  writeFileAtomic(file, `# Commentary — ${name}\n\nThe running commentary of the yolo runs on this workflow, newest last. The watch appends one line for each stage start and each commit; the main session appends a note for the other events (reference/yolo/_commentary.md).\n`);
 }
 
 const stampOf = (nowMs) => iso(nowMs).replace('T', ' ').replace(/:\d\d\.\d+Z$/, ' UTC');
 
 function writeNote(file, name, body, kind, nowMs) {
   ensureCommentary(file, name);
-  appendFileSync(file, `\n## ${stampOf(nowMs)}${kind ? ` — ${kind}` : ''}\n\n${body}\n`);
+  appendRecord(file, `\n## ${stampOf(nowMs)}${kind ? ` — ${kind}` : ''}\n\n${body}\n`);
   return file;
 }
 
 /** One fact line: a stage start or a commit. */
 export function writeFact(file, name, text, nowMs) {
   ensureCommentary(file, name);
-  appendFileSync(file, `\n- ${stampOf(nowMs)} · ${text}\n`);
+  appendRecord(file, `\n- ${stampOf(nowMs)} · ${text}\n`);
   return file;
 }
 
@@ -911,7 +909,7 @@ export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), o
     ...(stoppedAt ? { stoppedAt } : {}), ...(opts.reason ? { reason: String(opts.reason) } : {}),
   };
   mkdirSync(path.dirname(file), { recursive: true });
-  appendFileSync(file, `${JSON.stringify(line)}\n`);
+  appendRecord(file, `${JSON.stringify(line)}\n`);
   return line;
 }
 
@@ -950,7 +948,7 @@ export function appendJournalLine(file, json, flags = {}, nowMs = Date.now()) {
   if (flags['hard-stop-reason']) line.hardStopReason = String(flags['hard-stop-reason']);
   if (flags['route-back']) line.routeBack = String(flags['route-back']);
   mkdirSync(path.dirname(file), { recursive: true });
-  appendFileSync(file, `${JSON.stringify(line)}\n`);
+  appendRecord(file, `${JSON.stringify(line)}\n`);
   return line;
 }
 
@@ -1155,7 +1153,7 @@ export async function main(argv = process.argv.slice(2)) {
         const file = journalPath(path.resolve(root), slug);
         const run = readJournalFrom(file, 0).lines.findLast((l) => l && l.run)?.run ?? null;
         mkdirSync(path.dirname(file), { recursive: true });
-        appendFileSync(file, `${JSON.stringify({ at: iso(Date.now()), run, event: 'stop-honoured', agent: 'stop-check', reason: verdict.reason ?? null })}\n`);
+        appendRecord(file, `${JSON.stringify({ at: iso(Date.now()), run, event: 'stop-honoured', agent: 'stop-check', reason: verdict.reason ?? null })}\n`);
       } catch (e) { process.stderr.write(`yolo-watch: the stop was not written to the journal: ${e.message}\n`); }
     }
     process.stdout.write(`${JSON.stringify(verdict)}\n`);
