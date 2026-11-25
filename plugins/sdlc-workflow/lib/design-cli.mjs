@@ -799,7 +799,7 @@ async function run(pos, opt, out) {
       const dir = dirname(capturePicture(projectRoot, slug, slice, 'x'));
       const files = existsSync(dir) ? readdirSync(dir).filter((f) => /\.png$/i.test(f)).sort() : [];
       const commit = files.length ? commitDesignRecords(projectRoot, `design: captures of ${slug} ${slice}`) : null;
-      return finish({ ok: true, slug, slice, files, commit }, `${files.length} capture(s) of ${slug} ${slice}${commit ? `; records commit ${String(commit).slice(0, 8)}` : ''}`);
+      return finish({ ok: true, slug, slice, files, commit }, `${files.length} capture(s) of ${slug} ${slice}${commit === 'saved' ? '; saved for the records sync' : commit ? `; records commit ${String(commit).slice(0, 8)}` : ''}`);
     }
     case 'state': {
       out(canvasState(projectRoot, { repo: basename(projectRoot), writable: false }));

@@ -6,6 +6,7 @@
 // answer. A call is shorter than the 5 minutes that the prompt cache of a stage agent lives, so
 // each new call reads the context of the agent from the cache. The wait has no limit of its
 // own: the main session asks the person, or answers for a person who is away.
+import { registerWatch } from './records-committer.mjs';
 import { answeredBy, decisionsOf } from './decisions.mjs';
 import { agentFix, refuse } from './fix.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
@@ -43,7 +44,16 @@ export function heldQuestions(dir) {
  * @returns {{ state: 'answered' | 'waiting', answered: Array<{ key: string, entry: object }>, open: string[], waitedMs: number }}
  *   `waiting`: this call ended with a question still open, so the stage calls again.
  */
-export function waitForAnswers(dir, { keys, scope = {}, callMs = WAIT_CALL_MS, pollMs = WAIT_POLL_MS, now = Date.now, sleep = pause, onStart = () => {}, onEnd = () => {}, interrupt = null } = {}) {
+/**
+ * The wait for the answers, with a watch of the records sync while it runs: with the compose
+ * sync, an answer given on another computer arrives only when the committer fetches.
+ */
+export function waitForAnswers(dir, opts = {}) {
+  const end = registerWatch('decide wait');
+  try { return waitForAnswersHere(dir, opts); } finally { end(); }
+}
+
+function waitForAnswersHere(dir, { keys, scope = {}, callMs = WAIT_CALL_MS, pollMs = WAIT_POLL_MS, now = Date.now, sleep = pause, onStart = () => {}, onEnd = () => {}, interrupt = null } = {}) {
   const want = [...new Set((keys ?? []).map((k) => String(k).trim()).filter(Boolean))];
   if (!want.length) throw refuse('decide wait: --key is required', agentFix('Run decide wait again with --key, the key of each question that you hold, with commas between the keys.'));
   const read = () => {

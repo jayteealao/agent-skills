@@ -12,6 +12,7 @@ import { claimAndPull, heldBefore, leasesOn } from './leases.mjs';
 import { layerOf, readOutbox } from './github-layer.mjs';
 import { hasLiveBranch, lastLogged, machineBlocked, readState, recordsLogTail } from './records-sync.mjs';
 import { linkedProject, recordsHome } from './records-root.mjs';
+import { syncLine } from './records-committer.mjs';
 
 const DAY_MS = 24 * 60 * 60_000;
 const quote = (s) => `"${String(s).replace(/"/g, "'")}"`;
@@ -66,6 +67,9 @@ export function recordsLine(root, { target = null, host = null, now = Date.now()
     if (push?.error && newer(push.at)) facts.push(`the last push of the records failed at ${push.at}: ${push.error}`);
     const commit = target ? state.failures?.[`${project}/${target}`] : null;
     if (commit?.step === 'commit' && newer(commit.at)) facts.push(`the last records commit of ${target} failed at ${commit.at}: ${commit.error}`);
+    // With the compose sync: a sync that failed, a parked unit, or changes that wait over 5 minutes.
+    const sync = syncLine(now);
+    if (sync) facts.push(sync.replace(/^records:\s*/, ''));
   }
   if (layer) {
     const flush = lastLogged(['flush']);

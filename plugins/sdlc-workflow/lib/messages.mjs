@@ -90,7 +90,7 @@ export function postMessage(root, slug, { kind, text, to = null, from = machineN
   writeFileAtomic(join(inbox, id), body);
   if (project) {
     const home = recordsHome();
-    commitPaths(home, { paths: [`${project}/${slug}/${INBOX}/${id}`], message: `${project}/${slug}: ${kind} from ${from}` });
+    commitPaths(home, { paths: [`${project}/${slug}/${INBOX}/${id}`], message: `${project}/${slug}: ${kind} from ${from}`, urgent: true });
   }
   return { id, file: join(inbox, id), project };
 }

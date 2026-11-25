@@ -4,6 +4,8 @@
 //    edit). A failure here never fails the change.
 // 2. A linked project commits the workflow folder on the main branch of the records clone. The
 //    commit starts the background push; for a closed workflow, the push also releases the lease.
+//    With `records.sync: compose`, nothing commits: the change wakes the committer
+//    (lib/records-committer.mjs), at once for an answer or a close.
 // 3. When the lease ref of the last sync names another machine, the session is told to stop.
 // 4. The background flush starts when one is due, so a driver that makes no `/wf` call keeps the
 //    issues current.
@@ -30,7 +32,7 @@ export function afterChange(root, slug, { label, answer = null, warn = (line) =>
   } catch (e) { warn(`the GitHub layer did not queue the change: ${e.message}`); }
   try {
     const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
-    const c = commitWorkflow(root, slug, label ?? `${slug}: change`, { verb: TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', warn });
+    const c = commitWorkflow(root, slug, label ?? `${slug}: change`, { verb: TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', urgent: Boolean(answer), warn });
     result.commit = c?.commit ?? null;
     result.conflicts = c?.conflicts ?? [];
     for (const f of result.conflicts) warn(`records-warning: the local copy of ${slug}/${f} differs from the clone copy; it is kept in ${join('.ai', 'workflows', '.conflicts', slug).replace(/\\/g, '/')}/`);

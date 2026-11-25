@@ -19,15 +19,18 @@
  *             the absolute folder of the wf skill, the `<skill-dir>` of every reference. An agent
  *             that has no `skill-dir:` line runs it through the stable entry point, never a search
  *             Example: node "$HOME/.sdlc/bin/wf.mjs" skill-dir
- *   records  <link|status|sync|push|close|retry|dismiss|migrate> [<root>] [<project>|<slug>] [--problems] [--dry-run] [--json]
+ *   records  <link|status|sync|push|flush|close|retry|dismiss|migrate> [<root>] [<project>|<slug>] [--problems] [--dry-run] [--json]
  *             the records repo: link a project (its records move into the clone, and each
  *             workflow gets its issue), show the clone (--problems: only the failed pushes, the
  *             conflicts and the files in no commit, at most 40 lines), pull the work of other
  *             machines, push the clone, close a workflow (commit, push, release its lease), the
  *             two answers to a records question of the dispatch (retry: commit the workflow again
  *             and push and flush in the background; dismiss: ask again only about a newer
- *             failure), and move the live branches of an older version onto the main branch once
+ *             failure), and move the live branches of an older version onto the main branch once.
+ *             flush sends the records now and waits for the push: exit 1 when it did not land
+ *             (with <slug>: when that workflow was not sent)
  *             Example: wf.mjs records status . --problems
+ *             Example: wf.mjs records flush . demo
  *             Example: wf.mjs records migrate --dry-run
  *   lease    <claim|release|show|decline> <root> <slug> [--take] [--host h] [--json]
  *             the lease of a workflow: the one machine that writes its records now, when two or
@@ -649,7 +652,7 @@ import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { afterChange } from '../lib/after-change.mjs';
-import { closeRecords, commitWorkflow, dismissRecords, inBackground, linkProject, logRecordsEvent, machineName, markReleaseOwed, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
+import { SAVED, closeRecords, commitWorkflow, dismissRecords, flushRecords, inBackground, linkProject, logRecordsEvent, machineName, markReleaseOwed, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
 import { claimAndPull, releaseLease, releaseOwed, renewIfMine, showLease } from '../lib/leases.mjs';
 import { recordsLine } from '../lib/records-line.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
@@ -667,7 +670,7 @@ import { checkDeferrals, deferralLine, openDeferrals } from '../lib/deferrals.mj
 import { OPEN_STATUSES, findingsTable, mergeRun, metricsOf, readLedger, setStatus, updateLedger, verdictOf, writeLedger } from '../lib/findings.mjs';
 import { markBusy, progressLine, progressOf, readProgress, writeDriverOutcome, writeProgress } from '../lib/progress.mjs';
 import { pruneEvidence } from '../lib/evidence.mjs';
-import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, draftsOf, frontmatterOfDoc, keptPath, listDocs, markSuperseded, migrateWorkflow, outlineOf, putDraft, readDoc, redirectOf, sectionText, setFields } from '../lib/records.mjs';
+import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, draftsOf, frontmatterOfDoc, keptPath, listDocs, markSuperseded, migrateWorkflow, outlineOf, putDraft, readDoc, redirectOf, sectionText, setFields, updateFields } from '../lib/records.mjs';
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
@@ -1827,9 +1830,11 @@ function runShip(pos, opt) {
     const gaps = readyGaps(projectRoot, { base, allowNoPlan: Boolean(opt['allow-no-plan']) });
     if (slug) {
       // Each gap is a person task; a gap that closed leaves the list.
-      const kept = (Array.isArray(index['person-tasks']) ? index['person-tasks'] : []).filter((t) => !String(t?.id ?? '').startsWith(TASK_PREFIX));
       const tasks = gaps.map((g) => ({ id: `${TASK_PREFIX}${g.code}`, task: g.task, needed: 'ship', at: nowIso() }));
-      setFields(join(wfRoot(projectRoot), slug), INDEX_NAME, { 'person-tasks': [...kept, ...tasks] });
+      updateFields(join(wfRoot(projectRoot), slug), INDEX_NAME, (fm) => {
+        const kept = (Array.isArray(fm['person-tasks']) ? fm['person-tasks'] : []).filter((t) => !String(t?.id ?? '').startsWith(TASK_PREFIX));
+        fm['person-tasks'] = [...kept, ...tasks];
+      });
     }
     out(opt.json ? { ready: !gaps.length, gaps } : gaps.length ? gaps.map((g) => `gap: ${g.task}`).join('\n') : 'ready: no gap that a script sees');
     return gaps.length ? 1 : 0;
@@ -1938,6 +1943,14 @@ async function runRecords(pos, opt) {
     out(!p.linked ? 'records: local in .ai/workflows/' : p.lines.length ? [...p.lines, ...(p.more ? [`and ${p.more} more line(s): wf.mjs records status "${projectRoot}"`] : [])].join('\n') : 'records: no problem');
     return 0;
   }
+  if (verb === 'flush') {
+    const project = linkedProject(projectRoot);
+    if (!project) { out(opt.json ? { landed: true, linked: false } : 'records: local in .ai/workflows/, nothing to send'); return 0; }
+    const f = flushRecords({ project, slug: arg ?? null });
+    out(opt.json ? { landed: f.landed, reason: f.reason } : f.landed ? `records: sent${arg ? ` ${arg}` : ''}` : `records: not sent: ${f.reason}`);
+    if (!f.landed && !opt.json) printFix(personFix('Read the reason above (no network, a refused push, or a workflow that another computer owns), then run wf.mjs records flush again.'));
+    return f.landed ? 0 : 1;
+  }
   if (verb === 'retry') {
     // The answer yes to a records question of the dispatch: the commit of the workflow again,
     // then the push and the flush in the background. The next /wf call shows their result.
@@ -1946,7 +1959,7 @@ async function runRecords(pos, opt) {
     if (linked && arg) {
       const c = commitWorkflow(projectRoot, arg, `${linked}/${arg}: the records commit again`);
       if (!c?.commit) { out(`the records commit of ${arg} failed again; wf.mjs records status "${projectRoot}" --problems`); return 1; }
-      done.push(`committed ${arg}; the push runs in the background`);
+      done.push(c.commit === SAVED ? `saved ${arg}; the records sync sends it` : `committed ${arg}; the push runs in the background`);
     } else if (linked) {
       inBackground(['records', 'push', projectRoot]);
       done.push('the push runs in the background');

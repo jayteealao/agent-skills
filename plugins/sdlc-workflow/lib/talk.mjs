@@ -13,6 +13,7 @@
 // before a fix round, before it returns), and every long block of an agent is one call of
 // `waitTalk`, which also returns when a message arrives. So a ping reaches an agent that waits on
 // a long command, on an answer of the person, or on a shared resource.
+import { registerWatch } from './records-committer.mjs';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { withFileLock } from './file-lock.mjs';
@@ -370,7 +371,13 @@ function pause(ms) {
  *
  * @returns {{ state: 'message'|'claimed'|'done'|'fallback'|'waiting', messages: object[], pings: object[], claim?: object, done?: any, fallback?: object[], waitedMs: number }}
  */
-export function waitTalk(dir, actor, {
+/** The wait of the talk, with a watch of the records sync while it runs (see waitForAnswers). */
+export function waitTalk(dir, actor, opts = {}) {
+  const end = registerWatch('talk wait');
+  try { return waitTalkHere(dir, actor, opts); } finally { end(); }
+}
+
+function waitTalkHere(dir, actor, {
   after = null, resource = null, leaseMs = LEASE_MS, why = null, done = null, claimDir = null, scope = null,
   callMs = WAIT_CALL_MS, pollMs = WAIT_POLL_MS, now = Date.now, sleep = pause,
 } = {}) {

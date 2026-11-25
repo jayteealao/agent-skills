@@ -11,6 +11,10 @@ A project that is linked (`<wf> records link <root> <project>`) keeps its record
 - When two or more computers use the records repo, one computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first. With one computer, there is no lease. `<wf> records close <root> <slug>` does the same at the end of a session: it commits the workflow, pushes it and releases its lease.
 - Read the records of another project, but do not change them. To ask that project for something, post a message to it.
 
+### With the compose sync
+
+When `~/.sdlc/config.json` of this computer sets `sync: compose` under `records`, `wf.mjs` commits nothing at a step. Each change is saved in the wf-dir, and the committer, one process per computer, sends the changes about one minute later. An answer, a message or a close goes at once. A command says `saved`, not `committed`. When the work must reach the remote now (a hand-over, or the end of a session), run `<wf> records flush <root> <slug>`: it waits for the push. Exit 1 means that the push did not land, and the line names the reason. A sync that failed, a workflow that another computer owns, or a change that waits over 5 minutes shows in the records line of the dispatch.
+
 ## Records lines
 
 The dispatch prints one records line, or none when the records are in order. In the commands of the line, `wf.mjs` is `<wf>`.

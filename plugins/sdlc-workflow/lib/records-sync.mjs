@@ -29,7 +29,8 @@ import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mj
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
 import { maxFileBytes, sweepRunFiles } from './run-files.mjs';
 import { writeFileAtomic } from './atomic-write.mjs';
-import { composeOn, composeSync } from './records-compose.mjs';
+import { composeOn, composeSync, epochRefusal } from './records-compose.mjs';
+import { syncOnce, wakeCommitter } from './records-committer.mjs';
 
 // A call that only asks the remote (ls-remote) ends after 20 seconds, so an offline machine goes
 // on quickly. A transfer (push, fetch) runs as long as data moves: git itself stops a transfer
@@ -422,8 +423,18 @@ const warnStderr = (line) => process.stderr.write(`wf.mjs: ${line}\n`);
  * Returns the new commit, the old tip when nothing changed, or null when the commit failed; the
  * records log says why, and `warn` gets a line, so no command hides it.
  */
-export function commitPaths(home, { paths, message, push = true, pushArgs = null, warn = warnStderr }) {
+export const SAVED = 'saved';
+
+export function commitPaths(home, { paths, message, push = true, pushArgs = null, urgent = false, warn = warnStderr }) {
   if (!existsSync(join(home, '.git'))) return null;
+  const old = epochRefusal(home);
+  if (old) {
+    logRecordsFailure({ ...workflowOfPath(paths[0]), step: 'commit', error: old });
+    warn(`records-warning: ${paths[0]} is saved on this computer but not sent: ${old}`);
+    return null;
+  }
+  // With the compose sync, a write commits nothing: the committer sends the folder as it is.
+  if (composeOn()) { if (push) wakeCommitter({ urgent }); return SAVED; }
   ensureMigrated(home);
   let commit = null;
   try {
@@ -972,13 +983,13 @@ function moveLocalAtLink(root, slug) {
  * `{ commit, project, home, conflicts }`, or null when unlinked; `conflicts` is empty, because no
  * local file moves into the clone here.
  */
-export function commitWorkflow(root, slug, message, { push = true, verb = 'push', warn = warnStderr } = {}) {
+export function commitWorkflow(root, slug, message, { push = true, verb = 'push', urgent = false, warn = warnStderr } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
   // The run files and the files over the cap leave the clone before the commit.
   try { sweepRunFiles(root, slug, join(home, project, slug), { machine: machineName() }); } catch { /* the guard of the commit keeps them out */ }
-  const commit = commitPaths(home, { paths: [`${project}/${slug}`], message, push, pushArgs: ['records', verb, root, slug], warn });
+  const commit = commitPaths(home, { paths: [`${project}/${slug}`], message, push, pushArgs: ['records', verb, root, slug], urgent: urgent || verb === 'close', warn });
   return { commit, project, home, conflicts: [] };
 }
 
@@ -1020,6 +1031,7 @@ export function commitRecords({ root = null, project = null, label }) {
   if (!name || !PROJECT_NAME_RE.test(name)) return null;
   const home = recordsHome();
   if (!existsSync(join(home, '.git')) || !existsSync(join(home, name))) return null;
+  if (composeOn()) { wakeCommitter(); return []; }
   const before = sha(home, 'HEAD');
   const committed = commitPending(root, name, home, label);
   if (sha(home, 'HEAD') !== before) queuePush(['records', 'push', root ?? home]);
@@ -1034,6 +1046,11 @@ export function commitRecords({ root = null, project = null, label }) {
 export function closeRecords(root, slug) {
   const project = linkedProject(root);
   if (!project) return null;
+  if (composeOn()) {
+    // A close must reach the remote: the sync runs now, and the workflow stays owned until it lands.
+    const f = flushRecords({ project, slug });
+    return { ok: true, commit: SAVED, pushed: f.landed, sent: f.landed || !hasRemote(recordsHome()), ...(!f.landed && f.reason ? { reason: f.reason } : {}) };
+  }
   const c = commitWorkflow(root, slug, `${project}/${slug}: close`, { push: false });
   if (!c.commit) return { ok: false, reason: 'the commit of the workflow folder failed', fix: personFix(`Check the records clone at ${c.home ?? recordsHome()} with git status (a rebase, a lock file or a hook can stop the commit), then close the workflow again.`) };
   const p = pushRecords(c.home);
@@ -1112,17 +1129,48 @@ export function syncRecords(root) {
  * The sync by composing (lib/records-compose.mjs), when `records.sync: compose` is set: no
  * pull, no rebase; the units that this computer may not send are parked, and the rest go.
  */
-function composeInto(out, home, project, main) {
-  const second = machineBlocked(home);
-  if (second) { out.conflicts.push(second); return out; }
-  let r;
+/**
+ * One compose sync of the clone, under the records lock: the step of the committer and of
+ * `records flush`. Returns the result of the engine with `ok: true`, or `{ ok: false, error }`;
+ * a failure goes to the records log.
+ */
+export function composeNow(home = recordsHome(), { project = null } = {}) {
+  if (!existsSync(join(home, '.git'))) return { ok: false, error: `no records clone at ${home}` };
+  const second = machineBlocked(home) ?? epochRefusal(home);
+  if (second) return { ok: false, error: second };
   try {
-    r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: main, held: (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : null) }));
+    const r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: mainBranch(home), held: (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : null) }));
+    return { ok: true, ...r };
   } catch (e) {
     logRecordsFailure({ project, step: 'compose', error: e.message });
-    out.conflicts.push(`${main}: ${e.message}`);
-    return out;
+    return { ok: false, error: e.message };
   }
+}
+
+/**
+ * Send the records now and wait for the push: `records flush`, a close and a hand-over. With
+ * `slug`, the push landed only when that workflow was sent: not parked, not held back.
+ * Returns `{ landed, reason, result }`.
+ */
+export function flushRecords({ project = null, slug = null } = {}) {
+  const home = recordsHome();
+  if (!composeOn()) {
+    const p = pushRecords(home);
+    return { landed: Boolean(p.pushed) || !hasRemote(home), reason: p.reason ?? null, result: p };
+  }
+  const r = syncOnce({ compose: () => composeNow(home, { project }) });
+  if (!r.ok) return { landed: false, reason: r.error, result: r };
+  const unit = project && slug ? `${project}/${slug}` : null;
+  const held = unit ? (r.held ?? []).filter((h) => h.path.startsWith(`${unit}/`) && !/stays out of the commits/.test(h.why ?? '')) : [];
+  if (unit && r.fenced?.includes(unit)) return { landed: false, reason: `another computer owns ${unit}; this copy is parked on ${r.parked}`, result: r };
+  if (held.length) return { landed: false, reason: `${held[0].path} was held back: ${held[0].why}`, result: r };
+  if (r.offline || (!r.pushed && hasRemote(home))) return { landed: false, reason: r.pushError ?? 'the push did not land (no network?)', result: r };
+  return { landed: true, reason: null, result: r };
+}
+
+function composeInto(out, home, project, main) {
+  const r = composeNow(home, { project });
+  if (!r.ok) { out.conflicts.push(`${main}: ${r.error}`); return out; }
   out.compose = r;
   out.pushed = r.pushed;
   out.pulled = [...new Set(r.appliedPaths.filter((p) => p.startsWith(`${project}/`)).map((p) => p.split('/')[1]))];

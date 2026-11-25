@@ -31,6 +31,18 @@ export const SYNCED_REF = 'refs/wf/synced';
 export const LOCAL_REF = 'refs/wf/local';
 export const PARK_PREFIX = 'refs/heads/conflict/';
 export const MAX_TRIES = 8;
+// The format of the records that this plugin writes. A repo with a higher `.records-epoch` was
+// changed by a newer plugin (a layout change or a history rewrite): this one does not write it.
+export const RECORDS_EPOCH = 1;
+export const EPOCH_FILE = '.records-epoch';
+
+/** Why the clone at `home` may not be written by this plugin, or null. */
+export function epochRefusal(home) {
+  let text = null;
+  try { text = readFileSync(join(home, EPOCH_FILE), 'utf8'); } catch { return null; }
+  const n = Number.parseInt(text, 10);
+  return Number.isFinite(n) && n > RECORDS_EPOCH ? `the records clone is in format ${n}, and this plugin writes format ${RECORDS_EPOCH}: update the plugin on this computer before it writes the records` : null;
+}
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 const NO_SHA = '0'.repeat(40);
 
@@ -147,6 +159,9 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
       if (f.status !== 0 && !/couldn't find remote ref/i.test(f.err)) throw new Error(`git fetch: ${f.err.trim().split('\n')[0]}`);
       const up = ref(tracking);
       const U = tree(up);
+      // A remote in a newer format of the records: this client must not write it.
+      const epoch = U.has(EPOCH_FILE) ? Number.parseInt(M(['cat-file', 'blob', U.get(EPOCH_FILE).split(' ')[1]]), 10) : RECORDS_EPOCH;
+      if (epoch > RECORDS_EPOCH) throw new Error(`the records repo is in format ${epoch}, and this plugin writes format ${RECORDS_EPOCH}: update the plugin on this computer, then sync again`);
       const todo = changed.filter((p) => L.get(p) !== U.get(p));
       const send = [];
       const bad = [];
@@ -174,7 +189,9 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
         M(['update-index', '-z', '--index-info'], { idx: true, input: send.map((p) => (L.has(p) ? `${L.get(p)}\t${p}\0` : `0 ${NO_SHA}\t${p}\0`)).join('') });
         next = M(['commit-tree', M(['write-tree'], { idx: true }), ...(up ? ['-p', up] : []), ...(prior && prior !== base ? ['-p', local] : []), '-m', `sync ${me}`]);
         die('compose');
-        if (G(['push', '-q', remote, `${next}:refs/heads/${branch}`], { timeout: 120_000 }).status !== 0) continue;
+        const p = G(['push', '-q', remote, `${next}:refs/heads/${branch}`], { timeout: 120_000 });
+        if (p.status !== 0) { out.pushError = p.err.trim().split('\n')[0] || `exit ${p.status}`; continue; }
+        delete out.pushError;
         die('push');
       }
       out.sent = send.length;

@@ -36,7 +36,7 @@ const ROWS = {
   wf_decide: 'decide add | decide hold | decide drop | decide end | decide tidy | decide import',
   wf_wait: 'decide wait | talk wait | progress watch',
   wf_job: 'drive | profile run | receipt | talk job | design check | design captures | design review-pack',
-  wf_act: `records link | records sync | records push | records close | records retry | records dismiss | records migrate
+  wf_act: `records link | records sync | records push | records flush | records close | records retry | records dismiss | records migrate
     | lease claim | lease release | lease decline | gh flush | gh backfill | setup | modernize | close | ship ready | ship merge | ship finish
     | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
   wf_person: 'consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
