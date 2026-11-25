@@ -91,6 +91,76 @@ export function cloneBlocked(home) {
   if (gitIn(home, ['symbolic-ref', '-q', 'HEAD']).status !== 0) return `the records clone at ${home} is on a detached HEAD: check out its main branch`;
   return null;
 }
+
+/**
+ * Why this computer may not write the records, or null. The sync is safe for one computer only:
+ * the pull rebases the folder that the sessions write. So a computer that `.machines/` does not
+ * list is refused when the list names another one. SDLC_SECOND_MACHINE=allow lifts it, for tests.
+ */
+export function machineBlocked(home = recordsHome()) {
+  if (process.env.SDLC_SECOND_MACHINE === 'allow') return null;
+  const names = machineNames(home);
+  const me = machineName();
+  if (!names.length || names.includes(me)) return null;
+  return `the records are in use on ${names.join(', ')}, and this computer is ${me}: a second computer cannot write them yet`;
+}
+const machineFix = () => personFix('Use the records on the first computer only. When this is the first computer and its name changed, set records.machine in ~/.sdlc/config.json to the old name.');
+
+// An index.lock this old, with no git process from before it, was left by a process that ended.
+const INDEX_LOCK_STALE_MS = 10 * 60_000;
+const CLOCK_SLACK_MS = 5_000;
+
+/** The age of `[[dd-]hh:]mm:ss` (the etime column of ps) in milliseconds. */
+export function etimeMs(text) {
+  const m = /^(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)$/.exec(String(text).trim());
+  return m ? (((Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 60 + Number(m[3])) * 60 + Number(m[4])) * 1000 : null;
+}
+
+/**
+ * True when a git process of this computer started before `at` (milliseconds), so it may hold a
+ * lock of that time; false when none did; null when it cannot be known. A git process that
+ * started later cannot hold the lock, and one of those runs nearly always.
+ */
+function gitRunsSince(at) {
+  const starts = [];
+  if (process.platform === 'win32') {
+    // A process whose start time cannot be read ends the script with exit 1: unknown.
+    const script = "$ErrorActionPreference='Stop'; try { Get-Process | Where-Object { $_.ProcessName -eq 'git' } | ForEach-Object { if ($null -eq $_.StartTime) { exit 1 }; [DateTimeOffset]::new($_.StartTime).ToUnixTimeMilliseconds() } } catch { exit 1 }";
+    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, timeout: NET_TIMEOUT_MS });
+    if (r.status !== 0) return null;
+    starts.push(...r.stdout.split(/\r?\n/).filter(Boolean).map(Number));
+  } else {
+    const r = spawnSync('ps', ['-axo', 'etime=,comm='], { encoding: 'utf8', timeout: NET_TIMEOUT_MS });
+    if (r.status !== 0) return null;
+    for (const line of r.stdout.split('\n')) {
+      const m = /^\s*(\S+)\s+(.+)$/.exec(line);
+      if (!m || m[2].trim().split('/').pop() !== 'git') continue;
+      const age = etimeMs(m[1]);
+      starts.push(age === null ? NaN : Date.now() - age);
+    }
+  }
+  if (starts.some((t) => !Number.isFinite(t))) return null;
+  return starts.some((t) => t <= at + CLOCK_SLACK_MS);
+}
+
+/**
+ * Move the `index.lock` of the clone aside when it is old and no git process from before it runs:
+ * it is renamed to `index.lock.stale-<time>`, not deleted. Returns `{ cleared }`. Call it under the records lock.
+ */
+export function clearStaleIndexLock(home, { gitRuns = gitRunsSince } = {}) {
+  const p = gitIn(home, ['rev-parse', '--git-path', 'index.lock']).stdout;
+  if (!p) return { cleared: false };
+  const file = isAbsolute(p) ? p : join(home, p);
+  const seen = statSync(file, { throwIfNoEntry: false });
+  if (!seen || Date.now() - seen.mtimeMs < INDEX_LOCK_STALE_MS || gitRuns(seen.mtimeMs) !== false) return { cleared: false };
+  // A git process that started during the check made a new lock: that one stays.
+  const now = statSync(file, { throwIfNoEntry: false });
+  if (!now || now.mtimeMs !== seen.mtimeMs || now.ino !== seen.ino) return { cleared: false };
+  const to = `${file}.stale-${Date.now()}`;
+  try { renameSync(file, to); } catch { return { cleared: false }; }
+  logRecordsEvent({ step: 'index-lock', ok: true, moved: to });
+  return { cleared: true, to };
+}
 const trackingRef = (home) => `refs/remotes/origin/${mainBranch(home)}`;
 
 // ---------------------------------------------------------------- local state
@@ -121,6 +191,21 @@ export function markHeld(key, on) {
   updateState((s) => {
     s.held = { ...(s.held ?? {}) };
     if (on) s.held[key] = nowIso(); else delete s.held[key];
+  });
+}
+
+/** Note that the pull after a claim is owed (true), or that a pull worked (false). */
+export function markPullOwed(on) {
+  if (Boolean(readState().pullOwed) === on) return;
+  updateState((s) => { if (on) s.pullOwed = nowIso(); else delete s.pullOwed; });
+}
+
+/** Note that the lease of a closed workflow is released at the next push that works, or no longer is. */
+export function markReleaseOwed(key, on) {
+  if (Boolean(readState().releaseOwed?.[key]) === on) return;
+  updateState((s) => {
+    s.releaseOwed = { ...(s.releaseOwed ?? {}) };
+    if (on) s.releaseOwed[key] = nowIso(); else delete s.releaseOwed[key];
   });
 }
 
@@ -280,6 +365,9 @@ export function withRecordsLock(fn, opts = {}) {
 
 const WF_CLI = fileURLToPath(new URL('../scripts/wf.mjs', import.meta.url));
 
+/** True when an older version's live branch of the workflow is in the clone: its commits are refused. */
+export const hasLiveBranch = (home, key) => Boolean(sha(home, `refs/heads/live/${key}`));
+
 /** Run `wf.mjs <args>` detached. SDLC_RECORDS_FOREGROUND=1 runs it in this process's time, for tests. */
 export function inBackground(args) {
   if (process.env.SDLC_RECORDS_FOREGROUND === '1') { spawnSync(process.execPath, [WF_CLI, ...args], { stdio: 'ignore', windowsHide: true }); return; }
@@ -299,15 +387,17 @@ function workflowOfPath(p) {
   return PROJECT_NAME_RE.test(project ?? '') && slug && !slug.startsWith('.') ? { project, slug } : { project: null, slug: null };
 }
 
+const warnStderr = (line) => process.stderr.write(`wf.mjs: ${line}\n`);
+
 /**
  * Make one records commit: `git add` and `git commit`, both limited to `paths`, on the main
  * branch of the clone, under the records lock. No draft, run file or file over the size limit
  * goes in. Every records commit goes through here. After the commit the push runs in the
  * background (`pushArgs` names the wf.mjs command; `push: false` leaves the push to the caller).
  * Returns the new commit, the old tip when nothing changed, or null when the commit failed; the
- * records log says why.
+ * records log says why, and `warn` gets a line, so no command hides it.
  */
-export function commitPaths(home, { paths, message, push = true, pushArgs = null }) {
+export function commitPaths(home, { paths, message, push = true, pushArgs = null, warn = warnStderr }) {
   if (!existsSync(join(home, '.git'))) return null;
   ensureMigrated(home);
   let commit = null;
@@ -315,6 +405,7 @@ export function commitPaths(home, { paths, message, push = true, pushArgs = null
     commit = withRecordsLock(() => commitLocked(home, paths, message));
   } catch (e) {
     logRecordsFailure({ ...workflowOfPath(paths[0]), step: 'commit', error: e.message });
+    warn(`records-warning: ${paths[0]} is saved on this computer but not committed: ${e.message}`);
     return null;
   }
   const { project, slug } = workflowOfPath(paths[0]);
@@ -324,6 +415,9 @@ export function commitPaths(home, { paths, message, push = true, pushArgs = null
 }
 
 function commitLocked(home, paths, message) {
+  const second = machineBlocked(home);
+  if (second) throw refuse(second, machineFix());
+  clearStaleIndexLock(home);
   const blocked = cloneBlocked(home);
   if (blocked) throw refuse(blocked, personFix(`The records clone at ${home} is in a rebase or on a detached HEAD: finish the rebase, or check out its main branch, then run the command again.`));
   const head = sha(home, 'HEAD');
@@ -384,7 +478,13 @@ const stashTip = (home) => sha(home, 'refs/stash');
  * Returns `{ ok, from, to }`, `{ offline, reason }`, `{ failed, reason }` (a fetch that the remote
  * refused: a credential, the access or the remote is wrong) or `{ conflict, files, reason }`.
  */
-export function pullRecords(home = recordsHome(), { fetched = false } = {}) {
+export function pullRecords(home = recordsHome(), opts = {}) {
+  const r = pullOnce(home, opts);
+  if (r.ok) markPullOwed(false);
+  return r;
+}
+
+function pullOnce(home, { fetched = false } = {}) {
   if (!hasRemote(home)) return { offline: true, reason: 'the records clone has no remote' };
   const blocked = cloneBlocked(home);
   if (blocked) return { failed: true, reason: blocked };
@@ -398,6 +498,7 @@ export function pullRecords(home = recordsHome(), { fetched = false } = {}) {
   }
   try {
     return withRecordsLock(() => {
+      clearStaleIndexLock(home);
       const ledgers = modifiedLedgers(home);
       if (ledgers.length) commitLocked(home, ledgers, 'records: the cost rows of this machine');
       const from = sha(home, 'HEAD');
@@ -440,6 +541,8 @@ export function pushRecords(home = recordsHome()) {
   if (!hasRemote(home)) return { pushed: false, offline: true, reason: 'the records clone has no remote' };
   const blocked = cloneBlocked(home);
   if (blocked) { logRecordsFailure({ step: 'push', error: blocked }); return { pushed: false, failed: true, reason: blocked }; }
+  const second = machineBlocked(home);
+  if (second) { logRecordsFailure({ step: 'push', error: second }); return { pushed: false, failed: true, reason: second }; }
   if (!takeLock(pushLockPath(), { waitMs: PUSH_WAIT_MS, staleMs: PUSH_STALE_MS })) return { pushed: false, busy: true, reason: 'another push of the records stayed busy' };
   let r;
   try { r = pushLoop(home); } finally { dropLock(pushLockPath()); }
@@ -555,6 +658,8 @@ function moveOne(home, m) {
 export function migrateLive(home = recordsHome(), { dryRun = false } = {}) {
   const out = { moved: [], failed: [], dryRun };
   if (!existsSync(join(home, '.git'))) return { ...out, reason: `no records clone at ${home}` };
+  const second = dryRun ? null : machineBlocked(home);
+  if (second) return { ...out, reason: second, failed: liveRefs(home).map((r) => ({ ...r, reason: second })) };
   const refs = liveRefs(home);
   if (refs.length && !dryRun && hasRemote(home)) gitIn(home, ['fetch', '-q', 'origin', `+${LIVE_PREFIX}*:refs/remotes/origin/live/*`], { net: true });
   const plan = refs.map((r) => planMove(home, r));
@@ -715,6 +820,8 @@ export function linkProject(root, project) {
   if (!PROJECT_NAME_RE.test(String(project ?? ''))) return { ok: false, reason: `the project name ${project} must match ${PROJECT_NAME_RE}`, fix: agentFix('Run records link again with a project name that the pattern allows: lowercase letters, digits and dashes.', 'wf.mjs records link <root> <project>') };
   const home = recordsHome();
   if (!existsSync(join(home, '.git'))) return { ok: false, reason: `no records clone at ${home}: git clone <records repo> "${home}"`, fix: personFix(`Clone the records repo into ${home} (git clone <records repo> "${home}"), then link the project again.`) };
+  const second = machineBlocked(home);
+  if (second) return { ok: false, reason: second, fix: machineFix() };
   const configFile = join(root, '.ai', 'sdlc-config.json');
   const config = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
   if (config.records?.project && config.records.project !== project && linkedProject(root)) {
@@ -840,13 +947,13 @@ function moveLocalAtLink(root, slug) {
  * `{ commit, project, home, conflicts }`, or null when unlinked; `conflicts` is empty, because no
  * local file moves into the clone here.
  */
-export function commitWorkflow(root, slug, message, { push = true, verb = 'push' } = {}) {
+export function commitWorkflow(root, slug, message, { push = true, verb = 'push', warn = warnStderr } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
   // The run files and the files over the cap leave the clone before the commit.
   try { sweepRunFiles(root, slug, join(home, project, slug), { machine: machineName() }); } catch { /* the guard of the commit keeps them out */ }
-  const commit = commitPaths(home, { paths: [`${project}/${slug}`], message, push, pushArgs: ['records', verb, root, slug] });
+  const commit = commitPaths(home, { paths: [`${project}/${slug}`], message, push, pushArgs: ['records', verb, root, slug], warn });
   return { commit, project, home, conflicts: [] };
 }
 
@@ -896,7 +1003,8 @@ export function commitRecords({ root = null, project = null, label }) {
 
 /**
  * Close a workflow: a normal records commit of its folder, then the push of the clone, in this
- * process's time. Returns `{ ok, commit, pushed, reason }`, or null when unlinked.
+ * process's time. Returns `{ ok, commit, pushed, sent, reason }`, or null when unlinked. `sent` is false when
+ * a remote exists and the push failed: the workflow is closed here, and its lease must stay.
  */
 export function closeRecords(root, slug) {
   const project = linkedProject(root);
@@ -904,7 +1012,7 @@ export function closeRecords(root, slug) {
   const c = commitWorkflow(root, slug, `${project}/${slug}: close`, { push: false });
   if (!c.commit) return { ok: false, reason: 'the commit of the workflow folder failed', fix: personFix(`Check the records clone at ${c.home ?? recordsHome()} with git status (a rebase, a lock file or a hook can stop the commit), then close the workflow again.`) };
   const p = pushRecords(c.home);
-  return { ok: true, commit: c.commit, pushed: Boolean(p.pushed), ...(!p.pushed && p.reason ? { reason: p.reason } : {}) };
+  return { ok: true, commit: c.commit, pushed: Boolean(p.pushed), sent: Boolean(p.pushed) || !hasRemote(c.home), ...(!p.pushed && p.reason ? { reason: p.reason } : {}) };
 }
 
 // ---------------------------------------------------------------- sync
@@ -913,10 +1021,12 @@ export function closeRecords(root, slug) {
 export function machineFactsPath(home = recordsHome(), machine = machineName()) {
   return join(home, '.machines', `${machine}.json`);
 }
-/** The number of computers that `.machines/` of the clone lists. The lease runs only from two. */
-export function machineCount(home = recordsHome()) {
-  try { return readdirSync(join(home, '.machines')).filter((f) => f.endsWith('.json')).length; } catch { return 0; }
+/** The computers that `.machines/` of the clone lists. */
+function machineNames(home) {
+  try { return readdirSync(join(home, '.machines')).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort(); } catch { return []; }
 }
+/** The number of computers that `.machines/` of the clone lists. The lease runs only from two. */
+export const machineCount = (home = recordsHome()) => machineNames(home).length;
 export function readMachineFacts(home = recordsHome(), machine = machineName()) {
   try { return JSON.parse(readFileSync(machineFactsPath(home, machine), 'utf8')); } catch { return { machine, projects: {}, reads: {} }; }
 }
@@ -924,6 +1034,8 @@ export function writeMachineFacts(root, change = {}, { push = true } = {}) {
   const project = linkedProject(root);
   if (!project) return null;
   const home = recordsHome();
+  // A refused computer must not put itself on the list.
+  if (machineBlocked(home)) return null;
   const facts = readMachineFacts(home);
   const before = JSON.stringify(facts);
   facts.projects = { ...facts.projects, [project]: { ...(facts.projects?.[project] ?? {}), root } };
@@ -1024,6 +1136,8 @@ function treeWith(home, tree, parts, blob) {
  * rejected push builds again on the new tip. Returns `{ pushed, offline, reason }`.
  */
 export function postFileTo(project, slug, { path, text, message }, home = recordsHome()) {
+  const second = machineBlocked(home);
+  if (second) return { pushed: false, reason: second };
   const key = `${project}/${slug}`;
   const main = mainBranch(home);
   const tracking = `refs/remotes/origin/${main}`;
@@ -1139,6 +1253,8 @@ export function recordsProblems(root, { limit = PROBLEM_LINES } = {}) {
   const log = recordsLogTail();
   const okAt = log.findLastIndex((e) => e.step === 'push' && e.ok);
   for (const e of log.slice(okAt + 1)) if (e.step === 'push' && e.error) lines.push(`push failed: ${e.at}: ${e.error}`);
+  // The refs say it, and not the mark of the move: a branch can come after the move.
+  for (const b of liveRefs(home)) if (b.name.startsWith(`${project}/`)) lines.push(`live branch: ${b.ref}: the commits of this workflow are refused; records migrate --dry-run shows the move`);
   if (state.pushConflict) {
     const files = state.pushConflict.files ?? [];
     if (files.length) for (const f of files) lines.push(`conflict: ${f}: the push of ${state.pushConflict.at} stopped at this file`);

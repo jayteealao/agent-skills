@@ -35,7 +35,7 @@ function world() {
     return { name, home, root, clone: join(home, 'records') };
   };
   const saved = { ...process.env };
-  Object.assign(process.env, { SDLC_RECORDS_PUSH: 'off', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
+  Object.assign(process.env, { SDLC_RECORDS_PUSH: 'off', SDLC_SECOND_MACHINE: 'allow', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' });
   const as = (m) => { process.env.SDLC_HOME = m.home; return m; };
   const done = () => {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];

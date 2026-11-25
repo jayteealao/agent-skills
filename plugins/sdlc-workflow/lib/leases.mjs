@@ -9,7 +9,7 @@
 //
 // The lease runs only when `.machines/` of the clone lists two or more computers. With one
 // computer no other writer exists, so the dispatch claims nothing and asks the remote nothing.
-import { gitIn, machineCount, machineName, markHeld, pullRecords, readState } from './records-sync.mjs';
+import { gitIn, machineCount, machineName, markHeld, markPullOwed, markReleaseOwed, pullRecords, readState } from './records-sync.mjs';
 import { linkedProject, recordsHome } from './records-root.mjs';
 import { SUITES, readProfile, suiteSeconds } from './test-profile.mjs';
 
@@ -101,24 +101,43 @@ export function claimLease(root, slug, { take = false, host = null, now = new Da
   if (push.status !== 0) return { ok: false, raced: true, reason: push.stderr.split('\n')[0] };
   gitIn(home, ['update-ref', ref, commit.stdout]);
   markHeld(`${project}/${slug}`, true);
+  // The workflow is worked on again, so a later push must not release it.
+  markReleaseOwed(`${project}/${slug}`, false);
   return { ok: true, lease, renewed: r.lease?.machine === me, took: Boolean(other) };
 }
 
 /**
  * Claim the lease, and pull the work of other computers when this computer did not hold it: the
- * pull at the claim takes the place of a pull at each call. Returns the claim, with `pull` (the
- * result of `pullRecords`) after a new claim.
+ * pull at the claim takes the place of a pull at each call. A pull that failed, or that a killed
+ * process never made, is owed and made at the next claim. Returns the claim, with `pull` (the
+ * result of `pullRecords`) when it pulled.
  */
 export function claimAndPull(root, slug, opts = {}) {
   const c = claimLease(root, slug, opts);
-  if (c.ok && c.linked !== false && !c.renewed) c.pull = pullRecords(recordsHome());
+  if (c.ok && c.linked !== false && (!c.renewed || readState().pullOwed)) {
+    markPullOwed(true);
+    c.pull = pullRecords(recordsHome());
+  }
   return c;
 }
 
 /** Release the lease of this machine, so another machine or host can continue the workflow. */
 export function releaseLease(root, slug) {
   const project = linkedProject(root);
-  if (!project) return { ok: true, linked: false };
+  return project ? releaseOf(project, slug) : { ok: true, linked: false };
+}
+
+/** Release the leases of the workflows that were closed while their push failed. Call it after a push that worked. */
+export function releaseOwed() {
+  for (const key of Object.keys(readState().releaseOwed ?? {})) {
+    const at = key.indexOf('/');
+    const r = releaseOf(key.slice(0, at), key.slice(at + 1));
+    // A lease that another computer holds now is not ours to release.
+    if (r.ok || r.held) markReleaseOwed(key, false);
+  }
+}
+
+function releaseOf(project, slug) {
   const home = recordsHome();
   const ref = leaseRefOf(project, slug);
   const r = remoteLease(home, ref);

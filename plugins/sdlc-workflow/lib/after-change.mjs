@@ -30,7 +30,7 @@ export function afterChange(root, slug, { label, answer = null, warn = (line) =>
   } catch (e) { warn(`the GitHub layer did not queue the change: ${e.message}`); }
   try {
     const status = String(frontmatterOfDoc(workflowDir(root, slug), INDEX_NAME)?.status ?? '');
-    const c = commitWorkflow(root, slug, label ?? `${slug}: change`, { verb: TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push' });
+    const c = commitWorkflow(root, slug, label ?? `${slug}: change`, { verb: TERMINAL_WORKFLOW_STATUSES.has(status) ? 'close' : 'push', warn });
     result.commit = c?.commit ?? null;
     result.conflicts = c?.conflicts ?? [];
     for (const f of result.conflicts) warn(`records-warning: the local copy of ${slug}/${f} differs from the clone copy; it is kept in ${join('.ai', 'workflows', '.conflicts', slug).replace(/\\/g, '/')}/`);

@@ -10,7 +10,7 @@
 // a command that exits 1 stops it. `wf.mjs` in a command means the wf.mjs of the skill.
 import { claimAndPull, heldBefore, leasesOn } from './leases.mjs';
 import { layerOf, readOutbox } from './github-layer.mjs';
-import { lastLogged, readState, recordsLogTail } from './records-sync.mjs';
+import { hasLiveBranch, lastLogged, machineBlocked, readState, recordsLogTail } from './records-sync.mjs';
 import { linkedProject, recordsHome } from './records-root.mjs';
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -34,6 +34,11 @@ export function recordsLine(root, { target = null, host = null, now = Date.now()
   const r = quote(root);
   let pulled = false;
 
+  if (project && target) {
+    const second = machineBlocked(recordsHome());
+    if (second) return { line: stopLine(`${second}.`), pulled };
+    if (hasLiveBranch(recordsHome(), `${project}/${target}`)) return { line: stopLine(`${target} has a live branch of an older version, so its commits are refused. Show the person \`wf.mjs records migrate --dry-run\`: the move takes the copy of the branch. Run \`wf.mjs records migrate\` only after a yes.`), pulled };
+  }
   if (project && target && leasesOn(recordsHome())) {
     const before = heldBefore(root, target);
     const c = claimAndPull(root, target, { host });
@@ -45,6 +50,7 @@ export function recordsLine(root, { target = null, host = null, now = Date.now()
       return { line: stopLine(`${target}: another computer claimed the lease at the same time (${c.reason ?? 'a race'}). Run the call again.`), pulled };
     }
     if (c.pull?.conflict) return { line: stopLine(`the pull of the records stopped at a conflict in ${c.pull.files.join(', ') || 'a file'}. Run \`wf.mjs records status ${r} --problems\`.`), pulled };
+    if (c.pull && !c.pull.ok) return { line: stopLine(`the pull of the records failed: ${c.pull.reason}. This computer may lack the work of another one. Run the call again after the fix: it pulls again.`), pulled };
     pulled = Boolean(c.pull?.ok && c.pull.to !== c.pull.from);
   }
 

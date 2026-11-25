@@ -23,9 +23,11 @@ The dispatch prints one records line, or none when the records are in order. In 
 The script writes each question and its commands:
 - A push of the records, a records commit, or a send of the GitHub layer failed, or GitHub edits wait for more than one day. Yes retries in the background, and the next `/wf` call shows the result. No asks again only about a newer failure.
 - The lease of another computer expired, or the records repo cannot be reached to claim the lease. No means that this computer does not write the workflow now.
-- A stop line names another computer that writes the workflow now, or a conflict. For the details, run `<wf> records status <root> --problems`.
+- A stop line names another computer that writes the workflow now, a second computer, a failed pull, a live branch of an older version, or a conflict. For the details, run `<wf> records status <root> --problems`.
 
 A command or the pre-write check prints a `lease-lost:` line when another computer writes the workflow now. Act on it as on a stop line.
+
+A `records-warning: … not committed` line means that the change is saved on this computer and that no commit holds it. Do not make the change again. Put the line in the report of the stage, and run `<wf> records retry <root> <slug>` one time. When it fails, tell the person the reason.
 
 ## Link lines
 

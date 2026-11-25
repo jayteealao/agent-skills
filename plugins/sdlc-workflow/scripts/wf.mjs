@@ -653,8 +653,8 @@ import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { afterChange } from '../lib/after-change.mjs';
-import { closeRecords, commitWorkflow, dismissRecords, inBackground, linkProject, logRecordsEvent, machineName, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
-import { claimAndPull, releaseLease, renewIfMine, showLease } from '../lib/leases.mjs';
+import { closeRecords, commitWorkflow, dismissRecords, inBackground, linkProject, logRecordsEvent, machineName, markReleaseOwed, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
+import { claimAndPull, releaseLease, releaseOwed, renewIfMine, showLease } from '../lib/leases.mjs';
 import { recordsLine } from '../lib/records-line.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
@@ -1991,6 +1991,7 @@ async function runRecords(pos, opt) {
   }
   if (verb === 'sync') {
     const r = syncRecords(projectRoot);
+    if (r?.pushed) releaseOwed();
     if (r?.pulled.length) await reconcileIndex(projectRoot);
     out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; ${r.pushed ? 'pushed' : 'not pushed'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
     return r?.conflicts?.length ? 1 : 0;
@@ -1998,6 +1999,7 @@ async function runRecords(pos, opt) {
   if (verb === 'push') {
     // This step runs in the background with no output: pushRecords writes a failure into the records log.
     const r = pushRecords(recordsHome());
+    if (r.pushed) releaseOwed();
     if (arg && linkedProject(projectRoot)) renewIfMine(projectRoot, arg);
     out(opt.json ? r : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
     return r.pushed ? 0 : 1;
@@ -2005,10 +2007,17 @@ async function runRecords(pos, opt) {
   if (!arg) throw usage(`records ${verb}: <slug> is required`);
   if (verb === 'close') {
     const r = closeRecords(projectRoot, arg);
-    if (r?.ok) releaseLease(projectRoot, arg);
-    out(opt.json ? r : !r ? 'records: local' : r.ok ? `closed ${arg}${r.pushed ? '' : `; not pushed: ${r.reason ?? 'offline'}`}` : r.reason);
-    if (r && !r.ok && !opt.json) printFix(r.fix);
-    return !r || r.ok ? 0 : 1;
+    // The lease stays until the push lands: another computer must not continue without this work.
+    if (r?.ok && r.sent) {
+      const free = releaseLease(projectRoot, arg);
+      if (!free.ok && !free.held) markReleaseOwed(`${linkedProject(projectRoot)}/${arg}`, true);
+    } else if (r?.ok) {
+      markReleaseOwed(`${linkedProject(projectRoot)}/${arg}`, true);
+      r.fix = agentFix('The workflow is closed on this computer and its push failed. Run the push again when the remote can be reached: it also releases the lease.', `wf.mjs records push ${word(root)} ${word(arg)}`);
+    }
+    out(opt.json ? r : !r ? 'records: local' : !r.ok ? r.reason : r.sent ? `closed ${arg}${r.pushed ? '' : `; not pushed: ${r.reason ?? 'offline'}`}` : `closed ${arg}, not sent: ${r.reason ?? 'offline'}`);
+    if (r?.fix && !opt.json) printFix(r.fix);
+    return !r || (r.ok && r.sent) ? 0 : 1;
   }
   throw usage(`records: unknown verb ${verb}`);
 }
@@ -2022,12 +2031,14 @@ async function runLease(pos, opt) {
   const r = verb === 'claim' ? claimAndPull(projectRoot, slug, { take: Boolean(opt.take), host: opt.host ?? null })
     : verb === 'release' ? releaseLease(projectRoot, slug) : showLease(projectRoot, slug);
   if (verb === 'claim' && r.pull?.ok && r.pull.to !== r.pull.from) await reconcileIndex(projectRoot);
-  if (opt.json) { out(r); return r.ok === false ? 1 : 0; }
+  const unpulled = Boolean(r.pull && !r.pull.ok);
+  if (opt.json) { out(r); return r.ok === false || unpulled ? 1 : 0; }
   if (r.linked === false) { out('records: local; no lease'); return 0; }
   if (verb === 'show') {
     out(!r.online ? 'offline' : !r.lease ? `${slug}: free` : `${slug}: ${r.mine ? 'this machine' : r.lease.machine} until ${r.lease.expires}${r.expired ? ' (expired)' : ''}`);
     return 0;
   }
+  if (unpulled) { out(`${slug}: claimed, but the pull of the records failed: ${r.pull.reason}. Run the claim again after the fix: it pulls again.`); return 1; }
   if (r.ok) out(verb === 'claim' ? `${slug}: held by ${machineName()} until ${r.lease.expires}${r.took ? ' (taken over)' : ''}` : `${slug}: ${r.released ? 'released' : 'free'}`);
   else out(r.offline ? 'offline' : r.held ? `${slug}: held by ${r.lease?.machine} until ${r.lease?.expires}` : r.expired ? `${slug}: the lease of ${r.lease.machine} expired at ${r.lease.expires}; claim with --take after the person said yes` : `not done: ${r.reason}`);
   return r.ok ? 0 : 1;
