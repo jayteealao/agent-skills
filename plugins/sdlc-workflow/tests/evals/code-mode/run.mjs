@@ -112,6 +112,8 @@ async function main() {
   const total = cells.reduce((n, [, cell]) => n + armsOf(cell).length * tasks.length * runs, 0);
   process.stdout.write(`${total} run(s): ${cells.length} cell(s), arms ${arms.join('+')} (mcp on Claude only), ${tasks.length} task(s), ${runs} each\ncells: ${cells.map(([c]) => c).join(', ')}\nout: ${out}\n`);
   if (!opt.yes) { process.stdout.write('Nothing started. Add --yes after the person said yes to these runs and their usage.\n'); return 0; }
+  // The rows of an older eval stay where they are: a new pass gets its own folder.
+  if (existsSync(join(out, 'results.jsonl'))) throw new Error(`${out} holds the results of an earlier pass; give a new folder with --out`);
   mkdirSync(out, { recursive: true });
   for (const [name, cell] of cells) {
     for (const arm of armsOf(cell)) {
