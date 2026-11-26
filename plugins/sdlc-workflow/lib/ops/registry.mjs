@@ -42,8 +42,33 @@ const ROWS = {
   wf_person: 'records join | records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
 };
 
+// The sibling scripts (lib/ops/forms.mjs SIBLINGS), by the same rule: long runs to wf_job, state
+// to wf_run, the person's choices to wf_person, git and terminal effects to wf_act.
+const SIBLING_ROWS = {
+  wf_query: `campaign check | campaign status | campaign plan
+    | orchestrate contract get | orchestrate screen | orchestrate state | orchestrate roster | orchestrate holdout | orchestrate helpers
+    | optimize status | optimize propose-context | optimize report | goal status | goal lifecycle | prototype status | prototype check
+    | ideate-sources args | ideate-sources check | design-boards check`,
+  wf_run: `campaign write | campaign archive | campaign next | campaign open | campaign reopen | campaign close | campaign slice-order
+    | orchestrate contract put | orchestrate change propose | orchestrate path | orchestrate hold | orchestrate unproven | orchestrate milestones
+    | orchestrate unit | orchestrate result | orchestrate scenario-wrong | orchestrate evidence | orchestrate scrub
+    | optimize merge-consider | optimize idea-claim | optimize profile-record | optimize resume
+    | goal arm | goal park | goal clear | prototype report | ideate-sources reference | ideate-sources pick`,
+  wf_job: `orchestrate dispatch | orchestrate measure | goal check
+    | optimize metric-check | optimize baseline | optimize trial | optimize merge-trial | optimize checkpoint | optimize profile | optimize probe | optimize ablate`,
+  wf_wait: 'orchestrate wait',
+  wf_act: `campaign land | campaign start | campaign built | campaign done | campaign migrate | campaign remove-worktree
+    | orchestrate send | orchestrate keys | orchestrate end | orchestrate take-over | orchestrate hand-back
+    | optimize round-open | optimize round-close | optimize merge-close | optimize finish | optimize cleanup | optimize probe-open | optimize prune
+    | prototype start | prototype decide | prototype cleanup | ideate-sources issues | design-boards ansi`,
+  wf_person: `campaign skip | campaign unskip | campaign ahead | campaign digest
+    | orchestrate contract design | orchestrate contract approve | orchestrate change approve | orchestrate change refuse | orchestrate answer | orchestrate agents
+    | prototype exit`,
+};
+for (const [tool, list] of Object.entries(SIBLING_ROWS)) ROWS[tool] = `${ROWS[tool]} | ${list}`;
+
 // The flag with which an operation that writes only reads, so a read tool may run it.
-const READ_WITH = { index: 'check', 'record evidence': null, 'design track': 'check', 'design migrate': 'check', 'board render': 'check', receipt: 'check', modernize: 'check', 'decide tidy': null };
+const READ_WITH = { 'campaign write': 'dry-run', 'campaign archive': 'dry-run', 'campaign migrate': 'dry-run', index: 'check', 'record evidence': null, 'design track': 'check', 'design migrate': 'check', 'board render': 'check', receipt: 'check', modernize: 'check', 'decide tidy': null };
 
 export const TOOLS = Object.keys(ROWS);
 export const READ_TOOLS = new Set(['wf_context', 'wf_read', 'wf_query']);

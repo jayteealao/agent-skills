@@ -3,8 +3,8 @@
 // record of the job as its one argument. It runs the command with its output in the log file,
 // keeps the claim of the job alive, marks the run as busy, and writes the exit code at the end.
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, openSync } from 'node:fs';
-import { JOB_BEAT_MS, killTree, readJob, writeJob } from '../lib/jobs.mjs';
+import { closeSync, existsSync, openSync } from 'node:fs';
+import { JOB_BEAT_MS, killTree, readJob, stopMark, writeJob } from '../lib/jobs.mjs';
 import { markBusy } from '../lib/progress.mjs';
 import { pidAlive } from '../lib/proc.mjs';
 import { release, renew } from '../lib/talk.mjs';
@@ -23,7 +23,12 @@ const head = headOf();
 const dirty = (gitOut(['status', '--porcelain', '--untracked-files=no']) ?? '').split(/\r?\n/).filter(Boolean).map((l) => l.slice(3));
 
 const fd = openSync(job.log, 'a');
-const child = spawn(job.command, { cwd: job.cwd, shell: true, stdio: ['ignore', fd, fd], windowsHide: true });
+// A job with argv runs with no shell; env and unset change only the variables that the job names.
+const env = { ...process.env, ...(job.env ?? {}) };
+for (const k of job.unset ?? []) delete env[k];
+const child = Array.isArray(job.argv) && job.argv.length
+  ? spawn(job.argv[0], job.argv.slice(1), { cwd: job.cwd, env, stdio: ['ignore', fd, fd], windowsHide: true })
+  : spawn(job.command, { cwd: job.cwd, env, shell: true, stdio: ['ignore', fd, fd], windowsHide: true });
 writeJob(file, { runnerPid: process.pid, childPid: child.pid ?? null, head, dirty });
 const startedMs = Date.now();
 let timedOut = false;
@@ -40,11 +45,15 @@ const beat = setInterval(() => {
   }
 }, JOB_BEAT_MS);
 
-// The two ends that the command does not choose, looked at every 2 seconds:
+// The ends that the command does not choose, looked at every 2 seconds:
+// - A stop: its mark asks the runner to end the command, also when the stop came before the
+//   runner had written its process.
 // - The job belongs to a run. When the host process of that run is gone, nobody waits for the job.
 // - A command that outlives its limit is ended: a job that hangs holds no resource for ever.
+let stopped = false;
 const guard = setInterval(() => {
-  if (timedOut || hostGone) return;
+  if (timedOut || hostGone || stopped) return;
+  if (existsSync(stopMark(file))) { stopped = true; quiet(() => killTree(child.pid)); return; }
   if (job.hostPid && !pidAlive(job.hostPid)) hostGone = true;
   else if (job.maxMs && Date.now() - startedMs > job.maxMs) timedOut = true;
   if (timedOut || hostGone) quiet(() => killTree(child.pid));
@@ -57,7 +66,8 @@ function end(exit, signal) {
   if (job.hold && !claimLost) quiet(() => release(job.hold.dir, job.by, job.hold.resource, { epoch: job.hold.epoch, scope: job.hold.scope ?? null }));
   quiet(() => markBusy(job.projectRoot, null));
   // A job that `talk jobs --stop` ended keeps that end.
-  if (readJob(file)?.state === 'running') writeJob(file, { state: 'done', exit: timedOut || hostGone ? null : exit ?? null, ...(timedOut ? { timedOut: true } : {}), ...(hostGone ? { hostGone: true, stopped: true } : {}), headEnd: headOf(), ...(signal ? { signal } : {}), ...(claimLost ? { claimLost: true } : {}), endedAt: iso() });
+  if (stopped) writeJob(file, { state: 'done', exit: null, stopped: true, headEnd: headOf(), endedAt: readJob(file)?.endedAt ?? iso() });
+  else if (readJob(file)?.state === 'running') writeJob(file, { state: 'done', exit: timedOut || hostGone ? null : exit ?? null, ...(timedOut ? { timedOut: true } : {}), ...(hostGone ? { hostGone: true, stopped: true } : {}), headEnd: headOf(), ...(signal ? { signal } : {}), ...(claimLost ? { claimLost: true } : {}), endedAt: iso() });
   process.exit(0);
 }
 child.on('exit', (code, signal) => end(code, signal));

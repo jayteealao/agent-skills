@@ -8,7 +8,7 @@
 // it. Only the wf_person tool passes `person`, behind its own guards.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { allOps, argvOf, WF_SCRIPT } from './forms.mjs';
+import { SIBLINGS, allOps, argvOf, scriptOf } from './forms.mjs';
 
 export const CALL_TIMEOUT_MS = 10 * 60_000;
 export const TEXT_LIMIT = 40_000;
@@ -57,17 +57,30 @@ export function invokeCode({ root, checkout = root, caller = 'unknown', slug = n
  * `{ ok, exit, data, warnings, error? }`: `data` is the parsed JSON of a form with --json, else
  * the text. A failure carries `error: { message, who, fix, command }`.
  */
-export function invoke({ op, fields = {}, root, checkout = root, caller = 'unknown', env: extraEnv = {}, timeoutMs = CALL_TIMEOUT_MS, signal } = {}) {
+/**
+ * The process of one operation: `{ argv, words, json }`, where `argv` is the command line that
+ * a person would type and `words` the arguments of node (the script first), or `{ error }`.
+ */
+export function commandOf(op, fields = {}, root = null) {
   const o = allOps().get(op);
-  if (!o) return Promise.resolve({ ok: false, exit: null, data: null, warnings: [], error: { message: `no operation ${op}`, who: 'agent' } });
+  if (!o) return { error: { message: `no operation ${op}`, who: 'agent' } };
   const f = { ...fields };
   if (o.positionals.some((p) => p.name === 'root') && f.root === undefined) f.root = root;
-  const json = o.flags.some((x) => x.name === 'json');
-  if (json && f.json === undefined) f.json = true;
+  // A sibling script prints JSON with no flag; wf.mjs does with --json.
+  const sibling = SIBLINGS.includes(o.words[0]);
+  const json = sibling || o.flags.some((x) => x.name === 'json');
+  if (!sibling && json && f.json === undefined) f.json = true;
   let argv;
-  try { argv = argvOf(op, f); } catch (e) { return Promise.resolve({ ok: false, exit: null, data: null, warnings: [], error: { message: e.message, who: 'agent', fix: `Call ${op} with the fields of its form: ${o.forms.join(' / ')}` } }); }
+  try { argv = argvOf(op, f); } catch (e) { return { error: { message: e.message, who: 'agent', fix: `Call ${op} with the fields of its form: ${o.forms.join(' / ')}` } }; }
+  return { argv, json, words: [scriptOf(o.words[0]), ...(sibling ? argv.slice(1) : argv)] };
+}
+
+export function invoke({ op, fields = {}, root, checkout = root, caller = 'unknown', env: extraEnv = {}, timeoutMs = CALL_TIMEOUT_MS, signal } = {}) {
+  const c = commandOf(op, fields, root);
+  if (c.error) return Promise.resolve({ ok: false, exit: null, data: null, warnings: [], error: c.error });
+  const { argv, json } = c;
   return new Promise((done) => {
-    const child = spawn(process.execPath, [WF_SCRIPT, ...argv], { cwd: checkout, env: workerEnv(caller, extraEnv), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, signal });
+    const child = spawn(process.execPath, c.words, { cwd: checkout, env: workerEnv(caller, extraEnv), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, signal });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

@@ -8,16 +8,28 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BOOLEAN_FLAGS } from '../cli-flags.mjs';
 
-export const WF_SCRIPT = join(fileURLToPath(new URL('../..', import.meta.url)), 'scripts', 'wf.mjs');
+const SCRIPTS_DIR = join(fileURLToPath(new URL('../..', import.meta.url)), 'scripts');
+export const WF_SCRIPT = join(SCRIPTS_DIR, 'wf.mjs');
+
+// The sibling scripts of wf.mjs. Each form of their header is `<verb> <arguments>  <about>` on one
+// line; an operation is named with the script first (`campaign next`), and runs that script.
+export const SIBLINGS = ['campaign', 'orchestrate', 'optimize', 'goal', 'prototype', 'ideate-sources', 'design-boards'];
+export const scriptOf = (first) => (SIBLINGS.includes(first) ? join(SCRIPTS_DIR, `${first}.mjs`) : WF_SCRIPT);
 
 /** The blocks of the header comment of a script: `{ name, form, about }`. */
-export function headerBlocks(file = WF_SCRIPT) {
+export function headerBlocks(file = WF_SCRIPT, { prefix = null } = {}) {
   const src = readFileSync(file, 'utf8');
   const head = src.slice(src.indexOf('/**'), src.indexOf('*/'));
   const blocks = [];
   for (const line of head.split(/\r?\n/)) {
     const m = /^ \* {3}(\S+)(.*)$/.exec(line);
-    if (m) blocks.push({ name: m[1], form: `${m[1]}${m[2]}`, about: [] });
+    if (m && prefix) {
+      // The about text starts after two or more spaces that follow the arguments.
+      const rest = m[2].replace(/^\s+/, ' ');
+      const cut = /\S {2,}(?=[a-z(])/.exec(rest);
+      const form = cut ? rest.slice(0, cut.index + 1) : rest;
+      blocks.push({ name: prefix, sibling: true, form: `${prefix} ${m[1]}${form}`, about: cut ? [rest.slice(cut.index + 1).trim()] : [] });
+    } else if (m) blocks.push({ name: m[1], form: `${m[1]}${m[2]}`, about: [] });
     else if (blocks.length && /^ \* {4,}\S/.test(line)) blocks.at(-1).about.push(line.replace(/^ \*\s+/, ''));
   }
   return blocks.map((b) => ({ ...b, about: b.about.join(' ') }));
@@ -39,7 +51,8 @@ export function opsOfForm(block) {
   let i = 0;
   for (; i < tokens.length; i += 1) {
     const t = tokens[i];
-    const alt = angleVerbs.exec(t)?.[1] ?? (plainVerb.test(t) ? t : null);
+    // A sibling form names its verbs in plain words before the first argument; `<a|b>` is an argument there.
+    const alt = (block.sibling ? null : angleVerbs.exec(t)?.[1]) ?? (plainVerb.test(t) ? t : null);
     if (!alt) break;
     const words = alt.split('|').map((w) => w.trim().split(' ')[0]);
     verbs = verbs.flatMap((v) => words.map((w) => [...v, w]));
@@ -54,6 +67,7 @@ function op(block, words, rest) {
   let flagDepth = null;
   let afterDash = false;
   let value = false;
+  let stopPos = false;
   for (const raw of rest) {
     const opens = (raw.match(/[[(]/g) ?? []).length;
     const closes = (raw.match(/[\])]/g) ?? []).length;
@@ -65,10 +79,20 @@ function op(block, words, rest) {
     const isValue = value;
     value = flagDepth === null || (depth === 0 && !opens) ? /^--[a-z][a-z0-9-]*$/.test(raw) && !BOOLEAN_FLAGS.has(raw.slice(2)) : false;
     if (isValue) { depth += opens - closes; continue; }
-    if (flagDepth === null) {
+    if (flagDepth === null && !stopPos && block.sibling && depth === 0) {
+      // A sibling form: a bare `|` starts a second form, so the arguments after the first are
+      // optional; bare words are the literal argument of the call (`park|graduate|close`, `up`).
+      if (raw === '|') { for (const p of positionals.slice(1)) p.optional = true; stopPos = true; continue; }
+      if (/^[a-z][a-z-]*(\|[a-z][a-z-]*)*$/.test(raw)) {
+        const values = raw.split('|');
+        positionals.push(values.length > 1 ? { name: 'type', optional: false, variadic: false, values } : { name: `word-${values[0]}`, optional: false, variadic: false, values, fixed: values[0] });
+        continue;
+      }
+    }
+    if (flagDepth === null && !stopPos) {
       const inner = /<([^>]*)>/.exec(raw)?.[1] ?? (/^\[?([a-z][a-zA-Z=.]*)\.\.\.\]?$/.exec(raw)?.[1] ?? null);
       if (inner) {
-        const literal = inner.includes('|') && !inner.includes('<') && /^[a-z|-]+$/.test(inner);
+        const literal = !block.sibling && inner.includes('|') && !inner.includes('<') && /^[a-z|-]+$/.test(inner);
         positionals.push({
           // A list of words (`<item|thread|area>`) is the type of the call: `kind` is a flag of some forms.
           name: literal ? 'type' : nameOf(inner),
@@ -93,7 +117,8 @@ let cached = null;
 export function allOps() {
   if (cached) return cached;
   cached = new Map();
-  for (const b of headerBlocks()) for (const o of opsOfForm(b)) {
+  const blocks = [...headerBlocks(), ...SIBLINGS.flatMap((s) => headerBlocks(scriptOf(s), { prefix: s }))];
+  for (const b of blocks) for (const o of opsOfForm(b)) {
     // Two forms of one operation (status with and without --brief) join their arguments.
     const had = cached.get(o.name);
     if (!had) { cached.set(o.name, { ...o, forms: [o.form] }); continue; }
@@ -120,6 +145,7 @@ export function argvOf(opName, fields = {}) {
   const before = [];
   const after = [];
   for (const p of o.positionals) {
+    if (p.fixed) { before.push(p.fixed); continue; }
     const v = fields[p.name];
     if (v === undefined || v === null || v === '') {
       if (!p.optional) throw new Error(`${opName} needs ${p.name}`);

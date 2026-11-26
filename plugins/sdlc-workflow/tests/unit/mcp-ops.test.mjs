@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BOOLEAN_FLAGS } from '../../lib/cli-flags.mjs';
-import { allOps, argvOf, callOf, headerBlocks } from '../../lib/ops/forms.mjs';
+import { SIBLINGS, allOps, argvOf, callOf, headerBlocks } from '../../lib/ops/forms.mjs';
 import { fixOf, workerEnv } from '../../lib/ops/invoke.mjs';
 import { coverage, refusal, registry } from '../../lib/ops/registry.mjs';
 import { callOfCommand, fullOp, toolList } from '../../mcp/tools.mjs';
@@ -35,6 +35,25 @@ function canon(argv) {
 test('every operation of wf.mjs has one tool, and every row names an operation', () => {
   assert.deepEqual(coverage(), { missing: [], unknown: [] });
   assert.ok(allOps().size >= 170);
+});
+
+test('the sibling scripts have their operations too, each with one tool', () => {
+  const ops = allOps();
+  for (const s of SIBLINGS) {
+    const mine = [...ops.values()].filter((o) => o.words[0] === s);
+    assert.ok(mine.length >= 1, `${s} has no operation`);
+    for (const o of mine) assert.ok(registry().has(o.name), `${o.name} has no tool`);
+  }
+  assert.equal(registry().get('campaign next').tool, 'wf_run');
+  assert.equal(registry().get('campaign skip').tool, 'wf_person');
+  assert.equal(registry().get('optimize trial').tool, 'wf_job');
+  assert.equal(refusal('wf_query', 'campaign write', { 'dry-run': true }), null, 'a dry run is a read');
+  // A plain word of a form is filled by the call; a list of words is its type.
+  assert.deepEqual(argvOf('orchestrate path', { root: '.', slug: 's', reason: 'r' }), ['orchestrate', 'path', '.', 's', 'up', '--reason', 'r']);
+  assert.deepEqual(argvOf('prototype exit', { root: '.', slug: 's', type: 'park' }), ['prototype', 'exit', '.', 's', 'park']);
+  assert.throws(() => argvOf('prototype exit', { root: '.', slug: 's', type: 'later' }), /one of park, graduate, close/);
+  // `<root> <slug> | <root> --all`: the second form makes the slug optional.
+  assert.deepEqual(argvOf('optimize report', { root: '.', all: true }), ['optimize', 'report', '.', '--all']);
 });
 
 test('the example of every form turns into a call and back into the same command line', () => {
