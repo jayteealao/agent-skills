@@ -9,6 +9,9 @@ import { allOps, callOf } from '../lib/ops/forms.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
 import { TEXT_LIMIT, commandOf, invoke, invokeCode } from '../lib/ops/invoke.mjs';
 import { jobFile, jobState, listJobs, startJob, stopJob, tailOf, writeJob } from '../lib/jobs.mjs';
+import { cursorNow, readRunEvents, waitRunEvents } from '../lib/run-events.mjs';
+import { existsSync } from 'node:fs';
+import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { READS, WRITES, libraryHelp } from '../lib/ops/code-host.mjs';
 import { READ_TOOLS, TOOLS, opsOfTool, refusal, registry } from '../lib/ops/registry.mjs';
 
@@ -19,7 +22,7 @@ const ABOUT = {
   wf_run: 'Write the records of this computer: records, findings, the board, slices, progress, talk and messages, design content, settings. One operation per call. Content goes inline, with no file: `record put` takes `records: { "04-plan-api.md": "<the whole record>" }`, `record edit` takes `text` in place of `from`, `findings add` takes `found: [...]`, `board add` takes `entries` and `board apply` takes `change`.',
   wf_step: 'The steps of a slice: start, done, check, stop, retry, complete. `done_next` records step n and starts step n + 1 in one call.',
   wf_decide: 'Record an answer or a decision of a stage, hold a question for the person, drop, end or tidy decisions. `add_many` with `entries: [{ kind, key, question, answer, by }]` records several in one change. An entry by the person, a steer or an approval goes to wf_person.',
-  wf_wait: 'Wait for an answer (decide wait), a message (talk wait) or the next change of a run (progress watch). It returns within its time and says how to call again.',
+  wf_wait: 'Wait for an answer (decide wait), a message or a job end (talk wait), or the next event of a run: `{ "for": "run", "slug", "cursor" }` ends at the next journal line, message or job end after the cursor. It returns within its time; `next` is the call to make again, with the cursor, so no event is missed. progress watch reads where a run stands, once.',
   wf_job: 'A long run: a suite (profile run, receipt), a design capture or check, a drive, the long steps of optimize, orchestrate and goal. It starts a job that runs on in its own process and returns its id at once; the same call while the job runs returns that job, never a second one. Wait for its end with wf_wait { op: "talk wait", job }. `op: "status" | "logs" | "stop" | "list"` with `job` reads or stops a job. `wait: true` runs the operation in the call instead (up to 10 minutes). A check of a step is step check in wf_step.',
   wf_act: 'Effects outside the records of this computer: the records repo, GitHub, worktrees, the design server, setup, close and ship. Each call may need the permission of the person.',
   wf_person: 'What only the person does: consent, approvals, rules of the project, standing answers, an answer by the person. Call it only for the person\'s own choice: the person is asked.',
@@ -120,13 +123,14 @@ function schemaOf(tool) {
   const code = tool === 'wf_query' || tool === 'wf_run';
   return {
     type: 'object',
-    ...(code ? {} : { required: ['op'] }),
+    ...(code || tool === 'wf_wait' ? {} : { required: ['op'] }),
     additionalProperties: true,
     properties: {
       op: { type: 'string', enum: ops, description: 'the operation; the other fields are the arguments of its form, by the names of wf.mjs help (`n`, `sha`, `answer`, `key`)' },
       ...(code ? { code: { type: 'string', description: 'in place of op: the body of an async function of wf and open' } } : {}),
       ...(tool === 'wf_run' ? { dryRun: { type: 'boolean', description: 'with code: run it and keep no change' } } : {}),
       ...common,
+      ...(tool === 'wf_wait' ? { for: { type: 'string', enum: ['run'], description: 'in place of op: the next event of the run (a journal line, a message, a job end)' }, cursor: { type: 'string', description: 'for run: the cursor of the last call' }, as: { type: 'string', description: 'your name in the run (verify:api): only the messages for you' }, seconds: { type: 'integer' } } : {}),
       ...(tool === 'wf_job' ? { job: { type: 'string', description: 'status, logs, stop: the id of the job' }, wait: { type: 'boolean', description: 'run the operation in the call, not as a job' }, lines: { type: 'integer', description: 'logs: the lines from the end' } } : {}),
       ...(tool === 'wf_step' ? { n: { type: ['integer', 'string'] }, title: { type: 'string' }, next_title: { type: 'string', description: 'done_next: the title of step n + 1' } } : {}),
     },
@@ -238,6 +242,7 @@ export async function callTool(name, args = {}, ctx = {}) {
     if (r.ok) return { ok: true, data: r.value, ops: r.ops, ...(name === 'wf_run' ? { changed: r.changed, applied: r.applied } : {}), ...(r.kept ? { kept: r.kept } : {}), warnings: r.kept ? [`another writer changed ${r.kept.join(', ')} while the code ran: the file keeps that change, and what this code wrote to it stays too`] : [] };
     return fail(r.error ?? 'the code failed', { kept: false, ops: r.ops ?? 0 });
   }
+  if (name === 'wf_wait' && args.for === 'run') return runWait(args, ctx);
   if (name === 'wf_job' && JOB_VERBS.includes(String(args.op ?? '').replace(/^job /, ''))) return jobVerb(String(args.op).replace(/^job /, ''), args, ctx);
   if (!args.op) return fail(`${name} needs op${name === 'wf_query' || name === 'wf_run' ? ' or code' : ''}; its operations are: ${opsOf(name).join(', ')}`);
   const op = fullOp(name, args.op);
@@ -249,6 +254,24 @@ export async function callTool(name, args = {}, ctx = {}) {
   if (name === 'wf_wait') return waitCall(op, args, run);
   const { wait, ...rest } = args;
   return run(op, strip(rest), READ_TOOLS.has(name) ? { SDLC_MCP_READ: '1' } : {});
+}
+
+/**
+ * The next events of a run after `cursor`: lines of the driver journal, messages and job ends.
+ * The reader keeps no state and never takes the place of a watch of the session.
+ */
+async function runWait(args, ctx) {
+  if (!args.slug) return fail('wf_wait for: run needs slug');
+  if (ctx.tasks) {
+    const id = ['run', String(args.slug), args.cursor ?? cursorNow(ctx.root, String(args.slug)), ...(args.as ? [String(args.as)] : [])].join('~');
+    return { ok: true, task: taskOf(id, ctx.root) };
+  }
+  const seconds = Math.min(Number(args.seconds) || WAIT_MAX_SECONDS, WAIT_MAX_SECONDS);
+  try {
+    const r = await waitRunEvents(ctx.root, String(args.slug), { cursor: args.cursor ?? null, as: args.as ?? null, seconds });
+    const again = { for: 'run', slug: args.slug, cursor: r.cursor, ...(args.as ? { as: args.as } : {}) };
+    return { ok: true, data: r, warnings: [], next: [{ tool: 'wf_wait', arguments: again, why: r.events.length ? 'handle the events, then call again for the next ones' : 'nothing yet: call again now' }] };
+  } catch (e) { return fail(e.message); }
 }
 
 /** The longest wait of one call: under the limit of a call of the server (10 minutes). */
@@ -305,6 +328,7 @@ function startOpJob(op, args, ctx, caller) {
   } catch (e) { return fail(e.message); }
   if (j.id && !j.existing) writeJob(jobFile(root, slug, j.id), { op });
   const as = String(caller ?? 'agent');
+  if (ctx.tasks && j.id) return { ok: true, task: taskOf(`job~${slug}~${j.id}`, root) };
   return {
     ok: true,
     data: { ...(j.id ? jobView({ ...j, op }) : { state: j.state }), ...(j.existing ? { existing: true, note: 'the same job already runs: this is that job' } : {}) },
@@ -314,6 +338,44 @@ function startOpJob(op, args, ctx, caller) {
       { tool: 'wf_job', arguments: { op: 'status', slug, job: j.id } },
     ] : [{ tool: 'wf_job', arguments: { op: 'list', slug } }],
   };
+}
+
+/**
+ * A Task, read from disk: `job~<slug>~<id>` is a job, `run~<slug>~<cursor>[~<as>]` the next
+ * events of a run after the cursor. Returns `{ id, status, createdAt, result? }`, or null.
+ */
+export function taskOf(id, root) {
+  const [kind, slug, ref, as] = String(id ?? '').split('~');
+  if (!slug || !ref) return null;
+  if (kind === 'job') {
+    let j;
+    try { j = jobState(root, slug, ref); } catch { return null; }
+    const view = { id, createdAt: j.startedAt, pollMs: 5000 };
+    if (existsSync(`${jobFile(root, slug, ref)}.task-cancel`)) return { ...view, status: 'cancelled' };
+    if (j.state === 'running') return { ...view, status: 'working' };
+    if (j.state === 'lost') return { ...view, status: 'failed', result: fail(`the job ${ref} was lost: its runner is gone and wrote no end`) };
+    return { ...view, status: 'completed', result: { ok: j.exit === 0, data: jobView(j, 40), warnings: [], next: [] } };
+  }
+  if (kind === 'run') {
+    let r;
+    try { r = readRunEvents(root, slug, ref, { as: as ?? null }); } catch { return null; }
+    const view = { id, createdAt: new Date().toISOString(), pollMs: 2000 };
+    if (!r.events.length) return { ...view, status: 'working' };
+    const again = { for: 'run', slug, cursor: r.cursor, ...(as ? { as } : {}) };
+    return { ...view, status: 'completed', result: { ok: true, data: { state: 'events', ...r }, warnings: [], next: [{ tool: 'wf_wait', arguments: again, why: 'handle the events, then call again for the next ones' }] } };
+  }
+  return null;
+}
+
+/** Cancel a Task. A job Task ends as a Task only: wf_job stop stops the job. */
+export function taskCancel(id, root) {
+  const [kind, slug, ref] = String(id ?? '').split('~');
+  if (kind === 'job') {
+    try { jobState(root, slug, ref); } catch { return false; }
+    writeFileAtomic(`${jobFile(root, slug, ref)}.task-cancel`, `${new Date().toISOString()}\n`);
+    return true;
+  }
+  return kind === 'run' && Boolean(slug && ref);
 }
 
 /** status, logs, stop and list of the jobs of a workflow. */

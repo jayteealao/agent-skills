@@ -142,3 +142,78 @@ test('wf_job starts an operation as a job; the wait, status, logs and list read 
     assert.equal(SERVER_JOBS, 'mcp-jobs');
   } finally { p.done(); }
 });
+
+test('a wait for the run ends at the next journal line, message or job end, each once', async () => {
+  const { appendFileSync } = await import('node:fs');
+  const p = project();
+  const me = { root: p.root, caller: 'verify:api' };
+  const journal = join(p.root, '.ai', 'workflows', 'demo', '.driver-journal.jsonl');
+  try {
+    appendFileSync(journal, `${JSON.stringify({ run: 'r1', seq: 1, event: 'agent-start' })}\n`);
+    // With no cursor the wait starts now: a line written before it is not news.
+    const first = await callTool('wf_wait', { for: 'run', slug: 'demo', seconds: 1 }, me);
+    assert.equal(first.ok, true, JSON.stringify(first));
+    assert.equal(first.data.state, 'waiting');
+    const c0 = first.next[0].arguments.cursor;
+    // Two lines and half of a third land while nobody waits.
+    appendFileSync(journal, `${JSON.stringify({ run: 'r1', seq: 2, event: 'agent-end' })}\n${JSON.stringify({ run: 'r1', seq: 3, event: 'stage-start' })}\n{"run":"r1","se`);
+    await callTool('wf_run', { op: 'talk post', slug: 'demo', as: 'driver', to: 'verify:api', text: 'look at the base' }, { root: p.root, caller: 'driver' });
+    const second = await callTool('wf_wait', first.next[0].arguments, me);
+    assert.equal(second.data.state, 'events');
+    assert.deepEqual(second.data.events.filter((e) => e.kind === 'run').map((e) => e.seq), [2, 3], 'the torn line waits for its end');
+    assert.equal(second.data.events.filter((e) => e.kind === 'message').length, 1);
+    appendFileSync(journal, `q":4,"event":"run-end"}\n`);
+    const third = await callTool('wf_wait', { ...second.next[0].arguments, seconds: 2 }, me);
+    assert.deepEqual(third.data.events.map((e) => e.seq), [4], 'each line comes once');
+    assert.notEqual(third.next[0].arguments.cursor, c0);
+  } finally { p.done(); }
+});
+
+test('a client with Tasks gets a job as a Task, read from disk; a cancel ends the Task, not the job', async () => {
+  const { handle, TASKS } = await import('../../mcp/server.mjs');
+  const p = project();
+  const saved = process.env.CLAUDE_PROJECT_DIR;
+  process.env.CLAUDE_PROJECT_DIR = p.root;
+  const modern = (caps) => ({ 'io.modelcontextprotocol/protocolVersion': '2026-07-28', ...(caps ? { 'io.modelcontextprotocol/clientCapabilities': { extensions: { [TASKS]: {} } } } : {}) });
+  let id = 0;
+  const rpc = async (method, params, caps = true) => (await handle({ jsonrpc: '2.0', id: ++id, method, params: { ...params, _meta: modern(caps) } })).result;
+  try {
+    const d = await rpc('server/discover', {});
+    assert.ok(d.capabilities.extensions[TASKS]);
+    const t = await rpc('tools/call', { name: 'wf_job', arguments: { op: 'goal check', slug: 'demo' } });
+    assert.equal(t.resultType, 'task');
+    assert.match(t.taskId, /^job~demo~J-/);
+    assert.ok(['working', 'completed'].includes(t.status));
+    let g;
+    const end = Date.now() + 30_000;
+    do { g = await rpc('tasks/get', { taskId: t.taskId }); if (g.status === 'completed') break; await new Promise((r) => setTimeout(r, 300)); } while (Date.now() < end);
+    assert.equal(g.status, 'completed');
+    assert.equal(g.result.structuredContent.data.op, 'goal check');
+
+    // A cancel ends the Task; the job runs on until wf_job stop.
+    const long = await rpc('tools/call', { name: 'wf_job', arguments: { op: 'optimize metric-check', slug: 'demo', cmd: 'node -e "setTimeout(() => {}, 60000)"' } });
+    await rpc('tasks/cancel', { taskId: long.taskId });
+    assert.equal((await rpc('tasks/get', { taskId: long.taskId })).status, 'cancelled');
+    const job = long.taskId.split('~')[2];
+    assert.equal(jobState(p.root, 'demo', job).state, 'running');
+    const stop = await rpc('tools/call', { name: 'wf_job', arguments: { op: 'stop', slug: 'demo', job } });
+    assert.equal(stop.structuredContent.data.stopped, true);
+    assert.ok(await until(() => { const r = readJob(jobFile(p.root, 'demo', job)); return Number.isInteger(r.runnerPid) && !pidAlive(r.runnerPid); }, 20_000));
+
+    // A run wait as a Task: working until an event, then completed with the next call.
+    const w = await rpc('tools/call', { name: 'wf_wait', arguments: { for: 'run', slug: 'demo' } });
+    assert.equal(w.status, 'working');
+    const { appendFileSync } = await import('node:fs');
+    appendFileSync(join(p.root, '.ai', 'workflows', 'demo', '.driver-journal.jsonl'), `${JSON.stringify({ run: 'r', seq: 1, event: 'run-end' })}\n`);
+    const w2 = await rpc('tasks/get', { taskId: w.taskId });
+    assert.equal(w2.status, 'completed');
+    assert.equal(w2.result.structuredContent.data.events[0].event, 'run-end');
+
+    // A client with no Tasks gets the answer of the call.
+    const plain = await rpc('tools/call', { name: 'wf_job', arguments: { op: 'goal check', slug: 'demo', wait: true } }, false);
+    assert.equal(plain.resultType, 'complete');
+  } finally {
+    if (saved === undefined) delete process.env.CLAUDE_PROJECT_DIR; else process.env.CLAUDE_PROJECT_DIR = saved;
+    p.done();
+  }
+});

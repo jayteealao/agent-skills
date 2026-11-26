@@ -7,7 +7,7 @@
 // of its runner, and at its end the exit code. A job may hold a shared resource: its runner
 // renews the lease while the command runs, and gives the resource back at the end.
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -80,7 +80,7 @@ export function startJob(projectRoot, slug, { command, argv = null, env = null, 
   let logDir = join(runRoot(projectRoot), SUITE_LOG_DIR);
   try { mkdirSync(logDir, { recursive: true }); } catch { logDir = join(tmpdir(), 'sdlc-suite-logs'); mkdirSync(logDir, { recursive: true }); }
   const stamp = iso(now).replace(/[-:]/g, '');
-  const id = `J-${stamp}-${Math.random().toString(16).slice(2, 6)}`;
+  const id = `J-${stamp}-${randomBytes(8).toString('hex')}`;
   const file = join(dir, `${id}.json`);
   const job = {
     id, name: safe(name), by, command: String(command), cwd: cwd ?? projectRoot, log: join(logDir, `${safe(name)}-${stamp}-${id.slice(-4)}.log`),
@@ -152,6 +152,10 @@ export function jobState(projectRoot, slug, id, { alive = pidAlive, now = Date.n
   if (!job) throw refuse(`talk: no job ${id}`, agentFix('Run talk jobs to see the jobs of this workflow.'));
   // A runner that never wrote its process did not start.
   if (job.state === 'running' && !Number.isInteger(job.runnerPid) && now - Date.parse(job.startedAt) > 30_000) return { ...job, state: 'lost' };
+  // A pid that the system gave to another process looks alive: a runner that wrote no beat for
+  // three beats and a minute is gone.
+  const beat = Date.parse(job.beatAt ?? job.startedAt);
+  if (job.state === 'running' && Number.isInteger(job.runnerPid) && alive(job.runnerPid) && Number.isFinite(beat) && now - beat > 3 * JOB_BEAT_MS + 60_000) return { ...job, state: 'lost' };
   if (job.state === 'running' && Number.isInteger(job.runnerPid) && !alive(job.runnerPid)) {
     // The runner writes its end before it exits: read once more before the job is called lost.
     const again = readJob(file);
