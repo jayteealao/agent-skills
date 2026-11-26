@@ -26,6 +26,7 @@ import { writeFileAtomic } from './atomic-write.mjs';
 import { isStaleLock } from './file-lock.mjs';
 import { readMachineConfig } from './home.mjs';
 import { unitOf } from './records-units.mjs';
+import { nameProblems, sparsePaths } from './records-join.mjs';
 
 export const SYNCED_REF = 'refs/wf/synced';
 export const LOCAL_REF = 'refs/wf/local';
@@ -129,13 +130,17 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
     let base = ref(SYNCED_REF);
     if (!base) { base = ref(tracking) ?? ref('HEAD'); if (base) M(['update-ref', SYNCED_REF, base]); }
     M(['read-tree', ...(base ? [base] : ['--empty'])], { idx: true });
-    M(['add', '-A', '.'], { idx: true });
+    // A sparse clone (a cloud session) has only some paths on the disk: the snapshot takes only
+    // those, so the others are not read as deleted.
+    const sparse = sparsePaths(dir);
+    M(['add', '-A', ...(sparse ? ['--', ...sparse] : ['.'])], { idx: true });
     const B = tree(base);
     const staged = M(['diff', '--cached', '--name-only', '-z', '--no-renames', base ?? EMPTY_TREE], { idx: true }).split('\0').filter(Boolean);
     const back = [];
+    const names = nameProblems([...new Set([...B.keys(), ...staged])]);
     for (const p of staged) {
       const u = unitOf(p);
-      const why = !u ? 'no unit knows this path' : held(p) ?? (u.unit && unitBusy(dir, u.unit) ? 'its unit is being written' : null);
+      const why = !u ? 'no unit knows this path' : held(p) ?? names.get(p) ?? (u.unit && unitBusy(dir, u.unit) ? 'its unit is being written' : null);
       if (!why) continue;
       out.held.push({ path: p, why });
       back.push(B.has(p) ? `${B.get(p)}\t${p}\0` : `0 ${NO_SHA}\t${p}\0`);
@@ -208,6 +213,7 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
         // A parked unit keeps its local files, except the owner file that this computer did not
         // change: so the computer learns who owns the unit now, and its next write says owner-lost.
         if (u?.unit && fenced.has(u.unit) && p !== ownerPathOf(u)) continue;
+        if (sparse && !sparse.some((s) => p === s || p.startsWith(`${s}/`))) continue;
         if (touched.has(p)) { out.keptLocal.push(p); continue; }
         const file = join(dir, p);
         // The re-read: a file written since the snapshot is kept.

@@ -15,6 +15,12 @@ A project that is linked (`<wf> records link <root> <project>`) keeps its record
 
 When `~/.sdlc/config.json` of this computer sets `sync: compose` under `records`, `wf.mjs` commits nothing at a step. Each change is saved in the wf-dir, and the committer, one process per computer, sends the changes about one minute later. An answer, a message or a close goes at once. A command says `saved`, not `committed`. When the work must reach the remote now (a hand-over, or the end of a session), run `<wf> records flush <root> <slug>`: it waits for the push. Exit 1 means that the push did not land, and the line names the reason. A sync that failed, a workflow that another computer owns, or a change that waits over 5 minutes shows in the records line of the dispatch.
 
+### A new computer
+
+`<wf> records join <url>` clones the records repo for this computer, with no line-end conversion and long paths, and checks the image store. Then `<wf> records link <root>` in each product repo finds its project by the remote of the repo: every computer writes that remote into its facts in `.machines/`. When no project or two projects have the remote, give the project name. A cloud session joins with `--cloud --project <p>`: no blobs, a sparse checkout of that project, and a name `cloud-<id>`. It ends each stage with `<wf> records flush <root> <slug>`, because a push at shutdown is not sure.
+
+A file name that differs from another only in case, or that is not in NFC form, stays out of the commits: Windows and macOS would make one file of the two. Rename the file.
+
 ### Images outside git
 
 When the machine config sets `images` under `records` (an image store), no image or video of the records enters a commit. Its reference, `<file>.img.json`, enters the commit in its place. A design image (under `_design/` or a `design*` folder) goes to the store. An evidence image stays on the computer that made it. The design gate fetches an absent design image before it judges. It says `cannot fetch <file>` when the store fails, and an evidence image of another computer fails no gate. `<wf> records images <root> --fetch` brings the absent images of the project in.

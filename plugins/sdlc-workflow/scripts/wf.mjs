@@ -60,6 +60,11 @@
  *   records  parked drop <root> <branch>
  *             delete a parked copy, after the person said yes
  *             Example: wf.mjs records parked drop . conflict/laptop-0123456789ab
+ *   records  join <url> [--cloud --project <p>] [--json]
+ *             clone the records repo for this computer, with the settings of every system (no
+ *             line-end conversion, long paths), and check the image store. --cloud: a cloud
+ *             session, with no blobs and a sparse checkout of one project, named cloud-<id>
+ *             Example: wf.mjs records join ../records.git
  *   records  images <root> [--fetch] [--json]
  *             the images of the records outside git (records.images in the machine config): the
  *             references, the images that wait for the store, and the images that stay on
@@ -1935,6 +1940,25 @@ function slugAtDispatch(projectRoot, r, tokens, { reads = false } = {}) {
 
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
+  if (verb === 'join') {
+    if (!root) throw usage('records join: <url> is required');
+    const { checkStore, joinRecords } = await import('../lib/records-join.mjs');
+    const { composeOn } = await import('../lib/records-compose.mjs');
+    const { composeNow } = await import('../lib/records-sync.mjs');
+    const j = joinRecords(root, { home: recordsHome(), cloud: Boolean(opt.cloud), project: opt.project ?? null });
+    if (!j.ok) { if (opt.json) out(j); else out(`not joined: ${j.reason}`); return 1; }
+    const store = await checkStore();
+    const sync = composeOn() ? composeNow(j.home) : null;
+    const r = { ...j, store, sync: sync ? { ok: sync.ok, pushed: sync.pushed, error: sync.error } : null };
+    if (opt.json) { out(r); return store.ok && (!sync || sync.ok) ? 0 : 1; }
+    out([
+      `joined as ${j.machine} in ${j.home}${j.sparse ? ` (sparse: ${j.sparse.join(', ')})` : ''}`,
+      store.store ? (store.ok ? `image store: ${store.store}` : `image store ${store.store} fails: ${store.why}`) : 'image store: none; images stay in git',
+      ...(sync ? [sync.ok ? 'first sync: done' : `first sync failed: ${sync.error}`] : []),
+      'Next: wf.mjs records link <root> in each product repo; the map finds its project.',
+    ].join('\n'));
+    return store.ok && (!sync || sync.ok) ? 0 : 1;
+  }
   if (verb === 'images') {
     const projectRoot = resolve(root ?? '.');
     const project = linkedProject(projectRoot);
@@ -2064,8 +2088,15 @@ async function runRecords(pos, opt) {
   if (!root) throw usage('records: <link|status|sync|push|close|retry|dismiss|migrate> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'link') {
-    if (!arg) throw usage('records link: <project> is required');
-    const r = linkProject(projectRoot, arg);
+    let name = arg;
+    // A fresh checkout finds its project in the map: the remote of the product repo in the facts of the computers.
+    if (!name) {
+      const { productRemote, projectsForRemote } = await import('../lib/records-join.mjs');
+      const found = projectsForRemote(recordsHome(), productRemote(projectRoot));
+      if (found.length !== 1) throw usage(found.length ? `records link: the remote of this repo belongs to ${found.join(', ')}; give the project` : 'records link: <project> is required: no project of the records has the remote of this repo');
+      name = found[0];
+    }
+    const r = linkProject(projectRoot, name);
     if (!r.ok && r.fix?.command) r.fix = { ...r.fix, command: r.fix.command.replace('<root>', word(root)) };
     // The last step of the link: each workflow of the project gets its issue when the GitHub layer is on.
     if (r.ok && layerOf(projectRoot)) r.queued = backfillProject(projectRoot);

@@ -24,6 +24,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { machineName, readMachineConfig, sdlcHomeDir } from './home.mjs';
 import { imagesConfig, isImage, uploadImagesSync } from './records-images.mjs';
+import { productRemote } from './records-join.mjs';
 import { agentFix, personFix, refuse } from './fix.mjs';
 import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
@@ -1060,7 +1061,8 @@ export function writeMachineFacts(root, change = {}, { push = true } = {}) {
   const facts = readMachineFacts(home);
   const before = JSON.stringify(facts);
   facts.id ??= machineId();
-  facts.projects = { ...facts.projects, [project]: { ...(facts.projects?.[project] ?? {}), root } };
+  const remote = productRemote(root);
+  facts.projects = { ...facts.projects, [project]: { ...(facts.projects?.[project] ?? {}), root, ...(remote ? { remote } : {}) } };
   if (change.reads) facts.reads = { ...facts.reads, ...change.reads };
   if (JSON.stringify(facts) === before) return facts;
   mkdirSync(join(home, '.machines'), { recursive: true });

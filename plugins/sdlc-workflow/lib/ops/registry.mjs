@@ -39,7 +39,7 @@ const ROWS = {
   wf_act: `records link | records sync | records push | records flush | records close | records retry | records dismiss | records migrate
     | records claim | records release | records decline | records parked take | gh flush | gh backfill | setup | modernize | close | ship ready | ship merge | ship finish
     | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
-  wf_person: 'records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
+  wf_person: 'records join | records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
 };
 
 // The flag with which an operation that writes only reads, so a read tool may run it.
