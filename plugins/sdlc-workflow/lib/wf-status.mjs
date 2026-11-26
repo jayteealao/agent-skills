@@ -112,6 +112,8 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     cost: costSummary(dir),
     // What a driver may do with the workflow: its class, the block and the route (lib/drive-class.mjs).
     drive: driveClass(dir, w.frontmatter ?? frontmatterOf(dir, INDEX_NAME)),
+    // The last driver run on this machine: where it stopped, why, and how to resume.
+    lastRun: lastRunOf(dir, root, summary.progress),
     next: {
       file: current ?? null,
       invocation: currentFm?.['next-invocation'] ?? summary.next,
@@ -122,6 +124,13 @@ export async function statusOf(root, slug = null, now = Date.now()) {
   // It is not part of the printed status.
   Object.defineProperty(out, 'dir', { value: dir, enumerable: false });
   return out;
+}
+
+/** The last driver run: its outcome on this machine, else the progress record of the run. */
+function lastRunOf(dir, root, progress) {
+  const outcome = readDriverOutcome(dir, { root });
+  if (outcome) return outcome;
+  return progress ? { run: progress.run ?? null, driver: progress.driver ?? null, status: progress.state ?? progress.status ?? null, reason: progress.reason ?? null, resume: progress.resume ?? null } : null;
 }
 
 const BRIEF_MAX = 2000;
@@ -146,8 +155,6 @@ export async function statusBrief(root, slug) {
   }
   const questions = (Array.isArray(index['open-questions']) ? index['open-questions'] : []).map((q) => (typeof q === 'string' ? q : q?.key && q?.question ? `${q.key}: ${q.question}` : q?.key ?? q?.question ?? JSON.stringify(q)));
   const deferrals = openDeferrals(dir).map((d) => d.id ?? d.ac ?? d.slice ?? 'deferral');
-  const outcome = readDriverOutcome(dir, { root });
-  const progress = s.workflow.progress;
   return {
     slug: s.workflow.slug,
     status: s.workflow.status,
@@ -157,7 +164,7 @@ export async function statusBrief(root, slug) {
     slices: s.slices.map((x) => ({ slice: x.slice, roster: x.roster, result: x.result, convergence: x.convergence })),
     openQuestions: questions,
     openDeferrals: deferrals,
-    lastRun: outcome ?? (progress ? { run: progress.run ?? null, driver: progress.driver ?? null, status: progress.state ?? progress.status ?? null, reason: progress.reason ?? null, resume: progress.resume ?? null } : null),
+    lastRun: s.lastRun,
     next: s.next.invocation ?? null,
   };
 }

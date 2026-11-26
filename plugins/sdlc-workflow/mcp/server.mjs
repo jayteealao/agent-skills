@@ -22,7 +22,7 @@ const TEXT_LIMIT = 40_000;
 // form. Claude Code loads it at the start of every session, also when the tools are deferred, and
 // cuts it at 4,096 characters (tests/unit/mcp-ops.test.mjs). wf_query help holds the rest.
 export const INSTRUCTIONS = [
-  'The wf tools run /wf: use them, not a shell call of wf.mjs. An op is the words of the CLI ("step done"); a tool also takes its last words ("done"). Each result has `next`: the calls to make after it.',
+  'The wf tools run /wf: use them, not a shell call of wf.mjs. An op is the words of the CLI ("step done"); a tool also takes its last words ("done"). Each result has `next`: the calls to make after it. A write of records or steps returns `after`, the state it changed: it needs no read back.',
   'Start: wf_context { "slug", "stage" } gives the brief and its ready calls; wf_context { "argv": ["<word>", …] } runs the /wf words.',
   'Read, several in one call: wf_read { "slug", "items": [{ "op": "record get", "name": ["index", "03-slice"] }, { "op": "decide list" }, { "op": "findings list", "open": true }] }. Read with code: wf_query { "slug", "code": "return wf.findings.list().filter((f) => f.severity === \'HIGH\')" }; wf.help(\'findings\') lists the functions.',
   'Write records: wf_run { "op": "record set", "slug", "name": "03-slice", "path": ["slices[s4].status=in-progress", "slices[s5].status=in-progress"] } (several paths, one call); wf_run { "op": "slice drop", "slug", "slice", "reason" }; wf_run { "op": "findings set", "slug", "id", "status", "commit" }; wf_run { "slug", "code": "…" } makes several writes with code.',

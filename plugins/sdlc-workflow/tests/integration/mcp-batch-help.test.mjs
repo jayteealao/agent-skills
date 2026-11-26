@@ -66,6 +66,24 @@ test('describe of one command is its help, with the calls', async () => {
   } finally { p.done(); }
 });
 
+test('a write returns the state it changed, and status names the stop of the last run', async () => {
+  const p = project({ suite: false });
+  try {
+    const set = await callTool('wf_run', { op: 'record set', slug: SLUG, name: '03-slice', path: ['slices[s4].status=in-progress', 'slices[s5].status=in-progress'] }, { root: p.root });
+    assert.deepEqual(set.after, { 'slices[s4].status': 'in-progress', 'slices[s5].status': 'in-progress' });
+    const drop = await callTool('wf_run', { op: 'slice drop', slug: SLUG, slice: 's6', reason: 'merged into s5' }, { root: p.root });
+    assert.equal(drop.after.status, 'dropped');
+    const fixed = await callTool('wf_run', { op: 'findings set', slug: SLUG, id: 'COR-1', status: 'fixed', commit: 'HEAD' }, { root: p.root });
+    assert.equal(fixed.after.status, 'fixed');
+    const steps = await callTool('wf_step', { slug: SLUG, slice: 's3', steps: [{ op: 'done', n: 3, sha: 'HEAD' }, { op: 'start', n: 4, title: 'Docs' }] }, { root: p.root });
+    assert.deepEqual([steps.after.done, steps.after.current?.n], [[1, 2, 3], 4]);
+    const read = await callTool('wf_read', { slug: SLUG, items: [{ op: 'decide list' }] }, { root: p.root });
+    assert.equal(read.after, undefined, 'a read has no after');
+    const status = await callTool('wf_context', { op: 'status', slug: SLUG }, { root: p.root });
+    assert.deepEqual([status.data.lastRun.status, status.data.lastRun.stoppedAt], ['stopped', 'implement s3 step 3']);
+  } finally { p.done(); }
+});
+
 test('a job of no workflow points to its wait, and the wait gives its end', async () => {
   const p = project({ findings: false });
   try {
@@ -77,6 +95,9 @@ test('a job of no workflow points to its wait, and the wait gives its end', asyn
     assert.equal(w.ok, true, JSON.stringify(w.error));
     assert.equal(w.data.state, 'done');
     assert.equal(w.data.exit, 0);
+    // The JSON output of profile run is the result of the job, with what went into the profile.
+    assert.equal(w.data.result.suite, 'fast');
+    assert.equal(typeof w.data.result.recorded.measuredSeconds, 'number');
     const none = await callTool('wf_wait', { for: 'job', job: 'J-nosuch' }, { root: p.root });
     assert.equal(none.ok, false);
   } finally { p.done(); }

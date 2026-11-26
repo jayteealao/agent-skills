@@ -283,14 +283,14 @@ export async function callTool(name, args = {}, ctx = {}) {
       done.push(r.data);
       warnings.push(...(r.warnings ?? []));
     }
-    return { ok: true, data: done, warnings, next: [] };
+    return { ok: true, data: done, after: await afterOf('step', { slug: args.slug, slice: args.slice }, run), warnings, next: [] };
   }
   if (name === 'wf_step' && args.op === 'done_next') {
     const { n, next_title: nextTitle, ...rest } = strip(args);
     const done = await run('step done', { ...rest, n });
     if (!done.ok) return done;
     const start = await run('step start', { slug: rest.slug, slice: rest.slice, n: Number(n) + 1, ...(nextTitle ? { title: nextTitle } : {}) });
-    return start.ok ? { ok: true, data: { done: done.data, start: start.data }, warnings: [...done.warnings, ...start.warnings] } : { ...start, done: done.data };
+    return start.ok ? { ok: true, data: { done: done.data, start: start.data }, after: await afterOf('step', rest, run), warnings: [...done.warnings, ...start.warnings] } : { ...start, done: done.data };
   }
   if ((name === 'wf_query' || name === 'wf_run') && typeof args.code === 'string') {
     if (args.op) return fail(`${name}: give op or code, not both`);
@@ -316,7 +316,35 @@ export async function callTool(name, args = {}, ctx = {}) {
     return { ...h, warnings: ['describe takes no command: this is the help of the command', ...(h.warnings ?? [])] };
   }
   const { wait, ...rest } = args;
-  return run(op, strip(rest), READ_TOOLS.has(name) ? { SDLC_MCP_READ: '1' } : {});
+  const r = await run(op, strip(rest), READ_TOOLS.has(name) ? { SDLC_MCP_READ: '1' } : {});
+  if (!r.ok || READ_TOOLS.has(name)) return r;
+  const after = await afterOf(op, strip(rest), run);
+  return after === undefined ? r : { ...r, after };
+}
+
+/**
+ * The state that a write changed, read after it: the fields that record set wrote, the roster
+ * row of a slice, a finding, or the steps of a slice. An agent needs no read back to check the
+ * write. Undefined for a write with no such read; a read that fails gives null.
+ */
+async function afterOf(op, fields, run) {
+  const read = async (o, x) => { const r = await run(o, x, { SDLC_MCP_READ: '1' }); return r.ok ? r.data : null; };
+  const { slug } = fields;
+  if (op === 'record set' && fields.name) {
+    const paths = (Array.isArray(fields.path) ? fields.path : [fields.path]).filter(Boolean).map((p) => String(p).split('=')[0].replace(/[+-]$/, ''));
+    const values = await Promise.all(paths.map((p) => read('record get', { slug, name: fields.name, field: p })));
+    return Object.fromEntries(paths.map((p, i) => [p, values[i]]));
+  }
+  if ((op === 'slice drop' || op === 'slice move') && fields.slice) return read('record get', { slug, name: '03-slice', field: `slices[${fields.slice}]` });
+  if (op === 'findings set' && fields.id) {
+    const all = await read('findings list', { slug });
+    return Array.isArray(all) ? all.find((x) => x.id === fields.id) ?? null : null;
+  }
+  if ((op === 'step' || op.startsWith('step ')) && op !== 'step where' && fields.slice) {
+    const w = await read('step where', { slug, slice: fields.slice });
+    return w && typeof w === 'object' ? { total: w.total, done: (w.done ?? []).map((d) => d.n), current: w.current ?? null, next: w.next ?? null, complete: w.complete ?? false } : w;
+  }
+  return undefined;
 }
 
 /**
@@ -404,11 +432,17 @@ async function waitCall(op, args, run) {
 const JOB_VERBS = ['status', 'logs', 'stop', 'list'];
 export const SERVER_JOBS = 'mcp-jobs';
 const jobSlug = (args) => (typeof args.slug === 'string' && args.slug ? args.slug : SERVER_JOBS);
-const jobView = (j, tail = 0) => ({
-  job: j.id, name: j.name, op: j.op ?? null, state: j.state, ...(j.state === 'done' ? { exit: j.exit ?? null } : {}),
-  ...(j.stopped ? { stopped: true } : {}), ...(j.timedOut ? { timedOut: true } : {}), startedAt: j.startedAt, ...(j.endedAt ? { endedAt: j.endedAt } : {}), log: j.log,
-  ...(tail ? { tail: tailOf(j.log, tail).tail } : {}),
-});
+const jobView = (j, tail = 0) => {
+  const text = tail ? tailOf(j.log, tail).tail : null;
+  // An operation with JSON output (profile run): its result as data, not as text to parse.
+  let result;
+  if (text && j.state === 'done') { try { result = JSON.parse(text); } catch { /* text output */ } }
+  return {
+    job: j.id, name: j.name, op: j.op ?? null, state: j.state, ...(j.state === 'done' ? { exit: j.exit ?? null } : {}),
+    ...(j.stopped ? { stopped: true } : {}), ...(j.timedOut ? { timedOut: true } : {}), startedAt: j.startedAt, ...(j.endedAt ? { endedAt: j.endedAt } : {}), log: j.log,
+    ...(result !== undefined ? { result } : text ? { tail: text } : {}),
+  };
+};
 
 /** Start an operation as a detached job. The same call while it runs returns that job. */
 function startOpJob(op, args, ctx, caller) {

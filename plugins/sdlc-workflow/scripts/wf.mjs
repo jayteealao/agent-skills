@@ -1427,15 +1427,17 @@ export function runProfile(pos, opt) {
     const pass = r.status === 0;
     const head = pass ? spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null : null;
     // A time that cannot be recorded is a warning: the suite ran, and its result stands.
+    // What went into the profile, so a reader needs no profile show after the run.
+    let recorded = null;
     if (!r.error) {
-      try { recordRun(projectRoot, a, seconds, { passedAt: head }); } catch (e) { process.stderr.write(`wf.mjs: the time of the ${a} suite was not recorded: ${e.message}\n`); }
+      try { const e = recordRun(projectRoot, a, seconds, { passedAt: head }); recorded = { measuredSeconds: e.measuredSeconds, measuredAt: e.measuredAt }; } catch (e) { process.stderr.write(`wf.mjs: the time of the ${a} suite was not recorded: ${e.message}\n`); }
     }
     const budget = readBudget(profile);
     if (overLongBudget(profile, seconds)) {
       process.stderr.write(`WARNING: the ${a} suite took ${seconds}s, over the long-run budget of ${budget.long}s. Before the next run, offer the faster paths of _long-runs.md: run the touched part, a pilot, a sample, a split, or the packet end.\n`);
     }
     out(opt.json
-      ? { suite: a, command: suite.command, seconds, pass, exit: r.status, log: r.log, ...(r.tail ? { tail: r.tail } : {}), ...(head ? { passedAt: head } : {}) }
+      ? { suite: a, command: suite.command, seconds, pass, exit: r.status, log: r.log, ...(r.tail ? { tail: r.tail } : {}), ...(head ? { passedAt: head } : {}), recorded }
       : [`${a}: ${pass ? `pass at ${head ? head.slice(0, 8) : 'an unknown commit'}` : `fail (exit ${r.status ?? r.error?.code})`} in ${seconds}s, recorded`, ...suiteLogLines(r)].join('\n'));
     return pass ? 0 : 1;
   }
