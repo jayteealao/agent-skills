@@ -35,12 +35,24 @@ export function outputSystemMessage(message) {
   process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
 }
 
-export function flushSystemMessages() {
-  if (!systemMessageBuffer) return;
-  const messages = systemMessageBuffer;
+let toolDecision = null;
+/**
+ * Ask the person before a tool call runs (PreToolUse `permissionDecision: ask`). The answer goes
+ * out with the system messages of the event, in its one line of JSON.
+ */
+export function askBeforeToolCall(reason) {
+  toolDecision = { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason };
+  if (!systemMessageBuffer) flushSystemMessages(true);
+}
+
+export function flushSystemMessages(force = false) {
+  if (!systemMessageBuffer && !force) return;
+  const messages = systemMessageBuffer ?? [];
   systemMessageBuffer = null;
-  if (!messages.length) return;
-  process.stdout.write(`${JSON.stringify({ systemMessage: messages.join('\n\n') })}\n`);
+  const decision = toolDecision;
+  toolDecision = null;
+  if (!messages.length && !decision) return;
+  process.stdout.write(`${JSON.stringify({ ...(messages.length ? { systemMessage: messages.join('\n\n') } : {}), ...(decision ? { hookSpecificOutput: decision } : {}) })}\n`);
 }
 
 export function collectToolInputPaths(input = {}) {

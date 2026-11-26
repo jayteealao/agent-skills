@@ -3,7 +3,7 @@
 // them: `{ "op": "step done", "slug": "demo", "slice": "api", "n": 3, "sha": "HEAD" }`. Within
 // a tool, the first word of the operation may be left out (`"op": "done"` in wf_step).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { allOps, callOf } from '../lib/ops/forms.mjs';
 import { workflowDir } from '../lib/records-root.mjs';
@@ -187,7 +187,15 @@ const fail = (message, more = {}) => ({ ok: false, error: { message, who: 'agent
 export async function callTool(name, args = {}, ctx = {}) {
   if (!TOOLS.includes(name)) return fail(`no tool ${name}`);
   const { root } = ctx;
-  const caller = name === 'wf_person' ? 'person' : (ctx.caller ?? 'agent');
+  // The server serves one project: a call does not name another root, in itself or in an item.
+  const same = (r) => r === undefined || r === null || r === '' || (root && resolve(String(r)).toLowerCase() === resolve(root).toLowerCase());
+  const items = Array.isArray(args.items) ? args.items : [];
+  if (!same(args.root) || items.some((i) => i && !same(i.root))) {
+    return fail(`this server runs the project ${root}: a call does not name another root`, { fix: 'Leave root out. Work of another project runs in a session of that project.' });
+  }
+  // Only wf_person runs as the person. A caller that names itself the person in any other tool
+  // runs as an agent, so the person-only guards of the handlers still refuse it.
+  const caller = name === 'wf_person' ? 'person' : (ctx.caller && ctx.caller !== 'person' ? ctx.caller : 'agent');
   const run = async (op, fields, extra = {}) => {
     const inl = inlineFields(root, op, fields);
     if (inl.error) return fail(inl.error);
