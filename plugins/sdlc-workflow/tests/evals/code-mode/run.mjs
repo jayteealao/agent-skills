@@ -74,7 +74,8 @@ function command(cell, prompt, root, arm) {
   if (cell.host === 'claude') {
     const tools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash(node:*)', 'PowerShell(node:*)', ...(cell.sub ? ['Agent'] : []), ...(arm === 'mcp' ? [WF_SERVER] : [])];
     return ['claude', ['-p', prompt, '--model', cell.model, '--output-format', 'stream-json', '--verbose', '--max-turns', '60',
-      ...(arm === 'mcp' ? ['--plugin-dir', PLUGIN_ROOT] : []), '--allowedTools', tools.join(',')]];
+      // The cli arm starts no MCP server: an installed copy of the plugin would give it the wf tools.
+      ...(arm === 'mcp' ? ['--plugin-dir', PLUGIN_ROOT] : ['--strict-mcp-config', '--disallowedTools', WF_SERVER]), '--allowedTools', tools.join(',')]];
   }
   if (arm === 'mcp') throw new Error(`the mcp arm runs on Claude only; ${cell.host} uses the command line`);
   if (cell.host === 'codex') return ['codex', ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-C', root, prompt]];
@@ -136,6 +137,9 @@ async function main() {
           // A usage limit ends every later run at once too: the eval stops, and the run is not recorded.
           if (m.error && /limit|rate|overloaded|credit/i.test(m.error)) throw new Error(`${name} ${arm} ${task.id} #${n}: ${m.error}; nothing more runs`);
           if (cell.host === 'claude' && !m.tools) throw new Error(`${name}: the transcript has no init event; see ${join(at, 'stderr.txt')}`);
+          // An arm measures nothing when its tools are wrong: the cli arm has no wf tool, the mcp arm has them.
+          const wfTools = m.tools ? m.tools.filter((t) => t.startsWith(WF_SERVER)).length : 0;
+          if (cell.host === 'claude' && (arm === 'cli' ? wfTools > 0 : wfTools === 0)) throw new Error(`${name} ${arm}: the session had ${wfTools} wf tool(s); nothing more runs`);
           const c = task.check(f, m.answer);
           const row = { cell: name, arm, task: task.id, class: task.class, run: n, pass: c.pass, why: c.why, exit: r.status, ...m, answer: undefined, wallMs };
           appendFileSync(join(out, 'results.jsonl'), `${JSON.stringify(row)}\n`);

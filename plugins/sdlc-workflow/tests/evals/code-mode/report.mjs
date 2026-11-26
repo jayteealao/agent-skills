@@ -55,7 +55,10 @@ export function verdict({ cli, mcp }) {
   const worse = Object.keys(cli.byTask).filter((t) => mcp.byTask[t] != null && mcp.byTask[t] < cli.byTask[t]);
   if (worse.length) why.push(`passes less often: ${worse.join(', ')}`);
   if (cli.controlTokens && mcp.controlTokens > 1.1 * cli.controlTokens) why.push(`control tokens rose ${Math.round((mcp.controlTokens / cli.controlTokens - 1) * 100)}%`);
-  if (cli.batchCalls && !(mcp.batchCalls <= 0.7 * cli.batchCalls)) why.push(`batch calls fell only ${Math.round((1 - mcp.batchCalls / cli.batchCalls) * 100)}%`);
+  if (cli.batchCalls && !(mcp.batchCalls <= 0.7 * cli.batchCalls)) {
+    const change = Math.round((1 - mcp.batchCalls / cli.batchCalls) * 100);
+    why.push(change >= 0 ? `batch calls fell only ${change}%` : `batch calls rose ${-change}%`);
+  }
   if (mcp.mcpShare == null || mcp.mcpShare < 0.95) why.push(`the wf tools made ${mcp.mcpShare == null ? 'no' : `${Math.round(mcp.mcpShare * 100)}% of the`} calls of wf`);
   if (mcp.denied) why.push(`${mcp.denied} call(s) of wf denied`);
   return { pass: !why.length, why: why.length ? why.join('; ') : 'every rule holds' };
