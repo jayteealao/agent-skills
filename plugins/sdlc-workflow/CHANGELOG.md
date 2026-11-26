@@ -5,6 +5,29 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.36] - 2026-11-26
+
+- feat(sdlc-workflow): the release takes --no-ci and --no-smoke
+- test(sdlc-workflow): the eval of the wf tools, and the live counts of the calls of wf
+- fix(sdlc-workflow): a brief rewritten after the design approval unsettles the design
+- docs(sdlc-workflow): the wf server, its tools and its guards
+- feat(sdlc-workflow): Claude calls wf through its tools first
+- feat(sdlc-workflow): the guards of the wf server hold against every path of an agent
+- feat(sdlc-workflow): the next event of a run, and jobs and waits as Tasks
+- feat(sdlc-workflow): the sibling scripts in the wf server, detached jobs, and waits that keep no state
+- feat(sdlc-workflow): records join, a project map, and names that every system can hold
+- fix(sdlc-workflow): a build reads the newest approval of each screen, and a done packet closes its workflow
+- feat(sdlc-workflow): images outside git, and the tools of a history rewrite
+- feat(sdlc-workflow)!: an owner file per workflow replaces the leases
+- feat(sdlc-workflow): the records committer, and records flush
+- feat(sdlc-workflow): typed writes in the wf tools, and writers that lose no change
+- feat(sdlc-workflow)!: code runs only in wf_query and wf_run; wf.mjs run is gone
+- feat(sdlc-workflow): code mode in wf_query and wf_run
+- feat(sdlc-workflow): records that two computers can share, and a sync that composes
+- feat(sdlc-workflow): the wf MCP server, with one registry of the operations
+- test(sdlc-workflow): hold the output of every wf.mjs form
+- fix(sdlc-workflow): the records sync says when it fails, and one computer writes
+
 ## [10.0.0-next.35] - 2026-11-25
 
 - feat(sdlc-workflow): the agents of a run talk, and a stage ends on facts that code checks
