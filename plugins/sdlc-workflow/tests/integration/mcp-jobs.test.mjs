@@ -114,7 +114,9 @@ test('wf_job starts an operation as a job; the wait, status, logs and list read 
     assert.equal(r.ok, true, JSON.stringify(r));
     assert.match(r.data.job, /^J-/);
     const wait = r.next.find((n) => n.tool === 'wf_wait');
-    assert.deepEqual(wait.arguments, { op: 'talk wait', slug: 'demo', as: 'verify:api', job: r.data.job });
+    assert.deepEqual(wait.arguments, { for: 'job', job: r.data.job, slug: 'demo' });
+    const talk = r.next.find((n) => n.arguments.op === 'talk wait');
+    assert.deepEqual(talk.arguments, { op: 'talk wait', slug: 'demo', as: 'verify:api', job: r.data.job });
     const w = await callTool('wf_wait', { ...wait.arguments, seconds: '60' }, ctx);
     assert.equal(w.ok, true, JSON.stringify(w));
     const st = await callTool('wf_job', { op: 'status', slug: 'demo', job: r.data.job }, ctx);

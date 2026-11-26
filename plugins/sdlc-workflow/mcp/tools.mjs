@@ -20,10 +20,10 @@ const ABOUT = {
   wf_read: 'Read records, decisions, findings and messages of one workflow in one call. `items` is a list of reads, each `{ op, ...fields }` or a short form: `{ record, section?, field? }`, `{ decisions: { slice?, kind? } }`, `{ comments: { key } }`, `{ findings: { open? } }`. Each item succeeds or fails alone; they run together.',
   wf_query: 'Every other read of wf, read-only: help and describe, status reads, profiles, rules, design reads, git facts. A writing operation runs here only with its read flag (`check: true`).',
   wf_run: 'Write the records of this computer: records, findings, the board, slices, progress, talk and messages, design content, settings. One operation per call. Content goes inline, with no file: `record put` takes `records: { "04-plan-api.md": "<the whole record>" }`, `record edit` takes `text` in place of `from`, `findings add` takes `found: [...]`, `board add` takes `entries` and `board apply` takes `change`.',
-  wf_step: 'The steps of a slice: start, done, check, stop, retry, complete. `done_next` records step n and starts step n + 1 in one call.',
+  wf_step: 'The steps of a slice: start, done, check, stop, retry, complete. `done_next` records step n and starts step n + 1 in one call. `steps: [{ op, n, title?, sha?, "no-change"? }, ...]` (with `slug` and `slice`, no `op`) runs several in order in one call, and stops at the first that fails.',
   wf_decide: 'Record an answer or a decision of a stage, hold a question for the person, drop, end or tidy decisions. `add_many` with `entries: [{ kind, key, question, answer, by }]` records several in one change. An entry by the person, a steer or an approval goes to wf_person.',
-  wf_wait: 'Wait for an answer (decide wait), a message or a job end (talk wait), or the next event of a run: `{ "for": "run", "slug", "cursor" }` ends at the next journal line, message or job end after the cursor. It returns within its time; `next` is the call to make again, with the cursor, so no event is missed. progress watch reads where a run stands, once.',
-  wf_job: 'A long run: a suite (profile run, receipt), a design capture or check, a drive, the long steps of optimize, orchestrate and goal. It starts a job that runs on in its own process and returns its id at once; the same call while the job runs returns that job, never a second one. Wait for its end with wf_wait { op: "talk wait", job }. `op: "status" | "logs" | "stop" | "list"` with `job` reads or stops a job. `wait: true` runs the operation in the call instead (up to 10 minutes). A check of a step is step check in wf_step.',
+  wf_wait: 'Wait for an answer (decide wait), a message (talk wait), the end of a job (`{ "for": "job", "job": "<id>" }`), or the next event of a run: `{ "for": "run", "slug", "cursor" }` ends at the next journal line, message or job end after the cursor. It returns within its time; `next` is the call to make again, with the cursor, so no event is missed. progress watch reads where a run stands, once.',
+  wf_job: 'A long run: a suite (profile run, receipt), a design capture or check, a drive, the long steps of optimize, orchestrate and goal. It starts a job that runs on in its own process and returns its id at once; the same call while the job runs returns that job, never a second one. Wait for its end with wf_wait { for: "job", job }. `op: "status" | "logs" | "stop" | "list"` with `job` reads or stops a job. `wait: true` runs the operation in the call instead (up to 10 minutes). A check of a step is step check in wf_step.',
   wf_act: 'Effects outside the records of this computer: the records repo, GitHub, worktrees, the design server, setup, close and ship. Each call may need the permission of the person.',
   wf_person: 'What only the person does: consent, approvals, rules of the project, standing answers, an answer by the person. Call it only for the person\'s own choice: the person is asked.',
 };
@@ -123,16 +123,16 @@ function schemaOf(tool) {
   const code = tool === 'wf_query' || tool === 'wf_run';
   return {
     type: 'object',
-    ...(code || tool === 'wf_wait' ? {} : { required: ['op'] }),
+    ...(code || tool === 'wf_wait' || tool === 'wf_step' ? {} : { required: ['op'] }),
     additionalProperties: true,
     properties: {
       op: { type: 'string', enum: ops, description: 'the operation; the other fields are the arguments of its form, by the names of wf.mjs help (`n`, `sha`, `answer`, `key`)' },
       ...(code ? { code: { type: 'string', description: 'in place of op: the body of an async function of wf and open' } } : {}),
       ...(tool === 'wf_run' ? { dryRun: { type: 'boolean', description: 'with code: run it and keep no change' } } : {}),
       ...common,
-      ...(tool === 'wf_wait' ? { for: { type: 'string', enum: ['run'], description: 'in place of op: the next event of the run (a journal line, a message, a job end)' }, cursor: { type: 'string', description: 'for run: the cursor of the last call' }, as: { type: 'string', description: 'your name in the run (verify:api): only the messages for you' }, seconds: { type: 'integer' } } : {}),
+      ...(tool === 'wf_wait' ? { for: { type: 'string', enum: ['run', 'job'], description: 'in place of op: run, the next event of the run (a journal line, a message, a job end); job, the end of the job `job`' }, job: { type: 'string', description: 'for job: the id of the job' }, cursor: { type: 'string', description: 'for run: the cursor of the last call' }, as: { type: 'string', description: 'your name in the run (verify:api): only the messages for you' }, seconds: { type: 'integer' } } : {}),
       ...(tool === 'wf_job' ? { job: { type: 'string', description: 'status, logs, stop: the id of the job' }, wait: { type: 'boolean', description: 'run the operation in the call, not as a job' }, lines: { type: 'integer', description: 'logs: the lines from the end' } } : {}),
-      ...(tool === 'wf_step' ? { n: { type: ['integer', 'string'] }, title: { type: 'string' }, next_title: { type: 'string', description: 'done_next: the title of step n + 1' } } : {}),
+      ...(tool === 'wf_step' ? { n: { type: ['integer', 'string'] }, title: { type: 'string' }, next_title: { type: 'string', description: 'done_next: the title of step n + 1' }, steps: { type: 'array', items: { type: 'object', required: ['op'], properties: { op: { type: 'string' }, n: { type: ['integer', 'string'] } } }, description: 'in place of op: several steps of the slice, in order: [{ "op": "start", "n": 4, "title": "Docs" }, { "op": "done", "n": 4, "no-change": true }]' } } : {}),
     },
   };
 }
@@ -250,6 +250,21 @@ export async function callTool(name, args = {}, ctx = {}) {
     if (!Array.isArray(args.entries) || !args.entries.length) return fail('add_many needs entries: [{ kind, key, question, answer, by }]');
     return run('decide add', { slug: args.slug, entries: args.entries });
   }
+  if (name === 'wf_step' && !args.op && Array.isArray(args.steps)) {
+    if (!args.steps.length) return fail('steps is empty: give [{ op, n, ... }, ...]');
+    const done = [];
+    const warnings = [];
+    for (const [i, item] of args.steps.entries()) {
+      const op = fullOp(name, String(item?.op ?? ''));
+      const why = item?.op ? refusal(name, op, item) : 'each step needs op (start, done, check, stop, retry, complete)';
+      if (why) return { ...fail(`step ${i + 1} of steps: ${why}`), done };
+      const r = await run(op, strip({ slug: args.slug, slice: args.slice, ...item, op: undefined }));
+      if (!r.ok) return { ...r, error: { ...r.error, message: `step ${i + 1} of steps (${op} ${item.n ?? ''}): ${r.error?.message}` }, done };
+      done.push(r.data);
+      warnings.push(...(r.warnings ?? []));
+    }
+    return { ok: true, data: done, warnings, next: [] };
+  }
   if (name === 'wf_step' && args.op === 'done_next') {
     const { n, next_title: nextTitle, ...rest } = strip(args);
     const done = await run('step done', { ...rest, n });
@@ -264,6 +279,7 @@ export async function callTool(name, args = {}, ctx = {}) {
     return fail(r.error ?? 'the code failed', { kept: false, ops: r.ops ?? 0 });
   }
   if (name === 'wf_wait' && args.for === 'run') return runWait(args, ctx);
+  if (name === 'wf_wait' && args.for === 'job') return jobWait(args, ctx);
   if (name === 'wf_job' && JOB_VERBS.includes(String(args.op ?? '').replace(/^job /, ''))) return jobVerb(String(args.op).replace(/^job /, ''), args, ctx);
   if (!args.op) return fail(`${name} needs op${name === 'wf_query' || name === 'wf_run' ? ' or code' : ''}; its operations are: ${opsOf(name).join(', ')}`);
   const op = fullOp(name, args.op);
@@ -273,6 +289,7 @@ export async function callTool(name, args = {}, ctx = {}) {
   // `talk job` starts its own job, so it runs in the call.
   if (name === 'wf_job' && !args.wait && op !== 'talk job') return startOpJob(op, args, ctx, caller);
   if (name === 'wf_wait') return waitCall(op, args, run);
+  if (name === 'wf_query' && op === 'help') return helpCall(args, run);
   const { wait, ...rest } = args;
   return run(op, strip(rest), READ_TOOLS.has(name) ? { SDLC_MCP_READ: '1' } : {});
 }
@@ -293,6 +310,46 @@ async function runWait(args, ctx) {
     const again = { for: 'run', slug: args.slug, cursor: r.cursor, ...(args.as ? { as: args.as } : {}) };
     return { ok: true, data: r, warnings: [], next: [{ tool: 'wf_wait', arguments: again, why: r.events.length ? 'handle the events, then call again for the next ones' : 'nothing yet: call again now' }] };
   } catch (e) { return fail(e.message); }
+}
+
+/** Wait for the end of a job, of a workflow or of the server. It returns within its time; `next` is the same call. */
+async function jobWait(args, ctx) {
+  if (!args.job) return fail('wf_wait for: job needs job, the id that wf_job gave');
+  const slug = jobSlug(args);
+  const seconds = Math.min(Number(args.seconds) || WAIT_MAX_SECONDS, WAIT_MAX_SECONDS);
+  const end = Date.now() + seconds * 1000;
+  for (;;) {
+    let j;
+    try { j = jobState(ctx.root, slug, String(args.job)); } catch (e) { return fail(e.message); }
+    if (!j) return fail(`no job ${args.job}${slug === SERVER_JOBS ? '' : ` in ${slug}`}`, { fix: 'List the jobs with wf_job { "op": "list" }.' });
+    // The wait succeeded: the job ended. Its exit is in the data, and a failed job also warns.
+    if (j.state !== 'running') return { ok: true, data: jobView(j, 20), warnings: j.exit ? [`the job ended with exit ${j.exit}`] : [], next: [] };
+    if (Date.now() >= end) return { ok: true, data: { ...jobView(j), state: 'running' }, warnings: [], next: [{ tool: 'wf_wait', arguments: { for: 'job', job: j.id, ...(slug === SERVER_JOBS ? {} : { slug }) }, why: 'the job still runs: call again now' }] };
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+
+/**
+ * The help of the tools: the CLI help of the command, and for each operation that the words name,
+ * its tool, its fields and the call. `command` may be one word (step) or the operation (profile run).
+ */
+async function helpCall(args, run) {
+  const words = String(args.command ?? '').trim();
+  const r = await run('help', strip({ ...args, command: words.split(/\s+/)[0] || undefined }), { SDLC_MCP_READ: '1' });
+  if (!words) return r;
+  const { renderCall } = await import('../lib/ops/render.mjs');
+  const calls = [];
+  for (const [op, row] of registry()) {
+    if (op !== words && !op.startsWith(`${words} `) && op.split(' ')[0] !== words) continue;
+    const form = allOps().get(op);
+    const required = form.positionals.filter((p) => p.name && p.name !== 'root' && !p.optional && !p.fixed).map((p) => p.name);
+    const optional = [...form.positionals.filter((p) => p.name && p.name !== 'root' && p.optional && !p.fixed).map((p) => p.name), ...form.flags.filter((x) => x.name !== 'json').map((x) => (x.boolean ? `${x.name} (true)` : x.name))];
+    let call = null;
+    try { call = renderCall(op, Object.fromEntries(required.map((n) => [n, `<${n}>`]))); } catch { /* a form with no call */ }
+    calls.push({ op, tool: row.tool, required, optional, call });
+  }
+  if (!calls.length && !r.ok) return r;
+  return { ...r, ok: true, data: typeof r.data === 'string' ? r.data : r.data ?? null, calls, warnings: r.ok ? r.warnings ?? [] : [], next: [] };
 }
 
 /** The longest wait of one call: under the limit of a call of the server (10 minutes). */
@@ -355,7 +412,8 @@ function startOpJob(op, args, ctx, caller) {
     data: { ...(j.id ? jobView({ ...j, op }) : { state: j.state }), ...(j.existing ? { existing: true, note: 'the same job already runs: this is that job' } : {}) },
     warnings: [],
     next: j.id ? [
-      { tool: 'wf_wait', arguments: { op: 'talk wait', slug, as, job: j.id }, why: 'wait for the end of the job, or a message' },
+      { tool: 'wf_wait', arguments: { for: 'job', job: j.id, ...(slug === SERVER_JOBS ? {} : { slug }) }, why: 'wait for the end of the job' },
+      ...(slug === SERVER_JOBS ? [] : [{ tool: 'wf_wait', arguments: { op: 'talk wait', slug, as, job: j.id }, why: 'or wait for the end of the job and the messages of the run' }]),
       { tool: 'wf_job', arguments: { op: 'status', slug, job: j.id } },
     ] : [{ tool: 'wf_job', arguments: { op: 'list', slug } }],
   };
