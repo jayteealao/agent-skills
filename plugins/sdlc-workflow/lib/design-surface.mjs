@@ -19,7 +19,8 @@ import { pathToFileURL } from 'node:url';
 import { writeFileAtomic } from './atomic-write.mjs';
 import { withLock } from './file-lock.mjs';
 import { agentFix, refuse } from './fix.mjs';
-import { sdlcHomeDir } from './home.mjs';
+import { machineName, sdlcHomeDir } from './home.mjs';
+import { fetchImagesSync, foldFetch } from './records-images.mjs';
 import { boardsRef, missingBoardFiles } from './design-boards.mjs';
 import { approvalProblems } from './design-versions.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
@@ -354,6 +355,13 @@ export function missingScreens(root, contract) {
  */
 export function missingDesignFiles(root, workflowDir, contract) {
   if (!contract) return null;
+  // The images of a linked project may sit in the image store: fetch the absent ones first, and
+  // tell a file that cannot be fetched apart from a file that was never made.
+  const fetched = fetchImagesSync([workflowDir, surfaceDir(root)], { machine: machineName() });
+  return foldFetch(designProblems(root, workflowDir, contract), fetched, root);
+}
+
+function designProblems(root, workflowDir, contract) {
   if (Array.isArray(contract.screens) && contract.screens.length) {
     const missing = missingScreens(root, contract);
     return [...missing, ...approvalProblems(root, basename(workflowDir), contract).filter((p) => !missing.includes(p))];

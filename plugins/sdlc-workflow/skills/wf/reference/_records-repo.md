@@ -15,6 +15,12 @@ A project that is linked (`<wf> records link <root> <project>`) keeps its record
 
 When `~/.sdlc/config.json` of this computer sets `sync: compose` under `records`, `wf.mjs` commits nothing at a step. Each change is saved in the wf-dir, and the committer, one process per computer, sends the changes about one minute later. An answer, a message or a close goes at once. A command says `saved`, not `committed`. When the work must reach the remote now (a hand-over, or the end of a session), run `<wf> records flush <root> <slug>`: it waits for the push. Exit 1 means that the push did not land, and the line names the reason. A sync that failed, a workflow that another computer owns, or a change that waits over 5 minutes shows in the records line of the dispatch.
 
+### Images outside git
+
+When the machine config sets `images` under `records` (an image store), no image or video of the records enters a commit. Its reference, `<file>.img.json`, enters the commit in its place. A design image (under `_design/` or a `design*` folder) goes to the store. An evidence image stays on the computer that made it. The design gate fetches an absent design image before it judges. It says `cannot fetch <file>` when the store fails, and an evidence image of another computer fails no gate. `<wf> records images <root> --fetch` brings the absent images of the project in.
+
+Never write a reference file by hand, and never commit an image of the records: the sync does both.
+
 ## Records lines
 
 The dispatch prints one records line, or none when the records are in order. In the commands of the line, `wf.mjs` is `<wf>`.

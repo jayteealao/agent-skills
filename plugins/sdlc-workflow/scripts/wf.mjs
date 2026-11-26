@@ -60,6 +60,17 @@
  *   records  parked drop <root> <branch>
  *             delete a parked copy, after the person said yes
  *             Example: wf.mjs records parked drop . conflict/laptop-0123456789ab
+ *   records  images <root> [--fetch] [--json]
+ *             the images of the records outside git (records.images in the machine config): the
+ *             references, the images that wait for the store, and the images that stay on
+ *             another computer. --fetch brings the absent images of the project in
+ *             Example: wf.mjs records images . --fetch
+ *   records  rewrite <list|check|backup|export|mirror|verify> [<dir>] [--archive <path>]... [--json]
+ *             the steps of the history rewrite, which change neither the clone nor the remote:
+ *             list the images and archives of the history, check that no process writes, make a
+ *             bundle and restore it, give the images of HEAD their references (export), write a
+ *             rewritten mirror into <dir>, and verify it. The force push is the person's
+ *             Example: wf.mjs records rewrite list
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/.
  *             --to reads a project that is not linked here from the records repo, and a post
@@ -1924,6 +1935,66 @@ function slugAtDispatch(projectRoot, r, tokens, { reads = false } = {}) {
 
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
+  if (verb === 'images') {
+    const projectRoot = resolve(root ?? '.');
+    const project = linkedProject(projectRoot);
+    if (!project) { out(opt.json ? {} : 'records: local; images stay in the project'); return 0; }
+    const home = recordsHome();
+    const { imagesConfig, imageFiles, readRef, fetchImagesSync } = await import('../lib/records-images.mjs');
+    const cfg = imagesConfig();
+    const files = imageFiles(home, project);
+    const waiting = files.filter((f) => !readRef(join(home, ...f.split('/'))));
+    const fetched = opt.fetch ? fetchImagesSync([join(home, project)], { machine: machineName() }) : null;
+    const r = { store: cfg ? `${cfg.endpoint}/${cfg.bucket}` : null, images: files.length, waiting: waiting.length, ...(fetched ? { fetched: fetched.fetched?.length ?? 0, local: fetched.local ?? [], failed: fetched.failed ?? [], error: fetched.error } : {}) };
+    if (opt.json) { out(r); return fetched?.failed?.length || fetched?.error ? 1 : 0; }
+    out([
+      r.store ? `store: ${r.store}` : 'store: none (records.images is not set): images stay in git',
+      `${r.images} image(s) in ${project}; ${r.waiting} without a reference${cfg ? ' (they go at the next sync)' : ''}`,
+      ...(fetched ? [`fetched ${r.fetched}`, ...r.local.map((l) => `on ${l.machine} only: ${l.file}`), ...r.failed.map((f) => `cannot fetch ${f.file}: ${f.why}`), ...(r.error ? [`the fetch stopped: ${r.error}`] : [])] : []),
+    ].join('\n'));
+    return fetched?.failed?.length || fetched?.error ? 1 : 0;
+  }
+  if (verb === 'rewrite') {
+    const [, step, dir] = pos;
+    const home = recordsHome();
+    if (!existsSync(join(home, '.git'))) throw refuse(`no records clone at ${home}: a rewrite needs the clone of the records repo`, agentFix('Run it on the computer that holds the records clone (wf.mjs records status).'));
+    const rw = await import('../lib/records-rewrite.mjs');
+    const archives = [opt.archive ?? []].flat().map(String);
+    if (step === 'list') {
+      const l = rw.listHistory(home);
+      if (opt.json) { out(l); return 0; }
+      const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
+      out([`images and video: ${l.images.count} file(s), ${mb(l.images.bytes)}`, `other files: ${l.other.count}, ${mb(l.other.bytes)}`, `archives: ${l.archives.length}`, ...l.archives.slice(0, 200).map((a) => `  ${mb(a.bytes)}  ${a.path}`)].join('\n'));
+      return 0;
+    }
+    if (step === 'check') {
+      const problems = rw.checkQuiet(home);
+      out(opt.json ? problems : problems.length ? problems.join('\n') : 'the clone is quiet');
+      return problems.length ? 1 : 0;
+    }
+    if (step === 'export') {
+      const r = await rw.exportImages(home);
+      out(opt.json ? r : `${r.uploaded.length} design image(s) sent, ${r.local.length} evidence image(s) kept on this computer (${r.keptLocal} copied into the cache), ${r.failed.length} failed`);
+      return r.failed.length ? 1 : 0;
+    }
+    if (!dir) throw usage(`records rewrite ${step ?? '<step>'}: <dir> is required`);
+    if (step === 'backup') {
+      const r = rw.backupBundle(home, resolve(dir));
+      out(opt.json ? r : `bundle: ${r.bundle}\nrestored and compared: HEAD tree ${r.tree}`);
+      return 0;
+    }
+    if (step === 'mirror') {
+      const r = await rw.rewriteMirror(home, resolve(dir), { archives });
+      out(opt.json ? r : `mirror: ${r.mirror}\ncommit map: ${r.map}\n${r.dropped} path line(s) dropped`);
+      return 0;
+    }
+    if (step === 'verify') {
+      const problems = rw.verifyMirror(home, join(resolve(dir), 'mirror.git'), { archives });
+      out(opt.json ? problems : problems.length ? problems.join('\n') : 'the mirror passes: fsck, the same files at HEAD, no removed path in a commit');
+      return problems.length ? 1 : 0;
+    }
+    throw usage('records rewrite: the step is list, check, backup, export, mirror or verify');
+  }
   if (verb === 'parked') {
     const [, sub, r0, branch, path] = pos;
     const known = ['show', 'take', 'drop'];

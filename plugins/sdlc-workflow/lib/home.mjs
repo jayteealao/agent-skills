@@ -12,7 +12,7 @@
 // stderr line, not a failed hook.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 
 /**
@@ -38,6 +38,12 @@ export function readMachineConfig(home = sdlcHomeDir()) {
     const c = JSON.parse(readFileSync(machineConfigPath(home), 'utf-8'));
     return c && typeof c === 'object' && !Array.isArray(c) ? c : {};
   } catch { return {}; }
+}
+/** The name of this computer in the records: `records.machine` of the config, or the host name. */
+export function machineName(config = readMachineConfig()) {
+  const m = config.records?.machine;
+  const raw = m && String(m).trim() ? String(m).trim() : hostname();
+  return raw.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'machine';
 }
 export const lifecycleLogPath = (home = sdlcHomeDir()) => join(home, 'lifecycle.log');
 export const errorsLogPath = (home = sdlcHomeDir()) => join(home, 'errors.log');

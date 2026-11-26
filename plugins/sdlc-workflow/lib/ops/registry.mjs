@@ -21,7 +21,7 @@ const ROWS = {
   wf_read: 'record get | record list | record where | decide list | decide answered | findings list | findings table | findings metrics | talk read | talk list | msg list | msg read | inbox | design comments | step where',
   wf_query: `help | describe | skill-dir | target | cost | stamp | doctor | base check | slice-files | ship facts | defer check | progress show
     | profile show | profile timebox | profile hooks | consent check | standing suggest | standing list | standing check
-    | rule list | rule candidates | records status | records parked | records parked show | board digest | page brief | page check | gh status | talk resources | talk jobs
+    | rule list | rule candidates | records status | records images | records rewrite list | records rewrite check | records rewrite verify | records parked | records parked show | board digest | page brief | page check | gh status | talk resources | talk jobs
     | design next | design status | design doctor | design list | design tokens | design components | design versions | design approved
     | design state | design refs check | design capture-path | design server status | design server url | record evidence`,
   wf_run: `record put | record draft | record edit | record set | record stage-done | record migrate | findings add | findings set
@@ -39,7 +39,7 @@ const ROWS = {
   wf_act: `records link | records sync | records push | records flush | records close | records retry | records dismiss | records migrate
     | records claim | records release | records decline | records parked take | gh flush | gh backfill | setup | modernize | close | ship ready | ship merge | ship finish
     | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
-  wf_person: 'records take | records parked drop | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
+  wf_person: 'records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
 };
 
 // The flag with which an operation that writes only reads, so a read tool may run it.

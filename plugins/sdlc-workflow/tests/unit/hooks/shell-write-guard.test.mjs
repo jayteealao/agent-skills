@@ -22,6 +22,7 @@ const SYNCED = {
   '.test-receipt-<slice>.json': 'the green test run that verify reuses',
   '.implement-handover-<slice>.md': 'the handover of an implement that stopped',
   '.old': 'the old record files that a migration kept',
+  '.img.json': 'the reference of an image that left git: the commit holds it in place of the image',
 };
 // Dot files of the plugin that live outside the workflow folders.
 // `.tokens.json` is the end of the W3C token files of the design surface (.ai/design/dtcg/<theme>.tokens.json).

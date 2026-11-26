@@ -20,10 +20,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, cpSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import { hostname } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readMachineConfig, sdlcHomeDir } from './home.mjs';
+import { machineName, readMachineConfig, sdlcHomeDir } from './home.mjs';
+import { imagesConfig, isImage, uploadImagesSync } from './records-images.mjs';
 import { agentFix, personFix, refuse } from './fix.mjs';
 import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
 import { PROJECT_NAME_RE, isLocalOnly, linkedProject, localWorkflowsRoot, recordsHome } from './records-root.mjs';
@@ -50,11 +50,7 @@ export function timeoutOf(args, net) {
 const nowIso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** This machine's name in the records: `records.machine` of ~/.sdlc/config.json, else the host name. */
-export function machineName() {
-  const m = readMachineConfig().records?.machine;
-  const raw = m && String(m).trim() ? String(m).trim() : hostname();
-  return raw.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'machine';
-}
+export { machineName };
 
 /**
  * The random id of this computer: made once and kept in its own home, never in the records. Two
@@ -1121,9 +1117,19 @@ export function composeNow(home = recordsHome(), { project = null } = {}) {
   if (!existsSync(join(home, '.git'))) return { ok: false, error: `no records clone at ${home}` };
   const second = machineBlocked(home) ?? epochRefusal(home);
   if (second) return { ok: false, error: second };
+  // With an image store, the images go up first and their references come into the commit; an
+  // image itself never enters a commit. An upload that fails keeps its image back for the next sync.
+  const images = imagesConfig();
+  let up = null;
+  if (images) {
+    up = uploadImagesSync(home, { machine: machineName() });
+    const failed = up.error ? [{ path: '(images)', why: up.error }] : up.failed ?? [];
+    if (failed.length) logRecordsFailure({ project, step: 'images', error: `${failed.length} image(s) not sent to the store: ${failed.slice(0, 3).map((f) => `${f.path} (${f.why})`).join(', ')}` });
+  }
+  const held = (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : images && isImage(p) ? 'an image goes to the image store, not to git' : null);
   try {
-    const r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: mainBranch(home), held: (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : null) }));
-    return { ok: true, ...r };
+    const r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: mainBranch(home), held }));
+    return { ok: true, ...r, ...(up ? { images: { uploaded: up.uploaded?.length ?? 0, local: up.local?.length ?? 0, failed: up.error ? 1 : up.failed?.length ?? 0 } } : {}) };
   } catch (e) {
     logRecordsFailure({ project, step: 'compose', error: e.message });
     return { ok: false, error: e.message };
