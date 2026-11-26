@@ -79,6 +79,7 @@
  *   wf.board.move(keys, to, { newThread })
  *             move items to a thread, or to a new thread
  *             Example: wf.board.move(['i1', 'i2'], null, { newThread: { key: 't9', name: 'Sync' } })
+ *             (or wf.board.move(['i1', 'i2'], 't9', { newThread: { name: 'Sync' } }))
  *   wf.board.regroup(threads, area)
  *             put threads in an area
  *             Example: wf.board.regroup(['t1', 't2'], 'a1')
@@ -304,7 +305,11 @@ export function openWorkflow(root, slug, hooks = {}) {
   const board = {
     items: ({ thread = null } = {}) => read('board.items', 'board', [], () => boardItems(dir, { thread })),
     add: (kind, entries) => write('board.add', 'board', [kind], () => boardAdd(dir, kind, entries)),
-    move: (keys, to, { newThread = null } = {}) => write('board.move', 'board', keys, () => boardMove(dir, keys, to, { newThread })),
+    // move(keys, 'sync', { newThread: { name } }): the key of a new thread may come as `to`.
+    move: (keys, to, { newThread = null } = {}) => {
+      const fresh = newThread && !newThread.key && typeof to === 'string' ? { ...newThread, key: to } : newThread;
+      return write('board.move', 'board', keys, () => boardMove(dir, keys, fresh ? null : to, { newThread: fresh }));
+    },
     regroup: (threads, area) => write('board.regroup', 'board', threads, () => boardRegroup(dir, threads, area)),
     remove: (keys) => write('board.remove', 'board', keys, () => boardRemove(dir, keys)),
   };

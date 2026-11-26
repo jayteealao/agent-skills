@@ -18,13 +18,20 @@ const MODERN = '2026-07-28';
 export const TASKS = 'io.modelcontextprotocol/tasks';
 const LEGACY = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const TEXT_LIMIT = 40_000;
-// Short: which tool fits which job. The references and wf_query { "op": "help" } hold the rest.
-const INSTRUCTIONS = [
-  'The wf tools run /wf: use them, not a shell call of wf.mjs. Start with wf_context: the /wf words as argv, or a slug and a stage for the brief and its ready calls.',
-  'Read: wf_read (several reads in one call), wf_query (code that reads). Write records: wf_run. Steps of a slice: wf_step. Answers and held questions: wf_decide.',
-  'Long work: wf_job (it starts and returns a job id). Wait for a job, an answer or the next event of a run: wf_wait, and call it again with its `next`.',
-  'Git, GitHub and servers: wf_act. wf_person is only for a choice that the person made in this session: an agent never calls it.',
-].join(' ');
+// The call sheet: which tool fits which job, and the calls that agents make most, in their exact
+// form. Claude Code loads it at the start of every session, also when the tools are deferred, and
+// cuts it at 4,096 characters (tests/unit/mcp-ops.test.mjs). wf_query help holds the rest.
+export const INSTRUCTIONS = [
+  'The wf tools run /wf: use them, not a shell call of wf.mjs. An op is the words of the CLI ("step done"); a tool also takes its last words ("done"). Each result has `next`: the calls to make after it.',
+  'Start: wf_context { "slug", "stage" } gives the brief and its ready calls; wf_context { "argv": ["<word>", …] } runs the /wf words.',
+  'Read, several in one call: wf_read { "slug", "items": [{ "op": "record get", "name": ["index", "03-slice"] }, { "op": "decide list" }, { "op": "findings list", "open": true }] }. Read with code: wf_query { "slug", "code": "return wf.findings.list().filter((f) => f.severity === \'HIGH\')" }; wf.help(\'findings\') lists the functions.',
+  'Write records: wf_run { "op": "record set", "slug", "name": "03-slice", "path": ["slices[s4].status=in-progress", "slices[s5].status=in-progress"] } (several paths, one call); wf_run { "op": "slice drop", "slug", "slice", "reason" }; wf_run { "op": "findings set", "slug", "id", "status", "commit" }; wf_run { "slug", "code": "…" } makes several writes with code.',
+  'Steps of a slice, several in order: wf_step { "slug", "slice", "steps": [{ "op": "start", "n": 4, "title": "Docs" }, { "op": "done", "n": 4, "no-change": true }] }; wf_step { "op": "done_next", "slug", "slice", "n", "sha": "HEAD", "next_title" } ends step n (sha, or "no-change": true) and starts n + 1.',
+  'Decisions: wf_decide { "op": "decide add", "slug", "key", "question", "answer", "by": "stage" } records a choice of your own; "entries": [{ "key", "question", "answer", "by" }, …] records several. A question for the person: wf_decide { "op": "decide hold", "slug", "key", "question", "options": "a|b", "recommended" }, then wf_wait { "op": "decide wait", "slug", "key" }.',
+  'Long work: wf_job { "op": "profile run", "suite": "fast" } starts a job and returns its id; wf_wait { "for": "job", "job": "<id>" } waits for its end; wf_wait { "for": "run", "slug", "cursor" } waits for the next event of a run. Call a wait again with its `next` until it ends.',
+  'Git, GitHub, servers and worktrees: wf_act. wf_person records a choice that the person made in this session, and the host asks the person to confirm it: an agent never calls it, it holds the question.',
+  'Help: wf_query { "op": "help", "command": "<word or op>" } gives the tool, the fields and the call of each op. A call with a wrong field fails with the field it most likely means and the corrected `call`.',
+].join('\n');
 
 const root = () => resolveProjectRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
 const log = (...a) => process.stderr.write(`wf-mcp: ${a.join(' ')}\n`);
@@ -35,8 +42,15 @@ export function toolResult(r) {
   let text = JSON.stringify(r);
   let structured = r;
   if (text.length > TEXT_LIMIT) {
-    structured = { ...r, data: typeof r.data === 'string' ? `${r.data.slice(0, TEXT_LIMIT - 200)}\n…` : null, truncated: true, warnings: [...(r.warnings ?? []), `the result had ${text.length} characters; ask for less (a section, a field, a filter)`] };
-    text = JSON.stringify(structured);
+    // The start of the data stays: text as it is, an object as the start of its JSON text.
+    // Quotes in the cut text are escaped again in the result, so the cut shrinks until it fits.
+    const body = typeof r.data === 'string' ? r.data : JSON.stringify(r.data, null, 1);
+    const said = `the result had ${text.length} characters, so data is the start of it as text; ask for less (a section, a field, a filter, or help of one command)`;
+    for (let n = TEXT_LIMIT - 2000; ; n = Math.floor(n * 0.8)) {
+      structured = { ...r, data: `${body.slice(0, n)}\n…`, truncated: true, warnings: [...(r.warnings ?? []), said] };
+      text = JSON.stringify(structured);
+      if (text.length <= TEXT_LIMIT || n < 1000) break;
+    }
   }
   return { content: [{ type: 'text', text }], structuredContent: structured, isError: !r.ok };
 }

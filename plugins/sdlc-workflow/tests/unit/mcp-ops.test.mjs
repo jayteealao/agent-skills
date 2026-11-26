@@ -12,7 +12,15 @@ import { SIBLINGS, allOps, argvOf, callOf, headerBlocks } from '../../lib/ops/fo
 import { fixOf, workerEnv } from '../../lib/ops/invoke.mjs';
 import { coverage, refusal, registry } from '../../lib/ops/registry.mjs';
 import { callOfCommand, fullOp, toolList } from '../../mcp/tools.mjs';
-import { handle, toolResult } from '../../mcp/server.mjs';
+import { INSTRUCTIONS, handle, toolResult } from '../../mcp/server.mjs';
+
+// Claude Code cuts the instructions of a server and each description of a tool that loads at the
+// start at 4,096 characters, with no warning: the text past the cut is lost.
+test('the instructions and every tool description fit in 4,096 characters', async () => {
+  assert.ok(INSTRUCTIONS.length <= 4096, `the instructions have ${INSTRUCTIONS.length} characters`);
+  for (const t of await toolList()) assert.ok(t.description.length <= 4096, `${t.name} has ${t.description.length} characters`);
+  for (const t of ['wf_context', 'wf_read', 'wf_query', 'wf_run', 'wf_step', 'wf_decide', 'wf_wait', 'wf_job', 'wf_act', 'wf_person']) assert.ok(INSTRUCTIONS.includes(t), `the instructions name ${t}`);
+});
 
 const words = (line) => [...line.matchAll(/"([^"]*)"|(\S+)/g)].map((m) => m[1] ?? m[2]);
 const examples = () => headerBlocks().flatMap((b) => [...b.about.matchAll(/Example:\s*(.*?)(?=\s+Example:|$)/g)].map((m) => m[1]));
@@ -118,6 +126,10 @@ test('the server speaks both handshakes and returns the same JSON as text and as
   assert.deepEqual(JSON.parse(r.content[0].text), r.structuredContent);
   const big = toolResult({ ok: true, data: 'x'.repeat(50_000) });
   assert.ok(big.content[0].text.length < 41_000 && big.structuredContent.truncated);
+  // A big object keeps the start of its JSON text, and the cut fits though its quotes are escaped.
+  const obj = toolResult({ ok: true, data: Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`"key${i}"`, { a: '"q"', b: [i] }])) });
+  assert.ok(obj.content[0].text.length <= 40_000, `${obj.content[0].text.length}`);
+  assert.match(obj.structuredContent.data, /^\{\n "\\"key0\\""/);
   assert.equal((await handle({ id: 3, method: 'nosuch' })).error.code, -32601);
 });
 

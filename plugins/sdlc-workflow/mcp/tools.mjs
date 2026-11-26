@@ -137,10 +137,19 @@ function schemaOf(tool) {
   };
 }
 
+/**
+ * The tools that load only when an agent searches for them. wf_person alone: an agent never calls
+ * it, and the agents of a Workflow may have no tool search, so every tool that they call loads at
+ * the start.
+ */
+export const DEFERRED = new Set(['wf_person']);
+
 export function toolList() {
   return TOOLS.map((name) => ({
     name,
-    description: `${ABOUT[name]} Operations: ${opsOf(name).join(', ')}. The fields of an operation: wf_query { "op": "help", "command": "<first word>" }.${name === 'wf_query' || name === 'wf_run' ? codeAbout(name) : ''}`,
+    // The op enum of the schema lists the operations of a loaded tool; a deferred tool names them
+    // in its description too, because the tool search matches the description.
+    description: `${ABOUT[name]}${DEFERRED.has(name) ? ` Operations: ${opsOf(name).join(', ')}.` : ''} The fields of an operation: wf_query { "op": "help", "command": "<op>" }.${name === 'wf_query' || name === 'wf_run' ? codeAbout(name) : ''}`,
     inputSchema: schemaOf(name),
     annotations: {
       readOnlyHint: READ_TOOLS.has(name),
@@ -148,7 +157,7 @@ export function toolList() {
       openWorldHint: name === 'wf_act',
       idempotentHint: READ_TOOLS.has(name),
     },
-    _meta: { ...(name === 'wf_person' ? { 'anthropic/requiresUserInteraction': true } : {}), 'anthropic/alwaysLoad': true },
+    _meta: { ...(name === 'wf_person' ? { 'anthropic/requiresUserInteraction': true } : {}), 'anthropic/alwaysLoad': !DEFERRED.has(name) },
   }));
 }
 
@@ -172,10 +181,21 @@ export function callOfCommand(command) {
   return row ? { tool: row.tool, arguments: { op: c.op, ...fields } } : null;
 }
 
+/** The tool call of an operation with its fields: `{ tool, arguments }`, ready to copy. */
+function toolCallOf(op, fields = {}) {
+  const row = registry().get(op);
+  if (!row) return null;
+  const { root, json, ...rest } = fields;
+  return { tool: row.tool, arguments: { op, ...rest } };
+}
+
 const result = (r) => {
   if (r.ok) return { ok: true, ...(r.exit ? { exit: r.exit } : {}), data: r.data, warnings: r.warnings ?? [], next: r.next ?? [] };
-  const call = callOfCommand(r.error?.command);
-  return { ok: false, error: { message: r.error?.message ?? 'failed', who: r.error?.who ?? 'agent', ...(r.error?.do ? { fix: r.error.do } : {}), ...(r.error?.command ? { command: r.error.command } : {}), ...(call ? { call } : {}) } };
+  // The corrected call of a field error, as the tool call; else the fix command of wf.mjs as one.
+  const own = r.error?.call?.op ? toolCallOf(r.error.call.op, r.error.call.fields) : null;
+  const call = own ?? callOfCommand(r.error?.command);
+  const fix = r.error?.do ?? (typeof r.error?.fix === 'string' ? r.error.fix : null);
+  return { ok: false, error: { message: r.error?.message ?? 'failed', who: r.error?.who ?? 'agent', ...(fix ? { fix } : {}), ...(r.error?.command ? { command: r.error.command } : {}), ...(call ? { call } : {}) } };
 };
 
 const fail = (message, more = {}) => ({ ok: false, error: { message, who: 'agent', ...more } });
@@ -290,6 +310,11 @@ export async function callTool(name, args = {}, ctx = {}) {
   if (name === 'wf_job' && !args.wait && op !== 'talk job') return startOpJob(op, args, ctx, caller);
   if (name === 'wf_wait') return waitCall(op, args, run);
   if (name === 'wf_query' && op === 'help') return helpCall(args, run);
+  // describe of one command: its help, which names the calls (describe of all is the whole registry).
+  if (name === 'wf_query' && op === 'describe' && args.command) {
+    const h = await helpCall({ ...args, op: 'help' }, run);
+    return { ...h, warnings: ['describe takes no command: this is the help of the command', ...(h.warnings ?? [])] };
+  }
   const { wait, ...rest } = args;
   return run(op, strip(rest), READ_TOOLS.has(name) ? { SDLC_MCP_READ: '1' } : {});
 }
@@ -393,7 +418,7 @@ function startOpJob(op, args, ctx, caller) {
   const inl = inlineFields(root, op, fields);
   if (inl.error) return fail(inl.error);
   const c = commandOf(op, inl.fields, root);
-  if (c.error) return fail(c.error.message, c.error.fix ? { fix: c.error.fix } : {});
+  if (c.error) return result({ ok: false, error: c.error });
   const slug = jobSlug(args);
   const checkout = args.checkout ?? root;
   const sorted = Object.fromEntries(Object.entries(fields).sort(([a], [b]) => a.localeCompare(b)));

@@ -47,6 +47,25 @@ test('wf_query help: the tool, the fields and the call of each operation that th
   } finally { p.done(); }
 });
 
+test('code mode: board.move takes the key of a new thread as `to` too', async () => {
+  const p = project({ findings: false, suite: false });
+  try {
+    const r = await callTool('wf_run', { slug: SLUG, code: "wf.board.move(['i1', 'i2'], 'sync', { newThread: { name: 'Sync engine' } }); return wf.board.items({ thread: 'sync' }).map((i) => i.key);" }, { root: p.root });
+    assert.equal(r.ok, true, JSON.stringify(r.error));
+    assert.deepEqual(r.data, ['i1', 'i2']);
+  } finally { p.done(); }
+});
+
+test('describe of one command is its help, with the calls', async () => {
+  const p = project({ findings: false, suite: false });
+  try {
+    const r = await callTool('wf_query', { op: 'describe', command: 'slice drop' }, { root: p.root });
+    assert.equal(r.ok, true, JSON.stringify(r.error));
+    assert.equal(r.calls[0].tool, 'wf_run');
+    assert.match(r.warnings[0], /describe takes no command/);
+  } finally { p.done(); }
+});
+
 test('a job of no workflow points to its wait, and the wait gives its end', async () => {
   const p = project({ findings: false });
   try {
