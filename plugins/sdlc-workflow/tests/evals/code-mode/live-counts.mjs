@@ -41,6 +41,7 @@ const bump = (o, k, n = 1) => { o[k] = (o[k] ?? 0) + n; };
 /** Add the calls of wf of one transcript to the counts. */
 export async function countFile(file, counts, { since = null, until = null, parseCliLine = null } = {}) {
   const sub = /[\\/]subagents[\\/]/.test(file);
+  const vars = new Set();
   const rl = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
   for await (const line of rl) {
     if (!line.includes('tool_use')) continue;
@@ -60,7 +61,7 @@ export async function countFile(file, counts, { since = null, until = null, pars
         continue;
       }
       if (!['Bash', 'PowerShell'].includes(b.name)) continue;
-      const n = wfShellCalls(b.input?.command);
+      const n = wfShellCalls(b.input?.command, vars);
       if (!n) continue;
       who.shell += n;
       who.sessions.add(e.sessionId ?? file);

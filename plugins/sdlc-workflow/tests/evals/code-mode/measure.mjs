@@ -15,8 +15,20 @@ const WF_CLI = /^\s*(&\s*)?node(\.exe)?\s+["']?[^"'\s]*wf\.mjs["']?\s/;
 const WF_SCRIPT_CALL = /(?:^|[\s;&|(])(?:&\s*)?node(?:\.exe)?\s+["']?[^"'\s|;&]*[\/](?:wf|campaign|orchestrate|optimize|goal|prototype|ideate-sources|design-boards)\.mjs["']?(?=\s|$)/g;
 const WF_TOOL = /^mcp__(?:plugin_sdlc-workflow_)?wf__(wf_[a-z]+)$/;
 
-/** The number of calls of a wf script in one shell command. */
-export const wfShellCalls = (command) => [...String(command ?? '').matchAll(WF_SCRIPT_CALL)].length;
+// A shell variable that holds the path of a wf script: $wf = "...\wf.mjs" (PowerShell), or WF=".../wf.mjs" (sh).
+const SCRIPT_VAR = /(?:^|[\s;&|(])(?:\$(?:env:)?|export\s+)?([A-Za-z_]\w*)\s*=\s*["']?[^"'\s;|&]*[\\/](?:wf|campaign|orchestrate|optimize|goal|prototype|ideate-sources|design-boards)\.mjs["']?/g;
+const VAR_CALL = /(?:^|[\s;&|(])(?:&\s*)?node(?:\.exe)?\s+["']?\$(?:env:)?\{?([A-Za-z_]\w*)\}?["']?(?=\s|$)/g;
+
+/**
+ * The number of calls of a wf script in one shell command. `vars` holds the names of the shell
+ * variables that hold a wf script; it carries over from one command to the next of a transcript.
+ */
+export function wfShellCalls(command, vars = new Set()) {
+  const c = String(command ?? '');
+  for (const m of c.matchAll(SCRIPT_VAR)) vars.add(m[1].toLowerCase());
+  const byVar = [...c.matchAll(VAR_CALL)].filter((m) => vars.has(m[1].toLowerCase())).length;
+  return [...c.matchAll(WF_SCRIPT_CALL)].length + byVar;
+}
 /** The wf tool of a tool name (wf_read), or null. */
 export const wfToolOf = (name) => WF_TOOL.exec(String(name ?? ''))?.[1] ?? null;
 
@@ -30,6 +42,7 @@ export function writesAround(command = '', path = null) {
 function claude(lines) {
   const m = { calls: 0, invalid: 0, tokens: 0, outsideWrites: 0, answer: null, tools: null, wfMcp: 0, wfShell: 0, wfCode: 0, wfDenied: 0 };
   const wfIds = new Set();
+  const vars = new Set();
   for (const e of lines) {
     if (e.type === 'system' && e.subtype === 'init') m.tools = e.tools ?? null;
     else if (e.type === 'assistant') {
@@ -38,7 +51,7 @@ function claude(lines) {
         m.calls += 1;
         const i = b.input ?? {};
         const tool = wfToolOf(b.name);
-        const shell = ['Bash', 'PowerShell'].includes(b.name) ? wfShellCalls(i.command) : 0;
+        const shell = ['Bash', 'PowerShell'].includes(b.name) ? wfShellCalls(i.command, vars) : 0;
         if (tool) { m.wfMcp += 1; wfIds.add(b.id); if ((tool === 'wf_run' || tool === 'wf_query') && i.code) m.wfCode += 1; }
         if (shell) { m.wfShell += shell; wfIds.add(b.id); }
         if (writesAround(i.command ?? '', ['Write', 'Edit', 'NotebookEdit'].includes(b.name) ? i.file_path : null)) m.outsideWrites += 1;

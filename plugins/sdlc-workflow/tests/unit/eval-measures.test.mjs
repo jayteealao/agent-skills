@@ -12,6 +12,12 @@ test('a call of a wf script is counted; the name of the script in other text is 
   assert.equal(wfShellCalls('cd x; node /p/wf.mjs step done . a b 1'), 1);
   assert.equal(wfShellCalls('git commit -m "fix wf.mjs"'), 0);
   assert.equal(wfShellCalls('rg wf.mjs lib'), 0);
+  // A wf script in a shell variable, also in a later command of the same transcript.
+  const vars = new Set();
+  assert.equal(wfShellCalls('$wf="C:\\p\\scripts\\wf.mjs"; node $wf help decide; node $wf decide list . x', vars), 2);
+  assert.equal(wfShellCalls('node $wf status .', vars), 1);
+  assert.equal(wfShellCalls('WF=/p/wf.mjs; node "$WF" status .'), 1);
+  assert.equal(wfShellCalls('node $other status .', vars), 0);
   assert.equal(wfToolOf('mcp__plugin_sdlc-workflow_wf__wf_read'), 'wf_read');
   assert.equal(wfToolOf('mcp__wf__wf_step'), 'wf_step');
   assert.equal(wfToolOf('mcp__other__wf_read'), null);
