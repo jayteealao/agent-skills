@@ -11,7 +11,7 @@
 // push carries it. Each push that fails, and the first push that works after it, writes a line
 // to the records log, which the dispatch reads.
 //
-// A pull runs at three points only: when this computer claims the lease of a workflow, at
+// A pull runs at three points only: when this computer claims or takes over a workflow, at
 // `records sync`, and at `msg list`. The dispatch commits nothing and fetches nothing.
 //
 // The clone of an older version kept each open workflow on a branch `live/<project>/<slug>`.
@@ -212,27 +212,10 @@ function updateState(fn) {
   });
 }
 
-/** Note that this machine holds (or no longer holds) the lease of a workflow, so a lost lease can be told apart. */
-export function markHeld(key, on) {
-  updateState((s) => {
-    s.held = { ...(s.held ?? {}) };
-    if (on) s.held[key] = nowIso(); else delete s.held[key];
-  });
-}
-
 /** Note that the pull after a claim is owed (true), or that a pull worked (false). */
 export function markPullOwed(on) {
   if (Boolean(readState().pullOwed) === on) return;
   updateState((s) => { if (on) s.pullOwed = nowIso(); else delete s.pullOwed; });
-}
-
-/** Note that the lease of a closed workflow is released at the next push that works, or no longer is. */
-export function markReleaseOwed(key, on) {
-  if (Boolean(readState().releaseOwed?.[key]) === on) return;
-  updateState((s) => {
-    s.releaseOwed = { ...(s.releaseOwed ?? {}) };
-    if (on) s.releaseOwed[key] = nowIso(); else delete s.releaseOwed[key];
-  });
 }
 
 /** The log of the records steps that failed: one JSON line each, in ~/.sdlc/records-log.jsonl. */
@@ -1041,7 +1024,7 @@ export function commitRecords({ root = null, project = null, label }) {
 /**
  * Close a workflow: a normal records commit of its folder, then the push of the clone, in this
  * process's time. Returns `{ ok, commit, pushed, sent, reason }`, or null when unlinked. `sent` is false when
- * a remote exists and the push failed: the workflow is closed here, and its lease must stay.
+ * a remote exists and the push failed: the workflow is closed here, and this computer stays its owner.
  */
 export function closeRecords(root, slug) {
   const project = linkedProject(root);
@@ -1067,7 +1050,7 @@ export function machineFactsPath(home = recordsHome(), machine = machineName()) 
 function machineNames(home) {
   try { return readdirSync(join(home, '.machines')).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort(); } catch { return []; }
 }
-/** The number of computers that `.machines/` of the clone lists. The lease runs only from two. */
+/** The number of computers that `.machines/` of the clone lists. The dispatch asks for a claim only from two. */
 export const machineCount = (home = recordsHome()) => machineNames(home).length;
 export function readMachineFacts(home = recordsHome(), machine = machineName()) {
   try { return JSON.parse(readFileSync(machineFactsPath(home, machine), 'utf8')); } catch { return { machine, projects: {}, reads: {} }; }
@@ -1092,8 +1075,8 @@ export function writeMachineFacts(root, change = {}, { push = true } = {}) {
 
 /**
  * Pull the work of other machines and push the work of this one. The uncommitted files of the
- * project go into commits first. Then the main branch pulls (fetch and rebase) and pushes; the
- * leases come with the fetch. Returns `{ project, pulled, pushed, conflicts, offline }`, where
+ * project go into commits first. Then the main branch pulls (fetch and rebase) and pushes.
+ * Returns `{ project, pulled, pushed, conflicts, offline }`, where
  * `pulled` names the workflows of the project that the pull changed.
  */
 export function syncRecords(root) {
@@ -1108,7 +1091,7 @@ export function syncRecords(root) {
   if (!hasRemote(home)) { out.offline = true; return out; }
   const main = mainBranch(home);
   if (composeOn()) return composeInto(out, home, project, main);
-  const f = gitIn(home, ['fetch', '-q', '--prune', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`, '+refs/leases/*:refs/leases/*'], { net: true });
+  const f = gitIn(home, ['fetch', '-q', '--prune', 'origin', `+refs/heads/${main}:refs/remotes/origin/${main}`], { net: true });
   if (f.status !== 0) { out.offline = true; return out; }
   const pull = pullRecords(home, { fetched: true });
   if (!pull.ok) { out.conflicts.push(`${main}: ${pull.reason}`); return out; }

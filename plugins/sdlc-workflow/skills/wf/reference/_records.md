@@ -115,7 +115,7 @@ The command reads the file, merges the change and writes the file in one step, u
 
 ## A linked project
 
-A project that is linked to a records repo keeps each wf-dir in a clone, and the steps above do not change. The check refuses a write by a path in `.ai/workflows/` of a linked project, and names the wf-dir path. The rules of the clone, the lease, messages and the GitHub layer are in [_records-repo.md](_records-repo.md).
+A project that is linked to a records repo keeps each wf-dir in a clone, and the steps above do not change. The check refuses a write by a path in `.ai/workflows/` of a linked project, and names the wf-dir path. The rules of the clone, the owner of a workflow, messages and the GitHub layer are in [_records-repo.md](_records-repo.md).
 
 ## Workflows of the old layout
 

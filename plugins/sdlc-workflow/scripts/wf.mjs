@@ -23,7 +23,7 @@
  *             the records repo: link a project (its records move into the clone, and each
  *             workflow gets its issue), show the clone (--problems: only the failed pushes, the
  *             conflicts and the files in no commit, at most 40 lines), pull the work of other
- *             machines, push the clone, close a workflow (commit, push, release its lease), the
+ *             machines, push the clone, close a workflow (send it; it stays owned until the push lands), the
  *             two answers to a records question of the dispatch (retry: commit the workflow again
  *             and push and flush in the background; dismiss: ask again only about a newer
  *             failure), and move the live branches of an older version onto the main branch once.
@@ -32,12 +32,34 @@
  *             Example: wf.mjs records status . --problems
  *             Example: wf.mjs records flush . demo
  *             Example: wf.mjs records migrate --dry-run
- *   lease    <claim|release|show|decline> <root> <slug> [--take] [--host h] [--json]
- *             the lease of a workflow: the one machine that writes its records now, when two or
- *             more machines are registered. A new claim also pulls (--take: an expired lease of
- *             another machine, after the person said yes; decline: the answer no to a lease
- *             question, exit 1)
- *             Example: wf.mjs lease claim . demo
+ *   records  claim <root> <slug> [--json]
+ *             make this computer the owner of a workflow: fetch and apply, write the owner file,
+ *             send it. The work starts when the push lands; exit 1 when another computer owns it
+ *             Example: wf.mjs records claim . demo
+ *   records  take <root> <slug> [--json]
+ *             the claim of a workflow that another computer owns, after the person said yes: its
+ *             later work there is parked, not lost
+ *             Example: wf.mjs records take . demo
+ *   records  release <root> <slug> [--to <machine>] [--json]
+ *             send the workflow, then give it up (--to: hand it to that computer), then send
+ *             that. When a push fails, this computer stays the owner
+ *             Example: wf.mjs records release . demo --to laptop
+ *   records  decline <root> <slug>
+ *             the answer no to a claim or take-over question: the key does not run here (exit 1)
+ *             Example: wf.mjs records decline . demo
+ *   records  parked <root> [--json]
+ *             the copies that a sync parked on conflict branches, because another computer owned
+ *             their workflow
+ *             Example: wf.mjs records parked .
+ *   records  parked show <root> <branch> [--json]
+ *             the files that a parked copy holds and the remote does not
+ *             Example: wf.mjs records parked show . conflict/laptop-0123456789ab
+ *   records  parked take <root> <branch> <path>
+ *             copy one file of a parked copy into the live folder; only the owner of its workflow
+ *             Example: wf.mjs records parked take . conflict/laptop-0123456789ab notes/demo/notes.md
+ *   records  parked drop <root> <branch>
+ *             delete a parked copy, after the person said yes
+ *             Example: wf.mjs records parked drop . conflict/laptop-0123456789ab
  *   msg      <post|list|read> <root> <slug> [<id>] [--kind k --text t] [--to <project>] [--unread]
  *             messages between machines and projects: one file each in the workflow's inbox/.
  *             --to reads a project that is not linked here from the records repo, and a post
@@ -652,8 +674,8 @@ import { closeCandidates, closeWorkflow } from '../lib/closing.mjs';
 import { needsSetup, setupProject } from '../lib/setup.mjs';
 import { MAX_FAILS, backfill, flushOutbox, issueComments, layerOf, layerStatus, noteMessage, readOutbox } from '../lib/github-layer.mjs';
 import { afterChange } from '../lib/after-change.mjs';
-import { SAVED, closeRecords, commitWorkflow, dismissRecords, flushRecords, inBackground, linkProject, logRecordsEvent, machineName, markReleaseOwed, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
-import { claimAndPull, releaseLease, releaseOwed, renewIfMine, showLease } from '../lib/leases.mjs';
+import { SAVED, closeRecords, commitWorkflow, dismissRecords, flushRecords, inBackground, linkProject, logRecordsEvent, machineName, migrateLive, productRepoGapLines, productRepoGaps, pullRecords, pushRecords, recordsProblems, recordsStatus, syncRecords } from '../lib/records-sync.mjs';
+import { claimWorkflow, dropParked, listParked, releaseWorkflow, showParked, takeParked } from '../lib/records-owners.mjs';
 import { recordsLine } from '../lib/records-line.mjs';
 import { importComments, listMessages, postMessage, readMessage } from '../lib/messages.mjs';
 import { checkPage, pageBrief, putPage } from '../lib/brainstorm-page.mjs';
@@ -706,7 +728,7 @@ export { briefText, defOfType, setRecordPaths, statusBrief, statusOf };
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|skill-dir|status|target|index|cost|stamp|decide|talk|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|lease|msg|page|modernize|design|drive> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|skill-dir|status|target|index|cost|stamp|decide|talk|step|progress|profile|defer|brief|findings|record|consent|base|ship|close|setup|gh|records|msg|page|modernize|design|drive> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -825,7 +847,7 @@ async function runDispatch(pos, opt) {
   const safe = tokens.map((t) => (t === UNSAFE || SAFE_TOKEN.test(t) ? t : UNSAFE));
   const projectRoot = resolve(root);
   // The dispatch commits nothing and fetches nothing: a records commit pushes in the background,
-  // and the pull runs at a claim of the lease, at `records sync` and at `msg list`.
+  // and the pull runs at a claim or take-over, at `records sync` and at `msg list`.
   const r = dispatch(loadRegistry(PLUGIN_ROOT), safe, diskFacts(projectRoot), { host: opt.host ?? null });
   const linked = linkedProject(projectRoot);
   const layer = layerOf(projectRoot);
@@ -833,7 +855,7 @@ async function runDispatch(pos, opt) {
   // The folder of the workflow that the call names, status too: every reference path is in it.
   const wfSlug = slugAtDispatch(projectRoot, r, safe, { reads: true });
   r.wfDir = wfSlug ? workflowDir(projectRoot, wfSlug) : null;
-  // One records line, or none when all is well: the lease (two or more computers), the last
+  // One records line, or none when all is well: the owner of the workflow, the last
   // push, and the last flush of the GitHub layer.
   // A call of the MCP server only reads (SDLC_MCP_READ=1): no claim, no pull, no rebuild, nothing in the background.
   const readOnly = process.env.SDLC_MCP_READ === '1';
@@ -1902,6 +1924,57 @@ function slugAtDispatch(projectRoot, r, tokens, { reads = false } = {}) {
 
 async function runRecords(pos, opt) {
   const [verb, root, arg] = pos;
+  if (verb === 'parked') {
+    const [, sub, r0, branch, path] = pos;
+    const known = ['show', 'take', 'drop'];
+    const at = known.includes(sub) ? sub : null;
+    const home = recordsHome();
+    const where = at ? r0 : sub;
+    if (where && !linkedProject(resolve(where))) { out(opt.json ? [] : 'records: local; no parked copy'); return 0; }
+    if (!at) {
+      const list = listParked(home);
+      out(opt.json ? list : list.length ? list.map((p) => `${p.branch}${p.mine ? ' (this computer)' : ''}`).join('\n') : 'records: no parked copy');
+      return 0;
+    }
+    if (!r0 || !branch) throw usage(`records parked ${at}: <root> <branch> are required`);
+    if (at === 'show') {
+      const files = showParked(branch, home);
+      out(opt.json ? files : files.length ? files.map((f) => `${f.status} ${f.path}`).join('\n') : `${branch} holds nothing that the remote lacks`);
+      return 0;
+    }
+    if (at === 'take') {
+      if (!path) throw usage('records parked take: <root> <branch> <path> are required');
+      takeParked(resolve(r0), branch, path, home);
+      out(`took ${path} from ${branch}; the records sync sends it`);
+      return 0;
+    }
+    dropParked(branch, home);
+    out(`dropped ${branch}`);
+    return 0;
+  }
+  if (['claim', 'take', 'release', 'decline'].includes(verb)) {
+    if (!root || !arg) throw usage(`records ${verb}: <root> <slug> are required`);
+    const projectRoot = resolve(root);
+    // The answer no to a claim or take-over question of the dispatch: the key does not run here.
+    if (verb === 'decline') { out(`${arg}: not run on this computer; another computer may write it`); return 1; }
+    const r = verb === 'release' ? releaseWorkflow(projectRoot, arg, { to: opt.to ?? null }) : claimWorkflow(projectRoot, arg, { take: verb === 'take' });
+    if (r.ok && verb !== 'release') await reconcileIndex(projectRoot);
+    if (opt.json) { out(r); return r.ok ? 0 : 1; }
+    if (r.linked === false) { out('records: local; no owner'); return 0; }
+    if (r.ok) {
+      if (r.warning) process.stderr.write(`wf.mjs: ${r.warning}\n`);
+      out(verb === 'release' ? `${arg}: ${r.owner ? `handed to ${r.owner.machine}` : 'released'}` : `${arg}: owned by ${r.owner.machine}${r.already ? '' : ` (epoch ${r.owner.epoch})`}${r.took ? `, taken over from ${r.took.machine}` : ''}`);
+      return 0;
+    }
+    if (r.owned) {
+      out(`${arg}: owned by ${r.owned.machine}${r.facts?.lastPush ? `, last sent at ${r.facts.lastPush}` : ''}${r.facts?.stage ? `, at the stage ${r.facts.stage}` : ''}`);
+      printFix(personFix(`Another computer owns ${arg}. Ask the person; after a yes, take it over with wf.mjs records take.`, `wf.mjs records take ${word(root)} ${word(arg)}`));
+      return 1;
+    }
+    out(`not done: ${r.reason}`);
+    if (r.fix) printFix(r.fix);
+    return 1;
+  }
   if (verb === 'migrate') {
     const r = migrateLive(recordsHome(), { dryRun: Boolean(opt['dry-run']) });
     if (opt.json) { out(r); return r.failed.length ? 1 : 0; }
@@ -2001,7 +2074,6 @@ async function runRecords(pos, opt) {
   }
   if (verb === 'sync') {
     const r = syncRecords(projectRoot);
-    if (r?.pushed) releaseOwed();
     if (r?.pulled.length) await reconcileIndex(projectRoot);
     out(opt.json ? r : !r ? 'records: local; nothing to sync' : r.offline ? 'records: offline' : `pulled ${r.pulled.join(', ') || 'nothing'}; ${r.pushed ? 'pushed' : 'not pushed'}${r.conflicts.length ? `; conflicts: ${r.conflicts.join('; ')}` : ''}`);
     return r?.conflicts?.length ? 1 : 0;
@@ -2009,49 +2081,19 @@ async function runRecords(pos, opt) {
   if (verb === 'push') {
     // This step runs in the background with no output: pushRecords writes a failure into the records log.
     const r = pushRecords(recordsHome());
-    if (r.pushed) releaseOwed();
-    if (arg && linkedProject(projectRoot)) renewIfMine(projectRoot, arg);
     out(opt.json ? r : r.pushed ? 'pushed' : `not pushed: ${r.reason ?? (r.offline ? 'offline' : 'unknown')}`);
     return r.pushed ? 0 : 1;
   }
   if (!arg) throw usage(`records ${verb}: <slug> is required`);
   if (verb === 'close') {
     const r = closeRecords(projectRoot, arg);
-    // The lease stays until the push lands: another computer must not continue without this work.
-    if (r?.ok && r.sent) {
-      const free = releaseLease(projectRoot, arg);
-      if (!free.ok && !free.held) markReleaseOwed(`${linkedProject(projectRoot)}/${arg}`, true);
-    } else if (r?.ok) {
-      markReleaseOwed(`${linkedProject(projectRoot)}/${arg}`, true);
-      r.fix = agentFix('The workflow is closed on this computer and its push failed. Run the push again when the remote can be reached: it also releases the lease.', `wf.mjs records push ${word(root)} ${word(arg)}`);
-    }
+    // A close that is not sent stays owned by this computer: another one must not continue without this work.
+    if (r?.ok && !r.sent) r.fix = agentFix('The workflow is closed on this computer and its push failed, so this computer still owns it. Send it when the remote can be reached.', `wf.mjs records flush ${word(root)} ${word(arg)}`);
     out(opt.json ? r : !r ? 'records: local' : !r.ok ? r.reason : r.sent ? `closed ${arg}${r.pushed ? '' : `; not pushed: ${r.reason ?? 'offline'}`}` : `closed ${arg}, not sent: ${r.reason ?? 'offline'}`);
     if (r?.fix && !opt.json) printFix(r.fix);
     return !r || (r.ok && r.sent) ? 0 : 1;
   }
   throw usage(`records: unknown verb ${verb}`);
-}
-
-async function runLease(pos, opt) {
-  const [verb, root, slug] = pos;
-  if (!['claim', 'release', 'show', 'decline'].includes(verb) || !root || !slug) throw usage('lease: <claim|release|show|decline> <root> <slug> are required');
-  const projectRoot = resolve(root);
-  // The answer no to a lease question of the dispatch: the key does not run on this computer.
-  if (verb === 'decline') { out(`${slug}: not run on this computer; another computer may write it`); return 1; }
-  const r = verb === 'claim' ? claimAndPull(projectRoot, slug, { take: Boolean(opt.take), host: opt.host ?? null })
-    : verb === 'release' ? releaseLease(projectRoot, slug) : showLease(projectRoot, slug);
-  if (verb === 'claim' && r.pull?.ok && r.pull.to !== r.pull.from) await reconcileIndex(projectRoot);
-  const unpulled = Boolean(r.pull && !r.pull.ok);
-  if (opt.json) { out(r); return r.ok === false || unpulled ? 1 : 0; }
-  if (r.linked === false) { out('records: local; no lease'); return 0; }
-  if (verb === 'show') {
-    out(!r.online ? 'offline' : !r.lease ? `${slug}: free` : `${slug}: ${r.mine ? 'this machine' : r.lease.machine} until ${r.lease.expires}${r.expired ? ' (expired)' : ''}`);
-    return 0;
-  }
-  if (unpulled) { out(`${slug}: claimed, but the pull of the records failed: ${r.pull.reason}. Run the claim again after the fix: it pulls again.`); return 1; }
-  if (r.ok) out(verb === 'claim' ? `${slug}: held by ${machineName()} until ${r.lease.expires}${r.took ? ' (taken over)' : ''}` : `${slug}: ${r.released ? 'released' : 'free'}`);
-  else out(r.offline ? 'offline' : r.held ? `${slug}: held by ${r.lease?.machine} until ${r.lease?.expires}` : r.expired ? `${slug}: the lease of ${r.lease.machine} expired at ${r.lease.expires}; claim with --take after the person said yes` : `not done: ${r.reason}`);
-  return r.ok ? 0 : 1;
 }
 
 function runPage(pos, opt) {
@@ -2323,7 +2365,6 @@ async function runMain(cmd, pos, opt) {
       }
       case 'gh': return runGh(pos, opt);
       case 'records': return await runRecords(pos, opt);
-      case 'lease': return await runLease(pos, opt);
       case 'msg': return runMsg(pos, opt);
       case 'page': return runPage(pos, opt);
       case 'design': return await runDesign(pos, opt, out);

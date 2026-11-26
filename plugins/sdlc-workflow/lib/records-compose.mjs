@@ -33,7 +33,7 @@ export const PARK_PREFIX = 'refs/heads/conflict/';
 export const MAX_TRIES = 8;
 // The format of the records that this plugin writes. A repo with a higher `.records-epoch` was
 // changed by a newer plugin (a layout change or a history rewrite): this one does not write it.
-export const RECORDS_EPOCH = 1;
+export const RECORDS_EPOCH = 2;
 export const EPOCH_FILE = '.records-epoch';
 
 /** Why the clone at `home` may not be written by this plugin, or null. */
@@ -81,7 +81,10 @@ export function mayChange(u, paths, { B, U, L, text, me }) {
   if (ou && ol && same(ou, ol) && ol.machine === me) return true;
   if (!same(ou, ob)) return false;
   if (ob?.machine === me) return true;
-  if (ol?.machine !== me || ol.epoch !== (ob?.epoch ?? 0) + 1) return false;
+  // A take-over is at the epoch of the owner plus one. A free unit (no owner file at the base,
+  // after a release) takes any higher epoch: the claim reads it from the history, so that an
+  // epoch never comes back.
+  if (ol?.machine !== me || (ob ? ol.epoch !== ob.epoch + 1 : ol.epoch < 1)) return false;
   const prefix = `${u.unit}/`;
   for (const p of new Set([...B.keys(), ...U.keys()])) if (p.startsWith(prefix) && B.get(p) !== U.get(p)) return false;
   return true;
@@ -108,7 +111,7 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
   const dir = resolve(home);
   const idx = join(dir, '.git', `wf-index-${process.pid}-${randomBytes(3).toString('hex')}`);
   const G = (args, o = {}) => {
-    const r = spawnSync('git', ['-C', dir, '-c', 'core.longpaths=true', '-c', 'core.autocrlf=false', '-c', 'core.quotepath=false', ...args], {
+    const r = spawnSync('git', ['-C', dir, '-c', 'core.longpaths=true', '-c', 'core.autocrlf=input', '-c', 'core.quotepath=false', ...args], {
       encoding: o.raw ? 'buffer' : 'utf8', maxBuffer: 1 << 29, input: o.input, windowsHide: true, timeout: o.timeout ?? 120_000,
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...(o.idx ? { GIT_INDEX_FILE: idx } : {}) },
     });
@@ -202,7 +205,9 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
       for (const p of new Set([...B.keys(), ...N.keys()])) {
         if (B.get(p) === N.get(p) || L.get(p) === N.get(p) || heldPaths.has(p)) continue;
         const u = unitOf(p);
-        if (u?.unit && fenced.has(u.unit)) continue;
+        // A parked unit keeps its local files, except the owner file that this computer did not
+        // change: so the computer learns who owns the unit now, and its next write says owner-lost.
+        if (u?.unit && fenced.has(u.unit) && p !== ownerPathOf(u)) continue;
         if (touched.has(p)) { out.keptLocal.push(p); continue; }
         const file = join(dir, p);
         // The re-read: a file written since the snapshot is kept.

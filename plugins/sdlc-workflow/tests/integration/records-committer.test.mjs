@@ -13,6 +13,7 @@ import { workflowDir } from '../../lib/records-root.mjs';
 import { linkProject, pushRecords } from '../../lib/records-sync.mjs';
 import { committerAlive, committerLockPath, readSyncState, wakeCommitter } from '../../lib/records-committer.mjs';
 import { recordsLine } from '../../lib/records-line.mjs';
+import { RECORDS_EPOCH } from '../../lib/records-compose.mjs';
 
 const WF = join(import.meta.dirname, '..', '..', 'scripts', 'wf.mjs');
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -91,14 +92,14 @@ test('a repo in a newer format of the records is not written', () => {
   try {
     const other = join(w.top, 'other');
     git(w.top, 'clone', '-q', w.bare, other);
-    writeFileSync(join(other, '.records-epoch'), '2\n');
+    writeFileSync(join(other, '.records-epoch'), `${RECORDS_EPOCH + 1}\n`);
     git(other, 'add', '.records-epoch');
-    git(other, 'commit', '-q', '-m', 'format 2');
+    git(other, 'commit', '-q', '-m', 'a newer format');
     git(other, 'push', '-q', 'origin', 'HEAD:main');
     setFields(workflowDir(w.root, 'w1'), INDEX_NAME, { 'current-stage': 'verify' });
     const r = cli('records', 'flush', w.root, 'w1');
     assert.equal(r.status, 1);
-    assert.match(r.stdout, /format 2.*update the plugin/);
+    assert.match(r.stdout, new RegExp(`format ${RECORDS_EPOCH + 1}.*update the plugin`));
     assert.doesNotMatch(w.remote('notes/w1/state.yaml') ?? '', /current-stage: verify/);
   } finally { w.done(); }
 });

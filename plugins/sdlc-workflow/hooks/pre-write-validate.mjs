@@ -53,7 +53,7 @@ import {
 import { DRAFT_DIR, RECORD_FILE_RE, frontmatterOfDoc, hasDoc, locate } from '../lib/records.mjs';
 import { evidenceDir, linkedLocalTarget, linkedProject, localRelOf, nestedAiDir, parseWorkflowPath, recordsRel, workflowDir, workflowDirOf, workflowsRoot } from '../lib/records-root.mjs';
 import { EVIDENCE_LOG, maxFileBytes } from '../lib/run-files.mjs';
-import { otherLease } from '../lib/leases.mjs';
+import { otherOwner } from '../lib/records-owners.mjs';
 
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
@@ -148,7 +148,7 @@ export async function run(input) {
     refuseWrite(checksModeOf(config), `wf-validate: blocked a write into the nested folder ${nested}.\nThe records of this project live in ${workflowsRoot(projectRoot)}. Write there, by an absolute path.`);
     return;
   }
-  const refusal = filePath ? capRefusal(filePath, content, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? recordWriteRefusal(filePath, projectRoot) ?? leaseRefusal(filePath, projectRoot) : null;
+  const refusal = filePath ? capRefusal(filePath, content, projectRoot) ?? linkedWriteRefusal(filePath, projectRoot) ?? recordWriteRefusal(filePath, projectRoot) ?? ownerRefusal(filePath, projectRoot) : null;
   if (refusal) {
     refuseWrite(checksModeOf(config), refusal);
     return;
@@ -329,10 +329,10 @@ function linkedWriteRefusal(filePath, projectRoot) {
     `A draft goes to <wf-dir>/${DRAFT_DIR}/.\nfix: write the file at ${target}.\n`;
 }
 
-// The lease names the one machine that writes a workflow now. The hook reads the lease ref that
-// the last sync fetched, with no network call, and refuses a write into the folder of a workflow
-// whose lease another machine holds.
-function leaseRefusal(filePath, projectRoot) {
+// The owner file names the one computer that writes a workflow now. The hook reads the owner
+// file that the last sync applied, with no network call, and refuses a write into the folder of a
+// workflow that another computer owns.
+function ownerRefusal(filePath, projectRoot) {
   const project = linkedProject(projectRoot);
   if (!project) return null;
   const abs = resolveProjectPath(projectRoot, filePath);
@@ -340,9 +340,9 @@ function leaseRefusal(filePath, projectRoot) {
   const local = localRelOf(projectRoot, abs)?.split('/');
   const slug = inHome?.[0] === project ? inHome[1] : local && local.length > 1 ? local[0] : null;
   if (!slug || slug.startsWith('.') || slug.startsWith('_')) return null;
-  const other = otherLease(projectRoot, slug);
+  const other = otherOwner(projectRoot, slug);
   if (!other) return null;
-  return `wf-validate: blocked a write to ${abs}. The lease of '${slug}' belongs to ${other.machine}${other.host ? ` (${other.host})` : ''} until ${other.expires}: another computer writes this workflow now. Stop the stage, and tell the person.\n`;
+  return `wf-validate: blocked a write to ${abs}. '${slug}' is owned by ${other.machine}: another computer writes this workflow now. Stop the stage, and tell the person.\n`;
 }
 
 // Design lane human rule: read the slug's index, 02b-design.md presence, and the

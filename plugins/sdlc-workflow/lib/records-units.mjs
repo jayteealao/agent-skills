@@ -8,7 +8,7 @@
 
 const NAME = /^[a-z0-9][a-z0-9._-]*$/;
 // The files at the top of the repo: the settings of git and the notes of the person.
-const REPO_FILES = new Set(['.gitattributes', '.gitignore']);
+const REPO_FILES = new Set(['.gitattributes', '.gitignore', '.records-epoch']);
 // The folders of _design that hold the files of one workflow: _design/<dir>/<slug>/...
 const DESIGN_OF_WORKFLOW = new Set(['versions', 'captures', 'reviews']);
 

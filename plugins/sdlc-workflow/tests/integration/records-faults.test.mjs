@@ -1,6 +1,5 @@
-// The faults of the records sync that a person did not see: a second computer, a lease that is
-// free after a failed push, a failed pull that is never tried again, a git lock that a dead
-// process left, a failed commit that a command hides, and a live branch that came after the move.
+// The faults of the records sync that a person did not see: a second computer, a git lock that a
+// dead process left, a failed commit that a command hides, and a live branch that came after the move.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
@@ -9,7 +8,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { claimAndPull, claimLease, showLease } from '../../lib/leases.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from '../../lib/records.mjs';
 import { workflowDir } from '../../lib/records-root.mjs';
 import { clearStaleIndexLock, commitWorkflow, linkProject, pushRecords, readState, syncRecords } from '../../lib/records-sync.mjs';
@@ -134,63 +132,6 @@ test('with records.sync: compose, the sync composes: no pull, and the change rea
     assert.deepEqual(r.conflicts, []);
     assert.match(git(w.top, '--git-dir', w.bare, 'log', '-1', '--format=%s', 'main'), /^sync alpha$/);
     assert.equal(git(a.clone, 'rev-parse', 'main'), git(w.top, '--git-dir', w.bare, 'rev-parse', 'main'));
-  } finally { w.done(); }
-});
-
-test('records close keeps the lease when its push fails, and the next good push releases it', () => {
-  const w = world();
-  try {
-    const { a } = two(w);
-    assert.equal(claimLease(a.root, 'w1').ok, true);
-    change(a);
-    // The push is refused, and the lease push would work.
-    const hook = join(w.bare, 'hooks', 'update');
-    writeFileSync(hook, '#!/bin/sh\ncase "$1" in refs/heads/*) exit 1;; esac\nexit 0\n', { mode: 0o755 });
-    const r = cli('records', 'close', a.root, 'w1');
-    assert.equal(r.status, 1, r.stdout);
-    assert.match(r.stdout, /not sent/);
-    assert.equal(showLease(a.root, 'w1').mine, true, 'the lease stays');
-    rmSync(hook);
-    assert.equal(cli('records', 'push', a.root, 'w1').status, 0);
-    assert.equal(showLease(a.root, 'w1').lease, null, 'the good push released it');
-  } finally { w.done(); }
-});
-
-test('a close that pushes releases the lease', () => {
-  const w = world();
-  try {
-    const { a } = two(w);
-    claimLease(a.root, 'w1');
-    change(a);
-    assert.equal(cli('records', 'close', a.root, 'w1').status, 0);
-    assert.equal(showLease(a.root, 'w1').lease, null);
-  } finally { w.done(); }
-});
-
-test('a pull that failed at a claim is tried again at the next claim, and the dispatch stops until it works', () => {
-  const w = world();
-  try {
-    const { a, b } = two(w);
-    w.as(a);
-    writeFileSync(join(workflowDir(a.root, 'w1'), 'notes.md'), 'alpha\n');
-    commitWorkflow(a.root, 'w1', 'w1: notes');
-    assert.equal(pushRecords().pushed, true);
-    w.as(b);
-    // The clone of beta is in a rebase, so the pull fails and the claim works.
-    mkdirSync(join(b.clone, '.git', 'rebase-merge'));
-    const first = claimAndPull(b.root, 'w1');
-    assert.equal(first.ok, true);
-    assert.equal(first.pull.ok, undefined);
-    const again = claimAndPull(b.root, 'w1');
-    assert.equal(again.renewed, true);
-    assert.ok(again.pull, 'a renewed claim pulls again after a failed pull');
-    const d = cli('dispatch', b.root, '--host', 'claude', '--', 'implement', 'w1');
-    assert.match(d.stdout, /^records: stop .*pull/m);
-    assert.equal(cli('lease', 'claim', b.root, 'w1').status, 1, 'the claim command stops too');
-    rmSync(join(b.clone, '.git', 'rebase-merge'), { recursive: true });
-    assert.equal(claimAndPull(b.root, 'w1').pull.ok, true);
-    assert.ok(existsSync(join(workflowDir(b.root, 'w1'), 'notes.md')));
-    assert.equal(claimAndPull(b.root, 'w1').pull, undefined, 'a pull that worked is not made again');
   } finally { w.done(); }
 });
 

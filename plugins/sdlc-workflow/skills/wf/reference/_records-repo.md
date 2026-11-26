@@ -6,7 +6,7 @@ In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>
 
 ## The clone
 
-A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. Each workflow has one folder there, its wf-dir, which the dispatch and the brief print as `wf-dir:`. Every file of the workflow (records, evidence, notes, drafts) is in the wf-dir, so the steps of [_records.md](_records.md) do not change. Git ignores `.draft/`. The pre-write check refuses a write by a path in `.ai/workflows/` and names the wf-dir path. Give a test runner or a shell redirect the wf-dir path too. `wf.mjs` commits the records at each step and stage boundary, and pushes them in the background. The dispatch commits nothing and fetches nothing. A pull runs only when this computer claims the lease of a workflow, at `<wf> records sync <root>`, and at `<wf> msg list`.
+A project that is linked (`<wf> records link <root> <project>`) keeps its records in the clone of the records repo, `~/.sdlc/records/<project>/`. Each workflow has one folder there, its wf-dir, which the dispatch and the brief print as `wf-dir:`. Every file of the workflow (records, evidence, notes, drafts) is in the wf-dir, so the steps of [_records.md](_records.md) do not change. Git ignores `.draft/`. The pre-write check refuses a write by a path in `.ai/workflows/` and names the wf-dir path. Give a test runner or a shell redirect the wf-dir path too. `wf.mjs` commits the records at each step and stage boundary, and pushes them in the background. The dispatch commits nothing and fetches nothing. A pull runs only when this computer claims or takes over a workflow, at `<wf> records sync <root>`, and at `<wf> msg list`.
 
 - When two or more computers use the records repo, one computer writes a workflow at a time: the dispatch claims its lease. To continue on another computer, run `<wf> lease release <root> <slug>` on this one first. With one computer, there is no lease. `<wf> records close <root> <slug>` does the same at the end of a session: it commits the workflow, pushes it and releases its lease.
 - Read the records of another project, but do not change them. To ask that project for something, post a message to it.
@@ -26,12 +26,25 @@ The dispatch prints one records line, or none when the records are in order. In 
 
 The script writes each question and its commands:
 - A push of the records, a records commit, or a send of the GitHub layer failed, or GitHub edits wait for more than one day. Yes retries in the background, and the next `/wf` call shows the result. No asks again only about a newer failure.
-- The lease of another computer expired, or the records repo cannot be reached to claim the lease. No means that this computer does not write the workflow now.
+- Another computer owns the workflow (a take-over: yes runs `<wf> records take`), or two or more computers use the records and the workflow has no owner (a claim: yes runs `<wf> records claim`). No runs `<wf> records decline`, and this computer does not write the workflow now.
 - A stop line names another computer that writes the workflow now, a second computer, a failed pull, a live branch of an older version, or a conflict. For the details, run `<wf> records status <root> --problems`.
 
-A command or the pre-write check prints a `lease-lost:` line when another computer writes the workflow now. Act on it as on a stop line.
+A command or the pre-write check prints an `owner-lost:` line when another computer owns the workflow now. Act on it as on a stop line.
 
 A `records-warning: … not committed` line means that the change is saved on this computer and that no commit holds it. Do not make the change again. Put the line in the report of the stage, and run `<wf> records retry <root> <slug>` one time. When it fails, tell the person the reason.
+
+## The owner of a workflow
+
+The file `owner` of a wf-dir names the one computer that writes the workflow, and an epoch: `<machine> <epoch>`. It travels in the commits with the work, so a computer that is not the owner cannot send the workflow: its sync keeps its copy on a branch `conflict/<machine>-<id>` of the records repo, and nothing is lost.
+
+| Command | Effect |
+|---|---|
+| `<wf> records claim <root> <slug>` | Make this computer the owner of a free or new workflow. The claim works when its push lands. Offline, only a workflow that never reached the remote starts. |
+| `<wf> records take <root> <slug>` | Take a workflow over from another computer. Run it only after the person said yes to the take-over question: the later work of the other computer is parked. |
+| `<wf> records release <root> <slug> [--to <machine>]` | Send the workflow, then give it up, or hand it to that computer. When a push fails, this computer stays the owner. |
+| `<wf> records parked <root>` | List the parked copies. `parked show <root> <branch>` lists their files, and `parked take <root> <branch> <path>` copies one file in (only the owner). `parked drop <root> <branch>` deletes a copy: ask the person first. |
+
+A close sends the workflow and keeps the owner. A close whose push failed exits 1: run `<wf> records flush <root> <slug>` when the remote can be reached.
 
 ## Link lines
 

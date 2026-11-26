@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { claimLease, releaseLease, showLease } from '../../lib/leases.mjs';
 import { listMessages, postMessage, readMessage } from '../../lib/messages.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from '../../lib/records.mjs';
 import { linkedProject, localWorkflowsRoot, workflowDir, workflowsRoot } from '../../lib/records-root.mjs';
@@ -85,36 +84,6 @@ test('link moves the records; another machine pulls them; the close is one more 
     assert.equal(s2.conflicts.length, 0, s2.conflicts.join('; '));
     assert.equal(frontmatterOfDoc(workflowDir(b.root, 'w1'), INDEX_NAME).status, 'closed');
     assert.equal(gitIn(join(b.home, 'records'), ['for-each-ref', 'refs/heads/live/']).stdout, '');
-  } finally { w.done(); }
-});
-
-test('one lease per workflow: held, expired, taken after a yes, released', () => {
-  const w = world();
-  try {
-    const a = w.as(w.machine('alpha'));
-    workflow(a.root, 'w1');
-    linkProject(a.root, 'notes');
-    const now = new Date('2026-10-25T10:00:00Z');
-    const c = claimLease(a.root, 'w1', { now, host: 'claude' });
-    assert.equal(c.ok, true, c.reason);
-    assert.equal(c.lease.expires, '2026-10-25T11:00:00Z', 'no profile: one hour');
-    assert.equal(claimLease(a.root, 'w1', { now }).renewed, true);
-
-    const b = w.as(w.machine('beta'));
-    linkProject(b.root, 'notes');
-    const held = claimLease(b.root, 'w1', { now });
-    assert.deepEqual([held.ok, held.held, held.lease.machine], [false, true, 'alpha']);
-    const later = new Date('2026-10-25T12:00:00Z');
-    assert.equal(claimLease(b.root, 'w1', { now: later }).expired, true, 'an expired lease needs the yes');
-    const took = claimLease(b.root, 'w1', { now: later, take: true });
-    assert.deepEqual([took.ok, took.took], [true, true]);
-    assert.equal(showLease(b.root, 'w1', { now: later }).mine, true);
-
-    w.as(a);
-    assert.equal(releaseLease(a.root, 'w1').held, true, 'alpha may not release the lease of beta');
-    w.as(b);
-    assert.equal(releaseLease(b.root, 'w1').released, true);
-    assert.equal(showLease(b.root, 'w1').lease, null);
   } finally { w.done(); }
 });
 

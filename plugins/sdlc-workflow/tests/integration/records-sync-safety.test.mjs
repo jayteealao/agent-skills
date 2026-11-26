@@ -10,7 +10,6 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { claimLease, releaseLease } from '../../lib/leases.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from '../../lib/records.mjs';
 import { workflowDir } from '../../lib/records-root.mjs';
 import { commitPaths, commitWorkflow, linkProject, pullRecords, pushRecords, readState, recordsLockPath, recordsStatus, syncRecords, takeLock, workflowHealth } from '../../lib/records-sync.mjs';
@@ -129,16 +128,12 @@ test('computer B claims workflow X after computer A releases it, and A sees the 
     w.as(a);
     workflow(a.root, 'x');
     linkProject(a.root, 'notes');
-    assert.equal(claimLease(a.root, 'x').ok, true);
     writeFileSync(join(workflowDir(a.root, 'x'), 'plan.md'), 'alpha plan\n');
     commitWorkflow(a.root, 'x', 'x: plan');
     assert.equal(pushRecords().pushed, true);
-    assert.equal(releaseLease(a.root, 'x').released, true);
 
     w.as(b);
     linkProject(b.root, 'notes');
-    const c = claimLease(b.root, 'x');
-    assert.equal(c.ok, true, c.reason);
     syncRecords(b.root);
     assert.equal(read(join(workflowDir(b.root, 'x'), 'plan.md')), 'alpha plan\n');
     writeFileSync(join(workflowDir(b.root, 'x'), 'implement.md'), 'beta builds\n');
@@ -147,7 +142,6 @@ test('computer B claims workflow X after computer A releases it, and A sees the 
     assert.equal(pushRecords().pushed, true);
 
     w.as(a);
-    assert.equal(claimLease(a.root, 'x').held, true, 'beta holds the lease now');
     assert.equal(pullRecords().ok, true);
     assert.equal(read(join(workflowDir(a.root, 'x'), 'implement.md')), 'beta builds\n');
     assert.equal(frontmatterOfDoc(workflowDir(a.root, 'x'), INDEX_NAME)['current-stage'], 'implement');
@@ -332,43 +326,6 @@ test('commitPaths with no change makes no commit', () => {
   } finally { w.done(); }
 });
 
-test('two machines that claim one lease at once: exactly one wins', async () => {
-  const w = world();
-  try {
-    const { a, b } = twoMachines(w);
-    const lib = new URL('../../lib/leases.mjs', import.meta.url).href;
-    const claim = (m) => new Promise((resolve) => {
-      const code = `const l = await import(${JSON.stringify(lib)}); process.stdout.write(JSON.stringify(l.claimLease(${JSON.stringify(m.root)}, 'w1')));`;
-      const p = spawn(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, SDLC_HOME: m.home } });
-      let text = '';
-      p.stdout.on('data', (d) => { text += d; });
-      p.on('close', () => resolve(JSON.parse(text || '{}')));
-    });
-    const [x, y] = await Promise.all([claim(a), claim(b)]);
-    assert.equal([x.ok, y.ok].filter(Boolean).length, 1, JSON.stringify([x, y]));
-  } finally { w.done(); }
-});
-
-test('a write after another machine took the lease: the lease is lost, and a changing command says so', async () => {
-  const w = world();
-  try {
-    const { a, b } = twoMachines(w);
-    const { renewIfMine } = await import('../../lib/leases.mjs');
-    w.as(a);
-    assert.equal(claimLease(a.root, 'w1').ok, true);
-    // beta takes the lease (alpha's lease expired, and the person said yes on beta).
-    w.as(b);
-    const later = new Date(Date.now() + 3 * 3600_000);
-    assert.equal(claimLease(b.root, 'w1', { take: true, now: later }).ok, true);
-    w.as(a);
-    assert.equal(renewIfMine(a.root, 'w1', { now: later }).lost, true);
-    // The sync fetched the lease ref: a changing command prints lease-lost on stderr.
-    syncRecords(a.root);
-    const cli = spawnSync(process.execPath, [WF, 'record', 'set', a.root, 'w1', 'index', 'current-stage=verify'], { encoding: 'utf8', env: process.env });
-    assert.match(cli.stderr, /lease-lost: w1 by beta/);
-  } finally { w.done(); }
-});
-
 test('a pull that brings a workflow rebuilds INDEX.md in the clone, and INDEX.md stays out of git', () => {
   const w = world();
   try {
@@ -487,17 +444,6 @@ test('a fetch that the remote refuses is a failure with its reason, not an offli
     assert.equal(r.offline, undefined);
     assert.equal(r.failed, true);
     assert.match(r.reason, /refused/);
-  } finally { w.done(); }
-});
-
-test('four processes that each note the leases they hold lose no note of another', async () => {
-  const w = world();
-  try {
-    const a = w.as(w.machine('alpha'));
-    const env = { ...process.env, SDLC_HOME: a.home };
-    await Promise.all([0, 1, 2, 3].map((n) => child(`for (let i = 0; i < 15; i++) m.markHeld('p/w${n}-' + i, true);`, env)));
-    const held = Object.keys(readState().held ?? {});
-    assert.equal(held.length, 60, `${held.length} notes`);
   } finally { w.done(); }
 });
 

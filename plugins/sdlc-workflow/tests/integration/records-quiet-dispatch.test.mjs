@@ -1,5 +1,5 @@
 // The quiet dispatch: on one computer it commits nothing, fetches nothing and asks the remote
-// nothing, and it prints no records line and no lease line while the records are in order. The
+// nothing, and it prints no records line while the records are in order. The
 // remote of the clone is a path that does not exist, so any network call fails, and GIT_TRACE
 // counts each git call. A records problem comes as one line: `records: ask` or `records: stop`.
 // A fake gh stands in for GitHub; nothing reaches the network.
@@ -62,7 +62,7 @@ function cli(w, args, extra = {}) {
 }
 
 const NETWORK = ['fetch', 'push', 'pull', 'ls-remote', 'clone', 'commit', 'commit-tree', 'merge', 'rebase', 'add'];
-const recordsLines = (text) => text.split(/\r?\n/).filter((l) => /^records|^lease|^messages:|^github-/.test(l));
+const recordsLines = (text) => text.split(/\r?\n/).filter((l) => /^records|^messages:|^github-/.test(l));
 
 test('one computer: a status call and a call on a workflow make no network call, no commit, and print no records line', () => {
   const w = world();
@@ -80,18 +80,21 @@ test('one computer: a status call and a call on a workflow make no network call,
   } finally { w.done(); }
 });
 
-test('two computers: the call on a workflow claims the lease; an unreachable remote is one ask line, and no stops the key', () => {
+test('two computers: the call on a workflow asks for a claim or a take-over, with no network call, and no stops the key', () => {
   const w = world();
   try {
     linkedOffline(w);
     writeFileSync(join(w.clone, '.machines', 'beta.json'), JSON.stringify({ machine: 'beta', projects: {} }));
     const r = cli(w, ['dispatch', w.root, '--host', 'claude', '--', 'w1']);
-    assert.ok(r.git.includes('ls-remote'), 'the claim asks the remote');
+    assert.deepEqual(r.git.filter((c) => NETWORK.includes(c)), [], r.git.join(', '));
     const lines = recordsLines(r.stdout);
     assert.equal(lines.length, 1, r.stdout);
-    assert.match(lines[0], /^records: ask "The records repo cannot be reached, so no other computer knows that w1 runs here\. Continue\?" yes=`wf\.mjs lease show ".+" w1` no=`wf\.mjs lease decline ".+" w1`$/);
-    assert.equal(cli(w, ['lease', 'decline', w.root, 'w1']).status, 1, 'no stops the key');
-    assert.equal(cli(w, ['lease', 'show', w.root, 'w1']).status, 0, 'yes runs the key');
+    assert.match(lines[0], /^records: ask "w1 has no owner, and 2 computers use the records\. Claim it for this computer\?" yes=`wf\.mjs records claim ".+" w1` no=`wf\.mjs records decline ".+" w1`$/);
+    assert.equal(cli(w, ['records', 'decline', w.root, 'w1']).status, 1, 'no stops the key');
+    // Another computer owns it: the question is a take-over.
+    writeFileSync(join(w.clone, 'notes', 'w1', 'owner'), 'beta 3\n');
+    const t = recordsLines(cli(w, ['dispatch', w.root, '--host', 'claude', '--', 'w1']).stdout);
+    assert.match(t[0] ?? '', /^records: ask "w1 is owned by beta.*Take it over on this computer\?.*" yes=`wf\.mjs records take ".+" w1` no=`wf\.mjs records decline ".+" w1`$/, JSON.stringify(t));
     // A status call claims nothing.
     assert.deepEqual(recordsLines(cli(w, ['dispatch', w.root, '--host', 'claude', '--', 'status']).stdout), []);
   } finally { w.done(); }
