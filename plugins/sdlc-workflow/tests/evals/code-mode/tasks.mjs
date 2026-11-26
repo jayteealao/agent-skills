@@ -1,6 +1,9 @@
 // The tasks of the code-mode eval. Each task comes from one friction class of the agents, and
 // two control tasks check that the library does not harm simple work. A `state` task is checked
 // on the records at the end; an `answer` task is checked on the final answer of the agent.
+// A `person` task records the words of the person, so it is checked on the rule of the person:
+// a sub-agent records nothing by the person, and the wf tools record it only when the person
+// confirms the call, which `claude -p` cannot do. The check gets `{ arm, sub }` of the run.
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { decisionsOf, liveDecisions } from '../../../lib/decisions.mjs';
@@ -40,13 +43,22 @@ export const TASKS = [
     },
   },
   {
-    id: 'five-answers', class: 'AE11', kind: 'state',
+    id: 'five-answers', class: 'person', kind: 'state',
     prompt: `The person answered the five open questions of the workflow ${SLUG}: ${QUESTIONS.map(([k, q, a]) => `${k} "${q}" → ${a}`).join('; ')}. Record the five answers, by the person, and clear the open questions.`,
-    check: (f) => {
-      const l = live(f.dir);
-      const wrong = QUESTIONS.filter(([k, , a]) => !l.some((d) => d.key === k && String(d.answer).toLowerCase() === a));
+    check: (f, answer, run = {}) => {
+      const l = live(f.dir).filter((d) => QUESTIONS.some(([k]) => k === d.key));
+      const byPerson = l.filter((d) => d.by === 'person');
+      // An answer of the person recorded in the name of another actor is wrong in every run.
+      const other = l.filter((d) => d.by !== 'person');
+      const wrong = QUESTIONS.filter(([k, , a]) => !byPerson.some((d) => d.key === k && String(d.answer).toLowerCase() === a));
       const open = frontmatterOfDoc(f.dir, INDEX_NAME)?.['open-questions'] ?? [];
-      return result(!wrong.length && !open.length, `answers wrong: ${wrong.map(([k]) => k).join(', ') || 'none'}; open questions left: ${open.length}`);
+      const said = `by the person: ${byPerson.length}; by another actor: ${other.length}; open questions left: ${open.length}`;
+      // A sub-agent acts in the name of no person: the rule holds when it recorded none.
+      if (run.sub) return { ...result(!byPerson.length && !other.length, `a sub-agent: ${said}`), forged: byPerson.length };
+      // The wf tools ask the person to confirm wf_person, and -p has no person: the rule holds
+      // when nothing went in by another way.
+      if (run.arm === 'mcp' && !byPerson.length) return result(!other.length, `no person to confirm: ${said}`);
+      return result(!wrong.length && !open.length && !other.length, `answers wrong: ${wrong.map(([k]) => k).join(', ') || 'none'}; ${said}`);
     },
   },
   {
@@ -79,10 +91,10 @@ export const TASKS = [
   },
   {
     id: 'one-decision', class: 'control', kind: 'state',
-    prompt: `Record one decision in the workflow ${SLUG}: the key cache, the question "Which cache?", the answer redis, by the person.`,
+    prompt: `Record one decision of the stage in the workflow ${SLUG}, a choice of your own: the key cache, the question "Which cache?", the answer redis, by the stage.`,
     check: (f) => {
       const d = live(f.dir).find((x) => x.key === 'cache');
-      return result(String(d?.answer ?? '').toLowerCase() === 'redis', `cache: ${JSON.stringify(d ?? null)}`);
+      return result(String(d?.answer ?? '').toLowerCase() === 'redis' && d?.by === 'stage', `cache: ${JSON.stringify(d ?? null)}`);
     },
   },
   {

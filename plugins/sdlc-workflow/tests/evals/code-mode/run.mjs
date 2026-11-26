@@ -8,13 +8,15 @@
 //   node tests/evals/code-mode/run.mjs [--cells c,...] [--arms cli] [--tasks t,...]
 //                                      [--runs 5] [--out <dir>] [--yes]
 //
-// Arms: cli gets the command line and the records reference. mcp loads the plugin, so the wf
-// tools and the hooks run as they do for a user, with the same reference; it runs on Claude only.
+// Arms: cli gets the command line and the records reference. mcp also gets the wf server, so the
+// wf tools and the hooks run as they do for a user; it runs on Claude only. Both arms load the
+// plugin of this tree and no other MCP server, so the two differ only by the wf tools.
 // Cells: <host>-<model>-<shell>; the shell is the tool that the prompt names. A -sub cell hands
 // the task to one sub-agent, so the calls are those of an agent and not of the main session.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { PLUGIN_ROOT, SLUG, makeFixture } from './fixture.mjs';
 import { measure } from './measure.mjs';
 import { TASKS } from './tasks.mjs';
@@ -68,19 +70,35 @@ export function promptOf(task, arm, cell, root) {
     : lines.join('\n');
 }
 
-function command(cell, prompt, root, arm) {
+/**
+ * The MCP config of the mcp arm: the wf server alone, by the name that the plugin gives it, so the
+ * tools and the matchers of the hooks are those of a user. --strict-mcp-config drops the server
+ * of a plugin, and every server of the machine, so the arm declares it here.
+ */
+export function mcpConfig() {
+  return { mcpServers: { 'plugin_sdlc-workflow_wf': { type: 'stdio', command: 'node', args: [join(PLUGIN_ROOT, 'mcp', 'server.mjs')], env: { CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT } } } };
+}
+
+function command(cell, prompt, root, arm, at) {
   // No permission bypass: the agent may read and write files and run node, and nothing else. The mcp
   // arm loads the plugin and allows the tools of its server. wf_person asks the person, so in -p it is denied.
   if (cell.host === 'claude') {
     const tools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash(node:*)', 'PowerShell(node:*)', ...(cell.sub ? ['Agent'] : []), ...(arm === 'mcp' ? [WF_SERVER] : [])];
     return ['claude', ['-p', prompt, '--model', cell.model, '--output-format', 'stream-json', '--verbose', '--max-turns', '60',
-      // The cli arm starts no MCP server: an installed copy of the plugin would give it the wf tools.
-      ...(arm === 'mcp' ? ['--plugin-dir', PLUGIN_ROOT] : ['--strict-mcp-config', '--disallowedTools', WF_SERVER]), '--allowedTools', tools.join(',')]];
+      // No MCP server of the machine in either arm; the mcp arm gets the wf server alone.
+      '--plugin-dir', PLUGIN_ROOT, '--strict-mcp-config',
+      ...(arm === 'mcp' ? ['--mcp-config', writeConfig(at)] : ['--disallowedTools', WF_SERVER]), '--allowedTools', tools.join(',')]];
   }
   if (arm === 'mcp') throw new Error(`the mcp arm runs on Claude only; ${cell.host} uses the command line`);
   if (cell.host === 'codex') return ['codex', ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-C', root, prompt]];
   // The pi command line: check its flags before a pi run.
   return ['pi', ['-p', prompt, '--mode', 'json']];
+}
+
+function writeConfig(at) {
+  const file = join(at, 'mcp.json');
+  writeFileSync(file, JSON.stringify(mcpConfig()));
+  return file;
 }
 
 /**
@@ -123,9 +141,9 @@ async function main() {
           const at = join(out, name, arm, task.id, String(n));
           const f = makeFixture(join(at, 'repo'));
           const prompt = promptOf(task, arm, cell, f.root);
-          const [cmd, args] = command(cell, prompt, f.root, arm);
+          const [cmd, args] = command(cell, prompt, f.root, arm, at);
           const t0 = Date.now();
-          const r = spawnSync(cmd, args, { cwd: f.root, encoding: 'utf8', timeout: TIMEOUT_MS, maxBuffer: 256 * 1024 * 1024, env: envOf(cell, at), shell: needsShell(cell) });
+          const r = spawnSync(cmd, args, { cwd: f.root, encoding: 'utf8', input: '', timeout: TIMEOUT_MS, maxBuffer: 256 * 1024 * 1024, env: envOf(cell, at), shell: needsShell(cell) });
           const wallMs = Date.now() - t0;
           writeFileSync(join(at, 'transcript.jsonl'), r.stdout ?? '');
           writeFileSync(join(at, 'stderr.txt'), r.stderr ?? '');
@@ -140,8 +158,10 @@ async function main() {
           // An arm measures nothing when its tools are wrong: the cli arm has no wf tool, the mcp arm has them.
           const wfTools = m.tools ? m.tools.filter((t) => t.startsWith(WF_SERVER)).length : 0;
           if (cell.host === 'claude' && (arm === 'cli' ? wfTools > 0 : wfTools === 0)) throw new Error(`${name} ${arm}: the session had ${wfTools} wf tool(s); nothing more runs`);
-          const c = task.check(f, m.answer);
-          const row = { cell: name, arm, task: task.id, class: task.class, run: n, pass: c.pass, why: c.why, exit: r.status, ...m, answer: undefined, wallMs };
+          const other = m.tools ? m.tools.filter((t) => t.startsWith('mcp__') && !t.startsWith(WF_SERVER)) : [];
+          if (other.length) throw new Error(`${name} ${arm}: the session had tools of another MCP server (${other.slice(0, 3).join(', ')}); nothing more runs`);
+          const c = task.check(f, m.answer, { arm, sub: Boolean(cell.sub) });
+          const row = { cell: name, arm, task: task.id, class: task.class, run: n, pass: c.pass, why: c.why, ...(c.forged ? { forged: c.forged } : {}), exit: r.status, ...m, answer: undefined, wallMs };
           appendFileSync(join(out, 'results.jsonl'), `${JSON.stringify(row)}\n`);
           process.stdout.write(`${c.pass ? 'pass' : 'fail'} ${name} ${arm} ${task.id} #${n}: ${m.calls} calls, ${m.tokens} tokens, ${Math.round(wallMs / 1000)} s\n`);
         }
@@ -151,4 +171,7 @@ async function main() {
   return 0;
 }
 
-process.exitCode = await main().catch((e) => { process.stderr.write(`run: ${e.message}\n`); return 1; });
+// Run only as a script: the tests and the probes import mcpConfig and promptOf.
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  process.exitCode = await main().catch((e) => { process.stderr.write(`run: ${e.message}\n`); return 1; });
+}

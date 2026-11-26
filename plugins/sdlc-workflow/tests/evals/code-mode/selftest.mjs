@@ -48,7 +48,7 @@ const SOLUTIONS = {
   'drop-slice': (f) => wf(f.root, ['slice', 'drop', '.', SLUG, 's5', '--reason', 'merged into s4']),
   'board-group': (f) => wf(f.root, ['board', 'move', '.', SLUG, 'i1', 'i2', 'i3', 'i4', '--new', 'sync', '--name', 'Sync engine']),
   'after-stop': (f) => wf(f.root, ['status', '.', SLUG, '--brief']),
-  'one-decision': (f) => wf(f.root, ['decide', 'add', '.', SLUG, '--kind', 'answer', '--key', 'cache', '--question', 'Which cache?', '--answer', 'redis', '--by', 'person']),
+  'one-decision': (f) => wf(f.root, ['decide', 'add', '.', SLUG, '--kind', 'answer', '--key', 'cache', '--question', 'Which cache?', '--answer', 'redis', '--by', 'stage']),
   'step-done': (f) => wf(f.root, ['step', 'done', '.', SLUG, 's3', '3', '--sha', 'HEAD']),
   'three-reads': (f) => wf(f.root, ['status', '.', SLUG, '--json']) + wf(f.root, ['record', 'get', '.', SLUG, '03-slice']) + wf(f.root, ['record', 'get', '.', SLUG, '06-verify-s2', '--field', 'convergence']),
   'ten-findings': (f) => code(f.root, "return wf.findings.list().filter((x) => x.severity === 'HIGH').map((x) => x.id).join(', ');", 'query'),

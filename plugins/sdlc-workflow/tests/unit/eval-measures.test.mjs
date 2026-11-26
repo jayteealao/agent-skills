@@ -35,6 +35,18 @@ test('a Claude transcript gives the calls of wf by tool and by shell, code and d
   ].map((x) => JSON.stringify(x)).join('\n');
   const m = measure('claude', lines);
   assert.deepEqual([m.wfMcp, m.wfShell, m.wfCode, m.wfDenied, m.mcpShare], [1, 1, 1, 1, 0.5]);
+  // Help calls, calls refused for their fields, and the context of the first turn.
+  const more = [
+    { type: 'assistant', message: { usage: { input_tokens: 10, cache_read_input_tokens: 900, cache_creation_input_tokens: 90 }, content: [
+      { type: 'tool_use', id: 'h', name: 'mcp__plugin_sdlc-workflow_wf__wf_query', input: { op: 'help', command: 'step' } },
+      { type: 'tool_use', id: 's', name: 'PowerShell', input: { command: '$wf="/p/wf.mjs"; node $wf help decide; node $wf describe' } },
+      { type: 'tool_use', id: 'f', name: 'mcp__plugin_sdlc-workflow_wf__wf_query', input: { op: 'describe', command: 'x' } },
+    ] } },
+    { type: 'assistant', message: { usage: { input_tokens: 5000 }, content: [] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'f', is_error: true, content: '{"ok":false,"error":{"message":"describe has no field command; its fields are: json"}}' }] } },
+  ].map((x) => JSON.stringify(x)).join('\n');
+  const n = measure('claude', more);
+  assert.deepEqual([n.wfHelp, n.wfFieldErrors, n.firstTurn], [4, 1, 1000]);
 });
 
 test('the rule passes only when every condition holds', () => {
@@ -52,6 +64,13 @@ test('the rule passes only when every condition holds', () => {
     assert.equal(v.pass, false, why);
     assert.match(v.why, new RegExp(why));
   }
+  // A task of the person is outside the pass rule; a sub-agent that records by the person fails it.
+  const person = (arm, o = {}) => row(arm, 'five-answers', { class: 'person', ...o });
+  const kept = [...base, row('mcp', 'bulk-findings', { calls: 5 }), row('mcp', 'one-decision')];
+  assert.equal(verdict(summarize([...kept, person('cli'), person('mcp', { pass: false, calls: 40 })])).pass, true);
+  const forged = verdict(summarize([...kept, person('cli', { forged: 5 }), person('mcp')]));
+  assert.equal(forged.pass, false);
+  assert.match(forged.why, /cli: a sub-agent recorded 5 answer\(s\) by the person/);
   const tokens = verdict(summarize([...base, row('mcp', 'bulk-findings', { calls: 5 }), row('mcp', 'one-decision', { tokens: 1300 })]));
   assert.match(tokens.why, /control tokens rose 30%/);
 });

@@ -39,20 +39,29 @@ export function writesAround(command = '', path = null) {
   return RECORDS.test(c) && WRITES.test(c) && !WF_CLI.test(c);
 }
 
+/** A call of wf help: the help op of the wf tools, or a shell call of a wf script with help. */
+const SHELL_HELP = /(?:\.mjs["']?|\$(?:env:)?\{?[A-Za-z_]\w*\}?["']?)\s+(?:help|describe)\b/g;
+/** A call of wf refused for its fields: the error names a field that the op has not, or needs. */
+const FIELD_ERROR = /has no field|its fields are|needs [a-z-]+,|unknown (?:field|flag|option)|is not kebab-case/i;
+
 function claude(lines) {
-  const m = { calls: 0, invalid: 0, tokens: 0, outsideWrites: 0, answer: null, tools: null, wfMcp: 0, wfShell: 0, wfCode: 0, wfDenied: 0 };
+  const m = { calls: 0, invalid: 0, tokens: 0, outsideWrites: 0, answer: null, tools: null, wfMcp: 0, wfShell: 0, wfCode: 0, wfDenied: 0, wfHelp: 0, wfFieldErrors: 0, firstTurn: null };
   const wfIds = new Set();
   const vars = new Set();
   for (const e of lines) {
     if (e.type === 'system' && e.subtype === 'init') m.tools = e.tools ?? null;
     else if (e.type === 'assistant') {
+      // The context of the first turn: the system prompt, the tools and the task, before any call.
+      const u = e.message?.usage;
+      if (m.firstTurn == null && u && !e.parent_tool_use_id) m.firstTurn = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
       for (const b of e.message?.content ?? []) {
         if (b.type !== 'tool_use') continue;
         m.calls += 1;
         const i = b.input ?? {};
         const tool = wfToolOf(b.name);
         const shell = ['Bash', 'PowerShell'].includes(b.name) ? wfShellCalls(i.command, vars) : 0;
-        if (tool) { m.wfMcp += 1; wfIds.add(b.id); if ((tool === 'wf_run' || tool === 'wf_query') && i.code) m.wfCode += 1; }
+        if (tool) { m.wfMcp += 1; wfIds.add(b.id); if ((tool === 'wf_run' || tool === 'wf_query') && i.code) m.wfCode += 1; if (i.op === 'help' || i.op === 'describe') m.wfHelp += 1; }
+        if (shell) m.wfHelp += (String(i.command).match(SHELL_HELP) ?? []).length;
         if (shell) { m.wfShell += shell; wfIds.add(b.id); }
         if (writesAround(i.command ?? '', ['Write', 'Edit', 'NotebookEdit'].includes(b.name) ? i.file_path : null)) m.outsideWrites += 1;
       }
@@ -62,6 +71,7 @@ function claude(lines) {
         m.invalid += 1;
         const text = typeof b.content === 'string' ? b.content : JSON.stringify(b.content ?? '');
         if (wfIds.has(b.tool_use_id) && /wf: blocked|denied|permission|not allowed/i.test(text)) m.wfDenied += 1;
+        else if (wfIds.has(b.tool_use_id) && FIELD_ERROR.test(text)) m.wfFieldErrors += 1;
       }
     } else if (e.type === 'result') {
       const u = e.usage ?? {};

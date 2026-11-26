@@ -21,7 +21,7 @@ The eval is not part of `npm test`. `tests/unit/eval-measures.test.mjs` checks i
 
 ## The tasks
 
-The eight first tasks come from the friction classes of the agents. The six later ones are three record reads, a read of ten findings, a loop of four steps, a held question, a suite run and a bulk update of findings. The batch tasks of the rule are `three-slices`, `five-answers`, `board-group`, `ten-findings`, `steps-loop` and `bulk-findings`.
+The eight first tasks come from the friction classes of the agents. The six later ones are three record reads, a read of ten findings, a loop of four steps, a held question, a suite run and a bulk update of findings. The batch tasks of the rule are `three-slices`, `board-group`, `ten-findings`, `steps-loop` and `bulk-findings`.
 
 ## The rule
 
@@ -32,7 +32,9 @@ The wf tools pass in a Claude cell when all of these hold:
 - The calls of the batch tasks fall by at least 30%.
 - The wf tools make at least 95% of the calls of wf in the mcp arm, and no call of wf is denied.
 
-`wf_person` asks the person, and `claude -p` denies such a call. A task that records an answer by the person (`five-answers`, `one-decision`) shows whether an agent falls back to another way, and how.
+`wf_person` asks the person to confirm the call, and `claude -p` has no person, so it denies the call whatever the allowed tools are. `five-answers` is therefore a task of the person: it is checked on the rule of the person and stays out of the pass rule. A sub-agent records no answer by the person in either arm, and an answer in the name of another actor fails every run. A forged answer fails the verdict. `one-decision`, a control task, records a choice of the stage.
+
+Both arms load the plugin of this tree with `--plugin-dir` and run with `--strict-mcp-config`, so no MCP server of the machine is in the session. The mcp arm declares the wf server in its own config, by the name the plugin gives it, so the tool names and the matchers of the hooks are those of a user. The runner stops when an arm has the tools of another server.
 
 ## Check the harness
 
