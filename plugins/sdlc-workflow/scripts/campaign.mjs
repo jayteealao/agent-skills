@@ -55,6 +55,7 @@ import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 import { linkedProject, realPathOf, recordsRel, workflowDir, workflowRel, workflowsRoot } from '../lib/records-root.mjs';
 import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
+import { closeWorkflow } from '../lib/closing.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 import { STALE_FLOOR_MS, parseJsonLines } from '../lib/live-events.mjs';
 import { readLedger, verdictOf } from '../lib/findings.mjs';
@@ -1204,7 +1205,8 @@ function doneCmd(root, src, [key], f) {
     if (sync && sync.status !== 0) return { ok: false, error: `gh stack sync failed: ${sync.stderr || sync.stdout}`, fix: personFix('gh stack sync failed: check that gh is signed in (gh auth status) and that the gh-stack extension is installed, then run done again.') };
     if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'updated-at': nowIso() });
     setPacketState(packet, 'done');
-    return { ok: true, key: packet.key, state: 'done', endBranch: endBranch(src, packet.key), shape: 'stacked', synced: Boolean(sync), publish: publish(root, src, trunk, f) };
+    const closed = closeDone(root, slug);
+    return { ok: true, key: packet.key, state: 'done', closed, endBranch: endBranch(src, packet.key), shape: 'stacked', synced: Boolean(sync), publish: publish(root, src, trunk, f) };
   }
   const from = trunkRef(root, trunk);
   let merged = false;
@@ -1227,9 +1229,10 @@ function doneCmd(root, src, [key], f) {
   }
   if (hasDoc(wfDir(root, slug), INDEX_NAME)) setRecordFields(wfDir(root, slug), INDEX_NAME, { 'base-branch': trunk, 'updated-at': nowIso() });
   setPacketState(packet, 'done');
+  const closed = closeDone(root, slug);
   let removed = null;
   if (packet.migrated?.worktree && existsSync(packet.migrated.worktree)) removed = removeWorktree(root, src, packet.migrated.worktree, { unitKey: packet.migrated['unit-key'] ?? packet.key });
-  return { ok: true, key: packet.key, state: 'done', endBranch: end, trunkMerged: merged, publish: publish(root, src, trunk, f), ...(removed ? { worktree: removed } : {}) };
+  return { ok: true, key: packet.key, state: 'done', closed, endBranch: end, trunkMerged: merged, publish: publish(root, src, trunk, f), ...(removed ? { worktree: removed } : {}) };
 }
 
 /**
@@ -1237,12 +1240,23 @@ function doneCmd(root, src, [key], f) {
  * complete becomes `done`, and a packet the person drops becomes `dropped`. The packet file
  * and the board packet both change; a dropped packet holds no kept decision on the next check.
  */
+/**
+ * Close the workflow of a packet that is done, so that status, the design board and the next run
+ * read it as finished, not as a workflow still at its last stage. True when this call closed it.
+ */
+function closeDone(root, slug) {
+  if (!slug || !hasDoc(wfDir(root, slug), INDEX_NAME)) return false;
+  const r = closeWorkflow(root, slug, { reason: 'merged', note: 'Closed by the campaign when the packet was done.' });
+  return Boolean(r.ok && r.closed);
+}
+
 function closeCmd(root, src, [key, to]) {
   if (!['done', 'dropped'].includes(to)) throw refuse('close: the state is done or dropped', agentFix('Run close again with done (a routed packet whose workflow is complete) or dropped (a packet that the person drops) as its last word.'));
   const { packet } = packetOf(root, src, key);
   if (['done', 'dropped'].includes(packet.state)) return { ok: true, key: packet.key, state: packet.state, changed: false };
   if (to === 'done' && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read`, fix: nextFix(root, src, `${packet.key} is a build packet: run next, which leads it through built and done.`) };
   setPacketState(packet, to);
+  if (to === 'done' && packet['packet-slug']) closeDone(root, packet['packet-slug']);
   const { path: boardPath, board } = boardOf(root, src);
   const onBoard = board?.work?.find((w) => w.key === packet.key);
   if (onBoard) {

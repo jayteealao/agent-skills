@@ -256,14 +256,32 @@ export function saveApproved(root, slug, keys, { commit, answeredAt = null, reas
 }
 
 /**
- * The pages of the newest approved version of a workflow, or null when it has none. `missing`
- * lists the screens whose page the records do not hold.
+ * The pages that the build of a workflow works against, or null when it has no approved version.
+ * The screens are those of the newest approved version of the workflow. A screen that another
+ * workflow approved later, such as a pass over the whole board, comes from that later version:
+ * the newest approval of a screen stands, as in `versionDrift`. Such a page names `from`, the
+ * workflow and the version, and `commit`, the commit of its approval picture. `missing` lists the
+ * screens whose page the records do not hold.
  */
 export function approvedPages(root, slug) {
   const v = listVersions(root, slug).approved.at(-1);
   if (!v) return null;
-  const dir = screensOf(root, v);
-  return { version: v.id, commit: v.commit, pages: v.screens.map((s) => ({ key: s.key, file: join(dir, `${s.key}.html`) })), missing: v.screens.map((s) => s.key).filter((k) => !hasPage(dir, k)) };
+  const m = readManifest(root);
+  const cache = new Map([[slug, listVersions(root, slug)]]);
+  const of = (w) => { if (!cache.has(w)) cache.set(w, isWorkflowSlug(w) ? listVersions(root, w) : { approved: [] }); return cache.get(w); };
+  const pages = [];
+  const missing = [];
+  for (const s of v.screens) {
+    const holds = (x) => x.screens.some((y) => y.key === s.key);
+    const later = (m.screens[s.key]?.workflows ?? []).filter((w) => w !== slug)
+      .flatMap((w) => of(w).approved).filter((x) => holds(x) && String(x.at) > String(v.at) && hasPage(screensOf(root, x), s.key))
+      .sort((a, b) => String(a.at).localeCompare(String(b.at))).at(-1);
+    const src = later ?? v;
+    const dir = screensOf(root, src);
+    if (!hasPage(dir, s.key)) missing.push(s.key);
+    pages.push({ key: s.key, file: join(dir, `${s.key}.html`), commit: src.commit ?? null, ...(later ? { from: { workflow: later.workflow, version: later.id, at: later.at } } : {}) });
+  }
+  return { version: v.id, commit: v.commit, pages, missing };
 }
 
 /**

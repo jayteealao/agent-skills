@@ -698,14 +698,18 @@ async function run(pos, opt, out) {
       needWorkflow(projectRoot, key, 'approved');
       const v = approvedPages(projectRoot, key);
       const commit = v?.commit ?? frontmatterOfDoc(workflowDir(projectRoot, key), '02c-craft.md')?.['approval-commit'] ?? null;
-      const picture = (k) => { const p = commit ? approvalPicture(projectRoot, commit, k) : null; return p && existsSync(p) ? p : null; };
-      const pages = (v?.pages ?? []).map((p) => ({ ...p, picture: picture(p.key) }));
+      // The picture of a page is that of the approval it comes from: a later approval of another workflow has its own.
+      const picture = (k, at) => { const p = at ? approvalPicture(projectRoot, at, k) : null; return p && existsSync(p) ? p : null; };
+      const pages = (v?.pages ?? []).map((p) => ({ ...p, picture: picture(p.key, p.commit ?? commit) }));
+      const newer = pages.filter((p) => p.from);
       // The component pictures of the approval: the page of each is the component page on the surface.
       const components = approvalComponentPictures(projectRoot, commit).map((c) => ({ key: c.key, page: componentFile(projectRoot, c.key), picture: c.picture }));
       const componentLines = components.map((c) => `component ${c.key}: ${c.page} picture ${c.picture}`);
       const res = { ok: Boolean(v || commit), version: v?.version ?? null, commit, pages, components,
         ...(v || commit ? {} : { error: `${key} has no approved design`, fix: personFix(`The design of ${key} is not approved yet. Run /wf design ${key}.`) }) };
-      return finish(res, v ? [v.version, ...pages.map((p) => `${p.key} ${p.file}${p.picture ? ` picture ${p.picture}` : ' (no picture)'}`), ...componentLines, ...((v.missing ?? []).length ? [`not whole: ${v.missing.join('; ')}`] : [])].join('\n') : [`no version: read the pages at commit ${commit ?? 'none'}`, ...componentLines].join('\n'));
+      if (newer.length) res.newer = newer.map((p) => ({ key: p.key, workflow: p.from.workflow, version: p.from.version }));
+      const head = newer.length ? `${v.version}; ${newer.length} of ${pages.length} pages come from a later approval of another workflow, which stands` : v?.version;
+      return finish(res, v ? [head, ...pages.map((p) => `${p.key} ${p.file}${p.picture ? ` picture ${p.picture}` : ' (no picture)'}${p.from ? ` (approved later in ${p.from.workflow} ${p.from.version})` : ''}`), ...componentLines, ...((v.missing ?? []).length ? [`not whole: ${v.missing.join('; ')}`] : [])].join('\n') : [`no version: read the pages at commit ${commit ?? 'none'}`, ...componentLines].join('\n'));
     }
     case 'restore': {
       const id = rest[2];

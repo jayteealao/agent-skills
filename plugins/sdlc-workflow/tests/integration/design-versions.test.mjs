@@ -251,3 +251,32 @@ test('an older workflow has no version, and a version names its commit', () => {
     assert.equal(versionDir(root, 'w1', '../x'), null);
   } finally { done(); }
 });
+
+test('the build of a workflow reads a screen that another workflow approved later from that later version', () => {
+  const { root, done } = project();
+  try {
+    const w2 = join(root, '.ai', 'workflows', 'polish');
+    mkdirSync(w2, { recursive: true });
+    writeFileSync(join(w2, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: polish\nstatus: in-progress\n---\n');
+    edit(root, 'basket', 'w1 basket');
+    edit(root, 'pay', 'w1 pay');
+    saveApproved(root, 'w1', ['basket', 'pay'], { commit: 'a'.repeat(40), now: at(1) });
+    // A pass over the board approves the basket again, later and in another workflow.
+    addScreen(root, 'basket', { title: 'Basket', area: 'checkout', workflow: 'polish' });
+    edit(root, 'basket', 'polished basket');
+    saveApproved(root, 'polish', ['basket'], { commit: 'b'.repeat(40), now: at(5) });
+    const r = approvedPages(root, 'w1');
+    assert.equal(r.version, 'v1', 'the screens are still those of the workflow');
+    const by = Object.fromEntries(r.pages.map((p) => [p.key, p]));
+    assert.match(readFileSync(by.basket.file, 'utf8'), /polished basket/);
+    assert.deepEqual([by.basket.from.workflow, by.basket.from.version, by.basket.commit], ['polish', 'v1', 'b'.repeat(40)]);
+    assert.match(readFileSync(by.pay.file, 'utf8'), /w1 pay/);
+    assert.deepEqual([by.pay.from, by.pay.commit], [undefined, 'a'.repeat(40)]);
+    // An approval of the workflow after the pass takes its own page back.
+    edit(root, 'basket', 'w1 basket again');
+    saveApproved(root, 'w1', ['basket', 'pay'], { commit: 'c'.repeat(40), now: at(9) });
+    const again = approvedPages(root, 'w1').pages.find((p) => p.key === 'basket');
+    assert.equal(again.from, undefined);
+    assert.match(readFileSync(again.file, 'utf8'), /w1 basket again/);
+  } finally { done(); }
+});

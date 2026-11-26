@@ -133,6 +133,8 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each packet;
     assert.equal(done.endBranch, `packets/${SRC}--engine`);
     assert.equal(git(root, 'rev-parse', `packets/${SRC}--engine`), git(root, 'rev-parse', 'HEAD'));
     assert.equal(rec(root, 'demo-engine', '00-index.md')['base-branch'], 'main', 'done puts base-branch back to the trunk');
+    assert.equal(done.closed, true);
+    assert.deepEqual([rec(root, 'demo-engine', '00-index.md').status, rec(root, 'demo-engine', '00-index.md')['close-reason']], ['closed', 'merged'], 'a done packet closes its workflow, so status reads it as finished');
     assert.equal(fm(path.join(dir, 'work', 'demo-engine.md')).state, 'done');
 
     // The second packet: design first, then its review base is the end branch of the first.
