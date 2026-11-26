@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.37] - 2026-11-26
+
+- fix(sdlc-workflow): code of the wf tools may declare open, process or module
+- feat(sdlc-workflow): wf tool writes show what they changed
+- feat(sdlc-workflow): wf tool calls that teach, a call sheet, and a smaller tool list
+- fix(sdlc-workflow): a sub-agent records no answer by the person through decide add --file
+- test(sdlc-workflow): the two arms of the eval differ only by the wf tools
+- feat(sdlc-workflow): several steps in one wf_step call, help in tool terms, and a job wait
+- test(sdlc-workflow): the measure counts a call of wf through a shell variable
+- test(sdlc-workflow): the cli arm of the eval starts no MCP server
+- test(sdlc-workflow): an eval pass does not write into the folder of an earlier one
+
 ## [10.0.0-next.36] - 2026-11-26
 
 - feat(sdlc-workflow): the release takes --no-ci and --no-smoke
