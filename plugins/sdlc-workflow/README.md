@@ -111,6 +111,12 @@ Hooks verify each managed artifact on write, stage it, and record the turn's exa
 
 One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module with one job. The model cannot type the built-in `/goal`, so at the end of a `/wf loop goal` turn the mod puts the `/goal` line into the prompt box for your Enter; in the Desktop app it sends the line at once. It needs `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`. Without the flag the module does not load, and you paste the `/goal` line that `/wf loop goal` prints.
 
+## The wf server
+
+On Claude Code the plugin starts `wf`, an MCP server. Its ten tools run the same operations as `wf.mjs`, with no shell: `wf_context` (where a workflow stands, the brief of a stage and its calls), `wf_read` and `wf_query` (reads), `wf_run` (records), `wf_step` (the steps of a slice), `wf_decide` (answers and held questions), `wf_wait` (a job, an answer or the next event of a run), `wf_job` (long work, as a detached job), `wf_act` (git, GitHub and servers) and `wf_person` (a choice of the person). The references show each call as the tool call first and the command line after it. Codex and pi use the command line.
+
+The guard hook holds what an agent may do. A sub-agent or a Workflow agent never calls `wf_person`, never calls as the session or the person, and records no entry by the person. A merge, a push, a post to GitHub, a migration or a server install asks you first. A shell call of `wf.mjs` still runs, and gets a note with the matching tool call.
+
 ## Develop
 
 ```bash
