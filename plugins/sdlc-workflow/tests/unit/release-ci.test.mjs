@@ -1,7 +1,7 @@
 // checkCi reads the last CI run of the release branch through an injected `gh`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkCi, CI_WORKFLOW } from '../../scripts/release.mjs';
+import { checkCi, CI_WORKFLOW, flagOptions } from '../../scripts/release.mjs';
 
 const ctx = (status, stdout, stderr = '') => ({ repoRoot: '.', branch: 'master', run: () => ({ status, stdout, stderr }) });
 const run = (fields) => JSON.stringify([{ status: 'completed', conclusion: 'success', headSha: 'abcdef1234567890', url: 'https://ci/1', ...fields }]);
@@ -22,4 +22,12 @@ test('checkCi: a workflow that is not on the remote yet passes; any other gh err
   assert.equal(auth.ok, false);
   assert.match(auth.reason, /gh cannot read CI: HTTP 401/);
   assert.match(checkCi(ctx(1, '', '')).reason, /gh is not installed/);
+});
+
+test('--no-ci reads no CI run, --no-smoke skips each host, and no flag changes nothing', () => {
+  assert.deepEqual(flagOptions([]), {});
+  const o = flagOptions(['--no-ci', '--no-smoke']);
+  assert.deepEqual(o.checkCi(), { ok: true, reason: 'not read (--no-ci)' });
+  assert.ok(o.smoke().length >= 3 && o.smoke().every((r) => r.skipped && r.reason === '--no-smoke'));
+  assert.equal(flagOptions(['--no-ci']).smoke, undefined);
 });

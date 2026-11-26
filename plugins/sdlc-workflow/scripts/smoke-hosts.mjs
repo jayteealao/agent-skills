@@ -114,7 +114,7 @@ export function smokeHost(host, { exec = spawnSync, keep = false, has = onPath, 
 }
 
 export function smokeLine(r) {
-  if (r.skipped) return `${r.host}: skipped (no ${r.host} CLI on PATH)`;
+  if (r.skipped) return `${r.host}: skipped (${r.reason ?? `no ${r.host} CLI on PATH`})`;
   return `${r.host}: status ${r.status ? 'ok' : 'FAIL'}, intake ${r.intake ? `ok (${r.slugs.join(', ')})` : 'FAIL'}${r.timedOut ? ', a run timed out' : ''}${r.leftover ? `, left ${r.leftover}` : ''}${r.ok ? '' : ` — ${r.tail.trim().split('\n').pop()}`}`;
 }
 

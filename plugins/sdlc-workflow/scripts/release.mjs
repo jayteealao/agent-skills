@@ -18,6 +18,10 @@
  *              again from it
  *   report     the artifact needs a republish when docs/commands.html changed
  *
+ * Two flags, when the person asks for them: `--no-ci` does not wait for or read the last CI run
+ * of master, and `--no-smoke` skips the smoke flow of the install step (the reinstall and doctor
+ * still run). The gates of preflight always run.
+ *
  * `next` is the channel for daily work: 9.x.y → 10.0.0-next.0 → 10.0.0-next.1 … and
  * `major` ships 10.0.0 from the last next. A file another session changed is never staged.
  * The target version is kept in .release.json between runs; the last step deletes it.
@@ -551,12 +555,26 @@ export async function release(level, opts = {}) {
 }
 
 const isMain = isMainModule(import.meta.url);
+/** The options of the flags of the command line: --no-ci and --no-smoke. */
+export function flagOptions(argv) {
+  const opts = {};
+  if (argv.includes('--no-ci')) opts.checkCi = () => ({ ok: true, reason: 'not read (--no-ci)' });
+  if (argv.includes('--no-smoke')) opts.smoke = () => HOSTS.map((host) => ({ host, skipped: true, reason: '--no-smoke' }));
+  return opts;
+}
+
 if (isMain) {
   const level = process.argv[2];
-  release(level).catch((err) => {
+  const flags = process.argv.slice(3);
+  const unknown = flags.filter((a) => !['--no-ci', '--no-smoke'].includes(a));
+  if (unknown.length) {
+    console.error(`[release] unknown flag ${unknown.join(' ')}: the flags are --no-ci and --no-smoke`);
+    process.exit(2);
+  }
+  release(level, flagOptions(flags)).catch((err) => {
     if (!(err instanceof ReleaseStop)) throw err;
     console.error(`[release] stopped: ${err.message}`);
-    console.error(`[release] fix it, then run npm run release ${level} again; it resumes at this step.`);
+    console.error(`[release] fix it, then run npm run release ${[level, ...flags].join(' ')} again; it resumes at this step.`);
     for (const l of fixLines(err.fix)) console.error(`[release] ${l}`);
     process.exitCode = 1;
   });
