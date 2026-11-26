@@ -1,7 +1,7 @@
 // Who may write in the name of the person: the session, never an agent of a run.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -97,7 +97,18 @@ test('the hook refuses the commands of the person for a call of a sub-agent only
   assert.equal(personOnlyCommand(`${wf} decide add /r demo --kind answer --by delegate --key k --answer x`), null);
   assert.equal(personOnlyCommand(`${wf} rule list /r`), null);
   assert.equal(personOnlyCommand('git commit -m "rule add"'), null);
-  const cmd = { tool_input: { command: `${wf} decide add /r demo --kind steer --answer x` } };
+  // A wf script by a shell variable, and the entries of decide add in a file.
+  assert.equal(personOnlyCommand('node $wf decide add . demo --kind answer --by person --answer x'), 'record an entry by the person');
+  const dir = mkdtempSync(path.join(tmpdir(), 'actor-file-'));
+  try {
+    writeFileSync(path.join(dir, 'mine.json'), JSON.stringify([{ kind: 'answer', key: 'k', answer: 'x', by: 'stage' }]));
+    writeFileSync(path.join(dir, 'person.json'), JSON.stringify([{ kind: 'answer', key: 'k', answer: 'x', by: 'stage' }, { kind: 'answer', key: 'q', answer: 'y', by: 'person' }]));
+    assert.equal(personOnlyCommand(`${wf} decide add . demo --file mine.json`, { cwd: dir }), null);
+    assert.equal(personOnlyCommand(`${wf} decide add . demo --file "person.json"`, { cwd: dir }), 'record an entry by the person');
+    assert.equal(personOnlyCommand(`${wf} decide add . demo --file ${path.join(dir, 'person.json')}`), 'record an entry by the person');
+    assert.match(personOnlyCommand(`${wf} decide add . demo --file later.json`, { cwd: dir }), /write the file in an earlier call/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  const cmd ={ tool_input: { command: `${wf} decide add /r demo --kind steer --answer x` } };
   // The folded hook loads the guard for a call of a sub-agent, before the other shell checks.
   const hook = readFileSync(new URL('../../hooks/pre-tool-use-all.mjs', import.meta.url), 'utf8');
   const at = hook.indexOf("if (input?.agent_id) stages.push(['person-guard'");

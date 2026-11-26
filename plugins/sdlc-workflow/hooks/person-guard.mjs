@@ -13,7 +13,7 @@ import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 
 export async function run(input) {
   if (!input?.agent_id) return;
-  const what = personOnlyCommand(input?.tool_input?.command);
+  const what = personOnlyCommand(input?.tool_input?.command, { cwd: input?.cwd });
   if (!what) return;
   process.stderr.write(`wf: blocked. A sub-agent of a run does not ${what} in the name of the person. Hold the question with decide hold and wait for the answer with decide wait. For a choice of your own, record it with --by stage or --by delegate.\n`);
   blockToolCall();
