@@ -7,8 +7,9 @@ import { decisionsOf, liveDecisions } from '../../../lib/decisions.mjs';
 import { openDeferrals } from '../../../lib/deferrals.mjs';
 import { INDEX_NAME, frontmatterOfDoc } from '../../../lib/records.mjs';
 import { readSteps } from '../../../lib/steps.mjs';
-import { readFileSync } from 'node:fs';
-import { BOARD_ITEMS, QUESTIONS, SLICES, SLUG, VERIFY } from './fixture.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { readLedger } from '../../../lib/findings.mjs';
+import { BOARD_ITEMS, FINDINGS, QUESTIONS, SLICES, SLUG, SUITE_MARKER, VERIFY } from './fixture.mjs';
 
 const roster = (dir) => Object.fromEntries((frontmatterOfDoc(dir, '03-slice.md')?.slices ?? []).map((s) => [s.slug, s]));
 const live = (dir) => liveDecisions(decisionsOf(dir), {});
@@ -91,6 +92,73 @@ export const TASKS = [
       const head = execFileSync('git', ['-C', f.root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
       const row = readSteps(f.dir).filter((r) => r.slice === 's3').at(-1);
       return result(row?.event === 'done' && row.step === 3 && row.sha === head, `last row: ${JSON.stringify(row ?? null)}`);
+    },
+  },
+
+  {
+    id: 'three-reads', class: 'reads', kind: 'answer',
+    prompt: `Report three facts of the workflow ${SLUG}: its current stage, the status of slice s4 in the slice roster, and the convergence of the verify record of slice s2. Change nothing.`,
+    check: (f, answer) => {
+      const t = String(answer ?? '').toLowerCase();
+      const miss = ['implement', 'defined', 'escalated'].filter((w) => !t.includes(w));
+      return result(!miss.length, miss.length ? `missing: ${miss.join(', ')}` : 'the three facts');
+    },
+  },
+  {
+    id: 'ten-findings', class: 'reads', kind: 'answer',
+    prompt: `The workflow ${SLUG} has ten open findings. Give the ids of the findings of severity HIGH, and no other id. Change nothing.`,
+    check: (f, answer) => {
+      const want = FINDINGS.map((sev, n) => (sev === 'HIGH' ? `COR-${n + 1}` : null)).filter(Boolean);
+      const named = [...new Set([...String(answer ?? '').matchAll(/\bCOR-(\d+)\b/g)].map((m) => `COR-${m[1]}`))];
+      const miss = want.filter((id) => !named.includes(id));
+      const extra = named.filter((id) => !want.includes(id));
+      return result(!miss.length && !extra.length, `missing: ${miss.join(', ') || 'none'}; extra: ${extra.join(', ') || 'none'}`);
+    },
+  },
+  {
+    id: 'steps-loop', class: 'loop', kind: 'state',
+    prompt: `Finish the steps of slice s3 of the workflow ${SLUG}. Step 3 is committed: its commit is HEAD. Steps 4 (Docs), 5 (Tests) and 6 (Cleanup) need no code change: start each one and record it as done with no change, in order.`,
+    check: (f) => {
+      const head = execFileSync('git', ['-C', f.root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+      const rows = readSteps(f.dir).filter((r) => r.slice === 's3');
+      const done = (n) => rows.find((r) => r.event === 'done' && r.step === n);
+      const started = (n) => rows.some((r) => r.event === 'start' && r.step === n);
+      const bad = [];
+      if (done(3)?.sha !== head) bad.push('step 3 at HEAD');
+      for (const n of [4, 5, 6]) if (!started(n) || !done(n)) bad.push(`step ${n}`);
+      return result(!bad.length, bad.length ? `wrong: ${bad.join(', ')}` : 'steps 3 to 6');
+    },
+  },
+  {
+    id: 'held-question', class: 'hold', kind: 'state',
+    prompt: `You are the implement stage of slice s3 of the workflow ${SLUG}, and you need the person to choose the retry limit. Hold the question "Which retry limit?" under the key retry-limit, with the options 3 and 5, and 3 recommended. Do not answer it, and do not wait for the answer.`,
+    check: (f) => {
+      const open = frontmatterOfDoc(f.dir, INDEX_NAME)?.['open-questions'] ?? [];
+      const q = open.find((x) => x.key === 'retry-limit');
+      const answered = live(f.dir).some((d) => d.key === 'retry-limit' && d.answer != null && String(d.answer).trim() !== '');
+      return result(Boolean(q) && !answered, `held: ${JSON.stringify(q ?? null)}; answered: ${answered}`);
+    },
+  },
+  {
+    id: 'suite-run', class: 'job', kind: 'state',
+    prompt: `Run the fast suite of the test profile of this repository, so that its real time is recorded in the profile.`,
+    check: (f) => {
+      const ran = existsSync(join(f.root, SUITE_MARKER));
+      const fast = JSON.parse(readFileSync(join(f.root, '.ai', 'sdlc-config.json'), 'utf8')).testProfile?.fast ?? {};
+      return result(ran && typeof fast.measuredSeconds === 'number', `ran: ${ran}; measured: ${fast.measuredSeconds ?? 'none'}`);
+    },
+  },
+  {
+    id: 'bulk-findings', class: 'bulk', kind: 'state',
+    prompt: `The commit HEAD of this repository fixed the findings COR-1 to COR-6 of the workflow ${SLUG}. Mark those six as fixed with that commit, and leave the other four open.`,
+    check: (f) => {
+      const head = execFileSync('git', ['-C', f.root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+      const by = Object.fromEntries(readLedger(f.dir).findings.map((x) => [x.id, x]));
+      // A short sha of HEAD is the same commit.
+      const atHead = (c) => typeof c === 'string' && c.length >= 7 && head.startsWith(c);
+      const right = (id, n) => (n < 6 ? by[id]?.status === 'fixed' && atHead(by[id]?.commit) : by[id]?.status === 'open');
+      const wrong = FINDINGS.map((_, n) => `COR-${n + 1}`).filter((id, n) => !right(id, n));
+      return result(!wrong.length, `wrong: ${wrong.join(', ') || 'none'}`);
     },
   },
 ];

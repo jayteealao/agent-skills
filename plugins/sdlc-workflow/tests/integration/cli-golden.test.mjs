@@ -110,7 +110,7 @@ function record() {
     return { exit: r.status, out: normal(r.stdout, places), err: normal(r.stderr, places) };
   };
   try {
-    makeFixture(root);
+    makeFixture(root, { findings: false, suite: false });
     const forms = JSON.parse(spawnSync(process.execPath, [WF, 'describe', '--json'], { encoding: 'utf8', env }).stdout).cli;
     const rows = {};
     for (const f of forms) {

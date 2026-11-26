@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { PLUGIN_ROOT, SLUG, makeFixture } from '../evals/code-mode/fixture.mjs';
+import { readLedger } from '../../lib/findings.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 import { permissionFlag, runCode } from '../../lib/ops/code-host.mjs';
 
@@ -29,7 +30,9 @@ test('the code examples of _records.md run and give their result', { skip: permi
     assert.deepEqual(out[0], [], 'the one slice with a plan has a verify record');
     assert.deepEqual(out[1], ['s1', 's4']);
     assert.deepEqual(frontmatterOfDoc(f.dir, '03-slice.md').slices.filter((s) => s.complexity).map((s) => [s.slug, s.complexity]), [['s1', 's'], ['s4', 'm']]);
-    assert.deepEqual(out[2], []);
+    // The ten open findings of the fixture are in retry.js: each is fixed, with the commit of the example.
+    assert.deepEqual(out[2], Array.from({ length: 10 }, (_, n) => `COR-${n + 1}`));
+    assert.ok(readLedger(f.dir).findings.every((x) => x.status === 'fixed' && x.commit === '5fb0c03'));
   } finally {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
     Object.assign(process.env, saved);

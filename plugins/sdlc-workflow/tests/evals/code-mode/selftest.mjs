@@ -50,6 +50,18 @@ const SOLUTIONS = {
   'after-stop': (f) => wf(f.root, ['status', '.', SLUG, '--brief']),
   'one-decision': (f) => wf(f.root, ['decide', 'add', '.', SLUG, '--kind', 'answer', '--key', 'cache', '--question', 'Which cache?', '--answer', 'redis', '--by', 'person']),
   'step-done': (f) => wf(f.root, ['step', 'done', '.', SLUG, 's3', '3', '--sha', 'HEAD']),
+  'three-reads': (f) => wf(f.root, ['status', '.', SLUG, '--json']) + wf(f.root, ['record', 'get', '.', SLUG, '03-slice']) + wf(f.root, ['record', 'get', '.', SLUG, '06-verify-s2', '--field', 'convergence']),
+  'ten-findings': (f) => code(f.root, "return wf.findings.list().filter((x) => x.severity === 'HIGH').map((x) => x.id).join(', ');", 'query'),
+  'steps-loop': (f) => {
+    wf(f.root, ['step', 'done', '.', SLUG, 's3', '3', '--sha', 'HEAD']);
+    for (const [n, title] of [[4, 'Docs'], [5, 'Tests'], [6, 'Cleanup']]) {
+      wf(f.root, ['step', 'start', '.', SLUG, 's3', String(n), '--title', title]);
+      wf(f.root, ['step', 'done', '.', SLUG, 's3', String(n), '--no-change']);
+    }
+  },
+  'held-question': (f) => wf(f.root, ['decide', 'hold', '.', SLUG, '--key', 'retry-limit', '--question', 'Which retry limit?', '--stage', 'implement', '--slice', 's3', '--options', '3|5', '--recommended', '3']),
+  'suite-run': (f) => wf(f.root, ['profile', 'run', '.', 'fast']),
+  'bulk-findings': (f) => { for (let n = 1; n <= 6; n += 1) wf(f.root, ['findings', 'set', '.', SLUG, `COR-${n}`, 'fixed', '--commit', 'HEAD']); },
 };
 
 let failed = 0;

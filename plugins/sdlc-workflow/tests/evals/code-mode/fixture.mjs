@@ -1,12 +1,14 @@
 // The fixture of the code-mode eval: a git repo with one workflow of six slices. Three slices
 // have a verify record, slice s3 stopped at a question in step 3 of its plan, five questions
-// are open, and the brainstorm board has a thread of four items. Every record carries the
+// are open, the brainstorm board has a thread of four items, a review of s3 left ten open
+// findings, and the test profile has a fast suite. Every record carries the
 // required fields of the schema, so the CLI and the library accept a change of it.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stampOf } from '../../../scripts/wf.mjs';
+import { mergeRun, readLedger, writeLedger } from '../../../lib/findings.mjs';
 import { writeDriverOutcome } from '../../../lib/progress.mjs';
 import { INDEX_NAME, writeDoc } from '../../../lib/records.mjs';
 import { appendStep } from '../../../lib/steps.mjs';
@@ -25,6 +27,15 @@ export const QUESTIONS = [
   ['q5', 'Which region?', 'eu-west-1'],
 ];
 export const BOARD_ITEMS = ['i1', 'i2', 'i3', 'i4'];
+/** The ten findings of a review of slice s3: the severity of each, in the order of their lines. */
+export const FINDINGS = ['HIGH', 'LOW', 'MED', 'HIGH', 'NIT', 'LOW', 'MED', 'HIGH', 'LOW', 'NIT'];
+/** The command of the fast suite of the test profile; the suite writes the marker file. */
+const ISSUES = [
+  'The retry count is never reset after a success.', 'A log line prints the whole payload.', 'The backoff grows without a cap.',
+  'A timeout of zero retries forever.', 'The name n says nothing.', 'The error message has no request id.',
+  'Jitter uses Math.random with no seed for tests.', 'A rejected promise is swallowed.', 'The default limit is a magic number.', 'A comment repeats the code.',
+];
+export const SUITE_MARKER = 'suite-ran.txt';
 const AT = '2026-10-25T10:00:00Z';
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -35,8 +46,12 @@ const record = (type, over = {}, slice = null) => ({
   ...over,
 });
 
-/** Make the fixture in the empty folder `root`. Returns the paths that the checks read. */
-export function makeFixture(root) {
+/**
+ * Make the fixture in the empty folder `root`. Returns the paths that the checks read.
+ * `findings` and `suite` add the ten findings and the fast suite; the golden test of the CLI
+ * leaves them out, since a suite run writes a log named by its time.
+ */
+export function makeFixture(root, { findings = true, suite = true } = {}) {
   mkdirSync(root, { recursive: true });
   git(root, 'init', '-q', '-b', 'main');
   for (const [k, v] of [['user.name', 'eval'], ['user.email', 'eval@example.com'], ['commit.gpgsign', 'false']]) git(root, 'config', k, v);
@@ -79,6 +94,18 @@ export function makeFixture(root) {
   board.items = [...board.items, ...BOARD_ITEMS.map((key, n) => ({ ...board.items[0], key, thread, text: `Board item ${n + 1}.` }))];
   Object.assign(board, { slug: SLUG, 'updated-at': AT });
   writeFileSync(join(dir, 'brainstorm-board.json'), `${JSON.stringify(board, null, 2)}\n`);
+
+  // A review of slice s3 found ten defects; each is open.
+  if (findings) {
+    const found = FINDINGS.map((severity, n) => ({ dimension: 'correctness', severity, file: 'retry.js', line: String(10 * n + 1), issue: ISSUES[n] }));
+    writeLedger(dir, mergeRun(readLedger(dir), found, { source: 'review', dimensions: ['correctness'], slice: 's3', run: 'run-7', now: AT }).ledger);
+  }
+
+  // The fast suite of the test profile: a script that writes a marker file.
+  if (suite) {
+    writeFileSync(join(root, 'suite.cjs'), `require('node:fs').writeFileSync(${JSON.stringify(SUITE_MARKER)}, 'ran');\n`);
+    writeFileSync(join(root, '.ai', 'sdlc-config.json'), `${JSON.stringify({ testProfile: { fast: { command: 'node suite.cjs', estimateSeconds: 5 } } }, null, 2)}\n`);
+  }
 
   // The step that the control task records as done: a commit of the code.
   writeFileSync(join(root, 'retry.js'), 'export const retry = (n) => n;\n');

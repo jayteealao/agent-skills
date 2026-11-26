@@ -94,11 +94,12 @@ for (const [slice, size] of Object.entries(sizes)) wf.records.set('03-slice', `s
 return Object.keys(sizes);
 ```
 
-Every open finding in one file, set to `fixed` after the fix is committed (`wf_run`):
+Every open finding in one file, set to `fixed` with the commit of its fix (`wf_run`):
 
 ```js
+const commit = '5fb0c03'; // the sha of the fix commit
 const found = wf.findings.list({ open: true }).filter((f) => f.file === 'retry.js');
-for (const f of found) wf.findings.set(f.id, { status: 'fixed' });
+for (const f of found) wf.findings.set(f.id, { status: 'fixed', commit });
 return found.map((f) => f.id);
 ```
 

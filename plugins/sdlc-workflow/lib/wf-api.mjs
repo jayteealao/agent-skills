@@ -63,7 +63,7 @@
  *             Example: wf.findings.add([{ dimension: 'correctness', severity: 'HIGH', issue: 'x' }], { source: 'review' })
  *   wf.findings.set(id, { status, reason, commit, decision })
  *             change the status of one finding
- *             Example: wf.findings.set('COR-1', { status: 'fixed' })
+ *             Example: wf.findings.set('COR-1', { status: 'fixed', commit: '5fb0c03' })
  *   wf.status.summary()
  *             where the workflow stands, as status --brief prints it (async)
  *             Example: const s = await wf.status.summary()
