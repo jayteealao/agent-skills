@@ -56,6 +56,15 @@ test('code mode: board.move takes the key of a new thread as `to` too', async ()
   } finally { p.done(); }
 });
 
+test('code mode: the code may declare a name of the sandbox (open, process, module)', async () => {
+  const p = project({ findings: false, suite: false });
+  try {
+    const r = await callTool('wf_query', { slug: SLUG, code: "const open = wf.status.summary(); const process = 1; const module = 2; return [typeof open, process + module];" }, { root: p.root });
+    assert.equal(r.ok, true, JSON.stringify(r.error));
+    assert.deepEqual(r.data, ['object', 3]);
+  } finally { p.done(); }
+});
+
 test('describe of one command is its help, with the calls', async () => {
   const p = project({ findings: false, suite: false });
   try {

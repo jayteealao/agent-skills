@@ -54,8 +54,9 @@ const open = (slug) => { call(null, 'open', [slug]); return api(slug); };
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 (async () => {
   try {
-    // The names of the CommonJS wrapper are parameters, so the code sees them as undefined.
-    const value = await new AsyncFunction('wf', 'open', 'require', 'process', 'module', 'exports', '__filename', '__dirname', '"use strict";\\n' + workerData.code)(workerData.slug ? api(workerData.slug) : null, open);
+    // The names of the CommonJS wrapper are parameters, so the code sees them as undefined. The
+    // code runs in a block of its own, so it may declare one of these names (const open = ...).
+    const value = await new AsyncFunction('wf', 'open', 'require', 'process', 'module', 'exports', '__filename', '__dirname', '"use strict";\\n{\\n' + workerData.code + '\\n}')(workerData.slug ? api(workerData.slug) : null, open);
     parentPort.postMessage({ done: value === undefined ? null : value });
   } catch (e) {
     parentPort.postMessage({ fail: String(e && e.message || e), op: e && e.name === 'WfError' ? 'wf' : null });
