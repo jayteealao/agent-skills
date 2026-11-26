@@ -18,7 +18,7 @@ import { runChecks } from '../../lib/design-check.mjs';
 import { WRITE_HEADER, designHandler, writeToken } from '../../lib/design-server.mjs';
 import { canvasState } from '../../lib/design-state.mjs';
 import { addScreen, initSurface, readManifest, screenFile } from '../../lib/design-surface.mjs';
-import { approvedPages, dropRounds, listVersions, restoreVersion, saveApproved, saveRound, versionDir, versionDrift, versionName } from '../../lib/design-versions.mjs';
+import { approvalProblems, approvedPages, briefDigest, dropRounds, listVersions, restoreVersion, saveApproved, saveRound, versionDir, versionDrift, versionName } from '../../lib/design-versions.mjs';
 import { frontmatterOfDoc } from '../../lib/records.mjs';
 
 function project() {
@@ -278,5 +278,22 @@ test('the build of a workflow reads a screen that another workflow approved late
     const again = approvedPages(root, 'w1').pages.find((p) => p.key === 'basket');
     assert.equal(again.from, undefined);
     assert.match(readFileSync(again.file, 'utf8'), /w1 basket again/);
+  } finally { done(); }
+});
+
+test('a brief rewritten after the approval unsettles the design until it is approved again', () => {
+  const { root, dir, done } = project();
+  try {
+    const brief = (scope) => writeFileSync(join(dir, '01-intake.md'), `---\nschema: sdlc/v1\ntype: intake\nslug: w1\n---\n# Intake\n\n${scope}\n`);
+    brief('Scope: the basket.');
+    saveApproved(root, 'w1', ['basket'], { commit: 'a'.repeat(40), now: at(1) });
+    assert.equal(listVersions(root, 'w1').approved.at(-1).brief, briefDigest(root, 'w1'), 'the version keeps the digest of the brief');
+    const contract = { 'direction-confirmed-by': 'answer-event', 'approval-commit': 'a'.repeat(40), 'design-version': 'v1', screens: ['basket'] };
+    const briefOnes = (c) => approvalProblems(root, 'w1', c).filter((p) => /the brief/.test(p));
+    assert.deepEqual(briefOnes(contract), [], 'an unchanged brief keeps the approval');
+    brief('Scope: the basket, and the payment with its new screens.');
+    assert.match(briefOnes(contract)[0] ?? '', /changed after v1 was approved: run \/wf design w1 amend/);
+    saveApproved(root, 'w1', ['basket'], { commit: 'b'.repeat(40), now: at(5) });
+    assert.deepEqual(briefOnes({ ...contract, 'approval-commit': 'b'.repeat(40), 'design-version': 'v2' }), [], 'a new approval answers the new brief');
   } finally { done(); }
 });

@@ -18,13 +18,14 @@
 // A folder is made beside its place and moved there whole, and the number of a round or a version
 // is taken under a lock, so two writers never share a number and a reader never sees half a folder.
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { liveDecisions, readDecisions } from './decisions.mjs';
 import { commitDesignRecords, designRecordsDir } from './design-records.mjs';
 import { COMPONENTS_FILE, KEY_RE, LAYOUT_SHEET, SCREENS_DIR, TOKENS_FILE, TOKENS_JSON, addScreen, listScreens, readManifest, screenRel, surfaceDir, updateManifest, withDesignLock, writeJson } from './design-surface.mjs';
 import { agentFix, refuse } from './fix.mjs';
-import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
+import { INDEX_NAME, frontmatterOfDoc, readDoc } from './records.mjs';
 import { workflowDir } from './records-root.mjs';
 
 const VERSION_RE = /^v(\d+)$/;
@@ -139,6 +140,36 @@ function decisionsSince(root, slug, since) {
   return lines.join('; ').slice(0, MAX_REASON);
 }
 
+/** The records that hold the brief of a workflow: the scope that its design answers. */
+const BRIEF_DOCS = ['01-intake.md', '02-shape.md'];
+
+/**
+ * A digest of the brief of a workflow, the text of its intake and its shape, or null when it has
+ * neither. An approved version keeps it, so a brief that changes after the approval is seen.
+ */
+export function briefDigest(root, slug) {
+  const dir = workflowDir(root, slug);
+  const texts = BRIEF_DOCS.map((n) => readDoc(dir, n)?.body).map((b) => (b == null ? '' : String(b).replace(/\r\n/g, '\n').trimEnd()));
+  if (texts.every((t) => !t)) return null;
+  return createHash('sha256').update(texts.join('\n\n')).digest('hex').slice(0, 16);
+}
+
+/**
+ * Why the brief of a workflow is newer than its approved version `v`, or null. A version that
+ * keeps a digest is compared by text. An older version without one is compared by time: a brief
+ * record written after the approval.
+ */
+function briefProblem(root, slug, v) {
+  const fix = `run /wf design ${slug} amend, so the design answers the new scope, and approve it again`;
+  if (v.brief) {
+    const now = briefDigest(root, slug);
+    return now && now !== v.brief ? `the brief (${BRIEF_DOCS.join(', ')}) changed after ${v.id} was approved: ${fix}` : null;
+  }
+  const dir = workflowDir(root, slug);
+  const at = BRIEF_DOCS.map((n) => frontmatterOfDoc(dir, n)?.['updated-at']).filter(Boolean).map(String).sort().at(-1);
+  return at && v.at && Date.parse(at) > Date.parse(v.at) ? `the brief (${BRIEF_DOCS.join(', ')}) was written at ${at}, after ${v.id} was approved at ${v.at}: ${fix}` : null;
+}
+
 /** The screen as a version keeps it: enough to find its place and to add it again. */
 const entryOf = (m, key) => {
   const s = m.screens[key] ?? {};
@@ -249,6 +280,7 @@ export function saveApproved(root, slug, keys, { commit, answeredAt = null, reas
     writeFolder(root, versionDir(root, slug, id), {
       kind: 'approved', number, reason: said || (prior ? decisionsSince(root, slug, prior.at) || 'The design changed' : 'The first approved design'),
       at: nowIso(now), commit, ...(answeredAt ? { answeredAt } : {}), ...(slice ? { slice } : {}),
+      ...((b) => (b ? { brief: b } : {}))(briefDigest(root, slug)),
       screens: [...keys, ...carried].map((k) => entryOf(m, k)), changed: changedSince(root, keys, prior),
     }, keys, carried, fromPrior);
     return id;
@@ -431,5 +463,8 @@ export function approvalProblems(root, slug, contract) {
   if (!keys.some((k) => approvalsOf(k).some((a) => a.version === id && (!answered || !a.answeredAt || a.answeredAt === answered)))) out.push(`the manifest holds no approval of ${slug} for ${id}`);
   out.push(...keys.filter((k) => !hasPage(surfaceScreens(root), k)).map(screenRel));
   out.push(...versionDrift(root, keys, { restores: false }).map((d) => `${screenRel(d.screen)} (it differs from the approved ${d.version} of ${d.workflow}: approve it again, or restore ${d.version})`));
+  // A brief that changed after the approval asks more than the approved design answers.
+  const brief = briefProblem(root, slug, v);
+  if (brief) out.push(brief);
   return out;
 }
