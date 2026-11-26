@@ -7,10 +7,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { extractFn } from '../../helpers/extract-fn.mjs';
+import { driverSource } from '../../helpers/driver-source.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', ...p), 'utf8');
-const yolo = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+const yolo = driverSource('yolo.js');
 
 // The prompt clauses of the driver, built with stub globals, so each test reads the text an agent gets.
 const constSrc = (name) => {

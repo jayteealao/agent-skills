@@ -51,7 +51,7 @@ The body has `## Baseline` (the harness output on the code before the first roun
 |---|---|---|---|---|---|
 | `1` | `<the lever>` | `<what changed, in one line>` | `<the harness number>` | `<the change from the round before>` | `<short sha>` |
 
-Write the record as the draft `<wf-dir>/.draft/05d-tune.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)). To add a section or a row, get the record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05d-tune.md`, change it, write the draft and put it. To change only `mode:`, `result:` or `rounds-run:`, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 05d-tune.md key=value`.
+Write the record as the draft `<wf-dir>/.draft/05d-tune.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md)). To add a section or a row, get the record with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "05d-tune.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05d-tune.md`), change it, write the draft and put it. To change only `mode:`, `result:` or `rounds-run:`, run `wf_run { "op": "record set", "slug": "<slug>", "name": "05d-tune.md", "path": "key=value" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 05d-tune.md key=value`).
 
 # Rules
 
@@ -68,7 +68,7 @@ Write the record as the draft `<wf-dir>/.draft/05d-tune.md`, then run `node "<sk
 
 Before the slice is planned in full, run the harness once on the current code and write `## Baseline`. Then try the most promising lever once, without a commit, and record whether the number moved. Set `mode: spike`. When no lever moves the number, say so in the plan `## Risks / Watchouts`: the target may need a change of approach, and that is a question for the person.
 
-Then add the entry to the index. Get the list with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, and set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus this one.
+Then add the entry to the index. Get the list with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), and set the whole list with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": "augmentations=<list>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`): the entries of the index plus this one.
 ```yaml
 augmentations:
   - type: tune

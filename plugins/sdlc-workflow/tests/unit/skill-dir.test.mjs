@@ -56,7 +56,8 @@ for (const rel of SCRIPTS) {
   test(`${path.basename(rel)} calls agent() only where the line goes first`, () => {
     const calls = [...codeOf(read(rel)).matchAll(/(?<![\w.])agent\((?!s\))(.{0,40})/g)].map((c) => c[1]);
     assert.equal(calls.length, 1, `one raw agent() call, the wrapper; found ${calls.length}: ${calls.join(' | ')}`);
-    assert.match(calls[0], /^`\$\{SKILL_DIR_LINE\}\\n\\n\$\{prompt\}`/);
+    // The skill-dir line, then on Claude the line of the wf tools, then the prompt.
+    assert.match(calls[0], /^`\$\{SKILL_DIR_LINE\}\$\{HOST === 'claude' &&/);
   });
 }
 

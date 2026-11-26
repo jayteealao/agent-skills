@@ -20,7 +20,7 @@ and a WIP pass surfaces what to stop. Run the steps in order.
 
 ## Step A1 — Gather the portfolio (Tier 0, always)
 
-From the just-reconciled `INDEX.md` and the index of each slug (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)), collect per slug: `status`,
+From the just-reconciled `INDEX.md` and the index of each slug (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), per [_records.md](../_records.md)), collect per slug: `status`,
 `current-stage`/`stage-number`, `branch`, `updated-at` (+ staleness, >7d), `open-questions`,
 `progress` (slices-implemented/total), `runtime-evidence-deferrals`, probe compressed-slices with
 `findings-count > 0`, and `intent-risks`. This is the same read the dashboard already does — no new
@@ -29,7 +29,7 @@ carried-risk (an unresolved deferral, probe finding, or intent-risk), in which c
 carried-risk section only.
 
 If advise-scope narrowed to a branch/`pr#N`, restrict the set to that branch's roster: the `slugs` of
-`node "<skill-dir>/scripts/wf.mjs" target "<root>" <scope> --json`. An `error` → show it and stop.
+`wf_query { "op": "target", "slug": "<scope>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" target "<root>" <scope> --json`). An `error` → show it and stop.
 
 ## Step A2 — Build the constraint graph (Tier 1, skipped under `fast`)
 

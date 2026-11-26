@@ -12,9 +12,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { extractFn as extractFrom } from '../../helpers/extract-fn.mjs';
+import { driverSource } from '../../helpers/driver-source.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+const src = driverSource('yolo.js');
 const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', ...p), 'utf8');
 const extractFn = (name) => extractFrom(src, name);
 
@@ -121,7 +122,7 @@ test('the stop check runs the stop-check command, which finds the request wherev
 test('the driver journals by root and slug, keeps found.json in the drafts, and takes the records folder from args', () => {
   assert.match(src, /const lineCmd = \(o\) => `node "\$\{WATCH\}" line "\$\{projectRoot\}" \$\{slug\} \$\{lineFlags\(o\)\}`/);
   assert.doesNotMatch(src, /lineCmd\(JOURNAL_PATH/);
-  assert.match(src, /`\$\{DRAFT_DIR\}\/found\.json --source review/);
+  assert.match(src, /findings add "\$\{projectRoot\}" \$\{slug\} \$\{DRAFT_DIR\}\/found\.json --source review/);
   assert.doesNotMatch(src, /\.found\.json/);
   assert.match(src, /const RECORDS_ROOT = typeof OPT\.recordsRoot === 'string'/);
   assert.match(src, /const CONTROL_PATH = `\$\{projectRoot\}\/\.ai\/run\/\$\{slug\}\/\.control\.json`/);

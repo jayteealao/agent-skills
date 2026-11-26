@@ -72,7 +72,7 @@ The first `put` needs the workflow folder. Write the index, the intake and the s
    - An outcome that comes word for word from a work packet that the person confirmed at brainstorm `done` is counted, and not shown again.
    - The standing outcomes are one line: the tests of the repo pass, the charter and the steers hold, the project rules hold, nothing else changed, and CI passes.
 2. Show about three sample scenarios, so that the person can tell whether you understood. Write them for the approval. They are not part of the hidden scenarios, and you never read those.
-3. Show the cost estimate: the cost line of `node "<skill-dir>/scripts/campaign.mjs" plan` uses the same cost ledger; when the project has no past run, say that there is no basis. Say that the run has no cost limit and no time limit, and that the person stops it with the stop request.
+3. Show the cost estimate: the cost line of `wf_query { "op": "campaign plan" }` (CLI: `node "<skill-dir>/scripts/campaign.mjs" plan`) uses the same cost ledger; when the project has no past run, say that there is no basis. Say that the run has no cost limit and no time limit, and that the person stops it with the stop request.
 4. Ask one question with the host question tool: approve, or correct.
 5. On the approval, run `<o> contract approve <root> <slug> --words "<the person's words>"`. Add `--one-unit yes --reason "<why>"` only when the contract has at most 2 outcomes, none of kind `design`, and you judge that one builder can do all of it in one unit. Add `--path full` or `--path light` only when the person said the word. The command prints the path: `light` or `full`.
 

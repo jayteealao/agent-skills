@@ -18,7 +18,7 @@ You are running `/wf slice`, stage 3 of 9: 1·intake → 2·design → `3·slice
 - Write each acceptance criterion with its verification path: `observable: true|false`, and a `verify:` stub for an observable criterion.
 - Write the per-slice drafts first, then the draft of `03-slice.md`, and put them. Update the index last.
 - Do not plan, design or code. Your only output is the workflow records and the compact chat summary of this card.
-- To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
+- To change the body of a record that exists, run `wf_run { "op": "record draft", "slug": "<slug>", "name": "<name>" }` (CLI: `wf.mjs record draft "<root>" <slug> <name>`), edit the draft that it names, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `wf.mjs record put "<root>" <slug>`).
 - To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
@@ -211,11 +211,11 @@ recommended-routes:
 
 You write every `refs:` link when you create the file. Later stages do not edit the links of this file.
 
-The `slice-order` command of `campaign.mjs` adds a `depends-on` edge from a plan: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <slice> --after <other slice> --why "<reason>"`. When the two slices share no planned file, the command refuses an edge with no `--why`. Remove an edge here, with the person. A running `/wf yolo` reads the roster again after each slice that ran a stage, so a changed edge or a skipped slice takes effect at its next slice. A slice added to the roster during a run waits for the next run.
+The `slice-order` command of `campaign.mjs` adds a `depends-on` edge from a plan: `wf_run { "op": "campaign slice-order", "slug": "<slug>", "slice": "<slice>", "after": "<other", "why": "<reason>", "checkout": "<root>", "word-add": "add" }` (CLI: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <slice> --after <other slice> --why "<reason>"`). When the two slices share no planned file, the command refuses an edge with no `--why`. Remove an edge here, with the person. A running `/wf yolo` reads the roster again after each slice that ran a stage, so a changed edge or a skipped slice takes effect at its next slice. A slice added to the roster during a run waits for the next run.
 
 Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 - `## Goal`, `## Why This Slice Exists`, `## Scope` (what is in; what is out, and which slice handles it).
-- `## Likely Files / Areas to Touch`: `path/or/module: why`, one line per entry, with the path first and no space in it. Research sub-agent 1 of plan reads this list, and `wf.mjs slice-files` reads it to find the slices that share a file. Write "Unknown — plan research locates the files" when the shape names no area.
+- `## Likely Files / Areas to Touch`: `path/or/module: why`, one line per entry, with the path first and no space in it. Research sub-agent 1 of plan reads this list, and `wf_query { "op": "slice-files" }` (CLI: `wf.mjs slice-files`) reads it to find the slices that share a file. Write "Unknown — plan research locates the files" when the shape names no area.
 - `## Acceptance Criteria`: each criterion written with its verification path per the [AC verifiability discipline](#ac-verifiability-discipline): `- Given ... When ... Then ...`, then `<!-- observable: true|false — one-line justification of the partition -->`, then, only for `observable: true`, `verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }`. The visible-milestone slice and the final slice also carry the standing charter-scenario criterion (step 8) when `02-shape.md` has a `## Charter Scenario`.
 - `## Dependencies on Other Slices`: `<other-slice-slug>`: what this slice needs from it.
 - `## Risks`.

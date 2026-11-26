@@ -41,7 +41,7 @@ workflow's slug must not be one of these words:
 - the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`, `amend`, `modernize`, `close`.
 <!-- end generated -->
 
-An existing workflow with a reserved slug keeps its name. `node "<skill-dir>/scripts/wf.mjs" index "<root>" --check` and `/wf status` flag it.
+An existing workflow with a reserved slug keeps its name. `wf_run { "op": "index", "check": true }` (CLI: `node "<skill-dir>/scripts/wf.mjs" index "<root>" --check`) and `/wf status` flag it.
 
 # INDEX.md
 

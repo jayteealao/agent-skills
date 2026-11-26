@@ -5,7 +5,7 @@ A `/wf orchestrate` run uses agents of more than one vendor. [../orchestrate.md]
 ## Who chooses
 
 - **The person chooses the lead.** The model of the lead is the model of the session. The plugin never changes it.
-- **The person says which agents the run may use.** The lead asks once, with the roster, and records the answer with `orchestrate.mjs agents allow`.
+- **The person says which agents the run may use.** The lead asks once, with the roster, and records the answer with `wf_person { "op": "orchestrate agents" }` (CLI: `orchestrate.mjs agents allow`).
 - **The lead chooses among them.** For each role, pick an allowed agent that meets the tier of the role. Record the pick and its reason with `decide add --by delegate`.
 - **The script refuses** a Fable-class or Mythos-class model for any agent, a model below the tier of the role, a model that has no tier, and a model that only judges in a role that builds.
 
@@ -36,13 +36,13 @@ A tier is a capability level, not a model name.
 
 ## The roster
 
-`orchestrate.mjs roster <root> <slug> --host <host>` prints `hc` (whether herdr core is installed), the agent programs that run on this machine, and one entry for each agent:
+`wf_query { "op": "orchestrate roster", "slug": "<slug>", "host": "<host>" }` (CLI: `orchestrate.mjs roster <root> <slug> --host <host>`) prints `hc` (whether herdr core is installed), the agent programs that run on this machine, and one entry for each agent:
 
 | `launch` | The agent | Started by |
 |---|---|---|
 | `host-subagent` | A subagent of the lead's own host, on the model that `alias` names | The lead, with the subagent tool of its host |
-| `hc` | An agent program in a terminal of `hc` | `orchestrate.mjs dispatch` |
-| `direct` | An agent program, run once, when the machine has no `hc` | `orchestrate.mjs dispatch`; the command returns when the agent ends |
+| `hc` | An agent program in a terminal of `hc` | `wf_job { "op": "orchestrate dispatch" }` (CLI: `orchestrate.mjs dispatch`) |
+| `direct` | An agent program, run once, when the machine has no `hc` | `wf_job { "op": "orchestrate dispatch" }` (CLI: `orchestrate.mjs dispatch`); the command returns when the agent ends |
 
 The tier of each model is data: [tiers.json](tiers.json). A model that is not in it has no tier. Only the person adds a model. A file `orchestrate-tiers.json` in the machine folder of the plugin replaces the models that it names.
 
@@ -52,13 +52,13 @@ The tier of each model is data: [tiers.json](tiers.json). A model that is not in
 
 - An agent runs in its interactive mode and in the background, so the person can attach to it and watch.
 - Each agent writes inside the checkout with no prompt. The script never starts an agent with full access. How strong the limit is depends on the program: one keeps the agent in a sandbox, one judges each action itself, and one has no limit of its own. For a unit that must not write outside the checkout, pick an agent whose program has a sandbox.
-- Some agent programs cannot write to the `.git` folder under this permission, so their agent cannot commit. Such a builder leaves the change in the working tree and lists its files, and `orchestrate.mjs result` commits those paths.
+- Some agent programs cannot write to the `.git` folder under this permission, so their agent cannot commit. Such a builder leaves the change in the working tree and lists its files, and `wf_run { "op": "orchestrate result" }` (CLI: `orchestrate.mjs result`) commits those paths.
 - A terminal carries the label `wf.run=<slug>`. It outlives the lead: when the lead stops, the agent finishes its unit and writes its result file.
 - The lead does not need a terminal of `hc`. Inside one, the lead is the parent of its agents and gets their reports. Outside one, the script waits on each agent by its name. The result is a file in both cases.
 
 ## Supervise an agent
 
-`orchestrate.mjs wait <root> <slug> <n>` waits for the agent of a unit and prints its status:
+`wf_wait { "op": "orchestrate wait", "slug": "<slug>", "n": "<n>" }` (CLI: `orchestrate.mjs wait <root> <slug> <n>`) waits for the agent of a unit and prints its status:
 
 | Status | Do |
 |---|---|
@@ -66,20 +66,20 @@ The tier of each model is data: [tiers.json](tiers.json). A model that is not in
 | `done`, `idle` or `exited`, with a result file | Run the `result` command that it prints. |
 | `done` or `idle`, with no result file | Read the screen (`screen`). Send one line that asks for the result file (`send`). |
 | `exited`, `gone` or `error`, with no result file | Read the screen that it prints. On a usage limit, see below. Else run `result` with no file: the unit failed, and a new unit goes to another agent. |
-| `starting` | The agent has not started its task. Read the screen that it prints. A start dialog of the program about this checkout, such as a question to trust the folder, is answered with `orchestrate.mjs keys <root> <slug> <n> enter`. Any other dialog: end the agent. With no dialog, wait again. |
+| `starting` | The agent has not started its task. Read the screen that it prints. A start dialog of the program about this checkout, such as a question to trust the folder, is answered with `wf_act { "op": "orchestrate keys", "slug": "<slug>", "n": "<n>", "key": "enter" }` (CLI: `orchestrate.mjs keys <root> <slug> <n> enter`). Any other dialog: end the agent. With no dialog, wait again. |
 | `blocked` | The agent asks a person. Read the screen that it prints, and decide by the rule below. |
 
 **A blocked agent.**
 
-- A plain question that the contract or the decision store answers: answer it with `orchestrate.mjs send <root> <slug> <n> --text "<the answer>"`, and record the answer with `decide add --by delegate`.
-- A permission prompt: never pass it. End the agent with `orchestrate.mjs end <root> <slug> <n> --abandon`, and run `result` with no file. Then decide whether the unit needs another shape that does not need the permission.
+- A plain question that the contract or the decision store answers: answer it with `wf_act { "op": "orchestrate send", "slug": "<slug>", "text": "<the answer>", "n": "<n>" }` (CLI: `orchestrate.mjs send <root> <slug> <n> --text "<the answer>"`), and record the answer with `decide add --by delegate`.
+- A permission prompt: never pass it. End the agent with `wf_act { "op": "orchestrate end", "slug": "<slug>", "abandon": undefined, "n": "<n>" }` (CLI: `orchestrate.mjs end <root> <slug> <n> --abandon`), and run `result` with no file. Then decide whether the unit needs another shape that does not need the permission.
 - A question about the contract: hold the outcome as a contract question, and end the agent.
 
 **A usage limit.** When an agent stops on a usage limit of its subscription, add a new unit for the rest of the work, and give it to an agent of the same tier from another vendor, with the hand-off notes and the commits so far. When no such agent is free, wait for the reset. Tell the person in one chat line. Do not stop the run.
 
-**The end of a terminal.** After the result of a unit is recorded and no fix unit will continue it, run `orchestrate.mjs end <root> <slug> <n>`. It ends and removes only a terminal of this run. It refuses while the unit has no result file; `--abandon` gives the unit up. Never stop or restart the core of `hc`.
+**The end of a terminal.** After the result of a unit is recorded and no fix unit will continue it, run `wf_act { "op": "orchestrate end", "slug": "<slug>", "n": "<n>" }` (CLI: `orchestrate.mjs end <root> <slug> <n>`). It ends and removes only a terminal of this run. It refuses while the unit has no result file; `--abandon` gives the unit up. Never stop or restart the core of `hc`.
 
-**Helpers.** An agent may use the subagent tool of its own program. To use another model it uses `hc`, with the label of the run. `orchestrate.mjs helpers <root> <slug>` lists each terminal of the run that no unit owns, and fails when one uses a model that the tier data does not allow. It cannot see a subagent of a program's own tool: for those, the rule is in each task.
+**Helpers.** An agent may use the subagent tool of its own program. To use another model it uses `hc`, with the label of the run. `wf_query { "op": "orchestrate helpers", "slug": "<slug>" }` (CLI: `orchestrate.mjs helpers <root> <slug>`) lists each terminal of the run that no unit owns, and fails when one uses a model that the tier data does not allow. It cannot see a subagent of a program's own tool: for those, the rule is in each task.
 
 ## One checkout
 

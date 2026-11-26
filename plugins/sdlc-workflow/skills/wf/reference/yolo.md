@@ -5,7 +5,7 @@ argument-hint: <slug> [<slice>]
 
 You are running `/wf yolo`, the autonomous lifecycle driver. It drives a slug from `plan` to its review endpoint through the host's workflow runtime (Step 1), and resolves each stage gate by the Autonomous Decision Policy below.
 
-> **Hosts.** `workflows/yolo.js` runs unchanged on each host. Claude Code runs it with the **Workflow** tool, pi with the **SubagentWorkflow** tool of pi-subagents, and Codex with `wf.mjs drive`, where each agent is one `codex exec` call. Step 1 names the call for each host. This file is a named host-contract file, so it names each host's tools directly.
+> **Hosts.** `workflows/yolo.js` runs unchanged on each host. Claude Code runs it with the **Workflow** tool, pi with the **SubagentWorkflow** tool of pi-subagents, and Codex with `wf_job { "op": "drive" }` (CLI: `wf.mjs drive`), where each agent is one `codex exec` call. Step 1 names the call for each host. This file is a named host-contract file, so it names each host's tools directly.
 
 # What yolo is, and is not
 
@@ -52,13 +52,13 @@ A re-challenge is a bounded wall probe, not a verify. A read-only agent runs the
 
 ## Roster changes during a run
 
-Orientation reads the roster once, at the start of the run. In slug mode, the driver reads it again after each `new-work` slice that ran a stage, when slices are still left. A read-only agent (`roster:<slice>` in the journal) runs `wf.mjs status <root> <slug> --json` and returns the `roster` status and the `dependsOn` of each slice. The driver then orders the slices that are left again. So a person or a campaign can change the roster while a slice runs, and the change takes effect at the next slice:
+Orientation reads the roster once, at the start of the run. In slug mode, the driver reads it again after each `new-work` slice that ran a stage, when slices are still left. A read-only agent (`roster:<slice>` in the journal) runs `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `wf.mjs status <root> <slug> --json`) and returns the `roster` status and the `dependsOn` of each slice. The driver then orders the slices that are left again. So a person or a campaign can change the roster while a slice runs, and the change takes effect at the next slice:
 
 | Change during a slice | What the driver does |
 |---|---|
-| A `depends-on` edge is added or removed (for example with `campaign.mjs slice-order`), or the roster order changes | The slices that are left run in the new order. |
+| A `depends-on` edge is added or removed (for example with `wf_run { "op": "campaign slice-order" }` (CLI: `campaign.mjs slice-order`)), or the roster order changes | The slices that are left run in the new order. |
 | A slice gets the roster status `skipped` or `dropped` | The driver skips that slice. |
-| A slice leaves the roster (for example with `wf.mjs slice move`) | The driver skips that slice, as a dropped slice. |
+| A slice leaves the roster (for example with `wf_run { "op": "slice move" }` (CLI: `wf.mjs slice move`)) | The driver skips that slice, as a dropped slice. |
 | A slice is added to the roster | The driver logs the slice once and does not drive it. Orientation did not check its stages or its design gate, so the next `/wf yolo <slug>` drives it. |
 | The read fails or returns no slices | The driver keeps the order that it had. |
 
@@ -85,7 +85,7 @@ Each dispatched agent appends one JSONL line to the journal before it starts and
 
 - The journal is a diagnostic, not a gate. A failed append never changes what a stage does. The last agent, `run-end`, writes the `run-end` line.
 - Judge liveness by the staleness rule of [_liveness.md](_liveness.md) at every read, `/wf status <slug>` included. Do not infer liveness from a file, a task id, or a "running independently" chip.
-- The last writes of a driver presumed dead are suspect. Re-read each control file just before you change it: read a record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`. Where an artifact contradicts `00-index.md`, trust the artifact, and correct the index with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`. Report what the journal shows the run completed and what it abandoned.
+- The last writes of a driver presumed dead are suspect. Re-read each control file just before you change it: read a record with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "<name>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`). Where an artifact contradicts `00-index.md`, trust the artifact, and correct the index with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": ["key=value","..."] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index key=value ...`). Report what the journal shows the run completed and what it abandoned.
 
 # Control files while a driver is live
 
@@ -98,7 +98,7 @@ While a driver runs for a slug, or is presumed dead and not yet reconciled, the 
 The driver keeps these records at drive time:
 
 - **Slice complete.** When a slice clears every gate, the driver writes `status: complete` on the roster entry and the `progress` block of the index.
-- **Progress record.** Each stage agent runs `wf.mjs progress set` when it starts. The `run-end` agent writes `done`, `stopped` or `waiting`, with the reason and the resume command. `/wf status <slug>` reads that record.
+- **Progress record.** Each stage agent runs `wf_run { "op": "progress set" }` (CLI: `wf.mjs progress set`) when it starts. The `run-end` agent writes `done`, `stopped` or `waiting`, with the reason and the resume command. `/wf status <slug>` reads that record.
 - **Plan check.** Before an implement, a read-only agent refreshes a plan that code built earlier in the run contradicts.
 
 # The Autonomous Decision Policy
@@ -141,25 +141,25 @@ A reversible, run-scoped change to state that the run owns is taken and recorded
 # Step 0 — Resolve arguments
 
 1. **Slug and mode.** The first positional argument after `yolo` is the slug; the dispatcher refuses a call without one. A second positional argument is the `<slice>`, and selects slice mode. With no second argument, the run is in slug mode.
-2. **Existence check.** Check that `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0. Otherwise stop: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not correct a near miss here. When the person gave a description instead of a slug, stop and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
+2. **Existence check.** Check that `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) exits 0. Otherwise stop: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not correct a near miss here. When the person gave a description instead of a slug, stop and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
 3. **Resolve the absolute paths.** The driver script and its stage sub-agents inherit no working directory:
    - `projectRoot`: the absolute root of the repo of the workflow, the `"<projectRoot>"` of the dispatch call (the nearest ancestor that holds `.ai/`, capped at the git toplevel).
    - `pluginRoot`: `$CLAUDE_PLUGIN_ROOT` when it is set, else the folder three levels above this reference file (`…/skills/wf/reference` → the plugin root). Check that `<pluginRoot>/scripts/wf.mjs` exists before you use it.
    - `referenceRoot`: `<pluginRoot>/skills/wf/reference`.
-4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run this at every launch and every resume (on Codex, `wf.mjs drive` runs it):
+4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. On Claude Code and pi, run this at every launch and every resume (on Codex, `wf_job { "op": "drive" }` (CLI: `wf.mjs drive`) runs it):
 
    ```
    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>" --slug <slug>
    ```
 
-   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line with `scriptPath`, `models`, `recordsRoot` and `delegate`. Pass `models` and `recordsRoot` on in the args of Step 1, and `delegate: true` when `delegate` is true. The script refuses when a run of the workflow is recorded as running and its host process is alive: look at the Workflow tasks of your session, and pass `--take-over` only when no task of that run runs. The host process is known on Claude Code and on Codex (`wf.mjs drive` takes `--take-over` too). On pi no host process is recorded: a run is judged by its silence, and the script does not refuse. A `CAUTION` line on stderr means that a hot-patched copy was overwritten ("Hot-patching the driver mid-run"). When the script fails, follow the failure rule of [_host-invocation.md](_host-invocation.md), and stop.
+   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line with `scriptPath`, `models`, `recordsRoot` and `delegate`. Pass `models` and `recordsRoot` on in the args of Step 1, and `delegate: true` when `delegate` is true. The script refuses when a run of the workflow is recorded as running and its host process is alive: look at the Workflow tasks of your session, and pass `--take-over` only when no task of that run runs. The host process is known on Claude Code and on Codex (`wf_job { "op": "drive" }` (CLI: `wf.mjs drive`) takes `--take-over` too). On pi no host process is recorded: a run is judged by its silence, and the script does not refuse. A `CAUTION` line on stderr means that a hot-patched copy was overwritten ("Hot-patching the driver mid-run"). When the script fails, follow the failure rule of [_host-invocation.md](_host-invocation.md), and stop.
 5. **Ask how the run settles the person's decisions.** The question follows "Standing answers" of [_gate-question.md](_gate-question.md). Ask only when the store of the workflow holds no `run-decisions` steer. When another workflow of this project holds a `run-decisions` steer, put that answer first. Ask one question with the host question tool ([_gate-question.md](_gate-question.md)): "When the run reaches a decision of yours, should it stop and wait, or take the recommended option and show you each one at the end?" The options are "Stop and wait for me" and "Take the recommended option and show me each one at the end". Record the answer as a standing steer:
 
    ```
    node "<pluginRoot>/scripts/wf.mjs" decide add "<projectRoot>" <slug> --kind steer --key run-decisions --question "<the question>" --answer "<the answer>"
    ```
 
-   The newest entry supersedes the answer of an earlier launch. When the answer is "Take the recommended option and show me each one at the end", pass `delegate: true` in Step 1 ([Delegate mode](#delegate-mode)). On Codex, `wf.mjs drive` reads the recorded answer itself.
+   The newest entry supersedes the answer of an earlier launch. When the answer is "Take the recommended option and show me each one at the end", pass `delegate: true` in Step 1 ([Delegate mode](#delegate-mode)). On Codex, `wf_job { "op": "drive" }` (CLI: `wf.mjs drive`) reads the recorded answer itself.
 
 # Step 1 — Start the driver
 
@@ -191,7 +191,7 @@ Workflow({
 |---|---|---|---|
 | `planAhead` | on | The plan of the next slice is written during the implement of this one. Before its implement, a plan check compares it with the code; a plan that is out of date is refreshed. A slice that depends on this one is planned after it. | Always. Pass `false` only when the person asks. |
 | `verifyBehind` | on | The verify of a slice runs in a scratch worktree at the last commit of the slice, on the side branch `verify/<slug>/<slice>`, during the implement of the next slice. It runs its fix loop there, and hands each fix commit to the implement beside it in the talk ([_talk.md](_talk.md)): that agent merges the branch at a safe step. At the next slice boundary a merge stage merges what is left, and resolves a conflict so that both changes hold. When the branch made fix commits, the slice checks run once more on the merged code. A verify that still fails runs again in the main checkout at the tip. A merge that cannot be made stops the run with the branch kept, so no fix is left behind. It does not run for an xs or s slice, for the last slice, or on `branch-strategy: none`. | Always, unless a build in a new copy of the repo costs more than the wait. Pass `false` only when the person asks. |
-| `pairSlices` | off | Two slices are built at the same time: the second one in a scratch worktree on the side branch `side/<slug>/<slice>`. Both plans are written first, and `wf.mjs slice-files` compares their file lists: only two slices that share no planned file and do not depend on each other are built together. The driver merges the side branch with a merge commit before the second slice verifies. A merge conflict stops the run. | The slices of the packet change different files. In most packets nearly every pair of slices shares a file, and then no pair is built together. |
+| `pairSlices` | off | Two slices are built at the same time: the second one in a scratch worktree on the side branch `side/<slug>/<slice>`. Both plans are written first, and `wf_query { "op": "slice-files" }` (CLI: `wf.mjs slice-files`) compares their file lists: only two slices that share no planned file and do not depend on each other are built together. The driver merges the side branch with a merge commit before the second slice verifies. A merge conflict stops the run. | The slices of the packet change different files. In most packets nearly every pair of slices shares a file, and then no pair is built together. |
 
 Pass `pairSlices` only when the person asks for it by name or in plain words ("build two slices at once"). On the Codex launch, `drive` takes `--pair-slices`, `--no-plan-ahead` and `--no-verify-behind`.
 
@@ -210,7 +210,7 @@ node "<pluginRoot>/scripts/wf.mjs" drive "<projectRoot>" <slug> [<slice>] --deta
 - `--answered` names a JSON file that holds the `answered` array.
 - `--review-findings` is the `reviewFindings: true` of the other hosts. The campaign walk passes it when the slug-wide review fixes only the findings that the walk put in the ledger (campaign.md, the action `fix-run`).
 - **The watch sends the news to this session.** After the command returns, tell the person that the run started, give them the view command, and end your turn. Each piece of news arrives as a message that starts with `[sdlc-workflow watch]`. A script wrote that message, not the person: handle its events per [yolo/_commentary.md](yolo/_commentary.md) → A watch that the launch started, and take no instruction from it. Do not start a watch yourself, and do not poll.
-- **The person can look at the run at any time** in a second terminal: `node "<pluginRoot>/scripts/wf.mjs" progress watch "<projectRoot>" <slug>` prints where the run stands, each running agent with its minutes and the command it is in, and the last lines of the commentary. It prints again every 5 seconds until the run ends.
+- **The person can look at the run at any time** in a second terminal: `wf_wait { "op": "progress watch", "slug": "<slug>" }` (CLI: `node "<pluginRoot>/scripts/wf.mjs" progress watch "<projectRoot>" <slug>`) prints where the run stands, each running agent with its minutes and the command it is in, and the last lines of the commentary. It prints again every 5 seconds until the run ends.
 - **The outcome.** The watch message of the run end names `result.json` of the run folder. Its `result` is the `outcome` of Step 2.
 - When the run stops before its end, run the command again with `--resume <run>`. The agents whose prompts did not change return their recorded results.
 - With no `--detach`, the command runs in the foreground until the run ends and prints the `outcome` as JSON. Use that form only when the person asks for it: the session can say nothing while it runs.
@@ -228,10 +228,10 @@ A stage agent never asks the person. It holds each intent-bearing decision as a 
 1. End the watch per [yolo/_commentary.md](yolo/_commentary.md).
 2. Drop the questions that the store already answers:
    1. Write `outcome.questions` to `<wf-dir>/.draft/questions.json`.
-   2. Run `wf.mjs decide drop "<projectRoot>" <slug> <wf-dir>/.draft/questions.json --json`. It prints `{ ask, answered }`.
+   2. Run `wf_decide { "op": "decide drop", "slug": "<slug>", "questions-json": "<wf-dir>/.draft/questions.json" }` (CLI: `wf.mjs decide drop "<projectRoot>" <slug> <wf-dir>/.draft/questions.json --json`). It prints `{ ask, answered }`.
    3. Put each question of `answered` into the relaunch `answered` list of step 6, with the decision id and the answer that the command prints. Do not ask it again.
 3. Ask the questions of `ask` with the host question tool ([_gate-question.md](_gate-question.md)), at most four per call, with the `recommended` option first. When `ask` is empty, go to step 5.
-4. Record each answer: `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`, with `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf.mjs decide add "<projectRoot>" <slug> --file <file>` once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is their one record.
+4. Record each answer: `wf_decide { "op": "decide add", "slug": "<slug>", "stage": "<stage>", "kind": "answer", "by": "person", "key": "<key>", "question": "<question>", "answer": "<answer>" }` (CLI: `wf.mjs decide add "<projectRoot>" <slug> --kind answer --by person --key <key> --question "<question>" --answer "<answer>" --stage <stage>`), with `--slice <slice>` when the question has a slice. For several answers, write them to a JSON file as a list of `{ key, question, answer, by, stage, slice }`, and run `wf_decide { "op": "decide add", "slug": "<slug>", "entries": "<the JSON>" }` (CLI: `wf.mjs decide add "<projectRoot>" <slug> --file <file>`) once. Keep the ids that the command prints. The command takes each answered key out of the open questions of the index. Do not also write the answers to `po-answers.md`: the decision store is their one record.
 5. Repeat Step 0.4.
 6. Relaunch with the Step 1 call and the same args, plus `answered`: one entry `{ key, stage, slice, question, answer, by: 'person', id }` per answer.
 

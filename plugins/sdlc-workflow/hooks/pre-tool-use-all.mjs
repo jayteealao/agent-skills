@@ -7,7 +7,8 @@
  *   - a file write (`tool_input.file_path`) → pre-write-validate (needs full
  *     `content`, so it acts on Write only), then leak-guard-write;
  *   - a shell command (`tool_input.command`) → person-guard (a call of a sub-agent only),
- *     shell-write-guard, then leak-guard-bash.
+ *     shell-write-guard, leak-guard-bash, then shell-wf-note (a note, on a call of a wf script);
+ *   - a call of the wf MCP server → mcp-guard.
  * The first blocking check ends the process with exit 2 and its stderr reason.
  *
  * pre-write-validate fails closed: when it throws, the write is refused with a message that
@@ -34,6 +35,8 @@ export function planPreToolUse(input) {
     if (input?.agent_id) stages.push(['person-guard', lazy('./person-guard.mjs')]);
     stages.push(['shell-write-guard', lazy('./shell-write-guard.mjs')]);
     stages.push(['leak-guard-bash', lazy('./leak-guard-bash.mjs')]);
+    // A shell call of a wf script on Claude: a note with the matching tool call. It never blocks.
+    if ((input?.tool_name === 'Bash' || input?.tool_name === 'PowerShell') && /\.mjs\b/.test(ti.command)) stages.push(['shell-wf-note', lazy('./shell-wf-note.mjs')]);
   }
   // A call of the wf MCP server: a sub-agent does not call wf_person.
   if (String(input?.tool_name ?? '').startsWith('mcp__plugin_sdlc-workflow_wf__')) stages.push(['mcp-guard', lazy('./mcp-guard.mjs'), { failClosed: true }]);

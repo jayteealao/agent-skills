@@ -4,7 +4,7 @@ The Dashboard Mode of [../status.md](../status.md) loads this file. It holds the
 
 The Runtime column shows `runtime-evidence-status`: `clean` → `—`; `deferrals: <N>`; `probe-findings: <N>`; both separated by `+` when both apply.
 
-The inbox comes first. Give one line to each entry of `wf.mjs inbox` that has no `later`, in its order. Give one line to each item of `laterGroups`: its `line`. Do not list the later entries one by one.
+The inbox comes first. Give one line to each entry of `wf_read { "items": [{ "op": "inbox" }] }` (CLI: `wf.mjs inbox`) that has no `later`, in its order. Give one line to each item of `laterGroups`: its `line`. Do not list the later entries one by one.
 
 ```
 ## Waiting on you ({now})
@@ -52,7 +52,7 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 |------|--------|------|----|
 ```
 
-For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<root>" <slug> --json`. If any slug has cost rows, add the cost table (one row per slug with rows; copy every integer from the command):
+For each slug, run `wf_query { "op": "cost", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" cost "<root>" <slug> --json`). If any slug has cost rows, add the cost table (one row per slug with rows; copy every integer from the command):
 
 ```
 ## Cost (exact tokens)

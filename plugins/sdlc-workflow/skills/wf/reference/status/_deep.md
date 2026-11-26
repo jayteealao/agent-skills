@@ -9,7 +9,7 @@ world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** ru
 read-only detail view.
 
 1. **Inventory references** from every stage record in `workflow-files` (read each with
-   `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`, per [_records.md](../_records.md)): code file paths, test paths,
+   `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "<name>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`), per [_records.md](../_records.md)): code file paths, test paths,
    git refs (branch, base, PR, SHAs), dependency/package names, external tickets/APIs. Record source + type.
 2. **Check code reality** — file existence (file listing); freshness (`git log -1 --format="%ai" -- <file>`);
    flag files modified after the referencing stage as `⚠ drifted`. Test files: existence + pattern validity (content search).
@@ -34,7 +34,7 @@ read-only detail view.
    `in-sync` (no ✗, ≤2 ⚠) · `minor-drift` (no ✗, 3+ ⚠) · `significant-drift` (any ✗) · `stale` (>7d old and drift).
 6. **Write the draft `<wf-dir>/.draft/00-sync.md`** (`type: sync-report`, `regenerable: true`, `health: <rating>`)
    with the summary table, per-category tables, drift details, and recommended actions, then run
-   `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. **Overwrite
+   `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). **Overwrite
    freely** each run (no history append).
 7. **Bookkeeping touch:** add `00-sync.md` to `workflow-files` with
    `record set "<root>" <slug> index "workflow-files+=00-sync.md"`. The script updates the row of

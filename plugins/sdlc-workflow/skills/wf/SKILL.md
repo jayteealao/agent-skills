@@ -15,7 +15,11 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 - Read and write every record per [_records.md](reference/_records.md): scripts write the record files, an agent writes a draft and puts it.
-- Run the code of another commit only in a scratch worktree that `wf.mjs worktree add` makes, and remove it before the stage ends, per [_workflow-rules.md](reference/_workflow-rules.md).
+- Run the code of another commit only in a scratch worktree that `wf_act { "op": "worktree add" }` (CLI: `wf.mjs worktree add`) makes, and remove it before the stage ends, per [_workflow-rules.md](reference/_workflow-rules.md).
+
+# How to call wf
+
+When the wf tools are loaded (`wf_context`, `wf_read`, `wf_query`, `wf_run`, `wf_step`, `wf_decide`, `wf_wait`, `wf_job`, `wf_act`, `wf_person`), make every call of wf with them. The references show each call as the tool call, then `(CLI: …)`: the same operation on the command line. Without the tools, run the CLI form. Both write the same records. A tool call needs no `<root>`: the server runs in the project.
 
 # Where the scripts are
 
@@ -23,7 +27,7 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 
 1. The folder of this skill that the host showed when it loaded it.
 2. A `skill-dir:` line: in your prompt, in a brief, or in the result of the dispatch.
-3. The output of `node "$HOME/.sdlc/bin/wf.mjs" skill-dir`. Each session start writes that stable entry point.
+3. The output of `wf_query { "op": "skill-dir" }` (CLI: `node "$HOME/.sdlc/bin/wf.mjs" skill-dir`). Each session start writes that stable entry point.
 
 Never search the disk for `wf.mjs`, a script or the plugin folder: no `find`, no `Get-ChildItem -Recurse`, no glob from a drive or the filesystem root. Such a search does not end, and its processes fill the memory of the machine. When none of the three gives the folder, stop and ask the person. Give the `skill-dir:` line to each sub-agent you start, per [_subagents.md](reference/_subagents.md).
 
@@ -31,7 +35,7 @@ Never search the disk for `wf.mjs`, a script or the plugin folder: no `find`, no
 
 Run this check before any read or write. Its result is your first visible output.
 
-1. Split `$ARGUMENTS` on whitespace into tokens. Run one shell call, with each token in single quotes: `node "<skill-dir>/scripts/wf.mjs" dispatch "<projectRoot>" --host <claude|codex|pi> -- '<token>' …`. Pass a token as it is only when it matches `^[A-Za-z0-9#._/-]+$`; pass every other token as `'@'`. Never put any other text of the person into the call.
+1. Split `$ARGUMENTS` on whitespace into tokens. With the wf tools, call `wf_context { "argv": ["<token>", "…"] }`. Without them, run one shell call, with each token in single quotes: `wf_context { "op": "dispatch", "host": "<claude|codex|pi>", "token": ["'<token>'","…"] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" dispatch "<projectRoot>" --host <claude|codex|pi> -- '<token>' …`). In the shell call, pass a token as it is only when it matches `^[A-Za-z0-9#._/-]+$`, and pass every other token as `'@'`. Never put any other text of the person into the call.
 2. The first line of the result is the `wf dispatch:` line. Print it, with your own token in place of each `@`. The tokens from `args=` on are the `$ARGUMENTS` of the reference, unchanged.
 3. Act on the other lines of the result:
    - `reason:` with `reference=reference/route.md`: the tokens did not fit a form of the key. The router gets every token and the reason.
@@ -41,17 +45,17 @@ Run this check before any read or write. Its result is your first visible output
    - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
    - `alias-of: <key>`: the key is an old name that stays for this release only. Tell the person in one line to use `/wf <key>` from now on, then run the reference.
    - `next-of: <slug> → /wf <step>`: the person typed only a slug. Say in one line that the next step of `<slug>` is `/wf <step>`, then run it. The `args=` of the first line are the arguments of that step. When the line ends with a reason in brackets, the workflow has no next step to run: run `/wf status <slug>` and give the reason.
-   - `close-ask: <slug> (<why>)`: the branch of an open workflow is merged. Before the key runs, ask the person per [_gate-question.md](reference/_gate-question.md): "The branch of `<slug>` is merged (<why>). Close the workflow?" When there are several `close-ask:` lines, ask per "A list of items" of [_gate-question.md](reference/_gate-question.md): "Close all (Recommended)" or "Go through them one by one". On yes, run `node "<skill-dir>/scripts/wf.mjs" close "<projectRoot>" <slug>`. On no, run the same command with `--decline`. Then run the key.
+   - `close-ask: <slug> (<why>)`: the branch of an open workflow is merged. Before the key runs, ask the person per [_gate-question.md](reference/_gate-question.md): "The branch of `<slug>` is merged (<why>). Close the workflow?" When there are several `close-ask:` lines, ask per "A list of items" of [_gate-question.md](reference/_gate-question.md): "Close all (Recommended)" or "Go through them one by one". On yes, run `wf_act { "op": "close", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" close "<projectRoot>" <slug>`). On no, run the same command with `--decline`. Then run the key.
    - `first-run: reference/setup.md`: the repo has no `.ai/` folder. Run [setup.md](reference/setup.md) first, then the key.
    - `wf-dir: <folder>`: the absolute folder of the workflow that the call names. Each `<wf-dir>/` path of a reference is in this folder, the drafts in `<wf-dir>/.draft/` too. Give the line to each sub-agent you start.
    - `skill-dir: <folder>`: the absolute folder of this skill, the `<skill-dir>` of every reference. Keep it for the run, and put it first in the prompt of each sub-agent you start.
    - `records: ask …` or `records: stop …`: the records need the person. Act on the line per "Records lines" of [_records-repo.md](reference/_records-repo.md) before the key runs. A `stop` line STOPS the run.
-4. **When you start `/wf` on your own.** The person's last message did not type this `/wf` call: you chose to run it. Run `node "<skill-dir>/scripts/wf.mjs" consent check "<projectRoot>" <slug>` first.
+4. **When you start `/wf` on your own.** The person's last message did not type this `/wf` call: you chose to run it. Run `wf_query { "op": "consent check", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" consent check "<projectRoot>" <slug>`) first.
    - Exit 0: continue.
    - Exit 1: ask the `ask:` question of the output, word for word, with the host question tool. Offer `Yes — <the step>` first and `No — I type each command` second. Then run the `then:` command. When that command does not print `granted`, STOP: the person did not consent, and the `/wf` call does not run.
    - When the call names no existing workflow (a new intake, for example), do not run it: give the person the command to type.
    - Only the answer event of the question tool grants the consent. A hook records it. Do not write `answers.jsonl` or the consent field yourself.
-   - When the person takes the consent back, run `node "<skill-dir>/scripts/wf.mjs" consent revoke "<projectRoot>" <slug>`. A later grant then needs a new yes.
+   - When the person takes the consent back, run `wf_person { "op": "consent revoke", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" consent revoke "<projectRoot>" <slug>`). A later grant then needs a new yes.
 
 # Step 0.7 — Git precondition
 

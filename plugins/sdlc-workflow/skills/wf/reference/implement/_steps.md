@@ -81,7 +81,7 @@ One round is steps 1 and 2. The limit is 3 rounds for the slice, counted over al
 
 ## The test receipt
 
-After the slice checks pass, run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`. It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
+After the slice checks pass, run `wf_job { "op": "receipt", "slug": "<slug>", "slice": "<slice-slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug>`). It runs the implement suites of the test profile at HEAD, and writes `.test-receipt-<slice-slug>.json` only when every suite passed:
 
 ```json
 { "sha": "<the final commit sha>", "commands": ["<each suite command that ran green on that tree>"], "result": "pass", "at": "<ISO time>", "dirty": [{ "path": "<a tracked file outside .ai that HEAD lacks>", "hash": "<its blob hash, or null when deleted>" }] }

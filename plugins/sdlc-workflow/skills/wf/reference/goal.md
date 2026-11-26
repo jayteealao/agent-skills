@@ -3,7 +3,7 @@ description: Write a goal contract for one slug and hand it to the host goal, wh
 argument-hint: <slug> [objective] | <slug> resume|status|clear
 ---
 
-You are running `/wf loop goal <slug> …`. A goal is an objective that the host keeps pursuing over many turns, until a judge says that it is done. The host carries the loop: its own continuation, pause, resume and budget. `/wf` owns the evidence. `goal.mjs check` runs the rule of the goal and prints the evidence, then one last line:
+You are running `/wf loop goal <slug> …`. A goal is an objective that the host keeps pursuing over many turns, until a judge says that it is done. The host carries the loop: its own continuation, pause, resume and budget. `/wf` owns the evidence. `wf_job { "op": "goal check" }` (CLI: `goal.mjs check`) runs the rule of the goal and prints the evidence, then one last line:
 
 - `GOAL: MET`: the objective is met.
 - `GOAL: NOT-MET <reason>`: work remains; the reason names the next unit.
@@ -11,7 +11,7 @@ You are running `/wf loop goal <slug> …`. A goal is an objective that the host
 
 The condition that the host judge reads says to trust only that line. A claim without that output is not evidence.
 
-> **Hosts.** Every host writes the same contract and runs the same `check`. Each host arms its goal its own way. `goal.mjs arm` prints the way for the host that it names, and says when a host has no host goal.
+> **Hosts.** Every host writes the same contract and runs the same `check`. Each host arms its goal its own way. `wf_run { "op": "goal arm" }` (CLI: `goal.mjs arm`) prints the way for the host that it names, and says when a host has no host goal.
 
 ## What a goal is, and is not
 
@@ -21,15 +21,15 @@ The condition that the host judge reads says to trust only that line. A claim wi
 
 | `kind` | `check` prints `GOAL: MET` when | Chosen when |
 |---|---|---|
-| `lifecycle` | every selected slice has a clean verify and the review that the scope needs is clean, by the stop rules in `lib/lifecycle-done.mjs`, which `goal.mjs lifecycle` reads: a verify is clean when `convergence` is `not-needed` or `converged` and `result` is `pass`; a review is clean when `verdict` is `ship` or `ship-with-caveats` and no blocker is open | the default |
-| `optimize` | `optimize.mjs status` prints `finished`: the kept changes are on the slug branch and the records are written. A `complete` loop prints `NOT-MET` with the reason `finish`. A stopped loop, or a finish that needs the person, prints `BLOCKED` with the reason | the slug has `workflow-type: optimize` |
+| `lifecycle` | every selected slice has a clean verify and the review that the scope needs is clean, by the stop rules in `lib/lifecycle-done.mjs`, which `wf_query { "op": "goal lifecycle" }` (CLI: `goal.mjs lifecycle`) reads: a verify is clean when `convergence` is `not-needed` or `converged` and `result` is `pass`; a review is clean when `verdict` is `ship` or `ship-with-caveats` and no blocker is open | the default |
+| `optimize` | `wf_query { "op": "optimize status" }` (CLI: `optimize.mjs status`) prints `finished`: the kept changes are on the slug branch and the records are written. A `complete` loop prints `NOT-MET` with the reason `finish`. A stopped loop, or a finish that needs the person, prints `BLOCKED` with the reason | the slug has `workflow-type: optimize` |
 | `proofs` | every proof command exits 0 | the person names commands that must pass, for example "CI green and coverage at 80" |
 
 `check` counts its runs. Past `max-checks` (default 30) it prints `GOAL: BLOCKED budget`, because the host goal of one host has no cap of its own.
 
 ## Step 0 — Resolve
 
-1. The first token is the slug. When it is empty, list the active workflows from `.ai/workflows/INDEX.md` and ask which one. When `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 1, end the run: *"No workflow `<slug>`. Start it with `/wf intake <description>`."*
+1. The first token is the slug. When it is empty, list the active workflows from `.ai/workflows/INDEX.md` and ask which one. When `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) exits 1, end the run: *"No workflow `<slug>`. Start it with `/wf intake <description>`."*
 2. Resolve `projectRoot` (the repo root that owns `.ai/workflows`) and `<skill-dir>` per [_host-invocation.md](_host-invocation.md).
 3. Every contract change goes through the goal script. Every command except `check` prints one JSON object:
 
@@ -70,8 +70,8 @@ The condition that the host judge reads says to trust only that line. A claim wi
 While `goal.md` has `state: armed`, do these steps in each turn:
 
 1. Do the next unit of work:
-   - `lifecycle`: run the stage that `goal.mjs lifecycle` names in `next`. Run that stage by its own reference file (`/wf <stage> <slug> [<slice>]`).
-   - `optimize`: run the one action that `optimize.mjs status` names in `next.action` ([optimize.md](optimize.md), "Without the driver"): the baseline first, then a trial or a step of a round, and the finish when the loop is complete. The goal is met only after the finish.
+   - `lifecycle`: run the stage that `wf_query { "op": "goal lifecycle" }` (CLI: `goal.mjs lifecycle`) names in `next`. Run that stage by its own reference file (`/wf <stage> <slug> [<slice>]`).
+   - `optimize`: run the one action that `wf_query { "op": "optimize status" }` (CLI: `optimize.mjs status`) names in `next.action` ([optimize.md](optimize.md), "Without the driver"): the baseline first, then a trial or a step of a round, and the finish when the loop is complete. The goal is met only after the finish.
    - `proofs`: change the code toward the objective. Keep the change inside the scope of the slug.
 2. When a `/wf` gate needs the person, run `park`, per [_autonomy-guards.md](_autonomy-guards.md), "Goal park". Do not answer the gate.
 3. At the end of the turn, run `check`:
@@ -82,7 +82,7 @@ While `goal.md` has `state: armed`, do these steps in each turn:
 
    The output of `check` is the last tool output of the turn, so the judge reads it. Do not shorten or restate the output.
 4. When `check` prints `GOAL: MET` in this turn, complete the host goal where the host has a model-side goal tool. Do not complete it on any other line.
-5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn. For an optimize stop, the person first makes the loop able to go on (a new budget in the spec, or `optimize.mjs resume`). For a finish that needs the person, the person does what the reason says, for example switches the main checkout to the slug branch. Then `/wf loop goal <slug> resume` arms the contract again.
+5. When `check` prints `GOAL: BLOCKED`, say what blocks the goal and what the person does next, then end the turn. For an optimize stop, the person first makes the loop able to go on (a new budget in the spec, or `wf_run { "op": "optimize resume" }` (CLI: `optimize.mjs resume`)). For a finish that needs the person, the person does what the reason says, for example switches the main checkout to the slug branch. Then `/wf loop goal <slug> resume` arms the contract again.
 
 ## Step 3 — Hand back
 

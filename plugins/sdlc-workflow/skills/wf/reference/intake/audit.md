@@ -42,14 +42,14 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 You hunt defects, read-only, and you own a findings ledger that grows across runs.
 - Do not edit application code. Do not run a fix loop: this mode has none. Every finding routes; none is fixed here.
 - Do not run the lenses yourself. Dispatch the sub-agents (Step 3) and the refuters (Step 4) per [_subagents.md](../_subagents.md).
-- The ledger grows across runs: `wf.mjs findings add --source audit` applies the merge law of [_findings-ledger.md](../_findings-ledger.md) (stable IDs, `surfaced-at` kept, the resolve sweep, the `runs` append). Never edit `findings.yaml` by hand, and never restate the law.
+- The ledger grows across runs: `wf_run { "op": "findings add", "source": "audit" }` (CLI: `wf.mjs findings add --source audit`) applies the merge law of [_findings-ledger.md](../_findings-ledger.md) (stable IDs, `surfaced-at` kept, the resolve sweep, the `runs` append). Never edit `findings.yaml` by hand, and never restate the law.
 - The scope and the lens selection are legible and correctable. State the resolved surface, the exclusions, and every selected lens with its reason, in the artifact and in chat, before the hunt runs. When an audit guessed its scope silently, its "no findings" cannot be trusted: the reader cannot tell clean from unread.
 - **Zero findings is a valid, useful result.** Write the artifact with the resolved surface, the lenses run, and the set that could not be observed. Never pad a clean result with nits.
 - Keep the stated order only where a step uses the output of an earlier step or crosses a gate. Reading and research may interleave freely.
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from the instructions:
-   - When the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: audit`, this is **re-run mode**. This run merges into the existing ledger `findings.yaml`. The concern and the surface come from `01-audit.md`. New paths in the arguments extend the surface, recorded as a surface revision in `01-audit.md`.
+   - When the argument names an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: audit`, this is **re-run mode**. This run merges into the existing ledger `findings.yaml`. The concern and the surface come from `01-audit.md`. New paths in the arguments extend the surface, recorded as a surface revision in `01-audit.md`.
    - Otherwise this is a **new audit**.
 2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `audit-<short-concern>`.
 3. **Branch posture.** This mode is read-only: do not create or switch branches. Record the current branch in the index.
@@ -108,12 +108,12 @@ A plausible but wrong finding costs more here than in the review stage: no diff 
 
 # Step 5 — Merge into the ledger
 
-Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step (`07-review.md`, `01-audit.md`, `00-index.md`) as a draft `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step (`07-review.md`, `01-audit.md`, `00-index.md`) as a draft `<wf-dir>/.draft/<name>`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
-1. **Merge.** Write every candidate (survivors and refuted) to `<wf-dir>/.draft/found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source audit --run <now>`.
+1. **Merge.** Write every candidate (survivors and refuted) to `<wf-dir>/.draft/found.json` per [_findings-ledger.md](../_findings-ledger.md), with `dimensions` = every lens of this run. Run `wf_run { "op": "findings add", "slug": "<slug>", "source": "audit", "run": "<now>", "found": "<the JSON>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source audit --run <now>`).
 2. **The review file.** Write `07-review.md` (`type: review`, `review-scope: slug-wide`) whole, from the ledger:
-   - the frontmatter metrics from `wf.mjs findings metrics --source audit`;
-   - `## Findings` from `wf.mjs findings table --source audit`, refuted rows included, with the refutation that killed them;
+   - the frontmatter metrics from `wf_read { "items": [{ "op": "findings metrics", "source": "audit" }] }` (CLI: `wf.mjs findings metrics --source audit`);
+   - `## Findings` from `wf_read { "items": [{ "op": "findings table", "source": "audit" }] }` (CLI: `wf.mjs findings table --source audit`), refuted rows included, with the refutation that killed them;
    - `## Triage Decisions`: the routes of Step 6;
    - a verdict line that states the ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`.
 3. **Edits of `01-audit.md` are additive,** per [_additive-write.md](../_additive-write.md). A re-run gets the record, appends to it, writes the draft and puts it. It never rewrites history.
@@ -122,7 +122,7 @@ Timestamps per [_timestamp.md](../_timestamp.md). Write each record of this step
 
 # Step 6 — Route (terminal; route-don't-fix)
 
-For each open finding, record its route with `wf.mjs findings set "<root>" <slug> <id> deferred --reason "route: <command>"`, so that the route survives the next run. `## Triage Decisions` of `07-review.md` lists the routes from the ledger:
+For each open finding, record its route with `wf_run { "op": "findings set", "slug": "<slug>", "reason": "route: <command>", "id": "<id>", "status": "deferred" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> deferred --reason "route: <command>"`), so that the route survives the next run. `## Triage Decisions` of `07-review.md` lists the routes from the ledger:
 
 | Finding shape | Route |
 |---|---|

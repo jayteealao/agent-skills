@@ -51,13 +51,13 @@ You orchestrate a refactoring. The one goal is the same external behavior before
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from `$ARGUMENTS`:
-   - When the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: refactor`, this is **resume mode**. Read the index, and continue from the first unwritten planning artifact. An old slug may carry `rf-*.md` files: write them again as the standard set when you continue.
+   - When the argument matches an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: refactor`, this is **resume mode**. Read the index, and continue from the first unwritten planning artifact. An old slug may carry `rf-*.md` files: write them again as the standard set when you continue.
    - Otherwise this is a **new refactor**.
 2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `refactor-<short-description>` (the old alias for refactor: `rf-*` artifacts).
 3. **Provenance check.** Apply `_intake-provenance.md`. The common source is a `/wf intake simplify` finding routed here. Its entry (id, files, rationale, severity) travels in the invocation text, and seeds `## Target` and `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change mode) uses its row of the Consume table. With no match, go on.
 4. **Stack fingerprint.** Apply the stack policy in `_change-mode-tail.md`: detect cheaply. The one-line confirmation rides the question round of Step 1, and sets `stack.user-confirmed: true`. Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check.** A refactor should use a dedicated branch. Ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), with the options `Create dedicated branch (recommended)` / `Use current branch`. For a dedicated branch:
-   1. Run the base check first: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <current branch>` ([_workflow-rules.md](../_workflow-rules.md)).
+   1. Run the base check first: `wf_query { "op": "base check", "base": "<current" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <current branch>`) ([_workflow-rules.md](../_workflow-rules.md)).
    2. Run `git checkout -b refactor/<slug>` from the current branch.
 
    Record the choice, so that `branch-strategy` and `branch` of the index reflect it: `branch` is empty when the person kept the current branch.
@@ -74,7 +74,7 @@ Ask 3 to 6 targeted questions, not the 5-round PO interview:
 5. **Target structure?** What the code should look like after: extract a service; a strategy pattern; early returns.
 6. **Stack confirm.** The one-line confirmation of the fingerprint of Step 0, per the stack policy of `_change-mode-tail.md`.
 
-Write the draft `<wf-dir>/.draft/01-refactor.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`), and put it, the same way.
+Write the draft `<wf-dir>/.draft/01-refactor.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`), and put it, the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (the APIs and behaviors that must not change), `## Target Structure`.
 

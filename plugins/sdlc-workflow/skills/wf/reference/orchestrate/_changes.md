@@ -53,7 +53,7 @@ The person can reopen a brainstorm at any time, also while the run works on its 
 `/wf orchestrate <slug>`, with the slug of the source workflow, can take a list that the campaign walk has started. `<o> take-over <root> <source-slug>-run <source-slug>` does these:
 
 - It refuses while a driver of the walk is live on a work packet of the list. Tell the person to stop that run first.
-- It marks the list as owned by this run. While the mark is there, `campaign.mjs next` refuses the list and names the run.
+- It marks the list as owned by this run. While the mark is there, `wf_run { "op": "campaign next" }` (CLI: `campaign.mjs next`) refuses the list and names the run.
 - It prints one proposed outcome for each acceptance criterion of each work packet, with the key of its work packet:
   - a `done` work packet gives outcomes with `"state": "passed"`;
   - a `built`, `open`, `written` or skipped work packet gives open outcomes. The code of a `built` work packet is on the list branch, so its outcomes usually pass at the first validation;

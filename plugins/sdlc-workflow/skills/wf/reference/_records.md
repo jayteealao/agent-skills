@@ -1,6 +1,6 @@
 # Records (single source)
 
-The records of a workflow are YAML files in its one folder, the wf-dir, and scripts write them. The wf-dir is `<root>/.ai/workflows/<slug>/`, or `<records home>/<project>/<slug>/` in a project that is linked to a records repo. The dispatch and the brief print it as `wf-dir: <absolute path>`, and the references write it as `<wf-dir>/`. An agent never writes a record file. It writes a draft, and `wf.mjs record put` checks the draft and writes the record.
+The records of a workflow are YAML files in its one folder, the wf-dir, and scripts write them. The wf-dir is `<root>/.ai/workflows/<slug>/`, or `<records home>/<project>/<slug>/` in a project that is linked to a records repo. The dispatch and the brief print it as `wf-dir: <absolute path>`, and the references write it as `<wf-dir>/`. An agent never writes a record file. It writes a draft, and `wf_run { "op": "record put" }` (CLI: `wf.mjs record put`) checks the draft and writes the record.
 
 In the commands below, `<wf>` is `node "<skill-dir>/scripts/wf.mjs"` and `<root>` is the project root. Run `<wf> help <command>` for the forms and the flags of a command. Do not read the source of `wf.mjs` to learn them.
 

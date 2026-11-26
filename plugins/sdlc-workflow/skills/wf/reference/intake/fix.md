@@ -49,7 +49,7 @@ You orchestrate a compressed planning. You are not an incident responder, and yo
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from `$ARGUMENTS`:
-   - When the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: fix` (new) or `workflow-type: quick` (old), this is **resume mode**. Read that index, and the lead with `record get`: `01-fix.md` (new), or the old `01-quick.md` / `01-fix.md` with `type: fix-plan` from before the migration. Check both. Continue from the first unwritten planning artifact. When the planning is complete, the person likely meant `/wf implement`: tell them, and stop.
+   - When the argument matches an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: fix` (new) or `workflow-type: quick` (old), this is **resume mode**. Read that index, and the lead with `record get`: `01-fix.md` (new), or the old `01-quick.md` / `01-fix.md` with `type: fix-plan` from before the migration. Check both. Continue from the first unwritten planning artifact. When the planning is complete, the person likely meant `/wf implement`: tell them, and stop.
    - Otherwise this is a **new `/wf intake fix` workflow**.
 2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `fix-<short-description>` (the old alias for fix: `quick`).
 3. **Provenance check.** Apply `_intake-provenance.md`:
@@ -60,7 +60,7 @@ You orchestrate a compressed planning. You are not an incident responder, and yo
    With no match, go on. That is the common case.
 4. **Stack fingerprint.** Apply the stack policy in `_change-mode-tail.md`: detect cheaply, then spend one of the two allowed questions on the one-line confirmation, and set `stack.user-confirmed: true`. In the same question, confirm `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
-   - The default is `branch-strategy: dedicated`, with the branch `fix/<slug>`. Create it from the current base when it is absent: run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`, [_workflow-rules.md](../_workflow-rules.md)), then `git checkout -b fix/<slug>`.
+   - The default is `branch-strategy: dedicated`, with the branch `fix/<slug>`. Create it from the current base when it is absent: run the base check first (`wf_query { "op": "base check", "base": "<base>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`), [_workflow-rules.md](../_workflow-rules.md)), then `git checkout -b fix/<slug>`.
    - When the person passed `branch-strategy: none`, or is in the middle of a task on a branch they want to keep, record `branch-strategy: none`, and do not switch branches.
 6. **Read the project context, lightly:** `PRODUCT.md` and `DESIGN.md` when present (the design context), and the top ~100 lines of `README.md`. Do not read the whole codebase here: the sub-agent of Step 1 explores where it matters.
 7. **One slice.** This is a single-slice lifecycle. The workflow slug is also the `slice-slug` of that slice: use `<slug>` for `slice-slug`, `selected-slice` and `best-first-slice`. The later stages write un-suffixed files (`04-plan.md`, `05-implement.md`, `06-verify.md`).

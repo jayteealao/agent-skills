@@ -59,7 +59,7 @@ You are a **performance analyst**, not an optimizer.
 # Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
    - If `<wf-dir>/` does not exist → Stop: "No workflow `<slug>` found."
-   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → Stop: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
+   - If `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "02-shape.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md`) exits 1 (no record) → Stop: "No shape found for `<slug>`. Run `/wf intake <slug>` first."
 2. **Resolve mode:**
    - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
    - If no mode is named → auto-detect:
@@ -77,7 +77,7 @@ You are a **performance analyst**, not an optimizer.
 ### research sub-agent — Benchmark target discovery
 
 Prompt with all of the following:
-- Read `02-shape.md` and any `04-plan-*.md` records with `wf.mjs record get` (`wf.mjs record list` names them). Identify the functions, endpoints, operations, or modules that:
+- Read `02-shape.md` and any `04-plan-*.md` records with `wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`) (`wf_read { "items": [{ "op": "record list" }] }` (CLI: `wf.mjs record list`) names them). Identify the functions, endpoints, operations, or modules that:
   - Are explicitly named in the shape's `## Affected Areas` section
   - Are performance-sensitive (called frequently, latency-critical, or processing-heavy)
   - Will be modified by this workflow (from the plan)
@@ -110,11 +110,11 @@ If benchmarks fail to run (missing dependency, build error, missing test fixture
 
 ## Baseline Step 3 — Write `05c-benchmark.md` (baseline)
 
-Write the draft `<wf-dir>/.draft/05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
+Write the draft `<wf-dir>/.draft/05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*. Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md)).
 
 ## Baseline Step 4 — Update `00-index.md` augmentations registry
 
-Add this entry to the `augmentations:` list of the index. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus this one.
+Add this entry to the `augmentations:` list of the index. Set the whole list with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": "augmentations=<list>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`): the entries of the index plus this one.
 ```yaml
 augmentations:
   - type: benchmark
@@ -132,7 +132,7 @@ If `augmentations:` already has a benchmark entry (e.g., from a prior run), upda
 
 ## Compare Step 1 — Read baseline
 
-Read `05c-benchmark.md` in full with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05c-benchmark.md`. Extract:
+Read `05c-benchmark.md` in full with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "05c-benchmark.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05c-benchmark.md`). Extract:
 - All targets from "## Benchmark Targets" — these are the only targets to measure.
 - All commands from "## Measurement Commands" — run these exactly as recorded.
 - All baseline numbers from "## Baseline Results".

@@ -74,7 +74,7 @@ quantities instead of abstract statements.
    question text says so.
 10. **Recommend the fastest valid path.** Recommend the option that reaches a
    valid answer soonest, inside the check budget of the test profile
-   (`wf.mjs profile show`). Recommend a slower option only when the faster one
+   (`wf_query { "op": "profile show" }` (CLI: `wf.mjs profile show`)). Recommend a slower option only when the faster one
    cannot give a valid answer, and say why in one clause. When the
    recommended option is over `budget.long`, the options include at least one
    faster path of [_long-runs.md](_long-runs.md) L3.

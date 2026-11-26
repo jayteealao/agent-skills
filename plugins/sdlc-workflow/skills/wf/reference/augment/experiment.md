@@ -44,7 +44,7 @@ You are an **experiment designer**, not an implementer.
 # Step 0 — Orient
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
    - If `<wf-dir>/` does not exist → Stop: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
-   - If `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md` exits 1 (no record) → Stop: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
+   - If `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "02-shape.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 02-shape.md`) exits 1 (no record) → Stop: "Workflow `<slug>` has no shape yet. Run `/wf intake <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists (`record get` exits 0) → read it and continue: plan runs once per slice, and the design is one per slug. Do not overwrite it. Fold its flag and cohorts into the steps of this slice. Re-author it only when the person asked for it.
 3. **Check for instrumentation:**
@@ -58,12 +58,12 @@ Launch the sub-agent to design the experiment. Do not skip to writing the artifa
 ### research sub-agent — Experiment design
 
 Prompt with all of the following:
-- Read `02-shape.md` in full with `wf.mjs record get`. Extract:
+- Read `02-shape.md` in full with `wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`). Extract:
   - The implicit or explicit hypothesis: "We believe that [change] will [outcome] for [users]."
   - The change being made (treatment).
   - What the existing behavior is (control).
   - Any acceptance criteria — these become candidate success metrics.
-- If `04b-instrument.md` is present, read it with `wf.mjs record get` and note the signals that could serve as experiment metrics (prefer already-planned signals over net-new ones).
+- If `04b-instrument.md` is present, read it with `wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`) and note the signals that could serve as experiment metrics (prefer already-planned signals over net-new ones).
 - Check the codebase for existing feature flag infrastructure:
   - Search for: `LaunchDarkly`, `Unleash`, `Growthbook`, `Flagsmith`, `Split.io`, custom flag files (`featureFlags.ts`, `flags.go`, `flags.py`)
   - If found: note the framework, the existing flag structure, and the naming conventions used for existing flags
@@ -94,11 +94,11 @@ Return as structured text: full experiment design covering all 6 elements above,
 
 # Step 2 — Write `04c-experiment.md`
 
-Write the draft `<wf-dir>/.draft/04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md). Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
+Write the draft `<wf-dir>/.draft/04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md). Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md)).
 
 # Step 3 — Update `00-index.md` augmentations registry
 
-Get the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, then add or update the `augmentations:` list. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`:
+Get the index with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), then add or update the `augmentations:` list. Set the whole list with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": "augmentations=<list>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`):
 
 ```yaml
 augmentations:

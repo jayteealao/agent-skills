@@ -11,6 +11,9 @@
  * - The effects that cannot be taken back ask the person, because a permission rule cannot name
  *   an argument of wf_act: a merge, a push or a post to GitHub, a migration, a server install.
  *
+ * - A call that passes writes its caller row (lib/mcp-callers.mjs): the server reads from it who
+ *   calls, the main session or an agent, in place of what the arguments say.
+ *
  * The check fails closed. It never rewrites the input of a call: a rewritten call can be denied.
  * Exports `run(input)` for the folded `pre-tool-use-all` entry.
  */
@@ -18,6 +21,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { askBeforeToolCall } from '../lib/hook-utils.mjs';
+import { writeCaller } from '../lib/mcp-callers.mjs';
 
 export const WF_TOOL_PREFIX = 'mcp__plugin_sdlc-workflow_wf__';
 
@@ -67,6 +71,7 @@ export async function run(input) {
       askBeforeToolCall(`wf_act ${op} cannot be taken back: it changes what other people see (a merge, a push, GitHub, a migration or a server install).`);
     }
   }
+  writeCaller(input);
 }
 
 if (isEntry('mcp-guard')) runStandalone('mcp-guard', run);

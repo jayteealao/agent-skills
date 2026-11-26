@@ -126,7 +126,7 @@ just the conceptual state of an unwritten gate.)
 When `shape` runs this procedure (`../shape.md` Step 5a):
 - Write the brief as the draft `<wf-dir>/.draft/02b-design.md` (type `design`), with
   `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
-  Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md)).
+  Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md)).
 - Leave `00-index.md` `current-stage: intake` (the brief is part of the shape phase).
 - Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
   the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors

@@ -14,7 +14,7 @@ Provenance is explicit or inferred — explicit always wins:
 
 1. **Explicit:** `$ARGUMENTS` ends with `from <source-slug>`. Strip those two tokens from
    the description before deriving the new slug. Read the index of the named slug with
-   `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <source-slug> index` (per [_records.md](../_records.md)) and read its `workflow-type`. If the type has
+   `wf_read { "slug": "<source-slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <source-slug> index`) (per [_records.md](../_records.md)) and read its `workflow-type`. If the type has
    no row in the Consume table of
    [_intake-provenance-consume.md](_intake-provenance-consume.md), WARN ("`<slug>` has workflow-type `<type>` — no
    provenance contract for it; proceeding without inherited context") and continue.

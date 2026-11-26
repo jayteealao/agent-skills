@@ -11,9 +11,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { extractFn as extractFrom } from '../../helpers/extract-fn.mjs';
+import { driverSource } from '../../helpers/driver-source.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+const src = driverSource('yolo.js');
 const extractFn = (name) => extractFrom(src, name);
 
 const CLEAN = (stage) => ({ stage, status: 'complete', artifactPath: `x/${stage}.md`, terminal: { statusField: 'complete', convergence: 'converged', result: 'pass' } });

@@ -50,7 +50,7 @@ You find opportunities and you challenge them. You do not solve them.
 
 # Step 0 — Orient
 
-1. **Give each argument a kind.** Run `node "<skill-dir>/scripts/ideate-sources.mjs" args "<projectRoot>" "<the argument text>"`. The script applies these rules in order. The first rule that matches wins:
+1. **Give each argument a kind.** Run `wf_query { "op": "ideate-sources args", "argument-text": "<the argument text>" }` (CLI: `node "<skill-dir>/scripts/ideate-sources.mjs" args "<projectRoot>" "<the argument text>"`). The script applies these rules in order. The first rule that matches wins:
 
    | # | Shape | Kind |
    |---|---|---|
@@ -72,7 +72,7 @@ You find opportunities and you challenge them. You do not solve them.
    - `steer` (a word of `deeper`, `similar`, `lens`, `direction`, `surprise` after the slug): run items 4 to 6, then the round per [_rounds.md](ideate/_rounds.md), then Step 7. Add `steer` to `modes:` of `01-ideate.md`.
    - `pick` (idea ids `IDEA-NNN`, or an idea title): set those ideas to `triage: take`, and run `# Pick — decision closure`. The prose after the ids is the decision note. When the index is already closed and the run has no list, warn the person, and end the run. When the run has a list, the pick appends to it. Quote an idea title that starts with a steer word.
    - `resume` (no token after the slug): when `01-ideate.md` is complete, go to Step 7, at its Resume section. When it is not complete, resume from the missing step.
-4. **Find the existing workflows.** Read the index of each workflow under `.ai/workflows/` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Note which are active or recently completed. Step 3 culls an idea that repeats work in flight or work just shipped.
+4. **Find the existing workflows.** Read the index of each workflow under `.ai/workflows/` with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`). Note which are active or recently completed. Step 3 culls an idea that repeats work in flight or work just shipped.
 5. **Seed from the recorded history.** The repo already wrote down what needs doing, and the lenses do not derive it again blind. Make these cheap reads, and skip what is absent:
    - the retro action items: the action-item section of the `10-retro.md` record of each workflow, read with `record get`;
    - the `.ai/solutions/` entries;
@@ -177,7 +177,7 @@ Then write the records (Step 6), and go to Step 7. The first question of the loo
 
 # Step 6 — Write the artifact
 
-The analysis modes root in a `type: workflow-index` slug workflow, and the lead is its only artifact. Write two records as drafts under `<wf-dir>/.draft/`, with the slug of Step 0, item 2. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+The analysis modes root in a `type: workflow-index` slug workflow, and the lead is its only artifact. Write two records as drafts under `<wf-dir>/.draft/`, with the slug of Step 0, item 2. Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 Generate the `created-at` timestamp per [_timestamp.md](../_timestamp.md).
 
@@ -190,7 +190,7 @@ Generate the `created-at` timestamp per [_timestamp.md](../_timestamp.md).
 - with sources, the `sources:`, `source-items:` and `research:` rosters;
 - then the ranked ideas, built from the roster, and the how-to-use footer.
 
-After the put, run `ideate-sources.mjs check "<projectRoot>" <slug>`. It must return `ok: true`: every source item has a result, and the triage states and the links between ideas resolve.
+After the put, run `wf_query { "op": "ideate-sources check", "slug": "<slug>" }` (CLI: `ideate-sources.mjs check "<projectRoot>" <slug>`). It must return `ok: true`: every source item has a result, and the triage states and the links between ideas resolve.
 
 # Step 7 — The loop
 

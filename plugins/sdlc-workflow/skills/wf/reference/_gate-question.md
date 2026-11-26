@@ -58,7 +58,7 @@ question tool.
 
 ## Standing answers
 
-Some questions come again in every workflow of the project. A standing answer of the person answers one of them in every workflow, so the question is not asked again. Only the keys that `wf.mjs standing list` names can have one: `run-decisions`, `ship-merge` and `pr-wanted`. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
+Some questions come again in every workflow of the project. A standing answer of the person answers one of them in every workflow, so the question is not asked again. Only the keys that `wf_query { "op": "standing list" }` (CLI: `wf.mjs standing list`) names can have one: `run-decisions`, `ship-merge` and `pr-wanted`. `<wf>` below is `node "<skill-dir>/scripts/wf.mjs"`.
 
 1. **Check before you ask.** A live answer in the decision store of the workflow comes first (rule 2 of [_decisions.md](_decisions.md)). Otherwise, before you ask a question whose key is on the list, run `<wf> standing check "<root>" <key>`.
 2. **Apply a standing answer.** When the check exits 0, do not ask. Record its answer with `<wf> decide add "<root>" <slug> --key <key> --question "<the question>" --answer "<the standing answer>" --by "standing rule"`, with the `--kind` of the citing site. Then tell the person in one chat line: "The standing answer for `<key>` applied: <answer>. Run `<wf> standing clear "<root>" <key>` to be asked again."

@@ -4,7 +4,7 @@ The `batch` mode applies when the `target` output of [../handoff.md](../handoff.
 
 ## Elect the lead slug
 
-This is handoff Step 0, item 3a. When a roster slug carries `handoff-lead:`, reuse it unchanged. Otherwise elect the first roster slug alphabetically, and run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index handoff-lead=<lead>` for every roster slug. The lead owns the single shared PR and the branch-level readiness keys (T3.5–T5.3). Followers carry `readiness-via: <lead>/08-handoff.md`.
+This is handoff Step 0, item 3a. When a roster slug carries `handoff-lead:`, reuse it unchanged. Otherwise elect the first roster slug alphabetically, and run `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": "handoff-lead=<lead>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index handoff-lead=<lead>`) for every roster slug. The lead owns the single shared PR and the branch-level readiness keys (T3.5–T5.3). Followers carry `readiness-via: <lead>/08-handoff.md`.
 
 ## Two layers
 

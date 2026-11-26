@@ -16,7 +16,7 @@ test('a step runs a static check and no test; the slice runs its checks once, wi
   const steps = ref('implement', '_steps.md');
   assert.match(card, /After a step, run only the cheapest static check of the project on the files of that step/);
   assert.match(card, /A step runs no test, no guard set, no measured run, no device check and no full build/);
-  assert.match(card, /After the last step, run the slice checks once, then the fast and affected suites of the test profile with `wf\.mjs receipt`/);
+  assert.match(card, /After the last step, run the slice checks once, then the fast and affected suites of the test profile with `wf_job \{ "op": "receipt" \}` \(CLI: `wf\.mjs receipt`\)/);
   assert.doesNotMatch(card, /Red before green/);
   assert.match(steps, /After each plan step, run only the cheapest static check of the project on the files of that step/);
   assert.match(steps, /## The slice checks/);

@@ -3,7 +3,7 @@
 // The Workflow tool refuses a `scriptPath` outside the working directory, so
 // yolo.md Step 0 stages skills/wf/workflows/yolo.js into
 // <projectRoot>/.scratch/wf/yolo.js at every launch. These tests prove the
-// staged copy is byte-identical, the directory ignores itself, a hot-patched
+// staged copy is the source with the table of the operations of wf filled in, the directory ignores itself, a hot-patched
 // copy is overwritten with a CAUTION, and a wrong root is refused.
 
 import { test } from 'node:test';
@@ -14,7 +14,7 @@ import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-import { stageYoloDriver, DRIVER_SOURCE } from '../../scripts/stage-yolo-driver.mjs';
+import { stageYoloDriver, stagedText, DRIVER_SOURCE } from '../../scripts/stage-yolo-driver.mjs';
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = join(PLUGIN_ROOT, 'scripts', 'stage-yolo-driver.mjs');
@@ -25,14 +25,14 @@ function scratchRepo() {
   return root;
 }
 
-test('stages a byte-identical copy under .scratch/wf with a self-ignoring directory and a sidecar', () => {
+test('stages the source, with its table of operations, under .scratch/wf with a self-ignoring directory and a sidecar', () => {
   const root = scratchRepo();
   try {
     const lines = [];
     const r = stageYoloDriver(root, { log: (l) => lines.push(l) });
     assert.equal(r.scriptPath, join(root, '.scratch', 'wf', 'yolo.js'));
     assert.ok(isAbsolute(r.scriptPath));
-    assert.equal(readFileSync(r.scriptPath, 'utf8'), readFileSync(DRIVER_SOURCE, 'utf8'));
+    assert.equal(readFileSync(r.scriptPath, 'utf8'), stagedText(readFileSync(DRIVER_SOURCE, 'utf8')));
     assert.equal(r.overwroteHotPatch, false);
     assert.equal(lines.length, 0);
     assert.equal(readFileSync(join(root, '.scratch', '.gitignore'), 'utf8'), '*\n');
@@ -57,7 +57,7 @@ test('overwrites a hot-patched staged copy and says so; an identical copy is sil
     assert.equal(lines.length, 1);
     assert.match(lines[0], /^CAUTION: .*overwritten/);
     assert.match(lines[0], /\.ai\/patches\//);
-    assert.equal(readFileSync(second.scriptPath, 'utf8'), readFileSync(DRIVER_SOURCE, 'utf8'));
+    assert.equal(readFileSync(second.scriptPath, 'utf8'), stagedText(readFileSync(DRIVER_SOURCE, 'utf8')));
     const third = stageYoloDriver(root, { log: (l) => lines.push(l) });
     assert.equal(third.overwroteHotPatch, false);
     assert.equal(lines.length, 1);
@@ -149,7 +149,7 @@ test('--slug: the run-decisions answer of the launch sets delegate', async () =>
 
 test('the stage agents test a key with decide answered before they ask', () => {
   const yolo = readFileSync(join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-  assert.equal(yolo.split('Before you ask, run \\`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\\`').length, 2, 'one owner of the rule');
+  assert.equal(yolo.split('Before you ask, run ${wf(`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>`)}').length, 2, 'one owner of the rule');
   assert.equal((yolo.match(/sameQuestionClause\(\) \+/g) || []).length, 2, 'the question contract and delegate mode');
   assert.doesNotMatch(yolo, /When an entry answers the same question in substance under another key/);
   assert.doesNotMatch(yolo, /decide list "\$\{projectRoot\}" \$\{slug\} --kind steer --json/);

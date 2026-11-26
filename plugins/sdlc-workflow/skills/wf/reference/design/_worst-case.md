@@ -1,6 +1,6 @@
 # Worst-case content (`design/_worst-case.md`)
 
-The worst data that a real person or system can produce, as one catalog. The `worst` state of every screen draws the surface with these values ([_surface.md](_surface.md)), and `wf.mjs design check` runs its worst-case check in that state ([_craft-floor.md](_craft-floor.md) rule 7). The values are platform-neutral. The breaks are the same on the web, iOS, Android and desktop.
+The worst data that a real person or system can produce, as one catalog. The `worst` state of every screen draws the surface with these values ([_surface.md](_surface.md)), and `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) runs its worst-case check in that state ([_craft-floor.md](_craft-floor.md) rule 7). The values are platform-neutral. The breaks are the same on the web, iOS, Android and desktop.
 
 > Load with: `design/_worst-case.md`
 

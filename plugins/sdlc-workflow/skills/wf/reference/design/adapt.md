@@ -98,7 +98,7 @@ This file is a move. [_lane.md](_lane.md) → Moves says when each use runs. A n
 
 ### At the design stage
 
-The move changes these things in the screens: the structure of each screen at each viewport of `screens.json`, the navigation idiom, the touch sizes of the components, and the theme roles. Set the viewports of the target with `wf.mjs design viewports`. For a native target, draw the idioms of its platform file. The contract records the source and the target contexts, and each change of structure and input.
+The move changes these things in the screens: the structure of each screen at each viewport of `screens.json`, the navigation idiom, the touch sizes of the components, and the theme roles. Set the viewports of the target with `wf_run { "op": "design viewports" }` (CLI: `wf.mjs design viewports`). For a native target, draw the idioms of its platform file. The contract records the source and the target contexts, and each change of structure and input.
 
 ### As a pass on an approved design
 

@@ -49,7 +49,7 @@ You expand the scope. You do not solve the problem. Keep the stated order only w
 
 # Step 0 — Orient
 
-1. **Resolve the slug.** The `intake` dispatcher took the existing slug on disk as `<slug>` (an exact `<wf-dir>/00-index.md` match) before it routed here: use it. When you arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md)). When that is ambiguous, ask one gate question per [_gate-question.md](../_gate-question.md) that lists the options.
+1. **Resolve the slug.** The `intake` dispatcher took the existing slug on disk as `<slug>` (an exact `<wf-dir>/00-index.md` match) before it routed here: use it. When you arrive with no slug, infer the most recent active workflow from the index of each workflow in `.ai/workflows/` (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), per [_records.md](../_records.md)). When that is ambiguous, ask one gate question per [_gate-question.md](../_gate-question.md) that lists the options.
 2. **Resolve the seed** from the rest of `$ARGUMENTS`:
    - `from-review`: extract the new scope that the person names from the review records. Only the person starts this seed: a review never routes a finding here. A defect of built work is fixed by a review run (`/wf review <slug>`), or by `/wf intake <slug> fix` for a change after ship. It is never a new slice.
    - `from-retro`: extract the new scope from the findings of `10-retro.md`.

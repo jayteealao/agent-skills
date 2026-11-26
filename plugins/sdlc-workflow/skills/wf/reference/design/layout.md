@@ -1,6 +1,6 @@
 Layout turns product priority into reading order, grouping, rhythm and usable space. Find the structural problem before you move boxes. Change the structure inside the current world: a new identity runs through [stage.md](stage.md) Step 3b.
 
-A unit below is the layout unit of the platform: a CSS pixel on the web, a point on iOS, a density-independent pixel on Android. `wf.mjs design check` sends a failure of viewport fit, and overlapping text, to this file.
+A unit below is the layout unit of the platform: a CSS pixel on the web, a point on iOS, a density-independent pixel on Android. `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) sends a failure of viewport fit, and overlapping text, to this file.
 
 ---
 

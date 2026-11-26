@@ -6,7 +6,7 @@ The check budget says how long a check may take before an agent moves it or make
 - `long`: the longest single long run (a fit, a proof, a calibration, a coverage pass) before the agent must offer the faster paths. No value means no limit.
 - `machines`: the machines that the person allows for split runs, by name.
 
-`node "<skill-dir>/scripts/wf.mjs" profile budget "<projectRoot>"` shows it. `profile show` and every stage brief also show it.
+`wf_run { "op": "profile budget" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" profile budget "<projectRoot>"`) shows it. `profile show` and every stage brief also show it.
 
 ## When to ask
 
@@ -45,7 +45,7 @@ A free-text answer sets the numbers: `--slice <seconds>` and `--long <seconds|no
 
 List each long command of the repo with an estimate, in the question text:
 
-- each pre-push and pre-commit command (`wf.mjs profile hooks`)
+- each pre-push and pre-commit command (`wf_query { "op": "profile hooks" }` (CLI: `wf.mjs profile hooks`))
 - each command that a doc of the repo calls slow, or gives a time of minutes or hours (for example a fit, a calibration, a proof, a coverage pass)
 - each suite whose recorded time is over the time box
 

@@ -35,7 +35,7 @@ Each design fact lives in one place, and every other record cites it by key: the
 - A style that two or more screens share goes in `components.css` as a component, for example the navigation, or as a layout component (`wf:kind` `layout`) for a page shell such as the app frame. Do not copy it into each page: the check fails a rule that three or more screens repeat.
 - A link to `<key>.html` in a screen is an edge of a flow. Make every step of a flow a link, so the person can click through it.
 - A screen is a design, not product code. Do not import product code into it, and do not build a working feature in it.
-- **A terminal surface.** Capture the real output, or write it as text with its ANSI codes. Render it into the screen page with `node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>`, and copy the result into each state of the screen. `campbell` is a dark scheme; `solarized-light` is a light scheme. Draw the screen in each scheme that `_platforms-terminal.md` names, as two screens when the schemes differ.
+- **A terminal surface.** Capture the real output, or write it as text with its ANSI codes. Render it into the screen page with `wf_act { "op": "design-boards ansi", "scheme": "<campbell|solarized-light>", "out": "<file.html>", "input-txt": "<input.txt>" }` (CLI: `node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>`), and copy the result into each state of the screen. `campbell` is a dark scheme; `solarized-light` is a light scheme. Draw the screen in each scheme that `_platforms-terminal.md` names, as two screens when the schemes differ.
 
 ## Pages that the canvas draws with no frame
 

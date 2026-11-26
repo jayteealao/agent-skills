@@ -68,7 +68,7 @@ When geometric centering looks off, align by eye, and inspect the rendered resul
 
 ### Depth
 
-Depth is a token role of `DESIGN.md`, like color. A screen and a component use a shadow, a ring and an image outline through `var()`, and `wf.mjs design check` fails a raw color in a `box-shadow` or an `outline`.
+Depth is a token role of `DESIGN.md`, like color. A screen and a component use a shadow, a ring and an image outline through `var()`, and `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) fails a raw color in a `box-shadow` or an `outline`.
 
 - One surface declares its elevation once, with one depth token ([_craft-floor.md](_craft-floor.md) rule 23). A depth token may hold a hairline ring and a shadow together as one value. A separate border under a wide soft shadow is the fault.
 - A border fits an edge that separates: a divider, a table boundary, an input outline. A shadow fits elevation, because it adapts to any ground behind it.

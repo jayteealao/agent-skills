@@ -26,7 +26,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| Design canvas (design stage) | The design server serves the canvas of the repo, with comments (`design/_surface.md`). Give the person the canvas URL on the tailnet address. When the person cannot reach the server, run `wf.mjs design publish` and publish the page with the Artifact tool | The same canvas from the design server. When the person cannot reach it, give the path of the page of `wf.mjs design publish` | Same as Codex |
+| Design canvas (design stage) | The design server serves the canvas of the repo, with comments (`design/_surface.md`). Give the person the canvas URL on the tailnet address. When the person cannot reach the server, run `wf_act { "op": "design publish" }` (CLI: `wf.mjs design publish`) and publish the page with the Artifact tool | The same canvas from the design server. When the person cannot reach it, give the path of the page of `wf_act { "op": "design publish" }` (CLI: `wf.mjs design publish`) | Same as Codex |
 
 ## Design system sync
 

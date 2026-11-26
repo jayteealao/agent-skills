@@ -45,7 +45,7 @@ Nothing else. In particular:
    free text (`"base should be develop, not main"`, `"switch to slug-wide review"`). A trailing
    `dry-run` token (same grammar as modernize) means: resolve and present the Step 1 diff, then
    stop without writing.
-2. Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` (per [_records.md](../_records.md)). When `status: closed`, warn, and confirm before
+2. Read the index with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) (per [_records.md](../_records.md)). When `status: closed`, warn, and confirm before
    proceeding: *"`<slug>` is closed (close-reason: `<reason>`). Amend its recorded config anyway?"*
    — amending a closed record is legitimate (fixing history's metadata) but never silent. Map the
    request onto the whitelist above. Record, for each field you intend to change: current value →

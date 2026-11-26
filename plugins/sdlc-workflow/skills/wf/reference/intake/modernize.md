@@ -23,7 +23,7 @@ Modernize **fills absent fields from what the artifacts already say.** It never:
 - invents a charter commitment, a risk, or a wall classification that the artifacts do not support;
 - clears a deferral, or narrows one.
 
-One change is not a backfill: the conversion of an old workflow to the current layout and the nine stages. `wf.mjs modernize` moves the Markdown record files into the YAML records, and renames the stages `shape` and `handoff` to `intake` and `ship` in `current-stage`, in `progress` and in the next commands. A merged progress value is the state of the two old stages together, so it is still the recorded state.
+One change is not a backfill: the conversion of an old workflow to the current layout and the nine stages. `wf_act { "op": "modernize" }` (CLI: `wf.mjs modernize`) moves the Markdown record files into the YAML records, and renames the stages `shape` and `handoff` to `intake` and `ship` in `current-stage`, in `progress` and in the next commands. A merged progress value is the state of the two old stages together, so it is still the recorded state.
 
 Where the artifacts do not answer a field, the field is **left absent and reported** — never guessed.
 A backfilled `wall-ownership: external` that nobody actually decided is worse than no field at all,
@@ -32,13 +32,13 @@ confabulated record is not.
 
 # Step 0 — Detect the era
 
-Read the index and the stage artifacts it lists with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` (per [_records.md](../_records.md); `index` names the index), and check each marker
+Read the index and the stage artifacts it lists with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "<name>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`) (per [_records.md](../_records.md); `index` names the index), and check each marker
 below. Detection is by **feature presence**, not by a version number — workflows do not record which
 plugin wrote them, and marker presence is what the consuming references actually test.
 
 | Marker | Absent means | Backfill source |
 |---|---|---|
-| the current record layout and stage names: no Markdown record file in the folder, and no `shape` or `handoff` in `current-stage`, `progress` or the next commands | the readers of the old files and the aliases `/wf shape` and `/wf handoff` keep the workflow working for this release only | `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug> --check` lists each move and each renamed field; Step 2 item 0 applies them |
+| the current record layout and stage names: no Markdown record file in the folder, and no `shape` or `handoff` in `current-stage`, `progress` or the next commands | the readers of the old files and the aliases `/wf shape` and `/wf handoff` keep the workflow working for this release only | `wf_act { "op": "modernize", "slug": "<slug>", "check": true }` (CLI: `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug> --check`) lists each move and each renamed field; Step 2 item 0 applies them |
 | `charter:` on the index | charter-fidelity checkpoints never run (`/wf yolo` skips them entirely) | the intake artifact's `## Charter` section, unchanged; if the intake has none, leave absent |
 | `intent-risks:` on the index | the RIM ledger is invisible to shape, verify, status deep, and the mid-build discover checkpoint | shape's recorded risks/assumptions; leave absent when shape recorded none |
 | `wall-ownership:` on each open deferral | the ownership triage is skipped — `code-owned` walls get deferred instead of surfaced | the defer-reason's own words when they clearly name the wall; otherwise **leave absent and list it** as needing a re-triage |
@@ -48,7 +48,7 @@ plugin wrote them, and marker presence is what the consuming references actually
 | `slices[].status` on the index | drivers cannot tell a skipped slice from a live one | the per-slice artifacts' own terminal state on disk (the fixed mapping in the cardinal rule) |
 | `evidence-rung:` on user-observable AC rows | the mock-evidence gate cannot fire | the verify artifact's recorded evidence, when it is explicit; otherwise leave absent |
 | `review-scope-confirmed:` / `appetite:` / `stack:` on the index | plan reads an absent `review-scope-confirmed` as already-asked and silently skips the confirm; shape/slice/plan lose their appetite scaling; verify stops on the missing stack block | `review-scope-confirmed: false` (the honest value — nobody asked); `appetite` from the intake artifact's recorded appetite answer, else leave absent; `stack:` re-detected cheaply per `_change-mode-tail.md`'s stack policy with `user-confirmed: false` (detection is observational — running it now invents nothing) |
-| the slug's row in `.ai/workflows/INDEX.md` | `/wf status` reconcile and the registry-driven modes never see the workflow | run `node "<skill-dir>/scripts/wf.mjs" index "<root>"`. The script writes the row. Do not edit `INDEX.md` |
+| the slug's row in `.ai/workflows/INDEX.md` | `/wf status` reconcile and the registry-driven modes never see the workflow | run `wf_run { "op": "index" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" index "<root>"`). The script writes the row. Do not edit `INDEX.md` |
 | `needed-by:` / `absorbed-by:` on open deferrals | the deferral never escalates when its due slice completes; inheritance breadth is untracked | the deferral's own recorded prose when it names a due slice or an inheriting slice; otherwise leave absent and list it |
 | decision-lifecycle fields on a terminal analysis index (`chosen-option`/`chosen-route`/`selected`, closure) — **report-only** | the workflow parks in Active forever with its decision unrecorded | **never backfilled** — a decision nobody recorded is exactly what modernize must not invent. Report the row and name the recording command: `/wf intake investigate <slug> <option>` / `/wf intake rca <slug> <route>` / `/wf intake ideate <slug> <idea-id>` (or `/wf intake <slug> close <reason>`) |
 | YAML comment prose (a `#` comment of more than 8 words) or old next-step commentary in `00-index.md` — **opt-in** | the index grows past 20 KB and hides its current state from the readers that parse it | move each item to `index-history.jsonl` per Step 2 item 6; never move the deferral list, `intent-risks`, `charter`, or `revisions:` |
@@ -67,7 +67,7 @@ gate question per [_gate-question.md](../_gate-question.md) and proceed. Offer t
 
 # Step 2 — Write
 
-0. When the conversion row was confirmed, run `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug>` first. It must print a `moved` or `set` line for each line of the check, and nothing else.
+0. When the conversion row was confirmed, run `wf_act { "op": "modernize", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" modernize "<root>" <slug>`) first. It must print a `moved` or `set` line for each line of the check, and nothing else.
 1. Apply only the confirmed backfills: a frontmatter field with `record set "<root>" <slug> <name> key=value`, a body change by a get, a change, a draft and a put. Refresh `updated-at` on every record touched.
 2. Follow [_control-file-ownership.md](../_control-file-ownership.md) for `00-index.md` and the
    registry — change an index field with `record set`; get the index immediately before you write a draft of it, and put the draft at once.

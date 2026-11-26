@@ -138,7 +138,7 @@ With no slug (`/wf design extract`), write no report file: the design record bel
 
 In both cases, update the design record:
 1. Write the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`, in the format of [record.md](record.md).
-2. Run `node "<skill-dir>/scripts/wf.mjs" design components scan "<root>"` to list the components of the code. For each one that the library does not have, run `node "<skill-dir>/scripts/wf.mjs" design component add "<root>" <key> --title "<title>" --code <file> --name <its name in the code>`, so the library lists it ([_surface.md](_surface.md) → The foundation).
+2. Run `wf_run { "op": "design components scan" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" design components scan "<root>"`) to list the components of the code. For each one that the library does not have, run `wf_run { "op": "design component add", "title": "<title>", "code": "<file>", "name": "<its", "key": "<key>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" design component add "<root>" <key> --title "<title>" --code <file> --name <its name in the code>`), so the library lists it ([_surface.md](_surface.md) → The foundation).
 3. Do not record a floor refusal as a system pattern. Record it under `## Design debt` per [_craft-floor.md](_craft-floor.md) → Record guard.
 
 Chat return: the palette, the spacing scale and the type scale in a few lines each, the count of components added to the library, the inconsistencies, and `Done`. The person does not open the report.

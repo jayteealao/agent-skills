@@ -49,7 +49,7 @@ You are a **diagnostician**, not a fixer.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: rca`, the workflow exists. Split on three sub-cases:
+   - If the first token names an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: rca`, the workflow exists. Split on three sub-cases:
      - **A token after the slug matches a route** (`plan`, `fix`, `hotfix`, `human-triage`) → **route mode**. Jump to `# Route — decision closure` below; any trailing prose is the decision note. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
      - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`) and stop.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
@@ -73,7 +73,7 @@ Launch parallel read-only sub-agents to identify the root cause. Do not proceed 
 
 # Step 3 — Synthesize and write `01-rca.md`
 
-Write the body per the section templates in `intake/rca/_artifact.md`: `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route. Write the record to the draft `<wf-dir>/.draft/01-rca.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the body per the section templates in `intake/rca/_artifact.md`: `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route. Write the record to the draft `<wf-dir>/.draft/01-rca.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 **`01-rca.md` frontmatter:**
 ```yaml

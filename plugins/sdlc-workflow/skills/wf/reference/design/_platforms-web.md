@@ -42,7 +42,7 @@ The form of each generic term of the design rules on the web. An Electron app al
 
 | Term | Form |
 |---|---|
-| **minimum hit area** | 24×24 CSS px, which `wf.mjs design check` enforces; 44–48 px for a coarse pointer ([_craft-floor.md](_craft-floor.md) rules 4 and 5). A small control extends its hit area with a centered pseudo-element ([harden.md](harden.md) → Touch targets) |
+| **minimum hit area** | 24×24 CSS px, which `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) enforces; 44–48 px for a coarse pointer ([_craft-floor.md](_craft-floor.md) rules 4 and 5). A small control extends its hit area with a centered pseudo-element ([harden.md](harden.md) → Touch targets) |
 | **window size class** | Width breakpoints in media or container queries: `@media (width >= 600px)`, `@container` |
 | **coarse pointer** | `@media (pointer: coarse)`; `@media (any-pointer: coarse)` when touch is one input of several |
 | **interrupted gesture** | `pointercancel` and `lostpointercapture`; the window's `blur`; capture with `setPointerCapture` |

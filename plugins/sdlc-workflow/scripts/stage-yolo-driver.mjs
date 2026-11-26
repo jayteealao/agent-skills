@@ -51,6 +51,7 @@ import { runDelegatedIn } from '../lib/decisions.mjs';
 import { progressOf } from '../lib/progress.mjs';
 import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
+import { opsTable } from '../lib/ops/render.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const stageLine = (root, ...rest) => [`node "${SELF}"`, `"${root}"`, ...rest].join(' ');
@@ -59,6 +60,15 @@ const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
 export const STAGE_REL = path.join('.scratch', 'wf', 'yolo.js');
 export const DRIVERS = Object.freeze(['yolo', 'optimize']);
+
+/**
+ * The staged copy of a driver: the source with the table of the operations of wf filled in, so
+ * that its prompts show each call of wf as the call of a tool on Claude. Nothing else changes.
+ */
+export function stagedText(sourceText) {
+  // The line ends with \n or \r\n: a checkout on Windows may hold either.
+  return sourceText.replace(/^const WF_OPS = null(\r?\n)/m, (_, nl) => `const WF_OPS = ${JSON.stringify(opsTable())}${nl}`);
+}
 
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');
@@ -103,7 +113,7 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   if (!DRIVERS.includes(name)) throw refuse(`stage-yolo-driver: the driver is one of ${DRIVERS.join(', ')}`, agentFix(`Run it again with --driver ${DRIVERS.join(' or --driver ')}.`, stageLine(projectRoot, '--driver', DRIVERS[0])));
   const source = opts.source ?? path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', `${name}.js`);
   const log = opts.log ?? ((line) => console.error(line));
-  const bytes = readFileSync(source);
+  const bytes = Buffer.from(stagedText(readFileSync(source, 'utf8')), 'utf8');
   const digest = sha256(bytes);
 
   const scratchDir = path.join(projectRoot, '.scratch');

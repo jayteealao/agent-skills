@@ -4,7 +4,7 @@ The vision contract of a `/wf orchestrate` run is the list of outcomes that the 
 
 ## The contract file
 
-The lead writes one JSON file, and `orchestrate.mjs contract put` reads it:
+The lead writes one JSON file, and `wf_run { "op": "orchestrate contract put" }` (CLI: `orchestrate.mjs contract put`) reads it:
 
 ```json
 {

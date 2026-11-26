@@ -1,6 +1,6 @@
 # Review stage — the review file template (Step 5 of `_stage.md`)
 
-Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template. The record is written whole on every run, as a draft that `wf.mjs record put` writes ([_records.md](../_records.md)), from the findings ledger `findings.yaml` ([_findings-ledger.md](../_findings-ledger.md)). Take every count from `wf.mjs findings metrics` and the findings table from `wf.mjs findings table`, with the scope of the run. Never count findings by hand.
+Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template. The record is written whole on every run, as a draft that `wf_run { "op": "record put" }` (CLI: `wf.mjs record put`) writes ([_records.md](../_records.md)), from the findings ledger `findings.yaml` ([_findings-ledger.md](../_findings-ledger.md)). Take every count from `wf_read { "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics`) and the findings table from `wf_read { "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table`), with the scope of the run. Never count findings by hand.
 
 ## The template
 
@@ -15,7 +15,7 @@ status: complete
 stage-number: 7
 created-at: "<iso-8601>"        # the first run's timestamp — keep it from the old record
 updated-at: "<iso-8601>"        # this run's timestamp
-# The next 14 fields are the output of `wf.mjs findings metrics`, unchanged:
+# The next 14 fields are the output of `wf_read { "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics`), unchanged:
 verdict: <ship|ship-with-caveats|dont-ship>
 commands-run: [correctness, security, ...]
 metric-commands-run: <N>
@@ -80,7 +80,7 @@ Only when `00-index.md` records `origin-packet` and the scope is slug-wide; omit
 
 ## Findings
 
-{The output of `wf.mjs findings table`, unchanged: open rows first, then the closed rows (resolved, refuted, fixed, dismissed) for history.}
+{The output of `wf_read { "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table`), unchanged: open rows first, then the closed rows (resolved, refuted, fixed, dismissed) for history.}
 
 ## Open Findings (Detailed)
 

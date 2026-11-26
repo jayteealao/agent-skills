@@ -14,7 +14,7 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 
 # Role
 You are a **review dispatch orchestrator that owns the findings ledger of the work packet and its own triage→fix loop**.
-- Do not run reviews yourself — **select review commands and dispatch scouts**. Each scout runs one command independently and returns its findings. A refuter tries to refute every finding before it enters the ledger. `wf.mjs findings add` merges the survivors and the refuted findings into `findings.yaml` by the merge law of [_findings-ledger.md](../_findings-ledger.md); the law is in code, so never apply it by hand and never restate it.
+- Do not run reviews yourself — **select review commands and dispatch scouts**. Each scout runs one command independently and returns its findings. A refuter tries to refute every finding before it enters the ledger. `wf_run { "op": "findings add" }` (CLI: `wf.mjs findings add`) merges the survivors and the refuted findings into `findings.yaml` by the merge law of [_findings-ledger.md](../_findings-ledger.md); the law is in code, so never apply it by hand and never restate it.
 - The review asks the person nothing about a finding, and a finding never becomes a new slice or a route back to plan or implement. At Step 4b, every finding is fixed or dismissed. At Step 4c, YOU fix the findings, one after another, in your own session: one fix step and one commit for each finding. Dispatch no fix sub-agent. Do not fix code while the scouts or the refuters run. Do not ship — that is a later stage.
 - Your job: **orient → gather change stats → select commands → dispatch scouts → refute every finding → merge into the ledger → triage → fix each finding as one step → stop → write the review file whole**. Order matters only where the ledger does: refute before the merge, merge before triage, triage before the fix steps, outcomes recorded before the review file. Reading and dispatch may interleave freely.
 
@@ -26,7 +26,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug given, infer from `.ai/workflows/INDEX.md`. If ambiguous, ask. Resolve the second argument, if present, in this order:
    - a slice of the roster → the **slice selector** (per-slice mode only; ignored in slug-wide mode);
    - a rubric or alias key from [_ad-hoc.md](_ad-hoc.md) → the **user focus override** of Step 2, in either review scope.
-2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` ([_records.md](../_records.md)). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
+2. **Read `00-index.md`** with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) ([_records.md](../_records.md)). Parse its frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
 3. **Resolve `review-scope`** from `00-index.md`. Default: `slug-wide`, one review per work packet.
    - `slug-wide` → **skip slice resolution entirely**; no `<slice-slug>` this run; the review file is `07-review.md`. The diff is the cumulative branch diff (`git diff <base-branch>...HEAD`). Findings reflect the code of the work packet on the branch; the verdict is "ship this branch", not "ship this slice".
    - `per-slice` (only when `00-index.md` sets it) → continue with slice resolution below; the review file is `07-review-<slice-slug>.md`, and the ledger commands get `--slice <slice-slug>`.
@@ -34,7 +34,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 5. **Check prerequisites (workflow-type-aware and review-scope-aware):**
    Read `workflow-type` from `00-index.md`, and apply its row of [_source-modes.md](../_source-modes.md): the lead record, the acceptance source, the record names and the review action. When the action is stop, give its message and stop.
 
-   In all modes, an implement record (slice or master) must exist. Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` for the names of the records. If missing → Stop: "Run `/wf implement <slug>` first."
+   In all modes, an implement record (slice or master) must exist. Run `wf_read { "slug": "<slug>", "items": [{ "op": "record list" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`) for the names of the records. If missing → Stop: "Run `/wf implement <slug>` first."
 
    **Per-slice mode** (`review-scope: per-slice`):
    - `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not required.
@@ -100,7 +100,7 @@ Mark each item done as its outcome is recorded. A `could-not-fix` item carries `
 
 # Step 1: Gather Change Statistics
 
-From the relevant implement record(s), extract files changed and nature of changes. **Diff scope depends on `review-scope`:** per-slice mode diffs the commits of the slice. Run `node "<skill-dir>/scripts/wf.mjs" step where "<root>" <slug> <slice-slug> --json`: the step commits are the `sha` of each entry of `done` (of `lastRun.done` when `complete` is true), in step order, leaving out an entry with `noChange`. Diff from the parent of the first step commit to the last (`git diff --name-only <first-sha>^ <last-sha>`, `git diff --stat <first-sha>^ <last-sha>`, `git diff <first-sha>^ <last-sha>`). When the step record has no commit for the slice, take the `commit-sha` of `05-implement-<slice-slug>.md` (`git diff <commit-sha>^ <commit-sha>`); when that is empty too, diff the working tree (`git diff HEAD`) and say in the review file that the scope is the uncommitted change; slug-wide mode diffs the entire branch since divergence (`git diff --name-only <base-branch>...HEAD`, `git diff --stat <base-branch>...HEAD`, `git diff <base-branch>...HEAD`). Substitute `<base-branch>` from `00-index.md` frontmatter (typically `main` or `master`).
+From the relevant implement record(s), extract files changed and nature of changes. **Diff scope depends on `review-scope`:** per-slice mode diffs the commits of the slice. Run `wf_read { "slug": "<slug>", "items": [{ "op": "step where", "slice": "<slice-slug>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" step where "<root>" <slug> <slice-slug> --json`): the step commits are the `sha` of each entry of `done` (of `lastRun.done` when `complete` is true), in step order, leaving out an entry with `noChange`. Diff from the parent of the first step commit to the last (`git diff --name-only <first-sha>^ <last-sha>`, `git diff --stat <first-sha>^ <last-sha>`, `git diff <first-sha>^ <last-sha>`). When the step record has no commit for the slice, take the `commit-sha` of `05-implement-<slice-slug>.md` (`git diff <commit-sha>^ <commit-sha>`); when that is empty too, diff the working tree (`git diff HEAD`) and say in the review file that the scope is the uncommitted change; slug-wide mode diffs the entire branch since divergence (`git diff --name-only <base-branch>...HEAD`, `git diff --stat <base-branch>...HEAD`, `git diff <base-branch>...HEAD`). Substitute `<base-branch>` from `00-index.md` frontmatter (typically `main` or `master`).
 
 **The work packet files.** List every changed file, and each file that calls, imports or tests code that the diff changes (find them with `git grep` on the changed exports and names). Give each path relative to the project root. The scouts look for issues only in these files, and Step 4 drops a finding in any other file. So the review makes no finding about debt that the change did not cause.
 
@@ -150,8 +150,8 @@ Every finding gets a refuter before it enters the ledger. Group the findings of 
 # Step 4: Merge into the ledger
 
 1. **Write `found.json`** to `<wf-dir>/.draft/found.json`: every finding of every scout, with the refuter's reason on each refuted finding, `dimensions` = every command of this run, also the clean ones, and `affectedFiles` = the work packet files of Step 1.
-2. **Merge.** Run `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source review --run <now>`, with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
-3. **Read the ledger.** Run `wf.mjs findings table` and `wf.mjs findings metrics` with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
+2. **Merge.** Run `wf_run { "op": "findings add", "slug": "<slug>", "source": "review", "run": "<now>", "found": "<the JSON>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" findings add "<root>" <slug> <wf-dir>/.draft/found.json --source review --run <now>`), with `--slice <slice-slug>` in per-slice mode. The command applies the merge law of [_findings-ledger.md](../_findings-ledger.md) and prints the counts and the verdict.
+3. **Read the ledger.** Run `wf_read { "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table`) and `wf_read { "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics`) with the same scope. Their output is the verdict, the table and the frontmatter metrics of Step 5. Never count findings by hand.
 
 Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
 
@@ -159,12 +159,12 @@ Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one
 
 The review asks the person nothing. Every open finding gets one of two outcomes, at every severity from BLOCKER to NIT: fix or dismiss. A refuted finding needs no triage.
 
-1. Run `wf.mjs decide list "<root>" <slug>` and read the live decisions of the person: each `answer`, `steer` and `approval` entry.
-2. Run `wf.mjs findings list "<root>" <slug> --open` for the open findings.
+1. Run `wf_read { "slug": "<slug>", "items": [{ "op": "decide list" }] }` (CLI: `wf.mjs decide list "<root>" <slug>`) and read the live decisions of the person: each `answer`, `steer` and `approval` entry.
+2. Run `wf_read { "slug": "<slug>", "items": [{ "op": "findings list", "open": true }] }` (CLI: `wf.mjs findings list "<root>" <slug> --open`) for the open findings.
 3. Triage each open finding by the first rule that applies:
-   - **The fix goes against a decision of the person.** Dismiss the finding with `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`. The command refuses an entry that is not a live answer, steer or approval of the person.
+   - **The fix goes against a decision of the person.** Dismiss the finding with `wf_run { "op": "findings set", "slug": "<slug>", "decision": "<D-id>", "id": "<id>", "status": "dismissed" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`). The command refuses an entry that is not a live answer, steer or approval of the person.
    - **The build goes against a decision of the person or a confirmed board.** Fix the build to match the decision or the board.
-   - **A reading cannot settle the finding, and it needs runtime evidence that this run cannot get** (`needs-runtime-evidence`, a recorded wall). Keep it as a deferral with `wf.mjs findings set "<root>" <slug> <id> deferred --reason "<the wall>"`. Code cannot fix it.
+   - **A reading cannot settle the finding, and it needs runtime evidence that this run cannot get** (`needs-runtime-evidence`, a recorded wall). Keep it as a deferral with `wf_run { "op": "findings set", "slug": "<slug>", "reason": "<the wall>", "id": "<id>", "status": "deferred" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> deferred --reason "<the wall>"`). Code cannot fix it.
    - **In all other cases, fix the finding.**
 4. A deferral keeps its reason only when you check the reason in the code at HEAD. A reason that names a later fix is not a reason: fix the finding now.
 
@@ -176,13 +176,13 @@ If all commands returned clean, skip Steps 4b and 4c.
 
 Runs only if Step 4b gave at least one finding to fix. YOU fix the findings, one after another, in your own session. Dispatch no fix sub-agent. There is no size gate and no route back to plan or implement: a large fix is several steps of this review.
 
-1. **List the fix steps.** Take the findings in severity order, BLOCKER first: one step for each finding, as an item of the work-tracking checklist. Split a large fix into several steps. The findings ledger records each fix, not the step record: `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>`, and `dismissed` or `could-not-fix` with `--reason`. Do not run `wf.mjs step` for a review fix; the step record holds the plan steps of implement.
-2. **Confirm the failure.** For each step, first confirm the failure in the code at HEAD. When you cannot confirm it, run `wf.mjs findings set "<root>" <slug> <id> dismissed --reason "<why, with file:line>"`, make no change, and go to the next step.
+1. **List the fix steps.** Take the findings in severity order, BLOCKER first: one step for each finding, as an item of the work-tracking checklist. Split a large fix into several steps. The findings ledger records each fix, not the step record: `wf_run { "op": "findings set", "slug": "<slug>", "commit": "<sha>", "id": "<id>", "status": "fixed" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>`), and `dismissed` or `could-not-fix` with `--reason`. Do not run `wf.mjs step` for a review fix; the step record holds the plan steps of implement.
+2. **Confirm the failure.** For each step, first confirm the failure in the code at HEAD. When you cannot confirm it, run `wf_run { "op": "findings set", "slug": "<slug>", "reason": "<why, with file:line>", "id": "<id>", "status": "dismissed" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> dismissed --reason "<why, with file:line>"`), make no change, and go to the next step.
 3. **Apply the patch.** When the fix changes an acceptance check, an approved screen or a `02c-craft.md` line, rewrite the check and the plan step in the same step, per rule 5 of [_decisions.md](../_decisions.md). Record an `implementation-detail` decision with `--rewrote` for the rewritten records.
 4. **Run the tests of the step.** Run the tests that cover the files of the step, and the `affected` suite of the test profile for the slices that the step touches.
 5. **Commit the step.** Use a conventional commit about the product, per [implement/_steps.md](../implement/_steps.md): `<type>: <what the fix does>`. Name no slug and no finding id ([_output-boundary.md](../_output-boundary.md)).
-6. **Record the outcome.** Run `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>` (the last commit, for a fix of several steps).
-7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf.mjs findings set "<root>" <slug> <id> could-not-fix --reason "<the failure>"`, and continue with the next step.
+6. **Record the outcome.** Run `wf_run { "op": "findings set", "slug": "<slug>", "commit": "<sha>", "id": "<id>", "status": "fixed" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> fixed --commit <sha>`) (the last commit, for a fix of several steps).
+7. **A step that fails.** When the tests of a step fail, try the step once more. When they fail again, revert the step with `git revert` or `git checkout -- <files>`, run `wf_run { "op": "findings set", "slug": "<slug>", "reason": "<the failure>", "id": "<id>", "status": "could-not-fix" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> could-not-fix --reason "<the failure>"`), and continue with the next step.
 
 ## One review round
 
@@ -196,13 +196,13 @@ The review file lists each fix step: the finding, the commit and the check that 
 
 # Step 5: Write the review file whole
 
-Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf.mjs findings table` and `wf.mjs findings metrics` again after the fix steps. Load [_artifact.md](_artifact.md) and write the draft `<wf-dir>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write the review record. Its name depends on `review-scope`: **slug-wide** → `07-review.md`; **per-slice** → `07-review-<slice-slug>.md`. Run `wf_read { "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table`) and `wf_read { "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics`) again after the fix steps. Load [_artifact.md](_artifact.md) and write the draft `<wf-dir>/.draft/<name>` from its template: the `type: review` frontmatter (the metrics output, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
-Write the whole draft on every run, also when the record exists. Keep only `created-at` from the old record (`record get`). Do not merge into the old body: the ledger holds the history. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the whole draft on every run, also when the record exists. Keep only `created-at` from the old record (`record get`). Do not merge into the old body: the ledger holds the history. Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 # Step 6: Update Index and Return
 
-1. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> review [<slice-slug>]`: with no slice for a slug-wide review, with the slice for a per-slice review. It writes `current-stage=review`, `progress.review=complete` (also on every accumulating re-run), `next-command` and `next-invocation`, and adds the review record and `findings.yaml` to `workflow-files` once. The default route is the plan of the next open slice, else `/wf ship <slug>`. When the verdict asks for another route (Option B or C below), add `--next "<invocation>"`. Then set `status=active` with `record set "<root>" <slug> index status=active`.
+1. Record the end of the stage with `wf_run { "op": "record stage-done", "slug": "<slug>", "slice": "[<slice-slug>]", "stage": "review" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> review [<slice-slug>]`): with no slice for a slug-wide review, with the slice for a per-slice review. It writes `current-stage=review`, `progress.review=complete` (also on every accumulating re-run), `next-command` and `next-invocation`, and adds the review record and `findings.yaml` to `workflow-files` once. The default route is the plan of the next open slice, else `/wf ship <slug>`. When the verdict asks for another route (Option B or C below), add `--next "<invocation>"`. Then set `status=active` with `record set "<root>" <slug> index status=active`.
 2. Return the compact chat summary with verdict and options.
 
 # Adaptive routing — evaluate what's actually next

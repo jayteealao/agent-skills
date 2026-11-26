@@ -50,7 +50,7 @@ You orchestrate a hotfix. This is not a feature workflow.
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from `$ARGUMENTS`:
-   - When the argument matches an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: hotfix`, this is **resume mode**. Read that index, and continue from the first unwritten planning artifact. An old slug may carry `hf-*.md` files: write them again as the standard set when you continue.
+   - When the argument matches an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: hotfix`, this is **resume mode**. Read that index, and continue from the first unwritten planning artifact. An old slug may carry `hf-*.md` files: write them again as the standard set when you continue.
    - Otherwise this is a **new hotfix**.
 2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `hotfix-<short-description>`.
 3. **Provenance check.** Apply `_intake-provenance.md`: an rca often routes its critical cases here. On an explicit `from <rca-slug>` token, use the rca row of the Consume table, and link back. The root cause seeds `## Root Cause` of `02-shape.md`, `## Verification` seeds the acceptance criteria, and the blast radius seeds the scope. The sub-agents of Step 2 then check them again instead of deriving them again. With no match, go on.
@@ -58,7 +58,7 @@ You orchestrate a hotfix. This is not a feature workflow.
 5. **Branch check:**
    1. Check the current branch: `git branch --show-current`.
    2. Find the production branch (the default branch) offline first: `git symbolic-ref refs/remotes/origin/HEAD`. Use no network: in an incident, the network may be part of the incident. When it is unset, fall back to `git remote show origin | grep 'HEAD branch'`, then to whichever of `main` and `master` exists locally.
-   3. A hotfix always branches from the production branch. Run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <production-branch>`, [_workflow-rules.md](../_workflow-rules.md)), then `git checkout -b hotfix/<slug> <production-branch>`.
+   3. A hotfix always branches from the production branch. Run the base check first (`wf_query { "op": "base check", "base": "<production-branch>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <production-branch>`), [_workflow-rules.md](../_workflow-rules.md)), then `git checkout -b hotfix/<slug> <production-branch>`.
 6. **One slice.** The whole hotfix is one slice. The workflow slug is also the `slice-slug` of that slice: use `<slug>` for `slice-slug`, `selected-slice` and `best-first-slice`. The later stages write un-suffixed files.
 
 # Step 1 — Brief → `01-hotfix.md` (`type: intake`)
@@ -69,7 +69,7 @@ Ask at most 3 questions, and stop as soon as you have enough:
 2. **What is the impact?** An outage, a degradation, or a data issue? How many users? Is data at risk?
 3. **What changed recently?** Deployments, migrations, config, dependency updates in the last 24 to 72 hours?
 
-Write the draft `<wf-dir>/.draft/01-hotfix.md` at once, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`), and put it, the same way.
+Write the draft `<wf-dir>/.draft/01-hotfix.md` at once, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). Write the draft of each later planning record (`02-shape.md`, `03-slice.md`, `04-plan.md`, `00-index.md`), and put it, the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Body:
 - `## Symptom` (what, where, for whom).

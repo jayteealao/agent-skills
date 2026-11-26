@@ -57,7 +57,7 @@ You sketch options. You do not choose, plan or implement.
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from `$ARGUMENTS`:
-   - When the first token names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: investigate`, the workflow exists. Read that index, then take one of three cases:
+   - When the first token names an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: investigate`, the workflow exists. Read that index, then take one of three cases:
      - **A token after the slug matches an option id (`A`, `B`, …) or an option label** of `01-investigate.md`: this is **pick mode**. Go to `# Pick — decision closure` below. The prose after the option token is the decision note. When the token matches more than one label, ask one question to tell them apart. A closed index stops the run, per "Closure" of [_light-index.md](_light-index.md).
      - **`01-investigate.md` is complete, and there is no pick token:** tell the person that the option set is ready, and how to record a pick (`/wf intake investigate <slug> <option-id-or-label> [one-line reason]`). Stop.
      - **`01-investigate.md` is incomplete:** this is **resume mode**. Continue from the missing section.
@@ -128,7 +128,7 @@ recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reas
 ---
 ```
 
-Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`. Write the record to the draft `<wf-dir>/.draft/01-investigate.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`. Write the record to the draft `<wf-dir>/.draft/01-investigate.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 # Step 4 — Write `00-index.md`
 

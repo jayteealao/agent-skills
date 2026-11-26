@@ -16,12 +16,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { extractFn } from '../../helpers/extract-fn.mjs';
+import { driverSource } from '../../helpers/driver-source.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const yoloSrc = readFileSync(
-  path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'),
-  'utf8'
-);
+const yoloSrc = driverSource('yolo.js');
 
 // evaluateGate calls verifyClean, so build them together in one scope and hand them back.
 // probeGaps, reChallengeClause and deferralPressure are also pure top-level fns, so
@@ -923,7 +921,7 @@ test('orient: an absent review-scope follows the rule of reviewScopeOf, not a pe
 });
 
 test('hand-offs: a stage agent of a slice writes notes and settled entries, never a steer, and the check runs with no charter', () => {
-  const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+  const src = driverSource('yolo.js');
   const at = src.indexOf('function handoffClause(stage, slice) {');
   assert.ok(at > 0, 'the driver has the hand-off clause');
   const body = src.slice(at, src.indexOf('\n}\n', at) + 3);

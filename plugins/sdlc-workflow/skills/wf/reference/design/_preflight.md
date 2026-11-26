@@ -9,7 +9,7 @@ The four codebase inspections of the design stage. Only `design/stage.md` Step 3
 1. Skip an inspection whose answer is already in this session, or in the `stack:` block of `00-index.md`.
 2. Run the others as research sub-agents, in parallel, at **low** effort, per [_subagents.md](../_subagents.md). A child reads and writes nothing.
 3. When this session has no sub-agent tool, do the four inspections yourself, one after another, with the same charters.
-4. Before you dispatch, run `node "<skill-dir>/scripts/wf.mjs" design refs check "<root>"` one time. A child reads the references as files.
+4. Before you dispatch, run `wf_query { "op": "design refs check" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" design refs check "<root>"`) one time. A child reads the references as files.
 
 ## The child prompt
 

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from '../lib/proc.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
+import { BEAT_MS, callerOf, takeCaller, writeBeat } from '../lib/mcp-callers.mjs';
 import { callTool, taskOf, taskCancel, toolList } from './tools.mjs';
 
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -17,7 +18,13 @@ const MODERN = '2026-07-28';
 export const TASKS = 'io.modelcontextprotocol/tasks';
 const LEGACY = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const TEXT_LIMIT = 40_000;
-const INSTRUCTIONS = 'The wf tools run the records of /wf. Start with wf_context. Read with wf_read and wf_query, write records with wf_run, steps with wf_step, answers with wf_decide. wf_act acts outside the records; wf_person is only for the person\'s own choice. The CLI form of each operation is in wf_query { "op": "help" }.';
+// Short: which tool fits which job. The references and wf_query { "op": "help" } hold the rest.
+const INSTRUCTIONS = [
+  'The wf tools run /wf: use them, not a shell call of wf.mjs. Start with wf_context: the /wf words as argv, or a slug and a stage for the brief and its ready calls.',
+  'Read: wf_read (several reads in one call), wf_query (code that reads). Write records: wf_run. Steps of a slice: wf_step. Answers and held questions: wf_decide.',
+  'Long work: wf_job (it starts and returns a job id). Wait for a job, an answer or the next event of a run: wf_wait, and call it again with its `next`.',
+  'Git, GitHub and servers: wf_act. wf_person is only for a choice that the person made in this session: an agent never calls it.',
+].join(' ');
 
 const root = () => resolveProjectRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
 const log = (...a) => process.stderr.write(`wf-mcp: ${a.join(' ')}\n`);
@@ -65,7 +72,9 @@ export async function handle(m) {
       try {
         // A client that runs Tasks gets a job or a run wait as a Task, which it reads with tasks/get.
         const tasks = modern && meta['io.modelcontextprotocol/clientCapabilities']?.extensions?.[TASKS] !== undefined;
-        const r = await callTool(name, m.params?.arguments ?? {}, { root: root(), tasks });
+        // Who calls, from the row that the PreToolUse hook wrote for this call (lib/mcp-callers.mjs).
+        const identity = takeCaller(meta['claudecode/toolUseId']);
+        const r = await callTool(name, m.params?.arguments ?? {}, { root: root(), tasks, caller: callerOf(identity), identity });
         if (r.task) return ok({ ...taskView(r.task, root()), ...(modern ? { resultType: 'task' } : {}) });
         return ok(toolResult(r));
       } catch (e) {
@@ -79,6 +88,12 @@ export async function handle(m) {
 
 export function serve(input = process.stdin) {
   const rl = readline.createInterface({ input });
+  // The beat of this session's server: the shell note of the hook needs a live server.
+  const session = process.env.CLAUDE_CODE_SESSION_ID;
+  if (session) {
+    writeBeat(session);
+    setInterval(() => writeBeat(session), BEAT_MS).unref();
+  }
   rl.on('line', async (line) => {
     if (!line.trim()) return;
     let m;

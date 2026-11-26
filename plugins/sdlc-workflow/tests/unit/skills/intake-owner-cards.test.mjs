@@ -16,7 +16,7 @@ const SLUG_MODES = ['fix', 'hotfix', 'refactor', 'rca', 'update-deps', 'investig
 test('slug-mode has one owner with one trigger and one origin form; each mode card cites it in one line', () => {
   const owner = ref('_compressed-slice.md');
   assert.match(owner, /^## The trigger and the mode cards$/m);
-  assert.match(owner, /record get "<root>" <slug> index` exits 0/);
+  assert.match(owner, /record get "<root>" <slug> index`\)? exits 0/);
   assert.match(owner, /origin: intake\/<op>/);
   assert.doesNotMatch(owner, /origin: wf\//);
   for (const mode of SLUG_MODES) {

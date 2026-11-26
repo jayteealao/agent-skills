@@ -24,7 +24,7 @@ Do not load this file during a brainstorm, design stage Steps 1–3b, `shape`, `
 
 Check the built result, not the intention. Run all lines together in one look at the result.
 
-**Held by.** `check` means `wf.mjs design check` measures the line on every screen page, in each viewport and state, and the person sees each failure in the approval question. `judgment` means a person or a reviewer reads it; the check does not.
+**Held by.** `check` means `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) measures the line on every screen page, in each viewport and state, and the person sees each failure in the approval question. `judgment` means a person or a reviewer reads it; the check does not.
 
 | # | Rule | Value | Held by |
 |---|---|---|---|

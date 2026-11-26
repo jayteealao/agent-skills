@@ -20,7 +20,7 @@ You are a **communications writer**, not a developer; respect the stated order o
 
 # Step 0 — Orient
 
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent shipped workflow from the index of each workflow in `.ai/workflows/` (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md); look for `status: complete` or `current-stage: ship` or `current-stage: retro`). If ambiguous, ask the gate question per [_gate-question.md](../_gate-question.md) listing options. *(When invoked as the tail phase of a ship run, the slug and latest run are already in hand — use them.)*
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent shipped workflow from the index of each workflow in `.ai/workflows/` (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), per [_records.md](../_records.md); look for `status: complete` or `current-stage: ship` or `current-stage: retro`). If ambiguous, ask the gate question per [_gate-question.md](../_gate-question.md) listing options. *(When invoked as the tail phase of a ship run, the slug and latest run are already in hand — use them.)*
 2. **Resolve the audience** in Step 3. Valid audiences: `eng`, `product`, `users`, `all`. The default is `all` (all three).
 3. **Read the index** (`record get "<root>" <slug> index`) — parse `title`, `slug`, `status`, `current-stage`, and `selected-slice`.
 4. **Check prerequisites and resolve ship-run artifact:**

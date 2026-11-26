@@ -18,7 +18,7 @@ Prompt the agent with all of the following.
 **Build.** Run the project build (`npm run build`, `go build ./...`, `cargo build`, `make`); report success/failure, warnings, and the output artifact.
 
 **Performance gate (only with the `benchmark` augmentation or a performance acceptance criterion).** Without one of them, do not build the base branch and do not compare build times. Record `metric-bundle-size-delta-pct: skipped — no performance criterion`.
-- **Bundle size (web):** compare the output artifact size against the base branch in a scratch worktree, per the scratch worktree rule of [_workflow-rules.md](../_workflow-rules.md): `wf.mjs worktree add "<root>" <slug> base-<slice-slug> <base-branch>`, build there, measure the size of both output folders, then `wf.mjs worktree remove "<root>" <slug> base-<slice-slug>`. The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is HIGH. Record `metric-bundle-size-delta-pct`.
+- **Bundle size (web):** compare the output artifact size against the base branch in a scratch worktree, per the scratch worktree rule of [_workflow-rules.md](../_workflow-rules.md): `wf_act { "op": "worktree add", "slug": "<slug>", "name": "base-<slice-slug>", "commit": "<base-branch>" }` (CLI: `wf.mjs worktree add "<root>" <slug> base-<slice-slug> <base-branch>`), build there, measure the size of both output folders, then `wf_act { "op": "worktree remove", "slug": "<slug>", "name": "base-<slice-slug>" }` (CLI: `wf.mjs worktree remove "<root>" <slug> base-<slice-slug>`). The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is HIGH. Record `metric-bundle-size-delta-pct`.
 - **Build time delta:** wall-clock time of the current build vs the base-branch build (from the worktree comparison, else CI cache statistics). An increase ≥ 30% is a WARN.
 - **Startup time (service/CLI):** measure the cold start: time one request to `/health` after a fresh start. An increase ≥ 15% vs the base branch is HIGH.
 - If the worktree comparison is impossible, record `metric-bundle-size-delta-pct: skipped — <reason>` and the absolute artifact size.
@@ -35,11 +35,11 @@ Prompt the agent with all of the following.
 
 Prompt the agent with all of the following.
 
-**Test receipt.** Run `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug> --check`. When it prints `receipt reusable:` (the receipt passed, no code changed in a commit after its `sha`, and each change of its `dirty` list keeps its hash), the commands it names count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. When it prints `receipt stale:` or `no receipt`, ignore the receipt.
+**Test receipt.** Run `wf_job { "op": "receipt", "slug": "<slug>", "slice": "<slice-slug>", "check": true }` (CLI: `node "<skill-dir>/scripts/wf.mjs" receipt "<root>" <slug> <slice-slug> --check`). When it prints `receipt reusable:` (the receipt passed, no code changed in a commit after its `sha`, and each change of its `dirty` list keeps its hash), the commands it names count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. When it prints `receipt stale:` or `no receipt`, ignore the receipt.
 
 **Unit tests.** Identify the test files covering the slice's affected modules (grep imports); run them with verbose output. Do not run the whole unit suite: the receipt and the fast and affected suites cover regressions, and the `full` suite runs once at the packet end. Report total/passed/failed/skipped, failures with full error output, and duration.
 
-**Integration tests.** Run an integration suite only when the `affected` suite of the test profile names it (`wf.mjs profile show`). Run it with verbose output; report the same counts; note flaky tests (recent skip/unskip patterns in git log).
+**Integration tests.** Run an integration suite only when the `affected` suite of the test profile names it (`wf_query { "op": "profile show" }` (CLI: `wf.mjs profile show`)). Run it with verbose output; report the same counts; note flaky tests (recent skip/unskip patterns in git log).
 
 **Coverage (when a run already made it).** Report coverage for the files this slice changed from a coverage report that a run of this slice already wrote; flag new code paths at 0%. Do not start a coverage pass in verify.
 

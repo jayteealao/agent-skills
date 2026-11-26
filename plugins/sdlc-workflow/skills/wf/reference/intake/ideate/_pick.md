@@ -30,7 +30,7 @@ The ideas at `take` are the selected ideas. The `later`, `drop`, `brainstorm` an
    - Put two ideas in one entry only when the person grouped them in step 5.
    - Give `title`, `slug`, `form` or `target-slug` only when the person changed it, or when the command asks for it.
    - The command takes everything else from the `ideas:` roster: the title, the evidence, the form of the entry, the slug suggestion and the target slug.
-7. **Build the board and write the list.** Run `node "<skill-dir>/scripts/ideate-sources.mjs" pick "<projectRoot>" <slug> "<wf-dir>/.draft/pick.json"`. It builds `ideate-work.json` in the board shape of a brainstorm, and it writes the list with `campaign.mjs write`. When `ok` is `false`, the command wrote nothing. Follow the failure rule of [_host-invocation.md](../../_host-invocation.md). Correct an entry of `errors` yourself when the answer is in what the person already agreed in steps 3 to 5. Ask the person only about an entry that needs a new answer. Then run the command again.
+7. **Build the board and write the list.** Run `wf_run { "op": "ideate-sources pick", "slug": "<slug>", "input-json": "<wf-dir>/.draft/pick.json" }` (CLI: `node "<skill-dir>/scripts/ideate-sources.mjs" pick "<projectRoot>" <slug> "<wf-dir>/.draft/pick.json"`). It builds `ideate-work.json` in the board shape of a brainstorm, and it writes the list with `wf_run { "op": "campaign write" }` (CLI: `campaign.mjs write`). When `ok` is `false`, the command wrote nothing. Follow the failure rule of [_host-invocation.md](../../_host-invocation.md). Correct an entry of `errors` yourself when the answer is in what the person already agreed in steps 3 to 5. Ask the person only about an entry that needs a new answer. Then run the command again.
 8. **Close the workflow** (Closure step 3).
 9. **Print the invocations.** Print each entry of `invocations` of step 7, in order. Do not run them.
 
@@ -42,4 +42,4 @@ The first `/wf campaign <slug>` on an ideate run with an old campaign ledger mig
 - Skip step 1 of that section: it is for a brainstorm board only.
 - In its step 2, put every carried item into exactly one work packet.
 - Write up each new build work packet and confirm the stack as in steps 4 and 5 above.
-- Then write the list with `node "<skill-dir>/scripts/campaign.mjs" write "<wf-dir>/ideate-work.json"`. On an error, repair the board, and run it again.
+- Then write the list with `wf_run { "op": "campaign write", "source-dir": "<wf-dir>/ideate-work.json" }` (CLI: `node "<skill-dir>/scripts/campaign.mjs" write "<wf-dir>/ideate-work.json"`). On an error, repair the board, and run it again.

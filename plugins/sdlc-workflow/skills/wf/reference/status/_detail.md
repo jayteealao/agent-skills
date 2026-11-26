@@ -20,7 +20,7 @@ Steps of a slice in progress: <slice> — step <n> of <m>
 - step 1 ✓ <sha>
 - step 2 · open
 
-Take <n>, <m> and each step line from `node "<skill-dir>/scripts/wf.mjs" step where "<projectRoot>" <slug> <slice> --json`: <n> is the length of its `done` list, and <m> is its `total`.
+Take <n>, <m> and each step line from `wf_read { "slug": "<slug>", "items": [{ "op": "step where", "slice": "<slice>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" step where "<projectRoot>" <slug> <slice> --json`): <n> is the length of its `done` list, and <m> is its `total`.
 
 ## Key Metrics
 - Files changed / lines ± (from implement records)
@@ -44,7 +44,7 @@ Take <n>, <m> and each step line from `node "<skill-dir>/scripts/wf.mjs" step wh
 - <slice>/<ac> — <reason> · clearing event: <clearing-event>
 - ⚠ **clearing event appears SATISFIED** for <slice>/<ac> — run `/wf probe <slug>` to capture the evidence
 
-## Cost (exact tokens · from `wf.mjs cost`; omit when it has no rows)
+## Cost (exact tokens · from `wf_query { "op": "cost" }` (CLI: `wf.mjs cost`); omit when it has no rows)
 | Key | Turns | Sub-agents | Input | Output | Cache read | Cache write | External in / out |
 |-----|-------|------------|-------|--------|------------|-------------|-------------------|
 | plan | 7 | 2 | 12 | 3,104 | 210,980 | 88,120 | 18,176 / 142 |

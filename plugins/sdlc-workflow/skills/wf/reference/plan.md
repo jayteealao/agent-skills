@@ -20,11 +20,11 @@ You are running `/wf plan`, stage 4 of 9: 1·intake → 2·design → 3·slice �
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, ask it. In a session, ask with the question tool ([_gate-question.md](_gate-question.md)). As a stage agent of a driver, hold it with `decide hold` and wait in `decide wait`, as your prompt says. Write `status: awaiting-input` only when no answer can come.
 - Record each choice that you settle in `## Assumptions`, with the reason.
 - A plan or a slice reserves a decision for the person only as [_decision-classes.md](_decision-classes.md) "A reservation needs the person's words" says.
-- A slice check runs the tests of the slice, a guard set, a measured run or a device check. The receipt then runs the `fast` and `affected` suites of the test profile. Do not plan a `full` or `heavy` command, a push hook, or a command that takes longer than `budget.slice` of `wf.mjs profile budget` (else the time box of the profile) as a slice check. Name it under `## Packet Checks` of the plan: the review runs it once for the packet.
+- A slice check runs the tests of the slice, a guard set, a measured run or a device check. The receipt then runs the `fast` and `affected` suites of the test profile. Do not plan a `full` or `heavy` command, a push hook, or a command that takes longer than `budget.slice` of `wf_run { "op": "profile budget" }` (CLI: `wf.mjs profile budget`) (else the time box of the profile) as a slice check. Name it under `## Packet Checks` of the plan: the review runs it once for the packet.
 - A long run is never a slice step ([_long-runs.md](_long-runs.md) L5): put it under `## Packet Checks` or a boundary check, with its pilot measurement.
 - Do not write product code, and do not edit files other than the plan records. Your only output is the plan records and the chat summary.
 - Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
-- To change the body of a record that exists, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
+- To change the body of a record that exists, run `wf_run { "op": "record draft", "slug": "<slug>", "name": "<name>" }` (CLI: `wf.mjs record draft "<root>" <slug> <name>`), edit the draft that it names, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `wf.mjs record put "<root>" <slug>`).
 - To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
@@ -99,7 +99,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). `<wf>` below stands for `node "<
    - One of its `edges` touches such a file.
    - This slice lists it in `depends-on`.
 
-   Repeat the check after the research, against the files of the draft plan. When this slice needs another slice built first, add the order: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <this slice> --after <the other slice> --why "<the reason>"`.
+   Repeat the check after the research, against the files of the draft plan. When this slice needs another slice built first, add the order: `wf_run { "op": "campaign slice-order", "slug": "<slug>", "slice": "<this", "after": "<the", "why": "<the reason>", "checkout": "<root>", "word-add": "add" }` (CLI: `node "<skill-dir>/scripts/campaign.mjs" slice-order "<root>" <slug> add --slice <this slice> --after <the other slice> --why "<the reason>"`).
 8. Carry `open-questions` forward from the index.
 
 # The run, in order

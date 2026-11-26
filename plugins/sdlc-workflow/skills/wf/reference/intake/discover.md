@@ -46,7 +46,7 @@ You judge a hypothesis. You do not fix, explain or plan.
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode** from `$ARGUMENTS`:
-   - When the argument names an existing workflow whose index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) has `workflow-type: discover`, this is **resume mode**. Read that index. When `01-discover.md` is complete, tell the person, and stop. When it is incomplete, continue from the missing section.
+   - When the argument names an existing workflow whose index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) has `workflow-type: discover`, this is **resume mode**. Read that index. When `01-discover.md` is complete, tell the person, and stop. When it is incomplete, continue from the missing section.
    - Otherwise this is a **new discover**.
 2. **New slug.** Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `discover-<short-hypothesis>`.
 
@@ -93,7 +93,7 @@ Pick exactly one verdict:
 | `fails` | Direct contradicting evidence exists, or an alternative hypothesis is clearly more plausible than the original. |
 | `inconclusive` | Static code reading cannot adjudicate — the answer depends on runtime behavior, configuration, or data not visible in the repo. |
 
-Write the record to the draft `<wf-dir>/.draft/01-discover.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Write the record to the draft `<wf-dir>/.draft/01-discover.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 **`01-discover.md` frontmatter:**
 ```yaml

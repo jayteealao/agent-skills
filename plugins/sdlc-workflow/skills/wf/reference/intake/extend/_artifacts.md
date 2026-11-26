@@ -2,7 +2,7 @@
 
 ## `03-slice-<new-slug>.md` (Step 4)
 
-For each confirmed new slice, write the draft `<wf-dir>/.draft/03-slice-<new-slug>.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../../_records.md):
+For each confirmed new slice, write the draft `<wf-dir>/.draft/03-slice-<new-slug>.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) per [_records.md](../../_records.md):
 
 ```yaml
 ---

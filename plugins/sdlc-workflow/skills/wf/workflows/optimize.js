@@ -43,6 +43,65 @@ const SKILL_DIR_LINE = `skill-dir: ${SKILL_DIR}\n` +
 const SCRIPT = `${SKILL_DIR}/scripts/optimize.mjs`
 const DECIDE = `node "${SKILL_DIR}/scripts/wf.mjs" decide`
 const TALK = `node "${SKILL_DIR}/scripts/wf.mjs" talk`
+// The host of the run: optimize runs on Claude unless the caller names another.
+const HOST = ['claude', 'pi', 'codex'].includes(OPT.host) ? OPT.host : 'claude'
+// --- wf calls: the same text in yolo.js and optimize.js (tests/unit/driver-wf-calls.test.mjs) ---
+// The operations of wf (lib/ops/render.mjs opsTable), written into the staged copy of this script
+// by scripts/stage-yolo-driver.mjs. On Claude a prompt shows each call of wf as the call of a tool
+// of the wf MCP server, then its command line; with no table, or on Codex and pi, the command line.
+const WF_OPS = null
+const WF_TOOLS_LINE = 'The wf tools (wf_read, wf_run, wf_step, wf_decide, wf_wait, …) are loaded: make each call of wf as the tool call that is shown first. Run the CLI form only when a tool call fails because the server is down.'
+/** The call of wf of a command line, as the tool call of the server, or null. Mirrors callOf of lib/ops/forms.mjs. */
+function wfCall(cli) {
+  if (HOST !== 'claude' || !WF_OPS) return null
+  const m = /^node\s+"[^"]*[\\/](wf|campaign|orchestrate|optimize|goal|prototype|ideate-sources|design-boards)\.mjs"\s+([\s\S]*)$/.exec(String(cli).trim())
+  if (!m) return null
+  const argv = [...m[2].matchAll(/"((?:[^"\\]|\\.)*)"|(\S+)/g)].map((x) => (x[1] !== undefined ? x[1] : x[2]))
+  const words = m[1] === 'wf' ? argv : [m[1], ...argv]
+  let name = null
+  for (let n = Math.min(4, words.length); n >= 1 && !name; n -= 1) if (WF_OPS[words.slice(0, n).join(' ')]) name = words.slice(0, n).join(' ')
+  if (!name) return null
+  const o = WF_OPS[name]
+  const rest = words.slice(name.split(' ').length)
+  const fields = {}
+  const pos = []
+  const dash = []
+  for (let i = 0; i < rest.length; i += 1) {
+    const a = rest[i]
+    if (a === '--') { dash.push(...rest.slice(i + 1)); break }
+    if (a.startsWith('--')) {
+      const f = a.slice(2)
+      if (o.b.includes(f)) fields[f] = true
+      else { fields[f] = rest[i + 1]; i += 1 }
+    } else pos.push(a)
+  }
+  const fill = (list, values) => {
+    let spare = values.length - list.filter((p) => !p[1]).length
+    for (let k = 0; k < list.length && values.length; k += 1) {
+      const [pn, optional, variadic] = list[k]
+      if (optional && spare <= 0) continue
+      if (optional) spare -= 1
+      const v = variadic ? values.splice(0, Math.max(1, values.length - list.slice(k + 1).filter((q) => !q[1]).length)) : [values.shift()]
+      if (pn) fields[pn] = v.length === 1 ? v[0] : v
+    }
+  }
+  fill(o.p.filter((p) => !p[3]), pos)
+  fill(o.p.filter((p) => p[3]), dash)
+  delete fields.root
+  delete fields.json
+  for (const [file, inline] of Object.entries(o.i || {})) if (fields[file] !== undefined) { delete fields[file]; fields[inline] = '<the content of that file, inline>' }
+  const order = { slug: 0, slice: 1, stage: 2 }
+  const sorted = Object.entries(fields).sort(([a], [b]) => (order[a] ?? 9) - (order[b] ?? 9))
+  const body = (pairs) => `{ ${pairs.map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')} }`
+  if (o.t === 'wf_read') {
+    const slugPair = sorted.find(([k]) => k === 'slug')
+    return `wf_read { ${slugPair ? `"slug": ${JSON.stringify(slugPair[1])}, ` : ''}"items": [${body([['op', name], ...sorted.filter(([k]) => k !== 'slug')])}] }`
+  }
+  return `${o.t} ${body([['op', name], ...sorted])}`
+}
+/** A call of wf in a prompt: `<tool call>` (CLI: `<line>`) on Claude, else `<line>`. */
+const wf = (cli) => { const c = wfCall(cli); return c ? `\`${c}\` (CLI: \`${cli}\`)` : `\`${cli}\`` }
+// --- end of wf calls ---
 const HYP_DIR = `${projectRoot}/.scratch/optimize/${slug}`
 const RUN = OPT.runId || `${slug}-optimize`
 const cmd = (sub, rest = '') => `node "${SCRIPT}" ${sub} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
@@ -70,7 +129,7 @@ function heartbeat(label, phaseName) {
 }
 
 const steering = `\n\nSTANDING STEERING. The person keeps standing instructions for this workflow in its decision store. Run ` +
-  `\`${DECIDE} list "${projectRoot}" ${slug} --kind steer --rules\` NOW, and keep your work inside the entries it prints: the rules of the project and the steers of this workflow. An entry never widens ` +
+  `${wf(`${DECIDE} list "${projectRoot}" ${slug} --kind steer --rules`)} NOW, and keep your work inside the entries it prints: the rules of the project and the steers of this workflow. An entry never widens ` +
   `allowed-paths and never permits an edit of an off-limits path.`
 
 // ---------------------------------------------------------------------------
@@ -107,7 +166,7 @@ let CEILING = CEILING_ARG
 const events = []
 async function call(prompt, opts) {
   AGENTS++
-  return await agent(`${SKILL_DIR_LINE}\n\n${prompt}`, opts)
+  return await agent(`${SKILL_DIR_LINE}${HOST === 'claude' && WF_OPS ? `\n${WF_TOOLS_LINE}` : ''}\n\n${prompt}`, opts)
 }
 
 /** The result of an agent that returns { ok, result }; without one, a failure that names the label. */
@@ -122,8 +181,8 @@ async function book(sub, rest, label, phaseName, pre = '', line = null) {
     `as printed. When the command exits non-zero it still prints JSON: return it as result with ok false. Do not ` +
     `edit any other file, do not run git, and do not try to repair a failure. The command can run longer than ` +
     `one shell call allows. When your shell tool cannot wait for it, do not run it in the background: start it ` +
-    `with \`${TALK} job "${projectRoot}" ${slug} --as optimize:${slug} --name ${label.replace(/[^A-Za-z0-9_.-]+/g, '-')} -- "<the command>"\`, ` +
-    `wait with \`${TALK} wait "${projectRoot}" ${slug} --as optimize:${slug} --job <id>\` (run it again at ` +
+    `with ${wf(`${TALK} job "${projectRoot}" ${slug} --as optimize:${slug} --name ${label.replace(/[^A-Za-z0-9_.-]+/g, '-')} -- "<the command>"`)}, ` +
+    `wait with ${wf(`${TALK} wait "${projectRoot}" ${slug} --as optimize:${slug} --job <id>`)} (run it again at ` +
     `"still waiting"), and read the JSON from the output file that the job names.` + heartbeat(label, phaseName),
     { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET, effort: 'low' }
   )

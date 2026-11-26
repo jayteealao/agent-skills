@@ -1,6 +1,6 @@
 Run the measured quality checks of a design and write a report. The audit edits nothing. It checks what is measurable in the screens and in the built code. The judgment of the design decisions is the critique ([critique.md](critique.md)).
 
-**Reuse the measurements.** When a `06-verify-*.md` record exists (`wf.mjs record list` names it), read it with `wf.mjs record get`, and take its measured accessibility, performance and web-vitals results. Do not run those tools again. Measure them yourself only when no verify ran. When `wf.mjs design check` ran, do not report its failures again on the screens; report the same fault where the built code has it.
+**Reuse the measurements.** When a `06-verify-*.md` record exists (`wf_read { "items": [{ "op": "record list" }] }` (CLI: `wf.mjs record list`) names it), read it with `wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`), and take its measured accessibility, performance and web-vitals results. Do not run those tools again. Measure them yourself only when no verify ran. When `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) ran, do not report its failures again on the screens; report the same fault where the built code has it.
 
 **Load the floor as a checklist.** Load [_craft-floor.md](_craft-floor.md). Its Verify table is the source of every number below. Its Refuse lists and Model tells are dimension 5. The audit is the one review that scores them.
 
@@ -38,7 +38,7 @@ Score: 0 = severe issues, 1 = major problems, 2 = partial optimization, 3 = good
 
 - **Hard-coded colors**: a value that does not use a design token (floor rule 11). Name the nearest token.
 - **Hard-coded scale values**: a spacing, radius, depth or type value that fits no token.
-- In built code, take these two from the literal lint of `wf.mjs design components verify <root> <slug>`: each line it prints is a value that the code wrote instead of the generated token file. A surface that `wf.mjs design foundation` reports as old (missing token kinds, no component specs) scores at most 2, and the report names [system-migrate.md](system-migrate.md) as the fix.
+- In built code, take these two from the literal lint of `wf_run { "op": "design components verify", "slug": "<slug>" }` (CLI: `wf.mjs design components verify <root> <slug>`): each line it prints is a value that the code wrote instead of the generated token file. A surface that `wf_run { "op": "design foundation" }` (CLI: `wf.mjs design foundation`) reports as old (missing token kinds, no component specs) scores at most 2, and the report names [system-migrate.md](system-migrate.md) as the fix.
 - **Broken dark mode**: a missing dark value, or poor contrast in one theme.
 - **Inconsistent tokens**: the wrong token for the role.
 - **Theme switching**: a value that does not update on a theme change.
@@ -121,7 +121,7 @@ Name the move that fixes each finding, from the routing table of [_lane.md](_lan
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> audit`:
-- Write the report as the draft `<wf-dir>/.draft/07-design-audit.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
+- Write the report as the draft `<wf-dir>/.draft/07-design-audit.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md))
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
 - When `02c-craft.md` names `screens:`, compare each approval picture with its capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` column of `## Findings`. A screen without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:

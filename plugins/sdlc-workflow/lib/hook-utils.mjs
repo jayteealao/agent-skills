@@ -41,7 +41,16 @@ let toolDecision = null;
  * out with the system messages of the event, in its one line of JSON.
  */
 export function askBeforeToolCall(reason) {
-  toolDecision = { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason };
+  toolDecision = { ...(toolDecision ?? {}), hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason };
+  if (!systemMessageBuffer) flushSystemMessages(true);
+}
+
+/**
+ * Give the model a note before a tool call, and let the call run (PreToolUse `additionalContext`).
+ * The person does not see it: a system message is for the person.
+ */
+export function noteBeforeToolCall(text) {
+  toolDecision = { ...(toolDecision ?? {}), hookEventName: 'PreToolUse', additionalContext: toolDecision?.additionalContext ? `${toolDecision.additionalContext}\n\n${text}` : text };
   if (!systemMessageBuffer) flushSystemMessages(true);
 }
 

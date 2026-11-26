@@ -46,7 +46,7 @@ The index holds every deferral in `runtime-evidence-deferrals`, the cleared entr
 
 # Step 0 — Orient
 
-1. Resolve the first argument: a slug, `pr#N`, or a branch name. With no argument, take the newest `shipped` workflow of `.ai/workflows/INDEX.md` that has no `10-retro.md` record, and use its slug; `target` with no argument takes only open workflows, so it never names a shipped one. Run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`:
+1. Resolve the first argument: a slug, `pr#N`, or a branch name. With no argument, take the newest `shipped` workflow of `.ai/workflows/INDEX.md` that has no `10-retro.md` record, and use its slug; `target` with no argument takes only open workflows, so it never names a shipped one. Run `wf_query { "op": "target", "slug": "<arg>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" target "<root>" <arg> --json`):
 
    | Result | Do |
    |---|---|
@@ -56,9 +56,9 @@ The index holds every deferral in `runtime-evidence-deferrals`, the cleared entr
    | `error` | Show it, and stop. |
 
    A `deep` token anywhere in the arguments sets `deep-retro: true` and adds the deep pass of "Deep retro" below. Without the token, the retro reads the artifacts only. With the token, pass `--mode deep` to the inputs check, so that the `mode:deep` row applies.
-2. Read `00-index.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`. Take `current-stage`, `status`, `selected-slice` and `open-questions` from its frontmatter.
+2. Read `00-index.md` with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`). Take `current-stage`, `status`, `selected-slice` and `open-questions` from its frontmatter.
 3. Check the prerequisites:
-   - Run `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`. It must list at least one implement record: `05-implement-<slice>.md`, or `05-implement.md` in change mode. When it lists nothing beyond intake, stop, and tell the person: "Not enough completed work to retrospect. Run more stages first."
+   - Run `wf_read { "slug": "<slug>", "items": [{ "op": "record list" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`). It must list at least one implement record: `05-implement-<slice>.md`, or `05-implement.md` in change mode. When it lists nothing beyond intake, stop, and tell the person: "Not enough completed work to retrospect. Run more stages first."
    - A ship run (`09-ship-run-*.md`, or an older `09-ship.md`) is strongly recommended, but it does not block: a retro can run after a cancelled or abandoned effort.
    - When `current-stage` of the index shows the workflow complete, note the re-run in chat and go on. [_additive-write.md](_additive-write.md) snapshots the earlier revision and appends to the `revisions:` ledger, so you ask no permission question.
 4. Use the full trail of the workflow, every Requires row. The retro reflects on the design decisions and the augmentation outcomes too, not only the engineering ones. When the workflow needed a design, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`. In `## Surfaces` of `current.md`, set the Newest board of each surface that the workflow changed to its PNG in the last frozen revision (`workflows/<slug>/design/r<N>/boards/<key>.png`).
@@ -80,13 +80,13 @@ Every count names the artifact or the tool result that it came from. Pass this b
 
 Deferred-debt harvest, of this workflow only:
 
-- Collect every intentional-simplification marker that this workflow introduced. Grep its merged range for `sdlc-debt:`: `git log -p <merge-sha>^1..<merge-sha>` for a merge commit, or the commits of the PR (`gh pr view <pr-number> --json commits`) for a squash or a rebase merge. `merge-sha` and `pr-number` are in the ship run and the index. Also read `## Anything Deferred` and `## Known Risks / Caveats` of each `05-implement-<slice>.md`, with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice>.md`.
+- Collect every intentional-simplification marker that this workflow introduced. Grep its merged range for `sdlc-debt:`: `git log -p <merge-sha>^1..<merge-sha>` for a merge commit, or the commits of the PR (`gh pr view <pr-number> --json commits`) for a squash or a rebase merge. `merge-sha` and `pr-number` are in the ship run and the index. Also read `## Anything Deferred` and `## Known Risks / Caveats` of each `05-implement-<slice>.md`, with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "05-implement-<slice>.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 05-implement-<slice>.md`).
 - For each marker, record the file and line, the ceiling, the upgrade path, and where it was recorded. Keep to the debt of this workflow. Do not grep the whole repo: that is the sweep of `/wf intake simplify codebase`.
 - Classify each marker as `act-now` (worth its own follow-up workflow this sprint) or `accept` (a deliberate, acceptable ceiling that only needs to stay visible). The act-now items drive `## Deferred Debt` and Option B of Step 3.
 
 ### Analysis sub-agent 2 — review and handoff quality
 
-Charter: read every `07-review-*.md` record (the record of each slice and each sub-review of a command; `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` gives the names, and `record get` the content), `08-handoff.md`, the live entries of the decision store (`decide list`), and `02-shape.md`. Report:
+Charter: read every `07-review-*.md` record (the record of each slice and each sub-review of a command; `wf_read { "slug": "<slug>", "items": [{ "op": "record list" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`) gives the names, and `record get` the content), `08-handoff.md`, the live entries of the decision store (`decide list`), and `02-shape.md`. Report:
 
 - the quality of the findings: real bugs, nits and false positives; what stayed `open` at handoff; what tests or planning should have caught; what review missed that ship or production found later;
 - the completeness of the handoff: the clarity of the PR, the accuracy of the migration and rollback notes, and whether the documentation plan of the shape was carried out;
@@ -175,15 +175,15 @@ Apply [_workflow-rules.md](_workflow-rules.md). Then, in this order:
 1. Order the improvements by impact and effort.
 2. Check that Step 2 wrote its learnings and stamped `learnings-written:`.
 3. Write the options of Step 3 into the `recommended-routes` frontmatter.
-4. Mark the workflow complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete next-command=none "next-invocation=none — complete"`, unless follow-up work opens.
-5. Write the draft `<wf-dir>/.draft/10-retro.md` with the frontmatter and body sections of [retro/_artifact.md](retro/_artifact.md). On a re-run over a `10-retro.md` that exists, follow the additive-write contract of the same file. Run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md). Then run `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> retro`.
+4. Mark the workflow complete with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": ["status=complete","next-command=none","next-invocation=none — complete"] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index status=complete next-command=none "next-invocation=none — complete"`), unless follow-up work opens.
+5. Write the draft `<wf-dir>/.draft/10-retro.md` with the frontmatter and body sections of [retro/_artifact.md](retro/_artifact.md). On a re-run over a `10-retro.md` that exists, follow the additive-write contract of the same file. Run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) per [_records.md](_records.md). Then run `wf_run { "op": "record stage-done", "slug": "<slug>", "stage": "retro" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> retro`).
 
 # Batch retro (`pr#N` or a branch)
 
 This runs when Step 0 resolved a branch: the slugs that shipped together on one branch get their retros together.
 
 1. Build the roster. The roster is the `slugs` of the `target` output: every slug whose `branch` is the resolved branch. When the output has the error "No workflows are on branch", show it and stop. Record the roster as `branch-slugs:`.
-2. Run the retro of each slug of the roster: Step 0 items 2–5, then Steps 1–4, with `retro-scope: branch`, `branch:` and `branch-slugs:` added to the retro frontmatter of that slug. A slug with nothing beyond intake (no `05-implement*.md`) does not stop the batch: mark it "nothing to retro" in the roster, and skip it. Mark each retrospected slug complete with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <roster-slug> index status=complete`.
+2. Run the retro of each slug of the roster: Step 0 items 2–5, then Steps 1–4, with `retro-scope: branch`, `branch:` and `branch-slugs:` added to the retro frontmatter of that slug. A slug with nothing beyond intake (no `05-implement*.md`) does not stop the batch: mark it "nothing to retro" in the roster, and skip it. Mark each retrospected slug complete with `wf_run { "op": "record set", "slug": "<roster-slug>", "name": "index", "path": "status=complete" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <roster-slug> index status=complete`).
 3. Then look across the whole branch for the patterns that no single retro can see: friction that recurred across slugs, a root cause that several slugs share, a plan assumption that broke the same way twice, sequencing pain between slugs. This is the value that a batch retro adds. Distill them into `.ai/solutions/` by the three tests and the dedupe of Step 2, with `source-workflow` set to the list of the roster slugs that contributed. Zero cross-slug learnings is a valid outcome. Do not pad.
 4. Return in chat per "Chat return" below.
 

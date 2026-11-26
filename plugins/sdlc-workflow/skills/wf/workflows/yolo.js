@@ -146,7 +146,7 @@ function touchesCharter(results, charter) {
 // The step record of implement, through `wf.mjs step` (implement/_steps.md). The agent also
 // returns HEAD before and after its work, so the driver sees a route back that made no commit.
 function implementStepsClause(slice, retry) {
-  const step = (rest) => `\`${WF_CMD} step ${rest}\``
+  const step = (rest) => `${wf(`${WF_CMD} step ${rest}`)}`
   return `\n\nHEAD. Before any other work, run \`${GIT} rev-parse HEAD\` and return the commit id ` +
     `that it prints as headStart. Immediately before you return, run it again and return that commit id as headEnd.` +
     `\n\nSTEP COMMITS. Before any step, run ${step(`where "${projectRoot}" ${slug} ${slice}`)}: continue at ` +
@@ -252,19 +252,18 @@ function handoffClause(stage, slice) {
   const add = `${WF_CMD} decide add "${projectRoot}" ${slug}`
   return `\n\nHAND-OFFS. ` +
     `A line of kind \`note\` in the steering list is a hand-off that another stage left for this slice. Act on it. ` +
-    `When you have handled it, run \`${WF_CMD} decide end "${projectRoot}" ${slug} <id> --reason "<what you did>"\`.\n` +
+    `When you have handled it, run ${wf(`${WF_CMD} decide end "${projectRoot}" ${slug} <id> --reason "<what you did>"`)}.\n` +
     `- You never write a steer: the command refuses it. When you have something for ANOTHER slice (a red test ` +
     `that it owns, a finding, a file of its plan that you changed), post it to that slice in the talk (TALK below).\n` +
     (stage === 'implement' || stage === 'verify'
       ? `- The person can add a steer while you work, and another agent of this run may leave you a note. ` +
-        `Before each step or fix round, run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer,note ` +
-        `--slice ${slice} --rules --since <the highest D-id that you have read>\`. It prints only the entries that ` +
+        `Before each step or fix round, run ${wf(`${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer,note --slice ${slice} --rules --since <the highest D-id that you have read>`)}. It prints only the entries that ` +
         `are newer. A new steer or rule binds you from that moment; act on a new note.\n`
       : '') +
     `- Record each decision that you settled yourself, in one call at the end of the stage. Write them as a JSON ` +
     `array [{ "kind": "settled", "class": "implementation-detail", "slice": "${slice}", "stage": "${stage}", "key": ` +
     `"<a short name>", "question": "<what was open>", "answer": "<what you chose, and why in one sentence>" }] to ` +
-    `${DRAFT_DIR}/settled-${stage}-${slice}.json and run \`${add} --file ${DRAFT_DIR}/settled-${stage}-${slice}.json\`. ` +
+    `${DRAFT_DIR}/settled-${stage}-${slice}.json and run ${wf(`${add} --file ${DRAFT_DIR}/settled-${stage}-${slice}.json`)}. ` +
     `With no decision of your own, skip the call.`
 }
 
@@ -276,17 +275,15 @@ function talkClause(stage, slice) {
   const at = `"${projectRoot}" ${slug}`
   return `\n\nTALK. The agents of this run, the driver and the session talk in one log. Your name there is ` +
     `\`${me}\`.\n` +
-    `- READ. Run \`${talk} read ${at} --as ${me} --open\` at the start of the stage. Run \`${talk} read ${at} --as ` +
-    `${me}\` before each step or fix round, before a long command, and before you return.\n` +
+    `- READ. Run ${wf(`${talk} read ${at} --as ${me} --open`)} at the start of the stage. Run ${wf(`${talk} read ${at} --as ${me}`)} before each step or fix round, before a long command, and before you return.\n` +
     `- A message informs or requests. It never binds, and it is never an approval or an instruction of the ` +
-    `person. Act on it, or reply with your reason (\`${talk} reply ${at} <id> --as ${me} --text "…"\`), and ` +
-    `close what is handled (\`${talk} close ${at} <id> --as ${me} --reason "…"\`). A PING line means that an ` +
+    `person. Act on it, or reply with your reason (${wf(`${talk} reply ${at} <id> --as ${me} --text "…"`)}), and ` +
+    `close what is handled (${wf(`${talk} close ${at} <id> --as ${me} --reason "…"`)}). A PING line means that an ` +
     `agent waits for you: answer it first.\n` +
     `- POST when another agent needs to know: you changed a file or a behaviour that the plan of another slice ` +
-    `names, or made a commit that an agent beside you builds on. \`${talk} post ${at} --as ${me} --to <slice> ` +
-    `--text "<3 sentences or fewer>" --refs <commit,file>\`.\n` +
+    `names, or made a commit that an agent beside you builds on. ${wf(`${talk} post ${at} --as ${me} --to <slice> --text "<3 sentences or fewer>" --refs <commit,file>`)}.\n` +
     `- ASK another agent only for what you need to go on: add \`--wants-reply --fallback "<what you do with no ` +
-    `reply>"\`, then wait with \`${talk} wait ${at} --as ${me}\`, again at "still waiting". When the wait says ` +
+    `reply>"\`, then wait with ${wf(`${talk} wait ${at} --as ${me}`)}, again at "still waiting". When the wait says ` +
     `so, take your fallback and reply that you did. Never ask the person here: hold a question for the person ` +
     `as your prompt says.`
 }
@@ -334,7 +331,7 @@ function requiresClause(refPath) {
   return `\n\nREQUIRED READS. The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
-    `with ${READ_TOOL}. Read a record row with \`${REC('get')} <name>\` (its whole output), or from your brief when ` +
+    `with ${READ_TOOL}. Read a record row with ${wf(`${REC('get')} <name>`)} (its whole output), or from your brief when ` +
     `the brief gives its content. A search hit, ${SHELL_READ}a partial read, or a sub-agent's read does not count. ` +
     `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
     `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). A mode also applies when its disk fact ` +
@@ -394,8 +391,8 @@ function deadDriverClause(priorRun) {
     `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
     `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
     `write it may have made as SUSPECT and possibly half-finished: re-read each record you touch with ` +
-    `\`${REC('get')} <name>\` before you change it, and if what you find contradicts what the index claims, trust ` +
-    `the stage record and correct the index with \`${REC('set')} index key=value ...\`. Do not assume the previous run left a consistent state. ` +
+    `${wf(`${REC('get')} <name>`)} before you change it, and if what you find contradicts what the index claims, trust ` +
+    `the stage record and correct the index with ${wf(`${REC('set')} index key=value ...`)}. Do not assume the previous run left a consistent state. ` +
     `Run \`${GIT} status --short\` before your own work: a file that the dead run left uncommitted is work to ` +
     `judge, not to throw away. Read it, keep what is right, and continue from it. Do not start the stage over, ` +
     `and do not restore or delete a file that you did not judge.`
@@ -932,14 +929,14 @@ function smallChangeClause(stage) {
 // A decided question: the Decisions of the brief list each live answer with its key, and say
 // when a question is answered.
 function sameQuestionClause() {
-  return `Before you ask, run \`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>\`: a live answer settles it. `
+  return `Before you ask, run ${wf(`${WF_CMD} decide answered "${projectRoot}" ${slug} --key <key>`)}: a live answer settles it. `
 }
 
 // A failing item that a live decision already settles is accepted, in every mode.
 function settledItemsClause(sliceArg) {
   const scope = sliceArg ? ` --slice ${sliceArg}` : ''
   return `\n\nSETTLED ITEMS. Before you fix or report a failing acceptance criterion or residual item, run ` +
-    `\`${WF_CMD} decide list "${projectRoot}" ${slug}${scope} --json\`. When a live decision of the person, a ` +
+    `${wf(`${WF_CMD} decide list "${projectRoot}" ${slug}${scope} --json`)}. When a live decision of the person, a ` +
     `standing answer or a delegate decision already settles the item in substance (for example "record the miss, ` +
     `the speed work moves to a later packet"), accept the item: do not fix it, do not stop on it, and do not ask ` +
     `about it. Write accepted-by: <that decision's id>, accepted-at (UTC now) and accepted-items (the item, one ` +
@@ -957,14 +954,10 @@ function delegateAcceptClause(sliceArg, when = 'this is the last verify round of
   return `\n\nDELEGATE ACCEPT (${when}). When an item still fails after ` +
     `your fix round, do not stop the run. First, when your own slice moved a measured product behaviour outside ` +
     `its pinned range and the cause is not known, spend one bounded round on finding the cause, then fix it or ` +
-    `accept it. For each item that still fails: (1) run \`${WF_CMD} decide add "${projectRoot}" ${slug} --kind ` +
-    `answer --by delegate --key verify-accept:${s}:<item> --question "<the item>" --answer "accept, carried to the ` +
-    `review" --stage verify${sliceOpt}\`; (2) write accepted-by: delegate, accepted-at (UTC now) and ` +
+    `accept it. For each item that still fails: (1) run ${wf(`${WF_CMD} decide add "${projectRoot}" ${slug} --kind answer --by delegate --key verify-accept:${s}:<item> --question "<the item>" --answer "accept, carried to the review" --stage verify${sliceOpt}`)}; (2) write accepted-by: delegate, accepted-at (UTC now) and ` +
     `accepted-items (the item, one line each) in the verify frontmatter; (3) write { "findings": [{ "dimension": ` +
     `"residual", "severity": "HIGH", "file": <the main file of the item, or null>, "line": null, "key": "<item>", ` +
-    `"issue": "<the item and its measured gap>" }] } to ${DRAFT_DIR}/residual-${s}.json and run \`${WF_CMD} ` +
-    `findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/residual-${s}.json --source review${findingsSliceOpt} --dimensions ` +
-    `residual\`, so the review tries to fix it. Return each item in terminal.acceptedItems as { item, by: ` +
+    `"issue": "<the item and its measured gap>" }] } to ${DRAFT_DIR}/residual-${s}.json and run ${wf(`${WF_CMD} findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/residual-${s}.json --source review${findingsSliceOpt} --dimensions residual`)}, so the review tries to fix it. Return each item in terminal.acceptedItems as { item, by: ` +
     `'delegate' }, set substantiveResidual: false, and return status 'complete'. Missing runtime evidence with ` +
     `no deferral is not accepted this way.`
 }
@@ -973,9 +966,7 @@ function delegateAcceptClause(sliceArg, when = 'this is the last verify round of
 function delegateClause(stage) {
   return `\n\nDELEGATE MODE. The person delegated the intent-bearing decisions of this run. ` +
     sameQuestionClause() +
-    `Otherwise settle it by the option you would recommend, record it with \`${WF_CMD} decide add "${projectRoot}" ` +
-    `${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage ` +
-    `<stage>\`, and continue. When your own slice moves a measured product behaviour ` +
+    `Otherwise settle it by the option you would recommend, record it with ${wf(`${WF_CMD} decide add "${projectRoot}" ${slug} --kind answer --by delegate --key <key> --question "<the question>" --answer "<your choice>" --stage <stage>`)}, and continue. When your own slice moves a measured product behaviour ` +
     `outside its pinned range and the cause is not known, do not carry it to later work: spend one bounded round ` +
     `on finding the cause, then decide. The person gets every delegate decision in one list at the end of the run, ` +
     `and reverses any of them in one answer.\n` +
@@ -1045,9 +1036,66 @@ const SKILL_DIR = String(referenceRoot).replace(/\\/g, '/').replace(/\/+$/, '').
 const SKILL_DIR_LINE = `skill-dir: ${SKILL_DIR}\n` +
   `Each \`<skill-dir>\` in a file you read is this folder, and each \`wf.mjs\` command runs as \`node "${SKILL_DIR}/scripts/wf.mjs" …\`. ` +
   'Never search the disk for wf.mjs, a script or the plugin folder.'
-const spawnAgent = (prompt, opts) => agent(`${SKILL_DIR_LINE}\n\n${prompt}`, opts)
 // The deterministic workflow commands: brief, decide, step, progress, defer, findings.
 const WF_CMD = `node "${SKILL_DIR}/scripts/wf.mjs"`
+// --- wf calls: the same text in yolo.js and optimize.js (tests/unit/driver-wf-calls.test.mjs) ---
+// The operations of wf (lib/ops/render.mjs opsTable), written into the staged copy of this script
+// by scripts/stage-yolo-driver.mjs. On Claude a prompt shows each call of wf as the call of a tool
+// of the wf MCP server, then its command line; with no table, or on Codex and pi, the command line.
+const WF_OPS = null
+const WF_TOOLS_LINE = 'The wf tools (wf_read, wf_run, wf_step, wf_decide, wf_wait, …) are loaded: make each call of wf as the tool call that is shown first. Run the CLI form only when a tool call fails because the server is down.'
+/** The call of wf of a command line, as the tool call of the server, or null. Mirrors callOf of lib/ops/forms.mjs. */
+function wfCall(cli) {
+  if (HOST !== 'claude' || !WF_OPS) return null
+  const m = /^node\s+"[^"]*[\\/](wf|campaign|orchestrate|optimize|goal|prototype|ideate-sources|design-boards)\.mjs"\s+([\s\S]*)$/.exec(String(cli).trim())
+  if (!m) return null
+  const argv = [...m[2].matchAll(/"((?:[^"\\]|\\.)*)"|(\S+)/g)].map((x) => (x[1] !== undefined ? x[1] : x[2]))
+  const words = m[1] === 'wf' ? argv : [m[1], ...argv]
+  let name = null
+  for (let n = Math.min(4, words.length); n >= 1 && !name; n -= 1) if (WF_OPS[words.slice(0, n).join(' ')]) name = words.slice(0, n).join(' ')
+  if (!name) return null
+  const o = WF_OPS[name]
+  const rest = words.slice(name.split(' ').length)
+  const fields = {}
+  const pos = []
+  const dash = []
+  for (let i = 0; i < rest.length; i += 1) {
+    const a = rest[i]
+    if (a === '--') { dash.push(...rest.slice(i + 1)); break }
+    if (a.startsWith('--')) {
+      const f = a.slice(2)
+      if (o.b.includes(f)) fields[f] = true
+      else { fields[f] = rest[i + 1]; i += 1 }
+    } else pos.push(a)
+  }
+  const fill = (list, values) => {
+    let spare = values.length - list.filter((p) => !p[1]).length
+    for (let k = 0; k < list.length && values.length; k += 1) {
+      const [pn, optional, variadic] = list[k]
+      if (optional && spare <= 0) continue
+      if (optional) spare -= 1
+      const v = variadic ? values.splice(0, Math.max(1, values.length - list.slice(k + 1).filter((q) => !q[1]).length)) : [values.shift()]
+      if (pn) fields[pn] = v.length === 1 ? v[0] : v
+    }
+  }
+  fill(o.p.filter((p) => !p[3]), pos)
+  fill(o.p.filter((p) => p[3]), dash)
+  delete fields.root
+  delete fields.json
+  for (const [file, inline] of Object.entries(o.i || {})) if (fields[file] !== undefined) { delete fields[file]; fields[inline] = '<the content of that file, inline>' }
+  const order = { slug: 0, slice: 1, stage: 2 }
+  const sorted = Object.entries(fields).sort(([a], [b]) => (order[a] ?? 9) - (order[b] ?? 9))
+  const body = (pairs) => `{ ${pairs.map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')} }`
+  if (o.t === 'wf_read') {
+    const slugPair = sorted.find(([k]) => k === 'slug')
+    return `wf_read { ${slugPair ? `"slug": ${JSON.stringify(slugPair[1])}, ` : ''}"items": [${body([['op', name], ...sorted.filter(([k]) => k !== 'slug')])}] }`
+  }
+  return `${o.t} ${body([['op', name], ...sorted])}`
+}
+/** A call of wf in a prompt: `<tool call>` (CLI: `<line>`) on Claude, else `<line>`. */
+const wf = (cli) => { const c = wfCall(cli); return c ? `\`${c}\` (CLI: \`${cli}\`)` : `\`${cli}\`` }
+// --- end of wf calls ---
+const spawnAgent = (prompt, opts) => agent(`${SKILL_DIR_LINE}${HOST === 'claude' && WF_OPS ? `\n${WF_TOOLS_LINE}` : ''}\n\n${prompt}`, opts)
 // Every git command of a prompt names the project root in quotes: a root may hold a space.
 const GIT = `git -C "${projectRoot}"`
 // The records of the workflow (_records.md): an agent reads them with `record get`, changes a field with
@@ -1097,10 +1145,10 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
 const CONTROL_FILE_RULE =
   `\n\nCONTROL-FILE DISCIPLINE. The index of this workflow (00-index.md) and ` +
   `${RECORDS_ROOT}/INDEX.md are shared control files that another session may also be editing. ` +
-  `Change an index field with \`${REC('set')} index key=value ...\` (a dotted key names one field of a map): it ` +
+  `Change an index field with ${wf(`${REC('set')} index key=value ...`)} (a dotted key names one field of a map): it ` +
   `merges the change in one step, so it loses no field of another writer. Write a draft of the whole index only ` +
-  `for a list change with text entries: get the index with \`${REC('get')} index\` IMMEDIATELY before you write ` +
-  `the draft ${DRAFT_DIR}/00-index.md, and run \`${REC('put')} 00-index.md\` at once. ` +
+  `for a list change with text entries: get the index with ${wf(`${REC('get')} index`)} IMMEDIATELY before you write ` +
+  `the draft ${DRAFT_DIR}/00-index.md, and run ${wf(`${REC('put')} 00-index.md`)} at once. ` +
   `Re-read INDEX.md IMMEDIATELY before every edit of it — never edit from a copy you read earlier in this agent. If an ` +
   `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
   `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
@@ -1118,7 +1166,7 @@ const WORK_RULES =
   `The host compacts your conversation when it is full, and you continue after it; each step you commit is ` +
   `kept. Stop only for the reasons that the stage reference gives.\n\n` +
   `COMMAND OUTPUT. Keep build and test logs out of your context. Run a suite of the test profile with ` +
-  `\`${WF_CMD} profile run "${projectRoot}" <suite>\` or \`${WF_CMD} receipt\`: each writes the output to a log ` +
+  `${wf(`${WF_CMD} profile run "${projectRoot}" <suite>`)} or ${wf(`${WF_CMD} receipt`)}: each writes the output to a log ` +
   `file and prints the result, the log path and, when the suite fails, the end of the log. Run any other ` +
   `build, test or check command with its output in a file of ${LOG_DIR} (\`<command> > <file> 2>&1\`), read ` +
   `its exit status, and search the file for the failures. Never print a whole log, and never let a long ` +
@@ -1127,16 +1175,14 @@ const WORK_RULES =
   `LONG COMMANDS. Never start a command in the background with \`&\` or a background tool, and never end your ` +
   `turn to wait for one: the host takes your result when your turn ends, and the work that still runs is lost. ` +
   `A command that can take longer than 8 minutes, and a server or an emulator that you need while you work, ` +
-  `is a job: start it with \`${WF_CMD} talk job "${projectRoot}" ${slug} --as <your name> --name <short-name> -- ` +
-  `"<the command line>"\`, then run \`${WF_CMD} talk wait "${projectRoot}" ${slug} --as <your name> --job <id>\` ` +
+  `is a job: start it with ${wf(`${WF_CMD} talk job "${projectRoot}" ${slug} --as <your name> --name <short-name> -- "<the command line>"`)}, then run ${wf(`${WF_CMD} talk wait "${projectRoot}" ${slug} --as <your name> --job <id>`)} ` +
   `again each time it prints "still waiting". The wait also returns for a message: act on it, then wait again.\n\n` +
-  `SHARED RESOURCES. Run \`${WF_CMD} talk resources "${projectRoot}" ${slug}\` once before your first build or ` +
+  `SHARED RESOURCES. Run ${wf(`${WF_CMD} talk resources "${projectRoot}" ${slug}`)} once before your first build or ` +
   `test command. When it names a resource that your command uses, hold it first with \`talk wait --claim ` +
   `<key>\`, and start the command as a job with \`--claim <key>\`. Never use a resource that another agent ` +
   `holds.\n\n` +
   `Your name is <stage>:<slice>; with no slice, <stage>:slug-wide. The forms of each command are in ` +
-  `${referenceRoot}/_talk.md. Before you return, stop your own jobs (\`${WF_CMD} talk jobs "${projectRoot}" ` +
-  `${slug} --stop --as <your name>\`) and remove each scratch worktree that you made.`
+  `${referenceRoot}/_talk.md. Before you return, stop your own jobs (${wf(`${WF_CMD} talk jobs "${projectRoot}" ${slug} --stop --as <your name>`)}) and remove each scratch worktree that you made.`
 
 const STEER_CMD = `${WF_CMD} decide list "${projectRoot}" ${slug} --kind steer`
 // The command of one slice gives the rules of the project, the steers in the scope of the slice
@@ -1220,12 +1266,9 @@ const DECISION_CONTRACT =
 // it. In delegate mode it is for the questions that the person kept: a steer, a rule or a note
 // that says "ask me first" outranks the delegation, and a return of 'questions' would end the run.
 function holdAndWaitClause(stage) {
-  return `Hold the question: run \`${WF_CMD} decide hold "${projectRoot}" ` +
-    `${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended ` +
-    `"<a>"\`, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
+  return `Hold the question: run ${wf(`${WF_CMD} decide hold "${projectRoot}" ${slug} --key <key> --question "<the question>" --stage ${stage} --options "<a>|<b>" --recommended "<a>"`)}, with --slice <your slice> when you run on a slice. The command puts the question in the index, so ` +
     `the person can answer it while you work. When other work of this stage does not depend on the decision, ` +
-    `continue with that work. When no such work is left, wait for the answer: run \`${WF_CMD} decide wait ` +
-    `"${projectRoot}" ${slug} --key <each key that you hold, with commas between the keys> --stage ${stage}\`, ` +
+    `continue with that work. When no such work is left, wait for the answer: run ${wf(`${WF_CMD} decide wait "${projectRoot}" ${slug} --key <each key that you hold, with commas between the keys> --stage ${stage}`)}, ` +
     `with --slice <your slice> when you run on a slice. Give that shell call a timeout of 5 minutes ` +
     `(300000 ms): the command blocks for 4 minutes at most, and it sends the question to the person. It ` +
     `prints one of two results. "answered": the line gives the answer. "still waiting": run the same ` +
@@ -1238,7 +1281,7 @@ function holdAndWaitClause(stage) {
     `plan, use the route-back rules of this stage. Return status 'questions' only ` +
     `when the command itself fails twice in a row. In that case, look again for each ` +
     `question that still has no answer: (1) run \`decide answered\` with its key again. (2) When that prints no answer, ` +
-    `run \`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json\`, with --slice <your slice> ` +
+    `run ${wf(`${WF_CMD} decide list "${projectRoot}" ${slug} --kind answer --json`)}, with --slice <your slice> ` +
     `when you run on a slice, and find an entry made after the held-at time of the question that answers the ` +
     `same question under another key. Settle the question by that entry, and cite its id in the decision ` +
     `that you record. (3) Settle each answered question in this run when its work fits this stage. When the ` +
@@ -1674,13 +1717,13 @@ async function orient() {
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
     `git as \`${GIT} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
-    `0a. Run \`${WF_CMD} worktree leftovers "${projectRoot}" ${slug} --json\` and return its \`branches\` list as ` +
+    `0a. Run ${wf(`${WF_CMD} worktree leftovers "${projectRoot}" ${slug} --json`)} and return its \`branches\` list as ` +
     `leftoverBranches, exactly as printed (an empty list when it is empty).\n` +
-    `0. Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` first. It reads the records in code: the stage ` +
+    `0. Run ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} first. It reads the records in code: the stage ` +
     `files of each slice, the roster status, the verify result and the convergence of each slice (slices[]), the ` +
     `run record and the next command. Use its values where a step below names the same ` +
-    `fact, and read a record only for a fact that the output lacks. Read a record with \`${REC('get')} <name>\` ` +
-    `(exit 1 = the record is absent), and list the records with \`${REC('list')}\`. A record name such as ` +
+    `fact, and read a record only for a fact that the output lacks. Read a record with ${wf(`${REC('get')} <name>`)} ` +
+    `(exit 1 = the record is absent), and list the records with ${wf(`${REC('list')}`)}. A record name such as ` +
     `03-slice.md is not a file path.\n` +
     `   Its \`drive\` block is the class of the workflow, computed in code by ` +
     `${referenceRoot}/../../../lib/drive-class.mjs from the workflow-type and the records. Copy its fields and do ` +
@@ -1688,7 +1731,7 @@ async function orient() {
     `reviewScopeOf: the review-scope key wins; with no key, 'per-slice' only when 07-review-<slice>.md records ` +
     `exist and 07-review.md does not), and reviewDimension = drive.reviewDimension (null = the standard rubric ` +
     `selection; 'security' for an RCA that recommends a hotfix).\n` +
-    `1. Read the index: run \`${REC('get')} index\`. It is CURRENT STATE only: parse the keys this step ` +
+    `1. Read the index: run ${wf(`${REC('get')} index`)}. It is CURRENT STATE only: parse the keys this step ` +
     `names and nothing else. Do NOT read index-history.jsonl or history/ — finished history (old next-step ` +
     `commentary, finished sub-pass telemetry) is not state, and must not be mixed into the open deferrals or the ` +
     `charter you report. Parse: status, current-stage, branch-strategy (default 'none' if absent), ` +
@@ -1719,7 +1762,7 @@ async function orient() {
       ? `1c. The runId of THIS run is '${GIVEN_RUN_ID}'. Report it as runId; do not mint another.\n`
       : `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
         `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n`) +
-    `2. Read the roster from the slices[] of the status output (slice, roster). Run \`${REC('get')} 03-slice.md\` ` +
+    `2. Read the roster from the slices[] of the status output (slice, roster). Run ${wf(`${REC('get')} 03-slice.md`)} ` +
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
     `deferred | skipped | dropped) as slices[].status, and its \`complexity:\` (xs | s | m | l | xl; null when the entry has none) as slices[].complexity — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
@@ -1729,7 +1772,7 @@ async function orient() {
     `is then 'slug-wide' (one un-suffixed 07-review.md). Do NOT route to '/wf slice' for a single-scope workflow; a ` +
     `roster of one is complete.\n` +
     `2b. IMPLEMENT PROGRESS. For each slice whose implement is not done, run ` +
-    `\`${WF_CMD} step where "${projectRoot}" ${slug} <slice> --json\`: planSteps = its total, stepsCommitted = the ` +
+    `${wf(`${WF_CMD} step where "${projectRoot}" ${slug} <slice> --json`)}: planSteps = its total, stepsCommitted = the ` +
     `number of entries of its done list (0 when empty), and implementStops = its hardStops (the fail stops only). ` +
     `The command checks each step commit against the slice branch itself.\n` +
     `3. fileConvention = drive.fileConvention: 'suffixed' names the stage files 04-plan-<slice>.md, ` +
@@ -1763,7 +1806,7 @@ async function orient() {
     `person (design stage pending)', route='/wf design ${slug}' ('/wf design ${slug} amend' when the design is ` +
     `reopened). When every such slice carries ux-impact: none, the run proceeds.\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
-    `slice-mode can route to the next slice), check with \`${REC('list')}\` and \`${REC('get')} <name>\` which of ` +
+    `slice-mode can route to the next slice), check with ${wf(`${REC('list')}`)} and ${wf(`${REC('get')} <name>`)} which of ` +
     `plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
     `   - plan: artifact present AND frontmatter status: complete\n` +
@@ -1798,7 +1841,7 @@ async function orient() {
     `(\`${GIT} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
     `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
     `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n` +
-    `8. CLEARING-EVENT TRIPWIRE. Run \`${WF_CMD} defer check "${projectRoot}" ${slug} --json\` once. It runs the ` +
+    `8. CLEARING-EVENT TRIPWIRE. Run ${wf(`${WF_CMD} defer check "${projectRoot}" ${slug} --json`)} once. It runs the ` +
     `recorded clearing-probe of each open deferral in code. For each entry of priorDeferrals, set clearingProbeHit ` +
     `to true when its entry in the output has state 'changed', false when 'unchanged', and omit it for 'no-probe'. ` +
     `Do NOT clear the deferral, do NOT edit 00-index.md, and do NOT treat a hit as evidence — this is a ` +
@@ -1963,7 +2006,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
   const behindClause = stage === 'verify' && extra.behind
     ? `\n\nVERIFY BEHIND. The next slice is being built in ${projectRoot} now, so the code there is not the code ` +
       `of this slice. Verify slice '${sliceArg}' at commit ${extra.behind.sha}, in its own copy of the repo:\n` +
-      `(1) Run \`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.behind.name} ${extra.behind.sha}\`. It prints the ` +
+      `(1) Run ${wf(`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.behind.name} ${extra.behind.sha}`)}. It prints the ` +
       `path of the copy. In the copy, run \`git switch -c ${extra.behind.branch}\`. When git says that the branch exists, it holds the fix commits of an earlier run: stop, change nothing, and return status 'hard-stop' with that as the reason.\n` +
       `(2) Read the code, build, and run every check in the copy: start each such command there ` +
       `(\`cd "<the copy>" && …\`, or \`git -C "<the copy>" …\`), never in ${projectRoot}. Each wf.mjs command and ` +
@@ -1972,9 +2015,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `(3) Run the fix loop as verify.md says (Step 7.6), in the copy: make each fix and each commit there, on ` +
       `${extra.behind.branch}. Never edit or commit in ${projectRoot}.\n` +
       `(3a) Hand each fix commit over at once${extra.behind.next ? `, to slice '${extra.behind.next}', which is being built now` : ''}: ` +
-      `\`${WF_CMD} talk post "${projectRoot}" ${slug} --as verify:${sliceArg} --to ${extra.behind.next || 'driver'} --kind ` +
-      `handover --refs <the commit>,<each file> --key fix-<the commit> --text "<what the fix changes, and whether ` +
-      `it changes behaviour or only tests>"\`. That agent merges ${extra.behind.branch} at its next safe step, so a ` +
+      `${wf(`${WF_CMD} talk post "${projectRoot}" ${slug} --as verify:${sliceArg} --to ${extra.behind.next || 'driver'} --kind handover --refs <the commit>,<each file> --key fix-<the commit> --text "<what the fix changes, and whether it changes behaviour or only tests>"`)}. That agent merges ${extra.behind.branch} at its next safe step, so a ` +
       `fix is never lost and never waits for the end. What is still on the branch at the end, the driver merges.\n` +
       `(3b) When that agent asks whether more fixes are coming, reply with what is left and how long you expect ` +
       `it to take.\n` +
@@ -1999,9 +2040,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `cannot make both changes hold, run \`${GIT} merge --abort\`, say so in the thread, and go on: the driver's ` +
       `merge stage takes it at the end of your slice.\n` +
       `(3) Before a step that the plan marks (after-merge), and before any step that generates stored results or ` +
-      `takes a measurement, ask whether more fixes are coming: \`${WF_CMD} talk post "${projectRoot}" ${slug} --as ` +
-      `implement:${sliceArg} --to verify:${extra.beside.slice} --wants-reply --fallback "go on with the step" --text ` +
-      `"I am about to <the step>. Are more fixes coming, and how long?"\`, then wait with \`talk wait\`. When the ` +
+      `takes a measurement, ask whether more fixes are coming: ${wf(`${WF_CMD} talk post "${projectRoot}" ${slug} --as implement:${sliceArg} --to verify:${extra.beside.slice} --wants-reply --fallback "go on with the step" --text "I am about to <the step>. Are more fixes coming, and how long?"`)}, then wait with \`talk wait\`. When the ` +
       `reply says that a fix comes soon, do other steps first when the plan allows it, else wait for the hand-over.\n` +
       `(4) Before your slice checks, merge the branch once more, so the checks run on both changes.\n` +
       `(5) Do not delete the branch or its copy: the driver does. When the verify has not posted its verdict ` +
@@ -2012,7 +2051,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
   const sideClause = stage === 'implement' && extra.side
     ? `\n\nSIDE CHECKOUT. Slice '${extra.side.with}' is being built in ${projectRoot} at the same time, and the two ` +
       `plans share no file. Build slice '${sliceArg}' in its own copy of the repo:\n` +
-      `(1) Run \`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.side.name} <headStart>\`, with the commit ` +
+      `(1) Run ${wf(`${WF_CMD} worktree add "${projectRoot}" ${slug} ${extra.side.name} <headStart>`)}, with the commit ` +
       `id that you return as headStart. It prints the path of the copy. In the copy, run \`git switch -c ${extra.side.branch}\`.\n` +
       `(2) Make every edit, static check, slice check and commit in the copy: start each such command there ` +
       `(\`cd "<the copy>" && …\`). Never edit a file of ${projectRoot} outside the copy.\n` +
@@ -2042,30 +2081,27 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `refuter checked every finding. Skip Steps 2, 3 and 3b of review/_stage.md. At Step 4, write ` +
       `${DRAFT_DIR}/found.json as { "dimensions": ${JSON.stringify(scan.dimensions)}, ` +
       `"affectedFiles": ${JSON.stringify(scan.affectedFiles || [])}, ` +
-      `"findings": <the list below, unchanged> } and run \`${WF_CMD} findings add "${projectRoot}" ${slug} ` +
-      `${DRAFT_DIR}/found.json --source review --run ${RUN_ID}` +
-      `${sliceArg ? ` --slice ${sliceArg}` : ''}\`. A finding with \`refuted\` stays refuted; re-check a ` +
+      `"findings": <the list below, unchanged> } and run ${wf(`${WF_CMD} findings add "${projectRoot}" ${slug} ${DRAFT_DIR}/found.json --source review --run ${RUN_ID}${sliceArg ? ` --slice ${sliceArg}` : ''}`)}. A finding with \`refuted\` stays refuted; re-check a ` +
       `survivor you doubt, but do not drop it.` +
       ` Findings: ${JSON.stringify(scan.findings)}` +
-      promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run \`${REC('put')}\` after you write it)`)
+      promptFedLine(scan.files, `${DRAFT_DIR}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'} (the draft: run ${wf(`${REC('put')}`)} after you write it)`)
     : stage === 'review' && extra.ledgerOnly
     ? `\n\nFINDINGS FROM THE WALK. The walk put the defects of a fidelity row or a try-out in the findings ` +
       `ledger. Skip Steps 1 to 4 of review/_stage.md: scan nothing. Start at Step 4b with the open findings that ` +
-      `\`${WF_CMD} findings list "${projectRoot}" ${slug} --open\` prints, and fix them at Step 4c.`
+      `${wf(`${WF_CMD} findings list "${projectRoot}" ${slug} --open`)} prints, and fix them at Step 4c.`
     : ''
   const label = `${stage}${sliceArg ? ':' + sliceArg : ''}`
   const briefCmd = `${WF_CMD} brief "${projectRoot}" ${slug} ${stage}${sliceArg ? ` ${sliceArg}` : ''}`
   return await spawnAgent(
     `Execute the SDLC '${stage}' stage for slug '${slug}'${sliceClause}, FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
     `${EOB}${WORK_RULES}\n\n` +
-    `1. Run \`${WF_CMD} progress set "${projectRoot}" ${slug} --run ${RUN_ID} --driver yolo ` +
-    `--stage ${stage}${sliceArg ? ` --slice ${sliceArg}` : ''} --status running\`. It records where the run stands.\n` +
-    `2. Run \`${briefCmd}\` and read its output in full. It is your brief, built by code from the records: the ` +
+    `1. Run ${wf(`${WF_CMD} progress set "${projectRoot}" ${slug} --run ${RUN_ID} --driver yolo --stage ${stage}${sliceArg ? ` --slice ${sliceArg}` : ''} --status running`)}. It records where the run stands.\n` +
+    `2. Run ${wf(`${briefCmd}`)} and read its output in full. It is your brief, built by code from the records: the ` +
     `## Card of the stage (its rules), the slice and its acceptance criteria, the plan sections of the stage, ` +
     `the test suites with the time box, and the live decisions in scope. A live decision in the brief is an ` +
     `answer: do not ask it again.\n` +
     `3. Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write ` +
-    `its record(s): write each as a draft under ${DRAFT_DIR}/ and run \`${REC('put')} <name>\`, per ` +
+    `its record(s): write each as a draft under ${DRAFT_DIR}/ and run ${wf(`${REC('put')} <name>`)}, per ` +
     `${referenceRoot}/_records.md.` +
     questionContract(stage) + (DELEGATE ? delegateClause(stage) : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
@@ -2126,8 +2162,7 @@ function selfVerifyEndClause(sliceArg) {
 
 function selfVerifyClause(sliceArg, idx, deferCmd) {
   return `\n\nSELF VERIFY (slice '${sliceArg}' is complexity xs or s, so no separate verify agent runs). After the ` +
-    `test receipt, run the verify stage for slice '${sliceArg}' in this session: run \`${WF_CMD} brief ` +
-    `"${projectRoot}" ${slug} verify ${sliceArg}\`, then read ${referenceRoot}/verify.md IN FULL and follow it ` +
+    `test receipt, run the verify stage for slice '${sliceArg}' in this session: run ${wf(`${WF_CMD} brief "${projectRoot}" ${slug} verify ${sliceArg}`)}, then read ${referenceRoot}/verify.md IN FULL and follow it ` +
     `VERBATIM: the AC gate, the runtime checks with the evidence reuse of verify/_runtime-evidence.md, the deferral ` +
     `rules, and the verify record 06-verify-${sliceArg}.md. When the verify fails, fix the code as a new step, ` +
     `commit it, and verify again: at most 2 verify rounds.` + settledItemsClause(sliceArg) +
@@ -2154,12 +2189,12 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
 function sliceStatusClause(sliceArg) {
   return `\n\nLAST STEP — SLICE STATUS MIRROR (only for slice '${sliceArg}'). After you write the verify artifact, ` +
     `take <status>: complete when it records \`result: pass\`; deferred when it records \`result: partial\` and its ` +
-    `only residue is open runtime-evidence deferrals. Then: (1) get the index with \`${REC('get')} index\`, set this ` +
+    `only residue is open runtime-evidence deferrals. Then: (1) get the index with ${wf(`${REC('get')} index`)}, set this ` +
     `slice's entry in \`slices[]\` to status: <status>, refresh the \`progress\` block (completed/total counts) to ` +
-    `match the roster, write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`; (2) in the ` +
+    `match the roster, write the draft ${DRAFT_DIR}/00-index.md and run ${wf(`${REC('put')} 00-index.md`)}; (2) in the ` +
     `roster record, set this slice's \`status:\` to <status> when it is not already: for 03-slice.md, get it, change ` +
-    `the entry, write its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
-    `\`${REC('set')} 03-slice-${sliceArg}.md status=<status>\`. Never change an entry that close set to \`skipped\`, another ` +
+    `the entry, write its draft and run ${wf(`${REC('put')} 03-slice.md`)}; for 03-slice-${sliceArg}.md, run ` +
+    `${wf(`${REC('set')} 03-slice-${sliceArg}.md status=<status>`)}. Never change an entry that close set to \`skipped\`, another ` +
     `slice's entry, or \`current-stage\`, and never mark the WORKFLOW complete. For any other result, write nothing ` +
     `here. Return sliceWriteBack: { ok, wrote: [<the records you changed>], note } (ok: false with a note when you ` +
     `wrote nothing).`
@@ -2172,23 +2207,23 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `files so the index tells the truth without anyone re-deriving it from artifacts.\n\n` +
     `${EOB}\n\n` +
     `ONE-WRITER RULE: /wf verify is the one writer of a roster \`status: complete\` or \`deferred\`. You only ` +
-    `MIRROR it. Read the frontmatter of this slice's verify record with \`${REC('get')} <name>\` ` +
+    `MIRROR it. Read the frontmatter of this slice's verify record with ${wf(`${REC('get')} <name>`)} ` +
     `(06-verify-${sliceArg}.md, or 06-verify.md for an un-suffixed change-mode workflow). Take <status>: ` +
     `\`complete\` when it records \`result: pass\`; \`deferred\` when it records \`result: partial\` and its only ` +
     `residue is open runtime-evidence deferrals. Any other result: write nothing and say so in note.\n` +
-    `1. Get the index with \`${REC('get')} index\`. Set this slice's entry in \`slices[]\` to ` +
+    `1. Get the index with ${wf(`${REC('get')} index`)}. Set this slice's entry in \`slices[]\` to ` +
     `status: <status>, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
-    `state. Write the draft ${DRAFT_DIR}/00-index.md and run \`${REC('put')} 00-index.md\`.\n` +
+    `state. Write the draft ${DRAFT_DIR}/00-index.md and run ${wf(`${REC('put')} 00-index.md`)}.\n` +
     `2. In the roster record (03-slice.md, or the per-slice ` +
     `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), when verify did not already set ` +
     `this slice's \`status:\` to <status>, set it to <status>: for 03-slice.md, get it, change the entry, write ` +
-    `its draft and run \`${REC('put')} 03-slice.md\`; for 03-slice-${sliceArg}.md, run ` +
-    `\`${REC('set')} 03-slice-${sliceArg}.md status=<status>\`. If the roster records no per-slice status field, ` +
+    `its draft and run ${wf(`${REC('put')} 03-slice.md`)}; for 03-slice-${sliceArg}.md, run ` +
+    `${wf(`${REC('set')} 03-slice-${sliceArg}.md status=<status>`)}. If the roster records no per-slice status field, ` +
     `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
     `the workflow is not done.\n` +
-    `4. After the roster holds the status, run \`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply\`: it ends ` +
+    `4. After the roster holds the status, run ${wf(`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply`)}: it ends ` +
     `the steers and the notes of slices that are done, so the later slices do not read them.\n` +
     `5. Run \`${GIT} worktree list\`. When a scratch worktree of this slice is left, name it in your note: a ` +
     `stage must remove what it made.` +
@@ -2368,7 +2403,7 @@ async function driveWallProbe(sliceArg, idx, fresh = null) {
     `the slice. It is to answer one question per wall: **does this wall still stand?**\n\n` +
     `${EOB}\n\n` +
     `Open deferrals recorded for this slice in the index (00-index.md):\n${lines || '    (none)'}\n\n` +
-    `1. Run \`${WF_CMD} defer check "${projectRoot}" ${slug} --next ${sliceArg} --json\` once. It runs the ` +
+    `1. Run ${wf(`${WF_CMD} defer check "${projectRoot}" ${slug} --next ${sliceArg} --json`)} once. It runs the ` +
     `recorded clearing-probe of each open deferral in code; exit 1 only means that a deferral is needed now. For ` +
     `each entry of this slice: 'unchanged' → stands: true, with the probe and its output tail as the receipt, ` +
     `and do not probe it again; 'changed' → stands: false.\n` +
@@ -2404,7 +2439,7 @@ async function classifyDecisions(res, idx) {
     `DECISION CLASSIFICATION (read-only) for slug '${slug}', stage '${res.stage}'` +
     `${res.slice ? `, slice '${res.slice}'` : ''}. The stage recorded these decisions WITHOUT the mandatory ` +
     `\`class\` stamp:\n${listed}\n\n` +
-    `Read ${referenceRoot}/_decision-classes.md IN FULL, then read the stage record with \`${REC('get')} <name>\` ` +
+    `Read ${referenceRoot}/_decision-classes.md IN FULL, then read the stage record with ${wf(`${REC('get')} <name>`)} ` +
     `(${res.artifactPath || 'the record of that stage'}) for the context each decision was made in. ` +
     `Classify EACH as 'implementation-detail' or 'intent-bearing' by that file's six tests. Write nothing.\n\n` +
     `Two rules that decide this round's worth:\n` +
@@ -2497,8 +2532,8 @@ async function driveReview(sliceArg, idx, extra = {}) {
   const selection = await spawnAgent(
     `SELECT REVIEW RUBRICS for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}. READ-ONLY — write nothing.\n\n` +
     `Read ${referenceRoot}/review/_stage.md "# Step 2: Select Review Commands" and ${referenceRoot}/review/_select.md, ` +
-    `then apply them to this change: read the index with \`${REC('get')} index\` (workflow-type), the ` +
-    `shape and slice records with \`${REC('get')} <name>\`, and \`${GIT} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
+    `then apply them to this change: read the index with ${wf(`${REC('get')} index`)} (workflow-type), the ` +
+    `shape and slice records with ${wf(`${REC('get')} <name>`)}, and \`${GIT} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
     `the core set (correctness, security, performance, architecture, and intent-fidelity for a lifecycle slug), ` +
     `the signal-driven rules, and the selection constraints (minimum and maximum).` +
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}` +
@@ -2759,7 +2794,7 @@ async function planFreshness(sliceArg, since = null) {
   const r = await spawnAgent(
     `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
     `The project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n${EOB}\n\n` +
-    (since ? `0. Run \`${WF_CMD} slice-files "${projectRoot}" ${slug} ${sliceArg} ${since} --json\`. Slice '${since}' was built after ` +
+    (since ? `0. Run ${wf(`${WF_CMD} slice-files "${projectRoot}" ${slug} ${sliceArg} ${since} --json`)}. Slice '${since}' was built after ` +
       `this plan was written. When the output has "known": true and an empty "shared" list, the two slices change no ` +
       `common file: return stale: [] at once, and skip the steps below.\n` : '') +
     `1. Read the plan IN FULL with \`${REC('get', `04-plan-${sliceArg}.md`)}\`. Its frontmatter carries ` +
@@ -2805,7 +2840,7 @@ const ROSTER_NOW = {
 async function rosterNow(afterSlice) {
   return await spawnAgent(
     `ROSTER RE-READ for slug '${slug}', after slice '${afterSlice}'. READ-ONLY — write, edit and commit nothing.\n\n` +
-    `Run \`${WF_CMD} status "${projectRoot}" ${slug} --json\` once. Return its slices[] in the order of the ` +
+    `Run ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} once. Return its slices[] in the order of the ` +
     `output, each as { slice, roster, dependsOn } with the values copied as they are. Read no other file, ` +
     `and do not reorder, add or leave out an entry. When the command fails, return { slices: [] }.` +
     heartbeatClause(`roster:${afterSlice}`, 'Drive', 'roster', afterSlice),
@@ -2926,7 +2961,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (stage === 'implement' && ((entry && entry.implementStops) || 0) >= SPLIT_AFTER_STOPS) {
       return stopOut('implement',
         `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
-          `or record a retry (\`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}\`) and run /wf yolo ${slug} again. The stops that were counted: \`${WF_CMD} step where "${projectRoot}" ${slug} ${sliceArg}\``,
+          `or record a retry (${wf(`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}`)}) and run /wf yolo ${slug} again. The stops that were counted: ${wf(`${WF_CMD} step where "${projectRoot}" ${slug} ${sliceArg}`)}`,
         { slice: sliceArg, ran, split: true })
     }
     // The answer that reaches this stage: one a route back carries, or one from args.answered.
@@ -3049,7 +3084,7 @@ const PAIR_CHECK = {
 async function pairCheck(a, b) {
   return await spawnAgent(
     `PAIR CHECK for slices '${a}' and '${b}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing.\n\n` +
-    `Run \`${WF_CMD} slice-files "${projectRoot}" ${slug} ${a} ${b} --json\` once. Return the "known" and "shared" ` +
+    `Run ${wf(`${WF_CMD} slice-files "${projectRoot}" ${slug} ${a} ${b} --json`)} once. Return the "known" and "shared" ` +
     `values of its output, copied as they are. Read no other file. When the command fails, return ` +
     `{ known: false, shared: [] }.` +
     heartbeatClause(`pair:${a}+${b}`, 'Drive', 'pair-check', a),
@@ -3091,8 +3126,7 @@ async function mergeSide(sliceArg, side, withSlice = null) {
     `add -- <each file that you resolved>\` and run \`${GIT} commit --no-edit\`. Name the files in resolved[].\n` +
     `4. When you cannot write a file so that both changes hold, or the static check still fails after your ` +
     `resolution, run \`${GIT} merge --abort\` and return { ok: false, conflicts: [<the files>], note: '<why>' }.\n` +
-    `5. When the merge commit is made, or there was nothing to merge, run \`${WF_CMD} worktree remove ` +
-    `"${projectRoot}" ${slug} ${side.name}\`, then \`${GIT} branch -d ${side.branch}\`, and return { ok: true, ` +
+    `5. When the merge commit is made, or there was nothing to merge, run ${wf(`${WF_CMD} worktree remove "${projectRoot}" ${slug} ${side.name}`)}, then \`${GIT} branch -d ${side.branch}\`, and return { ok: true, ` +
     `merged: <true when you made a merge commit> }. A copy or a branch that stays goes in note.` +
     WORK_RULES + talkClause('merge', sliceArg) + heartbeatClause(`merge:${sliceArg}`, 'Drive', 'merge', sliceArg),
     { schema: MERGE_RESULT, label: `merge:${sliceArg}`, phase: 'Drive', ...OPUS }
@@ -3114,10 +3148,9 @@ async function recheckSlice(sliceArg, why) {
     `of ${projectRoot}.\n` +
     `1. Read the plan record (\`${REC('get', `04-plan-${sliceArg}.md`)}\`) and find its \`## Slice Checks\` section. ` +
     `A plan with no such section has nothing to run: return { ok: true, note: 'no slice checks' }.\n` +
-    `2. Run each check of that section once through wf, so that wf sees its exit code: \`${WF_CMD} step check ` +
-    `"${projectRoot}" ${slug} ${sliceArg} --name "<the check>" --run "<its command>"\`, or \`talk job\` and ` +
+    `2. Run each check of that section once through wf, so that wf sees its exit code: ${wf(`${WF_CMD} step check "${projectRoot}" ${slug} ${sliceArg} --name "<the check>" --run "<its command>"`)}, or \`talk job\` and ` +
     `\`--job <the id>\` for a check over 8 minutes.\n` +
-    `3. Run \`${WF_CMD} step check "${projectRoot}" ${slug} ${sliceArg}\`. Return { ok: true } only when it exits ` +
+    `3. Run ${wf(`${WF_CMD} step check "${projectRoot}" ${slug} ${sliceArg}`)}. Return { ok: true } only when it exits ` +
     `0 and prints no check that is not met. Else return { ok: false, reds: [<each line that it prints as ` +
     `blocking or not met, with the test or the figure that fails>] }.` +
     WORK_RULES + heartbeatClause(`recheck:${sliceArg}`, 'Drive', 'recheck', sliceArg),
@@ -3203,8 +3236,8 @@ async function charterCheckpoint(idx, throughSlice) {
     `FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
     `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`${GIT} …\`.\n\n` +
     against +
-    `List the records with \`${REC('list')}\`, read the last few implement records with ` +
-    `\`${REC('get')} <name>\`, and inspect the built ` +
+    `List the records with ${wf(`${REC('list')}`)}, read the last few implement records with ` +
+    `${wf(`${REC('get')} <name>`)}, and inspect the built ` +
     `code they touched. For EACH commitment, judge whether the build so far is still ADVANCING it: 'honored' ` +
     `(the code visibly serves it), 'at-risk' (drifting — a decision has weakened it), or 'broken' (the code ` +
     `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +
@@ -3241,9 +3274,9 @@ async function runEnd(stoppedAt = null, reason = null, progress = null) {
     `file other than ${JOURNAL_PATH}, and write that file only with the command below. ` +
     `The command of step 3 removes the scratch worktrees of the slug; delete nothing else.\n` +
     `1. Run \`${endCmd}\`. It appends the run-end line.\n` +
-    `2. Run \`${progressCmd}\`. It writes where the run stands.\n` +
-    `3. Run \`${worktreeCmd}\`. It removes the copies of the repo that the stages left in .scratch/worktrees/${slug}/. ` +
-    `When it exits 1, put each \`kept\` line of its output in worktreesKept. Then run \`${WF_CMD} talk jobs "${projectRoot}" ${slug} --stop\`: it ends the long commands that the stages left running.\n` +
+    `2. Run ${wf(`${progressCmd}`)}. It writes where the run stands.\n` +
+    `3. Run ${wf(`${worktreeCmd}`)}. It removes the copies of the repo that the stages left in .scratch/worktrees/${slug}/. ` +
+    `When it exits 1, put each \`kept\` line of its output in worktreesKept. Then run ${wf(`${WF_CMD} talk jobs "${projectRoot}" ${slug} --stop`)}: it ends the long commands that the stages left running.\n` +
     `Return { ended: true } when the commands of steps 1 and 2 exit 0, else { ended: false }. Step 3 does not change ended.` +
     heartbeatClause('run-end', 'Drive', 'run-end', null),
     { schema: RUN_END_RESULT, label: 'run-end', phase: 'Drive', ...HAIKU } // mechanical bookkeeping; pinned per _subagents.md

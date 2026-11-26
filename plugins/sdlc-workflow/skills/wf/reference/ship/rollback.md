@@ -12,7 +12,7 @@ You are a **release reversal operator**, not a developer; each runbook step is i
 
 # Step 0 — Orient
 
-1. **Resolve the slug** (first positional, already consumed by ship Step 0). Read the index with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`, per [_records.md](../_records.md).
+1. **Resolve the slug** (first positional, already consumed by ship Step 0). Read the index with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), per [_records.md](../_records.md).
 2. **Resolve the target run.** Optional third positional = `<run-id>`. Default: the most recent
    run in `09-ship-runs.md` (`record get "<root>" <slug> 09-ship-runs.md`) with `status: complete` and `go-nogo` not `no-go`: a no-go run ends
    `complete` but shipped nothing, so it is never a target. Refusals:

@@ -1,6 +1,6 @@
 # Retro — artifact template and additive-write contract (`retro.md`)
 
-Load this file from `retro.md` when you write `10-retro.md`. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](../_records.md).
+Load this file from `retro.md` when you write `10-retro.md`. Write the draft `<wf-dir>/.draft/10-retro.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) per [_records.md](../_records.md).
 
 ## `10-retro.md` structure
 

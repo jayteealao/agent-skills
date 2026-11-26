@@ -3,7 +3,7 @@
 Two files are written by nearly every `/wf` stage and by every driver:
 
 - the index of the workflow (`00-index.md`, held in `state.yaml` and `meta.yaml`) — status, stage, progress, deferral ledger, RIM ledger, charter;
-- `.ai/workflows/INDEX.md` — the global registry, which `wf.mjs index` and `wf.mjs status` rebuild.
+- `.ai/workflows/INDEX.md` — the global registry, which `wf_run { "op": "index" }` (CLI: `wf.mjs index`) and `wf_context { "op": "status" }` (CLI: `wf.mjs status`) rebuild.
 
 They are the only records in the system with **many concurrent writers**. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
 
@@ -11,7 +11,7 @@ This file is the shared rule. `yolo.md` and the write-bearing stage references c
 
 ## The rule
 
-**1. Change an index field with `wf.mjs record set`.** The command reads the index, merges the change and writes it in one step, so it loses no field of another writer. See [_records.md](_records.md).
+**1. Change an index field with `wf_run { "op": "record set" }` (CLI: `wf.mjs record set`).** The command reads the index, merges the change and writes it in one step, so it loses no field of another writer. See [_records.md](_records.md).
 
 **2. A draft of the whole index replaces the whole index.** Write one only when a stage makes the index (intake) or rewrites most of it. Get the index with `record get` immediately before you write the draft, and put the draft at once. The gap between the read and the put is where the other writer lives.
 

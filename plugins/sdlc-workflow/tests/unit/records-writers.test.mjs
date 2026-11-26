@@ -12,6 +12,7 @@ const ROOT = join(import.meta.dirname, '..', '..');
 // Files whose raw writes are all outside the records, with the reason.
 const OUTSIDE = {
   'lib/atomic-write.mjs': 'the writers themselves',
+  'hooks/shell-wf-note.mjs': 'a count of shell calls in the state folder, one line for each call',
   'scripts/release.mjs': 'the files of the plugin',
   'scripts/stamp-version.mjs': 'the files of the plugin',
   'scripts/generate.mjs': 'the files of the plugin',

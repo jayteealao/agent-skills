@@ -17,11 +17,11 @@ edit `findings.yaml` by hand, and never copy its rows into a second ledger.
 
 | Command | What it does |
 |---|---|
-| `wf.mjs findings add <root> <slug> <found.json> --source <s> [--slice <x>] --dimensions <a,b> [--files <a,b>]` | Merges the findings of one run by the merge law below. |
-| `wf.mjs findings set <root> <slug> <id> <status> [--reason <r>] [--commit <sha>] [--decision <D-id>]` | Records a triage decision or a fix outcome on one entry. `--commit` names the commit of a fix step. `--decision` dismisses a finding that goes against a live answer, steer or approval of the person. |
-| `wf.mjs findings table <root> <slug> [--source <s>] [--slice <x>]` | Prints the verdict and the findings table of a review file. |
-| `wf.mjs findings metrics <root> <slug> [--source <s>] [--slice <x>]` | Prints the verdict, `commands-run` and the `metric-*` fields of a review file. |
-| `wf.mjs findings list <root> <slug> [--open] [--json]` | Prints the entries. |
+| `wf_run { "op": "findings add", "slug": "<slug>", "source": "<s>", "dimensions": "<a,b>", "found": "<the JSON>" }` (CLI: `wf.mjs findings add <root> <slug> <found.json> --source <s> [--slice <x>] --dimensions <a,b> [--files <a,b>]`) | Merges the findings of one run by the merge law below. |
+| `wf_run { "op": "findings set", "slug": "<slug>", "id": "<id>", "status": "<status>" }` (CLI: `wf.mjs findings set <root> <slug> <id> <status> [--reason <r>] [--commit <sha>] [--decision <D-id>]`) | Records a triage decision or a fix outcome on one entry. `--commit` names the commit of a fix step. `--decision` dismisses a finding that goes against a live answer, steer or approval of the person. |
+| `wf_read { "slug": "<slug>", "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table <root> <slug> [--source <s>] [--slice <x>]`) | Prints the verdict and the findings table of a review file. |
+| `wf_read { "slug": "<slug>", "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics <root> <slug> [--source <s>] [--slice <x>]`) | Prints the verdict, `commands-run` and the `metric-*` fields of a review file. |
+| `wf_read { "slug": "<slug>", "items": [{ "op": "findings list" }] }` (CLI: `wf.mjs findings list <root> <slug> [--open] [--json]`) | Prints the entries. |
 
 `<s>` is `review`, `audit` or `pr-bot`. A run with no `--slice` is a run of the whole work
 packet. `found.json` is `{ "dimensions": [...], "affectedFiles": [...], "findings": [...] }`.
@@ -35,7 +35,7 @@ dimension that is not named clears nothing.
 
 ## The merge law
 
-`wf.mjs findings add` applies these rules. They are in code so that no writer can skip one.
+`wf_run { "op": "findings add" }` (CLI: `wf.mjs findings add`) applies these rules. They are in code so that no writer can skip one.
 
 1. **Within-run dedupe.** Two findings of one run on the same file and line are one finding.
    It keeps the higher severity and names the other dimension in `also`.
@@ -53,7 +53,7 @@ dimension that is not named clears nothing.
    the run did not check stays as it is.
 5. **Triage decisions persist.** A run never changes `deferred`, `dismissed`, `could-not-fix`
    or `kept-by-person`. `fixed` is a claim, not a decision: it holds until a run finds the
-   finding again (rule 2). Only `wf.mjs findings set` sets a triage status. A
+   finding again (rule 2). Only `wf_run { "op": "findings set" }` (CLI: `wf.mjs findings set`) sets a triage status. A
    `deferred`, `dismissed`, `could-not-fix` or `kept-by-person` status needs a reason.
 6. **One `runs` entry per run**, with the dimensions, the raw count and the verdict.
 7. **No row is deleted.** A refuted finding stays with the refuter's reason.
@@ -75,13 +75,13 @@ When the fix of a finding changes an acceptance check of the slice, or a confirm
 or `02c-craft.md` line, set `changesAcceptance: true` on the finding. The review does not ask
 the person. It applies the fix and rewrites the check and the plan step in the same fix step,
 per rule 5 of [_decisions.md](_decisions.md). When the fix goes against a decision of the person,
-the review dismisses the finding with `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`.
+the review dismisses the finding with `wf_run { "op": "findings set", "slug": "<slug>", "decision": "<D-id>", "id": "<id>", "status": "dismissed" }` (CLI: `wf.mjs findings set "<root>" <slug> <id> dismissed --decision <D-id>`).
 
 ## The review file
 
 A review file (`07-review.md`, or `07-review-<slice>.md` for a per-slice run) is written
-**whole** on every run, from the ledger, as a draft that you put per [_records.md](_records.md). Take the table from `wf.mjs findings table` and the
-frontmatter metrics from `wf.mjs findings metrics`. Do not merge into the old file and do not
+**whole** on every run, from the ledger, as a draft that you put per [_records.md](_records.md). Take the table from `wf_read { "items": [{ "op": "findings table" }] }` (CLI: `wf.mjs findings table`) and the
+frontmatter metrics from `wf_read { "items": [{ "op": "findings metrics" }] }` (CLI: `wf.mjs findings metrics`). Do not merge into the old file and do not
 edit rows in place: the ledger, not the file, keeps the history.
 
 ## What the law protects

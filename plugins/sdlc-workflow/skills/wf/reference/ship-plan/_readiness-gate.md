@@ -43,7 +43,7 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
     - { label: "Cancel",                      description: "Abort the handoff; leave everything unchanged." }
   multiSelect: false
   ```
-  - "Create it now" → Stop; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `recommended-next-*` index fields at `/wf project ship-plan init` with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "recommended-next-invocation=/wf project ship-plan init" ...` (per [_records.md](../_records.md)) and resume ship after the plan exists.
+  - "Create it now" → Stop; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `recommended-next-*` index fields at `/wf project ship-plan init` with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": ["recommended-next-invocation=/wf project ship-plan init","..."] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index "recommended-next-invocation=/wf project ship-plan init" ...`) (per [_records.md](../_records.md)) and resume ship after the plan exists.
   - "Shipping is external" → set `ship-plan-readiness: not-applicable`; note the reason in the handoff's `## Risks / Caveats`; return to the caller and continue.
   - "Cancel" → Stop.
 

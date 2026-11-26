@@ -64,7 +64,7 @@ You orchestrate the workflow. You do not solve the problem.
        ```
        Do not go past Step 0. Stop.
      - **No row.** No collision: go on to sub-step 3.
-3. **Check whether the workflow exists.** It exists when `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` exits 0 ([_records.md](../_records.md)). This disk check also catches a missing or stale `INDEX.md`.
+3. **Check whether the workflow exists.** It exists when `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) exits 0 ([_records.md](../_records.md)). This disk check also catches a missing or stale `INDEX.md`.
    - When it exists and `stage-status` is `Awaiting input` on this stage, this is a **resume**. Continue where the last run stopped, instead of starting fresh.
    - When it exists and `current-stage` is past intake, note the re-run in chat, and go on. [_additive-write.md](../_additive-write.md) snapshots the last revision and appends the `revisions:` ledger, so no permission question is needed.
    - When it does not exist, this is a fresh start. Go on.
@@ -82,7 +82,7 @@ Run the probes in `intake/default/_stack-fingerprint.md`: the repo signals (mani
 
 # Step 0.6 — Test profile (asked once for the project)
 
-The first-run setup asks for the suites once for the project ([../setup.md](../setup.md)). Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it prints a suite, use the profile as it is. Do not ask about a missing suite, because the repo has none; implement records `receipt: none (no suite in the profile)`.
+The first-run setup asks for the suites once for the project ([../setup.md](../setup.md)). Run `wf_query { "op": "profile show" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`). When it prints a suite, use the profile as it is. Do not ask about a missing suite, because the repo has none; implement records `receipt: none (no suite in the profile)`.
 
 Do the rest of this step only when it prints `no test profile` and `.ai/sdlc-config.json` has no `project.setupAt`: a repo that was set up before the setup step. Then estimate the four suites from the manifests and the test tooling of the stack fingerprint:
 
@@ -93,9 +93,9 @@ Do the rest of this step only when it prints `no test profile` and `.ai/sdlc-con
 | `full` | every automated suite of the repo |
 | `heavy` | the device, browser or end-to-end suites, when the repo has them |
 
-1. For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile run`. Leave out a suite that the repo does not have.
+1. For each suite, run `wf_run { "op": "profile set", "command": "<command>", "estimate": "<seconds>", "suite": "<suite>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`). Do not run a suite to time it: each later real run records its time with `profile run`. Leave out a suite that the repo does not have.
 2. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
-3. After the answer, run `node "<skill-dir>/scripts/wf.mjs" setup "<projectRoot>"` once. It stamps `project.setupAt`, so no later run asks again, also when the repo has no suite.
+3. After the answer, run `wf_act { "op": "setup" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" setup "<projectRoot>"`) once. It stamps `project.setupAt`, so no later run asks again, also when the repo has no suite.
 
 Also list the known long runs of the repo with an estimate, per "The known long runs" of [../_check-budget.md](../_check-budget.md). Add the budget question to Batch B, when "When to ask" of that file says to ask it.
 
@@ -134,7 +134,7 @@ Inputs: `$ARGUMENTS` (the full raw request), `$0` (the first token, when given).
 
 Do this in order:
 1. Parse the request, and derive the slug of the workflow.
-2. Create the `<wf-dir>/` directory. Write the draft `<wf-dir>/.draft/00-index.md` with the index template in `intake/default/_artifact.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. The first `decide add` creates `decisions.yaml`.
+2. Create the `<wf-dir>/` directory. Write the draft `<wf-dir>/.draft/00-index.md` with the index template in `intake/default/_artifact.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). The first `decide add` creates `decisions.yaml`.
 3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: substance first (**Batch B**), process second (**Batch A**). Batch B is free text: the outcome, the success criteria, the non-goals, the constraints, and the stack confirmation. Batch A asks the path question first, then the gate questions of the branch strategy and the appetite. Intake does not ask the review scope. When the person takes the small path, [intake/small.md](small.md) runs the rest of this run, and the steps below do not run.
 4. Record every answer, structured and free text, with `decide add` per [_decisions.md](../_decisions.md).
 5. Run freshness research for each external technology, dependency, platform, API or standard that the request mentions or clearly implies.

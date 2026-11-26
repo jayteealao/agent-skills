@@ -37,15 +37,15 @@ You are a **storyteller of the work done**, not a problem solver.
 
 `$ARGUMENTS`: the first token is **polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name); an optional second token is a **slice-slug** or **focus keyword** (single-slug only).
 
-1. **Resolve the first token**: run `node "<skill-dir>/scripts/wf.mjs" target "<root>" <token> --json`. A slug wins over a branch.
-   - **`scope: slug`** → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). When the output has `inferred: true`, note the inference in the recap header. A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`.
+1. **Resolve the first token**: run `wf_query { "op": "target", "slug": "<token>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" target "<root>" <token> --json`). A slug wins over a branch.
+   - **`scope: slug`** → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). When the output has `inferred: true`, note the inference in the recap header. A `prototype` row of `INDEX.md` is a slug too: `wf_query { "op": "prototype status" }` (CLI: `prototype.mjs status`) names its worktree. Read `prototype-ledger.json` there, and get the record `01-prototype.md` with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "01-prototype.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<worktree>" <slug> 01-prototype.md`).
    - **`scope: branch`** (a `pr#N` or a branch name) → **batch recap** (`recap-scope: branch`) — see **Step B** below.
    - **`ambiguous: true`** (no token, several open workflows) → ask which of its `slugs` as a gate question per [_gate-question.md](_gate-question.md) (or in chat).
    - **An `error`** → Stop and show it.
 
 2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → Stop: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
-   - **Exact slice-slug match** — `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice-<token>.md` exits 0 → **slice recap**
+   - **Exact slice-slug match** — `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "03-slice-<token>.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice-<token>.md`) exits 0 → **slice recap**
      (Steps 1–3, slice-scoped). Slice match is checked first so a slice literally named `plan`/`review`
      still recaps.
    - **Focus keyword** — `token` ∈ `{plan, shape, slice, review, findings}` and no slice matched →
@@ -73,12 +73,12 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
 Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
-1. The index — read it with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index` and parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-invocation` (or, when it is absent, `recommended-next-invocation`), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
+1. The index — read it with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) and parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-invocation` (or, when it is absent, `recommended-next-invocation`), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 2. For every stage record in `workflow-files`, read it with `record get` and use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (the ledger `findings.yaml`), what shipped (handoff/ship), and lessons (retro).
 3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
 3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
-4. If slices exist, list the `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` records with `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>` to build the slice-by-slice progress picture.
-5. When `02c-craft.md` names `screens:`, give the canvas URL `/r/<repo>/?workflow=<slug>` in `## Where it stands now` (`wf.mjs design server url`).
+4. If slices exist, list the `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` records with `wf_read { "slug": "<slug>", "items": [{ "op": "record list" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record list "<root>" <slug>`) to build the slice-by-slice progress picture.
+5. When `02c-craft.md` names `screens:`, give the canvas URL `/r/<repo>/?workflow=<slug>` in `## Where it stands now` (`wf_query { "op": "design server url" }` (CLI: `wf.mjs design server url`)).
 
 **Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist; read each with `record get`, which exits 1 for an absent record). Read the live entries of the decision store for this slice (`decide list --slice <slice>`). Ignore the other slices except where this slice depends on them.
 
@@ -149,7 +149,7 @@ to the person who created it — they know their project; they want to understan
 captures, what it locks in, and what it implies. Same understandable voice as recap; no code changes,
 no advancing the workflow.
 
-1. **Read the target** (and just enough context to explain it). Read each record with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`:
+1. **Read the target** (and just enough context to explain it). Read each record with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "<name>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`):
 
    | Focus | Read |
    |---|---|
@@ -189,7 +189,7 @@ no advancing the workflow.
 # Step 3 — Save and return
 
 1. **Timestamp:** get the current UTC time per [_timestamp.md](_timestamp.md).
-2. **Write the draft `<wf-dir>/.draft/90-recap.md`** with this frontmatter, followed by the recap body. Then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md):
+2. **Write the draft `<wf-dir>/.draft/90-recap.md`** with this frontmatter, followed by the recap body. Then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) per [_records.md](_records.md):
 
 ```yaml
 ---

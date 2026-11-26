@@ -1,6 +1,6 @@
 Use color as hierarchy, meaning and atmosphere. Keep the confirmed brand and the semantic conventions. Do not replace a visual world under the name of color: when the work needs a new color identity, run [stage.md](stage.md) Step 3b.
 
-`wf.mjs design check` sends a failure of contrast, and a color that is not a token, to this file.
+`wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) sends a failure of contrast, and a color that is not a token, to this file.
 
 ---
 
@@ -35,7 +35,7 @@ Use this method when the tokens do not yet hold the palette, or when a role is m
 5. **The dosage.** Give each color its share of the surface from the strategy.
 6. **The test.** Cover the name of the product. When the palette alone could belong to any product of the category, go back to step 2 with more specific materials.
 
-Write the result into `DESIGN.md` as token roles, and run `wf.mjs design tokens`. Use the color space of the project. For a new palette, prefer a perceptual space such as OKLCH, and reduce chroma as lightness nears black or white.
+Write the result into `DESIGN.md` as token roles, and run `wf_query { "op": "design tokens" }` (CLI: `wf.mjs design tokens`). Use the color space of the project. For a new palette, prefer a perceptual space such as OKLCH, and reduce chroma as lightness nears black or white.
 
 ## Build roles, not swatches
 
@@ -57,14 +57,14 @@ Give each job a role, and make each role a token:
 - Separate data series by lightness, chroma, shape, label or pattern, not by hue alone.
 - A surface tint is the accent mixed into the ground through tokens, for example `color-mix(in oklab, var(--accent) 6%, var(--ground))`. Do not write the mixed value raw.
 
-**Depth is a token, not a color in the page.** The color of a shadow, a ring and an image outline is a depth token of `DESIGN.md`, used through `var()`. `wf.mjs design check` fails a raw `rgba()` in a `box-shadow` or an `outline`. [polish.md](polish.md) → Depth gives the defaults.
+**Depth is a token, not a color in the page.** The color of a shadow, a ring and an image outline is a depth token of `DESIGN.md`, used through `var()`. `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) fails a raw `rgba()` in a `box-shadow` or an `outline`. [polish.md](polish.md) → Depth gives the defaults.
 
 ## Fix a check failure
 
 | The check says | Do |
 |---|---|
 | `contrast`: text under its minimum | Change the token of the text or of its ground, so that every use is fixed. Do not patch one element. On a colored ground, take secondary text from the hue of the ground ([_craft-floor.md](_craft-floor.md) rules 1 and 16). |
-| `token`: a color that is not a token, with the nearest token named | Use the named token. When no token has the job, add a role to `DESIGN.md` and run `wf.mjs design tokens`. |
+| `token`: a color that is not a token, with the nearest token named | Use the named token. When no token has the job, add a role to `DESIGN.md` and run `wf_query { "op": "design tokens" }` (CLI: `wf.mjs design tokens`). |
 | `token`: a custom property that is not a token | Move it to `DESIGN.md` as a role, or to `components.css` when it belongs to one component. |
 
 ## Verify
@@ -94,7 +94,7 @@ The move changes the color token roles of `DESIGN.md`, the region that each colo
 ### As a pass on an approved design
 
 The pass changes nothing. Write each answer as a finding with its screen key or `file:line`.
-1. Does `wf.mjs design check` pass for contrast and tokens, in both themes?
+1. Does `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) pass for contrast and tokens, in both themes?
 2. Does each color have a role, and does any role have two colors?
 3. Where does gray hide hierarchy? Where does color alone carry a state?
 4. Does the surface keep the strategy and the dosage of the contract?

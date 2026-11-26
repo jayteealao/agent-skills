@@ -5,7 +5,7 @@ A review (`audit`, `critique`) and a move pass load this file from `design.md` S
 ## Registration and the transformation artifact
 
 **Augmentation registration** (a move that `implement` applies, audit, critique) — create `augmentations:` in
-`00-index.md` if absent. Set the whole list with `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`: the entries of the index plus the new one ([_records.md](../_records.md)):
+`00-index.md` if absent. Set the whole list with `wf_run { "op": "record set", "slug": "<slug>", "name": "index", "path": "augmentations=<list>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> index augmentations=<list>`): the entries of the index plus the new one ([_records.md](../_records.md)):
 
 ```yaml
 augmentations:
@@ -53,11 +53,11 @@ artifact lets `/wf review` and `/wf ship` see exactly what design augmentations 
 - **Image gate** records whether the person approved the screens (`pass`) or why a flow skipped
   them; `n/a` for commands that don't run it.
 - **Screens** — for the design stage, the approved screen keys, the approval commit, and the
-  `computer:` and `phone:` links that `wf.mjs design server url <root> --workflow <slug>` prints.
+  `computer:` and `phone:` links that `wf_query { "op": "design server url", "workflow": "<slug>" }` (CLI: `wf.mjs design server url <root> --workflow <slug>`) prints.
 - **The person opens no record.** The summary holds every fact that the person needs to decide the next step: what was approved, what stays open, and each check cause that the person accepted, as a count.
 - **Artifacts.** Comma-separate the `<wf-dir>/` paths written (build runs list the
   whole span; the design stage lists `.ai/design/screens/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
-- **Next** is "Type `/wf <key> <args>`.", or `Done`. The table of `design.md` Step 2 gives it for each job. The design stage writes the step that `wf.mjs design approve` printed.
+- **Next** is "Type `/wf <key> <args>`.", or `Done`. The table of `design.md` Step 2 gives it for each job. The design stage writes the step that `wf_person { "op": "design approve" }` (CLI: `wf.mjs design approve`) printed.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
   spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](../_chat-return.md); apply them here.

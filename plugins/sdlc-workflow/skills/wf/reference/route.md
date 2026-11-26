@@ -18,7 +18,7 @@ Step 0 gives you every token, the key candidate included, and the reason it did 
 - `<token> does not fit the form`: tokens are left after the last position of every form.
 - `<token> not on disk`: a slug, a slice or a branch that the disk check did not find.
 
-Read the open workflows with `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow whose `group` is not `completed` is open; it carries its `slug`, `title`, `stage`, `selectedSlice`, `updatedAt` and `next`. When the reason is a slice miss, run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json` for that slug; its `slices` list is the roster. No workflow in the result means there are no open workflows.
+Read the open workflows with `wf_context { "op": "status" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`). Each workflow whose `group` is not `completed` is open; it carries its `slug`, `title`, `stage`, `selectedSlice`, `updatedAt` and `next`. When the reason is a slice miss, run `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`) for that slug; its `slices` list is the roster. No workflow in the result means there are no open workflows.
 
 Build the command from file paths only. Never put a word of the person's text into a shell command. Load no other reference before you classify.
 
@@ -155,7 +155,7 @@ The dispatch reads the forms of these tables from `skills/wf/keys.json` and chec
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before ship. | none |
 | `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
 | `orchestrate` | `<slug> [text]` · `text` | Take an instruction, an intake or a list from your words to proof, with agents. Stops before the merge. | `orchestrate/contract.yaml`, `orchestrate/evidence.html` |
-| `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
+| `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and the goal check judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 
 ### Navigation · routers
 

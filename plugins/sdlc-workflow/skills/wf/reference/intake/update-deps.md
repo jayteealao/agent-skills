@@ -88,7 +88,7 @@ Read all manifests, and make a complete inventory. For each manifest, read it, a
 | Rust | `cargo outdated` + `cargo audit` |
 | Java | `mvn versions:display-dependency-updates` / `gradle dependencyUpdates` |
 
-For `mode: single`, filter to the target. For `security-only`, find the packages with a CVE. Write the draft `<wf-dir>/.draft/01-update-deps.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Write the draft of each later record of this run, and put it, the same way.
+For `mode: single`, filter to the target. For `security-only`, find the packages with a CVE. Write the draft `<wf-dir>/.draft/01-update-deps.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). Write the draft of each later record of this run, and put it, the same way.
 Take the frontmatter from the `01-<mode>.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
 Add `run-id: deps-<YYYYMMDD-HHMM>` (continuity with old `.ai/dep-updates/` runs) and `mode: <all|single|security-only|audit-only>` after `workflow-type`.
 Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (the count only).

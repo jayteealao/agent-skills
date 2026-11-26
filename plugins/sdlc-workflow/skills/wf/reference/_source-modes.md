@@ -2,7 +2,7 @@
 
 The `workflow-type` of `00-index.md` sets the source mode of a workflow: which record leads, where the acceptance criteria are, which names the records have, and what implement, verify and review do. This table owns the source modes. `implement.md`, `verify.md`, `review/_stage.md`, `probe.md` and `yolo.md` cite it.
 
-Read each record with `wf.mjs record get`. A stage whose action is STOP writes no artifact: it gives the route and stops.
+Read each record with `wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`). A stage whose action is STOP writes no artifact: it gives the route and stops.
 
 | `workflow-type` | Lead record | Acceptance source | Record names | implement | verify | review |
 |---|---|---|---|---|---|---|

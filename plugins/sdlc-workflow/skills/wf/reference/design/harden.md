@@ -1,6 +1,6 @@
 Harden a UI against real people, real data and real failures. Make it work for people with visual, motor or cognitive differences. Make it hold the inputs, errors and languages that real use produces.
 
-The numbers of this move are in [_craft-floor.md](_craft-floor.md) → Verify. This file says how to meet them. `wf.mjs design check` sends a failure of contrast in a state, focus, target size, worst-case content, display or page states to this file.
+The numbers of this move are in [_craft-floor.md](_craft-floor.md) → Verify. This file says how to meet them. `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) sends a failure of contrast in a state, focus, target size, worst-case content, display or page states to this file.
 
 ## Focus
 
@@ -16,7 +16,7 @@ The numbers of this move are in [_craft-floor.md](_craft-floor.md) → Verify. T
 
 ## Touch targets
 
-`wf.mjs design check` fails a control whose hit area is under 24 by 24 CSS px. It measures the largest of three boxes: the control, a pseudo-element of the control, and a label that wraps the control.
+`wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) fails a control whose hit area is under 24 by 24 CSS px. It measures the largest of three boxes: the control, a pseudo-element of the control, and a label that wraps the control.
 
 | Case | Do |
 |---|---|
@@ -99,7 +99,7 @@ The move changes these things in the screens:
 ### As a pass on an approved design
 
 The pass changes nothing. Answer each question with a screen key or a `file:line`, and write each "no" as a finding.
-1. Does `wf.mjs design check` pass for contrast, focus, target size, worst-case content, display and page states?
+1. Does `wf_job { "op": "design check" }` (CLI: `wf.mjs design check`) pass for contrast, focus, target size, worst-case content, display and page states?
 2. Does every control show its focus, and does each closing widget return it?
 3. Does any state use color as its only signal?
 4. Does the `worst` state hold at the narrowest viewport, and did the person decide each wrap, truncation and fallback?

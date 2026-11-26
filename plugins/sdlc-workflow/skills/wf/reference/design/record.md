@@ -11,7 +11,7 @@ The project-level design memory. Every workflow that needs design reads it, and 
 | Current design | `.ai/design/current.md` | `/wf design record`, `/wf design extract`, `retro`; the design stage creates it when it is missing |
 | Direction | `.ai/design/direction.md` | `/wf design record`, `/wf design direction`, `retro` (only after the person answers); the design stage creates it when it is missing and adds the open decisions that the person keeps |
 
-Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, `wf.mjs design init` keeps `.ai/design/` tracked ([_surface.md](_surface.md)).
+Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, `wf_run { "op": "design init" }` (CLI: `wf.mjs design init`) keeps `.ai/design/` tracked ([_surface.md](_surface.md)).
 
 **Token roles.** The design stage writes the token roles into the `### Token roles` tables of `DESIGN.md` at its foundation step (Step 3c), and writes a role again in the round whose answer changes it (Step 4b), before the approval. [setup.md](setup.md) gives the template. The stage asks no question before such a write: it names each role that it wrote, with its value, in the Changed line of its next stop message, and the person changes any of them in a round. Keep every other row and section of `DESIGN.md`. Every other writer of the record shows the person the change in chat and waits for the answer before the write.
 
@@ -66,7 +66,7 @@ Work with the person on `direction.md`:
 4. Write only what the person confirms. Move each answered open decision to `## Decided`.
 5. Return in chat: each line that changed, and `Done`.
 
-When the instructions are `from <board-slug>`, a design brainstorm carried a change of direction. Read the board's work packet with `design-form: design-direction` (`shape: design-direction` on an older board), and present its kept items with `design: true` as proposed changes in step 2, each with its reason. After the person answers, close the work packet: run `node "<skill-dir>/scripts/campaign.mjs" close "<root>" <board-slug> <packet-key> done`.
+When the instructions are `from <board-slug>`, a design brainstorm carried a change of direction. Read the board's work packet with `design-form: design-direction` (`shape: design-direction` on an older board), and present its kept items with `design: true` as proposed changes in step 2, each with its reason. After the person answers, close the work packet: run `wf_run { "op": "campaign close", "source": "<board-slug>", "packet-key": "<packet-key>", "type": "done" }` (CLI: `node "<skill-dir>/scripts/campaign.mjs" close "<root>" <board-slug> <packet-key> done`).
 
 ### `/wf design sync`
 Keep `DESIGN.md` and the canvas design system in step, per `_host-surfaces.md`, row "Design system sync". When the host has no sync surface, report that and stop. Record the design-system link in `current.md` frontmatter. Change one component at a time. Show the person the plan in chat, and wait for the answer before any write.

@@ -51,7 +51,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 0 — Orient
 1. **Resolve the slug and the mode:**
-   - When the slug that intake took, or the first token after `task`, has an index (`node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`) with `workflow-type: task`, this is a **resume**. Continue at the first incomplete step.
+   - When the slug that intake took, or the first token after `task`, has an index (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`)) with `workflow-type: task`, this is a **resume**. Continue at the first incomplete step.
    - When intake took a slug of another `workflow-type` that is not closed, this is **slug-mode** (above).
    - Otherwise this is a **new task**. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `task-<short-description>`.
 
@@ -66,7 +66,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 1 — Brief (`00-index.md` + `01-task.md`)
 
-Write the brief. Write `01-task.md` and `00-index.md` as drafts `<wf-dir>/.draft/<name>`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`. Ask at most 2 questions in chat. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
+Write the brief. Write `01-task.md` and `00-index.md` as drafts `<wf-dir>/.draft/<name>`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`). Ask at most 2 questions in chat. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 
 `01-task.md` (`type: intake`) satisfies the required set of intake: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](../_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes`. It carries these fixed `##` headings and fields:
 

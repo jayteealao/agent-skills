@@ -20,9 +20,9 @@ You are running `/wf verify`, stage 6 of 9: 1·intake → 2·design → 3·slice
 - Before you rule on a criterion that turns on how a dependency behaves, read its installed source with the `study-sources` skill, per [_source-study.md](_source-study.md).
 - Fix only in the fix round of Step 7.6, after the checks and the AC gate of Step 7.5. Fix a `lint`, `format` or `marker-syntax` issue without a question. Ask a gate question for each other failure, per [_gate-question.md](_gate-question.md): `Fix`, `Skip` or `Escalate`. Send each `Fix` to a write-isolated fix sub-agent, and record each fix in `## Verify-Owned Fixes`. When you have no tool that starts a sub-agent (for example, you are a stage agent of a driver), make each `Fix` yourself, one after another, per "No sub-agent tool" in Step 7.6. A missing sub-agent tool is never a reason to stop or to escalate.
 - Run one fix round only. When an issue still fails after it, write `convergence: escalated` and route to `/wf verify` again or to `/wf implement`.
-- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again. One that it reports `probe-error` has a probe that could not run on this machine: write a probe that runs in any shell ([verify/_deferrals.md](verify/_deferrals.md)), then check again.
+- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf_query { "op": "defer check" }` (CLI: `wf.mjs defer check`) reports `unchanged` is not probed again. One that it reports `probe-error` has a probe that could not run on this machine: write a probe that runs in any shell ([verify/_deferrals.md](verify/_deferrals.md)), then check again.
 - A behaviour that you drove and saw wrong is `result: fail`. It is never a deferral.
-- Before you fix or report a failing item, run `wf.mjs decide list` for the slice. When a live decision of the person, a standing answer or a delegate decision already settles the item (for example "record the miss, the speed work moves to a later packet"), accept the item. Write `accepted-by: <that decision's id>`, `accepted-at` and `accepted-items` in the frontmatter. Do not fix it, do not stop on it, and do not ask about it.
+- Before you fix or report a failing item, run `wf_read { "items": [{ "op": "decide list" }] }` (CLI: `wf.mjs decide list`) for the slice. When a live decision of the person, a standing answer or a delegate decision already settles the item (for example "record the miss, the speed work moves to a later packet"), accept the item. Write `accepted-by: <that decision's id>`, `accepted-at` and `accepted-items` in the frontmatter. Do not fix it, do not stop on it, and do not ask about it.
 - When no code changed after the commit of the implement test receipt, reuse its results. Otherwise run only the fast and affected suites.
 - A `full` or `heavy` command, or a command longer than the longest check of your brief, is a long run. A long run is never a slice step (`_long-runs.md` L5): record it under `## Packet Checks`. Do this also when an acceptance criterion needs it or names a push hook. The review runs it once for the packet.
 - Reuse the runtime evidence of a check when no file that the check depends on changed since its evidence commit, per [verify/_runtime-evidence.md](verify/_runtime-evidence.md). Drive the runtime only for the other checks.
@@ -34,7 +34,7 @@ You are running `/wf verify`, stage 6 of 9: 1·intake → 2·design → 3·slice
 - Use an emulator or a simulator. Do not drive a physical device that `devices.test` of `.ai/sdlc-config.json` does not name.
 - Set the terminal state honestly: `convergence` and `result`.
 - Done when `06-verify-<slice>.md` records the result of every acceptance criterion.
-- To change one section or one line of a record, run `wf.mjs record edit "<root>" <slug> <name> --section <heading> --from <file>` or `... --replace "<old>" --with "<new>"`. To change much of the body, run `wf.mjs record draft "<root>" <slug> <name>`, edit the draft that it names, then run `wf.mjs record put "<root>" <slug>`.
+- To change one section or one line of a record, run `wf_run { "op": "record edit", "slug": "<slug>", "section": "<heading>", "name": "<name>", "text": "<the text>" }` (CLI: `wf.mjs record edit "<root>" <slug> <name> --section <heading> --from <file>`) or `... --replace "<old>" --with "<new>"`. To change much of the body, run `wf_run { "op": "record draft", "slug": "<slug>", "name": "<name>" }` (CLI: `wf.mjs record draft "<root>" <slug> <name>`), edit the draft that it names, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `wf.mjs record put "<root>" <slug>`).
 - To change several records or several list items, call `wf_run` with code when the wf tools are loaded, per [_records.md](_records.md) → Change several records; else run each change with the CLI.
 
 ## Requires
@@ -83,14 +83,14 @@ You run the verify stage of one slice: check it, then fix it in one round; you d
 Apply [_workflow-rules.md](_workflow-rules.md), and these two rules of verify:
 
 - **Evidence versioning on a re-run.** Move the previous evidence directory to `<wf-dir>/verify-evidence/<slice-slug>-run-<N>/`, where `N` is the previous `evidence-run-count`, and write `evidence-run-count: N + 1`. Do not overwrite the old evidence.
-- **A re-verify writes back, so the index never contradicts a slice.** When a re-run changes the outcome of a slice, run `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 06-verify-<slice-slug>.md result=<result>`, then derive the rollup of the master `06-verify.md` again. Change the slice record first, then the index; never the index alone.
+- **A re-verify writes back, so the index never contradicts a slice.** When a re-run changes the outcome of a slice, run `wf_run { "op": "record set", "slug": "<slug>", "name": "06-verify-<slice-slug>.md", "path": "result=<result>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 06-verify-<slice-slug>.md result=<result>`), then derive the rollup of the master `06-verify.md` again. Change the slice record first, then the index; never the index alone.
 
 # Step 0 — Orient
 
 Do this before every other step.
 
 1. **Resolve the slug** from `$ARGUMENTS`: the first argument is the slug (the dispatcher refuses a call without one), and a second argument is the slice selector.
-2. **Read `00-index.md`** with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`: `current-stage`, `status`, `selected-slice`, `open-questions`.
+2. **Read `00-index.md`** with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`): `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: the selector that was passed, else `selected-slice` of the index, else ask the person.
 4. **Find the source mode.** Apply the row of `workflow-type` in [_source-modes.md](_source-modes.md): the lead record, the acceptance source, the record names and the verify action. When the action is stop, give its route and stop.
 5. **Check the prerequisites.** The implement record of the mode must exist: `record get` of it exits 0.
@@ -115,9 +115,9 @@ Do the steps in this order. Step 7 runs after Steps 7.5 and 7.6, because the rou
 7.5. Apply the user-observable AC gate (Step 7.5 below).
 7.6. Run the single-round fix loop (Step 7.6 below).
 7. Evaluate the routes ("Adaptive routing"), and write each viable option into `recommended-routes` of the frontmatter.
-8. Write the draft of `06-verify-<slice-slug>.md` per [verify/_artifact.md](verify/_artifact.md), and run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` per [_records.md](_records.md).
+8. Write the draft of `06-verify-<slice-slug>.md` per [verify/_artifact.md](verify/_artifact.md), and run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) per [_records.md](_records.md).
 9. Write the draft of `06-verify.md`, the master index that links each verify record of a slice, and put it. To change one row or one field of it, use `record edit` or `record set`. Skip this step when the workflow uses the un-suffixed names: its one record is the stage record.
-10. Record the end of the stage with `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> verify <selected-slice>`. It writes `current-stage`, `progress.verify`, `next-command` and `next-invocation` (the default route, `/wf review <slug> <selected-slice>`), and adds the new records to `workflow-files`. When the Next row of this stage names another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`. `record stage-done` sets the roster status.
+10. Record the end of the stage with `wf_run { "op": "record stage-done", "slug": "<slug>", "slice": "<selected-slice>", "stage": "verify" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record stage-done "<root>" <slug> verify <selected-slice>`). It writes `current-stage`, `progress.verify`, `next-command` and `next-invocation` (the default route, `/wf review <slug> <selected-slice>`), and adds the new records to `workflow-files`. When the Next row of this stage names another route, add `--next "<invocation>"`. Set any other index field with `record set "<root>" <slug> index key=value ...`. `record stage-done` sets the roster status.
 
 # Step 4 — Parallel verification
 

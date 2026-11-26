@@ -36,12 +36,12 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Step 0 — Orient
 
 1. Resolve the slug:
-   - When the argument names an existing workflow whose index has `workflow-type: optimize`, this is a resume. Read `00-index.md`, `01-optimize.md` and `02-optimize-spec.md` with `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>` (per [_records.md](../_records.md); `index` names the index), then continue at the first step whose artifact is absent or not confirmed.
+   - When the argument names an existing workflow whose index has `workflow-type: optimize`, this is a resume. Read `00-index.md`, `01-optimize.md` and `02-optimize-spec.md` with `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "<name>" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> <name>`) (per [_records.md](../_records.md); `index` names the index), then continue at the first step whose artifact is absent or not confirmed.
    - Otherwise, this is a new optimize workflow.
 2. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `optimize-<short-description>`.
 3. Apply `_intake-provenance.md`. A `from <source-slug>` token seeds the objective from the source.
 4. Apply the stack policy of `_change-mode-tail.md`. The one-line stack confirm rides the Step 1 question round. Set `ux-impact: none` unless the metric measures a user surface.
-5. Branch: ask per [_gate-question.md](../_gate-question.md), with the options `Create dedicated branch (recommended)` and `Use current branch`. On a dedicated branch, run the base check first (`node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`, [_workflow-rules.md](../_workflow-rules.md)); then run `git checkout -b optimize-run/<slug>`. Do not name the branch `optimize/<slug>`: the loop uses that name for its trunk.
+5. Branch: ask per [_gate-question.md](../_gate-question.md), with the options `Create dedicated branch (recommended)` and `Use current branch`. On a dedicated branch, run the base check first (`wf_query { "op": "base check", "base": "<base>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" base check "<root>" --base <base>`), [_workflow-rules.md](../_workflow-rules.md)); then run `git checkout -b optimize-run/<slug>`. Do not name the branch `optimize/<slug>`: the loop uses that name for its trunk.
 
 # Step 1 — Brief → `01-optimize.md` (`type: intake`)
 
@@ -53,7 +53,7 @@ Ask per [_gate-question.md](../_gate-question.md), in one round:
 4. **The guard.** Which command must exit 0 after every change? It is usually the test suite.
 5. **The stack confirm**, from Step 0.
 
-Write the draft `<wf-dir>/.draft/01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`:
+Write the draft `<wf-dir>/.draft/01-optimize.md` with this frontmatter, and the body sections `## Objective`, `## Metric`, and `## Guard`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`):
 
 ```yaml
 ---
@@ -79,7 +79,7 @@ next-invocation: "/wf loop optimize <slug>"
 1. Run the metric command once from the project root. The last line of its standard output must parse as one number, as a JSON array of numbers, or as JSON with the named key. When the line does not parse, show the output and ask again.
 2. Run the guard once. The guard must exit 0. When the guard fails, report the failure and end the run. A loop cannot start from a red guard.
 3. Record the time of each run. The spec's `trial-timeout` must be larger than the time of the guard plus `repeat` metric runs.
-4. Run `node "<skill-dir>/scripts/optimize.mjs" metric-check "<projectRoot>" <slug> --cmd "<the metric command>"`, with `--key <key>` when the brief names one. It runs the metric 5 times, writes nothing, and prints `spread`, `noise`, `threshold` and `instrument`. With `metric.paired`, the noise of a paired block is usually much smaller than this spread. Show the person the numbers beside `metric.min-gain`, so the person sets the smallest gain to keep with them.
+4. Run `wf_job { "op": "optimize metric-check", "slug": "<slug>", "cmd": "<the metric command>" }` (CLI: `node "<skill-dir>/scripts/optimize.mjs" metric-check "<projectRoot>" <slug> --cmd "<the metric command>"`), with `--key <key>` when the brief names one. It runs the metric 5 times, writes nothing, and prints `spread`, `noise`, `threshold` and `instrument`. With `metric.paired`, the noise of a paired block is usually much smaller than this spread. Show the person the numbers beside `metric.min-gain`, so the person sets the smallest gain to keep with them.
 5. When the result has `warnings`, show each one before the spec. A coarse metric moves in steps, and its keep threshold is only a few steps wide: the loop then cannot tell a small gain from the next step. Propose a metric command that does more work in one run, or that reads a finer counter.
 
 # Step 3 — Spec → `02-optimize-spec.md` (`type: optimize-spec`)

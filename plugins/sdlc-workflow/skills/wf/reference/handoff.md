@@ -228,7 +228,7 @@ Offer every option that applies:
 
 # Artifacts
 
-Write the draft of `08-handoff.md` with this frontmatter, and put it. `node "<skill-dir>/scripts/wf.mjs" stamp handoff --slug <slug>` prints its required fields, each with its allowed values; the template adds the optional fields.
+Write the draft of `08-handoff.md` with this frontmatter, and put it. `wf_query { "op": "stamp", "slug": "<slug>", "type": "handoff" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" stamp handoff --slug <slug>`) prints its required fields, each with its allowed values; the template adds the optional fields.
 
 ```yaml
 ---

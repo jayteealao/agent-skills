@@ -28,7 +28,7 @@ const ABOUT = {
   wf_person: 'What only the person does: consent, approvals, rules of the project, standing answers, an answer by the person. Call it only for the person\'s own choice: the person is asked.',
 };
 
-const INLINE = {
+export const INLINE = {
   'record edit': [['text', 'from', 'md']],
   'findings add': [['found', 'found-json', 'json']],
   'decide add': [['entries', 'file', 'json']],
@@ -193,6 +193,11 @@ export async function callTool(name, args = {}, ctx = {}) {
   if (!same(args.root) || items.some((i) => i && !same(i.root))) {
     return fail(`this server runs the project ${root}: a call does not name another root`, { fix: 'Leave root out. Work of another project runs in a session of that project.' });
   }
+  // The host said that an agent calls (a row of the hook): the arguments do not make it the session or the person.
+  if (ctx.identity?.agent_id) {
+    if (name === 'wf_person') return fail('an agent does not call wf_person: it acts in the name of the person', { fix: 'Hold the question with wf_decide { "op": "hold" } and wait with wf_wait { "op": "decide wait" }.' });
+    if (args.as === 'person' || args.as === 'session') return fail(`an agent does not call as "${args.as}"`, { fix: 'Give its own name: <stage>:<slice> (verify:api), or driver.' });
+  }
   // Only wf_person runs as the person. A caller that names itself the person in any other tool
   // runs as an agent, so the person-only guards of the handlers still refuse it.
   const caller = name === 'wf_person' ? 'person' : (ctx.caller && ctx.caller !== 'person' ? ctx.caller : 'agent');
@@ -210,7 +215,15 @@ export async function callTool(name, args = {}, ctx = {}) {
     const read = { SDLC_MCP_READ: '1' };
     if (args.op) return run(fullOp(name, args.op), strip(args), read);
     if (args.argv) return run('dispatch', { token: args.argv.map(String), host: 'claude' }, read);
-    if (args.slug && args.stage) return run('brief', { slug: args.slug, stage: args.stage, slice: args.slice }, read);
+    if (args.slug && args.stage) {
+      // The brief, with its calls ready to send: the slug, the slice and the stage filled in.
+      const r = await run('brief', { slug: args.slug, stage: args.stage, slice: args.slice }, read);
+      if (!r.ok || typeof r.data !== 'string') return r;
+      // render.mjs reads INLINE of this module, so it loads here and not at the top.
+      const { readyCalls } = await import('../lib/ops/render.mjs');
+      const { text, calls } = readyCalls(r.data, { slug: args.slug, slice: args.slice, stage: args.stage });
+      return { ...r, data: text, calls };
+    }
     return run('status', { slug: args.slug, brief: Boolean(args.slug) }, read);
   }
   if (name === 'wf_read') {

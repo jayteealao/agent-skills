@@ -9,7 +9,7 @@ These rules protect the person. They have no exceptions.
 - **Only the person ends the loop.** `done` and `pause` end it. Never decide that triage is complete. When every idea has a triage state, ask what is next: take more, look further, or `done`. Then continue.
 - **Plain words.** No question, option, or chat line shows an idea id, a round number, a roster key, or a count of batches. Name an idea by its title, for example "the retry logic for the Stripe client". The ids stay in the records. The person can name an idea in words or by its rank number in the last list.
 - **No commitments and no code.** The Role rules of `intake/ideate.md` stay.
-- **The records are the memory.** After every batch, write the changed ideas to `01-ideate.md`: `record set` for a single key, or get the record, change it, write the draft, and put it. Then run `node "<skill-dir>/scripts/ideate-sources.mjs" check "<projectRoot>" <slug>`. It must return `ok: true`. A lost session loses at most one batch.
+- **The records are the memory.** After every batch, write the changed ideas to `01-ideate.md`: `record set` for a single key, or get the record, change it, write the draft, and put it. Then run `wf_query { "op": "ideate-sources check", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/ideate-sources.mjs" check "<projectRoot>" <slug>`). It must return `ok: true`. A lost session loses at most one batch.
 - **No person, no loop.** In a non-interactive run (rung 3 of [_gate-question.md](../../_gate-question.md), for example yolo), skip the loop. Step 5 records `selected: []`, and the run ends as a run with no pick.
 
 ## The first question (Step 5)

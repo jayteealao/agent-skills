@@ -12,7 +12,7 @@ The person starts a round from the loop ([_loop.md](_loop.md)) with a steer word
 /wf intake ideate <slug> surprise me
 ```
 
-`ideate-sources.mjs args` returns `mode: steer`, with `steer:` the word and `target:` the rest. From the command line, run items 4 to 6 of Step 0 of `intake/ideate.md`, then the round, then go into the loop.
+`wf_query { "op": "ideate-sources args" }` (CLI: `ideate-sources.mjs args`) returns `mode: steer`, with `steer:` the word and `target:` the rest. From the command line, run items 4 to 6 of Step 0 of `intake/ideate.md`, then the round, then go into the loop.
 
 ## The kinds of round
 

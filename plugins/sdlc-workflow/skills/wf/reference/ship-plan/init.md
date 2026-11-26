@@ -129,7 +129,7 @@ options:
 multiSelect: false
 ```
 
-Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>"` to add the design exception `!.ai/design/` ([design/_surface.md](../design/_surface.md)); the "Ignored" answer is the approval, because the option names them. `/wf ship` reads this policy in its PR phase and its pre-flight (Step 1.1) instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
+Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `wf_run { "op": "design track" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" design track "<projectRoot>"`) to add the design exception `!.ai/design/` ([design/_surface.md](../design/_surface.md)); the "Ignored" answer is the approval, because the option names them. `/wf ship` reads this policy in its PR phase and its pre-flight (Step 1.1) instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
 
 ---
 

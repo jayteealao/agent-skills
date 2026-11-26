@@ -10,7 +10,7 @@ The change modes are compressed *standard* lifecycles, not pipelines of their ow
 - **The index comes first.** Each change mode writes `00-index.md` at the start of its Step 1, with `progress.intake: in-progress` and `next-invocation: /wf intake <mode> <slug>`. It finishes the index at its index step: the final `workflow-files`, `progress` and terminus route. The resume test of Step 0 reads the index, so a run that stops in the middle of planning resumes instead of starting again.
 - **The lead is `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`, `01-update-deps.md`). The filename carries the mode; the schema checks it as `type: intake`. The lead satisfies the required set of **intake**: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`.** Mirror it onto the lead for readability. The index is canonical: the standard stage commands and `/wf status recap` read it there.
-- **`00-index.md` is a fully conformant `type: index`:** the heavy 22-field `indexFrontmatter`, with `status: active`, not `ready`. `progress` is an **object** of stage → status (`{intake: …, slice: …, …}`) with the enum values `not-started|in-progress|complete|skipped`, not a list. Start it from `wf.mjs stamp index`, per the Index template section below. Add `workflow-type: <mode>`. A missing field or a wrong `status` makes the index invalid for the schema, and every overview shows a warning banner when it renders.
+- **`00-index.md` is a fully conformant `type: index`:** the heavy 22-field `indexFrontmatter`, with `status: active`, not `ready`. `progress` is an **object** of stage → status (`{intake: …, slice: …, …}`) with the enum values `not-started|in-progress|complete|skipped`, not a list. Start it from `wf_query { "op": "stamp", "type": "index" }` (CLI: `wf.mjs stamp index`), per the Index template section below. Add `workflow-type: <mode>`. A missing field or a wrong `status` makes the index invalid for the schema, and every overview shows a warning banner when it renders.
 - **The later planning stages use the standard types**, written un-suffixed, for one slice:
   - `02-shape.md` (`type: shape`);
   - `03-slice.md` (`type: slice-index`), also with one slice: a one-entry `slices[]`, `total-slices: 1` and `best-first-slice: <the-slice>`, so the slice and implement stations of the overview count from the slice roster;
@@ -171,7 +171,7 @@ When design is needed, the person is present, so run the design stage (`design/s
 
 Every change mode writes the full `type: index`: the same index as a standard feature workflow.
 
-1. Run `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`. It prints every field that the schema requires.
+1. Run `wf_query { "op": "stamp", "slug": "<slug>", "type": "index" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" stamp index --slug <slug>`). It prints every field that the schema requires.
 2. Write the output to the draft `<wf-dir>/.draft/00-index.md`. Remove the `# one of:` comments.
 3. Fill `title`, `branch-strategy` (`dedicated` or `none`), `branch` (empty when `branch-strategy: none`) and `base-branch`. Then set or add these keys, with the slots from the value table:
 
@@ -198,7 +198,7 @@ slices:
 progress: {intake: complete, design: <complete|skipped>, slice: complete, plan: complete, implement: not-started, verify: not-started, review: not-started, ship: not-started, retro: not-started}
 ```
 
-4. Run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+4. Run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 Write no YAML comments in the index. `workflow-type` is the authoritative discriminator that the standard commands and the resume read. Write an `origin-<type>` key only when provenance attached. `review-scope: slug-wide` gives one `07-review.md` for the single slice; plan confirms it.
 

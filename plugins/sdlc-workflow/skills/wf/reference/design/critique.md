@@ -6,7 +6,7 @@ Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache
 
 ## Design mode
 
-Read the design mode of each surface from `02c-craft.md` `surface-modes:` (`wf.mjs record get`), or from the content inventory of the brief. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
+Read the design mode of each surface from `02c-craft.md` `surface-modes:` (`wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`)), or from the content inventory of the brief. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
 
 | Mode | Critique against |
 |---|---|
@@ -25,7 +25,7 @@ Judge the design before you read the evidence, so that the evidence does not anc
 
 1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
 2. In any `/wf design … critique` run, with or without a slug, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the screen pages, the built surfaces, `02c-craft.md`, this file and [_heuristics.md](_heuristics.md). Do not give it the verify results.
-3. Read the `06-verify-*.md` evidence (`wf.mjs record get`) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
+3. Read the `06-verify-*.md` evidence (`wf_read { "items": [{ "op": "record get" }] }` (CLI: `wf.mjs record get`)) only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
 4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
 
 ## 1. Design specificity verdict
@@ -118,7 +118,7 @@ When the report lists fewer than three issues, you can skip the questions. Then 
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> critique`:
-- Write the draft `<wf-dir>/.draft/07-design-critique.md`, then run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>` ([_records.md](../_records.md))
+- Write the draft `<wf-dir>/.draft/07-design-critique.md`, then run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`) ([_records.md](../_records.md))
 - When `02c-craft.md` names `screens:`, judge the pairs of approval picture and capture in `06-verify-*.md` `## Design Comparison` (`design/_surface.md`). Name the screen key in the `Where` line of the issue.
 - Do not reopen a screen that the person approved. Write a finding against an approved screen as a question for `/wf design <slug> amend`. Do not redraw the screen.
 - Use this frontmatter:

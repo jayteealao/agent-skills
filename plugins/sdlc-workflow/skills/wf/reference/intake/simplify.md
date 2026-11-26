@@ -167,7 +167,7 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `simplify-<scope>-<YYYYMMDD>`. Write **two** records as drafts under `<wf-dir>/.draft/`, run `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`.
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Name it per "New slug" of [_intake-context.md](_intake-context.md), with the form `simplify-<scope>-<YYYYMMDD>`. Write **two** records as drafts under `<wf-dir>/.draft/`, run `wf_run { "op": "record put", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record put "<root>" <slug>`).
 
 1. Write the draft of `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
 2. Write the draft of `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.

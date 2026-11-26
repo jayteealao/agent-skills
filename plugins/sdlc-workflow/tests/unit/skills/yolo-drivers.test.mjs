@@ -12,9 +12,10 @@ import { fileURLToPath } from 'node:url';
 import { extractFn as extractFrom } from '../../helpers/extract-fn.mjs';
 import { driveArgs } from '../../../lib/drive.mjs';
 import { appendJournalLine, appendRunEnd, controlPath, journalPath, stopCheck, writeControl } from '../../../scripts/yolo-watch.mjs';
+import { driverSource } from '../../helpers/driver-source.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
+const src = driverSource('yolo.js');
 const extractFn = (name) => extractFrom(src, name);
 
 // ---- driveVerify with a stubbed verify stage ----------------------------------

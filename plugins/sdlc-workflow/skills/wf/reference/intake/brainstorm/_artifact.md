@@ -144,7 +144,7 @@ A brief the person brings is copied to `references/briefs/`, and `briefs[].sourc
 
 ## `01-brainstorm.md` — the person's document
 
-`node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>` writes the document from the board. Every board command that writes the board runs the same render. The document names everything in words. It carries no key, no internal number, and no mode mechanics. Never edit its body, and never put a draft of it: change the board, and the document follows.
+`wf_run { "op": "board render", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" board render "<root>" <slug>`) writes the document from the board. Every board command that writes the board runs the same render. The document names everything in words. It carries no key, no internal number, and no mode mechanics. Never edit its body, and never put a draft of it: change the board, and the document follows.
 
 ### Its frontmatter, and the owner of each field
 
@@ -206,7 +206,7 @@ Add `--board <file name>` to each board command for these boards.
 
 ### A document written by hand
 
-A document from an older session holds prose that the board may lack. `node "<skill-dir>/scripts/wf.mjs" board adopt "<root>" <slug>` reads it into the board:
+A document from an older session holds prose that the board may lack. `wf_run { "op": "board adopt", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" board adopt "<root>" <slug>`) reads it into the board:
 1. It copies the document and the board to `history/` (`01-brainstorm-adopt-<time>.md` and `brainstorm-board-adopt-<time>.json`).
 2. It takes `## The Brainstorm` as the `summary`, each map brief as the `brief` of the area of that name, and each `### Session <N> — <date>` as a story, when the board lacks them. It takes `status`, and the higher `sessions` and `batches`.
 3. It renders the board, and checks each sentence of the old document against the render. A sentence counts as shown when one line of the render holds most of its words; markdown, punctuation, and labels such as "Why:" do not count, and a link counts by its address.
@@ -231,7 +231,7 @@ Read `archive/` only when the person asks about an archived item or area, or whe
 ## Converting a legacy board
 
 A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and `claims:` and which has no `brainstorm-board.json`. Convert it once, at the start of the first resume:
-1. Copy the legacy `01-brainstorm.md` to `history/` unchanged: write the output of `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-brainstorm.md` there (per [_records.md](../../_records.md)).
+1. Copy the legacy `01-brainstorm.md` to `history/` unchanged: write the output of `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "01-brainstorm.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 01-brainstorm.md`) there (per [_records.md](../../_records.md)).
 2. Give every thread, claim, assumption, contradiction, and candidate a readable key, and keep its old id in `was`.
 3. Map the kinds:
    - A claim with `evidence: verified …`, `contradicted …`, or `consult` becomes a finding. Its `check` comes from the evidence.
