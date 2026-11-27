@@ -169,6 +169,7 @@ A started work packet is frozen to `write`: its scope changes only through its s
 
 - The new work packet goes on the board after `<packet-key>`, and the work packets after it move one place down. It is written and opened as any work packet is.
 - Each slice moves with its record and the decisions scoped to it; the source keeps a dropped entry with `moved-to`.
+- The decisions that bind the whole packet (no slice in their scope) bind the new packet too: each is copied with `copied-from`, and stays live in the source.
 - A slice that stays may not wait for a slice that moves. A moved slice that waited for a slice that stays waits for nothing: the order of the work packets holds it (`crossed` names each one).
 - `split` refuses while a run of the work packet has not ended, and for a slice that has started.
 - A work packet that has not started is changed on the board instead: board move or board apply, then `campaign write`.

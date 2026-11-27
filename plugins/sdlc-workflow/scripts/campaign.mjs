@@ -940,7 +940,32 @@ function splitCmd(root, src, [key], f) {
     if (fm) setRecordFields(target, `03-slice-${s}.md`, { 'depends-on': (fm['depends-on'] ?? []).filter((x) => gone.has(x)) });
   }
   const decisions = moveScopedDecisions(dir, target, gone, { from: slug, to: into });
-  return { ok: true, key: packet.key, into, slug: into, order: order + 1, moved, decisions, ...(crossed.length ? { crossed } : {}), ...(opened.carriedIssues ? { carriedIssues: opened.carriedIssues } : {}) };
+  const packetWide = copyPacketDecisions(dir, target, { from: slug, to: into });
+  return { ok: true, key: packet.key, into, slug: into, order: order + 1, moved, decisions, packetWide, ...(crossed.length ? { crossed } : {}), ...(opened.carriedIssues ? { carriedIssues: opened.carriedIssues } : {}) };
+}
+
+/**
+ * The live decisions that bind the whole of `from` (no slice in their scope) bind the part split
+ * from it too: each is copied to the store of `toDir` with `copied-from` and a `moves` line, and
+ * stays live in the source. An entry whose key the target holds live already is not copied again.
+ */
+function copyPacketDecisions(fromDir, toDir, { from, to }) {
+  const now = nowIso();
+  const source = readDecisions(fromDir);
+  const target = readDecisions(toDir);
+  const held = new Set(target.filter((e) => !e['superseded-by'] && e.key).map((e) => e.key));
+  let max = target.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
+  const ids = [];
+  for (const e of source) {
+    if (e['superseded-by'] || e.scope?.slice || (e.key && held.has(e.key))) continue;
+    max += 1;
+    const id = `D-${String(max).padStart(3, '0')}`;
+    target.push({ ...structuredClone(e), id, 'copied-from': `${from}:${e.id}`, moves: [...(e.moves ?? []), { at: now, from, to, why: 'campaign split: it binds the whole packet' }] });
+    if (e.key) held.add(e.key);
+    ids.push(`${e.id} → ${id}`);
+  }
+  if (ids.length) writeDecisions(toDir, target);
+  return ids;
 }
 
 /**

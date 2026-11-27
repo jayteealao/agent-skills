@@ -14,7 +14,7 @@ import { PLAN_CEILING, PLAN_KEYS, PLAN_NEXT, PLAN_TITLE, migrateApply, migration
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
 import { frontmatterOfDoc, readDoc, setFields as setRecordFields, writeDoc } from '../../lib/records.mjs';
-import { addDecision } from '../../lib/decisions.mjs';
+import { addDecision, readDecisions } from '../../lib/decisions.mjs';
 import { mergeRun, writeLedger } from '../../lib/findings.mjs';
 import { linkProject } from '../../lib/records-sync.mjs';
 import { workflowsRoot } from '../../lib/records-root.mjs';
@@ -1536,6 +1536,7 @@ test('split: slices of an open packet move to a new packet right after it, with 
     ] } });
     for (const s of ['rules', 'report', 'docs']) writeDoc(eng, `03-slice-${s}.md`, { frontmatter: { schema: 'sdlc/v1', type: 'slice', slug: 'demo-engine', 'slice-slug': s, status: 'defined' }, body: `# Slice: ${s}\n` });
     addDecision(eng, { kind: 'answer', by: 'delegate', key: 'fmt', question: 'Format?', answer: 'csv', scope: { slice: 'report' } });
+    addDecision(eng, { kind: 'steer', by: 'person', key: 'one-read', question: 'When do match reads run?', answer: 'once, at the end of the slice', scope: {} });
     // A slice that stays may not wait for one that moves.
     assert.match(runCampaign(['split', root, SRC, 'engine', '--slices', 'rules', '--into', 'engine-two']).error, /report waits for rules/);
     const r = runCampaign(['split', root, SRC, 'engine', '--slices', 'rules,report', '--into', 'engine-two', '--title', 'Engine rules']);
@@ -1550,6 +1551,11 @@ test('split: slices of an open packet move to a new packet right after it, with 
     assert.match(store, /answer: csv/);
     assert.match(store, /copied-from: demo-engine:D-\d+/);
     assert.match(readFileSync(path.join(eng, 'decisions.yaml'), 'utf8'), /ended-why: moved with the slice report to engine-two/);
+    // The decisions that bind the whole packet bind the part split from it, and stay in the source.
+    assert.deepEqual(readDecisions(two).filter((e) => !e.scope?.slice).map((e) => e.key).sort(), ['d-one', 'one-read'], 'the item answer and the steer of the whole packet');
+    assert.equal(r.packetWide.length, 2);
+    assert.match(store, /answer: once, at the end of the slice/);
+    assert.ok(readDecisions(eng).some((e) => e.key === 'one-read' && !e['superseded-by']));
     // Status shows the load of each packet: a slice of unknown size counts as full.
     const row = runCampaign(['status', root, SRC]).packets.find((p) => p.key === 'engine-two');
     assert.deepEqual([row.openSlices, row.steps.total, row.steps.unknown], [['rules', 'report'], 40, ['rules', 'report']]);
