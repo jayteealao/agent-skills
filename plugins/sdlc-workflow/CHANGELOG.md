@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.38] - 2026-11-27
+
+- feat(sdlc-workflow): split and merge slices, split a started packet, and stop a run after a step
+- feat(sdlc-workflow): the roster is the one source of slice state, and project limits bite on write
+- feat(sdlc-workflow): a run places each issue it finds at the lowest rung that takes it
+
 ## [10.0.0-next.37] - 2026-11-26
 
 - fix(sdlc-workflow): code of the wf tools may declare open, process or module
