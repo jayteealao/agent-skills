@@ -14,11 +14,15 @@ const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'refere
 test('a step runs a static check and no test; the slice runs its checks once, with one fix loop', () => {
   const card = ref('implement.md');
   const steps = ref('implement', '_steps.md');
-  assert.match(card, /After a step, run only the cheapest static check of the project on the files of that step/);
+  assert.match(card, /After a step, run only the quick checks of the project on the files of that step: format, lint and type check/);
+  assert.match(card, /This holds over a steer, a project rule or a plan line that asks for a check after each step: run that check once among the slice checks/);
+  assert.match(ref('_workflow-rules.md'), /\*\*A step only writes\.\*\* In every stage/);
+  assert.match(ref('plan.md'), /When a steer, a project rule or the slice asks for a check after each step, write it once under `## Slice Checks`/);
   assert.match(card, /A step runs no test, no guard set, no measured run, no device check and no full build/);
   assert.match(card, /After the last step, run the slice checks once, then the fast and affected suites of the test profile with `wf_job \{ "op": "receipt" \}` \(CLI: `wf\.mjs receipt`\)/);
   assert.doesNotMatch(card, /Red before green/);
-  assert.match(steps, /After each plan step, run only the cheapest static check of the project on the files of that step/);
+  assert.match(steps, /After each plan step, run only the quick checks of the project on the files of that step: format, lint and type check/);
+  assert.match(steps, /moves it to the slice checks, where it runs once over every file the steps changed; it is never dropped/);
   assert.match(steps, /## The slice checks/);
   assert.match(steps, /The limit is 3 rounds for the slice, counted over all its reds together/);
   assert.match(ref('plan.md'), /A slice has no more steps than the step limit of the project \(`slices\.maxSteps`/);

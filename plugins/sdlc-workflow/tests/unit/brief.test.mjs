@@ -72,7 +72,7 @@ test('buildBrief: the header carries the output boundary and the standing steer,
     const ref = f.ref.replace(/\\/g, '/');
     assert.match(b.text, /^Output boundary: write each commit message, PR text, doc and code comment in product language.*leak-check it before you publish \(.+\/_output-boundary\.md\)\.$/m);
     assert.ok(b.text.includes(`(${ref}/_output-boundary.md)`), 'the boundary names its card');
-    assert.match(b.text, /^Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live `steer` of the person, or a `note` that an earlier stage left for this slice\. Honor it, never above a mandatory gate, and give the relevant entries to each sub-agent you start \(.+\/_decisions\.md\)\.$/m);
+    assert.match(b.text, /^Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live `steer` of the person, or a `note` that an earlier stage left for this slice\. Honor it, never above a mandatory gate\. A steer or rule that asks for a test, guard set or measured run after each step is honored once in the checks after the last step, on the final code: a step runs only format, lint and type checks \(_workflow-rules\.md, "A step only writes"\), and give the relevant entries to each sub-agent you start \(.+\/_decisions\.md\)\.$/m);
     assert.equal(b.text.split('Standing steer: ').length, 2, 'the steer rule is in the brief once');
   } finally { f.done(); }
   // SKILL.md binds both rules for the main session; the stage cards keep no preamble.

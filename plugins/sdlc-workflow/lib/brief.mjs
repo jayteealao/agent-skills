@@ -183,7 +183,7 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const rules = '\n\n' + [
     `Output boundary: write each commit message, PR text, doc and code comment in product language, with no workflow vocabulary ` +
       `(stage, command or skill names) and no \`.ai/\` paths, and leak-check it before you publish (${refDir}/_output-boundary.md).`,
-    `Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live \`steer\` of the person, or a \`note\` that an earlier stage left for this slice. Honor it, never above a mandatory gate, ` +
+    `Standing steer: each entry under ## Rules, steers and notes binds this stage: a project rule, a live \`steer\` of the person, or a \`note\` that an earlier stage left for this slice. Honor it, never above a mandatory gate. A steer or rule that asks for a test, guard set or measured run after each step is honored once in the checks after the last step, on the final code: a step runs only format, lint and type checks (_workflow-rules.md, "A step only writes"), ` +
       `and give the relevant entries to each sub-agent you start (${refDir}/_decisions.md).`,
   ].join('\n');
   // The folder of the skill: the stage reference says `<skill-dir>`, and this agent did not load the skill.
