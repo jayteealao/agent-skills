@@ -226,14 +226,14 @@ test('a stage looks up a live answer by its key before it asks', () => {
 
 // yolo.js is a Workflow script, not a module: take each pure function by its braces.
 const { verifyClean, decisionDigest, acceptedResiduals } = new Function(
-  ['stageResults', 'personAccepted', 'verifyClean', 'decisionDigest', 'acceptedResiduals'].map((n) => extractFn(yolo, n)).join('\n') +
+  ['stageResults', 'personAccepted', 'acKey', 'verifyClean', 'decisionDigest', 'acceptedResiduals'].map((n) => extractFn(yolo, n)).join('\n') +
   '\nreturn { verifyClean, decisionDigest, acceptedResiduals };',
 )();
 
 test('verifyClean: an item that a live decision accepts is cleared, whatever its kind', () => {
   const missed = { convergence: 'escalated', result: 'partial', substantiveResidual: true };
   assert.equal(verifyClean(missed, []), false, 'a missed timing criterion stops without an accept');
-  const accepted = { convergence: 'escalated', result: 'partial', substantiveResidual: false, acceptedItems: [{ item: 'AC-41', by: 'D-100' }] };
+  const accepted = { convergence: 'escalated', result: 'partial', substantiveResidual: false, acceptedItems: [{ item: 'AC-41', by: 'D-100' }], failingItems: ['AC-41'] };
   assert.equal(verifyClean(accepted, []), true, 'a decision of the person accepts it');
   assert.equal(verifyClean({ ...accepted, acceptedItems: [{ item: 'AC-41', by: 'delegate' }] }, []), true, 'a delegate accept');
   assert.equal(verifyClean({ ...accepted, result: 'fail' }, []), true);
@@ -248,7 +248,7 @@ test('orient counts a verify whose failing items a decision accepted as done, as
   assert.match(yolo, /`blocked-runtime-evidence-missing AND every failing or residual item that the artifact names is in `/);
   assert.match(yolo, /An item that fails and is not in accepted-items keeps verify 'todo'\./);
   // The same three conditions in the gate: accepted items, no item outside them, and evidence that is not missing.
-  const t = { convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-3', by: 'D-067' }] };
+  const t = { convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-3', by: 'D-067' }], failingItems: ['AC-3'] };
   assert.equal(verifyClean(t, []), true);
   assert.equal(verifyClean({ ...t, substantiveResidual: true }, []), false);
   assert.equal(verifyClean({ ...t, result: 'blocked-runtime-evidence-missing' }, []), false);

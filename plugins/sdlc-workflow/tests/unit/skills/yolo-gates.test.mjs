@@ -727,8 +727,12 @@ test('liveness: only the newest prior run is judged, and orient owns no arithmet
 // stage ran cannot drift the charter.
 // ---------------------------------------------------------------------------
 
-test('checkpoint: skipped when no work since the last checkpoint touched the charter', () => {
-  assert.match(yoloSrc, /if \(touchesCharter\(chain\.ran, idx\.charter\)\) workSinceCheckpoint = true/);
+test('checkpoint: skipped when no stage ran since the last one, charter or no charter', () => {
+  // Any stage that ran is work to check; a decision that touched the charter adds the charter to the check.
+  assert.match(yoloSrc, /if \(\(chain\.ran \|\| \[\]\)\.length > 0\) workSinceCheckpoint = true/);
+  assert.match(yoloSrc, /if \(touchesCharter\(chain\.ran, idx\.charter\)\) charterTouched = true/);
+  assert.match(yoloSrc, /if \(checkpointDue && !workSinceCheckpoint\) \{/);
+  assert.match(yoloSrc, /charterCheckpoint\(idx, s\.slice, \{ charterTouched: touched \}\)/);
   const touchesCharter = new Function(`${extractFn(yoloSrc, 'touchesCharter')}; return touchesCharter;`)();
   const charter = [{ id: 'C2' }];
   assert.equal(touchesCharter([{ decisions: [{ class: 'implementation-detail', decision: 'a helper' }] }], charter), false);
@@ -954,6 +958,18 @@ test('hand-offs: a stage agent of a slice writes notes and settled entries, neve
   assert.match(src, /steer\('writer', sliceArg\) \+ handoffClause\(stage, sliceArg\)/, 'each stage agent carries the clause, outside the steering block');
   assert.match(src, /--kind steer,note --slice \$\{slice\} --rules/, 'the steering list of a slice is its own, with the project rules');
   assert.match(src, /const checkpointDue = !bounded && !isLast && \(si \+ 1\) % CHECKPOINT_EVERY === 0/, 'the check every 3 slices does not need a charter');
-  assert.match(src, /This workflow has no charter\. The commitments are the goal and the acceptance criteria/);
+  assert.match(src, /'This workflow has no charter\.'/);
+  assert.match(src, /`\$\{noCharter\} The commitments are the goal and the acceptance criteria/);
   assert.match(src, /decide tidy "\$\{projectRoot\}" \$\{slug\} --apply/, 'the write-back of a finished slice ends its steers and notes');
+});
+
+// An accept clears a verify only when the agent named every item that still fails and each one
+// is accepted; a residual it left out is unknown, not clean.
+test('verifyClean: an accept clears only the failing items it names', () => {
+  const t = (o) => ({ convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-9', by: 'D-4' }], ...o });
+  assert.equal(verifyClean(t({ failingItems: ['AC-9'] }), []), true);
+  assert.equal(verifyClean(t({ failingItems: ['AC-9 the slow path', 'AC-3'] }), []), false);
+  assert.equal(verifyClean(t({}), []), false, 'no failingItems: the accept cannot be checked');
+  assert.equal(verifyClean(t({ failingItems: ['AC-9'], substantiveResidual: undefined }), []), false);
+  assert.equal(verifyClean({ convergence: 'converged', result: 'partial', deferrals: [{ ac: 'AC1' }] }, []), false, 'a partial with no residual answer is not clean');
 });

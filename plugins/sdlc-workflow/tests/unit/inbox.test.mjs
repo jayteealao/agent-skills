@@ -40,6 +40,8 @@ function fixture() {
   const table = (rows) => `# Review\n\n## Decision Fidelity\n\n| Key | Verdict | Evidence | Approval |\n|---|---|---|---|\n${rows.map((r) => `| ${r.join(' | ')} |`).join('\n')}\n`;
   p.index('demo-engine', { 'ux-impact': 'none', 'updated-at': '2026-10-05T00:00:00Z', 'next-invocation': '/wf campaign brainstorm-demo' });
   p.file('demo-engine', '07-review.md', table([['d-one', 'honored', 'app.txt:1', '—']]));
+  // A built packet has a roster whose slices are done: the campaign reads what is left from it.
+  for (const slug of ['demo-engine', 'demo-api']) p.file(slug, '03-slice.md', p.md({ schema: 'sdlc/v1', type: 'slice-index', slug, status: 'complete', slices: [{ slug: 'core', status: 'complete' }] }));
   addDecision(p.wf('demo-engine'), { kind: 'steer', key: 'run-decisions', question: 'q', answer: 'Take the recommended option and show me each one at the end', at: '2026-10-04T00:00:00Z' });
   addDecision(p.wf('demo-engine'), { kind: 'answer', by: 'delegate', key: 'cache', question: 'Cache it?', answer: 'yes', at: '2026-10-03T00:00:00Z' });
   p.index('demo-api', { 'ux-impact': 'none', 'updated-at': '2026-10-06T00:00:00Z', 'next-invocation': '/wf campaign brainstorm-demo' });

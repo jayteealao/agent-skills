@@ -24,7 +24,7 @@ const slice = (name, stages, extra = {}) => ({ slice: name, status: 'defined', r
 const orientResult = (slices) => ({
   ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed',
   runId: '20260928T100000Z-demo', charter: [], priorDeferrals: [],
-  branch: { current: 'b', target: 'b', match: true, strategy: 'none' },
+  branch: { current: 'b', target: 'b', match: true, base: 'main', strategy: 'none' },
   slices,
 });
 

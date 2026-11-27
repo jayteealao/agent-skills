@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, w
 import { basename, dirname, join } from 'node:path';
 
 import { writeFileAtomic } from './atomic-write.mjs';
+import { deriveFields } from './derive.mjs';
 import { withFileLock } from './file-lock.mjs';
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { validateFrontmatter, formatValidationErrors } from './schema-validator.mjs';
@@ -289,8 +290,12 @@ export function writeDoc(dir, name, doc, opts = {}) {
 }
 
 function writeDocLocked(dir, name, { frontmatter: rawFrontmatter, body = '' }, opts = {}) {
-  const frontmatter = portablePaths(repairCommands(rawFrontmatter), rawFrontmatter?.slug ?? basename(dir), dir);
   const n = basename(name);
+  // The fields that the record itself determines (lib/derive.mjs) are filled on every write.
+  const raw = portablePaths(repairCommands(rawFrontmatter), rawFrontmatter?.slug ?? basename(dir), dir);
+  let prior = null;
+  try { prior = n === INDEX_NAME ? null : readDoc(dir, n)?.frontmatter ?? null; } catch { prior = null; }
+  const frontmatter = deriveFields(n, raw, { stepCount: opts.stepCount ?? null, prior });
   // A body ends with one newline: trailing blank lines carry nothing, and the YAML of the
   // last block of a file would not keep them.
   const text = String(body ?? '').replace(/\r\n/g, '\n').replace(/\n{2,}$/, '\n');
@@ -458,7 +463,7 @@ function keepDraft(path) {
  * Check a draft and write it into its section, then move the draft to .draft/.put/. Returns
  * { name, file, section, errors }. A draft with errors stays, and nothing is written.
  */
-export function putDraft(dir, path) {
+export function putDraft(dir, path, { stepCount = null } = {}) {
   const name = basename(path);
   const errors = [];
   if (!locate(name) && name !== INDEX_NAME) errors.push(`${name} has no place in the record layout`);
@@ -466,7 +471,10 @@ export function putDraft(dir, path) {
   if (text === null) errors.push(`no draft ${path}`);
   const parsed = text === null ? null : safeParseFrontmatter(text, { filePath: path });
   if (parsed?.parseError) errors.push(`frontmatter: ${parsed.parseError}`);
-  const fm = parsed?.data ?? null;
+  // The derived fields are filled before the check, so a draft need not write them.
+  let prior = null;
+  try { prior = name === INDEX_NAME ? null : readDoc(dir, name)?.frontmatter ?? null; } catch { prior = null; }
+  const fm = parsed?.data && Object.keys(parsed.data).length ? deriveFields(name, parsed.data, { stepCount, prior }) : parsed?.data ?? null;
   if (parsed && !parsed.parseError && (!fm || !Object.keys(fm).length)) errors.push('the draft has no frontmatter');
   if (fm && Object.keys(fm).length) {
     if (fm.slug && fm.slug !== basename(dir)) errors.push(`slug ${fm.slug} is not the workflow folder ${basename(dir)}`);
@@ -476,7 +484,7 @@ export function putDraft(dir, path) {
   if (errors.length) return { name, file: null, section: null, errors };
   let loc;
   // A record file that does not parse refuses the put; the draft stays for the next try.
-  try { loc = writeDoc(dir, name, { frontmatter: fm, body: parsed.content }); } catch (e) {
+  try { loc = writeDoc(dir, name, { frontmatter: fm, body: parsed.content }, { stepCount }); } catch (e) {
     return { name, file: null, section: null, errors: [e.message] };
   }
   keepDraft(path);

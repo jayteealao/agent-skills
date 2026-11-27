@@ -373,6 +373,8 @@ function judgeLiveness(journal, ownRunId) {
     longestGapMinutes = Math.max(longestGapMinutes, (Date.parse(entries[i].at) - Date.parse(entries[i - 1].at)) / 60000)
   }
   const now = Date.parse(journal.nowAt || '')
+  // No clock from orient: the age of the newest entry is unknown, so no verdict is made from it.
+  const clockUnknown = Number.isNaN(now)
   const minutesSinceLastEntry = Number.isNaN(now) ? 0 : Math.max(0, (now - Date.parse(newest.at)) / 60000)
   const quiet = !Number.isNaN(now) && minutesSinceLastEntry > Math.max(longestGapMinutes, 20)
   const out = {
@@ -384,6 +386,7 @@ function judgeLiveness(journal, ownRunId) {
     lastSlice: newest.slice || '',
     minutesSinceLastEntry,
     longestGapMinutes,
+    clockUnknown,
     presumedDead: quiet && newest.event === 'agent-start',
     stoppedCleanly: quiet && newest.event === 'agent-end',
   }
@@ -391,7 +394,33 @@ function judgeLiveness(journal, ownRunId) {
   return out
 }
 
+// orientGaps() — the checks of orient's result that the run cannot go on without. A strategy that
+// is not one of the three is read as one that takes no commits: no work runs beside other work. A
+// design gate that orient did not report is not settled. Returns { stop, route, notes }; it also
+// sets idx.branch.commits and idx.designSettled to the values the run uses.
+function orientGaps(idx) {
+  const notes = []
+  const b = idx.branch || (idx.branch = {})
+  const strategy = String(b.strategy || '')
+  if (!['dedicated', 'shared', 'none'].includes(strategy)) notes.push(`branch-strategy '${strategy || '(none)'}' is not dedicated, shared or none: no work runs beside other work in this run`)
+  b.commits = strategy === 'dedicated' || strategy === 'shared'
+  if (typeof idx.designSettled !== 'boolean') { notes.push('orient did not report the design gate: a slice added with a ux-impact other than none waits for the next run'); idx.designSettled = false }
+  if (idx.priorRun && idx.priorRun.present === true && idx.priorRun.clockUnknown === true) notes.push('no clock from orient; the liveness of the previous driver is unknown')
+  if (strategy === 'dedicated' && !String(b.target || '').trim()) {
+    return { stop: 'strategy dedicated has no target branch', route: 'set the branch of the workflow in 00-index.md (or set branch-strategy to shared)', notes }
+  }
+  if (!String(b.base || '').trim()) {
+    return { stop: 'no base branch: the index records no base-branch and the repository has no default branch', route: 'set base-branch in 00-index.md', notes }
+  }
+  return { stop: null, route: '', notes }
+}
+
 function deadDriverClause(priorRun) {
+  if (priorRun && priorRun.present === true && priorRun.clockUnknown === true && priorRun.presumedDead !== true) {
+    return `\n\nLIVENESS UNKNOWN. A previous driver for this slug left a journal (last entry ${priorRun.lastEntryAt || 'at an unknown time'}), ` +
+      `but orient returned no clock, so no one knows whether it is still running. Re-read each record you touch with ` +
+      `${wf(`${REC('get')} <name>`)} just before you change it, and change nothing another run may be writing.`
+  }
   if (!priorRun || priorRun.presumedDead !== true) return ''
   return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
     `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
@@ -439,12 +468,19 @@ function verifyClean(t, residual) {
   // An item that a live decision accepts is cleared, whatever its kind: a decision of the person, a
   // standing answer, or a delegate accept. The verify agent lists it in acceptedItems with the id of
   // that decision, and keeps it out of substantiveResidual. Missing evidence that is not deferred is
-  // never accepted this way.
-  if (Array.isArray(t.acceptedItems) && t.acceptedItems.length > 0 && t.substantiveResidual !== true &&
-    t.result !== 'blocked-runtime-evidence-missing') return true
+  // never accepted this way. The accept clears the slice only when the agent named its failing
+  // items (failingItems) and each of them is accepted: an accept of one item never clears another.
+  // A substantiveResidual the agent left out is read as true: unknown is not clean.
+  const residualKnown = t.substantiveResidual === false
+  if (Array.isArray(t.acceptedItems) && t.acceptedItems.length > 0 && residualKnown &&
+    t.result !== 'blocked-runtime-evidence-missing' && Array.isArray(t.failingItems)) {
+    const accepted = new Set(t.acceptedItems.map(a => acKey(a && a.item)))
+    if (t.failingItems.every(i => accepted.has(acKey(i)))) return true
+  }
   const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
   if (!converged || t.substantiveResidual === true) return false
   if (t.result === 'pass') return true
+  if (!residualKnown) return false
   const hasAc = (arr) => Array.isArray(arr) && arr.some((d) => d && d.ac)
   return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
 }
@@ -829,7 +865,7 @@ function rewalk(left, fresh, known, { designSettled = false } = {}) {
       taken.push(r.slice)
       kept.push({ slice: r.slice, status: r.roster || 'defined', dependsOn: deps, complexity: r.complexity || null, reverifyReason: 'new-work', added: true, stages: { plan: 'todo', implement: 'todo', verify: 'todo', review: 'todo' } })
     } else {
-      added.push({ slice: r.slice, why: closed ? `it is ${r.roster}` : r.fresh !== true ? 'it has stage records that orient did not judge' : !designOk ? 'its ux-impact is not none and the design is not settled' : `it depends on ${deps.filter(d => !at.has(d)).join(', ')}, which the roster does not list` })
+      added.push({ slice: r.slice, why: closed ? `it is ${r.roster}` : r.fresh !== true ? 'it has stage records that orient did not judge' : !designOk ? (r.uxImpact ? 'its ux-impact is not none and the design is not settled' : 'its ux-impact is not set and the design is not settled') : `it depends on ${deps.filter(d => !at.has(d)).join(', ')}, which the roster does not list` })
     }
   }
   if (taken.length) changes.push(`added: ${taken.join(', ')}`)
@@ -1359,7 +1395,7 @@ function questionContract(stage) {
 // ---------------------------------------------------------------------------
 const ORIENT_RESULT = {
   type: 'object',
-  required: ['ok', 'slug', 'mode', 'reviewScope', 'fileConvention', 'branch', 'slices'],
+  required: ['ok', 'slug', 'mode', 'reviewScope', 'fileConvention', 'branch', 'slices', 'designSettled', 'priorJournal'],
   properties: {
     ok: { type: 'boolean' },
     blockReason: { type: 'string' },
@@ -1374,6 +1410,11 @@ const ORIENT_RESULT = {
     // The design gate of the slug: true when no design is needed or the design is settled. A slice
     // added during the run whose ux-impact is not none is driven only when this is true.
     designSettled: { type: 'boolean' },
+    // 'done' when 07-review.md has verdict ship or ship-with-caveats and nothing but records changed
+    // since its reviewed-head; the run then reviews the slug again only when it built something.
+    slugReview: { enum: ['done', 'todo'] },
+    // The issue keys that already have an investigation record (05i-issue-<key>.md).
+    issueRecords: { type: 'array', items: { type: 'string' } },
     // single-scope workflow (a forwarded rca, or a one-slice standard workflow): 03-slice.md is absent and
     // orient synthesized a one-entry roster [selected-slice]. Stage files are un-suffixed; reviewScope is slug-wide.
     singleScope: { type: 'boolean' },
@@ -1388,6 +1429,7 @@ const ORIENT_RESULT = {
     // idx.priorRun with judgeLiveness(): the verdict is arithmetic, so code owns it.
     priorJournal: {
       type: 'object',
+      required: ['present', 'nowAt'],
       properties: {
         present: { type: 'boolean' },
         nowAt: { type: 'string' },
@@ -1479,7 +1521,14 @@ const ORIENT_RESULT = {
         required: ['slice', 'stages'],
         properties: {
           slice: { type: 'string' },
-          // roster status from 00-index.md slices[] (defined | in-progress |
+          // The build of the slice, copied from the status output: the newest implement write, the
+          // plan write, an issue carried in, and the first and last commit of its newest step run.
+          implementAt: { type: ['string', 'null'] },
+          planAt: { type: ['string', 'null'] },
+          carriedAt: { type: ['string', 'null'] },
+          firstStepSha: { type: ['string', 'null'] },
+          lastStepSha: { type: ['string', 'null'] },
+          // roster status from the roster of 03-slice.md (defined | in-progress |
           // complete | deferred | skipped). Slug-mode skips 'skipped' entries instead of
           // driving them into a HARD-STOP (Waypoint 2026-07-14: a 6.7-h run
           // died on an already-skipped slice with a conforming skip record).
@@ -1603,6 +1652,8 @@ const STAGE_RESULT = {
           type: 'array',
           items: { type: 'object', required: ['item', 'by'], properties: { item: { type: 'string' }, by: { type: 'string' } } },
         },
+        // verify → every item that still fails after the fix rounds, accepted or not ([] when none).
+        failingItems: { type: 'array', items: { type: 'string' } },
       },
     },
     // Recorded autonomous calls. Every entry MUST carry a `class` stamp
@@ -1793,8 +1844,8 @@ async function orient() {
         `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n`) +
     `2. Read the roster from the slices[] of the status output (slice, roster). Run ${wf(`${REC('get')} 03-slice.md`)} ` +
     `only when the output has no slices. Capture EVERY slice slug in roster ` +
-    `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
-    `deferred | skipped | dropped) as slices[].status, and its \`complexity:\` (xs | s | m | l | xl; null when the entry has none) as slices[].complexity — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
+    `order, and record each entry's roster status from the \`roster\` of the status output (defined | in-progress | complete | ` +
+    `deferred | skipped | dropped) as slices[].status, and its \`complexity:\` (xs | s | m | l | xl; null when the entry has none) as slices[].complexity, and copy implementAt, planAt, carriedAt, firstStepSha and lastStepSha of its status row as they are (null when the row has none) — capture 'skipped' and 'dropped' entries too (the driver skips them itself; dropping them here ` +
     `would break slice-mode routing to the NEXT slice). When drive.singleScope is true (03-slice.md is absent: a ` +
     `forwarded rca, or a one-slice standard workflow with selected-slice set), synthesize a one-entry roster ` +
     `[selected-slice] (fall back to the slug if selected-slice is empty) and set singleScope=true; drive.reviewScope ` +
@@ -1864,9 +1915,14 @@ async function orient() {
     `is that its result: partial carries an open UN-authorized runtime-evidence deferral. This is bookkeeping: ` +
     `the code is built and reviewed; what is missing is fresh proof about an environment wall.\n` +
     `   - 'none' — every stage is 'done' or 'n-a'.\n` +
+    `6c. Copy issueRecords from the status output as it is ([] when it has none). Set slugReview: 'done' when the ` +
+    `status output's review has verdict ship or ship-with-caveats and a reviewedHead, and either \`${GIT} rev-parse HEAD\` ` +
+    `prints that commit or \`${GIT} diff --name-only <reviewedHead>..HEAD\` lists only paths under .ai/; else 'todo'.\n` +
     `7. Branch posture (READ-ONLY — report, never switch or create): run ` +
     `\`${GIT} branch --show-current\`. Report branch.current, branch.target (= 00-index.md branch), ` +
-    `branch.base (= base-branch), branch.strategy (= branch-strategy: dedicated | shared | none), branch.match ` +
+    `branch.base (= base-branch; when none is recorded, the default branch: the name that ` +
+    `\`${GIT} symbolic-ref --short refs/remotes/origin/HEAD\` prints without its \`origin/\`, else main or master when ` +
+    `that local branch exists, else empty), branch.strategy (= branch-strategy: dedicated | shared | none), branch.match ` +
     `(current === target, or target empty), and branch.exists — true iff branch.target resolves as a local ref ` +
     `(\`${GIT} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
     `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
@@ -2101,8 +2157,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
   const scopeHint =
     stage === 'review'
       ? ` Review scope is '${idx.reviewScope}' (per 00-index.md): ${idx.reviewScope === 'slug-wide'
-          ? 'write the single 07-review.md over the whole branch diff (git diff ' + (idx.branch.base || '<base>') + '...HEAD)'
-          : 'write 07-review-' + sliceArg + '.md over git diff HEAD for this slice'}.${dimensionHint}`
+          ? 'write the single 07-review.md over the whole branch diff (git diff ' + idx.branch.base + '...HEAD)'
+          : 'write 07-review-' + sliceArg + '.md over git diff ' + sliceRange(sliceArg, idx) + ' for this slice'}.${dimensionHint}`
       : ''
   // The review fan-out ran the scouts and the refuters: the writer merges their findings into the ledger.
   const scan = stage === 'review' && extra.scan ? extra.scan : null
@@ -2169,7 +2225,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `stopped, 'questions' when an intent-bearing decision waits for the person` +
     `${extra.stopCheck === true ? ", 'stopped' when the stop-request check stopped you" : ''}), the primary ` +
     `artifactPath, and terminal fields — plan/implement: statusField; verify: convergence + result + deferrals ` +
-    `([{ac, reason, probe}]; [] if none) + substantiveResidual + acceptedItems; review: verdict + blockerCount ` +
+    `([{ac, reason, probe}]; [] if none) + substantiveResidual + acceptedItems + failingItems (every item that ` +
+    `still fails after the fix rounds, accepted or not; [] when none); review: verdict + blockerCount ` +
     `(= metric-findings-blocker, OPEN) + couldNotFixBlockers — plus the questions, the class-stamped decisions you recorded, any ` +
     `residual (could-not-fix) notes, your recovered-error list, routeBack when the answered ` +
     `question asks for one, and steeringHonored (plus steeringConflict when a steering entry stopped you) when a ` +
@@ -2200,7 +2257,8 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
     reChallengeClause(idx.priorDeferrals, deferCmd) +
     sliceStatusClause(sliceArg) +
     `\nReturn the verify as \`verify\`: { status, artifactPath, terminal: { convergence, result, deferrals ` +
-    `([{ac, reason, probe}]; [] if none), substantiveResidual, acceptedItems }, residual, sliceWriteBack, hardStopReason, ` +
+    `([{ac, reason, probe}]; [] if none), substantiveResidual, acceptedItems, failingItems (every item that still ` +
+    `fails after the fix rounds, accepted or not; [] when none) }, residual, sliceWriteBack, hardStopReason, ` +
     `questions (status 'questions' only, in the shape of the question contract) }. The top-level fields stay the ` +
     `implement result.` + selfVerifyEndClause(sliceArg)
 }
@@ -2219,12 +2277,9 @@ function selfVerifyClause(sliceArg, idx, deferCmd) {
 function sliceStatusClause(sliceArg) {
   return `\n\nLAST STEP — SLICE STATUS MIRROR (only for slice '${sliceArg}'). After you write the verify artifact, ` +
     `take <status>: complete when it records \`result: pass\`; deferred when it records \`result: partial\` and its ` +
-    `only residue is open runtime-evidence deferrals. Then: (1) get the index with ${wf(`${REC('get')} index`)}, set this ` +
-    `slice's entry in \`slices[]\` to status: <status>, refresh the \`progress\` block (completed/total counts) to ` +
-    `match the roster, write the draft ${DRAFT_DIR}/00-index.md and run ${wf(`${REC('put')} 00-index.md`)}; (2) in the ` +
-    `roster record, set this slice's \`status:\` to <status> when it is not already: for 03-slice.md, get it, change ` +
-    `the entry, write its draft and run ${wf(`${REC('put')} 03-slice.md`)}; for 03-slice-${sliceArg}.md, run ` +
-    `${wf(`${REC('set')} 03-slice-${sliceArg}.md status=<status>`)}. Never change an entry that close set to \`skipped\`, another ` +
+    `only residue is open runtime-evidence deferrals. Then, when the roster does not hold it already, set it with ` +
+    `${wf(`${REC('set')} 03-slice "slices[${sliceArg}].status=<status>"`)}. The roster is the one stored copy: that ` +
+    `write brings the index, the slice record and the slice counts in step, so write none of them. Never change an entry that close set to \`skipped\`, another ` +
     `slice's entry, or \`current-stage\`, and never mark the WORKFLOW complete. For any other result, write nothing ` +
     `here. Return sliceWriteBack: { ok, wrote: [<the records you changed>], note } (ok: false with a note when you ` +
     `wrote nothing).`
@@ -2241,21 +2296,16 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
     `(06-verify-${sliceArg}.md, or 06-verify.md for an un-suffixed change-mode workflow). Take <status>: ` +
     `\`complete\` when it records \`result: pass\`; \`deferred\` when it records \`result: partial\` and its only ` +
     `residue is open runtime-evidence deferrals. Any other result: write nothing and say so in note.\n` +
-    `1. Get the index with ${wf(`${REC('get')} index`)}. Set this slice's entry in \`slices[]\` to ` +
-    `status: <status>, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
-    `state. Write the draft ${DRAFT_DIR}/00-index.md and run ${wf(`${REC('put')} 00-index.md`)}.\n` +
-    `2. In the roster record (03-slice.md, or the per-slice ` +
-    `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), when verify did not already set ` +
-    `this slice's \`status:\` to <status>, set it to <status>: for 03-slice.md, get it, change the entry, write ` +
-    `its draft and run ${wf(`${REC('put')} 03-slice.md`)}; for 03-slice-${sliceArg}.md, run ` +
-    `${wf(`${REC('set')} 03-slice-${sliceArg}.md status=<status>`)}. If the roster records no per-slice status field, ` +
-    `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
-    `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
+    `1. When verify did not already set this slice's roster status to <status>, set it with ` +
+    `${wf(`${REC('set')} 03-slice "slices[${sliceArg}].status=<status>"`)}. The roster is the one stored copy of the ` +
+    `slice statuses: that write brings the index, the slice record and the slice counts in step, so write none ` +
+    `of them. When the workflow has no roster, write nothing and say so. Never change an entry that close set to \`skipped\`.\n` +
+    `2. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before ship and ` +
     `the workflow is not done.\n` +
-    `4. After the roster holds the status, run ${wf(`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply`)}: it ends ` +
+    `3. After the roster holds the status, run ${wf(`${WF_CMD} decide tidy "${projectRoot}" ${slug} --apply`)}: it ends ` +
     `the steers and the notes of slices that are done, so the later slices do not read them.\n` +
-    `5. Run \`${GIT} worktree list\`. When a scratch worktree of this slice is left, name it in your note: a ` +
+    `4. Run \`${GIT} worktree list\`. When a scratch worktree of this slice is left, name it in your note: a ` +
     `stage must remove what it made.` +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
     `Return { ok, wrote: [<the records you actually changed>], note }.` +
@@ -2549,8 +2599,8 @@ async function driveReview(sliceArg, idx, extra = {}) {
   // The fan-out agents journal too, so the watch and the status see the review run.
   const beat = (label) => heartbeatClause(label, 'Review', 'review', sliceArg) +
     ` The two journal lines are the only writes of this agent.`
-  const base = idx.branch.base || '<base>'
-  const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
+  const base = idx.branch.base
+  const diffRange = sliceArg ? sliceRange(sliceArg, idx) : `${base}...HEAD`
   // An answered review runs the writer again with the answer, over the ledger of the last run.
   if (extra.answered) {
     return await classifyDecisions(await runStage('review', sliceArg, idx, { stopCheck: true, answered: extra.answered }), idx)
@@ -2807,6 +2857,36 @@ const CHAIN_ORDER = ['plan', 'implement', 'verify', 'review']
 // back to an earlier stage; that stage and every later stage run again with the answer.
 // Implements that cleared in this run: a plan written before them can be out of date.
 let codeMoved = 0
+// The newest build of an earlier run ({ slice, at }, or { unknown: true } when a slice was built and
+// no time was recorded). A plan older than it is checked against the code before its implement.
+let PRIOR_BUILD = null
+
+// sliceRange() — the commits of one slice for its review: from the parent of its first step commit
+// to HEAD. With no step commit on record, the review reads the commits that the step records name.
+function sliceRange(sliceArg, idx) {
+  const e = ((idx && idx.slices) || []).find(s => s && s.slice === sliceArg)
+  const first = e && typeof e.firstStepSha === 'string' && /^[0-9a-f]{7,40}$/.test(e.firstStepSha.trim()) ? e.firstStepSha.trim() : null
+  return first ? `${first}^..HEAD` : `<the parent of the first step commit that ${WF_CMD} step where names for '${sliceArg}'>..HEAD`
+}
+
+// newestBuild() — the slice whose implement was written last, from the status rows that orient copied.
+function newestBuild(slices) {
+  const built = (slices || []).filter(s => s && s.stages && s.stages.implement === 'done')
+  if (!built.length) return null
+  const dated = built.filter(s => s.implementAt && !Number.isNaN(Date.parse(s.implementAt)))
+  if (!dated.length) return { slice: null, at: null, unknown: true }
+  const last = dated.reduce((a, b) => (Date.parse(b.implementAt) > Date.parse(a.implementAt) ? b : a))
+  return { slice: last.slice, at: last.implementAt, unknown: false }
+}
+
+// planOlderThanBuild() — true when the plan of the slice may not know the code of the newest build.
+function planOlderThanBuild(entry, build) {
+  if (!build || !entry) return false
+  if (build.unknown) return true
+  if (build.slice === entry.slice) return false
+  const plan = Date.parse(entry.planAt || '')
+  return Number.isNaN(plan) || Date.parse(build.at) > plan
+}
 
 // The plan check of a slice whose plan was written before code changed under it: a read-only agent.
 const PLAN_CHECK_RESULT = {
@@ -3043,9 +3123,12 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       return stopOut('verify', `${sentBack.reason} — sent back to implement, which made no commit`, { slice: sliceArg, ran })
     }
     const aheadStale = usedAhead && !!opts.planAhead && codeMoved > opts.planAhead.codeMoved
-    if (stage === 'implement' && !freshChecked && codeMoved > 0 && ((!ranStages.includes('plan') && done.plan === 'done') || aheadStale)) {
+    // Code of this run moved, or a slice an earlier run built is newer than this plan.
+    const priorStale = codeMoved === 0 && planOlderThanBuild(entry, PRIOR_BUILD)
+    if (stage === 'implement' && !freshChecked && (codeMoved > 0 || priorStale) && ((!ranStages.includes('plan') && done.plan === 'done') || aheadStale)) {
       freshChecked = true
-      const f = await planFreshness(sliceArg, aheadStale ? opts.planAhead.during : null)
+      const since = aheadStale ? opts.planAhead.during : priorStale && PRIOR_BUILD.slice ? PRIOR_BUILD.slice : null
+      const f = await planFreshness(sliceArg, since)
       if (!f.fresh) {
         log(`the plan of '${sliceArg}' is out of date: ${f.reason} — refreshing it before implement`)
         refresh = { reason: f.reason }
@@ -3058,6 +3141,16 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // Only for a slice whose sole residue is an open deferral (reverifyReason
     // 'deferral-rechallenge'). Everything else drives normally.
     if (opts.bounded === true && stage === 'verify' && !forced.has('verify')) {
+      // Orient ran the clearing probe of every open deferral in code: when none of them cleared, no
+      // wall can have fallen, and the probe agent would only say so again.
+      const openHere = (idx.priorDeferrals || []).filter(d => d && d.slice === sliceArg && !d.clearedBy && d.authorized !== true)
+      if (openHere.length && openHere.every(d => d.clearingProbeHit === false)) {
+        log(`wall-probe:${sliceArg} skipped — the clearing probe of each of its ${openHere.length} open deferral(s) found no change`)
+        ran.push({ stage: 'wall-probe', slice: sliceArg, status: 'complete', artifactPath: '', terminal: {}, walls: [],
+          decisions: [{ class: 'implementation-detail', decision: `bounded re-challenge skipped: no clearing probe of '${sliceArg}' found a change` }] })
+        ranStages.push('wall-probe')
+        continue
+      }
       log(`yolo → wall-probe ${slug} ${sliceArg} (bounded re-challenge: slice is terminal-clean except its open deferral(s))`)
       const wp = await driveWallProbe(sliceArg, idx)
       if (wp) {
@@ -3188,6 +3281,8 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
       noCodeChange = !!headAt && headAt === shaOf(res.headEnd)
     }
   }
+  // An implement that an earlier run finished ran no agent here: its last step commit stands in.
+  if (!implHead && done.implement === 'done' && entry) implHead = shaOf(entry.lastStepSha)
   // A caller that drives the slice in parts writes the status back itself, after the last part.
   if (opts.noWriteBack) return { stopped: false, slice: sliceArg, ran, headEnd: implHead }
   // The chain cleared every gate: record the slice as complete at DRIVE
@@ -3299,6 +3394,11 @@ async function recheckSlice(sliceArg, why) {
 // sends nothing back, and does not scan its own fix commits again; the person runs /wf review
 // again to review further. Returns the slug outcome.
 async function slugWideReview(idx, results) {
+  // A review of an earlier run cleared this code, and this run built nothing on it.
+  if (idx.slugReview === 'done' && codeMoved === 0) {
+    log(`review ${slug} (slug-wide) skipped — 07-review.md cleared this HEAD in an earlier run, and this run built nothing`)
+    return { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: { skipped: true }, route: `/wf ship ${slug}` }
+  }
   log(`yolo → review ${slug} (slug-wide)`)
   // The walk put the defects of a fidelity row or a try-out in the ledger: the review fixes
   // them and does not scan the work packet again.
@@ -3359,13 +3459,16 @@ const CHECKPOINT_EVERY = 3   // the default K
 // charterCheckpoint() — every K slices, a cheap read-only subagent reads the charter
 // and the last K implement artifacts and asks "is the build still advancing each commitment?".
 // A `broken` verdict is a stop; at-risk is surfaced. Read-only — it never writes.
-async function charterCheckpoint(idx, throughSlice) {
-  const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
+async function charterCheckpoint(idx, throughSlice, { charterTouched = true } = {}) {
+  // The charter commitments are checked when a decision of the window touched them; otherwise the
+  // check is the acceptance criteria of the slices that were built.
+  const charterList = charterTouched ? (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ') : ''
+  const noCharter = (idx.charter || []).length ? 'No decision since the last check touched the charter.' : 'This workflow has no charter.'
   // A workflow with no charter is checked against the goal and the acceptance criteria of the
   // slices that were built since the last check: each one is a commitment, with the slice name as its id.
   const against = charterList
     ? `The intake committed to these charter commitments:\n    ${charterList}\n\n`
-    : `This workflow has no charter. The commitments are the goal and the acceptance criteria of the last ` +
+    : `${noCharter} The commitments are the goal and the acceptance criteria of the last ` +
       `${CHECKPOINT_EVERY} slices that were built, through '${throughSlice}': read each slice record ` +
       `(03-slice-<slice>.md) and use the slice name as the id of its commitment.\n\n`
   return await spawnAgent(
@@ -3434,10 +3537,27 @@ if (!idx) {
 // Adopt the runId orient minted (this script has no clock of its own) so every
 // later heartbeat is attributable to THIS run.
 RUN_ID = GIVEN_RUN_ID || (idx.runId && String(idx.runId).trim()) || `run-${slug}`
+// A value orient left out is unknown, never the value that lets the run go on. A not-ready orient
+// stops below with its own reason.
+if (idx.ok !== false) {
+  const gaps = orientGaps(idx)
+  for (const n of gaps.notes) log(`orient: ${n}`)
+  if (gaps.stop) {
+    await runEnd('orient', gaps.stop)
+    return { ok: false, stopped: true, reason: gaps.stop, route: `${gaps.route}, then re-run /wf yolo ${slug}${slice ? ' ' + slice : ''}` }
+  }
+}
 // A plan that an earlier run wrote can be older than the code of a slice that was built after it.
 // The counter of this run starts at 0, so the built slices of the roster say that code has moved:
 // such a plan is checked against the code before its implement, as a plan written ahead in this run is.
-if ((idx.slices || []).some(s => s && s.stages && s.stages.implement === 'done')) codeMoved = 1
+PRIOR_BUILD = newestBuild(idx.slices)
+// An issue carried into a slice after its plan was written: the plan is written again before its
+// implement, on the first slice of this run as on every later one.
+for (const s of idx.slices || []) {
+  if (!s || !s.carriedAt || (s.stages && s.stages.implement === 'done')) continue
+  const plan = Date.parse(s.planAt || '')
+  if (Number.isNaN(plan) || Date.parse(s.carriedAt) > plan) CARRIED_ISSUES.add(s.slice)
+}
 // Say what the PREVIOUS driver's journal shows, before anything else.
 // Silence is the finding: a driver that died leaves a journal that simply stops, and
 // the whole point is that this is now stated rather than inferred away.
@@ -3691,6 +3811,12 @@ if (idx.workflowType === 'update-deps') {
   function startInvestigations(open) {
     for (const i of open) {
       if (issueRuns.has(i.id) || i.placed) continue
+      // An earlier run investigated it: its record is placed, not written again.
+      if ((idx.issueRecords || []).includes(issueKeyOf(i.id))) {
+        issueRuns.set(i.id, { done: true, final: false, issue: i, reused: true, result: { record: `05i-issue-${issueKeyOf(i.id)}.md` } })
+        log(`issue ${i.id} has an investigation from an earlier run (05i-issue-${issueKeyOf(i.id)}.md) — placing it, not investigating it again`)
+        continue
+      }
       if (issuesStarted >= ISSUE_MAX_PER_RUN) {
         if (!issueReport.notStarted.includes(i.id)) { issueReport.notStarted.push(i.id); log(`issue ${i.id} is not investigated in this run: ${ISSUE_MAX_PER_RUN} were (issues.maxPerRun); the next run takes it`) }
         continue
@@ -3719,7 +3845,10 @@ if (idx.workflowType === 'update-deps') {
       const text = String(i.placed.text || '')
       const target = (text.match(/→ (\S+:\S+)/) || [])[1]
       const ended = target && target !== 'review:slug-wide' && finished.has(target.split(':')[1])
-      if ((i.refused || []).length || ended || /held for the person/.test(text)) ids.push(i.id)
+      // A held issue waits for its answer: it is placed again only when the person answered it.
+      const held = /held for the person/.test(text)
+      const answered = held && ANSWERED.some(a => a && a.key === `issue-${issueKeyOf(i.id)}`)
+      if ((i.refused || []).length || ended || answered) ids.push(i.id)
     }
     return ids
   }
@@ -3796,9 +3925,11 @@ if (idx.workflowType === 'update-deps') {
   async function walkRoster(list, bounded) {
     // The fields of every stop of the roster walk.
     const walk = { mode: 'slug', reviewScope: idx.reviewScope, results }
-    // A checkpoint window in which no stage ran cannot drift the charter, so it is
-    // not re-checked: a resumed run otherwise re-checks every finished slice first.
+    // A checkpoint window in which no stage ran built nothing, so it is not checked: a resumed
+    // run otherwise re-checks every finished slice first. A window whose decisions touched the
+    // charter adds the charter commitments to the check.
     let workSinceCheckpoint = false
+    let charterTouched = false
     // The slices still to drive. The primary pass reads the roster again after each slice
     // that ran a stage, so an order or a retirement made during the run takes effect at
     // the next slice. A slice that ran nothing took no time, so nothing is read after it.
@@ -3821,13 +3952,14 @@ if (idx.workflowType === 'update-deps') {
       // ---- two slices at once (pairSlices) ---------------------------------
       // Only for two slices that both still need their implement, that do not depend on each
       // other, and that carry no answer; the branch must take commits.
-      const mate = PAIR_SLICES && !bounded && idx.branch.strategy !== 'none' ? nextUp() : null
+      const mate = PAIR_SLICES && !bounded && idx.branch.commits === true ? nextUp() : null
       const pairable = (x) => stagesOf(x.slice).implement !== 'done' && !answeredFor(ANSWERED, 'plan', x.slice) && !answeredFor(ANSWERED, 'implement', x.slice) && !answeredFor(ANSWERED, 'verify', x.slice)
       if (mate && pairable(s) && pairable(mate) && unrelated(s, mate)) {
         const pair = await drivePair(s, mate, walk)
         if (pair.paired) {
           left = left.filter(x => x !== mate)
           workSinceCheckpoint = true
+          charterTouched = true
           const lateP = await settleBehind()
           if (pair.stop || lateP) return bothStops(pair.stop, lateP)
           finished.add(s.slice); finished.add(mate.slice)
@@ -3849,7 +3981,7 @@ if (idx.workflowType === 'update-deps') {
       // ---- the verify of this slice, behind (verifyBehind) -------------------
       // Not for an xs or s slice (its implement agent verifies), not for the last slice, not for a
       // slice that carries an answer for its verify, and not on a branch that takes no commit.
-      const behind = VERIFY_BEHIND && !bounded && !reviewPer && idx.branch.strategy !== 'none' && !SELF_VERIFY_SIZES.includes(s.complexity) && mine.verify !== 'done' && !answeredFor(ANSWERED, 'verify', s.slice) && !!nextUp()
+      const behind = VERIFY_BEHIND && !bounded && !reviewPer && idx.branch.commits === true && !SELF_VERIFY_SIZES.includes(s.complexity) && mine.verify !== 'done' && !answeredFor(ANSWERED, 'verify', s.slice) && !!nextUp()
       const ahead = plansAhead.get(s.slice)
       plansAhead.delete(s.slice)
       // While a verify runs behind, this slice stops after its implement: the fix commits of that
@@ -3858,7 +3990,8 @@ if (idx.workflowType === 'update-deps') {
       const stagesNow = (split ? ['plan', 'implement'] : perSliceStages).filter(x => !(x === 'plan' && plannedEarly.has(s.slice)))
       const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(CARRIED_ISSUES.delete(s.slice) ? { carriedIssues: true } : {}), ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}), ...(pendingVerify ? { beside: { slice: pendingVerify.slice, branch: pendingVerify.side.branch } } : {}) })
       results.push(chain)
-      if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
+      if ((chain.ran || []).length > 0) workSinceCheckpoint = true
+      if (touchesCharter(chain.ran, idx.charter)) charterTouched = true
       // The verify of the slice before this one ran during this implement: its result is due now.
       const late = await settleBehind()
       if (chain.stopped) {
@@ -3882,15 +4015,15 @@ if (idx.workflowType === 'update-deps') {
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
       // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
       const isLast = left.length === 0
-      const hasCharter = (idx.charter || []).length > 0
       const checkpointDue = !bounded && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
-      // With a charter, a check is due only after work that touched it. With no charter, each
-      // built slice is work to check.
-      if (checkpointDue && hasCharter && !workSinceCheckpoint) {
-        log(`charter checkpoint after '${s.slice}' skipped — no work since the last checkpoint touched the charter`)
+      // A check is due only after a window in which a stage ran.
+      if (checkpointDue && !workSinceCheckpoint) {
+        log(`charter checkpoint after '${s.slice}' skipped — no stage ran since the last checkpoint`)
       } else if (checkpointDue) {
+        const touched = charterTouched
         workSinceCheckpoint = false
-        const cp = await charterCheckpoint(idx, s.slice)
+        charterTouched = false
+        const cp = await charterCheckpoint(idx, s.slice, { charterTouched: touched })
         if (cp) {
           charterCheckpoints.push({ throughSlice: s.slice, ...cp })
           const broken = (cp.commitments || []).filter(c => c && c.status === 'broken')

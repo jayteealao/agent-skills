@@ -71,7 +71,7 @@ A list is the `work/index.md` (`type: list`) of a brainstorm or ideate workflow.
    - `selected-slice`, `open-questions`
    - `next-command` and `next-invocation`. When they are absent, take `recommended-next-command` and `recommended-next-invocation`, the route of a readiness gate. This is the order that `wf_context { "op": "status" }` (CLI: `wf.mjs status`) and the dispatcher use; `record stage-done` clears the `recommended-` pair when it writes the next step.
    - `branch-strategy`, `branch`, `pr-url`, `pr-number`
-   - `progress`, for example `slices-implemented: 2, slices-total: 5`
+   - `progress`: the state of each stage (`plan: in-progress`). The slice counts come from the `slices` rows of `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`), which reads the roster
    - `runtime-evidence-deferrals`: a list of `{slice, reason, deferred-at, cleared-by}`, which may be absent
    - `compressed-slices`: a list of `{slug, slice-type, created-at}`. The entries with `slice-type: probe` are the probe findings.
 5. Compute `runtime-evidence-status` for each workflow:

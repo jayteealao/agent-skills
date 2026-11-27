@@ -22,7 +22,7 @@ and a WIP pass surfaces what to stop. Run the steps in order.
 
 From the just-reconciled `INDEX.md` and the index of each slug (`wf_read { "slug": "<slug>", "items": [{ "op": "record get", "name": "index" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> index`), per [_records.md](../_records.md)), collect per slug: `status`,
 `current-stage`/`stage-number`, `branch`, `updated-at` (+ staleness, >7d), `open-questions`,
-`progress` (slices-implemented/total), `runtime-evidence-deferrals`, probe compressed-slices with
+`progress` (the state of each stage; the slice counts come from the `slices` rows of `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`)), `runtime-evidence-deferrals`, probe compressed-slices with
 `findings-count > 0`, and `intent-risks`. This is the same read the dashboard already does — no new
 cost. Drop terminal slugs (`shipped`/`closed`/`abandoned`) **unless** one still carries open
 carried-risk (an unresolved deferral, probe finding, or intent-risk), in which case keep it in the

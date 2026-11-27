@@ -97,9 +97,9 @@ stage-number: 4
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 metric-files-to-touch: <int — actual changed-file count>
-metric-step-count: <int — reconstructed step count>
+metric-step-count: <int>   # record put counts the steps of the body and writes this
 has-blockers: false
-revision-count: 0
+revision-count: 0   # every write sets this to the number of revisions: entries
 tags: []
 refs:
   index: 00-index.md

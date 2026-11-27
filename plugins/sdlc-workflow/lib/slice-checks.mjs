@@ -162,3 +162,22 @@ export function checkLine(c) {
 export function unmetLines(dir, slice) {
   return checksOf(dir, slice).filter((c) => c.result === 'not-met').map((c) => `- ${checkLine(c)}`);
 }
+
+/** The fix rounds that a slice may take in one run of its steps before it goes back to plan. */
+export const MAX_FIX_ROUNDS = 3;
+
+/**
+ * The fix rounds of the current run of a slice: each commit at which a slice check was recorded
+ * not met, after `since` (the time the run started; all rows when null). A round is a commit, so
+ * two checks that failed at one commit are one round.
+ */
+export function fixRounds(dir, slice, since = null) {
+  const from = since ? Date.parse(since) : NaN;
+  const shas = new Set();
+  for (const r of readChecks(dir)) {
+    if (r.slice !== slice || r.result !== 'not-met') continue;
+    if (Number.isFinite(from) && !(Date.parse(r.at ?? '') >= from)) continue;
+    shas.add(String(r.sha ?? r.at ?? ''));
+  }
+  return shas.size;
+}

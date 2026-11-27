@@ -72,7 +72,7 @@ test('a yolo walk: every prompt that an agent receives starts with the skill-dir
     async (prompt, opts = {}) => {
       prompts.push({ label: opts.label, prompt });
       if (opts.label === 'orient') {
-        return { ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed', runId: 'r1', charter: [], priorDeferrals: [], branch: { current: 'b', target: 'b', match: true, strategy: 'none' }, slices: [slice] };
+        return { ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed', runId: 'r1', charter: [], priorDeferrals: [], branch: { current: 'b', target: 'b', match: true, base: 'main', strategy: 'none' }, slices: [slice] };
       }
       if (opts.label === 'select-rubrics') return { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }] };
       if (opts.label && opts.label.startsWith('scout:')) return { findings: [] };

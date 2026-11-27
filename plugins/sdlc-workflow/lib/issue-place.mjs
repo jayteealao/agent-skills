@@ -18,8 +18,10 @@
 //   7   a new packet: always a question to the person
 // An issue outside the confirmed scope is never placed: it is a question to the person.
 
-/** The step limit of a slice, as slicing writes it: a slice that would pass it is full. */
-export const SLICE_STEP_LIMIT = 20;
+import { DEFAULT_MAX_STEPS } from './limits.mjs';
+
+/** The step limit of a slice by default; a project sets `slices.maxSteps` and the caller passes it as `maxSteps`. */
+export const SLICE_STEP_LIMIT = DEFAULT_MAX_STEPS;
 
 /** The record of the investigation of an issue, by its talk id: `T-12` → `05i-issue-t12.md`. */
 export const issueKeyOf = (talkId) => `t${String(talkId ?? '').replace(/\D/g, '')}`;
@@ -75,13 +77,18 @@ export function missingFacts(inv, states) {
  * @param {string|null} [ctx.reporter] the actor that posted the issue (`implement:api`)
  * @param {boolean} [ctx.reviewOpen] the slug-wide review has not run yet
  * @param {string|null} [ctx.nextPacket] the key of the next packet of a campaign list, when the workflow is one
+ * @param {number} [ctx.maxSteps] the step limit of a slice in this project (slices.maxSteps)
+ * @param {object} [ctx.room] the steps left of each slice, worked out from the roster (`{ <slice>: n }`); a
+ *   slice it does not name falls back to the stepsLeft of the investigation, else to the step limit
+ * @param {{ steps: number, limit: number }} [ctx.budget] the steps of this packet and its budget (packets.maxSteps)
+ * @param {string|null} [ctx.nextPacketFull] why the next packet cannot take more steps, or null when it can
  * @param {number} [ctx.above] place above this rung only (a target refused, or it ended without the issue)
  * @param {boolean} [ctx.final] a second investigation: missing facts go to the person, not to a new investigation
  * @returns {{ status: 'placed'|'ask'|'incomplete', rung: number|string|null, target: string|null, action: string,
  *   why: string, lower: { rung: number|string, failed: string }[], gate: { pass: boolean, failed: string[] } | null,
  *   ask?: { reason: string, question: string, options: string[], recommended: string } , missing?: string[] }}
  */
-export function placeIssue(inv, { slices = [], reporter = null, reviewOpen = false, nextPacket = null, above = 0, final = false } = {}) {
+export function placeIssue(inv, { slices = [], reporter = null, reviewOpen = false, nextPacket = null, above = 0, final = false, maxSteps = SLICE_STEP_LIMIT, room = null, budget = null, nextPacketFull = null } = {}) {
   const lower = [];
   const out = (fields) => ({ lower, gate: null, ...fields });
   const rank = (r) => (r === '4b' ? 4.5 : Number(r));
@@ -111,23 +118,33 @@ export function placeIssue(inv, { slices = [], reporter = null, reviewOpen = fal
   }
 
   // Rungs 3 and 4: the first open slice that has not started, covers the issue and has room.
+  // A fix of unknown size fits no slice, and a packet at its budget takes no more steps: then the
+  // issue goes up to the next packet, or to the person.
   const steps = numOr(inv.size?.steps);
+  const noSize = steps === null || steps <= 0 ? 'the investigation has no size (size.steps)' : null;
+  const overBudget = !noSize && budget && Number.isFinite(budget.limit) && budget.steps + steps > budget.limit
+    ? `the packet is over its budget of ${budget.limit} steps (${budget.steps} now, ${steps} more)` : null;
+  const closed = noSize ?? overBudget;
   const coverage = new Map((inv.coverage ?? []).map((c) => [String(c.slice), c]));
   const waiting = open.filter((s) => !s.started).sort((a, b) => a.order - b.order);
+  // The room from the roster wins; a slice with no estimate and no plan takes the investigator's
+  // count, else the whole limit. The budget of the packet still caps what it may take.
+  const roomOf = (s, c) => (room && Number.isFinite(Number(room[s.slice])) ? Number(room[s.slice]) : numOr(c?.stepsLeft, maxSteps));
   const full = [];
   waiting.forEach((s, i) => {
     const c = coverage.get(s.slice);
-    if (!c?.covers) return;
-    const left = numOr(c.stepsLeft, SLICE_STEP_LIMIT);
-    if (steps !== null && steps > left) full.push({ slice: s.slice, steps, left, i });
+    if (!c?.covers || noSize) return;
+    const left = roomOf(s, c);
+    if (steps > left) full.push({ slice: s.slice, steps, left, i });
   });
   for (let i = 0; i < waiting.length; i += 1) {
     const s = waiting[i];
     const c = coverage.get(s.slice);
     const rung = i === 0 ? 3 : 4;
+    if (closed) { lower.push({ rung, failed: closed }); continue; }
     if (!c?.covers) { lower.push({ rung, failed: `'${s.slice}' does not cover it: ${str(c?.reason) || 'no reason given'}` }); continue; }
     const f = full.find((x) => x.slice === s.slice);
-    if (f) { lower.push({ rung, failed: `'${s.slice}' covers it but is full: the fix needs ${f.steps} steps and it has ${f.left} left of ${SLICE_STEP_LIMIT}` }); continue; }
+    if (f) { lower.push({ rung, failed: `'${s.slice}' covers it but is full: the fix needs ${f.steps} steps and it has ${f.left} left of ${maxSteps}` }); continue; }
     if (!allowed(rung)) { lower.push({ rung, failed: `'${s.slice}' was given the issue and did not take it` }); continue; }
     return out({ status: 'placed', rung, target: s.slice, action: 'carry', why: `the scope of '${s.slice}' covers it${str(c.cites) ? ` (${str(c.cites)})` : ''}` });
   }
@@ -140,11 +157,12 @@ export function placeIssue(inv, { slices = [], reporter = null, reviewOpen = fal
 
   // Rung 5: a new slice, with the proof gate.
   const failed = [];
+  if (closed) failed.push(closed);
   if (str(inv.cause?.confidence) !== 'reproduced') failed.push('the cause is not reproduced');
   if (!str(inv.reproduction?.command)) failed.push('no reproduction command');
   for (const s of waiting) {
     const c = coverage.get(s.slice);
-    if (c?.covers && !full.some((x) => x.slice === s.slice)) failed.push(`'${s.slice}' covers it and has room`);
+    if (!closed && c?.covers && !full.some((x) => x.slice === s.slice)) failed.push(`'${s.slice}' covers it and has room`);
     if (c && c.covers === false && !str(c.reason)) failed.push(`'${s.slice}' gives no reason that it does not cover it`);
   }
   const proposal = inv.proposal && str(inv.proposal.slice) && str(inv.proposal.scope) && Array.isArray(inv.proposal.ac) && inv.proposal.ac.length ? inv.proposal : null;
@@ -156,10 +174,10 @@ export function placeIssue(inv, { slices = [], reporter = null, reviewOpen = fal
   lower.push({ rung: 5, failed: gate.pass ? 'a new slice was refused' : failed.join('; ') });
 
   // Rung 6: the next packet of a campaign list.
-  if (nextPacket && inv.packetFit?.fits === true && allowed(6)) {
+  if (nextPacket && inv.packetFit?.fits === true && !nextPacketFull && allowed(6)) {
     return { lower, gate, status: 'placed', rung: 6, target: String(nextPacket), action: 'packet', why: `the scope of the next packet covers it${str(inv.packetFit.cites) ? ` (${str(inv.packetFit.cites)})` : ''}` };
   }
-  lower.push({ rung: 6, failed: !nextPacket ? 'the workflow is not a packet of a campaign list, or no packet is next' : `the next packet does not cover it: ${str(inv.packetFit?.reason) || 'no reason given'}` });
+  lower.push({ rung: 6, failed: !nextPacket ? 'the workflow is not a packet of a campaign list, or no packet is next' : nextPacketFull && inv.packetFit?.fits === true ? `the next packet is full: ${nextPacketFull}` : `the next packet does not cover it: ${str(inv.packetFit?.reason) || 'no reason given'}` });
 
   // Rung 7, and every other case: the person decides.
   return { lower, gate, status: 'ask', rung: 7, target: null, action: 'hold', why: 'no rung below a new packet holds', ask: askOf(inv, 'rung7', [], gate) };

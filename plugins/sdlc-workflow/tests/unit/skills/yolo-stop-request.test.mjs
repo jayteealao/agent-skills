@@ -33,6 +33,9 @@ function chainHarness(answers, answered = []) {
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
     // No implement ran before this chain, so it runs no plan check.
     let codeMoved = 0
+    // No earlier run built a slice.
+    const PRIOR_BUILD = null
+    const planOlderThanBuild = () => false
     const planFreshness = async () => ({ fresh: true })
     // The split threshold that driveChain reads.
     const SPLIT_AFTER_STOPS = 2

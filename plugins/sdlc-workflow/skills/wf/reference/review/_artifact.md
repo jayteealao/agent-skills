@@ -29,6 +29,7 @@ metric-findings-nit: <N>
 metric-findings-pre-existing: <N>
 metric-findings-resolved: <N>
 metric-findings-fixed: <N>       # ship's release notes read it
+fix-steps: <N>                   # the fix steps this review committed; status shows it beside the step limit
 metric-findings-total-ever: <N>
 fix-commit: "<SHA | null>"       # the last fix commit of this run, if any
 modes: [select]                  # the modes of THIS run (review.md ## Requires); omit the key when none applies

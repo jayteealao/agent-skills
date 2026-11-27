@@ -30,6 +30,9 @@ function chainHarness(heads, { selfVerifyResult = CLEAN('verify') } = {}) {
     const projectRoot = '/r'
     const WF_CMD = 'node "/p/scripts/wf.mjs"'
     let codeMoved = 0
+    // No earlier run built a slice.
+    const PRIOR_BUILD = null
+    const planOlderThanBuild = () => false
     const planFreshness = async () => ({ fresh: true })
     const SPLIT_AFTER_STOPS = 2
     const MAX_ROUTE_BACKS = 2
@@ -140,7 +143,7 @@ function verifyHarness(rounds, wall) {
   return { driveVerify, calls };
 }
 
-const PARTIAL = { stage: 'verify', status: 'complete', artifactPath: 'v.md', terminal: { convergence: 'converged', result: 'partial', deferrals: [{ ac: 'AC2', reason: 'no emulator' }] } };
+const PARTIAL = { stage: 'verify', status: 'complete', artifactPath: 'v.md', terminal: { convergence: 'converged', result: 'partial', substantiveResidual: false, deferrals: [{ ac: 'AC2', reason: 'no emulator' }] } };
 
 test('a clean verify with a probe gap calls the wall probe, not a second verify', async () => {
   const h = verifyHarness([PARTIAL], { walls: [{ ac: 'AC2', stands: true, probe: 'adb devices → none' }] });

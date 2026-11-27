@@ -21,7 +21,7 @@ test('a step runs a static check and no test; the slice runs its checks once, wi
   assert.match(steps, /After each plan step, run only the cheapest static check of the project on the files of that step/);
   assert.match(steps, /## The slice checks/);
   assert.match(steps, /The limit is 3 rounds for the slice, counted over all its reds together/);
-  assert.match(ref('plan.md'), /A slice has 20 steps or fewer/);
+  assert.match(ref('plan.md'), /A slice has no more steps than the step limit of the project \(`slices\.maxSteps`/);
   assert.match(ref('plan.md'), /It is never a test run/);
 });
 

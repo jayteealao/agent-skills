@@ -15,7 +15,7 @@ You are running `/wf plan`, stage 4 of 9: 1·intake → 2·design → 3·slice �
 
 - Research the code first. Then write a plan that a builder can follow step by step: each step names its files and its done check. The tests of the slice run once, after the last step.
 - Before a plan step calls a dependency, framework or SDK whose exact API you have not read in this repo, read its installed source with the `study-sources` skill, per [_source-study.md](_source-study.md). Do not plan from a remembered API.
-- A slice has 20 steps or fewer. At more than 20, route back to slice.
+- A slice has no more steps than the step limit of the project (`slices.maxSteps` of `.ai/sdlc-config.json`, default 20). Above it, route back to slice.
 - The slice is the unit that is tested. The done check of a step is a static check: the named files changed and the tree compiles. A step runs no test, guard set, measured run or device check: put each one under `## Slice Checks`. Mark a step `(probe)` only when the content of the next step depends on the result of one check; name that check as its done check.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, ask it. In a session, ask with the question tool ([_gate-question.md](_gate-question.md)). As a stage agent of a driver, hold it with `decide hold` and wait in `decide wait`, as your prompt says. Write `status: awaiting-input` only when no answer can come.
 - Record each choice that you settle in `## Assumptions`, with the reason.
@@ -232,9 +232,9 @@ stage-number: 4
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 metric-files-to-touch: <N>
-metric-step-count: <N>
+metric-step-count: <N>   # record put counts the steps of the body and writes this
 has-blockers: false
-revision-count: 0
+revision-count: 0   # every write sets this to the number of revisions: entries
 revisions: []   # reason-centric ledger per _additive-write.md; one entry per re-run that changed the plan
 tags: []
 files: []      # Step F: each file that the plan changes
@@ -258,7 +258,7 @@ Body sections, in order:
 - `## Proposed Change Strategy`. When an NFR is the reason for a mechanism choice, quote its charter ranking from the `## Non-Functional Requirements` of `02-shape.md` (`yields-to: C<n>` or `outranks: C<n> (PO-ratified)`). An unranked NFR that narrows a charter commitment is intent-bearing: classify it per [_decision-classes.md](_decision-classes.md) and route it to the person; on an autonomous run it is a stop condition.
 - `## Design Components`, only when design is needed: the components of `## Component map` that the slice uses, and the component delta, per [design/_lane.md](design/_lane.md). A component of `components-to-build:` gets its own plan step, before the first screen that uses it.
 - A step that makes stored results again (snapshots, golden results, pins) or takes a measurement has `(after-merge)` after its title: the implement agent takes in the fix commits of the verify that runs beside it before that step.
-- `## Step-by-Step Plan`: one numbered item per step, in work order. Each step names its files and its done check: `` 1. **<title>** — files: `<path>`. Done when: `<static check>` passes. `` The done check is the cheapest static check of the project on the files of the step (a compile or type check, or a linter), or the observation that the named files changed. It is never a test run. A step may write a test; the slice runs it. A probe step, whose result decides the content of the next step, has the mark `(probe)` after its title and one check: `` 4. **<title>** (probe) — files: `<path>`. Done when: `<the one check>` passes. `` A slice has 20 steps or fewer; at more than 20, route back to `/wf slice <slug>`. `record put` refuses a new plan that has more than 20 steps, or a step whose done check runs a test without the mark `(probe)`.
+- `## Step-by-Step Plan`: one numbered item per step, in work order. Each step names its files and its done check: `` 1. **<title>** — files: `<path>`. Done when: `<static check>` passes. `` The done check is the cheapest static check of the project on the files of the step (a compile or type check, or a linter), or the observation that the named files changed. It is never a test run. A step may write a test; the slice runs it. A probe step, whose result decides the content of the next step, has the mark `(probe)` after its title and one check: `` 4. **<title>** (probe) — files: `<path>`. Done when: `<the one check>` passes. `` A slice has no more steps than the step limit (`slices.maxSteps`, default 20); above it, route back to `/wf slice <slug>`. `record put` refuses a plan that has more steps than the limit, or a step whose done check runs a test without the mark `(probe)`.
 - `## Slice Checks`: each check that the slice runs once, after its last step: the tests of the slice, and each guard set, measured run or device check of the slice, with its command. Implement runs them before the receipt ([implement/_steps.md](implement/_steps.md), "The slice checks").
 - `## Packet Checks`: each check that is too slow for a slice step (the Card), with its pilot measurement for a long run. The review runs each one once for the packet.
 - `## Handover` (required): the exact files and symbols to change (`path` → `symbol()`), the test command, and the decisions already made, each with its source.

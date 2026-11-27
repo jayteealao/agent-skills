@@ -88,7 +88,7 @@
         "properties": {
           "rev":     { "type": "integer", "minimum": 1 },
           "at":      { "$ref": "#/$defs/iso8601" },
-          "trigger": { "enum": ["review-feedback", "ci-fix", "new-slice", "new-slug-joined", "scope-change", "answers-returned", "resume", "manual"] },
+          "trigger": { "enum": ["review-feedback", "ci-fix", "new-slice", "new-slug-joined", "scope-change", "split", "merge", "answers-returned", "resume", "manual"] },
           "because": { "type": "string" },
           "changed": { "type": "string" }
         }
@@ -233,6 +233,10 @@
               "extension-round": { "type": "integer", "minimum": 1 },
               "drop-reason": { "type": "string", "description": "Why the slice left the roster: slice drop or slice move." },
               "moved-to": { "type": "string", "description": "The workflow that took the slice: slice move." },
+              "estimated-steps": { "type": "integer", "minimum": 1, "description": "The plan steps that the slice is expected to take, before its plan exists: written by slice, slice add, slice split and slice merge, raised by slice carry. The step limit (slices.maxSteps) bounds it." },
+              "made-for": { "type": "string", "description": "The key of the issue that slice add made this slice for." },
+              "split-from": { "type": "string", "description": "The slice that slice split cut this slice out of." },
+              "merged-into": { "type": "string", "description": "The slice that slice merge joined this slice into; the slice is dropped." },
               "unit": { "type": "string", "description": "Legacy, from the old wave campaign: the unit that walked the slice. No release writes it now." }
             }
           }
@@ -602,6 +606,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "total-slices": { "type": "integer", "minimum": 0 },
         "best-first-slice": { "type": "string" },
+        "limit-override": { "type": "string", "description": "The id of a decision of the person that accepts a roster over its limits (slices.maxSteps, slices.maxPerPacket, packets.maxSteps)." },
         "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "slices": {
@@ -620,6 +625,10 @@
               "extension-round": { "type": "integer", "minimum": 1 },
               "drop-reason": { "type": "string", "description": "Why the slice left the roster: slice drop or slice move." },
               "moved-to": { "type": "string", "description": "The workflow that took the slice: slice move." },
+              "estimated-steps": { "type": "integer", "minimum": 1, "description": "The plan steps that the slice is expected to take, before its plan exists: written by slice, slice add, slice split and slice merge, raised by slice carry. The step limit (slices.maxSteps) bounds it." },
+              "made-for": { "type": "string", "description": "The key of the issue that slice add made this slice for." },
+              "split-from": { "type": "string", "description": "The slice that slice split cut this slice out of." },
+              "merged-into": { "type": "string", "description": "The slice that slice merge joined this slice into; the slice is dropped." },
               "unit": { "type": "string", "description": "Legacy, from the old wave campaign: the unit that walked the slice. No release writes it now." }
             }
           }
@@ -650,6 +659,10 @@
         "carried-issues": { "type": "array", "description": "The issues that a run carried into the slice before its implement: slice carry, from issue place (rungs 3 and 4) or a decision of the person.", "items": { "type": "object", "properties": { "issue": { "type": "string" }, "text": { "type": "string" }, "placement": { "type": "string" }, "decision": { "type": "string" }, "at": { "type": "string" } } } },
         "carried-at": { "type": "string", "description": "When the last issue was carried in. A plan older than this is written again before the implement." },
         "made-for": { "type": "string", "description": "The key of the issue that slice add made this slice for (rung 5)." },
+        "estimated-steps": { "type": "integer", "minimum": 1, "description": "The plan steps that the slice is expected to take; the roster entry holds the same value, and the roster wins." },
+        "scope-at": { "type": "string", "description": "When the scope or the acceptance criteria of the slice last changed. A plan older than this is written again before the implement." },
+        "split-from": { "type": "string", "description": "The slice that slice split cut this slice out of." },
+        "merged-into": { "type": "string", "description": "The slice that slice merge joined this slice into." },
         "stage-number": { "const": 3 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
@@ -903,6 +916,8 @@
         "read-waiver": {"type":"string","description":"The reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "metric-findings-fixed": {"type":"integer","minimum":0},
+        "reviewed-head": {"type":"string","description":"The commit that a slug-wide review cleared; record stage-done writes it."},
+        "fix-steps": {"type":"integer","minimum":0,"description":"The fix steps that the review committed. A count for the person, beside the step limit; no gate."},
         "type": { "const": "review" },
         "review-scope": { "enum": ["per-slice", "slug-wide"] },
         "slice-slug": { "type": "string" },
@@ -2534,7 +2549,7 @@
     "issueInvestigationFrontmatter": {
       "type": "object",
       "description": "05i-issue-<key>.md — the investigation of one issue that a run found (talk post --issue), written by the investigate agent of the driver (_issue-investigate.md). wf.mjs issue place reads it, writes `placement`, and applies the rung (lib/issue-place.mjs).",
-      "required": ["schema", "type", "slug", "issue", "cause", "scope", "coverage"],
+      "required": ["schema", "type", "slug", "issue", "cause", "scope", "coverage", "size"],
       "properties": {
         "type": { "const": "issue-investigation" },
         "issue": { "type": "string", "description": "The talk id of the issue (T-12)." },
@@ -2546,7 +2561,7 @@
         "owner": { "type": "object", "properties": { "slice": { "type": ["string", "null"] }, "insideCriteria": { "type": "boolean" }, "cites": { "type": ["string", "null"] } } },
         "scope": { "type": "object", "required": ["inside"], "properties": { "inside": { "type": "boolean" }, "cites": { "type": ["string", "null"] } } },
         "coverage": { "type": "array", "items": { "type": "object", "required": ["slice", "covers"], "properties": { "slice": { "type": "string" }, "covers": { "type": "boolean" }, "cites": { "type": ["string", "null"] }, "reason": { "type": ["string", "null"] }, "stepsLeft": { "type": ["integer", "null"] } } } },
-        "size": { "type": "object", "properties": { "steps": { "type": ["integer", "null"] } } },
+        "size": { "type": "object", "required": ["steps"], "properties": { "steps": { "type": "integer", "minimum": 1 } }, "description": "The plan steps that the fix needs: the placer measures it against the room of each slice and the budget of the packet." },
         "proposal": { "type": ["object", "null"], "properties": { "slice": { "type": "string" }, "title": { "type": "string" }, "scope": { "type": "string" }, "ac": { "type": "array", "items": { "type": "string" } }, "after": { "type": "array", "items": { "type": "string" } }, "before": { "type": "array", "items": { "type": "string" } }, "files": { "type": "array", "items": { "type": "string" } }, "complexity": { "type": "string" }, "uxImpact": { "type": "string" } } },
         "packetFit": { "type": ["object", "null"], "properties": { "packet": { "type": ["string", "null"] }, "fits": { "type": "boolean" }, "cites": { "type": ["string", "null"] }, "reason": { "type": ["string", "null"] } } },
         "attempt": { "type": "integer" },

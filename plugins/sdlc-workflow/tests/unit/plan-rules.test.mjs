@@ -43,7 +43,7 @@ test('more steps than the limit is a problem', () => {
   assert.deepEqual(kinds(plan(steps.slice(0, STEP_LIMIT))), []);
 });
 
-test('a put refuses a new problem and keeps a problem that the stored plan already has', () => {
+test('a put refuses a new problem, keeps an old one, and holds the step limit on every write', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'wf-plan-rules-'));
   try {
     const drafts = path.join(dir, '.draft');
@@ -51,12 +51,17 @@ test('a put refuses a new problem and keeps a problem that the stored plan alrea
     const draft = path.join(drafts, '04-plan-api.md');
     const long = Array.from({ length: STEP_LIMIT + 5 }, (_, i) => `${i + 1}. **S${i + 1}** — files: \`a.js\`.`);
     writeFileSync(draft, plan(long));
-    assert.match(draftProblems(draft, dir).join(' '), /20 steps or fewer/);
-    // The stored plan is already over the limit: a new write of it is not refused for the limit.
+    assert.match(draftProblems(draft, dir).join(' '), /20 steps or fewer \(slices\.maxSteps\)/);
+    // The stored plan is already over the limit: a new write of it is still refused, and goes back to slice.
     writeFileSync(path.join(dir, '04-plan-api.md'), plan(long));
+    assert.match(draftProblems(draft, dir).join(' '), /20 steps or fewer \(slices\.maxSteps\): route back to \/wf slice/);
+    // A test run in a step that the stored plan already has is kept.
+    const tested = [...long.slice(0, 3), '4. **T** — files: `a.js`. Done when: `npm test` passes.'];
+    writeFileSync(path.join(dir, '04-plan-api.md'), plan(tested));
+    writeFileSync(draft, plan(tested));
     assert.deepEqual(draftProblems(draft, dir), []);
-    // A test run in a step is a new kind of problem, so it is refused.
-    writeFileSync(draft, plan([...long.slice(0, 3), '4. **T** — files: `a.js`. Done when: `npm test` passes.']));
+    // A test run in a step is a new kind of problem for a plan that has none, so it is refused.
+    writeFileSync(path.join(dir, '04-plan-api.md'), plan(long.slice(0, 3)));
     assert.match(draftProblems(draft, dir).join(' '), /done check runs a test/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

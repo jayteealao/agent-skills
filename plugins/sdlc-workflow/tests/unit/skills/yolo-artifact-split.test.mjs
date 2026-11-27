@@ -27,7 +27,7 @@ const DONE = { plan: 'done', implement: 'done', verify: 'done', review: 'n-a' };
 const orientResult = (over = {}) => ({
   ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed',
   runId: '20260928T100000Z-demo', charter: [], priorDeferrals: [],
-  branch: { current: 'b', target: 'b', match: true, strategy: 'none' },
+  branch: { current: 'b', target: 'b', match: true, base: 'main', strategy: 'none' },
   slices: [slice('a', DONE), slice('b', DONE)],
   ...over,
 });

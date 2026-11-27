@@ -63,13 +63,13 @@ Change no other field of the index: not `current-stage`, `stage-number`, `select
 
 ## Slice-index update (conditional)
 
-When `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "fields": "total-slices", "name": "03-slice.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice.md --fields total-slices`) exits 0, it prints `total-slices: <n>`. Run one command:
+When `wf_read { "slug": "<slug>", "items": [{ "op": "record get", "fields": "slices", "name": "03-slice.md" }] }` (CLI: `node "<skill-dir>/scripts/wf.mjs" record get "<root>" <slug> 03-slice.md --fields slices`) exits 0, run one command:
 
 ```
-node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 03-slice "slices+={slug: <slice-slug>, status: defined, slice-type: <op>, compressed: true}" total-slices=<n+1>
+node "<skill-dir>/scripts/wf.mjs" record set "<root>" <slug> 03-slice "slices+={slug: <slice-slug>, status: defined, slice-type: <op>, compressed: true}"
 ```
 
-Do not change `best-first-slice`: a compressed slice is not part of the planned order. When `03-slice.md` does not exist (the workflow has not reached slicing yet), skip this step. The entry in `compressed-slices` of the index is then the single source of truth.
+The write works out `total-slices` from the roster. Do not change `best-first-slice`: a compressed slice is not part of the planned order. When `03-slice.md` does not exist (the workflow has not reached slicing yet), skip this step. The entry in `compressed-slices` of the index is then the single source of truth.
 
 ## Branch behavior and suppressed companions
 

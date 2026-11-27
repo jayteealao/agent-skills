@@ -5,9 +5,11 @@ import { aggregateCost, readCostRows, rebookedEntries } from './cost-ledger.mjs'
 import { openDeferrals } from './deferrals.mjs';
 import { driveClass } from './drive-class.mjs';
 import { progressOf, readDriverOutcome } from './progress.mjs';
-import { INDEX_NAME, frontmatterOfDoc } from './records.mjs';
+import { INDEX_NAME, frontmatterOfDoc, listDocs } from './records.mjs';
+import { limitsOf } from './limits.mjs';
+import { packetSteps, rosterEntries } from './roster.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageFileOf } from './stage-done.mjs';
-import { gitSteps, lastSlice, planDocOf, whereLine, whereOf } from './steps.mjs';
+import { gitSteps, lastSlice, planDocOf, readSteps, whereLine, whereOf } from './steps.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from './workflow-index.mjs';
 
 // A record by its old file name, in either layout.
@@ -77,9 +79,13 @@ export function costSummary(dir) {
  * stage record, the verify result and convergence, and what a driver needs to take a slice that
  * was added during its run: `uxImpact` and `complexity` of the slice record, `fresh` (no stage
  * record yet), and `carriedAt` / `planAt` (an issue carried into the slice after its plan).
+ * A relaunched driver reads the build of each slice from it too: `implementAt` (the newest step or
+ * implement write), and `firstStepSha` / `lastStepSha` of the newest run of its steps.
  */
 export function sliceRows(dir) {
   const sliceFm = frontmatterOf(dir, '03-slice.md');
+  let stepRows = [];
+  try { stepRows = readSteps(dir); } catch { stepRows = []; }
   return (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
     const name = typeof s === 'string' ? s : s?.slug;
     const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
@@ -97,9 +103,48 @@ export function sliceRows(dir) {
     row.fresh = SLICE_STAGES.every(([stage]) => !fms[stage]) && !v;
     row.carriedAt = rec?.['carried-at'] ?? null;
     row.planAt = fms.plan?.['updated-at'] ?? null;
+    Object.assign(row, buildOf(stepRows.filter((r) => r.slice === name), fms.implement));
     if (rec?.['made-for']) row.madeFor = rec['made-for'];
     return row;
   });
+}
+
+/**
+ * The build of one slice from its step rows: the newest run of steps (the open run, else the run
+ * that the last `complete` closed), its first and last commit, and the time of the newest write.
+ */
+function buildOf(rows, implementFm) {
+  const ends = rows.map((r, i) => (r.event === 'complete' ? i : -1)).filter((i) => i >= 0);
+  const last = ends.at(-1) ?? -1;
+  const open = rows.slice(last + 1).some((r) => r.event === 'done' || r.event === 'start');
+  const from = open ? last + 1 : (ends.at(-2) ?? -1) + 1;
+  const to = open ? rows.length : last + 1;
+  const shas = rows.slice(from, to).filter((r) => r.event === 'done' && !r.noChange && (r.sha || r.head)).map((r) => r.sha ?? r.head);
+  const done = rows.filter((r) => (r.event === 'done' || r.event === 'complete') && r.at).map((r) => r.at);
+  const times = [...done, implementFm?.['updated-at']].filter((t) => t && !Number.isNaN(Date.parse(t))).sort((a, b) => Date.parse(a) - Date.parse(b));
+  return {
+    implementAt: times.at(-1) ?? null,
+    firstStepSha: shas[0] ?? null,
+    lastStepSha: (!open && last >= 0 ? rows[last].sha : null) ?? shas.at(-1) ?? null,
+  };
+}
+
+/** The steps of the workflow against the limits of the project: { maxSteps, maxSlices, budgetSteps, steps, open, unknown }. */
+function sizeOf(root, dir) {
+  const limits = limitsOf(root);
+  const entries = rosterEntries(dir);
+  if (!entries) return { ...limits, steps: null, open: null, unknown: [] };
+  const s = packetSteps(dir, entries, limits);
+  return { maxSteps: limits.maxSteps, maxSlices: limits.maxSlices, budgetSteps: limits.budgetSteps, steps: s.steps, open: entries.filter((e) => !['complete', 'deferred', 'skipped', 'dropped'].includes(String(e.status))).length, unknown: s.unknown };
+}
+
+/** The slug-wide review (its verdict and the commit it reviewed) and the issues already investigated. */
+function reviewAndIssues(dir) {
+  const r = frontmatterOf(dir, '07-review.md');
+  let names = [];
+  try { names = listDocs(dir); } catch { names = []; }
+  const issueRecords = names.map((n) => /^05i-issue-(.+)\.md$/.exec(n)?.[1]).filter(Boolean).sort();
+  return { review: r ? { verdict: r.verdict ?? null, reviewedHead: r['reviewed-head'] ?? null, at: r['updated-at'] ?? null, fixSteps: Number.isInteger(r['fix-steps']) ? r['fix-steps'] : null } : null, issueRecords };
 }
 
 export async function statusOf(root, slug = null, now = Date.now()) {
@@ -127,6 +172,9 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     workflow: summary,
     stages,
     slices,
+    ...reviewAndIssues(dir),
+    // The limits of the project, and the steps that this workflow holds against them.
+    size: sizeOf(root, dir),
     cost: costSummary(dir),
     // What a driver may do with the workflow: its class, the block and the route (lib/drive-class.mjs).
     drive: driveClass(dir, w.frontmatter ?? frontmatterOf(dir, INDEX_NAME)),

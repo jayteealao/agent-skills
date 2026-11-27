@@ -6,7 +6,7 @@ An issue that a run finds goes to the lowest place that can take it. A new slice
 
 ## The flow
 
-1. A stage agent posts the issue: `<wf> talk post "<projectRoot>" <slug> --as <stage>:<slice> --issue --text "<what fails, and the command that shows it>" --refs <file:line,commit>`. It does not fix it. A second post of the same issue, with the same refs, joins the open thread.
+1. A stage agent posts the issue: `<wf> talk post "<projectRoot>" <slug> --as <stage>:<slice> --issue --text "<what fails, and the command that shows it>" --refs <file:line,commit>`. It does not fix it. A second post of the same issue, with the same refs, joins the open thread. A red that the slice's own change causes, in any test, is not an issue: it is inside the criteria of the slice, and the slice fixes it before it ends.
 2. The driver (yolo) or the lead (orchestrate) starts a read-only investigation, which writes `05i-issue-<key>.md` ([_issue-investigate.md](_issue-investigate.md)). It runs alongside the next slice.
 3. At the next boundary between slices, the driver runs `<wf> issue place "<projectRoot>" <slug> <id> --apply`. The command reads the investigation and the state of the slices, chooses the rung, writes `placement` into the record, does what the rung says, and posts a `placed:` line in the thread.
 
@@ -18,7 +18,7 @@ On Claude the same calls are MCP tools: `wf_run { "op": "talk post", "issue": tr
 |---|---|---|---|
 | 1 | the stage of the owner slice that runs now | the cause is inside its acceptance criteria | a talk request to that stage |
 | 2 | the next stage of the owner slice | the same, and its next stage has not started | a talk request it reads when it starts |
-| 3 | the next slice that has not started | its scope covers the issue, and its plan has room (20 steps) | `slice carry`: the issue goes into its record, its plan is written again |
+| 3 | the next slice that has not started | its scope covers the issue, and its plan has room under the step limit (`slices.maxSteps`, default 20) | `slice carry`: the issue goes into its record, its plan is written again |
 | 4 | a later slice that has not started | the same | `slice carry` |
 | 4b | the slug-wide review | no open slice is left, and the review has not run | a talk request to the review |
 | 5 | a new slice | the proof gate holds | `slice add` from the proposal of the investigation |

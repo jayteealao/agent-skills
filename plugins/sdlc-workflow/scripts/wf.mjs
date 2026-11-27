@@ -732,6 +732,7 @@ import { addScratchWorktree, removeScratchWorktrees, leftoverBranches } from '..
 import { orderReport, orderText, pairOf } from '../lib/slice-files.mjs';
 import { addDecision, answeredBy, applyTidy, decisionLine, decisionsOf, dropAnswered, endDecision, importLegacy, liveDecisions, tidyPlan } from '../lib/decisions.mjs';
 import { rosterOf } from '../lib/roster-edit.mjs';
+import { deriveWorkflow } from '../lib/roster.mjs';
 import { addRule, adoptRule, endRule, readRules, ruleCandidates, ruleLine } from '../lib/project-rules.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { checkDeferrals, deferralLine, openDeferrals } from '../lib/deferrals.mjs';
@@ -751,7 +752,7 @@ import { hostProcess, isMainModule } from '../lib/proc.mjs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
 import { runTalk } from '../lib/talk-cli.mjs';
-import { RESULTS as CHECK_RESULTS, addCheck, checkLine, checksOf, isProse, sliceCheckState } from '../lib/slice-checks.mjs';
+import { MAX_FIX_ROUNDS, RESULTS as CHECK_RESULTS, addCheck, checkLine, checksOf, fixRounds, isProse, sliceCheckState } from '../lib/slice-checks.mjs';
 import { jobState } from '../lib/jobs.mjs';
 import { verifyGate } from '../lib/stage-gates.mjs';
 import { actorOf, markRead, markSeen, messageLine, readTalk, unreadFor } from '../lib/talk.mjs';
@@ -1402,6 +1403,14 @@ export function runStep(pos, opt) {
     complete,
   };
   if (!rows[verb]) throw usage(`step: unknown verb ${verb}`);
+  // Three fix rounds that left a slice check failing: a fourth is not a fix, the plan is wrong.
+  if (verb === 'start') {
+    const all = readSteps(dir).filter((r) => r.slice === slice);
+    const lastEnd = all.map((r, i) => (r.event === 'complete' || r.event === 'retry' ? i : -1)).filter((i) => i >= 0).at(-1) ?? -1;
+    const runStart = all.slice(lastEnd + 1).find((r) => r.event === 'start')?.at ?? null;
+    const rounds = runStart ? fixRounds(dir, slice, runStart) : 0;
+    if (rounds >= MAX_FIX_ROUNDS) throw refuse(`step start: route back: ${rounds} fix rounds of ${slice} left a slice check failing (the limit is ${MAX_FIX_ROUNDS})`, agentFix('Stop the implement with step stop --reason "three fix rounds failed", and route back to plan with what the checks showed.', again('stop', slice, ' --reason "three fix rounds failed"')));
+  }
   const line = appendStep(dir, rows[verb]());
   // The progress record follows the step of the slice.
   if (verb === 'start') {
@@ -1620,14 +1629,14 @@ function runRecord(pos, opt) {
         // A draft of the wf-dir wins over an old local draft of the same name.
         : homes.flatMap(draftsOf).filter((p, i, all) => all.findIndex((q) => named(q) === named(p)) === i);
       if (!drafts.length) throw redo(`record put: no draft in ${join(dir, DRAFT_DIR)}`, 'Write the draft with record draft first, then run record put again.', `wf.mjs record draft ${word(root)} ${word(slug)} <name>`);
-      const results = drafts.map((p) => putChecked(dir, p));
+      const results = drafts.map((p) => putChecked(dir, p, { root: resolve(root) }));
       // A put that refused one draft exits 1, and the drafts that it did put still get the
       // follow-up of a change (the INDEX.md row, the records commit): main reads this mark.
       opt.landed = results.some((r) => !r.errors.length);
       const ev = pruneEvidence(dir);
       out(opt.json ? { results, pruned: ev.pruned } : results.map((r) => (r.errors.length
         ? `refused ${r.name}: ${r.errors.join('; ')}`
-        : `put ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`)).concat(ev.pruned.map((p) => `pruned evidence ${p}`)).join('\n'));
+        : [`put ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`, ...(r.warnings ?? []).map((w) => `warning: ${w}`)].join('\n'))).concat(ev.pruned.map((p) => `pruned evidence ${p}`)).join('\n'));
       return results.some((r) => r.errors.length) ? 1 : 0;
     }
     case 'get': {
@@ -1697,6 +1706,12 @@ function runRecord(pos, opt) {
         if (g.blocking.length) throw refuse(`record stage-done: the verify of ${slice} cannot end as it is: ${g.blocking.join('; ')}`, agentFix(g.fix));
       }
       const changes = stageDone(dir, slug, stage, slice ?? null, { next: opt.next ?? null, status: opt.status ?? null });
+      // A slug-wide review names the commit it cleared, so a later run that built nothing does not review it again.
+      if (stage === 'review' && !slice && (opt.status ?? 'complete') === 'complete' && frontmatterOfDoc(dir, '07-review.md')) {
+        const head = gitRevParse(stepCheckout(resolve(root)), 'HEAD');
+        const fm = frontmatterOfDoc(dir, '07-review.md');
+        if (head && fm['reviewed-head'] !== head) setFields(dir, '07-review.md', { 'reviewed-head': head, ...(fm['updated-at'] ? { 'updated-at': fm['updated-at'] } : {}) });
+      }
       // The drafts that were put in this stage are kept until here, for a second edit.
       for (const h of new Set([join(localWorkflowsRoot(resolve(root)), slug), dir])) clearKept(h, { slice: slice ?? null });
       // An implement stage of a project with no suite for implement gets the receipt that says so.
@@ -1739,7 +1754,7 @@ function runRecord(pos, opt) {
       const change = bySection
         ? { section: String(opt.section), text: readFileSync(resolve(String(opt.from)), 'utf8') }
         : { replace: String(opt.replace), with: String(opt.with) };
-      const r = editRecord(dir, n, change, { slug });
+      const r = editRecord(dir, n, change, { slug, root: resolve(root) });
       out(opt.json ? r : r.errors.length ? `refused ${r.name}: ${r.errors.join('; ')}` : `edit ${r.name} → ${r.file}${r.section ? `#${r.section}` : ''}`);
       return r.errors.length ? 1 : 0;
     }
@@ -1763,7 +1778,11 @@ function runRecord(pos, opt) {
     }
     case 'migrate': {
       const r = migrateWorkflow(dir);
-      out(opt.json ? r : [...r.moved.map((m) => `moved ${m.from} → ${m.to}`), ...r.kept.map((k) => `kept ${k}`)].join('\n') || 'nothing to move');
+      // The fields that are worked out from the records are worked out again: a count kept by hand is corrected.
+      const derived = deriveWorkflow(dir);
+      const show = (v) => (v === null || v === undefined ? 'none' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+      const lines = derived.map((d) => (d.fields ? `derived ${d.record}: ${Object.entries(d.fields).map(([k, [a, b]]) => `${k} ${show(a)} → ${show(b)}`).join(', ')}` : `derived ${d.record}: in step with the roster`));
+      out(opt.json ? { ...r, derived } : [...r.moved.map((m) => `moved ${m.from} → ${m.to}`), ...r.kept.map((k) => `kept ${k}`), ...lines].join('\n') || 'nothing to move');
       return 0;
     }
     default: return 2;

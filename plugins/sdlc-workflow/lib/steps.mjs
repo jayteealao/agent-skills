@@ -24,6 +24,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { sectionOf } from './brief.mjs';
+import { DEFAULT_MAX_STEPS } from './limits.mjs';
 import { INDEX_NAME, frontmatterOfDoc, readDoc } from './records.mjs';
 import { stageFileOf } from './stage-done.mjs';
 import { appendRecord } from './atomic-write.mjs';
@@ -45,8 +46,8 @@ export function stopKind(kind, reason, { held = false } = {}) {
 // A slice whose implement failed this many times since the last retry is a split question.
 export const SPLIT_AFTER_STOPS = 2;
 export const PLAN_SECTION = 'Step-by-Step Plan';
-/** The most steps that the plan of one slice has. */
-export const STEP_LIMIT = 20;
+/** The most steps that the plan of one slice has, by default; a project sets `slices.maxSteps` (lib/limits.mjs). */
+export const STEP_LIMIT = DEFAULT_MAX_STEPS;
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
@@ -186,15 +187,15 @@ const DONE_CHECK = /done when:?\s*([\s\S]*)/i;
 const PROBE_MARK = /\(probe\)/i;
 
 /**
- * The problems of the slice rules in a plan body. `kind` is `limit` (more than STEP_LIMIT steps)
+ * The problems of the slice rules in a plan body. `kind` is `limit` (more than `maxSteps` steps)
  * or `step-test` (a step whose done check runs a test, and that is not marked `(probe)`).
  */
-export function planRuleProblems(body) {
+export function planRuleProblems(body, { maxSteps = STEP_LIMIT } = {}) {
   const p = readPlan(body);
   if (!p.found) return [];
   const out = [];
-  if (p.steps.length > STEP_LIMIT) {
-    out.push({ kind: 'limit', text: `the plan has ${p.steps.length} steps; a slice has ${STEP_LIMIT} steps or fewer: route back to /wf slice and cut the slice in two` });
+  if (p.steps.length > maxSteps) {
+    out.push({ kind: 'limit', text: `the plan has ${p.steps.length} steps; a slice has ${maxSteps} steps or fewer (slices.maxSteps): route back to /wf slice and cut the slice in two` });
   }
   for (const s of p.steps) {
     const text = (p.texts.get(s.n) || []).join('\n');

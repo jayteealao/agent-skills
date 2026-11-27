@@ -17,9 +17,21 @@ function workflow(slices) {
   const dir = path.join(root, '.ai', 'workflows', 'demo');
   mkdirSync(dir, { recursive: true });
   const rows = slices.map(([slug, status]) => `  - slug: ${slug}\n    status: ${status}`).join('\n');
-  writeFileSync(path.join(dir, '00-index.md'), `---\nschema: sdlc/v1\ntype: index\nslug: demo\nslices:\n${rows}\n---\n`);
+  writeFileSync(path.join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: demo\n---\n');
+  // The roster is the one copy of the slice statuses that the campaign reads.
+  writeFileSync(path.join(dir, '03-slice.md'), `---\nschema: sdlc/v1\ntype: slice-index\nslug: demo\nslices:\n${rows}\n---\n`);
   return root;
 }
+
+test('a workflow with no roster is not built: openSlices says so with null, never an empty list', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'sdlc-deferred-slice-'));
+  try {
+    const dir = path.join(root, '.ai', 'workflows', 'demo');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, '00-index.md'), '---\nschema: sdlc/v1\ntype: index\nslug: demo\nslices:\n  - slug: api\n    status: in-progress\n---\n');
+    assert.equal(openSlices(root, 'demo'), null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test('a work packet whose slices are complete and deferred passes the built check', () => {
   const root = workflow([['api', 'complete'], ['screen', 'deferred']]);

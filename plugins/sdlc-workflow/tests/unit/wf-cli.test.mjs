@@ -169,7 +169,7 @@ test('status: groups, staleness, the next command, and the detail of one slug', 
     const all = await statusOf(root, null, now);
     assert.deepEqual(all.workflows.map((w) => [w.slug, w.group, w.stale]), [['a', 'active', false], ['b', 'blocked', true], ['c', 'completed', false]]);
     const one = await statusOf(root, 'a', now);
-    assert.deepEqual(one.slices, [{ slice: 'one', roster: null, dependsOn: [], plan: 'complete', implement: null, verify: null, review: null, result: null, convergence: null, uxImpact: null, complexity: null, fresh: false, carriedAt: null, planAt: null }]);
+    assert.deepEqual(one.slices, [{ slice: 'one', roster: null, dependsOn: [], plan: 'complete', implement: null, verify: null, review: null, result: null, convergence: null, uxImpact: null, complexity: null, fresh: false, carriedAt: null, planAt: null, implementAt: null, firstStepSha: null, lastStepSha: null }]);
     assert.equal(one.next.invocation, '/wf plan a one');
     assert.match((await statusOf(root, 'zzz', now)).error, /not found/);
   } finally {

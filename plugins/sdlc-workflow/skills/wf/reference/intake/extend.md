@@ -42,6 +42,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 You expand the scope. You do not solve the problem. Keep the stated order only where a step uses the output of an earlier step or crosses a gate.
 - Do not modify any existing slice file.
 - Do not change a `status: complete` entry in `03-slice.md`.
+- Give each new slice `estimated-steps` by the model of [../slice.md](../slice.md), step 3. `record put` of `03-slice.md` holds the extended roster to the limits of the project: a slice over the step limit, a roster over `slices.maxPerPacket` open slices, or a packet over its step budget is refused. Ask the person then: split, or accept with `limit-override`.
 - Do not write implementation code or plans.
 - The work is: orient, extract the new scope, interview, write the new slice files, update the index.
 
@@ -147,17 +148,16 @@ For each confirmed new slice, write the draft of `03-slice-<new-slug>.md`, and p
 
 Get the current `03-slice.md` (`record get "<root>" <slug> 03-slice.md`). Change it in these ways:
 
-1. **Increment `total-slices`** by the number of new slices.
-2. **Append the new entries** to the `slices:` YAML array, per the roster entry in `intake/extend/_artifacts.md`. Do not modify existing entries.
-3. **Update `updated-at`** to the current ISO 8601 timestamp.
-4. **Append a new section** to the markdown body: the `## Extension Round <N>` section of `intake/extend/_artifacts.md` (the source, the New Slices Added table, the Motivation).
-5. **Reconcile the counts that the author wrote in the existing body.** The body that the slice stage wrote has slice numbers that the rendered view prints exactly. They do not recompute from the roster, so they go stale as soon as `total-slices` grows. Two places:
+1. **Append the new entries** to the `slices:` YAML array, per the roster entry in `intake/extend/_artifacts.md`. Do not modify existing entries. Do not write `total-slices` or `best-first-slice`: every write of the roster works them out from `slices:`.
+2. **Update `updated-at`** to the current ISO 8601 timestamp.
+3. **Append a new section** to the markdown body: the `## Extension Round <N>` section of `intake/extend/_artifacts.md` (the source, the New Slices Added table, the Motivation).
+4. **Reconcile the counts that the author wrote in the existing body.** The body that the slice stage wrote has slice numbers that the rendered view prints exactly. They do not recompute from the roster, so they go stale as soon as the roster grows. Two places:
    - **A summary sentence that states a slice total** (for example "These 5 slices cover…"): change the number to the new total, so the prose agrees with the header, the figure and the metric row. Those come from the roster and are already correct.
    - **The `## Recommended Order` list:** append the new slices as more numbered entries, each with a one-line reason, so the order shows the full set. Continue the numbering: do not renumber, reorder or remove existing lines.
 
    This is the only edit to the existing body text. It is clerical: it corrects a stale count and extends a list. It is not a change to existing slice entries, slice files or `status: complete` rows.
 
-Do not modify any existing slice entry in the `slices:` array. Do not change `status: complete` on a done slice. Item 5 touches only prose that the author wrote, never the roster. Then write the draft of `03-slice.md`, and put it.
+Do not modify any existing slice entry in the `slices:` array. Do not change `status: complete` on a done slice. Item 4 touches only prose that the author wrote, never the roster. Then write the draft of `03-slice.md`, and put it.
 
 ---
 
@@ -172,7 +172,6 @@ This is the one step that writes `00-index.md`: every earlier step only computed
    - Set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`.
    - When `00-index.md` records `origin-packet`, set `next-invocation: "/wf campaign <source-slug>"` instead: the walk runs the driver on the new slice.
    - On a design delta of Step 3c, instead raise `ux-impact`, and set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new screens) and `progress.design: in-progress`. With no `02c-craft.md`, set `"/wf design <slug>"`, and leave `progress.design`.
-   - When `03-slice.md` has `best-first-slice` and every earlier slice is complete or skipped, set it to the first new slice.
 5. **Revive a complete or closed parent.** Extension means the workflow has live work again. When `status` is `complete` or `closed`, set `status: active` and `current-stage: slice`. Leave `close-reason` and `closed-at` in place as history: the revival is visible, not erased.
 
 Do not change `selected-slice` or any field not listed above. Write the draft of `00-index.md`, and put it at once, per [_control-file-ownership.md](../_control-file-ownership.md).

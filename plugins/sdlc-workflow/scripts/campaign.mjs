@@ -41,6 +41,8 @@ import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
 import { DECISIONS_FILE, HOW_FAR_KEY, HOW_FAR_QUESTION, RUN_DECISIONS_KEY, RUN_DECISIONS_QUESTION, addDecision, answeredBy, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
 
+import { limitsOf } from '../lib/limits.mjs';
+import { openSlices as openOf, rosterEntries, totalSlices } from '../lib/roster.mjs';
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
@@ -65,6 +67,7 @@ import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../li
 import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
 import { issuesOf, readTalk } from '../lib/talk.mjs';
 import { issueKeyOf, issueQuestionKey, issueRecordOf } from '../lib/issue-place.mjs';
+import { importPacketIssues, packetIssuesFile, readPacketIssues } from '../lib/issue-apply.mjs';
 
 /** The sub-commands of this script: a fix names only these. */
 export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
@@ -227,7 +230,7 @@ function checkCmd(arg) {
   const { dir, boardFile, root } = boardAt(arg);
   const board = readJson(join(dir, boardFile));
   if (!board) return { ok: false, error: `no ${boardFile} in ${dir}`, fix: noBoardFix() };
-  const res = checkList(board, { isIgnored: gitIgnoredCheck(root) });
+  const res = checkList(board, { isIgnored: gitIgnoredCheck(root), limits: limitsOf(root) });
   if (!res.errors.length) return { ok: true, ...res };
   return { ok: false, ...res, error: res.errors[0], fix: boardErrorsFix('check', arg) };
 }
@@ -241,7 +244,7 @@ const boardErrorsFix = (cmd, arg) => agentFix(
 function writeCmd(arg, f) {
   const { dir, boardFile, root } = boardAt(arg);
   if (!existsSync(join(dir, boardFile))) return { ok: false, error: `no ${boardFile} in ${dir}`, fix: noBoardFix() };
-  const r = writeList(dir, { isIgnored: gitIgnoredCheck(root), dryRun: Boolean(f['dry-run']), boardFile });
+  const r = writeList(dir, { isIgnored: gitIgnoredCheck(root), dryRun: Boolean(f['dry-run']), boardFile, limits: limitsOf(root) });
   if (r.ok) return r;
   return { ...r, error: r.error ?? r.errors?.[0] ?? 'the list does not pass its check', fix: boardErrorsFix('write', arg) };
 }
@@ -345,11 +348,15 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
   return { table: true, missing: carriedKeys.map(String).filter((k) => !seen.has(k)), rows };
 }
 
-/** The roster slices of a workflow that are not finished, from 00-index.md `slices[]`. */
+/**
+ * The slices of a workflow that are not finished, from its roster (03-slice.md), the one stored
+ * copy of the slice statuses. Null when the workflow has no roster: a gate reads that as "not
+ * built", never as "nothing left".
+ */
 export function openSlices(root, slug) {
-  const slices = recordFm(wfDir(root, slug), INDEX_NAME)?.slices;
-  if (!Array.isArray(slices)) return [];
-  return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));
+  const entries = rosterEntries(wfDir(root, slug));
+  if (entries === null) return null;
+  return openOf(entries).map((e) => e.slug);
 }
 
 /**
@@ -394,6 +401,7 @@ function nextStep(root, src, packet) {
   }
   // built. A fix slice that is not built yet sends the packet back to the driver (6.1 step 13).
   const unbuilt = openSlices(root, slug);
+  if (unbuilt === null) return { step: 'slice', reason: `${slug} has no roster (03-slice.md): slice it, then run the driver` };
   if (unbuilt.length) return { step: 'yolo', reason: `the slice(s) ${unbuilt.join(', ')} are not complete: run the driver again` };
   const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
   if (!fid.table) return { step: 'fidelity', reason: '07-review.md has no ## Decision Fidelity table: run the review again' };
@@ -813,7 +821,8 @@ function openCmd(root, src, [key], f) {
     appendHistory(dir, `campaign: the packet ${packet.key} of ${src} adopted this folder`);
     setPacketState(packet, 'open');
     indexRow(root, slug, listBranch(src));
-    return { ok: true, opened: true, adopted: true, key: packet.key, slug };
+    const carried = importCarried(packet, dir);
+    return { ok: true, opened: true, adopted: true, key: packet.key, slug, ...(carried.length ? { carriedIssues: carried } : {}) };
   }
   const boardFile = boardFileOf(sourceDir(root, src));
   const records = packetFolderRecords({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
@@ -827,8 +836,17 @@ function openCmd(root, src, [key], f) {
   appendHistory(dir, `campaign: opened from the packet ${packet.key} of ${src}`, 'intake');
   setPacketState(packet, 'open');
   indexRow(root, slug, listBranch(src));
-  return { ok: true, opened: true, key: packet.key, slug, wrote: [...wrote].map((n) => posix(relative(root, join(dir, n)))) };
+  const carried = importCarried(packet, dir);
+  return { ok: true, opened: true, key: packet.key, slug, wrote: [...wrote].map((n) => posix(relative(root, join(dir, n)))), ...(carried.length ? { carriedIssues: carried } : {}) };
 }
+
+/** The issues that an earlier packet carried into this one (`<packet-slug>.issues.json`), posted to the talk of its workflow. */
+function importCarried(packet, dir) {
+  return importPacketIssues(carriedOf(packet), dir);
+}
+const carriedOf = (packet) => ({ key: packet.key, slug: packet['packet-slug'], workDir: dirname(packet.path) });
+/** The issues carried into a packet that has no workflow yet. */
+export const carriedIssuesOf = (packet) => readPacketIssues(packetIssuesFile(carriedOf(packet)));
 
 // ---------------------------------------------------------------- land, start, built, done (6.1, 6.2)
 
@@ -1134,6 +1152,11 @@ function builtCmd(root, src, [key], f = {}) {
     const why = lastLine.event !== 'run-end' ? 'the last run of its driver has not ended' : `the last run of its driver stopped at ${lastLine.stoppedAt}`;
     return { ok: false, error: `${packet.key} is not built: ${why}`, fix: agentFix(`Run the driver of ${packet['packet-slug']} again and mark the packet built after a run that ends clean.`) };
   }
+  const left = openSlices(root, packet['packet-slug']);
+  if (left === null || left.length) {
+    const why = left === null ? `${packet['packet-slug']} has no roster (03-slice.md)` : `the slice(s) ${left.join(', ')} are not complete`;
+    return { ok: false, error: `${packet.key} is not built: ${why}`, ...(left ? { unbuilt: left } : {}), fix: nextFix(root, src, `${packet.key} is not built: ${why}. Run next for its step.`) };
+  }
   const issues = openIssues(root, packet['packet-slug']);
   if (issues.length) {
     return { ok: false, error: `${packet.key} is not built: its run left ${issues.length} open issue(s) (${issues.map((i) => i.id).join(', ')})`, fix: nextFix(root, src, `The run of ${packet['packet-slug']} left open issues. Run next: its place-issue step places them.`) };
@@ -1201,6 +1224,7 @@ function doneCmd(root, src, [key], f) {
   if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)`, fix: nextFix(root, src, `${packet.key} is ${packet.state}, and done needs a built packet. Run next for its step now.`) };
   const slug = packet['packet-slug'];
   const unbuilt = openSlices(root, slug);
+  if (unbuilt === null) return { ok: false, error: `${slug} has no roster (03-slice.md), so no slice of it is known to be built`, fix: nextFix(root, src, `${slug} has no roster: run next, which routes it to slice.`) };
   if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(', ')} of ${slug} are not complete: run the driver again`, unbuilt, fix: nextFix(root, src, `The slices ${unbuilt.join(', ')} of ${slug} are not complete: run next, which launches the driver for them.`) };
   // The verdict of the findings ledger is computed by code: a packet with an open BLOCKER is not done.
   if (verdictOf(readLedger(wfDir(root, slug))) === 'dont-ship') return { ok: false, error: `the findings ledger of ${slug} says dont-ship: a BLOCKER finding is open`, fix: agentFix(`Run wf.mjs findings list ${root} ${slug} --open, fix each BLOCKER (the review of ${slug} does it), then run done again.`) };
@@ -1546,7 +1570,7 @@ function nextCmd(root, src, f = {}) {
   // A clean run of the current packet ended: built first, before any other step.
   if (cur && cur.state === 'open' && step.step === 'yolo') {
     const last = lastJournalLine(root, cur['packet-slug']);
-    if (last?.event === 'run-end' && !last.stoppedAt && !openSlices(root, cur['packet-slug']).length) {
+    if (last?.event === 'run-end' && !last.stoppedAt && openSlices(root, cur['packet-slug'])?.length === 0) {
       // The run ended with issues that are not placed: they are placed before the packet is built.
       const issues = openIssues(root, cur['packet-slug']);
       if (issues.length) {
@@ -1765,9 +1789,10 @@ function planCmd(root, src, f = {}) {
       if (carried) stops.push({ kind: 'carried', count: carried });
       if (build && p['try-out'] === 'yes' && !tryOutRecorded(root, slug)) stops.push({ kind: 'try-out' });
     }
-    const sliced = Array.isArray(index?.slices) ? index.slices.length : null;
+    const roster = rosterEntries(dir);
+    const sliced = roster === null ? null : totalSlices(roster);
     const estimated = Number.isInteger(p['estimated-slices']) ? p['estimated-slices'] : null;
-    const left = !build || closed ? 0 : (sliced !== null && hasDoc(dir, ROSTER_DOC) ? openSlices(root, slug).length : estimated);
+    const left = !build || closed ? 0 : (roster !== null ? openOf(roster).length : estimated);
     return {
       key: p.key, slug, title: p.title ?? null, order: p.order, form: p.form, state: p.state,
       ...(p.skipped ? { skipped: p.skipped } : {}), design, ...(designWhy ? { designWhy } : {}),

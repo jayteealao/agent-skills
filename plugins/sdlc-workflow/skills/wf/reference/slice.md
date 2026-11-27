@@ -77,8 +77,8 @@ Apply [_workflow-rules.md](_workflow-rules.md). `<wf>` below stands for `node "<
    - Ask about: the delivery order (the riskiest part first or the most visible part first; a demo date, milestone or dependency that decides which slice ships first); the granularity (which mechanisms verify together and so form one capability; the review capacity of the team); the rollout coupling (which slices can ship on their own; feature flags, migrations or API contracts that force parts into one slice); and the scope cuts (parts of the spec that the person would defer; must-have-now against nice-to-have-later criteria).
    - Record every answer with `decide add --stage slice`.
 2. Run freshness research only where external constraints affect the cut or the order.
-3. Break the work into vertical slices that can each be implemented and verified on its own. A slice is one capability: a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". Its small outcomes become the steps of its plan. A slice has 20 plan steps or fewer; cut a larger capability into two slices. Do not size a slice by lines of code.
-4. For a campaign work packet (`00-index.md` has `origin-packet`), aim for 10 slices. Each slice carries a fixed cost: its own verify and its own end run. Above 14, merge before you write: join the slices that verify checks together, until the count is 14 or fewer or a merge would pass 20 plan steps in one slice. When the count is still above 14, write every slice, go on, and warn in the chat return with the count and the reason that each merge was not possible; the person can split the work packet later. When you split one slice, make at most four slices of it, and give each one the reason that it is separate.
+3. Break the work into vertical slices that can each be implemented and verified on its own. A slice is one capability: a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". Its small outcomes become the steps of its plan. A slice has no more plan steps than the step limit of the project (`slices.maxSteps` of `.ai/sdlc-config.json`, default 20); cut a larger capability into two slices. Do not size a slice by lines of code. Give each slice `estimated-steps` in the roster, from this model: 4 fixed steps, plus 1 for each finding it fixes, 2 for each new behaviour, and 1 for each steer about behaviour, plus 10%, rounded up. `record put` refuses a slice whose estimate is over the step limit: split it.
+4. For a campaign work packet (`00-index.md` has `origin-packet`), aim for 10 slices. Each slice carries a fixed cost: its own verify and its own end run. Above the slice limit of a packet (`slices.maxPerPacket`, default 14), merge before you write: join the slices that verify checks together, until the count is at the limit or a merge would pass the step limit in one slice. The step budget of the packet (`packets.maxSteps`, default the slice limit times the step limit) caps the sum of the estimates. `record put` refuses a roster above either limit. When no merge brings it under, hold the question for the person: split the work packet (`campaign split`), or accept the roster as it is. On an accept, write the id of their decision as `limit-override` in the roster frontmatter and put it again. When you split one slice, make at most four slices of it, and give each one the reason that it is separate.
 5. Give each slice a slice-slug: a lowercase kebab-case identifier from its name ("Auth Flow" → `auth-flow`).
 6. Put the slices that reduce risk and uncertainty early.
 7. Find the best first slice.
@@ -146,17 +146,19 @@ status: complete
 stage-number: 3
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
-total-slices: <N>
-best-first-slice: <slice-slug>
+total-slices: <N>                 # every write sets this: the slices that are not dropped
+best-first-slice: <slice-slug>    # kept while it names an open slice; else the write sets the first open one
 tags: []
 slices:
   - slug: <slice-slug>
     status: defined
     complexity: <xs|s|m|l|xl>
+    estimated-steps: <n>    # the model of step 3; the plan's step count takes its place once planned
     depends-on: []
   - slug: <slice-slug>
     status: defined
     complexity: <xs|s|m|l|xl>
+    estimated-steps: <n>
     depends-on: [<other-slice-slug>]
 refs:
   index: 00-index.md
@@ -225,5 +227,5 @@ Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 `03-slice.md` and each `03-slice-<slice-slug>.md` are revisable. When `/wf slice` runs again, follow [_additive-write.md](_additive-write.md) for each file you rewrite: a snapshot, the body rewritten to the current truth, and one ledger entry.
 - The snapshots go in `<wf-dir>/history/`, each the `record get` output of its record: `03-slice-<rev>.md` for the index, and `03-slice-<slice-slug>-<rev>.md` for a slice file.
 - The ledger entry of each rewritten file: `trigger: scope-change` (the default), or `new-slice` when slices were added. `because:` names why the cut changed; `changed:` names what moved.
-- A slice added in this run starts fresh: no earlier revision, no history snapshot, `revision-count` 1.
+- A slice added in this run starts fresh: no earlier revision, no history snapshot, an empty `revisions:` ledger and `revision-count` 0.
 - A removed slice stays in storage. Set `status: dropped` in its frontmatter with a `dropped-reason:` field, and append a last `## Dropped — <ISO>` section: get the record, change it, write its draft and put it. Do not delete a slice record.

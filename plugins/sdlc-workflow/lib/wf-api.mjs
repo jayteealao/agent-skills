@@ -237,13 +237,13 @@ export function openWorkflow(root, slug, hooks = {}) {
       try {
         const path = join(tmp, n);
         writeFileSync(path, `---\n${stringifyYaml(frontmatter ?? {})}\n---\n${body}`);
-        const r = putChecked(dir, path);
+        const r = putChecked(dir, path, { root: projectRoot });
         if (r.errors.length) throw new Error(`record put: refused ${r.name}: ${r.errors.join('; ')}`);
         return { name: r.name, file: r.file };
       } finally { rmSync(tmp, { recursive: true, force: true }); }
     }),
     edit: (name, change) => write('records.edit', recordName(name), [], () => {
-      const r = editRecord(dir, recordName(name), change ?? {}, { slug });
+      const r = editRecord(dir, recordName(name), change ?? {}, { slug, root: projectRoot });
       if (r.errors.length) throw new Error(`record edit: refused ${r.name}: ${r.errors.join('; ')}`);
       return { name: r.name, file: r.file };
     }),

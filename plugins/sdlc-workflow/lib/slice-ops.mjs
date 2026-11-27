@@ -4,6 +4,9 @@
 // the selected slice. The caller rebuilds INDEX.md. A dropped slice keeps its records, so its
 // history stays readable; the drivers and the routes skip it.
 import { INDEX_NAME, frontmatterOfDoc, readDoc, setFields, writeDoc } from './records.mjs';
+import { bestFirstOf } from './derive.mjs';
+import { syncRosterCopies } from './roster.mjs';
+import { DEFAULT_MAX_STEPS } from './limits.mjs';
 
 const ROSTER = '03-slice.md';
 const sliceRecord = (slice) => `03-slice-${slice}.md`;
@@ -36,8 +39,40 @@ function markSlice(dir, slice, change) {
     const next = roster.find((s) => s.slug !== slice && !['complete', 'deferred', 'skipped', 'dropped'].includes(String(s.status)));
     fields['selected-slice'] = next?.slug ?? null;
   }
+  // A route that names a slice that left the roster names the best open slice instead.
+  if (RETIRED.has(String(change.status))) Object.assign(fields, routeRepair(index, slice, rosterOf(dir)));
   if (Object.keys(fields).length) setFields(dir, INDEX_NAME, fields);
   if (frontmatterOfDoc(dir, sliceRecord(slice))) setFields(dir, sliceRecord(slice), change);
+  syncRosterCopies(dir);
+}
+
+// A slice name is lower-case words joined by `-`, so it is a plain word of an invocation.
+const namesSlice = (text, slice) => String(text ?? '').split(/\s+/).includes(slice);
+
+/** The index fields whose route names `slice`, pointed at the best open slice (or at the review when none is open). */
+function routeRepair(index, slice, roster) {
+  const best = bestFirstOf(roster.filter((s) => s.slug !== slice), null);
+  const out = {};
+  const next = index['next-invocation'];
+  if (namesSlice(next, slice)) {
+    const slug = index.slug ?? '';
+    out['next-invocation'] = best ? String(next).split(/\s+/).map((w) => (w === slice ? best : w)).join(' ') : `/wf review ${slug}`;
+    if (!best) out['next-command'] = 'wf-review';
+  }
+  if (Array.isArray(index['recommended-routes'])) {
+    const kept = index['recommended-routes'].filter((r) => !namesSlice(r?.invocation ?? r, slice));
+    if (kept.length !== index['recommended-routes'].length) out['recommended-routes'] = kept;
+  }
+  return out;
+}
+
+/** One entry of the revision ledger of the roster: `trigger` and why. */
+export function rosterRevision(dir, trigger, because, changed = null) {
+  const fm = frontmatterOfDoc(dir, ROSTER) ?? {};
+  const revisions = Array.isArray(fm.revisions) ? fm.revisions : [];
+  const entry = { rev: revisions.length + 1, at: nowIso(), trigger, because: String(because), ...(changed ? { changed: String(changed) } : {}) };
+  setFields(dir, ROSTER, { revisions: [...revisions, entry] });
+  return entry;
 }
 
 /** Drop a slice from the roster with a reason. Returns `{ slice, status }`. */
@@ -46,6 +81,7 @@ export function dropSlice(dir, slice, { reason } = {}) {
   const { entry } = entryOf(dir, slice);
   if (entry.status === 'dropped') throw new Error(`${slice} is dropped already`);
   markSlice(dir, slice, { status: 'dropped', 'drop-reason': String(reason).trim() });
+  rosterRevision(dir, 'scope-change', `slice drop: ${slice}: ${String(reason).trim()}`, slice);
   return { slice, status: 'dropped' };
 }
 
@@ -70,7 +106,10 @@ export function moveSlice(fromDir, toDir, slice, { fromSlug, toSlug, reason } = 
   }
   const { status: _old, 'drop-reason': _r, 'moved-to': _m, ...rest } = entry;
   setFields(toDir, ROSTER, { slices: [...targetRoster, { ...rest, status: 'defined' }] });
+  rosterRevision(toDir, 'new-slice', `slice move: ${slice} came from ${fromSlug}: ${String(reason).trim()}`, slice);
+  syncRosterCopies(toDir);
   markSlice(fromDir, slice, { status: 'dropped', 'drop-reason': String(reason).trim(), 'moved-to': toSlug });
+  rosterRevision(fromDir, 'scope-change', `slice move: ${slice} went to ${toSlug}: ${String(reason).trim()}`, slice);
   return { slice, from: fromSlug, to: toSlug };
 }
 
@@ -95,6 +134,12 @@ function placementOf(dir, record, rungs, target) {
   if (String(p.target) !== String(target)) throw new Error(`${record} places the issue into ${p.target}, not ${target}`);
   if (String(p.rung) === '5' && !p.gate?.pass) throw new Error(`${record}: the proof gate of a new slice did not pass: ${(p.gate?.failed ?? []).join('; ')}`);
   return p;
+}
+
+/** The complexity of a slice from its step estimate: s up to 8 steps, m up to 14, l above; s when unknown. */
+export function complexityOf(steps) {
+  if (!Number.isInteger(steps)) return 's';
+  return steps <= 3 ? 'xs' : steps <= 8 ? 's' : steps <= 14 ? 'm' : steps <= 20 ? 'l' : 'xl';
 }
 
 /** The guard of a write by the person: a decision id that the store holds. */
@@ -138,13 +183,18 @@ export function addSlice(dir, input, { decisions = [] } = {}) {
   const index = frontmatterOfDoc(dir, INDEX_NAME) ?? {};
   const wfSlug = index.slug ?? null;
   const at = nowIso();
-  const complexity = ['xs', 's', 'm', 'l', 'xl'].includes(String(input.complexity)) ? String(input.complexity) : 's';
-  const uxImpact = ['none', 'visual', 'flow', 'new-surface'].includes(String(input.uxImpact)) ? String(input.uxImpact) : 'none';
+  const estimate = Number.isInteger(Number(input.estimatedSteps)) && Number(input.estimatedSteps) > 0 ? Number(input.estimatedSteps) : null;
+  // The size comes from the investigation; with no size given, a step estimate sets it.
+  const complexity = ['xs', 's', 'm', 'l', 'xl'].includes(String(input.complexity)) ? String(input.complexity) : complexityOf(estimate);
+  // The ux-impact comes from the investigation; one it does not give is unknown and is left out, so
+  // the driver reads it as not settled and does not drive the slice past an open design.
+  const uxImpact = ['none', 'visual', 'flow', 'new-surface'].includes(String(input.uxImpact)) ? String(input.uxImpact) : null;
   const files = listOf(input.files);
   writeDoc(dir, sliceRecord(slice), {
     frontmatter: {
       schema: 'sdlc/v1', type: 'slice', slug: wfSlug, 'slice-slug': slice, status: 'defined', 'stage-number': 3,
-      'created-at': at, 'updated-at': at, complexity, 'depends-on': after, tags: [], 'ux-impact': uxImpact,
+      'created-at': at, 'updated-at': at, complexity, 'depends-on': after, tags: [], ...(uxImpact ? { 'ux-impact': uxImpact } : {}),
+      ...(estimate ? { 'estimated-steps': estimate } : {}),
       ...(input.madeFor ? { 'made-for': String(input.madeFor) } : {}),
       ...(placement ? { placement } : { decision: String(input.decision) }),
       refs: { index: INDEX_NAME, 'slice-index': ROSTER, plan: `04-plan-${slice}.md`, implement: `05-implement-${slice}.md` },
@@ -163,15 +213,18 @@ export function addSlice(dir, input, { decisions = [] } = {}) {
   setFields(dir, ROSTER, {
     slices: [
       ...roster.map((s) => (before.includes(s.slug) ? { ...s, 'depends-on': [...new Set([...(s['depends-on'] ?? []), slice])] } : s)),
-      { slug: slice, status: 'defined', complexity, 'depends-on': after, ...(input.madeFor ? { 'made-for': String(input.madeFor) } : {}) },
+      { slug: slice, status: 'defined', complexity, 'depends-on': after, ...(estimate ? { 'estimated-steps': estimate } : {}), ...(input.madeFor ? { 'made-for': String(input.madeFor) } : {}) },
     ],
   });
+  rosterRevision(dir, 'new-slice', placement ? `slice add: ${slice}, by the placement ${placement}` : `slice add: ${slice}, by the decision ${input.decision} of the person`, slice);
   for (const s of before) {
     const fm = frontmatterOfDoc(dir, sliceRecord(s));
     if (fm) setFields(dir, sliceRecord(s), { 'depends-on': [...new Set([...(fm['depends-on'] ?? []), slice])] });
   }
-  if (Array.isArray(index.slices)) setFields(dir, INDEX_NAME, { slices: [...index.slices, { slug: slice, status: 'defined' }] });
-  return { slice, added: true, after, before };
+  const listed = Array.isArray(index['workflow-files']) ? index['workflow-files'] : null;
+  if (listed && !listed.includes(sliceRecord(slice))) setFields(dir, INDEX_NAME, { 'workflow-files': [...listed, sliceRecord(slice)] });
+  syncRosterCopies(dir);
+  return { slice, added: true, after, before, ...(estimate ? { estimatedSteps: estimate } : {}) };
 }
 
 /**
@@ -192,6 +245,12 @@ export function carrySlice(dir, slice, input, { decisions = [] } = {}) {
   const key = placement ?? String(input.decision);
   if (carried.some((c) => c && (c.placement === key || c.decision === key))) return { slice, carried: false, already: true };
   if (frontmatterOfDoc(dir, `05-implement-${slice}.md`)) throw new Error(`slice carry: ${slice} has started its implement; place the issue again`);
+  // A carry adds its steps to the estimate of the slice; a carry that would pass the step limit is
+  // refused, so the ladder never widens a slice past it.
+  const steps = Number.isInteger(Number(input.steps)) && Number(input.steps) > 0 ? Number(input.steps) : null;
+  const max = Number(input.maxSteps) > 0 ? Number(input.maxSteps) : DEFAULT_MAX_STEPS;
+  const est = Number.isInteger(Number(entry['estimated-steps'])) && Number(entry['estimated-steps']) > 0 ? Number(entry['estimated-steps']) : null;
+  if (steps && est && est + steps > max) throw new Error(`slice carry: ${slice} has an estimate of ${est} steps; ${steps} more would pass the step limit of ${max} (slices.maxSteps): place the issue again`);
   const at = nowIso();
   const line = `- ${issue}: ${text}${placement ? ` (${placement})` : ` (decision ${input.decision})`}`;
   const body = String(rec.body ?? '').replace(/\n*$/, '\n');
@@ -202,5 +261,10 @@ export function carrySlice(dir, slice, input, { decisions = [] } = {}) {
     frontmatter: { ...rec.frontmatter, 'carried-issues': [...carried, { issue, text, at, ...(placement ? { placement } : { decision: String(input.decision) }) }], 'carried-at': at, 'updated-at': at },
     body: next,
   });
-  return { slice, carried: true, at };
+  if (steps && est) {
+    const roster = frontmatterOfDoc(dir, ROSTER)?.slices ?? [];
+    setFields(dir, ROSTER, { slices: roster.map((s) => (s && typeof s === 'object' && s.slug === slice ? { ...s, 'estimated-steps': est + steps } : s)) });
+  }
+  syncRosterCopies(dir);
+  return { slice, carried: true, at, ...(steps && est ? { estimatedSteps: est + steps } : {}) };
 }

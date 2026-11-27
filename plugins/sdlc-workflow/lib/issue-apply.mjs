@@ -10,10 +10,13 @@
 //   hold     a held question to the person (out of scope, rung 7, an incomplete investigation)
 // A placement that was applied is not applied again: the record says so, and the call prints
 // `already`. An answer of the person to the held question is applied the same way.
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { answeredBy, decisionsOf } from './decisions.mjs';
 import { issueKeyOf, issueQuestionKey, issueRecordOf, placeIssue, placementLine, sliceStates } from './issue-place.mjs';
+import { limitsOf } from './limits.mjs';
+import { packetSteps, rosterEntries } from './roster.mjs';
+import { workflowDir } from './records-root.mjs';
 import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
 import { addSlice, carrySlice } from './slice-ops.mjs';
 import { close, issuesOf, post, readTalk } from './talk.mjs';
@@ -38,7 +41,7 @@ export function nextPacketOf(projectRoot, index) {
     .map((f) => ({ f, d: read(join(workDir, f)) })).filter((x) => x.d?.type === 'packet');
   const next = packets.filter((x) => Number(x.d.order ?? 0) > Number(own.order ?? 0) && ['written', 'open'].includes(String(x.d.state ?? 'written')))
     .sort((a, b) => Number(a.d.order) - Number(b.d.order))[0];
-  return next ? { key: String(next.d.key), slug: String(next.d['packet-slug'] ?? next.d.key), file: join(workDir, next.f), workDir } : null;
+  return next ? { key: String(next.d.key), slug: String(next.d['packet-slug'] ?? next.d.key), file: join(workDir, next.f), workDir, state: String(next.d.state ?? 'written'), estimatedSlices: Number.isInteger(next.d['estimated-slices']) ? next.d['estimated-slices'] : null } : null;
 }
 
 /** The issues carried into a packet that has no workflow yet: `work/<packet-slug>.issues.json`, written only here and by campaign.mjs. */
@@ -46,6 +49,33 @@ export const packetIssuesFile = (packet) => join(packet.workDir, `${packet.slug}
 export function readPacketIssues(file) {
   try { const d = JSON.parse(readFileSync(file, 'utf8')); return Array.isArray(d.issues) ? d.issues : []; } catch { return []; }
 }
+/**
+ * The steps that a packet holds now: the roster of its workflow once it is open, else its estimate
+ * of slices at the step limit, plus the steps of the issues carried into it.
+ */
+export function packetLoad(projectRoot, packet, limits) {
+  const carried = readPacketIssues(packetIssuesFile(packet)).reduce((n, i) => n + (Number(i.steps) > 0 ? Number(i.steps) : limits.maxSteps), 0);
+  const entries = packet.state === 'open' ? rosterEntries(workflowDir(projectRoot, packet.slug)) : null;
+  if (entries) return packetSteps(workflowDir(projectRoot, packet.slug), entries, limits).steps + carried;
+  return (packet.estimatedSlices ?? limits.targetSlices) * limits.maxSteps + carried;
+}
+
+/**
+ * Bring the issues carried into a packet into the talk of its new workflow, each as an issue that
+ * cites the investigation of the workflow it came from, and move the file to `history/`, so that it
+ * is read once. Returns the ids of the issues posted.
+ */
+export function importPacketIssues(packet, dir, { now = nowIso() } = {}) {
+  const file = packetIssuesFile(packet);
+  const issues = readPacketIssues(file);
+  if (!existsSync(file)) return [];
+  const ids = issues.map((i) => post(dir, { by: 'driver', to: ['driver'], issue: true, text: `${i.text} (carried from ${i.issue}; its investigation is ${i.record})`, refs: [i.record].filter(Boolean) }).entry.id);
+  const history = join(packet.workDir, 'history');
+  mkdirSync(history, { recursive: true });
+  renameSync(file, join(history, `${now.replace(/[:]/g, '')}-${basename(file)}`));
+  return ids;
+}
+
 export function carryToPacket(packet, row) {
   const file = packetIssuesFile(packet);
   const issues = readPacketIssues(file);
@@ -87,8 +117,17 @@ export function placeAndApply(dir, issueId, { projectRoot, apply = false, runnin
   const answer = prior?.status === 'ask' ? answeredBy(decisions, issueQuestionKey(key)) : null;
   if (prior?.status === 'ask' && prior.applied && !answer) return { issue: issueId, record, already: true, waiting: issueQuestionKey(key), placement: prior };
 
+  // The room of each slice and the load of the packet come from the roster, not from the investigation.
+  const limits = limitsOf(projectRoot);
+  const entries = rosterEntries(dir) ?? [];
+  const size = packetSteps(dir, entries, limits);
+  const room = Object.fromEntries(Object.entries(size.bySlice).filter(([, v]) => v.from !== 'limit').map(([s, v]) => [s, Math.max(0, limits.maxSteps - v.steps)]));
+  const steps = Number(fm.size?.steps) > 0 ? Number(fm.size.steps) : 0;
+  const nextLoad = packet ? packetLoad(projectRoot, packet, limits) : 0;
+  const nextPacketFull = packet && nextLoad + steps > limits.budgetSteps ? `it holds ${nextLoad} steps of its budget of ${limits.budgetSteps}` : null;
   let p = answer ? fromAnswer(fm, answer, states, packet) : placeIssue(fm, {
-    slices: states, reporter: issue.by, reviewOpen, nextPacket: packet?.key ?? null, final,
+    slices: states, reporter: issue.by, reviewOpen, nextPacket: packet?.key ?? null, final, maxSteps: limits.maxSteps,
+    room, budget: { steps: size.steps, limit: limits.budgetSteps }, nextPacketFull,
     above: refused && prior?.rung ? prior.rung : 0,
   });
   const placement = { ...p, at: nowIso(), applied: false, ...(answer ? { answer: answer.id } : {}), ...(prior ? { previous: { rung: prior.rung, target: prior.target } } : {}) };
@@ -101,18 +140,23 @@ export function placeAndApply(dir, issueId, { projectRoot, apply = false, runnin
   if (p.action === 'deliver') {
     result = post(dir, { by: as, to: [p.target], re: issueId, kind: 'request', text: `${line}. Take this issue into your stage: ${text}. Investigation: ${record}. Close the thread when it is handled; when you cannot take it, reply "cannot: <why>".`, refs: issue.refs }).entry;
   } else if (p.action === 'carry') {
-    result = carrySlice(dir, p.target, { issue: issueId, text: fm.cause?.summary ? `${fm.cause.summary} (${issue.text})` : issue.text, placement: record }, { decisions });
+    result = carrySlice(dir, p.target, { issue: issueId, text: fm.cause?.summary ? `${fm.cause.summary} (${issue.text})` : issue.text, placement: record, steps: Number(fm.size?.steps) > 0 ? Number(fm.size.steps) : null, maxSteps: limits.maxSteps }, { decisions });
   } else if (p.action === 'add') {
     const prop = fm.proposal ?? {};
     const owner = String(fm.owner?.slice ?? '');
     const after = [...new Set([...(Array.isArray(prop.after) ? prop.after : []), ...(owner && states.some((s) => s.slice === owner && s.roster !== 'dropped') ? [owner] : [])])];
     result = addSlice(dir, {
       slice: p.target, title: prop.title, scope: prop.scope, ac: prop.ac, after, before: prop.before ?? [], files: prop.files ?? [],
-      complexity: prop.complexity, uxImpact: prop.uxImpact ?? 'none', madeFor: key,
+      complexity: prop.complexity, uxImpact: prop.uxImpact ?? null, madeFor: key,
       ...(answer ? { by: 'person', decision: answer.id } : { placement: record }),
     }, { decisions });
   } else if (p.action === 'packet') {
-    result = carryToPacket(packet, { issue: `${index.slug ?? ''}:${issueId}`, text: fm.cause?.summary ?? issue.text, record: `${index.slug ?? ''}/${record}`, placement: `${index.slug ?? ''}/${record}`, at: nowIso() });
+    const row = { issue: `${index.slug ?? ''}:${issueId}`, text: fm.cause?.summary ?? issue.text, record: `${index.slug ?? ''}/${record}`, placement: `${index.slug ?? ''}/${record}`, steps: Number(fm.size?.steps) > 0 ? Number(fm.size.steps) : null, at: nowIso() };
+    // An open packet has a workflow that reads its talk: the issue goes there. A written one gets it at campaign open.
+    const target = packet.state === 'open' ? workflowDir(projectRoot, packet.slug) : null;
+    result = target && existsSync(target)
+      ? { packet: packet.key, carried: true, posted: post(target, { by: 'driver', to: ['driver'], issue: true, text: `${row.text} (carried from ${row.issue}; its investigation is ${row.record})`, refs: [row.record] }).entry.id }
+      : carryToPacket(packet, row);
   } else if (p.action === 'hold') {
     result = holdQuestion(dir, { key: issueQuestionKey(key), question: p.ask.question, stage: 'yolo', options: p.ask.options, recommended: p.ask.recommended });
   } else if (p.action === 'park') {

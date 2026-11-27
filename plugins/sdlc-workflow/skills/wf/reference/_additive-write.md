@@ -23,9 +23,9 @@ Append no `## Revision N` sections to the body: a document that stacks diffs for
        changed: "<one phrase — what moved in the body>"
    ```
 
-   `trigger` is one of: `review-feedback`, `ci-fix`, `new-slice`, `new-slug-joined`, `scope-change`, `answers-returned`, `resume`, `manual`. Add stage-specific triggers only if a stage's reference names them.
+   `trigger` is one of: `review-feedback`, `ci-fix`, `new-slice`, `new-slug-joined`, `scope-change`, `split`, `merge`, `answers-returned`, `resume`, `manual`. Add stage-specific triggers only if a stage's reference names them.
 
-4. **Bump `revision-count`** in frontmatter to the new `rev` (it equals the number of ledger entries). Refresh `updated-at`. `revision-count` stays for mechanical consumers (schema, dashboard captions, page badges); the ledger is the human-and-render-facing record.
+4. **Leave `revision-count` to the write:** every write of the record sets it to the number of `revisions:` entries, so it is the new `rev`. Do not write it by hand. Refresh `updated-at`. `revision-count` stays for mechanical consumers (schema, dashboard captions, page badges); the ledger is the human-and-render-facing record.
 
 5. **Sibling `.yaml`** (when present) follows the same rule: top-level scalars update in place; the `revisions:` array appends. On a structurally incompatible rewrite, snapshot the YAML alongside the MD as `history/<stem>-<rev>.yaml`.
 

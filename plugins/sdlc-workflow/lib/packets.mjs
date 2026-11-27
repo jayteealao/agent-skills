@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { stringify } from './yaml.mjs';
 
 import { safeParseFrontmatter } from './frontmatter.mjs';
+import { DEFAULT_LIMITS, limitsOr } from './limits.mjs';
 import { setFrontmatterValue } from './roster-edit.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from './schema-validator.mjs';
 import { appendRecord, writeFileAtomic } from './atomic-write.mjs';
@@ -32,10 +33,11 @@ export const STARTED_STATES = Object.freeze(['open', 'built', 'done', 'dropped']
 export const WALK_FIELDS = Object.freeze(['skipped', 'ahead-of', 'done-at']);
 /** The walk fields of a packet file's frontmatter that are set. */
 export const walkFieldsOf = (data) => Object.fromEntries(WALK_FIELDS.filter((k) => data?.[k] != null).map((k) => [k, data[k]]));
-// The slice band of a packet: a target of 10, a band of 6 to 14.
-export const SLICE_TARGET = 10;
-export const SLICE_MIN = 6;
-export const SLICE_MAX = 14;
+// The slice band of a packet by default: a target of 10, a band of 6 to 14. A project sets the
+// top of the band (slices.maxPerPacket) and the step limit (slices.maxSteps): lib/limits.mjs.
+export const SLICE_TARGET = DEFAULT_LIMITS.targetSlices;
+export const SLICE_MIN = DEFAULT_LIMITS.minSlices;
+export const SLICE_MAX = DEFAULT_LIMITS.maxSlices;
 export const UX_IMPACTS = Object.freeze(['none', 'visual', 'flow', 'new-surface']);
 
 // A citation of a gitignored scratch path. `.scratch/` is the plugin's own scratch
@@ -89,6 +91,9 @@ function isLive(item) {
 }
 
 const list = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
+
+/** The carried decisions above which a packet is warned to split. */
+export const PACKET_DECISION_WARN = 150;
 
 /** The kept decisions a packet carries, in the packet's own order. */
 export function carriedDecisionItems(board, packet) {
@@ -168,7 +173,8 @@ const writtenUp = (packet) => isStartedState(packet.state) || packet.migrated;
  * Check a board's list before its packets are written (section 4.2, 4.3).
  * Errors stop the write; warnings go to the person.
  */
-export function checkList(board, { isIgnored = null } = {}) {
+export function checkList(board, { isIgnored = null, limits = null } = {}) {
+  const lim = limitsOr(limits);
   const errors = [];
   const warnings = [];
   const packets = board.work ?? [];
@@ -247,9 +253,9 @@ export function checkList(board, { isIgnored = null } = {}) {
     else if (packet['ux-impact-confirmed'] !== true) errors.push(`packet ${packet.key}: ux-impact ${packet['ux-impact']} is not confirmed by the person.`);
     if (packet['try-out'] === 'no' && (packet['ux-impact'] ?? 'none') !== 'none') errors.push(`packet ${packet.key}: try-out no with ux-impact ${packet['ux-impact']}: a packet with a user-facing change gets a try-out (D37).`);
     const est = packet['estimated-slices'];
-    if (!Number.isInteger(est)) warnings.push(`packet ${packet.key}: no estimated-slices. Estimate the capability slices; the target is ${SLICE_TARGET}.`);
-    else if (est > SLICE_MAX) warnings.push(`packet ${packet.key}: about ${est} slices, above ${SLICE_MAX}. Propose a split at a point where the first part is complete; the person may keep it.`);
-    else if (est < SLICE_MIN) warnings.push(`packet ${packet.key}: about ${est} slices, below ${SLICE_MIN}. Propose a merge with a packet of the same family; the person may keep it.`);
+    if (!Number.isInteger(est)) warnings.push(`packet ${packet.key}: no estimated-slices. Estimate the capability slices; the target is ${lim.targetSlices}.`);
+    else if (est > lim.maxSlices || est * lim.maxSteps > lim.budgetSteps) warnings.push(`packet ${packet.key}: about ${est} slices, above ${Math.min(lim.maxSlices, Math.floor(lim.budgetSteps / lim.maxSteps))} (a budget of ${lim.budgetSteps} steps at ${lim.maxSteps} a slice). Propose a split at a point where the first part is complete; the person may keep it.`);
+    else if (est < lim.minSlices) warnings.push(`packet ${packet.key}: about ${est} slices, below ${lim.minSlices}. Propose a merge with a packet of the same family; the person may keep it.`);
   }
 
   // For each packet that is not started: the open step shows
@@ -260,6 +266,11 @@ export function checkList(board, { isIgnored = null } = {}) {
     const undated = carried.filter((i) => i.session == null || !i['decided-at']);
     if (undated.length) {
       warnings.push(`packet ${packet.key}: ${undated.length} carried decision(s) have no session or decided-at (${undated.slice(0, 3).map((i) => i.key).join(', ')}${undated.length > 3 ? ', …' : ''}): write both on each decision.`);
+    }
+    // Each carried decision reaches the briefs of the packet: past this many, its briefs spend
+    // more on decisions than on the work.
+    if (carried.length > PACKET_DECISION_WARN) {
+      warnings.push(`packet ${packet.key} carries ${carried.length} decisions, more than ${PACKET_DECISION_WARN}: split it, so that each part carries the decisions of its own slices.`);
     }
     if (carried.length && !touchingItems(board, packet, 'finding').length) {
       warnings.push(`packet ${packet.key} carries ${carried.length} decisions and no finding: put the findings that bear on them in its items or on its threads, or say why there are none.`);
@@ -705,10 +716,10 @@ function stamp(now) {
  * then research/index.md, then work/index.md last. A started packet is kept; its
  * regenerated text goes to history/. Old packet files move to work/archive/packets/.
  */
-export function writeList(dir, { now = null, isIgnored = null, dryRun = false, boardFile = DEFAULT_FILES.board } = {}) {
+export function writeList(dir, { now = null, isIgnored = null, dryRun = false, boardFile = DEFAULT_FILES.board, limits = null } = {}) {
   const files = filesFor(boardFile);
   const board = readJson(join(dir, files.board));
-  const check = checkList(board, { isIgnored });
+  const check = checkList(board, { isIgnored, limits });
   if (check.errors.length) return { ok: false, ...check };
 
   const workDir = join(dir, 'work');

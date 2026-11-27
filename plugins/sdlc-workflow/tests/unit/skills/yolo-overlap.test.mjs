@@ -19,7 +19,7 @@ const slice = (name, extra = {}) => ({ slice: name, status: 'defined', reverifyR
 const orientResult = (slices, strategy) => ({
   ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed',
   runId: '20261124T100000Z-demo', charter: [], priorDeferrals: [],
-  branch: { current: 'b', target: 'b', match: true, strategy },
+  branch: { current: 'b', target: 'b', match: true, base: 'main', strategy },
   slices,
 });
 

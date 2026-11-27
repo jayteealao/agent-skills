@@ -21,6 +21,9 @@ import { skillDirLine, skillDirOf } from './skill-dir.mjs';
 import { unmetLines } from './slice-checks.mjs';
 import { actorOf, inboxOf, messageLine, readTalk } from './talk.mjs';
 
+/** The notes and answers outside the slice that a brief lists, newest first; the steers and the decisions of the slice are listed in full. */
+export const BRIEF_DECISION_CAP = 40;
+
 export const CARD_HEADING = 'Card';
 // A section longer than this is cut, and the brief names the file to read for the rest.
 export const SECTION_CAP = 12000;
@@ -152,11 +155,21 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const live = liveDecisions(decisionsOf(dir), slice ? { slice } : {});
   // The rules, the steers and the notes come first, apart from the answers: they bind the whole
   // stage, and an agent that reads the top of a long list must not miss them.
+  // In full: every project rule, every steer, and every decision scoped to this slice. The other
+  // notes and answers of the scope are capped, newest first, so a packet with hundreds of decisions
+  // does not fill the brief of each stage; the rest are a command away.
   const bind = (e) => e.kind === 'steer' || e.kind === 'note';
+  const own = (e) => Boolean(slice) && e?.scope?.slice === slice;
+  const full = (e) => e.kind === 'steer' || own(e);
+  const rest = live.filter((e) => !full(e)).map((e, i) => ({ e, i })).sort((a, b) => (Date.parse(b.e.at ?? '') || 0) - (Date.parse(a.e.at ?? '') || 0) || b.i - a.i);
+  const kept = new Set(rest.slice(0, BRIEF_DECISION_CAP).map((x) => x.e));
+  const more = rest.length - kept.size;
+  const shown = live.filter((e) => full(e) || kept.has(e));
   const projectRules = readRules(projectRoot);
-  const rulesText = [...projectRules.map((r) => `- RULE ${ruleLine(r)} (project rule)`), ...live.filter(bind).map((e) => `- ${decisionLine(e)}`)].join('\n') || null;
-  const answers = live.filter((e) => !bind(e));
-  const decisionsText = answers.length ? answers.map((e) => `- ${decisionLine(e)}`).join('\n') : null;
+  const rulesText = [...projectRules.map((r) => `- RULE ${ruleLine(r)} (project rule)`), ...shown.filter(bind).map((e) => `- ${decisionLine(e)}`)].join('\n') || null;
+  const answers = shown.filter((e) => !bind(e));
+  const moreLine = more > 0 ? `- ${more} more: \`decide list${slice ? ` --slice ${slice}` : ''}\`` : null;
+  const decisionsText = answers.length || moreLine ? [...answers.map((e) => `- ${decisionLine(e)}`), ...(moreLine ? [moreLine] : [])].join('\n') : null;
   // The rule of lib/decisions.mjs answeredBy: the key itself, or a standing answer of its kind.
   const answeredRule = 'A question whose key is listed here is answered: use that answer. A question `<kind>:<case>` ' +
     'is also answered when a `[standing:<kind>]` entry is listed under ## Rules, steers and notes: use its answer, and record the case with `--by standing:<id>` of that entry.';

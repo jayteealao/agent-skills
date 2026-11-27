@@ -10,19 +10,36 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PLAN_CEILING, PLAN_KEYS, PLAN_NEXT, PLAN_TITLE, migrateApply, migrationReport, removeWorktree, run, untrackedLinks } from '../../scripts/campaign.mjs';
+import { PLAN_CEILING, PLAN_KEYS, PLAN_NEXT, PLAN_TITLE, migrateApply, migrationReport, removeWorktree, run as runCampaign, untrackedLinks } from '../../scripts/campaign.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
-import { frontmatterOfDoc, readDoc, setFields as setRecordFields } from '../../lib/records.mjs';
+import { frontmatterOfDoc, readDoc, setFields as setRecordFields, writeDoc } from '../../lib/records.mjs';
 import { addDecision } from '../../lib/decisions.mjs';
 import { mergeRun, writeLedger } from '../../lib/findings.mjs';
 import { linkProject } from '../../lib/records-sync.mjs';
+import { workflowsRoot } from '../../lib/records-root.mjs';
 import { commitIdentity, gitSteps, whereOf } from '../../lib/steps.mjs';
 
 const SRC = 'brainstorm-demo';
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const fm = (file) => safeParseFrontmatter(readFileSync(file, 'utf8')).data;
 const wf = (root, slug) => path.join(root, '.ai', 'workflows', slug);
+
+// A packet is built only when its roster has no open slice; a workflow with no roster is not built.
+// A test that builds a packet without driving its slices gets a roster of one complete slice first.
+function finishRosters(root) {
+  const top = workflowsRoot(root);
+  if (!existsSync(top)) return;
+  for (const slug of readdirSync(top)) {
+    const dir = path.join(top, slug);
+    if (!frontmatterOfDoc(dir, '00-index.md') || frontmatterOfDoc(dir, '03-slice.md')) continue;
+    writeDoc(dir, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug, slices: [{ slug: 'main', status: 'complete' }] } });
+  }
+}
+const run = (argv) => {
+  if (argv[0] === 'built' && argv[1]) finishRosters(argv[1]);
+  return runCampaign(argv);
+};
 /** One workflow record, in either layout. */
 const rec = (root, slug, name) => frontmatterOfDoc(wf(root, slug), name);
 const body = (root, slug, name) => readDoc(wf(root, slug), name)?.body ?? '';
@@ -336,7 +353,7 @@ test('6.1 step 13: a fix slice sends a built packet back to the driver, also in 
     review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     // /wf intake extend adds a fix slice to the roster.
-    setRecordFields(wf(root, 'demo-engine'), '00-index.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'defined' }] });
+    setRecordFields(workflowsRoot(root) + '/demo-engine', '03-slice.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'defined' }] });
     const st = run(['status', root, SRC]);
     assert.deepEqual([st.current.step, st.current.state], ['yolo', 'built']);
     assert.match(st.current.reason, /fix-1/);
@@ -344,7 +361,7 @@ test('6.1 step 13: a fix slice sends a built packet back to the driver, also in 
     assert.deepEqual([run(['reopen', root, SRC, 'engine']).changed, fm(path.join(wf(root, SRC), 'work', 'demo-engine.md')).state], [true, 'open']);
     assert.equal(run(['reopen', root, SRC, 'engine']).changed, false);
     // The driver builds the slice.
-    setRecordFields(wf(root, 'demo-engine'), '00-index.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'complete' }] });
+    setRecordFields(workflowsRoot(root) + '/demo-engine', '03-slice.md', { slices: [{ slug: 'core', status: 'complete' }, { slug: 'fix-1', status: 'complete' }] });
     assert.equal(run(['built', root, SRC, 'engine']).ok, true);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     assert.equal(run(['done', root, SRC, 'engine']).ok, true);

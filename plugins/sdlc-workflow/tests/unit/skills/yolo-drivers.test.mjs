@@ -59,7 +59,7 @@ test('a verify still failing after the second round stops the run', async () => 
 });
 
 test('a delegate run accepts the items that still fail on the second round', async () => {
-  const accepted = { ...CLEAN, terminal: { convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-3', by: 'delegate' }] } };
+  const accepted = { ...CLEAN, terminal: { convergence: 'escalated', result: 'fail', substantiveResidual: false, acceptedItems: [{ item: 'AC-3', by: 'delegate' }], failingItems: ['AC-3'] } };
   const h = verifyHarness([CODE_FAIL, accepted]);
   const res = await h.driveVerify('auth', { priorDeferrals: [] });
   assert.equal(h.calls.length, 2);
@@ -235,7 +235,7 @@ const DONE = { plan: 'done', implement: 'done', verify: 'done', review: 'n-a' };
 const orientResult = (over = {}) => ({
   ok: true, slug: 'demo', mode: 'slug', reviewScope: 'slug-wide', workflowType: 'feature', fileConvention: 'suffixed',
   runId: '20261101T100000Z-demo', charter: [], priorDeferrals: [],
-  branch: { current: 'b', target: 'b', match: true, strategy: 'none' },
+  branch: { current: 'b', target: 'b', match: true, base: 'main', strategy: 'none' },
   slices: [slice('a', DONE), slice('b', DONE)],
   ...over,
 });

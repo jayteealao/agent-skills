@@ -66,8 +66,8 @@ The number of carried decisions does not size a work packet. Apply these rules:
 1. Each work packet is one deliverable in one area of the product. Engine and platform work packets are deliverables too, but they have nothing for the person to try.
 2. A work packet holds one family of outcomes, so the setup cost of the family is paid once. Two areas that the person tries together can be one work packet.
 3. Engine and platform work get work packets of their own.
-4. A work packet has a target of 10 capability slices, in a band of 6 to 14. A capability slice is a group of mechanisms that verify checks together. When you expect an area to need more than 14, split the area at a point where the first part is complete.
-5. The number of work packets has no cap.
+4. A work packet has a target of 10 capability slices, in a band of 6 to 14 (`slices.maxPerPacket` of `.ai/sdlc-config.json`). A capability slice is a group of mechanisms that verify checks together. When you expect an area to need more than 14, split the area at a point where the first part is complete.
+5. A work packet has a step budget: `packets.maxSteps`, by default the slice limit times the step limit (14 × 20 = 280). `campaign write` warns above it, and the roster of the packet is refused above it once the packet is open. A packet that carries more than 150 decisions is warned to split, too. The number of work packets has no cap.
 6. Every kept decision of the board goes into exactly one work packet.
 
 Record your estimate as `estimated-slices`. The slice stage counts the real slices.

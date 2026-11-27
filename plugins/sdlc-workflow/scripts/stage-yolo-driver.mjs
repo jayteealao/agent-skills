@@ -48,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 
 import { modelsOf } from '../lib/campaign.mjs';
 import { runDelegatedIn } from '../lib/decisions.mjs';
+import { limitsOfConfig } from '../lib/limits.mjs';
 import { progressOf } from '../lib/progress.mjs';
 import { workflowDir, workflowsRoot } from '../lib/records-root.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
@@ -150,13 +151,15 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   // The session passes `models` on as `args.models`, so each stage runs on the model of the config.
   let models = {};
   let issues = null;
+  let limits = limitsOfConfig(null);
   try {
-    const cfg = JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'));
+    const cfg = JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8').replace(/^﻿/, ''));
     models = modelsOf(cfg);
     issues = issuesOf(cfg);
-  } catch { /* no config: every stage on Opus, the default issue limits */ }
+    limits = limitsOfConfig(cfg);
+  } catch { /* no config: every stage on Opus, the default issue and size limits */ }
   // The session passes `recordsRoot` on too: a linked project keeps its records in the records home.
-  const staged = { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot), ...(issues ? { issues } : {}) };
+  const staged = { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot), limits, ...(issues ? { issues } : {}) };
   // The launch asks how the run settles the decisions of the person; the answer sets `delegate`.
   if (opts.slug) staged.delegate = runDelegatedIn(workflowDir(projectRoot, opts.slug));
   return staged;

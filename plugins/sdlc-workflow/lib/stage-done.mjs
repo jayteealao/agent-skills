@@ -6,7 +6,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { CHANGE_MODES } from './lifecycle-done.mjs';
-import { INDEX_NAME, frontmatterOfDoc, setFields } from './records.mjs';
+import { INDEX_NAME, frontmatterOfDoc, readDoc, setFields } from './records.mjs';
+import { readPlan } from './steps.mjs';
+import { bestFirstOf } from './derive.mjs';
+import { syncRosterCopies } from './roster.mjs';
 
 // The nine stages and the files each one writes, in order. Intake writes the brief and the
 // shape; ship writes the PR package, then its runs.
@@ -91,6 +94,18 @@ function writeRosterStatus(dir, slice, status) {
   return status;
 }
 
+// The plan of a slice knows its real size: its step count takes the place of the estimate in the roster.
+function writePlannedSteps(dir, slice, index) {
+  const roster = frontmatterOfDoc(dir, '03-slice.md')?.slices;
+  if (!Array.isArray(roster)) return;
+  const at = roster.findIndex((s) => s && typeof s === 'object' && s.slug === slice);
+  if (at < 0) return;
+  const doc = readDoc(dir, stageFileOf(dir, '04-plan', slice, index));
+  const n = doc ? readPlan(doc.body ?? '').steps.length : 0;
+  if (!n || roster[at]['estimated-steps'] === n) return;
+  setFields(dir, '03-slice.md', { slices: roster.map((s, i) => (i === at ? { ...s, 'estimated-steps': n } : s)) });
+}
+
 const sliceSlugs = (dir) => {
   const roster = frontmatterOfDoc(dir, '03-slice.md')?.slices;
   return (Array.isArray(roster) ? roster : [])
@@ -105,6 +120,12 @@ function nextOpenSlice(dir, slice = null) {
   return [...roster.slice(from), ...roster.slice(0, from)].find((s) => s.slug !== slice && !SLICE_DONE.has(String(s.status)))?.slug ?? null;
 }
 
+/** The best first slice of the roster: the stored one while it is open, else the first open one. */
+function bestSlice(dir) {
+  const fm = frontmatterOfDoc(dir, '03-slice.md');
+  return bestFirstOf(fm?.slices, fm?.['best-first-slice'] ?? null) ?? nextOpenSlice(dir);
+}
+
 /** The default route after a stage: `{ stage, slice }` of the next command, or null at the end. */
 export function defaultRoute(dir, stage, slice = null) {
   const index = frontmatterOfDoc(dir, INDEX_NAME) ?? {};
@@ -114,11 +135,8 @@ export function defaultRoute(dir, stage, slice = null) {
       return { stage: design ? 'design' : 'slice' };
     }
     case 'design': return { stage: 'slice' };
-    case 'slice': {
-      const best = frontmatterOfDoc(dir, '03-slice.md')?.['best-first-slice'];
-      return { stage: 'plan', slice: best || nextOpenSlice(dir) };
-    }
-    case 'plan': return { stage: 'implement', slice: slice ?? frontmatterOfDoc(dir, '03-slice.md')?.['best-first-slice'] ?? nextOpenSlice(dir) };
+    case 'slice': return { stage: 'plan', slice: bestSlice(dir) };
+    case 'plan': return { stage: 'implement', slice: slice ?? bestSlice(dir) };
     case 'implement': return { stage: 'verify', slice };
     case 'verify': return { stage: 'review', slice };
     case 'review': {
@@ -156,6 +174,7 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
         : ((small ? SMALL_STAGE_FILES[stage] : null) ?? STAGE_FILES[stage])(slice);
   if (stage === 'slice') names.push(...roster.map((x) => `03-slice-${x}.md`));
   const rosterStatus = slice ? writeRosterStatus(dir, slice, rosterStatusAfter(dir, stage, slice, index)) : null;
+  if (stage === 'plan' && slice) writePlannedSteps(dir, slice, index);
   const files = names.filter((f) => frontmatterOfDoc(dir, f));
   if (stage === 'review' && existsSync(join(dir, 'findings.yaml'))) files.push('findings.yaml');
   let progress = status ?? 'complete';
@@ -180,5 +199,7 @@ export function stageDone(dir, slug, stage, slice = null, { next = null, status 
     ...(Object.hasOwn(index, 'recommended-next-command') ? { 'recommended-next-command': null } : {}),
   };
   setFields(dir, INDEX_NAME, changes);
+  // The roster is the one stored copy: its read-only copies follow it (lib/roster.mjs).
+  syncRosterCopies(dir);
   return rosterStatus ? { ...changes, 'roster-status': rosterStatus } : changes;
 }

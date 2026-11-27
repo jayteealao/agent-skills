@@ -11,6 +11,7 @@ import { putChecked } from './record-put.mjs';
 import { INDEX_NAME, docText, frontmatterOfDoc, listDocs, markSuperseded, readDoc, replaceOnce, replaceSection, updateFields } from './records.mjs';
 import { agentFix, refuse } from './fix.mjs';
 import { rosterOf } from './roster-edit.mjs';
+import { syncRosterCopies } from './roster.mjs';
 
 const SCHEMA_FILE = fileURLToPath(new URL('../schemas/frontmatter.schema.json', import.meta.url));
 
@@ -148,6 +149,8 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
     }
     for (const k of new Set(changes.map((c) => c.path[0].key))) if (fm[k] == null) delete fm[k];
   }, { missing: () => refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.')) });
+  // A change of the roster, a slice record or the plan index brings the read-only copies of the roster in step.
+  if (/^(03-slice(-[^.]+)?|04-plan)\.md$/.test(basename(name))) syncRosterCopies(dir);
   return { frontmatter: written, keys: changes.map((c) => c.key) };
 }
 
@@ -157,7 +160,7 @@ export function setRecordPaths(dir, name, args, { slug = basename(dir) } = {}) {
  * one exact replacement (refused when the text matches zero times or more than once).
  * `updated-at` moves when the record has it. Returns the result of the put.
  */
-export function editRecord(dir, name, change, { slug = basename(dir), now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') } = {}) {
+export function editRecord(dir, name, change, { slug = basename(dir), root = null, now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') } = {}) {
   const doc = readDoc(dir, name);
   if (!doc?.frontmatter) throw refuse(noRecord(name, slug, dir), agentFix('Run the command again with the name of a record of the workflow.'));
   let body;
@@ -169,7 +172,7 @@ export function editRecord(dir, name, change, { slug = basename(dir), now = new 
   try {
     const path = join(tmp, basename(name));
     writeFileSync(path, docText({ frontmatter, body }));
-    return putChecked(dir, path);
+    return putChecked(dir, path, { root });
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 

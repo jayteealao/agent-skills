@@ -229,6 +229,23 @@
         }
       }
     },
+    "slices": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The size limits of a slice and of the slices of a packet (lib/limits.mjs). The plan rule, the slice stage, the issue placer and the packet budget all read them.",
+      "properties": {
+        "maxSteps": { "type": "integer", "minimum": 1, "description": "The most steps that the plan of one slice has. Default 20." },
+        "maxPerPacket": { "type": "integer", "minimum": 1, "description": "The most open slices of one packet. Default 14." }
+      }
+    },
+    "packets": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The size budget of a packet (lib/limits.mjs).",
+      "properties": {
+        "maxSteps": { "type": "integer", "minimum": 1, "description": "The most estimated steps of the open slices of one packet. Default slices.maxPerPacket × slices.maxSteps." }
+      }
+    },
     "issues": {
       "type": "object",
       "additionalProperties": false,
