@@ -85,10 +85,14 @@ export const ownerPathOf = (u) => (u && (u.kind === 'workflow' || u.kind === 'de
  * - A machine: only that machine sends it.
  * - The other units (the repo files, a project file): each path that the remote did not change.
  */
-export function mayChange(u, paths, { B, U, L, text, me }) {
+export function mayChange(u, paths, { B, U, L, H = null, text, me }) {
   if (u.kind === 'machine') return u.machine === me;
   const ownerFile = ownerPathOf(u);
-  const cas = () => paths.every((p) => B.get(p) === U.get(p));
+  // A path that the remote changed after the base is still this computer's when the remote holds
+  // what the branch of this clone committed (`H`): a writer of this clone that commits each change
+  // itself (a session on a wf from before the compose sync) sent it, and the files on the disk
+  // came after it.
+  const cas = () => paths.every((p) => B.get(p) === U.get(p) || (H !== null && H.has(p) && H.get(p) === U.get(p)));
   if (!ownerFile) return cas();
   const [ob, ou, ol] = [B, U, L].map((t) => parseOwner(text(t.get(ownerFile))));
   if (!ob && !ou && !ol) return cas();
@@ -171,6 +175,16 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
     // The held paths are back at their base entries, so the cache matches the snapshot: the next
     // sync reads only what changed after it. Best effort: a missing cache costs time, not data.
     try { copyFileSync(idx, `${cache}.tmp`); renameSync(`${cache}.tmp`, cache); } catch {}
+    // A writer of this clone that commits by itself moved the branch past the synced ref: its
+    // commits are this computer's, and the person is told to restart the session that runs it.
+    const head = ref(`refs/heads/${branch}`);
+    const own = head && base && head !== base && G(['merge-base', '--is-ancestor', base, head]).status === 0 ? head : null;
+    if (own) {
+      const subjects = M(['log', '--format=%cI%x09%s', `${base}..${own}`]).split('\n').filter(Boolean).map((l) => { const [at, ...s] = l.split('\t'); return { at, subject: s.join('\t') }; })
+        .filter((c) => !/^(sync|checkpoint) /.test(c.subject));
+      if (subjects.length) out.directWriter = { commits: subjects.length, last: subjects[0] };
+    }
+    const H = own ? tree(own) : null;
     const prior = ref(LOCAL_REF);
     const parents = [base, prior && prior !== base && G(['merge-base', '--is-ancestor', prior, base ?? prior]).status !== 0 ? prior : null].filter(Boolean);
     const local = M(['commit-tree', snap, ...parents.flatMap((p) => ['-p', p]), '-m', `checkpoint ${me}`]);
@@ -204,8 +218,10 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
         if (!byUnit.has(u.unit)) byUnit.set(u.unit, { u, paths: [] });
         byUnit.get(u.unit).paths.push(p);
       }
-      for (const { u, paths } of byUnit.values()) (mayChange(u, paths, { B, U, L, text, me }) ? send : bad).push(...paths);
+      for (const { u, paths } of byUnit.values()) (mayChange(u, paths, { B, U, L, H, text, me }) ? send : bad).push(...paths);
       out.fenced = [...new Set(bad.map((p) => unitOf(p).unit ?? p))];
+      // A unit with no owner anywhere was not taken by a computer: two writers changed it at once.
+      out.unowned = [...byUnit.values()].filter(({ u, paths }) => paths.some((p) => bad.includes(p)) && u.unit && (() => { const f = ownerPathOf(u); return !f || [B, U, L].every((t) => !parseOwner(text(t.get(f)))); })()).map(({ u }) => u.unit);
 
       // 4. Park what this computer may not send: the whole snapshot, once per tree.
       if (bad.length) {

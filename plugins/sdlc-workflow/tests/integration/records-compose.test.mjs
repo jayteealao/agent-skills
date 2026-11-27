@@ -194,3 +194,33 @@ test('the snapshot cache: a later change is sent, the skipped files never enter 
     assert.equal(x.up('p/x/log'), '3');
   } finally { x.done(); }
 });
+
+test('a writer of this clone that commits by itself is this computer: its changes are sent, and the sync names it', () => {
+  const x = world();
+  try {
+    const c = x.clone('C');
+    x.w(c, 'p/w/log', '1\n');
+    assert.equal(x.sync(c, 'c').pushed, true);
+    // A session on a wf from before the compose sync: it commits each change and pushes it itself.
+    x.w(c, 'p/w/log', '2\n');
+    git(c, 'add', '-A'); git(c, 'commit', '-q', '-m', 'w: record put'); git(c, 'push', '-q', 'origin', 'main');
+    // A newer session of the same computer writes after it, and the committer sends.
+    x.w(c, 'p/w/log', '3\n');
+    const r = x.sync(c, 'c');
+    assert.deepEqual(r.fenced, [], 'no fence: the remote holds what this clone committed');
+    assert.equal(r.parked, null);
+    assert.equal(x.up('p/w/log'), '3');
+    assert.equal(r.directWriter?.commits, 1);
+    assert.equal(r.directWriter?.last.subject, 'w: record put');
+    // A second computer that changes the same unowned workflow is a race: the copy is parked, and
+    // the unit is named as having no owner.
+    const d = x.clone('D');
+    x.w(d, 'p/w/log', '4\n');
+    assert.equal(x.sync(d, 'd').pushed, true);
+    x.w(c, 'p/w/log', '5\n');
+    const raced = x.sync(c, 'c');
+    assert.deepEqual(raced.fenced, ['p/w']);
+    assert.deepEqual(raced.unowned, ['p/w']);
+    assert.equal(raced.directWriter, undefined, 'the branch is where the last sync left it');
+  } finally { x.done(); }
+});

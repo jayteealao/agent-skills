@@ -48,8 +48,9 @@
  *             the answer no to a claim or take-over question: the key does not run here (exit 1)
  *             Example: wf.mjs records decline . demo
  *   records  parked <root> [--json]
- *             the copies that a sync parked on conflict branches, because another computer owned
- *             their workflow
+ *             the copies that a sync parked on conflict branches: another computer owned their
+ *             workflow, or the remote changed a workflow with no owner after this computer's
+ *             last sync (another computer, or a session on a wf older than the compose sync)
  *             Example: wf.mjs records parked .
  *   records  parked show <root> <branch> [--json]
  *             the files that a parked copy holds and the remote does not

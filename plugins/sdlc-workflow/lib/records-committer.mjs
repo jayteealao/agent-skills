@@ -118,7 +118,8 @@ export function syncOnce({ compose = composeNow } = {}) {
   if (r.ok) {
     if (r.pushed && r.sent) change.lastPush = iso(done);
     if (r.applied) change.lastApply = iso(done);
-    change.parked = r.parked ? { branch: r.parked, units: r.fenced } : null;
+    change.parked = r.parked ? { branch: r.parked, units: r.fenced, unowned: r.unowned ?? [] } : null;
+    change.directWriter = r.directWriter ?? null;
     change.lastError = r.pushError && !r.pushed ? { at: iso(done), error: r.pushError } : null;
     change.pending = Boolean(r.held?.length && r.held.some((h) => /lock/.test(h.why ?? '')));
   } else {
@@ -174,13 +175,29 @@ async function loop() {
   }
 }
 
+/**
+ * Why units are parked. A unit with an owner file is owned by another computer. A unit with none
+ * was changed on the remote by a second writer after this computer's last sync: another computer,
+ * or a session of this computer on a wf from before the compose sync, which commits by itself.
+ */
+export function parkedText(parked, directWriter = null) {
+  const unowned = new Set(parked.unowned ?? []);
+  const owned = parked.units.filter((u) => !unowned.has(u));
+  const raced = parked.units.filter((u) => unowned.has(u));
+  const parts = [];
+  if (owned.length) parts.push(`${owned.join(', ')} parked on ${parked.branch}: another computer owns it`);
+  if (raced.length) parts.push(`${raced.join(', ')} parked on ${parked.branch}: the remote changed it after this computer's last sync, from another computer or from a session on an older wf`);
+  if (directWriter?.last) parts.push(`a session on a wf from before the compose sync commits the records of this computer by itself (last: "${directWriter.last.subject}" at ${directWriter.last.at}): restart it so that it sends through the committer`);
+  return parts.join('; ');
+}
+
 /** The line of `wf status` about the sync, or null when it is current. */
 export function syncLine(t = now()) {
   if (!composeOn()) return null;
   const s = readSyncState();
   const wake = readJson(wakePath());
   if (s.lastError?.error) return `records sync failed at ${s.lastError.at}: ${s.lastError.error}`;
-  if (s.parked?.units?.length) return `records: ${s.parked.units.join(', ')} parked on ${s.parked.branch}: another computer owns it`;
+  if (s.parked?.units?.length) return `records: ${parkedText(s.parked, s.directWriter)}`;
   const since = wake && wake.at > (s.syncStarted ?? 0) ? wake.first ?? wake.at : null;
   if (since && t - since > TIMES.lateMs) return `records: changes since ${iso(since)} are saved on this computer and not sent yet${committerAlive() ? '' : ': no committer runs; run wf.mjs records flush'}`;
   return null;

@@ -1157,7 +1157,7 @@ export function flushRecords({ project = null, slug = null } = {}) {
   if (!r.ok) return { landed: false, reason: r.error, result: r };
   const unit = project && slug ? `${project}/${slug}` : null;
   const held = unit ? (r.held ?? []).filter((h) => h.path.startsWith(`${unit}/`) && !/stays out of the commits/.test(h.why ?? '')) : [];
-  if (unit && r.fenced?.includes(unit)) return { landed: false, reason: `another computer owns ${unit}; this copy is parked on ${r.parked}`, result: r };
+  if (unit && r.fenced?.includes(unit)) return { landed: false, reason: (r.unowned ?? []).includes(unit) ? `the remote changed ${unit} after this computer's last sync (another computer, or a session on an older wf); this copy is parked on ${r.parked}` : `another computer owns ${unit}; this copy is parked on ${r.parked}`, result: r };
   if (held.length) return { landed: false, reason: `${held[0].path} was held back: ${held[0].why}`, result: r };
   if (r.offline || (!r.pushed && hasRemote(home))) return { landed: false, reason: r.pushError ?? 'the push did not land (no network?)', result: r };
   return { landed: true, reason: null, result: r };
@@ -1169,7 +1169,7 @@ function composeInto(out, home, project, main) {
   out.compose = r;
   out.pushed = r.pushed;
   out.pulled = [...new Set(r.appliedPaths.filter((p) => p.startsWith(`${project}/`)).map((p) => p.split('/')[1]))];
-  for (const u of r.fenced) out.conflicts.push(`${u}: another computer owns it; this computer's copy is parked on ${r.parked}`);
+  for (const u of r.fenced) out.conflicts.push((r.unowned ?? []).includes(u) ? `${u}: the remote changed it after this computer's last sync (another computer, or a session on an older wf); this computer's copy is parked on ${r.parked}` : `${u}: another computer owns it; this computer's copy is parked on ${r.parked}`);
   return out;
 }
 

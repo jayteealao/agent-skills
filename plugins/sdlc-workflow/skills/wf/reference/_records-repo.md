@@ -54,7 +54,7 @@ The file `owner` of a wf-dir names the one computer that writes the workflow, an
 | `<wf> records claim <root> <slug>` | Make this computer the owner of a free or new workflow. The claim works when its push lands. Offline, only a workflow that never reached the remote starts. |
 | `<wf> records take <root> <slug>` | Take a workflow over from another computer. Run it only after the person said yes to the take-over question: the later work of the other computer is parked. |
 | `<wf> records release <root> <slug> [--to <machine>]` | Send the workflow, then give it up, or hand it to that computer. When a push fails, this computer stays the owner. |
-| `<wf> records parked <root>` | List the parked copies. `parked show <root> <branch>` lists their files, and `parked take <root> <branch> <path>` copies one file in (only the owner). `parked drop <root> <branch>` deletes a copy: ask the person first. |
+| `<wf> records parked <root>` | List the parked copies. A copy is parked when another computer owns its workflow, or when the remote changed a workflow with no owner after this computer's last sync. A change that a session of this computer committed itself (a session on a wf older than the compose sync) is this computer's and is not parked; the sync line names that session, and it should be restarted. `parked show <root> <branch>` lists their files, and `parked take <root> <branch> <path>` copies one file in (only the owner). `parked drop <root> <branch>` deletes a copy: ask the person first. |
 
 A close sends the workflow and keeps the owner. A close whose push failed exits 1: run `<wf> records flush <root> <slug>` when the remote can be reached.
 
