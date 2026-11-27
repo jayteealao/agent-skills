@@ -8,6 +8,7 @@ import path from 'node:path';
 
 import { INDEX_NAME, frontmatterOfDoc, readDoc, writeDoc } from '../../lib/records.mjs';
 import { acBlocks, mergeSlices, splitSlice } from '../../lib/slice-ops.mjs';
+import { appendStep } from '../../lib/steps.mjs';
 import { readDecisions, writeDecisions } from '../../lib/decisions.mjs';
 
 const AC = (n) => `- AC-${n}: Given ${n} When run Then ${n} holds\n  <!-- observable: true — a test sees it -->`;
@@ -108,5 +109,20 @@ test('merge refuses a joined estimate over the step limit', () => {
   const f = fixture();
   try {
     assert.throws(() => mergeSlices(f.dir, 'engine', 'ui', { decision: 'D-001', maxSteps: 20 }, { decisions: f.decisions }), /comes to 30 steps; a slice has 20 steps or fewer/);
+  } finally { f.done(); }
+});
+
+test('a slice whose implement started is cut only after its run of steps hard-stopped', () => {
+  const f = fixture();
+  try {
+    writeDoc(f.dir, '05-implement-engine.md', { frontmatter: { schema: 'sdlc/v1', type: 'implement', slug: 'demo', 'slice-slug': 'engine', status: 'in-progress' } });
+    appendStep(f.dir, { slice: 'engine', event: 'start', step: 3 });
+    const go = () => splitSlice(f.dir, 'engine', { parts: [{ slice: 'engine', acs: '1,2' }, { slice: 'engine-rules', acs: '3,4' }], decision: 'D-001' }, { decisions: f.decisions });
+    assert.throws(go, /cut only when its run of steps is stopped/, 'a step runs: not cut');
+    appendStep(f.dir, { slice: 'engine', event: 'hard-stop', kind: 'fail', reason: 'the check stays red' });
+    const r = go();
+    assert.deepEqual(r.parts.map((p) => p.slice), ['engine', 'engine-rules']);
+    assert.ok(readDoc(f.dir, '05-implement-engine.md'), 'the part named after the slice keeps what is built');
+    assert.equal(readDoc(f.dir, '05-implement-engine-rules.md'), null, 'the new part starts fresh');
   } finally { f.done(); }
 });

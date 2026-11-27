@@ -9,6 +9,7 @@ import { rescopeDecisions } from './decisions.mjs';
 import { bestFirstOf } from './derive.mjs';
 import { syncRosterCopies } from './roster.mjs';
 import { DEFAULT_MAX_STEPS } from './limits.mjs';
+import { readSteps } from './steps.mjs';
 
 const ROSTER = '03-slice.md';
 const sliceRecord = (slice) => `03-slice-${slice}.md`;
@@ -325,9 +326,21 @@ function pickAcs(blocks, ids, part) {
 const estimateOf = (e) => (Number.isInteger(Number(e?.['estimated-steps'])) && Number(e['estimated-steps']) > 0 ? Number(e['estimated-steps']) : null);
 const dependsOf = (s) => (Array.isArray(s?.['depends-on']) ? s['depends-on'] : []);
 
-function notStarted(dir, slice, entry, what) {
+function notStarted(dir, slice, entry, what, { stoppedOk = false } = {}) {
   if (RETIRED.has(String(entry.status)) || FINISHED.has(String(entry.status))) throw new Error(`${what}: ${slice} is ${entry.status}`);
-  if (frontmatterOfDoc(dir, `05-implement-${slice}.md`) || String(entry.status) === 'in-progress') throw new Error(`${what}: ${slice} has started its implement; a started slice is not cut`);
+  if (!frontmatterOfDoc(dir, `05-implement-${slice}.md`) && String(entry.status) !== 'in-progress') return;
+  if (stoppedOk && stoppedRun(dir, slice)) return;
+  throw new Error(`${what}: ${slice} has started its implement; a started slice is cut only when its run of steps is stopped (a hard stop)`);
+}
+
+/** True when the last run of steps of `slice` ended in a hard stop: no step runs, and the run is not complete. */
+export function stoppedRun(dir, slice) {
+  let rows;
+  try { rows = readSteps(dir).filter((r) => r.slice === slice); } catch { return false; }
+  const start = rows.findLastIndex((r) => r.event === 'start');
+  if (start < 0) return false;
+  const after = rows.slice(start + 1);
+  return after.some((r) => r.event === 'hard-stop') && !after.some((r) => r.event === 'complete' || r.event === 'start');
 }
 
 /** Point the `depends-on` of each slice record that names a slice of `map` at its new slice. */
@@ -349,7 +362,8 @@ function repointRecords(dir, roster, map) {
 export function splitSlice(dir, slice, input, { decisions = [] } = {}) {
   personGuard(decisions, input.decision);
   const { roster, entry } = entryOf(dir, slice);
-  notStarted(dir, slice, entry, 'slice split');
+  // A stopped slice is cut too: the part named after it keeps what is built, the new parts start fresh.
+  notStarted(dir, slice, entry, 'slice split', { stoppedOk: true });
   const rec = readDoc(dir, sliceRecord(slice));
   if (!rec?.frontmatter) throw new Error(`slice split: ${slice} has no slice record`);
   const specs = (Array.isArray(input.parts) ? input.parts : []).map((p) => ({ slice: String(p.slice ?? '').trim(), acs: listOf(p.acs) }));

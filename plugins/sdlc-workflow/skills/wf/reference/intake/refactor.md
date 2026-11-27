@@ -119,13 +119,13 @@ Take the frontmatter from the `03-slice.md` planning template in [_change-mode-t
 Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
 
 # Step 4 — Plan → `04-plan.md`
-Plan the refactor as a sequence of atomic steps, each green on its own. Each step leaves the codebase passing (tests green, build passing), is one logical change, and changes only the internal structure, never the external behavior.
+Plan the refactor as a sequence of atomic steps. Each step leaves the codebase building and passes the quick checks (format, lint, type check), is one logical change, and changes only the internal structure, never the external behavior.
 
 First launch one sub-agent to research the target pattern with a web search: the established patterns, the common pitfalls, and the safe incremental approaches (for example strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism). **Effort tier:** give it **low** ([_subagents.md](../_subagents.md)); it is bounded search-and-extract work.
 
 The refactor tripwires are: a step that cannot be made green on its own; an API surface delta when API simplification is not the stated goal; a coverage gap accepted at Step 2. Record each breach per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md).
 Take the frontmatter from the `04-plan.md` planning template in [_change-mode-tail.md](_change-mode-tail.md).
-Body `## Steps`. Each step has: **What changes** (the specific files), **What does NOT change** (the preserved surface), **Verify green** (the test command after this step), **Why before the next** (a dependency, or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta`: `none`, unless API simplification is the stated goal.
+Body `## Steps`. Each step has: **What changes** (the specific files), **What does NOT change** (the preserved surface), **Quick check** (the static check after this step; the tests run once after the last step, or in a step marked `(probe)` when a later step depends on its result), **Why before the next** (a dependency, or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta`: `none`, unless API simplification is the stated goal.
 
 # Step 5 — Finish `00-index.md` (conformant `type: index`)
 Get the index that Step 1 wrote (`record get "<root>" <slug> index`), and finish it. Write its draft from the shared change-mode index template in [_change-mode-tail.md](_change-mode-tail.md), with the values of the `refactor` column: the final `workflow-files`, `progress` and terminus route. `branch` is empty when the person kept the current branch; `stack.user-confirmed: true` after the confirmation of Step 1. Put it.
@@ -135,7 +135,7 @@ Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-
 
 # Step 7 — Hand off to the standard chain
 On proceed, route to the standard chain:
-1. `/wf implement <slug>`: one atomic green step per plan step, never combined. Commit each step as `refactor: <what the step does>`, per [../implement/_steps.md](../implement/_steps.md). When the verify of a step fails, stop, and fix the refactor, not the test. When two fix attempts on the same step fail, do not keep guessing: run `/wf probe <slug> "<the behavior question the failure raises>"`, or bring it to the person.
+1. `/wf implement <slug>`: one atomic step per plan step, never combined; the tests run once after the last step. Commit each step as `refactor: <what the step does>`, per [../implement/_steps.md](../implement/_steps.md). When the tests fail, find the step that broke them, and fix the refactor, not the test. When two fix attempts on the same step fail, do not keep guessing: run `/wf probe <slug> "<the behavior question the failure raises>"`, or bring it to the person.
 2. `/wf verify <slug>`: the full baseline comparison. Run the literal `## Baseline Command` again, and diff its pass, fail and skip counts against `## Baseline Test Result`. Check that every name of `## Public API Surface` still exists with the same signature, and that every caller still works. Any unplanned delta fails verify.
 3. **`/wf review <slug> refactor-safety`**: it checks for unintended behavior changes, subtle semantic differences, and the completeness of the coverage.
 4. `/wf ship` → `/wf retro`.

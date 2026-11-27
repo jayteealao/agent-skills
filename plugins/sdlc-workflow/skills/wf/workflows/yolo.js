@@ -1284,7 +1284,10 @@ function stopCheckClause(cmd) {
     `artifact, edit no file and write NO heartbeat line. The command has written the journal line of the stop, ` +
     `so the watch shows a stop and no stage start. Return status 'stopped', stopReason quoting the "reason" of the line, ` +
     `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete the ` +
-    `control file: the main session owns it.`
+    `control file: the main session owns it. A stop after a step can also come later: when \`step done\` returns a ` +
+    `"next" that starts with "stop requested", do not start the next step. Write the stage record as it stands ` +
+    `(status in-progress, the steps done so far), run no other check, and return status 'stopped' with stopReason ` +
+    `quoting that "next". The next run resumes at the next step.`
 }
 const stopCheck = () => stopCheckClause(`node "${WATCH}" stop-check "${projectRoot}" ${slug}`)
 
@@ -3196,7 +3199,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // An implement that hard-stopped SPLIT_AFTER_STOPS times on this slice runs no third time.
     if (stage === 'implement' && ((entry && entry.implementStops) || 0) >= SPLIT_AFTER_STOPS) {
       return stopOut('implement',
-        `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (/wf slice ${slug}), ` +
+        `implement of '${sliceArg}' hard-stopped ${entry.implementStops} times: split the slice (slice split: the part named after it keeps what is built, the new parts take the criteria not built yet), ` +
           `or record a retry (${wf(`${WF_CMD} step retry "${projectRoot}" ${slug} ${sliceArg}`)}) and run /wf yolo ${slug} again. The stops that were counted: ${wf(`${WF_CMD} step where "${projectRoot}" ${slug} ${sliceArg}`)}`,
         { slice: sliceArg, ran, split: true })
     }

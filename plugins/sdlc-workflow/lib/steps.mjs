@@ -465,7 +465,7 @@ export function whereLine(w) {
     ...w.done.filter((d) => d.state === 'moved').map((d) => `step ${d.n} moved ${String(d.oldSha).slice(0, 8)} → ${String(d.sha).slice(0, 8)}`),
     ...w.done.filter((d) => d.state === 'unverified').map((d) => `step ${d.n} is unverified: its branch is not on this machine`),
     ...w.dropped.map((d) => `step ${d.n} dropped: its commit left the branch`),
-    w.hardStops ? `${w.hardStops} hard-stop(s)${w.splitQuestion ? ': ask the person to split the slice' : ''}${(w.failStops ?? []).map((f) => ` [${String(f.at ?? '').slice(0, 16)} ${f.reason ?? 'no reason'}]`).join('')}` : null,
+    w.hardStops ? `${w.hardStops} hard-stop(s)${w.splitQuestion ? ': ask the person to split the slice (slice split: the part named after it keeps what is built)' : ''}${(w.failStops ?? []).map((f) => ` [${String(f.at ?? '').slice(0, 16)} ${f.reason ?? 'no reason'}]`).join('')}` : null,
   ].filter(Boolean);
   return `${w.slice}: ${n} of ${w.total} steps done; ${at}${extra.length ? `; ${extra.join('; ')}` : ''}`;
 }

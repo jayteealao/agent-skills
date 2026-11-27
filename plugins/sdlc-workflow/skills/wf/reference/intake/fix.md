@@ -101,7 +101,7 @@ Body (tight): `## In Scope` (1 to 3 bullets), `## Out of Scope` (1 to 3), `## Kn
 Body (one line): "Single-slice lifecycle — the whole fix is one slice."
 
 **`04-plan.md` — `type: plan`:**
-Body: `## Steps`, a numbered list of at most 5 implementation steps. Each step names the files it touches, states the change in 1 or 2 lines, and lists its verification (lint? test? manual check? screenshot?). Then `## Verification`: **Tests to run** (specific commands) and **Manual checks** (specific URLs, flows and visual checks).
+Body: `## Steps`, a numbered list of at most 5 implementation steps. Each step names the files it touches, states the change in 1 or 2 lines, and names its quick check (format, lint or type check); tests and manual checks go under `## Verification`, once, after the last step. Then `## Verification`: **Tests to run** (specific commands) and **Manual checks** (specific URLs, flows and visual checks).
 
 ### Tripwires (warn-and-continue — never refuse)
 The fix tripwires are: more than 3 files touched; more than 5 implementation steps; a new external dependency; an architectural change (a new module, a schema migration, the public API surface, a cross-cutting behavior change); more than 2 questions that cannot be answered. Record every breach per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md): the `## Tripwire breaches` section in `04-plan.md`, and the mirrored `intent-risks` entry. Still write a valid plan.

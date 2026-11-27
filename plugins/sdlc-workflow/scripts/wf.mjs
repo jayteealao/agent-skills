@@ -637,7 +637,9 @@
  *             Example: wf.mjs record stage-done . demo implement api
  *   record   list|where|migrate <root> <slug> [<old path>]
  *             the records of a workflow; the new place of an old path; move a workflow of
- *             the old layout into the record files, with redirects.yaml
+ *             the old layout into the record files, with redirects.yaml, and work out its
+ *             derived fields again (total-slices, best-first-slice, the counts, the roster
+ *             copies): run it on a workflow whose stored counts were written by hand
  *             Example: wf.mjs record list . demo
  *   record   evidence <root> <slug> [--check] [--json]
  *             the size of the evidence; delete the oldest runs over the 200 MB cap (put does
@@ -1447,11 +1449,12 @@ export function runStep(pos, opt) {
     // Outside a driver nothing else ends the run: a finished implement is done, not a dead run.
     writeProgress(dir, { slice, step: null, ...(readProgress(dir)?.driver ? {} : { status: 'done' }) });
   }
-  // A stop request of the person (control stop --after step or current) ends the stage after this
-  // step: the agent reads `next` and returns, and the driver ends the run cleanly.
+  // A stop request of the person after a step (control stop --after step) ends the stage after this
+  // step: the agent reads `next` and returns, and the driver ends the run cleanly. A stop after the
+  // current agent does not cut the agent short.
   let stop = null;
   if (verb === 'done') {
-    try { const c = stopCheck(projectRoot, slug); if (c.stop && ['step', 'current'].includes(c.request?.after ?? 'current')) stop = c.reason; } catch { stop = null; }
+    try { const c = stopCheck(projectRoot, slug); if (c.stop && c.request?.after === 'step') stop = c.reason; } catch { stop = null; }
   }
   const stopNext = stop ? `stop requested (${stop}): end the stage now. Record where it stands, do not start step ${Number(line.step) + 1}, and return.` : null;
   out(opt.json ? { ...line, ...(stopNext ? { next: stopNext } : {}) } : [`${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}${line.noChange ? ' (no change)' : ''}${line.kind && line.kind !== 'fail' ? ` (${line.kind})` : ''}`, ...(stopNext ? [`next: ${stopNext}`] : [])].join('\n'));

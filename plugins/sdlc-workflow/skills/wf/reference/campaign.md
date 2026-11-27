@@ -100,11 +100,11 @@ Dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to
 - The decision store settles the open items of the work packet: an answer of the person, or a steer that leaves the choice to the build. For a steer, choose the option that best fits the acceptance criteria, and record the choice as an assumption.
 - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has no more steps than the step limit of the project (`slices.maxSteps` of `.ai/sdlc-config.json`, default 20). Do not size a slice by lines.
 - A steer of the person that every work packet needs is a rule of the project: write it once with `rule add`, and do not copy it into each packet.
-- Aim for 10 slices. Above 14, merge before you write, per step 4 of [slice.md](slice.md); return a warning only when the count is still above 14.
+- Aim for 10 slices. Above the slice limit (`slices.maxPerPacket`, default 14), merge before you write, per step 4 of [slice.md](slice.md); return a warning only when the count is still above it.
 - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
 - When `02c-craft.md` exists, map each slice to its screen keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
 - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
-- When `work/<packet-slug>.issues.json` exists next to the packet, the issues in it were placed in this packet by the run of an earlier packet. Put each one into the slice whose scope covers it, under `## Carried Issues`, or into a slice of its own when none does.
+- An issue that the run of an earlier packet placed in this packet is on the talk of this workflow: `campaign open` posts each one (`carriedIssues` in its result) and moves `work/<packet-slug>.issues.json` to `work/history/`. The run investigates and places them like any issue ([_issue-placement.md](_issue-placement.md)).
 
 When the subagent returns the warning, tell the person the slice count. The person can split the work packet later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer.
 
@@ -120,7 +120,7 @@ A driver runs in this checkout. Wait for the run to end, and hand back per yolo.
 
 ### `driver-stop`
 
-The last run stopped (`stoppedAt`, `reason`). Write `tell`, and follow the person's answer. To go on, resume the driver on `args.slug` per yolo.md "Resuming", as `launch-driver` does. The person can also skip the work packet (below).
+The last run stopped (`stoppedAt`, `reason`). Write `tell`, and follow the person's answer. When the stop is the limit question of a refused roster (slice.md step 4) and the person picks a split, run `split` per "Split a work packet" below. To go on, resume the driver on `args.slug` per yolo.md "Resuming", as `launch-driver` does. The person can also skip the work packet (below).
 
 ### `place-issue`
 
@@ -129,7 +129,7 @@ The run reached its endpoint with open issues on its talk ([_issue-placement.md]
 - When the action has `ask`, the issues wait for the person. Ask each one with its held question (`key`), with the options "Add a slice in this workflow", "Leave it to a later packet or workflow" and "Park it", then record the answer with `decide add --kind answer --key <key>`, and run `next` again: the next `place-issue` applies it.
 - When the action has `relaunch`, the run did not investigate those issues. Launch the driver on `relaunch.args.slug` as `launch-driver` does: it investigates them, places them, and drives a slice that a placement adds.
 
-Then run `then.next`. An issue placed in the next packet goes to `work/<packet-slug>.issues.json`, and the `slice` step of that packet reads it.
+Then run `then.next`. An issue placed in the next packet goes to `work/<packet-slug>.issues.json`; `campaign open` of that packet posts each one on its talk.
 
 ### `built`
 
@@ -169,7 +169,7 @@ Every work packet is `done` or `dropped`. Ask what `ask` lists, and record the a
 
 ## Split a work packet
 
-A started work packet is frozen to `write`: its scope changes only through its slices. When its roster is over its step budget or its slice limit (status shows `steps` against `budget`, and `openSlices`, for each work packet), the person decides how to cut it. Then move the slices that have not started to a new work packet right after it:
+A started work packet is frozen to `write`: its scope changes only through its slices. When its roster is over its step budget or its slice limit (`campaign status` shows `steps.total`, `steps.budget`, `steps.over` and `openSlices` for each work packet), the person decides how to cut it. Then move the slices that have not started to a new work packet right after it:
 
 `<cmd> split "<root>" <source-slug> <packet-key> --slices <a,b> --into <new-key> [--title t] [--reason r]`
 

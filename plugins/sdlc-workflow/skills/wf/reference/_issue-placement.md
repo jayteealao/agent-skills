@@ -10,7 +10,7 @@ An issue that a run finds goes to the lowest place that can take it. A new slice
 2. The driver (yolo) or the lead (orchestrate) starts a read-only investigation, which writes `05i-issue-<key>.md` ([_issue-investigate.md](_issue-investigate.md)). It runs alongside the next slice.
 3. At the next boundary between slices, the driver runs `<wf> issue place "<projectRoot>" <slug> <id> --apply`. The command reads the investigation and the state of the slices, chooses the rung, writes `placement` into the record, does what the rung says, and posts a `placed:` line in the thread.
 
-On Claude the same calls are MCP tools: `wf_run { "op": "talk post", "issue": true, … }`, `wf_read { "issues": true }`, `wf_run { "op": "issue place", "apply": true, … }`.
+On Claude the same calls are MCP tools: `wf_run { "op": "talk post", "issue": true, … }`, `wf_read { "slug": "<slug>", "items": [{ "issues": true }] }`, `wf_run { "op": "issue place", "apply": true, … }`.
 
 ## The ladder
 
@@ -22,8 +22,10 @@ On Claude the same calls are MCP tools: `wf_run { "op": "talk post", "issue": tr
 | 4 | a later slice that has not started | the same | `slice carry` |
 | 4b | the slug-wide review | no open slice is left, and the review has not run | a talk request to the review |
 | 5 | a new slice | the proof gate holds | `slice add` from the proposal of the investigation |
-| 6 | the next packet of the campaign | its scope covers the issue | the issue goes to `work/<packet>.issues.json` |
+| 6 | the next packet of the campaign | its scope covers the issue, and it is not full | the issue goes to `work/<packet>.issues.json`; `campaign open` of that packet posts it on its talk and moves the file to `work/history/` |
 | 7 | the person | nothing below holds | a held question |
+
+**The budget closes rungs 3 to 5.** When the investigation gives no `size.steps`, or the fix would put the packet over its step budget (`packets.maxSteps`), rungs 3 to 5 are closed: the issue goes to rung 6, or to rung 7 when the next packet is full or there is none.
 
 **The proof gate of rung 5.** The cause is reproduced, the reproduction command is in the record, no open slice covers the issue with room to spare, each open slice that does not cover it says why, and the investigation proposes the slice with its scope and its criteria. A slice added this way runs after the owner slice, and the run drives it.
 

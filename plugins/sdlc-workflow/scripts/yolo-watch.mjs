@@ -24,7 +24,7 @@
  *       watch gives one inferred run-end and exits.
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
- *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
+ *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|step|plan|implement|verify|review>
  *   node yolo-watch.mjs control <projectRoot> <slug> clear|show
  *       Write, delete or print .ai/run/<slug>/.control.json (the stop request).
  *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>] [--reason <text>] [--run <id>]
