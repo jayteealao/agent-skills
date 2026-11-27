@@ -790,13 +790,13 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now,
   // fidelity approvals and the try-out to the same store.
   const store = [];
   for (const d of decisions) {
-    appendEntry(store, { kind: 'answer', key: d.key, answer: d.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${d.key}` }, { now });
+    appendEntry(store, { kind: 'answer', key: d.key, answer: d.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${d.key}` }, { now, copied: true });
   }
   for (const q of decideItems) {
     appendEntry(store, {
       kind: 'steer', key: q.key, question: q.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${q.key}`,
       answer: 'The person left this to the build. Choose the option that best fits the acceptance criteria, and record the choice as an assumption.',
-    }, { now });
+    }, { now, copied: true });
   }
   // Every live steer of the brainstorm that binds this packet goes with it: one scoped to the
   // packet, and one scoped to no packet. The board answers above are only the decisions the board
@@ -807,7 +807,7 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now,
     const p = e.scope?.packet;
     if (p && p !== packet.key && p !== slug) continue;
     const { packet: _p, ...scope } = e.scope ?? {};
-    appendEntry(store, { kind: 'steer', key: e.key ?? null, question: e.question ?? null, answer: e.answer, by: e.by === 'person' ? 'person' : e.by, scope, stage: 'brainstorm', source: `${src}/decisions.yaml#${e.id}` }, { now });
+    appendEntry(store, { kind: 'steer', key: e.key ?? null, question: e.question ?? null, answer: e.answer, by: e.by === 'person' ? 'person' : e.by, scope, stage: 'brainstorm', source: `${src}/decisions.yaml#${e.id}` }, { now, copied: true });
   }
   return {
     [INDEX_NAME]: { frontmatter: index, body: '' },
@@ -882,7 +882,7 @@ function splitCmd(root, src, [key], f) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(into)) return { ok: false, error: `split: ${into} must be lower-case words joined by -`, fix: agentFix('Run split again with a key of lower-case words joined by -.') };
   if (packets.some((p) => p.key === into || p['packet-slug'] === into) || hasDoc(wfDir(root, into), INDEX_NAME)) return { ok: false, error: `split: ${into} is a packet or a workflow already`, fix: agentFix('Run split again with a new key.') };
   const last = lastJournalLine(root, slug);
-  if (last && last.event !== 'run-end') return { ok: false, error: `split: a run of ${slug} has not ended; a packet is split between runs`, fix: agentFix(`Stop the run of ${slug} (control stop --after stage), wait for its end, then run split again.`) };
+  if (last && last.event !== 'run-end') return { ok: false, error: `split: a run of ${slug} has not ended; a packet is split between runs`, fix: agentFix(`Stop the run of ${slug} (control stop --after current), wait for its end, then run split again.`) };
   const dir = wfDir(root, slug);
   const roster = rosterEntries(dir);
   if (!roster) return { ok: false, error: `split: ${slug} has no roster (03-slice.md)`, fix: agentFix(`Slice ${slug} first: /wf slice ${slug}.`) };
@@ -894,7 +894,7 @@ function splitCmd(root, src, [key], f) {
   }
   const gone = new Set(moving);
   const waits = roster.filter((s) => !gone.has(s.slug) && !['skipped', 'dropped'].includes(String(s.status)) && (s['depends-on'] ?? []).some((d) => gone.has(d)));
-  if (waits.length) return { ok: false, error: `split: ${waits.map((s) => `${s.slug} waits for ${(s['depends-on'] ?? []).filter((d) => gone.has(d)).join(', ')}`).join('; ')}; a slice that stays cannot wait for the later packet`, fix: agentFix(`Move ${waits.map((s) => s.slug).join(', ')} too, or leave the slices they wait for out of --slices.`) };
+  if (waits.length) return { ok: false, error: `split: ${waits.map((s) => `${s.slug} waits for ${(s['depends-on'] ?? []).filter((d) => gone.has(d)).join(', ')}`).join('; ')}; a slice that stays cannot wait for the later packet`, fix: agentFix(`Move ${waits.map((s) => s.slug).join(', ')} too, or leave the slices they wait for out of --slices. To cut a packet into several, split off the last packet first: its slices wait for the earlier ones, and none waits for them.`) };
   // The board: the new packet right after this one, written as any packet is.
   const sdir = sourceDir(root, src);
   const boardFile = boardFileOf(sdir);
@@ -913,41 +913,74 @@ function splitCmd(root, src, [key], f) {
     'ux-impact': parent['ux-impact'] ?? 'none', 'ux-impact-confirmed': true, 'try-out': parent['try-out'] ?? 'no', 'estimated-slices': moving.length,
   });
   board.work = work;
-  const before = readFileSync(boardPath, 'utf8');
-  writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
-  const wrote = writeList(sdir, { isIgnored: gitIgnoredCheck(root), boardFile, limits: limitsOf(root) });
-  if (!wrote.ok) {
-    writeFileAtomic(boardPath, before);
-    return { ok: false, error: `split: the list does not pass its check with ${into}: ${(wrote.errors ?? [wrote.error]).join('; ')}`, fix: boardErrorsFix('write', sdir) };
-  }
-  const opened = openCmd(root, src, [into], f);
-  if (!opened.ok) return { ...opened, error: `split: ${into} is on the list, and its open failed: ${opened.error}` };
-  // The slices move with their records; the target needs a roster to take them.
+  // The split is all or nothing: the files that it writes are kept, and put back on any failure.
   const target = wfDir(root, into);
-  if (!hasDoc(target, '03-slice.md')) writeDoc(target, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: into, slices: [] } });
-  const moved = [];
-  for (const s of roster.filter((x) => gone.has(x.slug)).map((x) => x.slug)) {
-    moveSlice(dir, target, s, { fromSlug: slug, toSlug: into, reason: `campaign split: ${reason}` });
-    moved.push(s);
+  const kept = keepFiles([sdir, join(sdir, 'work'), join(sdir, 'history'), join(sdir, 'work', 'archive', 'packets'), dir]);
+  const targetWas = existsSync(target);
+  const undo = (error, extra = {}) => {
+    putBack(kept);
+    if (!targetWas && existsSync(target)) rmSync(target, { recursive: true, force: true });
+    return { ok: false, error, fix: agentFix('Nothing of the split was kept. Fix the cause that the error names, then run split again.'), ...extra, undone: true };
+  };
+  try {
+    writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+    const wrote = writeList(sdir, { isIgnored: gitIgnoredCheck(root), boardFile, limits: limitsOf(root) });
+    if (!wrote.ok) return undo(`split: the list does not pass its check with ${into}: ${(wrote.errors ?? [wrote.error]).join('; ')}`, { fix: boardErrorsFix('write', sdir) });
+    const opened = openCmd(root, src, [into], f);
+    if (!opened.ok) return undo(`split: the open of ${into} failed, and the split is undone: ${opened.error}`, opened.fix ? { fix: opened.fix } : {});
+    // The slices move with their records; the target needs a roster to take them.
+    if (!hasDoc(target, '03-slice.md')) writeDoc(target, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: into, slices: [] } });
+    const moved = [];
+    for (const s of roster.filter((x) => gone.has(x.slug)).map((x) => x.slug)) {
+      moveSlice(dir, target, s, { fromSlug: slug, toSlug: into, reason: `campaign split: ${reason}` });
+      moved.push(s);
+    }
+    // A moved slice that waited for a slice that stays waits for nothing now: the packet order holds it.
+    const tf = readDoc(target, '03-slice.md')?.frontmatter ?? {};
+    const crossed = [];
+    setRecordFields(target, '03-slice.md', { slices: (tf.slices ?? []).map((s) => {
+      const d = (s['depends-on'] ?? []).filter((x) => gone.has(x));
+      const cut = (s['depends-on'] ?? []).filter((x) => !gone.has(x));
+      if (cut.length) crossed.push(`${s.slug} after ${cut.join(', ')} of ${slug}`);
+      return { ...s, 'depends-on': d };
+    }) });
+    for (const s of moved) {
+      const fm = readDoc(target, `03-slice-${s}.md`)?.frontmatter;
+      if (fm) setRecordFields(target, `03-slice-${s}.md`, { 'depends-on': (fm['depends-on'] ?? []).filter((x) => gone.has(x)) });
+    }
+    const decisions = moveScopedDecisions(dir, target, gone, { from: slug, to: into });
+    const packetWide = copyPacketDecisions(dir, target, { from: slug, to: into });
+    return { ok: true, key: packet.key, into, slug: into, order: order + 1, moved, decisions, packetWide, ...(crossed.length ? { crossed } : {}), ...(opened.carriedIssues ? { carriedIssues: opened.carriedIssues } : {}) };
+  } catch (err) {
+    return undo(`split: ${err?.message ?? err}; the split is undone`, err?.fix ? { fix: err.fix } : {});
   }
-  // A moved slice that waited for a slice that stays waits for nothing now: the packet order holds it.
-  const tf = readDoc(target, '03-slice.md')?.frontmatter ?? {};
-  const crossed = [];
-  setRecordFields(target, '03-slice.md', { slices: (tf.slices ?? []).map((s) => {
-    const d = (s['depends-on'] ?? []).filter((x) => gone.has(x));
-    const cut = (s['depends-on'] ?? []).filter((x) => !gone.has(x));
-    if (cut.length) crossed.push(`${s.slug} after ${cut.join(', ')} of ${slug}`);
-    return { ...s, 'depends-on': d };
-  }) });
-  for (const s of moved) {
-    const fm = readDoc(target, `03-slice-${s}.md`)?.frontmatter;
-    if (fm) setRecordFields(target, `03-slice-${s}.md`, { 'depends-on': (fm['depends-on'] ?? []).filter((x) => gone.has(x)) });
-  }
-  const decisions = moveScopedDecisions(dir, target, gone, { from: slug, to: into });
-  const packetWide = copyPacketDecisions(dir, target, { from: slug, to: into });
-  return { ok: true, key: packet.key, into, slug: into, order: order + 1, moved, decisions, packetWide, ...(crossed.length ? { crossed } : {}), ...(opened.carriedIssues ? { carriedIssues: opened.carriedIssues } : {}) };
 }
 
+/** The files directly in each folder of `dirs` (not their sub-folders), with their bytes. */
+function keepFiles(dirs) {
+  const kept = [];
+  for (const d of dirs) {
+    let names = [];
+    try { names = readdirSync(d, { withFileTypes: true }); } catch { names = null; }
+    kept.push({ dir: d, existed: names !== null, files: new Map((names ?? []).filter((n) => n.isFile()).map((n) => [n.name, readFileSync(join(d, n.name))])) });
+  }
+  return kept;
+}
+
+/** Put the folders of `keepFiles` back as they were: each kept file rewritten, each new file removed. */
+function putBack(kept) {
+  for (const { dir, existed, files } of kept) {
+    let now = [];
+    try { now = readdirSync(dir, { withFileTypes: true }).filter((n) => n.isFile()).map((n) => n.name); } catch { now = []; }
+    for (const n of now) if (!files.has(n)) rmSync(join(dir, n), { force: true });
+    if (!existed) continue;
+    for (const [n, bytes] of files) {
+      let same = false;
+      try { same = readFileSync(join(dir, n)).equals(bytes); } catch { same = false; }
+      if (!same) writeFileAtomic(join(dir, n), bytes);
+    }
+  }
+}
 /**
  * The live decisions that bind the whole of `from` (no slice in their scope) bind the part split
  * from it too: each is copied to the store of `toDir` with `copied-from` and a `moves` line, and
@@ -1629,8 +1662,15 @@ const boardSchemaFix = (root, src, phase) => agentFix(`The migration wrote nothi
 const noBoardFix = () => agentFix('Pass the folder of the brainstorm that holds the board (its workflow folder), or the board file itself.');
 
 /** The last line of the driver journal of a workflow, or null. */
-function lastJournalLine(root, slug) {
-  try { return parseJsonLines(readFileSync(join(wfDir(root, slug), '.driver-journal.jsonl'), 'utf8')).lines.at(-1) ?? null; } catch { return null; }
+/**
+ * The last line of the driver journal of a workflow that says where its run stands. The run-end
+ * agent writes its own start and end lines around the run-end line, and after it: they are not
+ * the state of the run, so they are skipped.
+ */
+export function lastJournalLine(root, slug) {
+  let lines;
+  try { lines = parseJsonLines(readFileSync(join(wfDir(root, slug), '.driver-journal.jsonl'), 'utf8')).lines; } catch { return null; }
+  return lines.findLast((l) => l.event === 'run-end' || l.agent !== 'run-end') ?? null;
 }
 
 /** The fidelity and try-out findings that the walk put in the ledger after the last run of the packet ended. */

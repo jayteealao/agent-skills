@@ -188,13 +188,18 @@ export function dropAnswered(list, questions, query = {}) {
 /**
  * Append an entry to a list in memory. A live entry with the same key and the same scope is
  * superseded by the new one. Returns { entry, superseded }.
+ *
+ * `copied`: the entry is a copy of one that the person already recorded elsewhere, and
+ * `input.source` names where. An agent of a run may carry such a copy (a packet takes the
+ * decisions of its brainstorm); it still never writes a new entry in the name of the person.
  */
-export function appendEntry(list, input, { now = nowIso() } = {}) {
+export function appendEntry(list, input, { now = nowIso(), copied = false } = {}) {
   const kind = input.kind ?? 'answer';
   // With no --by, the session of the person records the words of the person. An agent of a run never does.
   const by = input.by ?? (kind === 'note' || kind === 'settled' || callerActor() ? 'stage' : 'person');
-  if (by === 'person') personOnly('record an entry');
-  else if (kind === 'steer' || kind === 'approval') personOnly(`write ${kind === 'steer' ? 'a steer' : 'an approval'}`);
+  const copy = copied && typeof input.source === 'string' && input.source.trim() !== '';
+  if (!copy && by === 'person') personOnly('record an entry');
+  else if (!copy && (kind === 'steer' || kind === 'approval')) personOnly(`write ${kind === 'steer' ? 'a steer' : 'an approval'}`);
   if (!KINDS.includes(kind)) {
     throw refuse(`kind ${kind} is not a kind; the kinds are: answer (a decision or a choice), steer (a standing rule of the person), approval (a sign-off of a decision), try-out (a manual check: works or fails), delegate (a decision that the run made for the person), note (a hand-off from a stage to one slice), settled (a decision that a stage settled itself)`, agentFix('Run the command again with a --kind that the error lists.'));
   }

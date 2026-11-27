@@ -1588,3 +1588,51 @@ test('a build packet whose workflow was closed outside the walk stops the walk; 
     assert.deepEqual([rec(root, 'demo-screen', '00-index.md').status, rec(root, 'demo-screen', '00-index.md')['close-reason']], ['closed', 'abandoned']);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('split: a run that ended is ended after its run-end agent writes; an agent may split; a failure keeps nothing', () => {
+  const root = makeRepo();
+  const actor = process.env.WF_ACTOR;
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(runCampaign(['write', dir]).ok, true);
+    assert.equal(runCampaign(['open', root, SRC, 'engine']).ok, true);
+    const eng = path.join(workflowsRoot(root), 'demo-engine');
+    writeDoc(eng, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: 'demo-engine', slices: [{ slug: 'core', status: 'complete' }, { slug: 'rules', status: 'defined' }, { slug: 'docs', status: 'defined' }] } });
+    for (const s of ['rules', 'docs']) writeDoc(eng, `03-slice-${s}.md`, { frontmatter: { schema: 'sdlc/v1', type: 'slice', slug: 'demo-engine', 'slice-slug': s, status: 'defined' }, body: `# Slice: ${s}\n` });
+    // The run-end agent writes its own end line after the run-end line: the run has ended.
+    const run = 'r1';
+    writeFileSync(path.join(eng, '.driver-journal.jsonl'), [
+      { at: '2026-11-27T19:49:00Z', run, event: 'agent-start', agent: 'implement:rules' },
+      { at: '2026-11-27T19:49:34Z', run, event: 'run-end', agent: 'run-end', stoppedAt: 'stop-request' },
+      { at: '2026-11-27T19:50:31Z', run, event: 'agent-end', agent: 'run-end', status: 'complete' },
+    ].map((l) => JSON.stringify(l)).join('\n') + '\n');
+    // A failure part way keeps nothing: a store that cannot be read stops the split after the open.
+    const sdir = wf(root, SRC);
+    const boardBefore = readFileSync(path.join(sdir, readdirSync(sdir).find((f) => /board\.json$/.test(f))), 'utf8');
+    const workBefore = readdirSync(path.join(sdir, 'work')).sort();
+    writeFileSync(path.join(eng, 'decisions.yaml'), 'decisions: [\n  - : : not yaml\n');
+    const bad = runCampaign(['split', root, SRC, 'engine', '--slices', 'docs', '--into', 'engine-docs']);
+    assert.equal(bad.ok, false);
+    assert.equal(bad.undone, true, bad.error);
+    assert.equal(readFileSync(path.join(sdir, readdirSync(sdir).find((f) => /board\.json$/.test(f))), 'utf8'), boardBefore, 'the board is as it was');
+    assert.deepEqual(readdirSync(path.join(sdir, 'work')).sort(), workBefore, 'no packet file is left');
+    assert.equal(existsSync(path.join(workflowsRoot(root), 'engine-docs')), false, 'no workflow folder is left');
+    assert.deepEqual(frontmatterOfDoc(eng, '03-slice.md').slices.map((s) => s.status), ['complete', 'defined', 'defined'], 'the slice did not move');
+    rmSync(path.join(eng, 'decisions.yaml'), { force: true });
+    // An agent of a run (a call through the wf tools) splits, and the decisions of the person go along as copies.
+    addDecision(sdir, { kind: 'steer', by: 'person', key: 'quick-steps', question: 'What does a step run?', answer: 'only the quick checks', scope: {} });
+    process.env.WF_ACTOR = 'session';
+    const r = runCampaign(['split', root, SRC, 'engine', '--slices', 'docs', '--into', 'engine-docs']);
+    assert.equal(r.ok, true, r.error);
+    assert.deepEqual(r.moved, ['docs']);
+    const copied = readDecisions(path.join(workflowsRoot(root), 'engine-docs')).find((e) => e.key === 'quick-steps');
+    assert.equal(copied?.by, 'person', 'the steer of the person is copied, in the name of the person');
+    assert.throws(() => addDecision(eng, { kind: 'steer', by: 'person', key: 'new', answer: 'x', scope: {} }), /is an agent of a run/, 'an agent still writes no new entry for the person');
+  } finally {
+    if (actor === undefined) delete process.env.WF_ACTOR; else process.env.WF_ACTOR = actor;
+    rmSync(root, { recursive: true, force: true });
+  }
+});

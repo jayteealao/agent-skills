@@ -69,6 +69,12 @@ export function commandOf(op, fields = {}, root = null) {
   // The context of a call (the slug of the workflow, JSON output) on an op that takes neither:
   // the op runs without it, and says so.
   const warnings = [];
+  // A campaign op names its brainstorm `source`; the slug of a call names the same folder.
+  if (known.has('source') && !known.has('slug') && f.source === undefined && typeof f.slug === 'string' && f.slug) {
+    f.source = f.slug;
+    delete f.slug;
+    warnings.push(`${op} takes the brainstorm as source: it ran with source ${f.source}`);
+  }
   for (const k of HARMLESS) {
     if (f[k] !== undefined && !known.has(k)) { warnings.push(`${op} takes no ${k}: it ran without it`); delete f[k]; }
   }
